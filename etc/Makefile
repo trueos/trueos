@@ -26,6 +26,7 @@ BIN1=	crontab \
 	login.access \
 	login.conf \
 	mac.conf \
+	make.conf \
 	motd \
 	netconfig \
 	network.subr \
@@ -37,6 +38,8 @@ BIN1=	crontab \
 	protocols \
 	rc \
 	rc.bsdextended \
+	rc.conf.pcbsd \
+	rc.delay \
 	rc.firewall \
 	rc.initdiskless \
 	rc.sendmail \

@@ -28,17 +28,15 @@
 # $FreeBSD$
 #
 
-# System startup script run by init on autoboot
-# or after single-user.
-# Output and error are redirected to console by init,
-# and the console is the controlling terminal.
+# Delayed system startup script run by /etc/rc after bootup
+# Output and error are redirected to /var/log/rc_delay.log
 
 # Note that almost all of the user-configurable behavior is no longer in
 # this file, but rather in /etc/defaults/rc.conf.  Please check that file
 # first before contemplating any changes here.  If you do need to change
 # this file for some reason, we would like to know about it.
 
-stty status '^T' 2> /dev/null
+stty status '^T'
 
 # Set shell to ignore SIGINT (2), but not children;
 # shell catches SIGQUIT (3) and returns to single user.
@@ -50,14 +48,11 @@ HOME=/
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 export HOME PATH
 
-if [ "$1" = autoboot ]; then
-	autoboot=yes
-	_boot="faststart"
-	rc_fast=yes        # run_rc_command(): do fast booting
-else
-	autoboot=no
-	_boot="quietstart"
-fi
+autoboot=yes
+_boot="faststart"
+rc_fast=yes        # run_rc_command(): do fast booting
+_log="/var/log/rc_delay.log"
+echo "Starting delayed services `date`" > $_log
 
 dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
 if [ ${dlv:=0} -ne 0 -o -f /etc/diskless ]; then
@@ -77,98 +72,27 @@ if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
 	if [ "$early_late_divider" = "FILESYSTEMS" ]; then
 		early_late_divider=NETWORKING
 	fi
-	if [ `/sbin/sysctl -n security.jail.vnet` -ne 1 ]; then
-		skip="$skip -s nojailvnet"
-	fi
 fi
-
-# Do a first pass to get everything up to $early_late_divider so that
-# we can do a second pass that includes $local_startup directories
-#
-files=`rcorder ${skip} /etc/rc.d/* 2>/dev/null`
-
-_rc_elem_done=' '
-for _rc_elem in ${files}; do
-	run_rc_script ${_rc_elem} ${_boot}
-	_rc_elem_done="${_rc_elem_done}${_rc_elem} "
-
-	case "$_rc_elem" in
-	*/${early_late_divider})	break ;;
-	esac
-done
 
 unset files local_rc
+_rc_elem_done="$1"
 
-# Check if we are needing to finish up a freebsd-update
-if [ -e "/var/.freebsd-update-finish" ] ; then
-   TERM="cons25" ; export TERM
-   clear
-   echo "Installing FreeBSD updates... Please wait..."
-   /usr/sbin/freebsd-update --non-interactive install
-   if [ -e "/usr/local/bin/pc-softwaremanager" ] ; then
-     /usr/local/bin/pc-extractoverlay desktop
-   else
-     /usr/local/bin/pc-extractoverlay server
-   fi
+# Now that disks are mounted, for each dir in $local_startup
+# search for init scripts that use the new rc.d semantics.
+#
+case ${local_startup} in
+[Nn][Oo] | '') ;;
+*)	find_local_scripts_new ;;
+esac
 
-   rm /var/.freebsd-update-finish 2>/dev/null
-
-   echo "Press ENTER to continue"
-   read -t 30 tmp
-fi
-
-# Tickle /etc/version
-uname -r > /etc/version
-
-if [ "$fastboot_enable" = "YES" ]; then
-  # We are fast-booting
-
-  # List of rc.d scripts we will start before login
-  preLoad="/etc/rc.d/hostname /etc/rc.d/random /etc/rc.d/adjkerntz /etc/rc.d/cleanvar /etc/rc.d/hostid /etc/rc.d/ldconfig /etc/rc.d/zfs /etc/rc.d/zvol /etc/rc.d/cleartmp $fastboot_earlyrc "
-
-  # Start loopback device
-  /etc/rc.d/netif start lo0
-
-  # Run the early scripts now
-  for i in $preLoad
-  do
-    run_rc_script ${i} ${_boot}
-  done
-
-  # Check for USB mouse to start
-  mChk="ums0 ums1"
-  for i in $mChk
-  do
-    if [ -e "/dev/$i" ] ; then
-       /etc/rc.d/moused start $i
-    fi
-  done
-
-  # Start the delayed services after the login is up
-  (sleep 5; nice /bin/sh /etc/rc.delay "$_rc_elem_done$preLoad")&
-else
-  # Performing a normal startup
-
-  # Now that disks are mounted, for each dir in $local_startup
-  # search for init scripts that use the new rc.d semantics.
-  #
-
-  case ${local_startup} in
-  [Nn][Oo] | '') ;;
-  *)	find_local_scripts_new ;;
-  esac
-
-  files=`rcorder ${skip} /etc/rc.d/* ${local_rc} 2>/dev/null`
-  for _rc_elem in ${files}; do
+files=`rcorder ${skip} /etc/rc.d/* ${local_rc} 2>/dev/null`
+for _rc_elem in ${files}; do
 	case "$_rc_elem_done" in
 	*" $_rc_elem "*)	continue ;;
 	esac
 
-	run_rc_script ${_rc_elem} ${_boot}
-  done
+	run_rc_script ${_rc_elem} ${_boot} >>${_log}
+done
 
-fi
-
-echo ''
-date
+echo "Finished starting delayed services `date`" >> $_log
 exit 0
