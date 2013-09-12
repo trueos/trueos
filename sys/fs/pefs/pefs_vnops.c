@@ -1880,7 +1880,7 @@ lookupvpg:
 		error = uiomove_fromphys(&m, moffset, msize, uio);
 #if __FreeBSD_version >= 1000030
 		VM_OBJECT_WLOCK(vp->v_object);
-		vm_page_xunbusy(m)
+		vm_page_xunbusy(m);
 		VM_OBJECT_WUNLOCK(vp->v_object);
 #else
 		VM_OBJECT_LOCK(vp->v_object);
@@ -1914,7 +1914,7 @@ lookupvpg:
 		if (vm_page_sleep_if_busy(m, FALSE, "pefsmr"))
 			goto lookupvpg;
 #endif /* __FreeBSD_version */
-		vm_page_busy(m);
+		vm_page_xbusy(m);
 		*mp = m;
 	}
 #if __FreeBSD_version >= 1000030
@@ -2042,7 +2042,7 @@ pefs_read_int(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred,
 			sched_unpin();
 #if __FreeBSD_version >= 1000030
 			VM_OBJECT_WLOCK(vp->v_object);
-			vm_page_wakeup(m);
+			vm_page_xunbusy(m);
 			VM_OBJECT_WUNLOCK(vp->v_object);
 #else
 			VM_OBJECT_LOCK(vp->v_object);
@@ -2054,7 +2054,7 @@ pefs_read_int(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred,
 	if (nocopy != 0) {
 #if __FreeBSD_version >= 1000030
 		VM_OBJECT_WLOCK(vp->v_object);
-		vm_page_wakeup(m);
+		vm_page_xunbusy(m);
 		VM_OBJECT_WUNLOCK(vp->v_object);
 #else
 		VM_OBJECT_LOCK(vp->v_object);
@@ -2106,12 +2106,12 @@ lookupvpg:
 			if (vm_page_sleep_if_busy(m, "pefsmr"))
 				goto lookupvpg;
 		}
-		vm_page_busy(m);
+		vm_page_xbusy(m);
 		vm_page_undirty(m);
 #else
 		if (vm_page_sleep_if_busy(m, FALSE, "pefsmw"))
 			goto lookupvpg;
-		vm_page_busy(m);
+		vm_page_xbusy(m);
 		vm_page_lock_queues();
 		vm_page_undirty(m);
 		vm_page_unlock_queues();
@@ -2133,7 +2133,7 @@ lookupvpg:
 		sched_unpin();
 #if __FreeBSD_version >= 1000030
 		VM_OBJECT_WLOCK(vp->v_object);
-		vm_page_wakeup(m);
+		vm_page_xunbusy(m);
 		VM_OBJECT_WUNLOCK(vp->v_object);
 #else
 		VM_OBJECT_LOCK(vp->v_object);
