@@ -27,6 +27,8 @@
  */
 
 #include <crypto/aesni/aesni.h>
+#include <contrib/llvm/tools/clang/lib/Headers/wmmintrin.h>
+#include <crypto/aesni/aesencdec.h>
 
 struct pefs_aesni_ctx {
 	uint8_t enc_schedule[AES_SCHED_LEN] __aligned(16);
