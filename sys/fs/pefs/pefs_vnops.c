@@ -1849,7 +1849,7 @@ lookupvpg:
 	    OFF_TO_IDX(uio->uio_offset));
 	if (m != NULL && vm_page_is_valid(m, moffset, msize)) {
 #if __FreeBSD_version >= 900038
-		if ((m->oflags & VPO_BUSY) != 0) {
+		if (vm_page_xbusied(m)) {
 			/*
 			 * Reference the page before unlocking and
 			 * sleeping so that the page daemon is less
@@ -1861,14 +1861,14 @@ lookupvpg:
 			vm_page_lock_queues();
 			vm_page_flag_set(m, PG_REFERENCED);
 #endif
-			vm_page_sleep(m, "pefsmr");
-			goto lookupvpg;
+			if (vm_page_sleep_if_busy(m, "pefsmr"))
+				goto lookupvpg;
 		}
 #else
 		if (vm_page_sleep_if_busy(m, FALSE, "pefsmr"))
 			goto lookupvpg;
 #endif
-		vm_page_busy(m);
+		vm_page_xbusy(m);
 #if __FreeBSD_version >= 1000030
 		VM_OBJECT_WUNLOCK(vp->v_object);
 #else
@@ -1880,7 +1880,7 @@ lookupvpg:
 		error = uiomove_fromphys(&m, moffset, msize, uio);
 #if __FreeBSD_version >= 1000030
 		VM_OBJECT_WLOCK(vp->v_object);
-		vm_page_wakeup(m);
+		vm_page_xunbusy(m)
 		VM_OBJECT_WUNLOCK(vp->v_object);
 #else
 		VM_OBJECT_LOCK(vp->v_object);
@@ -1895,7 +1895,7 @@ lookupvpg:
 	}
 	if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
 #if __FreeBSD_version >= 900036
-		if ((m->oflags & VPO_BUSY) != 0) {
+		if (vm_page_xbusied(m)) {
 			/*
 			 * Reference the page before unlocking and
 			 * sleeping so that the page daemon is less
@@ -1907,8 +1907,8 @@ lookupvpg:
 			vm_page_lock_queues();
 			vm_page_flag_set(m, PG_REFERENCED);
 #endif
-			vm_page_sleep(m, "pefsmr");
-			goto lookupvpg;
+			if (vm_page_sleep_if_busy(m, "pefsmr"))
+				goto lookupvpg;
 		}
 #else
 		if (vm_page_sleep_if_busy(m, FALSE, "pefsmr"))
@@ -2091,7 +2091,7 @@ lookupvpg:
 	m = vm_page_lookup(vp->v_object, idx);
 	if (m != NULL && vm_page_is_valid(m, 0, bsize)) {
 #if __FreeBSD_version >= 900038
-		if ((m->oflags & VPO_BUSY) != 0) {
+		if (vm_page_xbusied(m)) {
 			/*
 			 * Reference the page before unlocking and
 			 * sleeping so that the page daemon is less
@@ -2103,8 +2103,8 @@ lookupvpg:
 			vm_page_lock_queues();
 			vm_page_flag_set(m, PG_REFERENCED);
 #endif
-			vm_page_sleep(m, "pefsmw");
-			goto lookupvpg;
+			if (vm_page_sleep_if_busy(m, "pefsmr"))
+				goto lookupvpg;
 		}
 		vm_page_busy(m);
 		vm_page_undirty(m);
