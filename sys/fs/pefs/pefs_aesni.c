@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <fs/pefs/pefs_crypto.h>
-#include <cryptodev_if.h>
 
 #define	AESNI_ENABLE_ENV	"vfs.pefs.aesni_enable"
 
