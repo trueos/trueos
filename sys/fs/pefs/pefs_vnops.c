@@ -1839,6 +1839,65 @@ pefs_readmapped(struct vnode *vp, struct uio *uio, ssize_t bsize,
 	moffset = uio->uio_offset & PEFS_SECTOR_MASK;
 	msize = bsize - moffset;
 
+#if __FreeBSD_version >= 1000055
+	VM_OBJECT_WLOCK(vp->v_object);
+lookupvpg:
+	m = vm_page_lookup(vp->v_object,
+	    OFF_TO_IDX(uio->uio_offset));
+	if (m != NULL && vm_page_is_valid(m, moffset, msize)) {
+		if (vm_page_xbusied(m)) {
+			/*
+			 * Reference the page before unlocking and
+			 * sleeping so that the page daemon is less
+			 * likely to reclaim it.
+			 */
+			vm_page_reference(m);
+			vm_page_lock(m);
+			VM_OBJECT_WUNLOCK(vp->v_object);
+			vm_page_busy_sleep(m, "pefsmr");
+			VM_OBJECT_WLOCK(vp->v_object);
+			goto lookupvpg;
+		}
+		vm_page_lock(m);
+		vm_page_hold(m);
+		vm_page_unlock(m);
+		VM_OBJECT_WUNLOCK(vp->v_object);
+		PEFSDEBUG("pefs_read: mapped: "
+		    "offset=0x%jx moffset=0x%jx msize=0x%jx\n",
+		    uio->uio_offset, (intmax_t)moffset, (intmax_t)msize);
+		error = uiomove_fromphys(&m, moffset, msize, uio);
+		VM_OBJECT_WLOCK(vp->v_object);
+		vm_page_lock(m);
+		vm_page_unhold(m);
+		vm_page_unlock(m);
+		VM_OBJECT_WUNLOCK(vp->v_object);
+		if (error != 0) {
+			MPASS(error != EJUSTRETURN);
+			return (error);
+		}
+		return (EJUSTRETURN);
+	}
+	if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
+		if (vm_page_xbusied(m)) {
+			/*
+			 * Reference the page before unlocking and
+			 * sleeping so that the page daemon is less
+			 * likely to reclaim it.
+			 */
+			vm_page_reference(m);
+			vm_page_lock(m);
+			VM_OBJECT_WUNLOCK(vp->v_object);
+			vm_page_busy_sleep(m, "pefsmr");
+			VM_OBJECT_WLOCK(vp->v_object);
+			goto lookupvpg;
+		}
+		vm_page_sbusy(m);
+		*mp = m;
+	}
+	VM_OBJECT_WUNLOCK(vp->v_object);
+
+#else /* __FreeBSD_version >= 1000055 */
+
 #if __FreeBSD_version >= 1000030
 	VM_OBJECT_WLOCK(vp->v_object);
 #else
@@ -1849,7 +1908,7 @@ lookupvpg:
 	    OFF_TO_IDX(uio->uio_offset));
 	if (m != NULL && vm_page_is_valid(m, moffset, msize)) {
 #if __FreeBSD_version >= 900038
-		if (vm_page_xbusied(m)) {
+		if ((m->oflags & VPO_BUSY) != 0) {
 			/*
 			 * Reference the page before unlocking and
 			 * sleeping so that the page daemon is less
@@ -1861,14 +1920,14 @@ lookupvpg:
 			vm_page_lock_queues();
 			vm_page_flag_set(m, PG_REFERENCED);
 #endif
-			if (vm_page_sleep_if_busy(m, "pefsmr"))
-				goto lookupvpg;
+			vm_page_sleep(m, "pefsmr");
+			goto lookupvpg;
 		}
 #else
 		if (vm_page_sleep_if_busy(m, FALSE, "pefsmr"))
 			goto lookupvpg;
 #endif
-		vm_page_xbusy(m);
+		vm_page_busy(m);
 #if __FreeBSD_version >= 1000030
 		VM_OBJECT_WUNLOCK(vp->v_object);
 #else
@@ -1880,7 +1939,7 @@ lookupvpg:
 		error = uiomove_fromphys(&m, moffset, msize, uio);
 #if __FreeBSD_version >= 1000030
 		VM_OBJECT_WLOCK(vp->v_object);
-		vm_page_xunbusy(m);
+		vm_page_wakeup(m);
 		VM_OBJECT_WUNLOCK(vp->v_object);
 #else
 		VM_OBJECT_LOCK(vp->v_object);
@@ -1895,7 +1954,7 @@ lookupvpg:
 	}
 	if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
 #if __FreeBSD_version >= 900036
-		if (vm_page_xbusied(m)) {
+		if ((m->oflags & VPO_BUSY) != 0) {
 			/*
 			 * Reference the page before unlocking and
 			 * sleeping so that the page daemon is less
@@ -1907,21 +1966,25 @@ lookupvpg:
 			vm_page_lock_queues();
 			vm_page_flag_set(m, PG_REFERENCED);
 #endif
-			if (vm_page_sleep_if_busy(m, "pefsmr"))
-				goto lookupvpg;
+			vm_page_sleep(m, "pefsmr");
+			goto lookupvpg;
 		}
 #else
 		if (vm_page_sleep_if_busy(m, FALSE, "pefsmr"))
 			goto lookupvpg;
-#endif /* __FreeBSD_version */
-		vm_page_xbusy(m);
+#endif
+		vm_page_busy(m);
 		*mp = m;
 	}
+
 #if __FreeBSD_version >= 1000030
 	VM_OBJECT_WUNLOCK(vp->v_object);
 #else
 	VM_OBJECT_UNLOCK(vp->v_object);
 #endif
+
+#endif /* __FreeBSD_version >= 1000055 */
+
 	return (0);
 }
 
@@ -2040,9 +2103,13 @@ pefs_read_int(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred,
 			uio->uio_resid -= done;
 			sf_buf_free(sf);
 			sched_unpin();
-#if __FreeBSD_version >= 1000030
+#if __FreeBSD_version >= 1000055
 			VM_OBJECT_WLOCK(vp->v_object);
-			vm_page_xunbusy(m);
+			vm_page_sunbusy(m);
+			VM_OBJECT_WUNLOCK(vp->v_object);
+#elif __FreeBSD_version >= 1000030
+			VM_OBJECT_WLOCK(vp->v_object);
+			vm_page_wakeup(m);
 			VM_OBJECT_WUNLOCK(vp->v_object);
 #else
 			VM_OBJECT_LOCK(vp->v_object);
@@ -2052,9 +2119,13 @@ pefs_read_int(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred,
 		}
 	}
 	if (nocopy != 0) {
-#if __FreeBSD_version >= 1000030
+#if __FreeBSD_version >= 1000055
 		VM_OBJECT_WLOCK(vp->v_object);
-		vm_page_xunbusy(m);
+		vm_page_sunbusy(m);
+		VM_OBJECT_WUNLOCK(vp->v_object);
+#elif __FreeBSD_version >= 1000030
+		VM_OBJECT_WLOCK(vp->v_object);
+		vm_page_wakeup(m);
 		VM_OBJECT_WUNLOCK(vp->v_object);
 #else
 		VM_OBJECT_LOCK(vp->v_object);
@@ -2081,6 +2152,60 @@ pefs_writemapped(struct vnode *vp, struct uio *uio,
 	MPASS(bsize <= PEFS_SECTOR_SIZE);
 	moffset = uio->uio_offset & PEFS_SECTOR_MASK;
 
+#if __FreeBSD_version >= 1000055
+
+	VM_OBJECT_WLOCK(vp->v_object);
+lookupvpg:
+	idx = OFF_TO_IDX(uio->uio_offset);
+	m = vm_page_lookup(vp->v_object, idx);
+	if (m != NULL && vm_page_is_valid(m, 0, bsize)) {
+		if (vm_page_xbusied(m)) {
+			/*
+			 * Reference the page before unlocking and
+			 * sleeping so that the page daemon is less
+			 * likely to reclaim it.
+			 */
+
+			vm_page_reference(m);
+			vm_page_lock(m);
+			VM_OBJECT_WUNLOCK(vp->v_object);
+			vm_page_busy_sleep(m, "pefsmw");
+			VM_OBJECT_WLOCK(vp->v_object);
+			goto lookupvpg;
+		}
+		vm_page_sbusy(m);
+		vm_page_undirty(m);
+		VM_OBJECT_WUNLOCK(vp->v_object);
+		PEFSDEBUG("pefs_write: mapped: "
+		    "offset=0x%jx moffset=0x%jx bsize=0x%zx\n",
+		    uio->uio_offset, (intmax_t)moffset, bsize);
+		sched_pin();
+		sf = sf_buf_alloc(m, SFB_CPUPRIVATE);
+		ma = (char *)sf_buf_kva(sf);
+		error = uiomove(ma + moffset, bsize - moffset, uio);
+		memcpy(pagebuf, ma, bsize);
+		sf_buf_free(sf);
+		sched_unpin();
+		VM_OBJECT_WLOCK(vp->v_object);
+		vm_page_sunbusy(m);
+		VM_OBJECT_WUNLOCK(vp->v_object);
+		if (error != 0) {
+			MPASS(error != EJUSTRETURN);
+			return (error);
+		}
+		return (EJUSTRETURN);
+	}
+	if (vm_page_is_cached(vp->v_object, idx)) {
+		PEFSDEBUG("pefs_write: free cache: 0x%jx\n",
+		    uio->uio_offset - moffset);
+		vm_page_cache_free(vp->v_object, idx, idx + 1);
+	}
+	MPASS(m == NULL ||
+	    !vm_page_is_valid(m, moffset, bsize - moffset));
+	VM_OBJECT_WUNLOCK(vp->v_object);
+
+#else /* __FreeBSD_version >= 1000055 */
+
 #if __FreeBSD_version >= 1000030
 	VM_OBJECT_WLOCK(vp->v_object);
 #else
@@ -2091,7 +2216,7 @@ lookupvpg:
 	m = vm_page_lookup(vp->v_object, idx);
 	if (m != NULL && vm_page_is_valid(m, 0, bsize)) {
 #if __FreeBSD_version >= 900038
-		if (vm_page_xbusied(m)) {
+		if ((m->oflags & VPO_BUSY) != 0) {
 			/*
 			 * Reference the page before unlocking and
 			 * sleeping so that the page daemon is less
@@ -2103,15 +2228,15 @@ lookupvpg:
 			vm_page_lock_queues();
 			vm_page_flag_set(m, PG_REFERENCED);
 #endif
-			if (vm_page_sleep_if_busy(m, "pefsmr"))
-				goto lookupvpg;
+			vm_page_sleep(m, "pefsmw");
+			goto lookupvpg;
 		}
-		vm_page_xbusy(m);
+		vm_page_busy(m);
 		vm_page_undirty(m);
 #else
 		if (vm_page_sleep_if_busy(m, FALSE, "pefsmw"))
 			goto lookupvpg;
-		vm_page_xbusy(m);
+		vm_page_busy(m);
 		vm_page_lock_queues();
 		vm_page_undirty(m);
 		vm_page_unlock_queues();
@@ -2133,7 +2258,7 @@ lookupvpg:
 		sched_unpin();
 #if __FreeBSD_version >= 1000030
 		VM_OBJECT_WLOCK(vp->v_object);
-		vm_page_xunbusy(m);
+		vm_page_wakeup(m);
 		VM_OBJECT_WUNLOCK(vp->v_object);
 #else
 		VM_OBJECT_LOCK(vp->v_object);
@@ -2163,6 +2288,9 @@ lookupvpg:
 #else
 	VM_OBJECT_UNLOCK(vp->v_object);
 #endif
+
+#endif /* __FreeBSD_version >= 1000055 */
+
 	return (0);
 }
 

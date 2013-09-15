@@ -30,7 +30,9 @@
 #include <crypto/hmac/hmac.h>
 #include <crypto/rijndael/rijndael.h>
 
+#ifdef PEFS_AESNI
 #include <fs/pefs/pefs_aesni.h>
+#endif
 #include <fs/pefs/vmac.h>
 
 struct pefs_alg;
