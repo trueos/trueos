@@ -31,7 +31,6 @@
 struct pefs_aesni_ctx {
 	uint8_t enc_schedule[AES_SCHED_LEN] __aligned(16);
 	uint8_t dec_schedule[AES_SCHED_LEN] __aligned(16);
-	uint8_t xts_schedule[AES_SCHED_LEN] __aligned(16);
 	int			rounds;
 	rijndael_ctx		sw;
 };
