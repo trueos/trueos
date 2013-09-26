@@ -253,6 +253,11 @@ distribution:
 .if ${MK_BIND_ETC} != "no"
 	${_+_}cd ${.CURDIR}/namedb; ${MAKE} install
 .endif
+.if ${MK_UNBOUND} != "no"
+	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
+		${INSTALL_SYMLINK} ../var/unbound ${DESTDIR}/etc/unbound; \
+	fi
+.endif
 .if ${MK_SENDMAIL} != "no"
 	${_+_}cd ${.CURDIR}/sendmail; ${MAKE} distribution
 .endif

@@ -147,7 +147,7 @@ static int	cfiscsi_devid(struct ctl_scsiio *ctsio, int alloc_len);
 static void	cfiscsi_datamove(union ctl_io *io);
 static void	cfiscsi_done(union ctl_io *io);
 static uint32_t	cfiscsi_map_lun(void *arg, uint32_t lun);
-static void	cfiscsi_pdu_update_cmdsn(const struct icl_pdu *request);
+static bool	cfiscsi_pdu_update_cmdsn(const struct icl_pdu *request);
 static void	cfiscsi_pdu_handle_nop_out(struct icl_pdu *request);
 static void	cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request);
 static void	cfiscsi_pdu_handle_task_request(struct icl_pdu *request);
@@ -182,7 +182,7 @@ cfiscsi_pdu_new_response(struct icl_pdu *request, int flags)
 	return (icl_pdu_new_bhs(request->ip_conn, flags));
 }
 
-static void
+static bool
 cfiscsi_pdu_update_cmdsn(const struct icl_pdu *request)
 {
 	const struct iscsi_bhs_scsi_command *bhssc;
@@ -206,7 +206,7 @@ cfiscsi_pdu_update_cmdsn(const struct icl_pdu *request)
 	 */
 	if ((request->ip_bhs->bhs_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) ==
 	    ISCSI_BHS_OPCODE_SCSI_DATA_OUT)
-		return;
+		return (false);
 
 	/*
 	 * We're only using fields common for all the request
@@ -226,38 +226,39 @@ cfiscsi_pdu_update_cmdsn(const struct icl_pdu *request)
 #endif
 
 	/*
-	 * XXX: The target MUST silently ignore any non-immediate command
-	 *	outside of this range or non-immediate duplicates within
-	 *	the range.
+	 * The target MUST silently ignore any non-immediate command outside
+	 * of this range.
+	 *
+	 * XXX:	... or non-immediate duplicates within the range.
 	 */
-	if (cmdsn != cs->cs_cmdsn) {
+	if (cmdsn < cs->cs_cmdsn || cmdsn > cs->cs_cmdsn + maxcmdsn_delta) {
+		CFISCSI_SESSION_UNLOCK(cs);
 		CFISCSI_SESSION_WARN(cs, "received PDU with CmdSN %d, "
 		    "while expected CmdSN was %d", cmdsn, cs->cs_cmdsn);
-		cs->cs_cmdsn = cmdsn + 1;
-		CFISCSI_SESSION_UNLOCK(cs);
-		return;
+		return (true);
 	}
-
-	/*
-	 * XXX: The CmdSN of the rejected command PDU (if it is a non-immediate
-	 *	command) MUST NOT be considered received by the target
-	 *	(i.e., a command sequence gap must be assumed for the CmdSN)
-	 */
 
 	if ((request->ip_bhs->bhs_opcode & ISCSI_BHS_OPCODE_IMMEDIATE) == 0)
 		cs->cs_cmdsn++;
 
 	CFISCSI_SESSION_UNLOCK(cs);
+
+	return (false);
 }
 
 static void
 cfiscsi_pdu_handle(struct icl_pdu *request)
 {
 	struct cfiscsi_session *cs;
+	bool ignore;
 
 	cs = PDU_SESSION(request);
 
-	cfiscsi_pdu_update_cmdsn(request);
+	ignore = cfiscsi_pdu_update_cmdsn(request);
+	if (ignore) {
+		icl_pdu_free(request);
+		return;
+	}
 
 	/*
 	 * Handle the PDU; this includes e.g. receiving the remaining
@@ -930,7 +931,11 @@ cfiscsi_callout(void *context)
 	if (cs->cs_timeout < 2)
 		return;
 
-	cp = icl_pdu_new_bhs(cs->cs_conn, M_WAITOK);
+	cp = icl_pdu_new_bhs(cs->cs_conn, M_NOWAIT);
+	if (cp == NULL) {
+		CFISCSI_SESSION_WARN(cs, "failed to allocate PDU");
+		return;
+	}
 	bhsni = (struct iscsi_bhs_nop_in *)cp->ip_bhs;
 	bhsni->bhsni_opcode = ISCSI_BHS_OPCODE_NOP_IN;
 	bhsni->bhsni_flags = 0x80;
@@ -2245,7 +2250,7 @@ cfiscsi_datamove(union ctl_io *io)
 	struct ctl_sg_entry ctl_sg_entry, *ctl_sglist;
 	size_t copy_len, len, off;
 	const char *addr;
-	int ctl_sg_count, i;
+	int ctl_sg_count, error, i;
 	uint32_t target_transfer_tag;
 	bool done;
 
@@ -2298,7 +2303,14 @@ cfiscsi_datamove(union ctl_io *io)
 			KASSERT(i < ctl_sg_count, ("i >= ctl_sg_count"));
 			if (response == NULL) {
 				response =
-				    cfiscsi_pdu_new_response(request, M_WAITOK);
+				    cfiscsi_pdu_new_response(request, M_NOWAIT);
+				if (response == NULL) {
+					CFISCSI_SESSION_WARN(cs, "failed to "
+					    "allocate memory; dropping connection");
+					icl_pdu_free(request);
+					cfiscsi_session_terminate(cs);
+					return;
+				}
 				bhsdi = (struct iscsi_bhs_data_in *)
 				    response->ip_bhs;
 				bhsdi->bhsdi_opcode =
@@ -2323,7 +2335,15 @@ cfiscsi_datamove(union ctl_io *io)
 				copy_len = cs->cs_max_data_segment_length -
 				    response->ip_data_len;
 			KASSERT(copy_len <= len, ("copy_len > len"));
-			icl_pdu_append_data(response, addr, copy_len, M_WAITOK);
+			error = icl_pdu_append_data(response, addr, copy_len, M_NOWAIT);
+			if (error != 0) {
+				CFISCSI_SESSION_WARN(cs, "failed to "
+				    "allocate memory; dropping connection");
+				icl_pdu_free(request);
+				icl_pdu_free(response);
+				cfiscsi_session_terminate(cs);
+				return;
+			}
 			addr += copy_len;
 			len -= copy_len;
 			off += copy_len;
@@ -2389,7 +2409,13 @@ cfiscsi_datamove(union ctl_io *io)
 		    "task tag 0x%x, target transfer tag 0x%x",
 		    bhssc->bhssc_initiator_task_tag, target_transfer_tag);
 #endif
-		cdw = uma_zalloc(cfiscsi_data_wait_zone, M_WAITOK | M_ZERO);
+		cdw = uma_zalloc(cfiscsi_data_wait_zone, M_NOWAIT | M_ZERO);
+		if (cdw == NULL) {
+			CFISCSI_SESSION_WARN(cs, "failed to "
+			    "allocate memory; dropping connection");
+			icl_pdu_free(request);
+			cfiscsi_session_terminate(cs);
+		}
 		cdw->cdw_ctl_io = io;
 		cdw->cdw_target_transfer_tag = htonl(target_transfer_tag);
 		cdw->cdw_initiator_task_tag = bhssc->bhssc_initiator_task_tag;
@@ -2418,7 +2444,13 @@ cfiscsi_datamove(union ctl_io *io)
 		 * XXX: We should limit the number of outstanding R2T PDUs
 		 * 	per task to MaxOutstandingR2T.
 		 */
-		response = cfiscsi_pdu_new_response(request, M_WAITOK);
+		response = cfiscsi_pdu_new_response(request, M_NOWAIT);
+		if (response == NULL) {
+			CFISCSI_SESSION_WARN(cs, "failed to "
+			    "allocate memory; dropping connection");
+			icl_pdu_free(request);
+			cfiscsi_session_terminate(cs);
+		}
 		bhsr2t = (struct iscsi_bhs_r2t *)response->ip_bhs;
 		bhsr2t->bhsr2t_opcode = ISCSI_BHS_OPCODE_R2T;
 		bhsr2t->bhsr2t_flags = 0x80;

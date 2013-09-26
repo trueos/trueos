@@ -214,7 +214,6 @@ OLD_FILES+=usr/share/man/man8/authpf-noip.8.gz
 .if ${MK_BIND} == no
 OLD_FILES+=etc/periodic/daily/470.status-named
 OLD_FILES+=usr/bin/dig
-OLD_FILES+=usr/bin/host
 OLD_FILES+=usr/bin/nslookup
 OLD_FILES+=usr/bin/nsupdate
 OLD_FILES+=usr/include/lwres/context.h
@@ -252,8 +251,33 @@ OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch06.html
 OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch07.html
 OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch08.html
 OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch09.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.ch10.html
 OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.html
+OLD_FILES+=usr/share/doc/bind9/arm/Bv9ARM.pdf
+OLD_FILES+=usr/share/doc/bind9/arm/man.arpaname.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.ddns-confgen.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dig.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-dsfromkey.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-keyfromlabel.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-keygen.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-revoke.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-settime.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-signzone.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.dnssec-verify.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.genrandom.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.host.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.isc-hmac-fixup.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.named-checkconf.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.named-checkzone.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.named-journalprint.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.named.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.nsec3hash.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.nsupdate.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.rndc-confgen.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.rndc.conf.html
+OLD_FILES+=usr/share/doc/bind9/arm/man.rndc.html
 OLD_DIRS+=usr/share/doc/bind9/arm
+OLD_FILES+=usr/share/doc/bind9/misc
 OLD_FILES+=usr/share/doc/bind9/misc/dnssec
 OLD_FILES+=usr/share/doc/bind9/misc/format-options.pl
 OLD_FILES+=usr/share/doc/bind9/misc/ipv6
@@ -263,11 +287,13 @@ OLD_FILES+=usr/share/doc/bind9/misc/options
 OLD_FILES+=usr/share/doc/bind9/misc/rfc-compliance
 OLD_FILES+=usr/share/doc/bind9/misc/roadmap
 OLD_FILES+=usr/share/doc/bind9/misc/sdb
+OLD_FILES+=usr/share/doc/bind9/misc/sort-options.pl
 OLD_DIRS+=usr/share/doc/bind9/misc
 OLD_DIRS+=usr/share/doc/bind9
 OLD_FILES+=usr/share/doc/bind9/CHANGES
 OLD_FILES+=usr/share/doc/bind9/COPYRIGHT
 OLD_FILES+=usr/share/doc/bind9/FAQ
+OLD_FILES+=usr/share/doc/bind9/HISTORY
 OLD_FILES+=usr/share/doc/bind9/README
 OLD_FILES+=usr/share/man/man1/dig.1.gz
 OLD_FILES+=usr/share/man/man1/host.1.gz
@@ -3402,6 +3428,15 @@ OLD_FILES+=usr/lib32/private/libldns_p.a
 .endif
 .endif
 
+.if ${MK_LDNS_UTILS} == no
+OLD_FILES+=usr/bin/drill
+OLD_FILES+=usr/share/man/man1/drill.1.gz
+.if ${MK_BIND} == no
+OLD_FILES+=usr/bin/host
+OLD_FILES+=usr/share/man/man1/host.1.gz
+.endif
+.endif
+
 #.if ${MK_LIB32} == no
 # to be filled in
 #.endif
@@ -4368,6 +4403,7 @@ OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 #.endif
 
 .if ${MK_UNBOUND} == no
+OLD_FILES+=etc/rc.d/local_unbound
 OLD_FILES+=usr/lib/private/libunbound.a
 OLD_FILES+=usr/lib/private/libunbound.so
 OLD_LIBS+=usr/lib/private/libunbound.so.5
@@ -4378,6 +4414,7 @@ OLD_FILES+=usr/lib32/private/libunbound.so
 OLD_LIBS+=usr/lib32/private/libunbound.so.5
 OLD_FILES+=usr/lib32/private/libunbound_p.a
 .endif
+OLD_FILES+=usr/sbin/local-unbound-setup
 OLD_FILES+=usr/sbin/unbound
 OLD_FILES+=usr/sbin/unbound-anchor
 OLD_FILES+=usr/sbin/unbound-checkconf
