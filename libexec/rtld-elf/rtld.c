@@ -424,18 +424,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
     ld_utrace = getenv(LD_ "UTRACE");
 
-    if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0) {
-	/* 
-	   Allow us to first look for a /usr/local based hints file
-
-	   Used by PBIs to virtualize the /usr/local namespace without
-	   needing a messy replacement of the files in /var/run
-        */
-	if ( access(_PATH_ELF_HINTS_LOCAL, R_OK) == 0 )
-	  ld_elf_hints_path = _PATH_ELF_HINTS_LOCAL;
-	else 
-	  ld_elf_hints_path = _PATH_ELF_HINTS;
-    }
+    if ((ld_elf_hints_path == NULL) || strlen(ld_elf_hints_path) == 0)
+	ld_elf_hints_path = _PATH_ELF_HINTS;
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;

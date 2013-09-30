@@ -45,8 +45,6 @@
 #undef STANDARD_LIBRARY_PATH
 #undef _PATH_ELF_HINTS
 #define	_PATH_ELF_HINTS		"/var/run/ld-elf32.so.hints"
-#undef _PATH_ELF_HINTS_LOCAL
-#define	_PATH_ELF_HINTS_LOCAL	"/usr/local/var/run/ld-elf32.so.hints"
 /* For running 32 bit binaries  */
 #define	STANDARD_LIBRARY_PATH	"/lib32:/usr/lib32"
 #define LD_ "LD_32_"
