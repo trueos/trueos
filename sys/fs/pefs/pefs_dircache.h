@@ -63,6 +63,7 @@ void	pefs_dircache_init(void);
 void	pefs_dircache_uninit(void);
 
 struct pefs_dircache	*pefs_dircache_get(void);
+void	pefs_dircache_purge(struct pefs_dircache *pd);
 void	pefs_dircache_free(struct pefs_dircache *pd);
 void	pefs_dircache_update(struct pefs_dircache_entry *pde);
 void	pefs_dircache_beginupdate(struct pefs_dircache *pd, u_long gen);

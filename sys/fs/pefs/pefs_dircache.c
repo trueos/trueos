@@ -131,12 +131,14 @@ pefs_dircache_get(void)
 }
 
 void
-pefs_dircache_free(struct pefs_dircache *pd)
+pefs_dircache_purge(struct pefs_dircache *pd)
 {
 	struct pefs_dircache_entry *pde;
 
 	if (pd == NULL)
 		return;
+
+	sx_xlock(&pd->pd_lock);
 
 	while (!LIST_EMPTY(DIRCACHE_STALEHEAD(pd))) {
 		pde = LIST_FIRST(DIRCACHE_STALEHEAD(pd));
@@ -146,6 +148,17 @@ pefs_dircache_free(struct pefs_dircache *pd)
 		pde = LIST_FIRST(DIRCACHE_ACTIVEHEAD(pd));
 		dircache_entry_free(pde);
 	}
+
+	sx_unlock(&pd->pd_lock);
+}
+
+void
+pefs_dircache_free(struct pefs_dircache *pd)
+{
+	if (pd == NULL)
+		return;
+
+	pefs_dircache_purge(pd);
 	sx_destroy(&pd->pd_lock);
 	uma_zfree(dircache_zone, pd);
 }

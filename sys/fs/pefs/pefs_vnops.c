@@ -435,6 +435,7 @@ pefs_flushkey(struct mount *mp, struct thread *td, int flags,
 	struct pefs_node *pn;
 	int error;
 
+	cache_purgevfs(mp);
 	vflush(mp, 0, 0, td);
 	rootvp = VFS_TO_PEFS(mp)->pm_rootvp;
 #if __FreeBSD_version >= 1000025
@@ -459,6 +460,8 @@ loop:
 		    pn->pn_tkey.ptk_key == pk)) ||
 		    ((pn->pn_flags & PN_HASKEY) == 0 && pk == NULL)) {
 			vgone(vp);
+		} else if (pk != NULL || (flags & PEFS_FLUSHKEY_ALL) != 0) {
+			pefs_dircache_purge(pn->pn_dircache);
 		}
 		vput(vp);
 	}
@@ -469,32 +472,37 @@ loop:
 		if ((vp->v_type != VREG && vp->v_type != VDIR) || vp == rootvp)
 			continue;
 		VI_LOCK(vp);
+		vholdl(vp);
+		MNT_IUNLOCK(mp);
+		error = vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE);
+		if (error != 0) {
+			vdrop(vp);
+			MNT_ILOCK(mp);
+			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			goto loop;
+		}
 		pn = VP_TO_PN(vp);
 		if (((pn->pn_flags & PN_HASKEY) &&
 		    ((flags & PEFS_FLUSHKEY_ALL) ||
 		    pn->pn_tkey.ptk_key == pk)) ||
 		    ((pn->pn_flags & PN_HASKEY) == 0 && pk == NULL)) {
-			vholdl(vp);
-			MNT_IUNLOCK(mp);
-			error = vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE);
-			if (error != 0) {
-				vdrop(vp);
-				MNT_ILOCK(mp);
-				MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
-				goto loop;
-			}
 			PEFSDEBUG("pefs_flushkey: pk=%p, vp=%p\n", pk, vp);
 			vgone(vp);
-			VOP_UNLOCK(vp, 0);
-			vdrop(vp);
-			MNT_ILOCK(mp);
-		} else
-			VI_UNLOCK(vp);
+		} else if (pk != NULL || (flags & PEFS_FLUSHKEY_ALL) != 0) {
+			pefs_dircache_purge(pn->pn_dircache);
+		}
+		VOP_UNLOCK(vp, 0);
+		vdrop(vp);
+		MNT_ILOCK(mp);
 	}
 	MNT_IUNLOCK(mp);
 #endif
+	if (pk != NULL || (flags & PEFS_FLUSHKEY_ALL) != 0) {
+		vn_lock(rootvp, LK_EXCLUSIVE | LK_RETRY);
+		pefs_dircache_purge(VP_TO_PN(rootvp)->pn_dircache);
+		VOP_UNLOCK(rootvp, 0);
+	}
 
-	cache_purgevfs(mp);
 	return (0);
 }
 

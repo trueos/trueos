@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2012 Gleb Kurtsou <gleb@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <opencrypto/cryptodev.h>
 
-#include <crypto/hmac/hmac.h>
+#include <fs/pefs/pefs_hmac.h>
 
 #ifndef _KERNEL
 #define	panic(...)	do {						\
@@ -48,58 +49,59 @@ __FBSDID("$FreeBSD$");
 } while (0)
 #endif
 
-typedef void hmac_hash_init_t(union hmac_hash_ctx *ctx);
-typedef void hmac_hash_update_t(union hmac_hash_ctx *ctx, const uint8_t *,
-    size_t);
-typedef void hmac_hash_final_t(uint8_t *, union hmac_hash_ctx *ctx);
+typedef void pefs_hmac_hash_init_t(union pefs_hmac_hash_ctx *ctx);
+typedef void pefs_hmac_hash_update_t(union pefs_hmac_hash_ctx *ctx,
+    const uint8_t *, size_t);
+typedef void pefs_hmac_hash_final_t(uint8_t *, union pefs_hmac_hash_ctx *ctx);
 
-struct hmac_hash {
+struct pefs_hmac_hash {
 	u_int			block_len;
 	u_int			digest_len;
-	hmac_hash_init_t	*init;
-	hmac_hash_update_t	*update;
-	hmac_hash_final_t	*final;
+	pefs_hmac_hash_init_t	*init;
+	pefs_hmac_hash_update_t	*update;
+	pefs_hmac_hash_final_t	*final;
 };
 
-static const struct hmac_hash hmac_hash_sha256 = {
+static const struct pefs_hmac_hash pefs_hmac_hash_sha256 = {
 	.block_len =	SHA256_BLOCK_LENGTH,
 	.digest_len =	SHA256_DIGEST_LENGTH,
-	.init =		(hmac_hash_init_t *)&SHA256_Init,
-	.update =	(hmac_hash_update_t *)&SHA256_Update,
-	.final =	(hmac_hash_final_t *)&SHA256_Final,
+	.init =		(pefs_hmac_hash_init_t *)&SHA256_Init,
+	.update =	(pefs_hmac_hash_update_t *)&SHA256_Update,
+	.final =	(pefs_hmac_hash_final_t *)&SHA256_Final,
 };
 
-static const struct hmac_hash hmac_hash_sha384 = {
+static const struct pefs_hmac_hash pefs_hmac_hash_sha384 = {
 	.block_len =	SHA384_BLOCK_LENGTH,
 	.digest_len =	SHA384_DIGEST_LENGTH,
-	.init =		(hmac_hash_init_t *)&SHA384_Init,
-	.update =	(hmac_hash_update_t *)&SHA384_Update,
-	.final =	(hmac_hash_final_t *)&SHA384_Final,
+	.init =		(pefs_hmac_hash_init_t *)&SHA384_Init,
+	.update =	(pefs_hmac_hash_update_t *)&SHA384_Update,
+	.final =	(pefs_hmac_hash_final_t *)&SHA384_Final,
 };
 
-static const struct hmac_hash hmac_hash_sha512 = {
+static const struct pefs_hmac_hash pefs_hmac_hash_sha512 = {
 	.block_len =	SHA512_BLOCK_LENGTH,
 	.digest_len =	SHA512_DIGEST_LENGTH,
-	.init =		(hmac_hash_init_t *)&SHA512_Init,
-	.update =	(hmac_hash_update_t *)&SHA512_Update,
-	.final =	(hmac_hash_final_t *)&SHA512_Final,
+	.init =		(pefs_hmac_hash_init_t *)&SHA512_Init,
+	.update =	(pefs_hmac_hash_update_t *)&SHA512_Update,
+	.final =	(pefs_hmac_hash_final_t *)&SHA512_Final,
 };
 
 void
-hmac_init(struct hmac_ctx *ctx, int algo, const uint8_t *hkey, size_t hkeylen)
+pefs_hmac_init(struct pefs_hmac_ctx *ctx, int algo, const uint8_t *hkey,
+    size_t hkeylen)
 {
-	const struct hmac_hash *hash;
+	const struct pefs_hmac_hash *hash;
 	u_int i;
 
 	switch (algo) {
 	case CRYPTO_SHA2_256_HMAC:
-		hash = &hmac_hash_sha256;
+		hash = &pefs_hmac_hash_sha256;
 		break;
 	case CRYPTO_SHA2_384_HMAC:
-		hash = &hmac_hash_sha384;
+		hash = &pefs_hmac_hash_sha384;
 		break;
 	case CRYPTO_SHA2_512_HMAC:
-		hash = &hmac_hash_sha512;
+		hash = &pefs_hmac_hash_sha512;
 		break;
 	default:
 		panic("HMAC: invalid alorithm: %d.", algo);
@@ -134,7 +136,7 @@ hmac_init(struct hmac_ctx *ctx, int algo, const uint8_t *hkey, size_t hkeylen)
 }
 
 void
-hmac_update(struct hmac_ctx *ctx, const uint8_t *data,
+pefs_hmac_update(struct pefs_hmac_ctx *ctx, const uint8_t *data,
     size_t datasize)
 {
 
@@ -142,10 +144,10 @@ hmac_update(struct hmac_ctx *ctx, const uint8_t *data,
 }
 
 void
-hmac_final(struct hmac_ctx *ctx, uint8_t *md, size_t mdsize)
+pefs_hmac_final(struct pefs_hmac_ctx *ctx, uint8_t *md, size_t mdsize)
 {
-	const struct hmac_hash *hash = ctx->hash;
-	u_char digest[HMAC_DIGEST_LENGTH_MAX];
+	const struct pefs_hmac_hash *hash = ctx->hash;
+	u_char digest[PEFS_HMAC_DIGEST_LENGTH_MAX];
 
 	if (mdsize == 0 || mdsize > hash->digest_len) {
 		panic("HMAC: invalid digest buffer size: %zu (digest length %u).",
@@ -165,15 +167,15 @@ hmac_final(struct hmac_ctx *ctx, uint8_t *md, size_t mdsize)
 }
 
 void
-hmac(int algo, const uint8_t *hkey, size_t hkeysize, const uint8_t *data,
+pefs_hmac(int algo, const uint8_t *hkey, size_t hkeysize, const uint8_t *data,
     size_t datasize, uint8_t *md, size_t mdsize)
 {
-	struct hmac_ctx ctx;
+	struct pefs_hmac_ctx ctx;
 
-	hmac_init(&ctx, algo, hkey, hkeysize);
-	hmac_update(&ctx, data, datasize);
+	pefs_hmac_init(&ctx, algo, hkey, hkeysize);
+	pefs_hmac_update(&ctx, data, datasize);
 	/* mdsize == 0 means "Give me the whole hash!" */
 	if (mdsize == 0)
 		mdsize = ctx.hash->digest_len;
-	hmac_final(&ctx, md, mdsize);
+	pefs_hmac_final(&ctx, md, mdsize);
 }
