@@ -73,7 +73,6 @@ options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# Kernel ELF linker loads CTF data
 options 	DDB			# Support DDB.
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
-options 	XENHVM			# Include Xen support
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
@@ -87,6 +86,7 @@ device		cpufreq
 
 # Bus support.
 device		acpi
+options 	ACPI_DMAR
 device		pci
 
 # Floppy drives
@@ -337,8 +337,10 @@ device		virtio_balloon	# VirtIO Memory Balloon device
 # HyperV drivers
 device		hyperv		# HyperV drivers 
 
-# Xen support
-device		xenpci		# Generic Xen bus
+# Xen HVM Guest Optimizations
+# NOTE: XENHVM depends on xenpci.  They must be added or removed together.
+options 	XENHVM		# Xen HVM kernel infrastructure
+device		xenpci		# Xen HVM Hypervisor services driver
 
 # VMware support
 device		vmx		# VMware VMXNET3 Ethernet
