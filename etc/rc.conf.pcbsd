@@ -39,6 +39,10 @@ if [ -e "/etc/defaults/trueos" ] ; then
   # Enable the crash-reporter for textdumps
   ix_textdump_enable="YES"
   ix_diagnose_enable="YES"
+
+  # Enable panic mail
+  panicmail_enable="YES"
+  panicmail_autosubmit="YES"
 fi
 
 # Defaults for PC-BSD desktops
@@ -109,8 +113,8 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
   # Enable pbid
   pbid_enable="YES"
 
-  # Enable the gdm display manager
-  gdm_enable="YES"
+  # Enable the pcdm display manager
+  pcdm_enable="YES"
 
   # Enable BlueTooth
   hcsecd_enable="YES"
@@ -143,7 +147,7 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
 
   # Enable fast-booting
   fastboot_enable="YES"
-  fastboot_earlyrc="/etc/rc.d/moused /usr/local/etc/rc.d/pefs /usr/local/etc/rc.d/dbus /usr/local/etc/rc.d/hald /usr/local/etc/rc.d/gdm"
+  fastboot_earlyrc="/etc/rc.d/moused /usr/local/etc/rc.d/pefs /usr/local/etc/rc.d/dbus /usr/local/etc/rc.d/hald /usr/local/etc/rc.d/pcdm"
 
   # Enable the Warden
   warden_enable="YES"
@@ -170,4 +174,8 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
   # Enable the crash-reporter for textdumps
   ix_textdump_enable="YES"
   ix_diagnose_enable="YES"
+
+  # Enable panic mail
+  panicmail_enable="YES"
+  panicmail_autosubmit="YES"
 fi
