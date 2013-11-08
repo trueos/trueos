@@ -147,7 +147,7 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
 
   # Enable fast-booting
   fastboot_enable="YES"
-  fastboot_earlyrc="/etc/rc.d/moused /usr/local/etc/rc.d/pefs /usr/local/etc/rc.d/dbus /usr/local/etc/rc.d/hald /usr/local/etc/rc.d/pcdm"
+  fastboot_earlyrc="/etc/rc.d/devd /etc/rc.d/moused /usr/local/etc/rc.d/pefs /usr/local/etc/rc.d/dbus /usr/local/etc/rc.d/hald /usr/local/etc/rc.d/pcdm"
 
   # Enable the Warden
   warden_enable="YES"
