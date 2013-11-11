@@ -108,18 +108,22 @@ unset files local_rc
 if [ -e "/var/.freebsd-update-finish" ] ; then
    TERM="cons25" ; export TERM
    clear
-   echo "Installing FreeBSD updates... Please wait..."
-   /usr/sbin/freebsd-update --non-interactive install
-   if [ -e "/usr/local/bin/pc-softwaremanager" ] ; then
-     /usr/local/bin/pc-extractoverlay desktop
-   else
-     /usr/local/bin/pc-extractoverlay server
-   fi
+
+   # Enable networking first
+   run_rc_script /etc/rc.d/netif ${_boot}
+   
+   TERM="cons25" ; export TERM
+   clear
+   
+   /usr/local/bin/pc-updatemanager finish-major-update
 
    rm /var/.freebsd-update-finish 2>/dev/null
 
-   echo "Press ENTER to continue"
-   read -t 30 tmp
+   sync
+ 
+   clear
+   echo "Rebooting..."
+   shutdown -r now
 fi
 
 # Tickle /etc/version
