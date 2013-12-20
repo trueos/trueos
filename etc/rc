@@ -71,6 +71,11 @@ fi
 . /etc/rc.subr
 load_rc_config 'XXX'
 
+# If we receive a SIGALRM, re-source /etc/rc.conf; this allows rc.d
+# scripts to perform "boot-time configuration" including enabling and
+# disabling rc.d scripts which appear later in the boot order.
+trap "_rc_conf_loaded=false; load_rc_config 'XXX'" ALRM
+
 skip="-s nostart"
 if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
 	skip="$skip -s nojail"
@@ -111,16 +116,16 @@ if [ -e "/var/.freebsd-update-finish" ] ; then
 
    # Enable networking first
    run_rc_script /etc/rc.d/netif ${_boot}
-   
+
    TERM="cons25" ; export TERM
    clear
-   
+
    /usr/local/bin/pc-updatemanager finish-major-update
 
    rm /var/.freebsd-update-finish 2>/dev/null
 
    sync
- 
+
    clear
    echo "Rebooting..."
    shutdown -r now
@@ -129,60 +134,28 @@ fi
 # Tickle /etc/version
 uname -r > /etc/version
 
-if [ "$fastboot_enable" = "YES" ]; then
-  # We are fast-booting
+# Now that disks are mounted, for each dir in $local_startup
+# search for init scripts that use the new rc.d semantics.
+#
+case ${local_startup} in
+[Nn][Oo] | '') ;;
+*)	find_local_scripts_new ;;
+esac
 
-  # List of rc.d scripts we will start before login
-  preLoad="/etc/rc.d/hostname /etc/rc.d/random /etc/rc.d/adjkerntz /etc/rc.d/cleanvar /etc/rc.d/hostid /etc/rc.d/ldconfig /etc/rc.d/zfs /etc/rc.d/zvol /etc/rc.d/cleartmp $fastboot_earlyrc "
-
-  # Start loopback device
-  /etc/rc.d/netif start lo0
-
-  # Run the early scripts now
-  for i in $preLoad
-  do
-    run_rc_script ${i} ${_boot}
-  done
-
-  # Check for USB mouse to start
-  mChk="ums0 ums1"
-  for i in $mChk
-  do
-    if [ -e "/dev/$i" ] ; then
-       /etc/rc.d/moused start $i
-    fi
-  done
-
-  # Start the delayed services after the login is up
-  (sleep 5; nice /bin/sh /etc/rc.delay "$_rc_elem_done$preLoad")&
-else
-  # Performing a normal startup
-
-  # Now that disks are mounted, for each dir in $local_startup
-  # search for init scripts that use the new rc.d semantics.
-  #
-
-  case ${local_startup} in
-    [Nn][Oo] | '') ;;
-    *)	find_local_scripts_new ;;
-  esac
-
-  files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* ${local_rc} 2>/dev/null`
-  for _rc_elem in ${files}; do
-
-    # The firstboot sentinel might be on a newly mounted filesystem; look for it
-    # again and unset skip_firstboot if we find it.
-    if [ -e ${firstboot_sentinel} ]; then
+# The firstboot sentinel might be on a newly mounted filesystem; look for it
+# again and unset skip_firstboot if we find it.
+if [ -e ${firstboot_sentinel} ]; then
 	skip_firstboot=""
-    fi
-
-    case "$_rc_elem_done" in
-       *" $_rc_elem "*)	continue ;;
-    esac
-    run_rc_script ${_rc_elem} ${_boot}
-  done
-
 fi
+
+files=`rcorder ${skip} ${skip_firstboot} /etc/rc.d/* ${local_rc} 2>/dev/null`
+for _rc_elem in ${files}; do
+	case "$_rc_elem_done" in
+	*" $_rc_elem "*)	continue ;;
+	esac
+
+	run_rc_script ${_rc_elem} ${_boot}
+done
 
 # Remove the firstboot sentinel, and reboot if it was requested.
 if [ -e ${firstboot_sentinel} ]; then

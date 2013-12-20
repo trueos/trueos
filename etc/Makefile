@@ -39,7 +39,6 @@ BIN1=	crontab \
 	rc \
 	rc.bsdextended \
 	rc.conf.pcbsd \
-	rc.delay \
 	rc.firewall \
 	rc.initdiskless \
 	rc.sendmail \

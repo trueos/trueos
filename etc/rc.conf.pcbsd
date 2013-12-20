@@ -142,10 +142,6 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
   # Enable moused
   moused_enable="YES"
 
-  # Enable fast-booting
-  fastboot_enable="YES"
-  fastboot_earlyrc="/etc/rc.d/netif /etc/rc.d/wpa_supplicant /etc/rc.d/devd /etc/rc.d/moused /usr/local/etc/rc.d/pefs /usr/local/etc/rc.d/dbus /usr/local/etc/rc.d/hald /usr/local/etc/rc.d/avahi-daemon /usr/local/etc/rc.d/avahi-dnsconfd /usr/local/etc/rc.d/pcdm"
-
   # Enable the Warden
   warden_enable="YES"
 
