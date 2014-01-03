@@ -27,19 +27,6 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${.CURDIR}/../../usr.bin/cc/cc_tools
 
-# Added to quiesce warning around gcc_assert() for an inline macro that uses
-# a static variable.  This code has been moved around in gcc, but is still in
-# use in the latest trunk version of the compiler.
-#
-# gnu/lib/libgcc/../../../contrib/gcc/unwind-dw2.c:208:36:
-#      warning: static variable 'dwarf_reg_size_table' is used in an inline
-#               function with external linkage [-Wstatic-in-inline]
-# gcc_assert (index < (int) sizeof(dwarf_reg_size_table));
-#                                  ^
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+=	-Wno-static-in-inline
-.endif
-
 LDFLAGS+=	-nodefaultlibs
 LDADD+=		-lc
 
@@ -125,9 +112,7 @@ LIB2_DIVMOD_FUNCS = _divdi3 _moddi3 _udivdi3 _umoddi3 _udiv_w_sdiv _udivmoddi4
 .if ${TARGET_CPUARCH} == "arm"
 #	from config/arm/t-strongarm-elf
 CFLAGS+=	-Dinhibit_libc -fno-inline
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+=	-fheinous-gnu-extensions
-.endif
+CFLAGS.clang+=	-fheinous-gnu-extensions
 
 LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func

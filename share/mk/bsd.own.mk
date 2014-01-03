@@ -264,6 +264,7 @@ __DEFAULT_YES_OPTIONS = \
     BZIP2 \
     CALENDAR \
     CAPSICUM \
+    CASPER \
     CDDL \
     CPP \
     CROSS_COMPILER \
@@ -373,7 +374,6 @@ __DEFAULT_NO_OPTIONS = \
     NAND \
     OFED \
     OPENSSH_NONE_CIPHER \
-    PKGTOOLS \
     SHARED_TOOLCHAIN \
     SVN \
     TESTS \
@@ -552,8 +552,18 @@ MK_CLANG_EXTRAS:= no
 MK_CLANG_FULL:= no
 .endif
 
-.if ${MK_CLANG_IS_CC} == "no"
-MK_LLDB:= no
+.if defined(NO_TESTS)
+# This should be handled above along the handling of all other NO_*  options.
+# However, the above is broken when WITH_*=yes are passed to make(1) as
+# command line arguments.  See PR bin/183762.
+#
+# Because the TESTS option is new and it will default to yes, it's likely
+# that people will pass WITHOUT_TESTS=yes to make(1) directly and get a broken
+# build.  So, just in case, it's better to explicitly handle this case here.
+#
+# TODO(jmmv): Either fix make to allow us putting this override where it
+# belongs above or fix this file to cope with the make bug.
+MK_TESTS:= no
 .endif
 
 #
@@ -635,6 +645,10 @@ MK_${var}:=	no
 .endif
 .endif
 .endfor
+
+.if !${COMPILER_FEATURES:Mc++11}
+MK_LLDB:=	no
+.endif
 
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}

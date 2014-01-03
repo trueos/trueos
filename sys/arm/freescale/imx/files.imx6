@@ -16,7 +16,7 @@ kern/kern_clocksource.c			standard
 #
 arm/arm/gic.c				standard
 arm/arm/pl310.c				standard
-arm/freescale/imx/bus_space.c		standard
+arm/arm/bus_space-v6.c			standard
 arm/freescale/imx/common.c		standard
 arm/freescale/imx/imx6_anatop.c		standard
 arm/freescale/imx/imx6_ccm.c		standard
@@ -51,6 +51,5 @@ arm/freescale/imx/imx6_usbphy.c		optional ehci
 #arm/freescale/imx/imx51_gpio.c  	optional gpio
 #dev/ata/chipsets/ata-fsl.c  		optional imxata
 #arm/freescale/imx/i2c.c  		optional fsliic
-#dev/ofw/ofw_iicbus.c  			optional fsliic
 #arm/freescale/imx/imx51_ipuv3.c  	optional sc
 

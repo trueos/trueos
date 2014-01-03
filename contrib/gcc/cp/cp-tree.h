@@ -3080,12 +3080,24 @@ extern void decl_shadowed_for_var_insert (tree, tree);
    while statement and the body of the while statement, respectively.  */
 #define WHILE_COND(NODE)	TREE_OPERAND (WHILE_STMT_CHECK (NODE), 0)
 #define WHILE_BODY(NODE)	TREE_OPERAND (WHILE_STMT_CHECK (NODE), 1)
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+#define WHILE_ATTRIBUTES(NODE)	TREE_OPERAND (WHILE_STMT_CHECK (NODE), 2)
 
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 /* DO_STMT accessors. These give access to the condition of the do
    statement and the body of the do statement, respectively.  */
 #define DO_COND(NODE)		TREE_OPERAND (DO_STMT_CHECK (NODE), 0)
 #define DO_BODY(NODE)		TREE_OPERAND (DO_STMT_CHECK (NODE), 1)
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+#define DO_ATTRIBUTES(NODE)	TREE_OPERAND (DO_STMT_CHECK (NODE), 2)
+/* APPLE LOCAL begin C* language */
+/* Used as a flag to indicate synthesized inner do-while loop of a 
+   foreach statement.  Used for generation of break/continue statement 
+   of the loop. */
+#define DO_FOREACH(NODE)           TREE_OPERAND (DO_STMT_CHECK (NODE), 3)
+/* APPLE LOCAL end C* language */
 
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 /* FOR_STMT accessors. These give access to the init statement,
    condition, update expression, and body of the for statement,
    respectively.  */
@@ -3093,7 +3105,10 @@ extern void decl_shadowed_for_var_insert (tree, tree);
 #define FOR_COND(NODE)		TREE_OPERAND (FOR_STMT_CHECK (NODE), 1)
 #define FOR_EXPR(NODE)		TREE_OPERAND (FOR_STMT_CHECK (NODE), 2)
 #define FOR_BODY(NODE)		TREE_OPERAND (FOR_STMT_CHECK (NODE), 3)
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+#define FOR_ATTRIBUTES(NODE)	TREE_OPERAND (FOR_STMT_CHECK (NODE), 4)
 
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 #define SWITCH_STMT_COND(NODE)	TREE_OPERAND (SWITCH_STMT_CHECK (NODE), 0)
 #define SWITCH_STMT_BODY(NODE)	TREE_OPERAND (SWITCH_STMT_CHECK (NODE), 1)
 #define SWITCH_STMT_TYPE(NODE)	TREE_OPERAND (SWITCH_STMT_CHECK (NODE), 2)
@@ -4258,14 +4273,20 @@ extern tree finish_then_clause			(tree);
 extern void begin_else_clause			(tree);
 extern void finish_else_clause			(tree);
 extern void finish_if_stmt			(tree);
-extern tree begin_while_stmt			(void);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+extern tree begin_while_stmt			(tree);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 extern void finish_while_stmt_cond		(tree, tree);
 extern void finish_while_stmt			(tree);
-extern tree begin_do_stmt			(void);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+extern tree begin_do_stmt			(tree);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 extern void finish_do_body			(tree);
 extern void finish_do_stmt			(tree, tree);
 extern tree finish_return_stmt			(tree);
-extern tree begin_for_stmt			(void);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+extern tree begin_for_stmt			(tree);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 extern void finish_for_init_stmt		(tree);
 extern void finish_for_cond			(tree, tree);
 extern void finish_for_expr			(tree, tree);
@@ -4373,6 +4394,7 @@ extern tree add_stmt_to_compound		(tree, tree);
 extern tree cxx_maybe_build_cleanup		(tree);
 extern void init_tree				(void);
 extern int pod_type_p				(tree);
+extern bool class_tmpl_impl_spec_p		(tree);
 extern int zero_init_p				(tree);
 extern tree canonical_type_variant		(tree);
 extern tree copy_binfo				(tree, tree, tree,
@@ -4460,8 +4482,9 @@ extern tree build_x_indirect_ref		(tree, const char *);
 extern tree build_indirect_ref			(tree, const char *);
 extern tree build_array_ref			(tree, tree);
 extern tree get_member_function_from_ptrfunc	(tree *, tree);
-extern tree build_x_binary_op			(enum tree_code, tree, tree,
-						 bool *);
+extern tree build_x_binary_op			(enum tree_code, tree,
+						 enum tree_code, tree,
+						 enum tree_code, bool *);
 extern tree build_x_unary_op			(enum tree_code, tree);
 extern tree unary_complex_lvalue		(enum tree_code, tree);
 extern tree build_x_conditional_expr		(tree, tree, tree);
