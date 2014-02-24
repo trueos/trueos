@@ -11,6 +11,9 @@
 # Defaults for TrueOS servers
 if [ -e "/etc/defaults/trueos" ] ; then
 
+  # Enable ZFS
+  zfs_enable="YES"
+
   # FSCK Enhancements
   fsck_y_enable="YES"
 
@@ -47,6 +50,9 @@ fi
 
 # Defaults for PC-BSD desktops
 if [ -e "/etc/defaults/pcbsd" ] ; then
+
+  # Enable ZFS
+  zfs_enable="YES"
 
   background_dhclient="YES" 
   hostname="pcbsd"
