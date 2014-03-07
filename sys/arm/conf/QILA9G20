@@ -53,6 +53,9 @@ options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s1a\"
 
 options 	ALT_BREAK_TO_DEBUGGER
 
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
+options		TMPFS			#Efficient memory filesystem
 #options 	MSDOSFS			#MSDOS Filesystem
 #options 	CD9660			#ISO 9660 Filesystem
 #options 	PROCFS			#Process filesystem (requires PSEUDOFS)
@@ -118,7 +121,6 @@ device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
 
 # USB support
-options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 device		ohci		# OHCI localbus->USB interface
 device		usb		# USB Bus (required)
 device		umass		# Disks/Mass storage - Requires scbus and da

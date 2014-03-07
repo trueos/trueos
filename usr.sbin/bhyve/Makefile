@@ -17,7 +17,7 @@ SRCS=	\
 	dbgport.c		\
 	elcr.c			\
 	inout.c			\
-	legacy_irq.c		\
+	ioapic.c		\
 	mem.c			\
 	mevent.c		\
 	mptbl.c			\
@@ -34,6 +34,7 @@ SRCS=	\
 	pmtmr.c			\
 	post.c			\
 	rtc.c			\
+	smbiostbl.c		\
 	uart_emul.c		\
 	virtio.c		\
 	xmsr.c			\

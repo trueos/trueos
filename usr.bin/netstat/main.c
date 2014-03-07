@@ -571,9 +571,10 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 	if (rflag) {
-		if (sflag)
+		if (sflag) {
 			rt_stats();
-		else
+			flowtable_stats();
+		} else
 			routepr(fib, af);
 		exit(0);
 	}
@@ -759,6 +760,19 @@ kread(u_long addr, void *buf, size_t size)
 		return (-1);
 	}
 	return (0);
+}
+
+/*
+ * Read single counter(9).
+ */
+uint64_t
+kread_counter(u_long addr)
+{
+
+	if (kvmd_init() < 0)
+		return (-1);
+
+	return (kvm_counter_u64_fetch(kvmd, addr));
 }
 
 /*

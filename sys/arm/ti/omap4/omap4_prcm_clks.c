@@ -990,7 +990,7 @@ omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev,
 
 
 	/* Calculate the MPU freq */
-	mpuclk = (sysclk * pll_mult) / pll_div;
+	mpuclk = ((uint64_t)sysclk * pll_mult) / pll_div;
 
 	/* Return the value */
 	if (freq)
@@ -1363,6 +1363,10 @@ omap4_prcm_reset(void)
 static int
 omap4_prcm_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "ti,omap4_prcm"))
 		return (ENXIO);
 

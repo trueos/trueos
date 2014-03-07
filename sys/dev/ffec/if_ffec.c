@@ -961,7 +961,7 @@ ffec_setup_rxfilter(struct ffec_softc *sc)
 				continue;
 			crc = ether_crc32_be(LLADDR((struct sockaddr_dl *)
 			    ifma->ifma_addr), ETHER_ADDR_LEN);
-			ghash |= 1 << (crc & 0x3f);
+			ghash |= 1LLU << (crc & 0x3f);
 		}
 		if_maddr_runlock(ifp);
 	}
@@ -1712,6 +1712,9 @@ static int
 ffec_probe(device_t dev)
 {
 	uintptr_t fectype;
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	fectype = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 	if (fectype == FECTYPE_NONE)

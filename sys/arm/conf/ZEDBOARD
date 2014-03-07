@@ -41,6 +41,9 @@ options 	NFSCL			#Network Filesystem Client
 # options 	BOOTP_NFSROOT
 # options 	BOOTP
 
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
+options		TMPFS			#Efficient memory filesystem
 options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
@@ -81,7 +84,6 @@ device		sdhci			# generic sdhci
 device		bpf			# Berkeley packet filter
 
 # USB support
-options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 device		usb
 options 	USB_DEBUG
 #options 	USB_REQ_DEBUG

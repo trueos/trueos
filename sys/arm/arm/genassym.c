@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
+#include <sys/bus.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -108,6 +109,8 @@ ASSYM(TF_PC, offsetof(struct trapframe, tf_pc));
 ASSYM(P_PID, offsetof(struct proc, p_pid));
 ASSYM(P_FLAG, offsetof(struct proc, p_flag));
 
+ASSYM(SIGF_UC, offsetof(struct sigframe, sf_uc));
+
 #ifdef ARM_TP_ADDRESS
 ASSYM(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 ASSYM(ARM_RAS_START, ARM_RAS_START);
@@ -139,3 +142,4 @@ ASSYM(TRAPFRAMESIZE, sizeof(struct trapframe));
 
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(NIRQ, NIRQ);
+ASSYM(PCPU_SIZE, sizeof(struct pcpu));

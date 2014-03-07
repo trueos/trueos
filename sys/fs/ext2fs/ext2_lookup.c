@@ -805,7 +805,7 @@ ext2_dirbad(struct inode *ip, doff_t offset, char *how)
 			mp->mnt_stat.f_mntonname, (u_long)ip->i_number,(long)offset, how);
 	else
 	(void)printf("%s: bad dir ino %lu at offset %ld: %s\n",
-            mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
+	    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
 
 }
 
@@ -887,7 +887,7 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 	if (ext2_htree_has_idx(dp)) {
 		error = ext2_htree_add_entry(dvp, &newdir, cnp);
 		if (error) {
-			dp->i_flags &= ~E4_INDEX;
+			dp->i_flag &= ~IN_E4INDEX;
 			dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		}
 		return (error);

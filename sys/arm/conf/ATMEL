@@ -10,7 +10,6 @@ include "../at91/std.atmel"
 
 # Typical values for most SoCs and board configurations.  Will not work for
 # at91sam9g45 or on some boards with non u-boot boot loaders.
-options 	STARTUP_PAGETABLE_ADDR=0x20800000
 makeoptions	KERNPHYSADDR=0x20000000
 makeoptions	KERNVIRTADDR=0xc0000000
 options 	KERNPHYSADDR=0x20000000
@@ -49,10 +48,13 @@ options 	NFSCL			# New Network Filesystem Client
 options 	NFSD			# New Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+options		TMPFS			#Efficient memory filesystem
 options 	MSDOSFS			# MSDOS Filesystem
 options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
 options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	GEOM_LABEL		# Provides labelization
 options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
@@ -157,7 +159,6 @@ device		uart		# Multi-uart driver
 options 	ALT_BREAK_TO_DEBUGGER
 
 # USB support
-options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 options 	USB_DEBUG	# enable debug msgs
 device		ohci		# OHCI USB interface
 device		usb		# USB Bus (required)

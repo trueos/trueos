@@ -60,7 +60,7 @@ static int	ext2_htree_check_next(struct inode *ip, uint32_t hash,
 		    const char *name, struct ext2fs_htree_lookup_info *info);
 static int	ext2_htree_cmp_sort_entry(const void *e1, const void *e2);
 static int	ext2_htree_find_leaf(struct inode *ip, const char *name,
-		    int namelen, uint32_t *hash, uint8_t *hash_verion,
+		    int namelen, uint32_t *hash, uint8_t *hash_version,
 		    struct ext2fs_htree_lookup_info *info);
 static uint32_t ext2_htree_get_block(struct ext2fs_htree_entry *ep);
 static uint16_t	ext2_htree_get_count(struct ext2fs_htree_entry *ep);
@@ -90,7 +90,7 @@ int
 ext2_htree_has_idx(struct inode *ip)
 {
 	if (EXT2_HAS_COMPAT_FEATURE(ip->i_e2fs, EXT2F_COMPAT_DIRHASHINDEX) &&
-	    ip->i_flags & E4_INDEX)
+	    ip->i_flag & IN_E4INDEX)
 		return (1);
 	else
 		return (0);
@@ -471,7 +471,7 @@ ext2_htree_cmp_sort_entry(const void *e1, const void *e2)
 
 	if (entry1->h_hash < entry2->h_hash)
 		return (-1);
-	if (entry2->h_hash > entry2->h_hash)
+	if (entry1->h_hash > entry2->h_hash)
 		return (1);
 	return (0);
 }
@@ -654,7 +654,7 @@ ext2_htree_create_index(struct vnode *vp, struct componentname *cnp,
 		    ((char *)ep + ep->e2d_reclen);
 	ep->e2d_reclen = buf1 + blksize - (char *)ep;
 
-	dp->i_flags |= E4_INDEX;
+	dp->i_flag |= IN_E4INDEX;
 
 	/*
 	 * Initialize index root.
