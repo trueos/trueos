@@ -168,7 +168,7 @@ void r_debug_state(struct r_debug *, struct link_map *) __noinline;
  */
 int strpos(const char *haystack, char *needle);
 const char *replace_str(const char *str, char *orig, char *rep);
-int get_modified_path(char *npath, const char *opath);
+int get_modified_pbipath(char *npath, const char *opath);
 char pbidir[MAXPATHLEN];
 int pbiinit = 0;
 static char *usingpbidir;
@@ -2731,18 +2731,15 @@ search_library_path(const char *name, const char *path)
     if (path == NULL)
 	return NULL;
 
-    /*
-     * When looking for libraries and running as a PBI
-     */
     if ( usingpbidir != NULL )
     {
+        /* When looking for libraries and running as a PBI */
 	char newname[MAXPATHLEN];
 	char newpath[MAXPATHLEN];
+
 	/* Do the /usr/local -> /usr/pbi mapping */
-	get_modified_path(newname, name);
-	get_modified_path(newpath, path);
-	//printf("search_library_path() name: %s - %s\n", name, newname);
-	//printf("search_library_path() path: %s - %s\n", path, newpath);
+	get_modified_pbipath(newname, name);
+	get_modified_pbipath(newpath, path);
 
         arg.name = newname;
         arg.namelen = strlen(newname);
@@ -2755,9 +2752,7 @@ search_library_path(const char *name, const char *path)
 
         return (p);
     } else {
-    /*
-     * Traditional library mapping
-     */
+        /* Traditional library mapping */
         arg.name = name;
         arg.namelen = strlen(name);
         arg.buffer = xmalloc(PATH_MAX);
@@ -4918,10 +4913,6 @@ rtld_strerror(int errnum)
 	return (sys_errlist[errnum]);
 }
 
-/* PC-BSD custom hacks to rtld / rpath mashing
- * 03/28/2014
- * Author: Kris Moore <kris@pcbsd.org>
- */
 int strpos(const char *haystack, char *needle)
 {
    char *p = strstr(haystack, needle);
@@ -4933,33 +4924,29 @@ int strpos(const char *haystack, char *needle)
 
 const char *replace_str(const char *str, char *orig, char *rep)
 {
-	static char buffer[4096];
+	static char buffer[MAXPATHLEN];
 	char *p;
 
-	if(!(p = strstr(str, orig)))  // Is 'orig' even in 'str'?
+	if(!(p = strstr(str, orig)))
 		return str;
 
-	strncpy(buffer, str, p-str); // Copy characters from 'str' start to 'orig' st$
+	strncpy(buffer, str, p-str);
 	buffer[p-str] = '\0';
-
 	sprintf(buffer+(p-str), "%s%s", rep, p+strlen(orig));
 
 	return buffer;
 }
 
-/**********************************************************************************
-*  OK, this is where all the path re-mapping happens.
-*  We are going to be taking the current filesystem path, and checking it against
-*  a list of ones we want to "virtualize" so that it appears we have a different
-*  /usr/local namespace
-***********************************************************************************/
-int get_modified_path(char *npath, const char *opath)
+/*
+ * Perform the /usr/local -> /usr/pbi mapping
+ */
+int get_modified_pbipath(char *npath, const char *opath)
 {
-	// Just break out now if path == NULL
+	/* We can return if opath is already null */
 	if ( opath == NULL )
 		return -1;
 
-	// Setup our pbidir variable on first time
+	/* Init the PBI directory for the first time, if necessary */
 	if ( pbiinit == 0 )
 	{
 		strcpy(pbidir, usingpbidir);
@@ -4967,7 +4954,7 @@ int get_modified_path(char *npath, const char *opath)
 		pbiinit=1;
 	}
 
-	// Lastly, lets do all the parsing for /usr/local matching
+	/* Do the string matching, intercept /usr/local calls */
 	if ( strpos(opath, "/usr/local") == 0 )
 	{
 		strcpy(npath, replace_str(opath, "/usr/local", pbidir));
