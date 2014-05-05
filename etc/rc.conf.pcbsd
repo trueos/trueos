@@ -177,7 +177,4 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
   # Enable panic mail
   panicmail_enable="YES"
   panicmail_autosubmit="YES"
-
-  # Enable preloading binaries
-  preload_enable="YES"
 fi
