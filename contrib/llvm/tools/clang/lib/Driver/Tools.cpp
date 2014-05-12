@@ -737,8 +737,15 @@ static StringRef getARMFloatABI(const Driver &D,
     }
 
     case llvm::Triple::FreeBSD:
-      // FreeBSD defaults to soft float
-      FloatABI = "soft";
+      switch(Triple.getEnvironment()) {
+      case llvm::Triple::GNUEABIHF:
+        FloatABI = "hard";
+        break;
+      default:
+        // FreeBSD defaults to soft float
+        FloatABI = "soft";
+        break;
+      }
       break;
 
     default:
@@ -2628,8 +2635,9 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
       CmdArgs.push_back("-gdwarf-4");
     else if (!A->getOption().matches(options::OPT_g0) &&
              !A->getOption().matches(options::OPT_ggdb0)) {
-      // Default is dwarf-2 for darwin.
-      if (getToolChain().getTriple().isOSDarwin())
+      // Default is dwarf-2 for darwin and FreeBSD.
+      const llvm::Triple &Triple = getToolChain().getTriple();
+      if (Triple.isOSDarwin() || Triple.getOS() == llvm::Triple::FreeBSD)
         CmdArgs.push_back("-gdwarf-2");
       else
         CmdArgs.push_back("-g");
@@ -2994,8 +3002,8 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   Args.AddLastArg(CmdArgs, options::OPT_femit_all_decls);
   Args.AddLastArg(CmdArgs, options::OPT_fformat_extensions);
   Args.AddLastArg(CmdArgs, options::OPT_fheinous_gnu_extensions);
-  Args.AddLastArg(CmdArgs, options::OPT_flimit_debug_info);
-  Args.AddLastArg(CmdArgs, options::OPT_fno_limit_debug_info);
+  Args.AddLastArg(CmdArgs, options::OPT_fstandalone_debug);
+  Args.AddLastArg(CmdArgs, options::OPT_fno_standalone_debug);
   Args.AddLastArg(CmdArgs, options::OPT_fno_operator_names);
   // AltiVec language extensions aren't relevant for assembling.
   if (!isa<PreprocessJobAction>(JA) || 
@@ -5776,8 +5784,18 @@ void freebsd::Assemble::ConstructJob(Compilation &C, const JobAction &JA,
     }
   } else if (getToolChain().getArch() == llvm::Triple::arm ||
              getToolChain().getArch() == llvm::Triple::thumb) {
-    CmdArgs.push_back("-mfpu=softvfp");
+    const Driver &D = getToolChain().getDriver();
+    llvm::Triple Triple = getToolChain().getTriple();
+    StringRef FloatABI = getARMFloatABI(D, Args, Triple);
+
+    if (FloatABI == "hard") {
+      CmdArgs.push_back("-mfpu=vfp");
+    } else {
+      CmdArgs.push_back("-mfpu=softvfp");
+    }
+
     switch(getToolChain().getTriple().getEnvironment()) {
+    case llvm::Triple::GNUEABIHF:
     case llvm::Triple::GNUEABI:
     case llvm::Triple::EABI:
       CmdArgs.push_back("-meabi=5");

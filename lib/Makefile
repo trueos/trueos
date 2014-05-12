@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
@@ -31,8 +31,12 @@
 # Except it appears bind needs to be compiled last
 
 SUBDIR_ORDERED=	${_csu} \
+	.WAIT \
 	libc \
 	libc_nonshared \
+	.WAIT \
+	msun \
+	.WAIT \
 	libbsm \
 	libauditd \
 	libutil \
@@ -45,7 +49,6 @@ SUBDIR_ORDERED=	${_csu} \
 	${_libiconv_modules} \
 	libkvm \
 	${_libldns} \
-	msun \
 	libmd \
 	ncurses \
 	${_libnetgraph} \
@@ -62,6 +65,7 @@ SUBDIR_ORDERED+=	libcom_err
 .endif
 
 SUBDIR=	${SUBDIR_ORDERED} \
+	.WAIT \
 	libalias \
 	libarchive \
 	${_libatm} \
@@ -88,7 +92,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	libipsec \
-	${_libipx} \
 	libjail \
 	libkiconv \
 	liblzma \
@@ -100,7 +103,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libnandfs} \
 	libnetbsd \
 	${_libngatm} \
-	libnv \
 	libopie \
 	libpam \
 	libpcap \
@@ -181,10 +183,6 @@ _librpcsec_gss=	librpcsec_gss
 
 .if ${MK_ICONV} != "no"
 _libiconv_modules=	libiconv_modules
-.endif
-
-.if ${MK_IPX} != "no"
-_libipx=	libipx
 .endif
 
 .if ${MK_LDNS} != "no"
@@ -279,6 +277,10 @@ _libusb=	libusb
 .if !defined(LIBRARIES_ONLY)
 afterinstall:
 	${INSTALL_SYMLINK} ../include ${DESTDIR}/usr/lib/include
+.endif
+
+.if !make(install)
+SUBDIR_PARALLEL=
 .endif
 
 .include <bsd.subdir.mk>

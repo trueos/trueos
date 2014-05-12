@@ -230,7 +230,8 @@ again:
 	 */
 	if (flags & IP_SENDONES) {
 		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL) {
+		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
+						    RT_DEFAULT_FIB))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
@@ -241,8 +242,10 @@ again:
 		ip->ip_ttl = 1;
 		isbroadcast = 1;
 	} else if (flags & IP_ROUTETOIF) {
-		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL &&
-		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0))) == NULL) {
+		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst),
+		    				    RT_DEFAULT_FIB))) == NULL &&
+		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst), 0,
+		    				RT_DEFAULT_FIB))) == NULL) {
 			IPSTAT_INC(ips_noroute);
 			error = ENETUNREACH;
 			goto bad;
@@ -884,17 +887,13 @@ in_delayed_cksum(struct mbuf *m)
 		csum = 0xffff;
 	offset += m->m_pkthdr.csum_data;	/* checksum offset */
 
-	if (offset + sizeof(u_short) > m->m_len) {
-		printf("delayed m_pullup, m->len: %d  off: %d  p: %d\n",
-		    m->m_len, offset, ip->ip_p);
-		/*
-		 * XXX
-		 * this shouldn't happen, but if it does, the
-		 * correct behavior may be to insert the checksum
-		 * in the appropriate next mbuf in the chain.
-		 */
-		return;
+	/* find the mbuf in the chain where the checksum starts*/
+	while ((m != NULL) && (offset >= m->m_len)) {
+		offset -= m->m_len;
+		m = m->m_next;
 	}
+	KASSERT(m != NULL, ("in_delayed_cksum: checksum outside mbuf chain."));
+	KASSERT(offset + sizeof(u_short) <= m->m_len, ("in_delayed_cksum: checksum split between mbufs."));
 	*(u_short *)(m->m_data + offset) = csum;
 }
 

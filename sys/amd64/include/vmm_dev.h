@@ -79,6 +79,11 @@ struct vm_ioapic_irq {
 	int		irq;
 };
 
+struct vm_isa_irq {
+	int		atpic_irq;
+	int		ioapic_irq;
+};
+
 struct vm_capability {
 	int		cpuid;
 	enum vm_cap_type captype;
@@ -154,12 +159,17 @@ struct vm_hpet_cap {
 	uint32_t	capabilities;	/* lower 32 bits of HPET capabilities */
 };
 
+struct vm_suspend {
+	enum vm_suspend_how how;
+};
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
 	IOCNUM_RUN = 1,
 	IOCNUM_SET_CAPABILITY = 2,
 	IOCNUM_GET_CAPABILITY = 3,
+	IOCNUM_SUSPEND = 4,
 
 	/* memory apis */
 	IOCNUM_MAP_MEMORY = 10,
@@ -198,10 +208,17 @@ enum {
 	IOCNUM_SET_X2APIC_STATE = 60,
 	IOCNUM_GET_X2APIC_STATE = 61,
 	IOCNUM_GET_HPET_CAPABILITIES = 62,
+
+	/* legacy interrupt injection */
+	IOCNUM_ISA_ASSERT_IRQ = 80,
+	IOCNUM_ISA_DEASSERT_IRQ = 81,
+	IOCNUM_ISA_PULSE_IRQ = 82,
 };
 
 #define	VM_RUN		\
 	_IOWR('v', IOCNUM_RUN, struct vm_run)
+#define	VM_SUSPEND	\
+	_IOW('v', IOCNUM_SUSPEND, struct vm_suspend)
 #define	VM_MAP_MEMORY	\
 	_IOWR('v', IOCNUM_MAP_MEMORY, struct vm_memory_segment)
 #define	VM_GET_MEMORY_SEG \
@@ -230,6 +247,12 @@ enum {
 	_IOW('v', IOCNUM_IOAPIC_PULSE_IRQ, struct vm_ioapic_irq)
 #define	VM_IOAPIC_PINCOUNT	\
 	_IOR('v', IOCNUM_IOAPIC_PINCOUNT, int)
+#define	VM_ISA_ASSERT_IRQ	\
+	_IOW('v', IOCNUM_ISA_ASSERT_IRQ, struct vm_isa_irq)
+#define	VM_ISA_DEASSERT_IRQ	\
+	_IOW('v', IOCNUM_ISA_DEASSERT_IRQ, struct vm_isa_irq)
+#define	VM_ISA_PULSE_IRQ	\
+	_IOW('v', IOCNUM_ISA_PULSE_IRQ, struct vm_isa_irq)
 #define	VM_SET_CAPABILITY \
 	_IOW('v', IOCNUM_SET_CAPABILITY, struct vm_capability)
 #define	VM_GET_CAPABILITY \

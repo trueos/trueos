@@ -86,10 +86,6 @@ struct rt_metrics {
 #define	RT_ALL_FIBS	-1	/* Announce event for every fib */
 extern u_int rt_numfibs;	/* number of usable routing tables */
 extern u_int rt_add_addr_allfibs;	/* Announce interfaces to all fibs */
-/*
- * XXX kernel function pointer `rt_output' is visible to applications.
- */
-struct mbuf;
 
 /*
  * We distinguish between routes to hosts and routes to networks,
@@ -131,20 +127,6 @@ struct rtentry {
 };
 #endif /* _KERNEL || _WANT_RTENTRY */
 
-/*
- * Following structure necessary for 4.3 compatibility;
- * We should eventually move it to a compat file.
- */
-struct ortentry {
-	u_long	rt_hash;		/* to speed lookups */
-	struct	sockaddr rt_dst;	/* key */
-	struct	sockaddr rt_gateway;	/* value */
-	short	rt_flags;		/* up/down?, host/net */
-	short	rt_refcnt;		/* # held references */
-	u_long	rt_use;			/* raw # packets forwarded */
-	struct	ifnet *rt_ifp;		/* the answer: interface to use */
-};
-
 #define	RTF_UP		0x1		/* route usable */
 #define	RTF_GATEWAY	0x2		/* destination is a gateway */
 #define	RTF_HOST	0x4		/* host entry (net otherwise) */
@@ -162,12 +144,7 @@ struct ortentry {
 #define RTF_BLACKHOLE	0x1000		/* just discard pkts (during updates) */
 #define RTF_PROTO2	0x4000		/* protocol specific routing flag */
 #define RTF_PROTO1	0x8000		/* protocol specific routing flag */
-
-/* XXX: temporary to stay API/ABI compatible with userland */
-#ifndef _KERNEL
-#define RTF_PRCLONING	0x10000		/* unused, for compatibility */
-#endif
-
+/*			0x10000		   unused, was RTF_PRCLONING */
 /*			0x20000		   unused, was RTF_WASCLONED */
 #define RTF_PROTO3	0x40000		/* protocol specific routing flag */
 /*			0x80000		   unused */
@@ -229,8 +206,8 @@ struct rt_msghdr {
 #define RTM_REDIRECT	0x6	/* Told to use different route */
 #define RTM_MISS	0x7	/* Lookup failed on this address */
 #define RTM_LOCK	0x8	/* fix specified metrics */
-#define RTM_OLDADD	0x9	/* caused by SIOCADDRT */
-#define RTM_OLDDEL	0xa	/* caused by SIOCDELRT */
+		    /*	0x9  */
+		    /*	0xa  */
 #define RTM_RESOLVE	0xb	/* req to resolve dst to LL addr */
 #define RTM_NEWADDR	0xc	/* address being added to iface */
 #define RTM_DELADDR	0xd	/* address being removed from iface */
@@ -284,6 +261,8 @@ struct rt_addrinfo {
 	int	rti_flags;
 	struct	ifaddr *rti_ifa;
 	struct	ifnet *rti_ifp;
+	u_long	rti_mflags;
+	struct	rt_metrics *rti_rmx;
 };
 
 /*
@@ -297,6 +276,10 @@ struct rt_addrinfo {
     (  (!(sa) || ((struct sockaddr *)(sa))->sa_len == 0) ?	\
 	sizeof(long)		:				\
 	1 + ( (((struct sockaddr *)(sa))->sa_len - 1) | (sizeof(long) - 1) ) )
+
+#define	sa_equal(a, b) (	\
+    (((struct sockaddr *)(a))->sa_len == ((struct sockaddr *)(b))->sa_len) && \
+    (bcmp((a), (b), ((struct sockaddr *)(b))->sa_len) == 0))
 
 #ifdef _KERNEL
 
@@ -388,7 +371,7 @@ int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
  *    RTFREE() uses an unlocked entry.
  */
 
-int	 rtexpunge(struct rtentry *);
+int	 rt_expunge(struct radix_node_head *, struct rtentry *);
 void	 rtfree(struct rtentry *);
 int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 
@@ -404,11 +387,6 @@ void	 rtredirect(struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *);
 int	 rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **);
-
-#ifndef BURN_BRIDGES
-/* defaults to "all" FIBs */
-int	 rtinit_fib(struct ifaddr *, int, int);
-#endif
 
 /* XXX MRT NEW VERSIONS THAT USE FIBs
  * For now the protocol indepedent versions are the same as the AF_INET ones
@@ -426,10 +404,7 @@ int	 rtrequest_fib(int, struct sockaddr *,
 int	 rtrequest1_fib(int, struct rt_addrinfo *, struct rtentry **, u_int);
 
 #include <sys/eventhandler.h>
-typedef void (*rtevent_arp_update_fn)(void *, struct rtentry *, uint8_t *, struct sockaddr *);
 typedef void (*rtevent_redirect_fn)(void *, struct rtentry *, struct rtentry *, struct sockaddr *);
-/* route_arp_update_event is no longer generated; see arp_update_event */
-EVENTHANDLER_DECLARE(route_arp_update_event, rtevent_arp_update_fn);
 EVENTHANDLER_DECLARE(route_redirect_event, rtevent_redirect_fn);
 #endif
 

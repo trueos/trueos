@@ -52,10 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 #include "vmm_host.h"
+#include "vmm_ioport.h"
 #include "vmm_ipi.h"
 #include "vmm_msr.h"
 #include "vmm_ktr.h"
 #include "vmm_stat.h"
+#include "vatpic.h"
 #include "vlapic.h"
 #include "vlapic_priv.h"
 
@@ -861,6 +863,11 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	 * MSR_EFER is saved and restored in the guest VMCS area on a
 	 * VM exit and entry respectively. It is also restored from the
 	 * host VMCS area on a VM exit.
+	 *
+	 * The TSC MSR is exposed read-only. Writes are disallowed as that
+	 * will impact the host TSC.
+	 * XXX Writes would be implemented with a wrmsr trap, and
+	 * then modifying the TSC offset in the VMCS.
 	 */
 	if (guest_msr_rw(vmx, MSR_GSBASE) ||
 	    guest_msr_rw(vmx, MSR_FSBASE) ||
@@ -868,7 +875,8 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	    guest_msr_rw(vmx, MSR_SYSENTER_ESP_MSR) ||
 	    guest_msr_rw(vmx, MSR_SYSENTER_EIP_MSR) ||
 	    guest_msr_rw(vmx, MSR_KGSBASE) ||
-	    guest_msr_rw(vmx, MSR_EFER))
+	    guest_msr_rw(vmx, MSR_EFER) ||
+	    guest_msr_ro(vmx, MSR_TSC))
 		panic("vmx_vminit: error setting guest msr access");
 
 	/*
@@ -1046,6 +1054,7 @@ vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu, pmap_t pmap)
 			invvpid_desc._res1 = 0;
 			invvpid_desc._res2 = 0;
 			invvpid_desc.vpid = vmxstate->vpid;
+			invvpid_desc.linear_addr = 0;
 			invvpid(INVVPID_TYPE_SINGLE_CONTEXT, invvpid_desc);
 		} else {
 			/*
@@ -1143,7 +1152,7 @@ static void
 vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 {
 	struct vm_exception exc;
-	int vector, need_nmi_exiting;
+	int vector, need_nmi_exiting, extint_pending;
 	uint64_t rflags;
 	uint32_t gi, info;
 
@@ -1195,7 +1204,9 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 			vmx_set_nmi_window_exiting(vmx, vcpu);
 	}
 
-	if (virtual_interrupt_delivery) {
+	extint_pending = vm_extint_pending(vmx->vm, vcpu);
+
+	if (!extint_pending && virtual_interrupt_delivery) {
 		vmx_inject_pir(vlapic);
 		return;
 	}
@@ -1211,9 +1222,14 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 		return;
 	}
 
-	/* Ask the local apic for a vector to inject */
-	if (!vlapic_pending_intr(vlapic, &vector))
-		return;
+	if (!extint_pending) {
+		/* Ask the local apic for a vector to inject */
+		if (!vlapic_pending_intr(vlapic, &vector))
+			return;
+	} else {
+		/* Ask the legacy pic for a vector to inject */
+		vatpic_pending_intr(vmx->vm, &vector);
+	}
 
 	KASSERT(vector >= 32 && vector <= 255, ("invalid vector %d", vector));
 
@@ -1251,8 +1267,22 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 	info |= vector;
 	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 
-	/* Update the Local APIC ISR */
-	vlapic_intr_accepted(vlapic, vector);
+	if (!extint_pending) {
+		/* Update the Local APIC ISR */
+		vlapic_intr_accepted(vlapic, vector);
+	} else {
+		vm_extint_clear(vmx->vm, vcpu);
+		vatpic_intr_accepted(vmx->vm, vector);
+
+		/*
+		 * After we accepted the current ExtINT the PIC may
+		 * have posted another one.  If that is the case, set
+		 * the Interrupt Window Exiting execution control so
+		 * we can inject that one too.
+		 */
+		if (vm_extint_pending(vmx->vm, vcpu))
+			vmx_set_int_window_exiting(vmx, vcpu);
+	}
 
 	VCPU_CTR1(vmx->vm, vcpu, "Injecting hwintr at vector %d", vector);
 
@@ -1767,6 +1797,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_RDMSR, 1);
 		retu = false;
 		ecx = vmxctx->guest_rcx;
+		VCPU_CTR1(vmx->vm, vcpu, "rdmsr 0x%08x", ecx);
 		error = emulate_rdmsr(vmx->vm, vcpu, ecx, &retu);
 		if (error) {
 			vmexit->exitcode = VM_EXITCODE_RDMSR;
@@ -1785,6 +1816,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		eax = vmxctx->guest_rax;
 		ecx = vmxctx->guest_rcx;
 		edx = vmxctx->guest_rdx;
+		VCPU_CTR2(vmx->vm, vcpu, "wrmsr 0x%08x value 0x%016lx",
+		    ecx, (uint64_t)edx << 32 | eax);
 		error = emulate_wrmsr(vmx->vm, vcpu, ecx,
 		    (uint64_t)edx << 32 | eax, &retu);
 		if (error) {
@@ -1861,6 +1894,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmexit->u.inout.rep = (qual & 0x20) ? 1 : 0;
 		vmexit->u.inout.port = (uint16_t)(qual >> 16);
 		vmexit->u.inout.eax = (uint32_t)(vmxctx->guest_rax);
+		error = emulate_ioport(vmx->vm, vcpu, vmexit);
+		if (error == 0)  {
+			handled = 1;
+			vmxctx->guest_rax = vmexit->u.inout.eax;
+		}
 		break;
 	case EXIT_REASON_CPUID:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CPUID, 1);
@@ -2069,7 +2107,7 @@ vmx_exit_handle_nmi(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 
 static int
 vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
-    void *rendezvous_cookie)
+    void *rendezvous_cookie, void *suspend_cookie)
 {
 	int rc, handled, launched;
 	struct vmx *vmx;
@@ -2126,15 +2164,22 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		 * pmap_invalidate_ept().
 		 */
 		disable_intr();
-		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
+		if (vcpu_suspended(suspend_cookie)) {
 			enable_intr();
-			handled = vmx_exit_astpending(vmx, vcpu, vmexit);
+			vm_exit_suspended(vmx->vm, vcpu, vmcs_guest_rip());
+			handled = UNHANDLED;
 			break;
 		}
 
 		if (vcpu_rendezvous_pending(rendezvous_cookie)) {
 			enable_intr();
 			handled = vmx_exit_rendezvous(vmx, vcpu, vmexit);
+			break;
+		}
+
+		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
+			enable_intr();
+			handled = vmx_exit_astpending(vmx, vcpu, vmexit);
 			break;
 		}
 
@@ -2183,7 +2228,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 static void
 vmx_vmcleanup(void *arg)
 {
-	int i, error;
+	int i;
 	struct vmx *vmx = arg;
 
 	if (apic_access_virtualization(vmx, 0))
@@ -2191,13 +2236,6 @@ vmx_vmcleanup(void *arg)
 
 	for (i = 0; i < VM_MAXCPU; i++)
 		vpid_free(vmx->state[i].vpid);
-
-	/*
-	 * XXXSMP we also need to clear the VMCS active on the other vcpus.
-	 */
-	error = vmclear(&vmx->vmcs[0]);
-	if (error != 0)
-		panic("vmx_vmcleanup: vmclear error %d on vcpu 0", error);
 
 	free(vmx, M_VMX);
 
@@ -2698,7 +2736,7 @@ vmx_inject_pir(struct vlapic *vlapic)
 	struct pir_desc *pir_desc;
 	struct LAPIC *lapic;
 	uint64_t val, pirval;
-	int rvi, pirbase;
+	int rvi, pirbase = -1;
 	uint16_t intr_status_old, intr_status_new;
 
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
@@ -2710,6 +2748,7 @@ vmx_inject_pir(struct vlapic *vlapic)
 	}
 
 	pirval = 0;
+	pirbase = -1;
 	lapic = vlapic->apic_page;
 
 	val = atomic_readandclear_long(&pir_desc->pir[0]);
@@ -2743,11 +2782,29 @@ vmx_inject_pir(struct vlapic *vlapic)
 		pirbase = 192;
 		pirval = val;
 	}
+
 	VLAPIC_CTR_IRR(vlapic, "vmx_inject_pir");
 
 	/*
 	 * Update RVI so the processor can evaluate pending virtual
 	 * interrupts on VM-entry.
+	 *
+	 * It is possible for pirval to be 0 here, even though the
+	 * pending bit has been set. The scenario is:
+	 * CPU-Y is sending a posted interrupt to CPU-X, which
+	 * is running a guest and processing posted interrupts in h/w.
+	 * CPU-X will eventually exit and the state seen in s/w is
+	 * the pending bit set, but no PIR bits set.
+	 *
+	 *      CPU-X                      CPU-Y
+	 *   (vm running)                (host running)
+	 *   rx posted interrupt
+	 *   CLEAR pending bit
+	 *				 SET PIR bit
+	 *   READ/CLEAR PIR bits
+	 *				 SET pending bit
+	 *   (vm exit)
+	 *   pending bit set, PIR 0
 	 */
 	if (pirval != 0) {
 		rvi = pirbase + flsl(pirval) - 1;

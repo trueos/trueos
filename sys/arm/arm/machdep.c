@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 #include <machine/trap.h>
 #include <machine/undefined.h>
+#include <machine/vfp.h>
 #include <machine/vmparam.h>
 #include <machine/sysarch.h>
 
@@ -142,10 +143,6 @@ extern vm_offset_t ksym_start, ksym_end;
 #define KERNEL_PT_MAX	78
 
 static struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
-
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
 
 vm_paddr_t pmap_pa;
 
@@ -370,8 +367,8 @@ cpu_startup(void *dummy)
 	    (uintmax_t)arm32_ptob(realmem),
 	    (uintmax_t)arm32_ptob(realmem) / mbyte);
 	printf("avail memory = %ju (%ju MB)\n",
-	    (uintmax_t)arm32_ptob(cnt.v_free_count),
-	    (uintmax_t)arm32_ptob(cnt.v_free_count) / mbyte);
+	    (uintmax_t)arm32_ptob(vm_cnt.v_free_count),
+	    (uintmax_t)arm32_ptob(vm_cnt.v_free_count) / mbyte);
 	if (bootverbose) {
 		arm_physmem_print_tables();
 		arm_devmap_print_table();
@@ -379,8 +376,6 @@ cpu_startup(void *dummy)
 
 	bufinit();
 	vm_pager_bufferinit();
-	pcb->un_32.pcb32_und_sp = (u_int)thread0.td_kstack +
-	    USPACE_UNDEF_STACK_TOP;
 	pcb->un_32.pcb32_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
 	vector_page_setprot(VM_PROT_READ);
@@ -429,24 +424,20 @@ void
 cpu_idle(int busy)
 {
 	
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
-	    busy, curcpu);
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d", busy, curcpu);
+	spinlock_enter();
 #ifndef NO_EVENTTIMERS
-	if (!busy) {
-		critical_enter();
+	if (!busy)
 		cpu_idleclock();
-	}
 #endif
 	if (!sched_runnable())
 		cpu_sleep(0);
 #ifndef NO_EVENTTIMERS
-	if (!busy) {
+	if (!busy)
 		cpu_activeclock();
-		critical_exit();
-	}
 #endif
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
-	    busy, curcpu);
+	spinlock_exit();
+	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done", busy, curcpu);
 }
 
 int
@@ -995,6 +986,8 @@ init_proc0(vm_offset_t kstack)
 	thread0.td_pcb = (struct pcb *)
 		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	thread0.td_pcb->pcb_flags = 0;
+	thread0.td_pcb->pcb_vfpcpu = -1;
+	thread0.td_pcb->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;
 }
@@ -1280,10 +1273,6 @@ initarm(struct arm_boot_params *abp)
 	 */
 	cpu_idcache_wbinv_all();
 
-	/* Set stack for exception handlers */
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
 	init_proc0(kernelstack.pv_va);

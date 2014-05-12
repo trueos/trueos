@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 CLANG_SRCS=	${LLVM_SRCS}/tools/clang
 
 CFLAGS+=	-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
@@ -8,11 +10,11 @@ CFLAGS+=	-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 		-DLLVM_ON_UNIX -DLLVM_ON_FREEBSD \
 		-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS #-DNDEBUG
 
-.if !defined(EARLY_BUILD) && defined(MK_CLANG_FULL) && ${MK_CLANG_FULL} != "no"
+.if ${MK_CLANG_FULL} != "no"
 CFLAGS+=	-DCLANG_ENABLE_ARCMT \
 		-DCLANG_ENABLE_REWRITER \
 		-DCLANG_ENABLE_STATIC_ANALYZER
-.endif # !EARLY_BUILD && MK_CLANG_FULL
+.endif # MK_CLANG_FULL
 
 # LLVM is not strict aliasing safe as of 12/31/2011
 CFLAGS+=	-fno-strict-aliasing
@@ -23,12 +25,14 @@ BUILD_ARCH?=	${MACHINE_ARCH}
 .if (${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "armv6") && \
     ${MK_ARM_EABI} != "no"
 TARGET_ABI=	gnueabi
+.elif ${TARGET_ARCH} == "armv6hf"
+TARGET_ABI=	gnueabihf
 .else
 TARGET_ABI=	unknown
 .endif
 
-TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
-BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/}-unknown-freebsd11.0
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/:C/armv6hf/armv6/}-${TARGET_ABI}-freebsd11.0
+BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/:C/armv6hf/armv6/}-unknown-freebsd11.0
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\" \
 		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
