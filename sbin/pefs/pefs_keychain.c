@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <errno.h>
 
-#include <crypto/crypto_verify_bytes.h>
-
 #include <fs/pefs/pefs.h>
 
 #include "pefs_ctl.h"
@@ -86,7 +84,7 @@ pefs_keychain_get_db(DB *db, struct pefs_keychain_head *kch)
 		kc_parent = TAILQ_LAST(kch, pefs_keychain_head);
 		TAILQ_FOREACH(kc, kch, kc_entry) {
 			if (kc != kc_parent &&
-			    crypto_verify_bytes(kc->kc_key.pxk_keyid,
+			    memcmp(kc->kc_key.pxk_keyid,
 			    kc_parent->kc_key.pxk_keyid,
 			    PEFS_KEYID_SIZE) == 0) {
 				pefs_warn("key chain loop detected: %016jx",
