@@ -40,14 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <vm/uma.h>
 
-#include <opencrypto/cryptodev.h>
+#include <crypto/crypto_verify_bytes.h>
 
 #include <fs/pefs/pefs.h>
 #include <fs/pefs/pefs_crypto.h>
 
 #define	PEFS_NAME_KEY_BITS	128
 
-CTASSERT(PEFS_KEY_SIZE <= PEFS_HMAC_DIGEST_LENGTH_MAX);
+CTASSERT(PEFS_KEY_SIZE <= SHA512_DIGEST_LENGTH);
 CTASSERT(PEFS_TWEAK_SIZE == 64/8);
 CTASSERT(PEFS_NAME_CSUM_SIZE <= sizeof(uint64_t));
 CTASSERT(MAXNAMLEN >= PEFS_NAME_PTON_SIZE(MAXNAMLEN) + PEFS_NAME_BLOCK_SIZE);
@@ -157,16 +157,13 @@ pefs_session_leave(const struct pefs_alg *alg, struct pefs_session *ses)
  */
 static void
 pefs_hkdf_expand(struct pefs_ctx *ctx, const uint8_t *masterkey, uint8_t *key,
-    int idx, const uint8_t *magic, size_t magicsize)
+    uint8_t byte_idx, const uint8_t *magic, size_t magicsize)
 {
-	uint8_t byte_idx = idx;
-
-	pefs_hmac_init(&ctx->o.pctx_hmac, CRYPTO_SHA2_512_HMAC,
-	    masterkey, PEFS_KEY_SIZE);
-	pefs_hmac_update(&ctx->o.pctx_hmac, key, PEFS_KEY_SIZE);
-	pefs_hmac_update(&ctx->o.pctx_hmac, magic, magicsize);
-	pefs_hmac_update(&ctx->o.pctx_hmac, &byte_idx, sizeof(byte_idx));
-	pefs_hmac_final(&ctx->o.pctx_hmac, key, PEFS_KEY_SIZE);
+	hmac_sha512_init(&ctx->o.pctx_hmac, masterkey, PEFS_KEY_SIZE);
+	hmac_sha512_update(&ctx->o.pctx_hmac, key, PEFS_KEY_SIZE);
+	hmac_sha512_update(&ctx->o.pctx_hmac, magic, magicsize);
+	hmac_sha512_update(&ctx->o.pctx_hmac, &byte_idx, 1);
+	hmac_sha512_final(&ctx->o.pctx_hmac, key, PEFS_KEY_SIZE);
 }
 
 static void
@@ -309,8 +306,10 @@ pefs_key_lookup(struct pefs_mount *pm, char *keyid)
 
 	mtx_assert(&pm->pm_keys_lock, MA_OWNED);
 	TAILQ_FOREACH(pk, &pm->pm_keys, pk_entry) {
-		if (memcmp(pk->pk_keyid, keyid, PEFS_KEYID_SIZE) == 0)
+		if (crypto_verify_bytes(pk->pk_keyid, keyid,
+		    PEFS_KEYID_SIZE) == 0) {
 			return (pk);
+		}
 	}
 
 	return (NULL);
@@ -330,9 +329,10 @@ pefs_key_add(struct pefs_mount *pm, int index, struct pefs_key *pk)
 	pk_pos = NULL;
 	pos = 0;
 	TAILQ_FOREACH(i, &pm->pm_keys, pk_entry) {
-		if (memcmp(pk->pk_keyid, i->pk_keyid, PEFS_KEYID_SIZE) == 0 ||
-		    memcmp(pk->pk_data_ctx, i->pk_data_ctx,
-		    sizeof(struct pefs_ctx)) == 0) {
+		if (crypto_verify_bytes(pk->pk_keyid, i->pk_keyid,
+		    PEFS_KEYID_SIZE) == 0 ||
+		    crypto_verify_bytes((void *)pk->pk_data_ctx,
+		    (void *)i->pk_data_ctx, sizeof(struct pefs_ctx)) == 0) {
 			mtx_unlock(&pm->pm_keys_lock);
 			return (EEXIST);
 		}
@@ -590,6 +590,9 @@ pefs_name_encrypt(struct pefs_ctx *ctx, struct pefs_tkey *ptk,
 	KASSERT(ptk != NULL && ptk->ptk_key != NULL,
 	    ("pefs_name_encrypt: key is null"));
 
+	if (plain_len > MAXNAMLEN) {
+		return (-ENAMETOOLONG);
+	}
 	size = PEFS_NAME_CSUM_SIZE + PEFS_TWEAK_SIZE + plain_len;
 	/* Resulting name size, count '.' prepended to name */
 	r = PEFS_NAME_NTOP_SIZE(pefs_name_padsize(size)) + 1;

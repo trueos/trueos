@@ -39,11 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <fcntl.h>
 
+#include <crypto/crypto_verify_bytes.h>
+#include <crypto/hmac/hmac_sha512.h>
+#include <crypto/pbkdf2/pbkdf2_hmac_sha512.h>
 #include <crypto/rijndael/rijndael.h>
-#include <opencrypto/cryptodev.h>
 #include <fs/pefs/pefs.h>
-#include <fs/pefs/pefs_hmac.h>
-#include <fs/pefs/pefs_pkcs5v2.h>
 
 #include "pefs_ctl.h"
 
@@ -269,9 +269,9 @@ static int
 pefs_readkeyfile_handler(void *a, uint8_t *buf, size_t len,
     const char *file __unused)
 {
-	struct pefs_hmac_ctx *ctx = a;
+	struct hmac_sha512_ctx *ctx = a;
 
-	pefs_hmac_update(ctx, buf, len);
+	hmac_sha512_update(ctx, buf, len);
 
 	return (0);
 }
@@ -280,7 +280,7 @@ int
 pefs_key_generate(struct pefs_xkey *xk, const char *passphrase,
     struct pefs_keyparam *kp)
 {
-	struct pefs_hmac_ctx ctx;
+	struct hmac_sha512_ctx ctx;
 	int error;
 
 	if (kp->kp_alg <= 0 || kp->kp_keybits <= 0 ||
@@ -293,7 +293,7 @@ pefs_key_generate(struct pefs_xkey *xk, const char *passphrase,
 	xk->pxk_alg = kp->kp_alg;
 	xk->pxk_keybits = kp->kp_keybits;
 
-	pefs_hmac_init(&ctx, CRYPTO_SHA2_512_HMAC, NULL, 0);
+	hmac_sha512_init(&ctx, NULL, 0);
 
 	if (kp->kp_keyfile_count == 0 && passphrase[0] == '\0') {
 		pefs_warn("no key components given");
@@ -308,21 +308,21 @@ pefs_key_generate(struct pefs_xkey *xk, const char *passphrase,
 
 	if (passphrase[0] != '\0') {
 		if (kp->kp_iterations == 0) {
-			pefs_hmac_update(&ctx, passphrase,
+			hmac_sha512_update(&ctx, passphrase,
 			    strlen(passphrase));
 		} else {
-			pefs_pkcs5v2_genkey(xk->pxk_key, PEFS_KEY_SIZE,
+			pbkdf2_hmac_sha512_genkey(xk->pxk_key, PEFS_KEY_SIZE,
 			    passphrase, 0, passphrase,
 			    kp->kp_iterations);
-			pefs_hmac_update(&ctx, xk->pxk_key,
+			hmac_sha512_update(&ctx, xk->pxk_key,
 			    PEFS_KEY_SIZE);
 		}
 	}
-	pefs_hmac_final(&ctx, xk->pxk_key, PEFS_KEY_SIZE);
+	hmac_sha512_final(&ctx, xk->pxk_key, PEFS_KEY_SIZE);
 
-	pefs_hmac_init(&ctx, CRYPTO_SHA2_512_HMAC, xk->pxk_key, PEFS_KEY_SIZE);
-	pefs_hmac_update(&ctx, magic_keyid_info, sizeof(magic_keyid_info));
-	pefs_hmac_final(&ctx, xk->pxk_keyid, PEFS_KEYID_SIZE);
+	hmac_sha512_init(&ctx, xk->pxk_key, PEFS_KEY_SIZE);
+	hmac_sha512_update(&ctx, magic_keyid_info, sizeof(magic_keyid_info));
+	hmac_sha512_final(&ctx, xk->pxk_keyid, PEFS_KEYID_SIZE);
 
 	bzero(&ctx, sizeof(ctx));
 
@@ -333,7 +333,7 @@ static int
 pefs_key_cipher(struct pefs_xkeyenc *xe, int enc,
     const struct pefs_xkey *xk_parent)
 {
-	struct pefs_hmac_ctx hmac_ctx;
+	struct hmac_sha512_ctx hmac_ctx;
 	rijndael_ctx enc_ctx;
 	uint8_t key[PEFS_KEY_SIZE];
 	uint8_t mac[PEFS_KEYENC_MAC_SIZE];
@@ -342,20 +342,22 @@ pefs_key_cipher(struct pefs_xkeyenc *xe, int enc,
 	const int keysize = 128 / 8;
 
 	bzero(key, PEFS_KEY_SIZE);
-	pefs_hmac_init(&hmac_ctx, CRYPTO_SHA2_512_HMAC, xk_parent->pxk_key,
+	hmac_sha512_init(&hmac_ctx, xk_parent->pxk_key,
 	    PEFS_KEY_SIZE);
-	pefs_hmac_update(&hmac_ctx, magic_enckey_info,
+	hmac_sha512_update(&hmac_ctx, magic_enckey_info,
 	    sizeof(magic_enckey_info));
-	pefs_hmac_final(&hmac_ctx, key, PEFS_KEY_SIZE);
+	hmac_sha512_final(&hmac_ctx, key, PEFS_KEY_SIZE);
 
-	pefs_hmac_init(&hmac_ctx, CRYPTO_SHA2_512_HMAC, key, PEFS_KEY_SIZE);
+	hmac_sha512_init(&hmac_ctx, key, PEFS_KEY_SIZE);
 
 	if (!enc) {
-		pefs_hmac_update(&hmac_ctx, data, datasize);
-		pefs_hmac_final(&hmac_ctx, mac, PEFS_KEYENC_MAC_SIZE);
+		hmac_sha512_update(&hmac_ctx, data, datasize);
+		hmac_sha512_final(&hmac_ctx, mac, PEFS_KEYENC_MAC_SIZE);
 		bzero(&hmac_ctx, sizeof(hmac_ctx));
-		if (memcmp(mac, xe->ke_mac, PEFS_KEYENC_MAC_SIZE) != 0)
+		if (crypto_verify_bytes(mac, xe->ke_mac,
+		    PEFS_KEYENC_MAC_SIZE) != 0) {
 			return (PEFS_ERR_INVALID);
+		}
 	}
 
 	rijndael_set_key(&enc_ctx, key, keysize * 8);
@@ -364,8 +366,8 @@ pefs_key_cipher(struct pefs_xkeyenc *xe, int enc,
 	bzero(&enc_ctx, sizeof(enc_ctx));
 
 	if (enc) {
-		pefs_hmac_update(&hmac_ctx, data, datasize);
-		pefs_hmac_final(&hmac_ctx, xe->ke_mac,
+		hmac_sha512_update(&hmac_ctx, data, datasize);
+		hmac_sha512_final(&hmac_ctx, xe->ke_mac,
 		    PEFS_KEYENC_MAC_SIZE);
 		bzero(&hmac_ctx, sizeof(hmac_ctx));
 	}
