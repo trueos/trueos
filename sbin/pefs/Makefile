@@ -2,14 +2,14 @@
 
 SYS=	${.CURDIR}/../../sys
 .PATH:	${SYS}/fs/pefs
-.PATH:	${SYS}/crypto/rijndael ${SYS}/crypto/sha2 ${SYS}/crypto
+.PATH:	${SYS}/crypto/rijndael ${SYS}/crypto/sha2 ${SYS}/crypto ${SYS}/crypto/hmac
 
 PROG=	pefs
 SRCS=	pefs_ctl.c pefs_key.c pefs_keychain.c pefs_subr.c
 SRCS+=	pefs_hmac.c
 SRCS+=	pefs_pkcs5v2.c
 SRCS+=	rijndael-api.c rijndael-api-fst.c rijndael-alg-fst.c
-SRCS+=	sha2.c
+SRCS+=	sha2.c hmac_sha512.c
 SRCS+=	crypto_verify_bytes.c
 
 MAN=	pefs.8
