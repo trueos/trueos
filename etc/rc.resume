@@ -56,9 +56,9 @@ fi
 /bin/sync && /bin/sync && /bin/sync
 
 # Check if we need to resume wpa_supp
-ifconfig | grep -q 'wlan[0-9]:'
+ifconfig | grep -q 'wlan0:'
 if [ $? -eq 0 ] ; then
-  /usr/sbin/wpa_cli reassociate
+  /usr/sbin/service netif restart wlan0
 fi
 
 # Restart moused to fix suspend
