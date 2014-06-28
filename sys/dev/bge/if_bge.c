@@ -542,10 +542,8 @@ DRIVER_MODULE(miibus, bge, miibus_driver, miibus_devclass, 0, 0);
 
 static int bge_allow_asf = 1;
 
-TUNABLE_INT("hw.bge.allow_asf", &bge_allow_asf);
-
 static SYSCTL_NODE(_hw, OID_AUTO, bge, CTLFLAG_RD, 0, "BGE driver parameters");
-SYSCTL_INT(_hw_bge, OID_AUTO, allow_asf, CTLFLAG_RD, &bge_allow_asf, 0,
+SYSCTL_INT(_hw_bge, OID_AUTO, allow_asf, CTLFLAG_RDTUN, &bge_allow_asf, 0,
 	"Allow ASF mode if available");
 
 #define	SPARC64_BLADE_1500_MODEL	"SUNW,Sun-Blade-1500"
@@ -2817,10 +2815,10 @@ bge_dma_free(struct bge_softc *sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_tx_mtag);
 
 	/* Destroy standard RX ring. */
-	if (sc->bge_cdata.bge_rx_std_ring_map)
+	if (sc->bge_ldata.bge_rx_std_ring_paddr)
 		bus_dmamap_unload(sc->bge_cdata.bge_rx_std_ring_tag,
 		    sc->bge_cdata.bge_rx_std_ring_map);
-	if (sc->bge_cdata.bge_rx_std_ring_map && sc->bge_ldata.bge_rx_std_ring)
+	if (sc->bge_ldata.bge_rx_std_ring)
 		bus_dmamem_free(sc->bge_cdata.bge_rx_std_ring_tag,
 		    sc->bge_ldata.bge_rx_std_ring,
 		    sc->bge_cdata.bge_rx_std_ring_map);
@@ -2829,12 +2827,11 @@ bge_dma_free(struct bge_softc *sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_rx_std_ring_tag);
 
 	/* Destroy jumbo RX ring. */
-	if (sc->bge_cdata.bge_rx_jumbo_ring_map)
+	if (sc->bge_ldata.bge_rx_jumbo_ring_paddr)
 		bus_dmamap_unload(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map);
 
-	if (sc->bge_cdata.bge_rx_jumbo_ring_map &&
-	    sc->bge_ldata.bge_rx_jumbo_ring)
+	if (sc->bge_ldata.bge_rx_jumbo_ring)
 		bus_dmamem_free(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_ldata.bge_rx_jumbo_ring,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map);
@@ -2843,12 +2840,11 @@ bge_dma_free(struct bge_softc *sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_rx_jumbo_ring_tag);
 
 	/* Destroy RX return ring. */
-	if (sc->bge_cdata.bge_rx_return_ring_map)
+	if (sc->bge_ldata.bge_rx_return_ring_paddr)
 		bus_dmamap_unload(sc->bge_cdata.bge_rx_return_ring_tag,
 		    sc->bge_cdata.bge_rx_return_ring_map);
 
-	if (sc->bge_cdata.bge_rx_return_ring_map &&
-	    sc->bge_ldata.bge_rx_return_ring)
+	if (sc->bge_ldata.bge_rx_return_ring)
 		bus_dmamem_free(sc->bge_cdata.bge_rx_return_ring_tag,
 		    sc->bge_ldata.bge_rx_return_ring,
 		    sc->bge_cdata.bge_rx_return_ring_map);
@@ -2857,11 +2853,11 @@ bge_dma_free(struct bge_softc *sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_rx_return_ring_tag);
 
 	/* Destroy TX ring. */
-	if (sc->bge_cdata.bge_tx_ring_map)
+	if (sc->bge_ldata.bge_tx_ring_paddr)
 		bus_dmamap_unload(sc->bge_cdata.bge_tx_ring_tag,
 		    sc->bge_cdata.bge_tx_ring_map);
 
-	if (sc->bge_cdata.bge_tx_ring_map && sc->bge_ldata.bge_tx_ring)
+	if (sc->bge_ldata.bge_tx_ring)
 		bus_dmamem_free(sc->bge_cdata.bge_tx_ring_tag,
 		    sc->bge_ldata.bge_tx_ring,
 		    sc->bge_cdata.bge_tx_ring_map);
@@ -2870,11 +2866,11 @@ bge_dma_free(struct bge_softc *sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_tx_ring_tag);
 
 	/* Destroy status block. */
-	if (sc->bge_cdata.bge_status_map)
+	if (sc->bge_ldata.bge_status_block_paddr)
 		bus_dmamap_unload(sc->bge_cdata.bge_status_tag,
 		    sc->bge_cdata.bge_status_map);
 
-	if (sc->bge_cdata.bge_status_map && sc->bge_ldata.bge_status_block)
+	if (sc->bge_ldata.bge_status_block)
 		bus_dmamem_free(sc->bge_cdata.bge_status_tag,
 		    sc->bge_ldata.bge_status_block,
 		    sc->bge_cdata.bge_status_map);
@@ -2883,11 +2879,11 @@ bge_dma_free(struct bge_softc *sc)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_status_tag);
 
 	/* Destroy statistics block. */
-	if (sc->bge_cdata.bge_stats_map)
+	if (sc->bge_ldata.bge_stats_paddr)
 		bus_dmamap_unload(sc->bge_cdata.bge_stats_tag,
 		    sc->bge_cdata.bge_stats_map);
 
-	if (sc->bge_cdata.bge_stats_map && sc->bge_ldata.bge_stats)
+	if (sc->bge_ldata.bge_stats)
 		bus_dmamem_free(sc->bge_cdata.bge_stats_tag,
 		    sc->bge_ldata.bge_stats,
 		    sc->bge_cdata.bge_stats_map);
@@ -6239,7 +6235,6 @@ bge_add_sysctls(struct bge_softc *sc)
 {
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *children;
-	char tn[32];
 	int unit;
 
 	ctx = device_get_sysctl_ctx(sc->bge_dev);
@@ -6278,18 +6273,14 @@ bge_add_sysctls(struct bge_softc *sc)
 	 * consumes a lot of CPU cycles, so leave it off by default.
 	 */
 	sc->bge_forced_collapse = 0;
-	snprintf(tn, sizeof(tn), "dev.bge.%d.forced_collapse", unit);
-	TUNABLE_INT_FETCH(tn, &sc->bge_forced_collapse);
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "forced_collapse",
-	    CTLFLAG_RW, &sc->bge_forced_collapse, 0,
+	    CTLFLAG_RWTUN, &sc->bge_forced_collapse, 0,
 	    "Number of fragmented TX buffers of a frame allowed before "
 	    "forced collapsing");
 
 	sc->bge_msi = 1;
-	snprintf(tn, sizeof(tn), "dev.bge.%d.msi", unit);
-	TUNABLE_INT_FETCH(tn, &sc->bge_msi);
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "msi",
-	    CTLFLAG_RD, &sc->bge_msi, 0, "Enable MSI");
+	    CTLFLAG_RDTUN, &sc->bge_msi, 0, "Enable MSI");
 
 	/*
 	 * It seems all Broadcom controllers have a bug that can generate UDP
@@ -6302,10 +6293,8 @@ bge_add_sysctls(struct bge_softc *sc)
 	 * dev.bge.0.forced_udpcsum.
 	 */
 	sc->bge_forced_udpcsum = 0;
-	snprintf(tn, sizeof(tn), "dev.bge.%d.bge_forced_udpcsum", unit);
-	TUNABLE_INT_FETCH(tn, &sc->bge_forced_udpcsum);
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "forced_udpcsum",
-	    CTLFLAG_RW, &sc->bge_forced_udpcsum, 0,
+	    CTLFLAG_RWTUN, &sc->bge_forced_udpcsum, 0,
 	    "Enable UDP checksum offloading even if controller can "
 	    "generate UDP checksum value 0");
 

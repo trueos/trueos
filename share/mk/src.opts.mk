@@ -30,13 +30,6 @@
 .if !target(__<src.opts.mk>__)
 __<src.opts.mk>__:
 
-# Allow user to configure things that only effect src tree builds.
-SRCCONF?=	/etc/src.conf
-.if exists(${SRCCONF}) || ${SRCCONF} != "/etc/src.conf"
-.include "${SRCCONF}"
-.endif
-
-# Must be included after src.conf
 .include <bsd.own.mk>
 
 #
@@ -75,6 +68,7 @@ __DEFAULT_YES_OPTIONS = \
     CROSS_COMPILER \
     CRYPT \
     CTM \
+    CUSE \
     CXX \
     DICT \
     DMAGENT \
@@ -119,7 +113,6 @@ __DEFAULT_YES_OPTIONS = \
     MAIL \
     MAILWRAPPER \
     MAKE \
-    NCURSESW \
     NDIS \
     NETCAT \
     NETGRAPH \
@@ -156,6 +149,7 @@ __DEFAULT_YES_OPTIONS = \
     USB \
     UTMPX \
     VI \
+    VT_SUPPORT \
     WIRELESS \
     WPA_SUPPLICANT_EAPOL \
     ZFS \

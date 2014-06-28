@@ -84,8 +84,7 @@
 static int check_hostid = 1;
 
 SYSCTL_DECL(_vfs_zfs);
-TUNABLE_INT("vfs.zfs.check_hostid", &check_hostid);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, check_hostid, CTLFLAG_RW, &check_hostid, 0,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, check_hostid, CTLFLAG_RWTUN, &check_hostid, 0,
     "Check hostid on import?");
 
 /*
@@ -953,7 +952,11 @@ spa_taskq_dispatch_ent(spa_t *spa, zio_type_t t, zio_taskq_type_t q,
 	if (tqs->stqs_count == 1) {
 		tq = tqs->stqs_taskq[0];
 	} else {
+#ifdef _KERNEL
+		tq = tqs->stqs_taskq[cpu_ticks() % tqs->stqs_count];
+#else
 		tq = tqs->stqs_taskq[gethrtime() % tqs->stqs_count];
+#endif
 	}
 
 	taskq_dispatch_ent(tq, func, arg, flags, ent);
@@ -3919,9 +3922,6 @@ spa_generate_rootconf(const char *name)
 		}
 	}
 
-	/*
-	 * Multi-vdev root pool configuration discovery is not supported yet.
-	 */
 	nchildren = 1;
 	nvlist_lookup_uint64(best_cfg, ZPOOL_CONFIG_VDEV_CHILDREN, &nchildren);
 	holes = NULL;

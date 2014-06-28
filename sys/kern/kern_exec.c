@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/systm.h>
-#include <sys/capsicum.h>
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -128,8 +127,7 @@ SYSCTL_INT(_kern, OID_AUTO, disallow_high_osrel, CTLFLAG_RW,
     "Disallow execution of binaries built for higher version of the world");
 
 static int map_at_zero = 0;
-TUNABLE_INT("security.bsd.map_at_zero", &map_at_zero);
-SYSCTL_INT(_security_bsd, OID_AUTO, map_at_zero, CTLFLAG_RW, &map_at_zero, 0,
+SYSCTL_INT(_security_bsd, OID_AUTO, map_at_zero, CTLFLAG_RWTUN, &map_at_zero, 0,
     "Permit processes to map an object at virtual address 0.");
 
 static int
@@ -282,6 +280,7 @@ kern_execve(td, args, mac_p)
 	struct mac *mac_p;
 {
 	struct proc *p = td->td_proc;
+	struct vmspace *oldvmspace;
 	int error;
 
 	AUDIT_ARG_ARGV(args->begin_argv, args->argc,
@@ -298,6 +297,8 @@ kern_execve(td, args, mac_p)
 		PROC_UNLOCK(p);
 	}
 
+	KASSERT((td->td_pflags & TDP_EXECVMSPC) == 0, ("nested execve"));
+	oldvmspace = td->td_proc->p_vmspace;
 	error = do_execve(td, args, mac_p);
 
 	if (p->p_flag & P_HADTHREADS) {
@@ -311,6 +312,12 @@ kern_execve(td, args, mac_p)
 		else
 			thread_single_end();
 		PROC_UNLOCK(p);
+	}
+	if ((td->td_pflags & TDP_EXECVMSPC) != 0) {
+		KASSERT(td->td_proc->p_vmspace != oldvmspace,
+		    ("oldvmspace still used"));
+		vmspace_free(oldvmspace);
+		td->td_pflags &= ~TDP_EXECVMSPC;
 	}
 
 	return (error);
@@ -587,7 +594,9 @@ interpret:
 	 * For security and other reasons, the file descriptor table cannot
 	 * be shared after an exec.
 	 */
-	fdunshare(p, td);
+	fdunshare(td);
+	/* close files on exec */
+	fdcloseexec(td);
 
 	/*
 	 * Malloc things before we need locks.
@@ -601,8 +610,6 @@ interpret:
 		bcopy(imgp->args->begin_argv, newargs->ar_args, i);
 	}
 
-	/* close files on exec */
-	fdcloseexec(td);
 	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 
 	/* Get a reference to the vnode prior to locking the proc */
@@ -1092,9 +1099,9 @@ exec_new_vmspace(imgp, sv)
 		return (error);
 #endif
 
-	/* vm_ssize and vm_maxsaddr are somewhat antiquated concepts in the
-	 * VM_STACK case, but they are still used to monitor the size of the
-	 * process stack so we can check the stack rlimit.
+	/*
+	 * vm_ssize and vm_maxsaddr are somewhat antiquated concepts, but they
+	 * are still used to enforce the stack rlimit on the process stack.
 	 */
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
 	vmspace->vm_maxsaddr = (char *)sv->sv_usrstack - ssiz;

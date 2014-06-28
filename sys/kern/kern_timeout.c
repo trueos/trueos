@@ -101,15 +101,15 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls_dir, CTLFLAG_RD, &avg_mpcalls_dir,
 #endif
 
 static int ncallout;
-SYSCTL_INT(_kern, OID_AUTO, ncallout, CTLFLAG_RDTUN, &ncallout, 0,
+SYSCTL_INT(_kern, OID_AUTO, ncallout, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &ncallout, 0,
     "Number of entries in callwheel and size of timeout() preallocation");
 
 static int pin_default_swi = 0;
 static int pin_pcpu_swi = 0;
 
-SYSCTL_INT(_kern, OID_AUTO, pin_default_swi, CTLFLAG_RDTUN, &pin_default_swi,
+SYSCTL_INT(_kern, OID_AUTO, pin_default_swi, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &pin_default_swi,
     0, "Pin the default (non-per-cpu) swi (shared with PCPU 0 swi)");
-SYSCTL_INT(_kern, OID_AUTO, pin_pcpu_swi, CTLFLAG_RDTUN, &pin_pcpu_swi,
+SYSCTL_INT(_kern, OID_AUTO, pin_pcpu_swi, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &pin_pcpu_swi,
     0, "Pin the per-CPU swis (except PCPU 0, which is also default");
 
 /*
@@ -873,10 +873,7 @@ softclock(void *arg)
  *	identify entries for untimeout.
  */
 struct callout_handle
-timeout(ftn, arg, to_ticks)
-	timeout_t *ftn;
-	void *arg;
-	int to_ticks;
+timeout(timeout_t *ftn, void *arg, int to_ticks)
 {
 	struct callout_cpu *cc;
 	struct callout *new;
@@ -898,10 +895,7 @@ timeout(ftn, arg, to_ticks)
 }
 
 void
-untimeout(ftn, arg, handle)
-	timeout_t *ftn;
-	void *arg;
-	struct callout_handle handle;
+untimeout(timeout_t *ftn, void *arg, struct callout_handle handle)
 {
 	struct callout_cpu *cc;
 
@@ -1084,9 +1078,7 @@ callout_schedule(struct callout *c, int to_ticks)
 }
 
 int
-_callout_stop_safe(c, safe)
-	struct	callout *c;
-	int	safe;
+_callout_stop_safe(struct callout *c, int safe)
 {
 	struct callout_cpu *cc, *old_cc;
 	struct lock_class *class;
@@ -1258,9 +1250,7 @@ again:
 }
 
 void
-callout_init(c, mpsafe)
-	struct	callout *c;
-	int mpsafe;
+callout_init(struct callout *c, int mpsafe)
 {
 	bzero(c, sizeof *c);
 	if (mpsafe) {
@@ -1274,10 +1264,7 @@ callout_init(c, mpsafe)
 }
 
 void
-_callout_init_lock(c, lock, flags)
-	struct	callout *c;
-	struct	lock_object *lock;
-	int flags;
+_callout_init_lock(struct callout *c, struct lock_object *lock, int flags)
 {
 	bzero(c, sizeof *c);
 	c->c_lock = lock;
@@ -1309,8 +1296,7 @@ _callout_init_lock(c, lock, flags)
  * 2 days.  Your milage may vary.   - Ken Key <key@cs.utk.edu>
  */
 void
-adjust_timeout_calltodo(time_change)
-    struct timeval *time_change;
+adjust_timeout_calltodo(struct timeval *time_change)
 {
 	register struct callout *p;
 	unsigned long delta_ticks;

@@ -155,6 +155,11 @@
 	&man.mrsas.4;.</para>
     </note>
 
+    <para revision="265876">A kernel bug that inhibited proper
+      functionality of the <literal>dev.cpu.0.freq</literal>
+      &man.sysctl.8; on &intel; processors with Turbo
+      Boost&nbsp;&trade; enabled has been fixed.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
@@ -182,6 +187,15 @@
 
       <para revision="260847">The &man.virtio_random.4; driver has
 	been added to harvest entropy from the host system.</para>
+
+      <para revision="267536" contrib="sponsor"
+	sponsor="&citrix.rd;">Support for running a &os;/&arch.amd64;
+	<application>Xen</application> guest instance as
+	<acronym>PVH</acronym> guest has been added.
+	<acronym>PVH</acronym> mode, short for <quote>Para-Virtualized
+	  Hardware</quote>, uses para-virtualized drivers for boot
+	and I/O, and uses hardware virtualization extensions for all
+	other tasks, without the need for emulation.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
@@ -306,6 +320,21 @@
       to filter by &man.jail.8; ID or name, in followup to the
       &man.ps.1; change in <literal>r265229</literal>.</para>
 
+    <para revision="265995">The Blowfish &man.crypt.3; default format
+      has been changed to
+      <literal>&dollar;2b&dollar;</literal>.</para>
+
+    <para revision="266209">The &man.pmcstat.8; utility has been
+      updated to include a new flag, <literal>-l</literal>, which
+      ends event collection after the specified number of
+      seconds.</para>
+
+    <para revision="266463">The default &man.newsyslog.conf.5; now
+      includes files in the
+      <filename>/etc/newsyslog.conf.d/</filename> and
+      <filename>/usr/local/etc/newsyslog.conf.d/</filename>
+      directories by default for &man.newsyslog.8;.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
@@ -332,9 +361,6 @@
     <para revision="261071">&man.jemalloc.3; has been updated to
       version 3.5.0.</para>
 
-    <para revision="261197" role="merged"><application>Sendmail</application>
-      has been updated from 8.14.7 to 8.14.8.</para>
-
     <para revision="261212"><application>bmake</application> has been
       updated to version 20140101.</para>
 
@@ -350,6 +376,12 @@
     <para revision="261991"><application>LLVM</application> and
       <application>Clang</application> have been updated to
       version 3.4.</para>
+
+    <para revision="266527" role="merged"><application>Sendmail</application>
+      has been updated from 8.14.7 to 8.14.9.</para>
+
+    <para revision="267256"><application>OpenSSL</application> has
+      been updated to version 1.0.1h.</para>
   </sect2>
 
   <sect2 xml:id="ports">
