@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #include <stdio.h>
@@ -929,11 +929,16 @@ dump_dtl(vdev_t *vd, int indent)
 		dump_dtl(vd->vdev_child[c], indent + 4);
 }
 
+/* from spa_history.c: spa_history_create_obj() */
+#define	HIS_BUF_LEN_DEF	(128 << 10)
+#define	HIS_BUF_LEN_MAX	(1 << 30)
+
 static void
 dump_history(spa_t *spa)
 {
 	nvlist_t **events = NULL;
-	char buf[SPA_MAXBLOCKSIZE];
+	char *buf = NULL;
+	uint64_t bufsize = HIS_BUF_LEN_DEF;
 	uint64_t resid, len, off = 0;
 	uint_t num = 0;
 	int error;
@@ -942,8 +947,11 @@ dump_history(spa_t *spa)
 	char tbuf[30];
 	char internalstr[MAXPATHLEN];
 
+	if ((buf = malloc(bufsize)) == NULL)
+		(void) fprintf(stderr, "Unable to read history: "
+		    "out of memory\n");
 	do {
-		len = sizeof (buf);
+		len = bufsize;
 
 		if ((error = spa_history_get(spa, &off, &len, buf)) != 0) {
 			(void) fprintf(stderr, "Unable to read history: "
@@ -953,9 +961,26 @@ dump_history(spa_t *spa)
 
 		if (zpool_history_unpack(buf, len, &resid, &events, &num) != 0)
 			break;
-
 		off -= resid;
+
+		/*
+		 * If the history block is too big, double the buffer
+		 * size and try again.
+		 */
+		if (resid == len) {
+			free(buf);
+			buf = NULL;
+
+			bufsize <<= 1;
+			if ((bufsize >= HIS_BUF_LEN_MAX) ||
+			    ((buf = malloc(bufsize)) == NULL)) {
+				(void) fprintf(stderr, "Unable to read history: "
+				    "out of memory\n");
+				return;
+			}
+		}
 	} while (len != 0);
+	free(buf);
 
 	(void) printf("\nHistory:\n");
 	for (int i = 0; i < num; i++) {
@@ -2083,6 +2108,8 @@ typedef struct zdb_blkstats {
 	uint64_t zb_lsize;
 	uint64_t zb_psize;
 	uint64_t zb_count;
+	uint64_t zb_gangs;
+	uint64_t zb_ditto_samevdev;
 	uint64_t zb_psize_histogram[PSIZE_HISTO_SIZE];
 } zdb_blkstats_t;
 
@@ -2130,6 +2157,7 @@ zdb_count_block(zdb_cb_t *zcb, zilog_t *zilog, const blkptr_t *bp,
 	for (int i = 0; i < 4; i++) {
 		int l = (i < 2) ? BP_GET_LEVEL(bp) : ZB_TOTAL;
 		int t = (i & 1) ? type : ZDB_OT_TOTAL;
+		int equal;
 		zdb_blkstats_t *zb = &zcb->zcb_type[l][t];
 
 		zb->zb_asize += BP_GET_ASIZE(bp);
@@ -2137,6 +2165,27 @@ zdb_count_block(zdb_cb_t *zcb, zilog_t *zilog, const blkptr_t *bp,
 		zb->zb_psize += BP_GET_PSIZE(bp);
 		zb->zb_count++;
 		zb->zb_psize_histogram[BP_GET_PSIZE(bp) >> SPA_MINBLOCKSHIFT]++;
+
+		zb->zb_gangs += BP_COUNT_GANG(bp);
+
+		switch (BP_GET_NDVAS(bp)) {
+		case 2:
+			if (DVA_GET_VDEV(&bp->blk_dva[0]) ==
+			    DVA_GET_VDEV(&bp->blk_dva[1]))
+				zb->zb_ditto_samevdev++;
+			break;
+		case 3:
+			equal = (DVA_GET_VDEV(&bp->blk_dva[0]) ==
+			    DVA_GET_VDEV(&bp->blk_dva[1])) +
+			    (DVA_GET_VDEV(&bp->blk_dva[0]) ==
+			    DVA_GET_VDEV(&bp->blk_dva[2])) +
+			    (DVA_GET_VDEV(&bp->blk_dva[1]) ==
+			    DVA_GET_VDEV(&bp->blk_dva[2]));
+			if (equal != 0)
+				zb->zb_ditto_samevdev++;
+			break;
+		}
+
 	}
 
 	if (dump_opt['L'])
@@ -2527,6 +2576,8 @@ dump_block_stats(spa_t *spa)
 	(void) printf("\n");
 	(void) printf("\tbp count:      %10llu\n",
 	    (u_longlong_t)tzb->zb_count);
+	(void) printf("\tganged count:  %10llu\n",
+	    (longlong_t)tzb->zb_gangs);
 	(void) printf("\tbp logical:    %10llu      avg: %6llu\n",
 	    (u_longlong_t)tzb->zb_lsize,
 	    (u_longlong_t)(tzb->zb_lsize / tzb->zb_count));
@@ -2548,6 +2599,11 @@ dump_block_stats(spa_t *spa)
 	(void) printf("\tSPA allocated: %10llu     used: %5.2f%%\n",
 	    (u_longlong_t)norm_alloc, 100.0 * norm_alloc / norm_space);
 
+	if (tzb->zb_ditto_samevdev != 0) {
+		(void) printf("\tDittoed blocks on same vdev: %llu\n",
+		    (longlong_t)tzb->zb_ditto_samevdev);
+	}
+
 	if (dump_opt['b'] >= 2) {
 		int l, t, level;
 		(void) printf("\nBlocks\tLSIZE\tPSIZE\tASIZE"
@@ -2555,7 +2611,7 @@ dump_block_stats(spa_t *spa)
 
 		for (t = 0; t <= ZDB_OT_TOTAL; t++) {
 			char csize[32], lsize[32], psize[32], asize[32];
-			char avg[32];
+			char avg[32], gang[32];
 			char *typename;
 
 			if (t < DMU_OT_NUMTYPES)
@@ -2596,6 +2652,7 @@ dump_block_stats(spa_t *spa)
 				zdb_nicenum(zb->zb_psize, psize);
 				zdb_nicenum(zb->zb_asize, asize);
 				zdb_nicenum(zb->zb_asize / zb->zb_count, avg);
+				zdb_nicenum(zb->zb_gangs, gang);
 
 				(void) printf("%6s\t%5s\t%5s\t%5s\t%5s"
 				    "\t%5.2f\t%6.2f\t",
@@ -2608,6 +2665,11 @@ dump_block_stats(spa_t *spa)
 				else
 					(void) printf("    L%d %s\n",
 					    level, typename);
+
+				if (dump_opt['b'] >= 3 && zb->zb_gangs > 0) {
+					(void) printf("\t number of ganged "
+					    "blocks: %s\n", gang);
+				}
 
 				if (dump_opt['b'] >= 4) {
 					(void) printf("psize "
@@ -2716,7 +2778,8 @@ dump_simulated_ddt(spa_t *spa)
 		dds.dds_ref_psize = zdde->zdde_ref_psize;
 		dds.dds_ref_dsize = zdde->zdde_ref_dsize;
 
-		ddt_stat_add(&ddh_total.ddh_stat[highbit(refcnt) - 1], &dds, 0);
+		ddt_stat_add(&ddh_total.ddh_stat[highbit64(refcnt) - 1],
+		    &dds, 0);
 
 		umem_free(zdde, sizeof (*zdde));
 	}

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/efi.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
 #ifdef SW_WATCHDOG
@@ -41,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/bootinfo.h>
-#include <machine/efi.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
@@ -57,8 +57,7 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
 #define	DEV_ALIGN(x)	(((off_t)(x) + (DEV_BSIZE-1)) & ~(DEV_BSIZE-1))
 
 static int minidump = 0;
-TUNABLE_INT("debug.minidump", &minidump);
-SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RW, &minidump, 0,
+SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RWTUN, &minidump, 0,
     "Enable mini crash dumps");
 
 static struct kerneldumpheader kdh;

@@ -359,27 +359,20 @@ static int pfil_local_phys = 0; /* run pfil hooks on the physical interface for
                                    locally destined packets */
 static int log_stp   = 0;   /* log STP state changes */
 static int bridge_inherit_mac = 0;   /* share MAC with first bridge member */
-TUNABLE_INT("net.link.bridge.pfil_onlyip", &pfil_onlyip);
-SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_onlyip, CTLFLAG_RW,
+SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_onlyip, CTLFLAG_RWTUN,
     &pfil_onlyip, 0, "Only pass IP packets when pfil is enabled");
-TUNABLE_INT("net.link.bridge.ipfw_arp", &pfil_ipfw_arp);
-SYSCTL_INT(_net_link_bridge, OID_AUTO, ipfw_arp, CTLFLAG_RW,
+SYSCTL_INT(_net_link_bridge, OID_AUTO, ipfw_arp, CTLFLAG_RWTUN,
     &pfil_ipfw_arp, 0, "Filter ARP packets through IPFW layer2");
-TUNABLE_INT("net.link.bridge.pfil_bridge", &pfil_bridge);
-SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_bridge, CTLFLAG_RW,
+SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_bridge, CTLFLAG_RWTUN,
     &pfil_bridge, 0, "Packet filter on the bridge interface");
-TUNABLE_INT("net.link.bridge.pfil_member", &pfil_member);
-SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_member, CTLFLAG_RW,
+SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_member, CTLFLAG_RWTUN,
     &pfil_member, 0, "Packet filter on the member interface");
-TUNABLE_INT("net.link.bridge.pfil_local_phys", &pfil_local_phys);
-SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_local_phys, CTLFLAG_RW,
+SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_local_phys, CTLFLAG_RWTUN,
     &pfil_local_phys, 0,
     "Packet filter on the physical interface for locally destined packets");
-TUNABLE_INT("net.link.bridge.log_stp", &log_stp);
-SYSCTL_INT(_net_link_bridge, OID_AUTO, log_stp, CTLFLAG_RW,
+SYSCTL_INT(_net_link_bridge, OID_AUTO, log_stp, CTLFLAG_RWTUN,
     &log_stp, 0, "Log STP state changes");
-TUNABLE_INT("net.link.bridge.inherit_mac", &bridge_inherit_mac);
-SYSCTL_INT(_net_link_bridge, OID_AUTO, inherit_mac, CTLFLAG_RW,
+SYSCTL_INT(_net_link_bridge, OID_AUTO, inherit_mac, CTLFLAG_RWTUN,
     &bridge_inherit_mac, 0,
     "Inherit MAC address from the first bridge member");
 
@@ -817,7 +810,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		BRIDGE_LOCK(sc);
 		LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 			if (bif->bif_ifp->if_mtu != ifr->ifr_mtu) {
-				log(LOG_NOTICE, "%s: invalid MTU: %lu(%s)"
+				log(LOG_NOTICE, "%s: invalid MTU: %u(%s)"
 				    " != %d\n", sc->sc_ifp->if_xname,
 				    bif->bif_ifp->if_mtu,
 				    bif->bif_ifp->if_xname, ifr->ifr_mtu);
@@ -1107,7 +1100,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	if (LIST_EMPTY(&sc->sc_iflist))
 		sc->sc_ifp->if_mtu = ifs->if_mtu;
 	else if (sc->sc_ifp->if_mtu != ifs->if_mtu) {
-		if_printf(sc->sc_ifp, "invalid MTU: %lu(%s) != %lu\n",
+		if_printf(sc->sc_ifp, "invalid MTU: %u(%s) != %u\n",
 		    ifs->if_mtu, ifs->if_xname, sc->sc_ifp->if_mtu);
 		return (EINVAL);
 	}

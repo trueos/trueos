@@ -105,7 +105,7 @@ int nmbjumbo16;			/* limits number of 16k jumbo clusters */
 
 static quad_t maxmbufmem;	/* overall real memory limit for all mbufs */
 
-SYSCTL_QUAD(_kern_ipc, OID_AUTO, maxmbufmem, CTLFLAG_RDTUN, &maxmbufmem, 0,
+SYSCTL_QUAD(_kern_ipc, OID_AUTO, maxmbufmem, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &maxmbufmem, 0,
     "Maximum real memory allocatable to various mbuf types");
 
 /*
@@ -647,20 +647,7 @@ m_pkthdr_init(struct mbuf *m, int how)
 	int error;
 #endif
 	m->m_data = m->m_pktdat;
-	m->m_pkthdr.rcvif = NULL;
-	SLIST_INIT(&m->m_pkthdr.tags);
-	m->m_pkthdr.len = 0;
-	m->m_pkthdr.flowid = 0;
-	m->m_pkthdr.csum_flags = 0;
-	m->m_pkthdr.fibnum = 0;
-	m->m_pkthdr.cosqos = 0;
-	m->m_pkthdr.rsstype = 0;
-	m->m_pkthdr.l2hlen = 0;
-	m->m_pkthdr.l3hlen = 0;
-	m->m_pkthdr.l4hlen = 0;
-	m->m_pkthdr.l5hlen = 0;
-	m->m_pkthdr.PH_per.sixtyfour[0] = 0;
-	m->m_pkthdr.PH_loc.sixtyfour[0] = 0;
+	bzero(&m->m_pkthdr, sizeof(m->m_pkthdr));
 #ifdef MAC
 	/* If the label init fails, fail the alloc */
 	error = mac_mbuf_init(m, how);

@@ -92,12 +92,10 @@ static SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD, NULL,
     "Machine Check Architecture");
 
 static int mca_enabled = 1;
-TUNABLE_INT("hw.mca.enabled", &mca_enabled);
 SYSCTL_INT(_hw_mca, OID_AUTO, enabled, CTLFLAG_RDTUN, &mca_enabled, 0,
     "Administrative toggle for machine check support");
 
 static int amd10h_L1TP = 1;
-TUNABLE_INT("hw.mca.amd10h_L1TP", &amd10h_L1TP);
 SYSCTL_INT(_hw_mca, OID_AUTO, amd10h_L1TP, CTLFLAG_RDTUN, &amd10h_L1TP, 0,
     "Administrative toggle for logging of level one TLB parity (L1TP) errors");
 
@@ -700,8 +698,8 @@ cmci_setup(void)
 {
 	int i;
 
-	cmc_state = malloc((mp_maxid + 1) * sizeof(struct cmc_state **),
-	    M_MCA, M_WAITOK);
+	cmc_state = malloc((mp_maxid + 1) * sizeof(struct cmc_state *), M_MCA,
+	    M_WAITOK);
 	for (i = 0; i <= mp_maxid; i++)
 		cmc_state[i] = malloc(sizeof(struct cmc_state) * mca_banks,
 		    M_MCA, M_WAITOK | M_ZERO);

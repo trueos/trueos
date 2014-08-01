@@ -53,28 +53,19 @@ xor128(void *dst, const void *src1, const void *src2)
 	d[1] = s1[1] ^ s2[1];
 }
 
-static __inline int
-shl128(uint64_t *d, const uint64_t *s)
-{
-	int c0, c1;
-
-	c0 = s[0] & (1ULL << 63) ? 1 : 0;
-	c1 = s[1] & (1ULL << 63) ? 1 : 0;
-	d[0] = s[0] << 1;
-	d[1] = s[1] << 1 | c0;
-
-	return (c1);
-}
-
 static __inline void
 gf_mul128(uint64_t *dst, const uint64_t *src)
 {
-	static const uint8_t gf_128_fdbk = 0x87;
-	int carry;
+	static const int gf_128_fdbk = 0x87;
+	int8_t c0, c1;
 
-	carry = shl128(dst, src);
-	if (carry != 0)
-		((uint8_t *)dst)[0] ^= gf_128_fdbk;
+	c0 = (src[0] >> 63);
+	c1 = (src[1] >> 63);
+	dst[0] = (src[0] << 1);
+	dst[1] = (src[1] << 1) | c0;
+
+	c1 = (uint8_t)(-(int)c1 & gf_128_fdbk);
+	((uint8_t *)dst)[0] ^= c1;
 }
 
 static __inline void

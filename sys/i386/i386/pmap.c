@@ -225,8 +225,8 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD, &pat_works, 1,
     "Is page attribute table fully functional?");
 
 static int pg_ps_enabled = 1;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
-    "Are large page mappings enabled?");
+SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &pg_ps_enabled, 0, "Are large page mappings enabled?");
 
 #define	PAT_INDEX_SIZE	8
 static int pat_index[PAT_INDEX_SIZE];	/* cache mode to PAT index conversion */
@@ -744,7 +744,7 @@ pmap_init(void)
 	 * numbers of pv entries.
 	 */
 	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
+	pv_entry_max = shpgperproc * maxproc + vm_cnt.v_page_count;
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_max = roundup(pv_entry_max, _NPCPV);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
@@ -1674,7 +1674,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, struct spglist *free)
 	 * the page table page is globally performed before TLB shoot-
 	 * down is begun.
 	 */
-	atomic_subtract_rel_int(&cnt.v_wire_count, 1);
+	atomic_subtract_rel_int(&vm_cnt.v_wire_count, 1);
 
 	/*
 	 * Do an invltlb to make the invalidated mapping
@@ -2050,7 +2050,7 @@ pmap_release(pmap_t pmap)
 		    ("pmap_release: got wrong ptd page"));
 #endif
 		m->wire_count--;
-		atomic_subtract_int(&cnt.v_wire_count, 1);
+		atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 		vm_page_free_zero(m);
 	}
 }
@@ -2313,7 +2313,7 @@ out:
 		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
-		atomic_add_int(&cnt.v_wire_count, 1);
+		atomic_add_int(&vm_cnt.v_wire_count, 1);
 	}
 	pmap_free_zero_pages(&free);
 	return (m_pc);
@@ -2368,7 +2368,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)pc));
 	pmap_qremove((vm_offset_t)pc, 1);
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 	pmap_ptelist_free(&pv_vafree, (vm_offset_t)pc);
 }
@@ -2862,7 +2862,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 			    ("pmap_remove_pde: pte page wire count error"));
 			mpte->wire_count = 0;
 			pmap_add_delayed_free_list(mpte, free, FALSE);
-			atomic_subtract_int(&cnt.v_wire_count, 1);
+			atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 		}
 	}
 }
@@ -3733,8 +3733,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		va = start + ptoa(diff);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
-		    (VM_PAGE_TO_PHYS(m) & PDRMASK) == 0 &&
-		    pg_ps_enabled && vm_reserv_level_iffullpop(m) == 0 &&
+		    m->psind == 1 && pg_ps_enabled &&
 		    pmap_enter_pde(pmap, va, m, prot))
 			m = &m[NBPDR / PAGE_SIZE - 1];
 		else
@@ -4523,7 +4522,7 @@ pmap_remove_pages(pmap_t pmap)
 						    ("pmap_remove_pages: pte page wire count error"));
 						mpte->wire_count = 0;
 						pmap_add_delayed_free_list(mpte, &free, FALSE);
-						atomic_subtract_int(&cnt.v_wire_count, 1);
+						atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 					}
 				} else {
 					pmap->pm_stats.resident_count--;

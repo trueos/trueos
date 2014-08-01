@@ -204,8 +204,6 @@ int zfs_arc_shrink_shift = 0;
 int zfs_arc_p_min_shift = 0;
 int zfs_disable_dup_eviction = 0;
 
-TUNABLE_QUAD("vfs.zfs.arc_max", &zfs_arc_max);
-TUNABLE_QUAD("vfs.zfs.arc_min", &zfs_arc_min);
 TUNABLE_QUAD("vfs.zfs.arc_meta_limit", &zfs_arc_meta_limit);
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_max, CTLFLAG_RDTUN, &zfs_arc_max, 0,
@@ -3877,7 +3875,7 @@ arc_memory_throttle(uint64_t reserve, uint64_t txg)
 {
 #ifdef _KERNEL
 	uint64_t available_memory =
-	    ptoa((uintmax_t)cnt.v_free_count + cnt.v_cache_count);
+	    ptoa((uintmax_t)vm_cnt.v_free_count + vm_cnt.v_cache_count);
 	static uint64_t page_load = 0;
 	static uint64_t last_txg = 0;
 
@@ -3888,7 +3886,7 @@ arc_memory_throttle(uint64_t reserve, uint64_t txg)
 #endif
 #endif	/* sun */
 
-	if (cnt.v_free_count + cnt.v_cache_count >
+	if (vm_cnt.v_free_count + vm_cnt.v_cache_count >
 	    (uint64_t)physmem * arc_lotsfree_percent / 100)
 		return (0);
 

@@ -74,8 +74,7 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, super_owner, CTLFLAG_RW, &zfs_super_owner, 0,
     "File system owner can perform privileged operation on his file systems");
 
 int zfs_debug_level;
-TUNABLE_INT("vfs.zfs.debug", &zfs_debug_level);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, debug, CTLFLAG_RW, &zfs_debug_level, 0,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, debug, CTLFLAG_RWTUN, &zfs_debug_level, 0,
     "Debug level");
 
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, version, CTLFLAG_RD, 0, "ZFS versions");
@@ -2347,7 +2346,7 @@ zfs_vnodes_adjust(void)
 	 * vntblinit(). If it is equal to desiredvnodes, it means that
 	 * it wasn't tuned by the administrator and we can tune it down.
 	 */
-	newdesiredvnodes = min(maxproc + cnt.v_page_count / 4, 2 *
+	newdesiredvnodes = min(maxproc + vm_cnt.v_page_count / 4, 2 *
 	    vm_kmem_size / (5 * (sizeof(struct vm_object) +
 	    sizeof(struct vnode))));
 	if (newdesiredvnodes == desiredvnodes)

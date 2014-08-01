@@ -197,7 +197,7 @@ vslock(void *addr, size_t len)
 	 * Also, the sysctl code, which is the only present user
 	 * of vslock(), does a hard loop on EAGAIN.
 	 */
-	if (npages + cnt.v_wire_count > vm_page_max_wired)
+	if (npages + vm_cnt.v_wire_count > vm_page_max_wired)
 		return (EAGAIN);
 #endif
 	error = vm_map_wire(&curproc->p_vmspace->vm_map, start, end,
@@ -418,7 +418,7 @@ vm_thread_stack_dispose(vm_object_t ksobj, vm_offset_t ks, int pages)
 		if (m == NULL)
 			panic("vm_thread_dispose: kstack already missing?");
 		vm_page_lock(m);
-		vm_page_unwire(m, 0);
+		vm_page_unwire(m, PQ_INACTIVE);
 		vm_page_free(m);
 		vm_page_unlock(m);
 	}
@@ -507,7 +507,7 @@ vm_thread_swapout(struct thread *td)
 			panic("vm_thread_swapout: kstack already missing?");
 		vm_page_dirty(m);
 		vm_page_lock(m);
-		vm_page_unwire(m, 0);
+		vm_page_unwire(m, PQ_INACTIVE);
 		vm_page_unlock(m);
 	}
 	VM_OBJECT_WUNLOCK(ksobj);

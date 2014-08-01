@@ -41,13 +41,11 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_apic.h"
-#include "opt_atalk.h"
 #include "opt_atpic.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_inet.h"
-#include "opt_ipx.h"
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
@@ -129,6 +127,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/sigframe.h>
 #include <machine/specialreg.h>
 #include <machine/vm86.h>
+#include <x86/init.h>
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
@@ -220,6 +219,12 @@ struct mtx icu_lock;
 
 struct mem_range_softc mem_range_softc;
 
+ /* Default init_ops implementation. */
+ struct init_ops init_ops = {
+	.early_clock_source_init =	i8254_init,
+	.early_delay =			i8254_delay,
+ };
+
 static void
 cpu_startup(dummy)
 	void *dummy;
@@ -265,8 +270,8 @@ cpu_startup(dummy)
 	vm_ksubmap_init(&kmi);
 
 	printf("avail memory = %ju (%ju MB)\n",
-	    ptoa((uintmax_t)cnt.v_free_count),
-	    ptoa((uintmax_t)cnt.v_free_count) / 1048576);
+	    ptoa((uintmax_t)vm_cnt.v_free_count),
+	    ptoa((uintmax_t)vm_cnt.v_free_count) / 1048576);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -689,6 +694,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	regs->tf_esp = (int)sfp;
 	regs->tf_eip = p->p_sysent->sv_sigcode_base;
+	if (regs->tf_eip == 0)
+		regs->tf_eip = p->p_sysent->sv_psstrings - szsigcode;
 	regs->tf_eflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -1106,8 +1113,7 @@ cpu_halt(void)
 }
 
 static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
-TUNABLE_INT("machdep.idle_mwait", &idle_mwait);
-SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RW, &idle_mwait,
+SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RWTUN, &idle_mwait,
     0, "Use MONITOR/MWAIT for short idle");
 
 #define	STATE_RUNNING	0x0
@@ -2267,7 +2273,7 @@ init386(first)
 	 * Initialize the i8254 before the console so that console
 	 * initialization can use DELAY().
 	 */
-	i8254_init();
+	clock_init();
 
 	/*
 	 * Initialize the console before we print anything out.

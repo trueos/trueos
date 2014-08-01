@@ -681,6 +681,7 @@ ql_alloc_dmabuf_exit:
 void
 ql_free_dmabuf(qla_host_t *ha, qla_dma_t *dma_buf)
 {
+        bus_dmamap_unload(dma_buf->dma_tag, dma_buf->dma_map);
         bus_dmamem_free(dma_buf->dma_tag, dma_buf->dma_b, dma_buf->dma_map);
         bus_dma_tag_destroy(dma_buf->dma_tag);
 }
@@ -748,14 +749,8 @@ qla_init_ifnet(device_t dev, qla_host_t *ha)
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 
-#if __FreeBSD_version >= 1000000
-	if_initbaudrate(ifp, IF_Gbps(10));
+	ifp->if_baudrate = IF_Gbps(10);
 	ifp->if_capabilities = IFCAP_LINKSTATE;
-#else
-	ifp->if_mtu = ETHERMTU;
-	ifp->if_baudrate = (1 * 1000 * 1000 *1000);
-
-#endif /* #if __FreeBSD_version >= 1000000 */
 
 	ifp->if_init = qla_init;
 	ifp->if_softc = ha;

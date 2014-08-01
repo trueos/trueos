@@ -104,7 +104,7 @@ tmpfs_mem_avail(void)
 {
 	vm_ooffset_t avail;
 
-	avail = swap_pager_avail + cnt.v_free_count + cnt.v_cache_count -
+	avail = swap_pager_avail + vm_cnt.v_free_count + vm_cnt.v_cache_count -
 	    tmpfs_pages_reserved;
 	if (__predict_false(avail < 0))
 		avail = 0;
@@ -348,6 +348,9 @@ tmpfs_dirent_hash(const char *name, u_int len)
 static __inline off_t
 tmpfs_dirent_cookie(struct tmpfs_dirent *de)
 {
+	if (de == NULL)
+		return (TMPFS_DIRCOOKIE_EOF);
+
 	MPASS(de->td_cookie >= TMPFS_DIRCOOKIE_MIN);
 
 	return (de->td_cookie);
@@ -592,6 +595,8 @@ loop1:
 	default:
 		panic("tmpfs_alloc_vp: type %p %d", node, (int)node->tn_type);
 	}
+	if (vp->v_type != VFIFO)
+		VN_LOCK_ASHARE(vp);
 
 	error = insmntque1(vp, mp, tmpfs_insmntque_dtr, NULL);
 	if (error)
@@ -1144,7 +1149,7 @@ tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
  * error code if another error happens.
  */
 int
-tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
+tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int maxcookies,
     u_long *cookies, int *ncookies)
 {
 	struct tmpfs_dir_cursor dc;
@@ -1155,25 +1160,33 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
 	TMPFS_VALIDATE_DIR(node);
 
 	off = 0;
+
+	/*
+	 * Lookup the node from the current offset.  The starting offset of
+	 * 0 will lookup both '.' and '..', and then the first real entry,
+	 * or EOF if there are none.  Then find all entries for the dir that
+	 * fit into the buffer.  Once no more entries are found (de == NULL),
+	 * the offset is set to TMPFS_DIRCOOKIE_EOF, which will cause the next
+	 * call to return 0.
+	 */
 	switch (uio->uio_offset) {
 	case TMPFS_DIRCOOKIE_DOT:
 		error = tmpfs_dir_getdotdent(node, uio);
 		if (error != 0)
 			return (error);
 		uio->uio_offset = TMPFS_DIRCOOKIE_DOTDOT;
-		if (cnt != 0)
+		if (cookies != NULL)
 			cookies[(*ncookies)++] = off = uio->uio_offset;
+		/* FALLTHROUGH */
 	case TMPFS_DIRCOOKIE_DOTDOT:
 		error = tmpfs_dir_getdotdotdent(node, uio);
 		if (error != 0)
 			return (error);
 		de = tmpfs_dir_first(node, &dc);
-		if (de == NULL)
-			uio->uio_offset = TMPFS_DIRCOOKIE_EOF;
-		else
-			uio->uio_offset = tmpfs_dirent_cookie(de);
-		if (cnt != 0)
+		uio->uio_offset = tmpfs_dirent_cookie(de);
+		if (cookies != NULL)
 			cookies[(*ncookies)++] = off = uio->uio_offset;
+		/* EOF. */
 		if (de == NULL)
 			return (0);
 		break;
@@ -1183,7 +1196,7 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
 		de = tmpfs_dir_lookup_cookie(node, uio->uio_offset, &dc);
 		if (de == NULL)
 			return (EINVAL);
-		if (cnt != 0)
+		if (cookies != NULL)
 			off = tmpfs_dirent_cookie(de);
 	}
 
@@ -1251,25 +1264,19 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int cnt,
 		error = uiomove(&d, d.d_reclen, uio);
 		if (error == 0) {
 			de = tmpfs_dir_next(node, &dc);
-			if (cnt != 0) {
-				if (de == NULL)
-					off = TMPFS_DIRCOOKIE_EOF;
-				else
-					off = tmpfs_dirent_cookie(de);
-				MPASS(*ncookies < cnt);
+			if (cookies != NULL) {
+				off = tmpfs_dirent_cookie(de);
+				MPASS(*ncookies < maxcookies);
 				cookies[(*ncookies)++] = off;
 			}
 		}
 	} while (error == 0 && uio->uio_resid > 0 && de != NULL);
 
-	/* Update the offset and cache. */
-	if (cnt == 0) {
-		if (de == NULL)
-			off = TMPFS_DIRCOOKIE_EOF;
-		else
-			off = tmpfs_dirent_cookie(de);
-	}
+	/* Skip setting off when using cookies as it is already done above. */
+	if (cookies == NULL)
+		off = tmpfs_dirent_cookie(de);
 
+	/* Update the offset and cache. */
 	uio->uio_offset = off;
 	node->tn_dir.tn_readdir_lastn = off;
 	node->tn_dir.tn_readdir_lastp = de;
@@ -1670,8 +1677,8 @@ tmpfs_chsize(struct vnode *vp, u_quad_t size, struct ucred *cred,
  * The vnode must be locked on entry and remain locked on exit.
  */
 int
-tmpfs_chtimes(struct vnode *vp, struct timespec *atime, struct timespec *mtime,
-	struct timespec *birthtime, int vaflags, struct ucred *cred, struct thread *l)
+tmpfs_chtimes(struct vnode *vp, struct vattr *vap,
+    struct ucred *cred, struct thread *l)
 {
 	int error;
 	struct tmpfs_node *node;
@@ -1688,29 +1695,25 @@ tmpfs_chtimes(struct vnode *vp, struct timespec *atime, struct timespec *mtime,
 	if (node->tn_flags & (IMMUTABLE | APPEND))
 		return EPERM;
 
-	/* Determine if the user have proper privilege to update time. */
-	if (vaflags & VA_UTIMES_NULL) {
-		error = VOP_ACCESS(vp, VADMIN, cred, l);
-		if (error)
-			error = VOP_ACCESS(vp, VWRITE, cred, l);
-	} else
-		error = VOP_ACCESS(vp, VADMIN, cred, l);
-	if (error)
+	error = vn_utimes_perm(vp, vap, cred, l);
+	if (error != 0)
 		return (error);
 
-	if (atime->tv_sec != VNOVAL && atime->tv_nsec != VNOVAL)
+	if (vap->va_atime.tv_sec != VNOVAL && vap->va_atime.tv_nsec != VNOVAL)
 		node->tn_status |= TMPFS_NODE_ACCESSED;
 
-	if (mtime->tv_sec != VNOVAL && mtime->tv_nsec != VNOVAL)
+	if (vap->va_mtime.tv_sec != VNOVAL && vap->va_mtime.tv_nsec != VNOVAL)
 		node->tn_status |= TMPFS_NODE_MODIFIED;
 
-	if (birthtime->tv_nsec != VNOVAL && birthtime->tv_nsec != VNOVAL)
+	if (vap->va_birthtime.tv_nsec != VNOVAL &&
+	    vap->va_birthtime.tv_nsec != VNOVAL)
 		node->tn_status |= TMPFS_NODE_MODIFIED;
 
-	tmpfs_itimes(vp, atime, mtime);
+	tmpfs_itimes(vp, &vap->va_atime, &vap->va_mtime);
 
-	if (birthtime->tv_nsec != VNOVAL && birthtime->tv_nsec != VNOVAL)
-		node->tn_birthtime = *birthtime;
+	if (vap->va_birthtime.tv_nsec != VNOVAL &&
+	    vap->va_birthtime.tv_nsec != VNOVAL)
+		node->tn_birthtime = vap->va_birthtime;
 	MPASS(VOP_ISLOCKED(vp));
 
 	return 0;

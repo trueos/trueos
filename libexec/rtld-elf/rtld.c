@@ -94,9 +94,10 @@ static bool donelist_check(DoneList *, const Obj_Entry *);
 static void errmsg_restore(char *);
 static char *errmsg_save(void);
 static void *fill_search_info(const char *, size_t, void *);
-static char *find_library(const char *, const Obj_Entry *);
+static char *find_library(const char *, const Obj_Entry *, int *);
 static const char *gethints(bool);
 static void init_dag(Obj_Entry *);
+static void init_pagesizes(Elf_Auxinfo **aux_info);
 static void init_rtld(caddr_t, Elf_Auxinfo **);
 static void initlist_add_neededs(Needed_Entry *, Objlist *);
 static void initlist_add_objects(Obj_Entry *, Obj_Entry **, Objlist *);
@@ -106,7 +107,6 @@ static void load_filtees(Obj_Entry *, int flags, RtldLockState *);
 static void unload_filtees(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *, int);
 static int load_preload_objects(void);
-static int load_pbipreload_objects(void);
 static Obj_Entry *load_object(const char *, int fd, const Obj_Entry *, int);
 static void map_stacks_exec(RtldLockState *);
 static Obj_Entry *obj_from_addr(const void *);
@@ -119,6 +119,7 @@ static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_put_after(Objlist *, Obj_Entry *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
+static int parse_libdir(const char *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
 static int relocate_object_dag(Obj_Entry *root, bool bind_now,
     Obj_Entry *rtldobj, int flags, RtldLockState *lockstate);
@@ -133,6 +134,7 @@ static int rtld_dirname_abs(const char *, char *);
 static void *rtld_dlopen(const char *name, int fd, int mode);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
+static char *search_library_pathfds(const char *, const char *, int *);
 static const void **get_program_var_addr(const char *, RtldLockState *);
 static void set_program_var(const char *, const void *);
 static int symlook_default(SymLook *, const Obj_Entry *refobj);
@@ -162,16 +164,7 @@ static bool matched_symbol(SymLook *, const Obj_Entry *, Sym_Match_Result *,
     const unsigned long);
 
 void r_debug_state(struct r_debug *, struct link_map *) __noinline;
-
-/*
- * For custom rpath PBI support
- */
-int strpos(const char *haystack, char *needle);
-const char *replace_str(const char *str, char *orig, char *rep);
-int get_modified_path(char *npath, const char *opath);
-char pbidir[MAXPATHLEN];
-int pbiinit = 0;
-static char *usingpbidir;
+void _r_debug_postinit(struct link_map *) __noinline;
 
 /*
  * Data declarations.
@@ -187,10 +180,9 @@ static bool dangerous_ld_env;	/* True if environment variables have been
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
 static char *ld_library_path;	/* Environment variable for search path */
+static char *ld_library_dirs;	/* Environment variable for library descriptors */
 static char *ld_preload;	/* Environment variable for libraries to
 				   load first */
-static char *ld_pbipreload;	/* Environment variable for PBI runtime wrapper
-				   to load first */
 static char *ld_elf_hints_path;	/* Environment variable for alternative hints path */
 static char *ld_tracing;	/* Called from ldd to print libs */
 static char *ld_utrace;		/* Use utrace() to log events. */
@@ -218,7 +210,8 @@ extern Elf_Dyn _DYNAMIC;
 #define	RTLD_IS_DYNAMIC()	(&_DYNAMIC != NULL)
 #endif
 
-int osreldate, pagesize;
+int npagesizes, osreldate;
+size_t *pagesizes;
 
 long __stack_chk_guard[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
@@ -410,8 +403,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
      * future processes to honor the potentially un-safe variables.
      */
     if (!trust) {
-        if (unsetenv(LD_ "PRELOAD") || unsetenv(LD_ "PBIPRELOAD") || unsetenv(LD_ "LIBMAP") ||
-	    unsetenv(LD_ "LIBRARY_PATH") || unsetenv(LD_ "LIBMAP_DISABLE") ||
+        if (unsetenv(LD_ "PRELOAD") || unsetenv(LD_ "LIBMAP") ||
+	    unsetenv(LD_ "LIBRARY_PATH") || unsetenv(LD_ "LIBRARY_PATH_FDS") ||
+	    unsetenv(LD_ "LIBMAP_DISABLE") ||
 	    unsetenv(LD_ "DEBUG") || unsetenv(LD_ "ELF_HINTS_PATH") ||
 	    unsetenv(LD_ "LOADFLTR") || unsetenv(LD_ "LIBRARY_PATH_RPATH")) {
 		_rtld_error("environment corrupt; aborting");
@@ -422,9 +416,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     libmap_disable = getenv(LD_ "LIBMAP_DISABLE") != NULL;
     libmap_override = getenv(LD_ "LIBMAP");
     ld_library_path = getenv(LD_ "LIBRARY_PATH");
+    ld_library_dirs = getenv(LD_ "LIBRARY_PATH_FDS");
     ld_preload = getenv(LD_ "PRELOAD");
-    ld_pbipreload = getenv(LD_ "PBIPRELOAD");
-    usingpbidir = getenv("PBI_RUNDIR");
     ld_elf_hints_path = getenv(LD_ "ELF_HINTS_PATH");
     ld_loadfltr = getenv(LD_ "LOADFLTR") != NULL;
     library_path_rpath = getenv(LD_ "LIBRARY_PATH_RPATH");
@@ -437,7 +430,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		    ld_library_path_rpath = false;
     }
     dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
-	(ld_library_path != NULL) || (ld_preload != NULL) || (ld_pbipreload != NULL ) ||
+	(ld_library_path != NULL) || (ld_preload != NULL) ||
 	(ld_elf_hints_path != NULL) || ld_loadfltr;
     ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
     ld_utrace = getenv(LD_ "UTRACE");
@@ -545,9 +538,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (!libmap_disable)
         libmap_disable = (bool)lm_init(libmap_override);
 
-    dbg("loading LD_PBIPRELOAD libraries");
-    if (load_pbipreload_objects() == -1)
-	die();
     dbg("loading LD_PRELOAD libraries");
     if (load_preload_objects() == -1)
 	die();
@@ -653,6 +643,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (obj_main->crt_no_init)
 	preinit_main();
     objlist_call_init(&initlist, &lockstate);
+    _r_debug_postinit(&obj_main->linkmap);
     objlist_clear(&initlist);
     dbg("loading filtees");
     for (obj = obj_list->next; obj != NULL; obj = obj->next) {
@@ -1431,6 +1422,7 @@ gnu_hash(const char *s)
 	return (h & 0xffffffff);
 }
 
+
 /*
  * Find the library with the given name, and return its full pathname.
  * The returned string is dynamically allocated.  Generates an error
@@ -1438,6 +1430,10 @@ gnu_hash(const char *s)
  *
  * If the second argument is non-NULL, then it refers to an already-
  * loaded shared object, whose library search path will be searched.
+ *
+ * If a library is successfully located via LD_LIBRARY_PATH_FDS, its
+ * descriptor (which is close-on-exec) will be passed out via the third
+ * argument.
  *
  * The search order is:
  *   DT_RPATH in the referencing file _unless_ DT_RUNPATH is present (1)
@@ -1451,7 +1447,7 @@ gnu_hash(const char *s)
  * (1) Handled in digest_dynamic2 - rpath left NULL if runpath defined.
  */
 static char *
-find_library(const char *xname, const Obj_Entry *refobj)
+find_library(const char *xname, const Obj_Entry *refobj, int *fdp)
 {
     char *pathname;
     char *name;
@@ -1488,6 +1484,7 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	if ((pathname = search_library_path(name, ld_library_path)) != NULL ||
 	  (refobj != NULL &&
 	  (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
+	  (pathname = search_library_pathfds(name, ld_library_dirs, fdp)) != NULL ||
           (pathname = search_library_path(name, gethints(false))) != NULL ||
 	  (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL)
 	    return (pathname);
@@ -1500,6 +1497,7 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	  (pathname = search_library_path(name, ld_library_path)) != NULL ||
 	  (objgiven &&
 	  (pathname = search_library_path(name, refobj->runpath)) != NULL) ||
+	  (pathname = search_library_pathfds(name, ld_library_dirs, fdp)) != NULL ||
 	  (pathname = search_library_path(name, gethints(nodeflib))) != NULL ||
 	  (objgiven && !nodeflib &&
 	  (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL))
@@ -1840,8 +1838,9 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     /* Now that non-local variables can be accesses, copy out obj_rtld. */
     memcpy(&obj_rtld, &objtmp, sizeof(obj_rtld));
 
-    if (aux_info[AT_PAGESZ] != NULL)
-	    pagesize = aux_info[AT_PAGESZ]->a_un.a_val;
+    /* The page size is required by the dynamic memory allocator. */
+    init_pagesizes(aux_info);
+
     if (aux_info[AT_OSRELDATE] != NULL)
 	    osreldate = aux_info[AT_OSRELDATE]->a_un.a_val;
 
@@ -1852,6 +1851,50 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 
     r_debug.r_brk = r_debug_state;
     r_debug.r_state = RT_CONSISTENT;
+}
+
+/*
+ * Retrieve the array of supported page sizes.  The kernel provides the page
+ * sizes in increasing order.
+ */
+static void
+init_pagesizes(Elf_Auxinfo **aux_info)
+{
+	static size_t psa[MAXPAGESIZES];
+	int mib[2];
+	size_t len, size;
+
+	if (aux_info[AT_PAGESIZES] != NULL && aux_info[AT_PAGESIZESLEN] !=
+	    NULL) {
+		size = aux_info[AT_PAGESIZESLEN]->a_un.a_val;
+		pagesizes = aux_info[AT_PAGESIZES]->a_un.a_ptr;
+	} else {
+		len = 2;
+		if (sysctlnametomib("hw.pagesizes", mib, &len) == 0)
+			size = sizeof(psa);
+		else {
+			/* As a fallback, retrieve the base page size. */
+			size = sizeof(psa[0]);
+			if (aux_info[AT_PAGESZ] != NULL) {
+				psa[0] = aux_info[AT_PAGESZ]->a_un.a_val;
+				goto psa_filled;
+			} else {
+				mib[0] = CTL_HW;
+				mib[1] = HW_PAGESIZE;
+				len = 2;
+			}
+		}
+		if (sysctl(mib, len, psa, &size, NULL, 0) == -1) {
+			_rtld_error("sysctl for hw.pagesize(s) failed");
+			die();
+		}
+psa_filled:
+		pagesizes = psa;
+	}
+	npagesizes = size / sizeof(pagesizes[0]);
+	/* Discard any invalid entries at the end of the array. */
+	while (npagesizes > 0 && pagesizes[npagesizes - 1] == 0)
+		npagesizes--;
 }
 
 /*
@@ -2030,35 +2073,6 @@ load_preload_objects(void)
     return 0;
 }
 
-static int
-load_pbipreload_objects(void)
-{
-    char *p = ld_pbipreload;
-    Obj_Entry *obj;
-    static const char delim[] = " \t:;";
-
-    if (p == NULL)
-	return 0;
-
-    p += strspn(p, delim);
-    while (*p != '\0') {
-	size_t len = strcspn(p, delim);
-	char savech;
-
-	savech = p[len];
-	p[len] = '\0';
-	obj = load_object(p, -1, NULL, 0);
-	if (obj == NULL)
-	    return -1;	/* XXX - cleanup */
-	obj->z_interpose = true;
-	p[len] = savech;
-	p += len;
-	p += strspn(p, delim);
-    }
-    LD_UTRACE(UTRACE_PRELOAD_FINISHED, NULL, NULL, 0, 0, NULL);
-    return 0;
-}
-
 static const char *
 printable_path(const char *path)
 {
@@ -2083,29 +2097,34 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
     struct stat sb;
     char *path;
 
+    fd = -1;
     if (name != NULL) {
 	for (obj = obj_list->next;  obj != NULL;  obj = obj->next) {
 	    if (object_match_name(obj, name))
 		return (obj);
 	}
 
-	path = find_library(name, refobj);
+	path = find_library(name, refobj, &fd);
 	if (path == NULL)
 	    return (NULL);
     } else
 	path = NULL;
 
-    /*
-     * If we didn't find a match by pathname, or the name is not
-     * supplied, open the file and check again by device and inode.
-     * This avoids false mismatches caused by multiple links or ".."
-     * in pathnames.
-     *
-     * To avoid a race, we open the file and use fstat() rather than
-     * using stat().
-     */
-    fd = -1;
-    if (fd_u == -1) {
+    if (fd >= 0) {
+	/*
+	 * search_library_pathfds() opens a fresh file descriptor for the
+	 * library, so there is no need to dup().
+	 */
+    } else if (fd_u == -1) {
+	/*
+	 * If we didn't find a match by pathname, or the name is not
+	 * supplied, open the file and check again by device and inode.
+	 * This avoids false mismatches caused by multiple links or ".."
+	 * in pathnames.
+	 *
+	 * To avoid a race, we open the file and use fstat() rather than
+	 * using stat().
+	 */
 	if ((fd = open(path, O_RDONLY | O_CLOEXEC)) == -1) {
 	    _rtld_error("Cannot open \"%s\"", path);
 	    free(path);
@@ -2731,46 +2750,80 @@ search_library_path(const char *name, const char *path)
     if (path == NULL)
 	return NULL;
 
-    /*
-     * When looking for libraries and running as a PBI
-     */
-    if ( usingpbidir != NULL )
-    {
-	char newname[MAXPATHLEN];
-	char newpath[MAXPATHLEN];
-	/* Do the /usr/local -> /usr/pbi mapping */
-	get_modified_path(newname, name);
-	get_modified_path(newpath, path);
-	//printf("search_library_path() name: %s - %s\n", name, newname);
-	//printf("search_library_path() path: %s - %s\n", path, newpath);
+    arg.name = name;
+    arg.namelen = strlen(name);
+    arg.buffer = xmalloc(PATH_MAX);
+    arg.buflen = PATH_MAX;
 
-        arg.name = newname;
-        arg.namelen = strlen(newname);
-        arg.buffer = xmalloc(PATH_MAX);
-        arg.buflen = PATH_MAX;
+    p = path_enumerate(path, try_library_path, &arg);
 
-        p = path_enumerate(newpath, try_library_path, &arg);
+    free(arg.buffer);
 
-        free(arg.buffer);
-
-        return (p);
-    } else {
-    /*
-     * Traditional library mapping
-     */
-        arg.name = name;
-        arg.namelen = strlen(name);
-        arg.buffer = xmalloc(PATH_MAX);
-        arg.buflen = PATH_MAX;
-
-        p = path_enumerate(path, try_library_path, &arg);
-
-        free(arg.buffer);
-
-        return (p);
-    }
-
+    return (p);
 }
+
+
+/*
+ * Finds the library with the given name using the directory descriptors
+ * listed in the LD_LIBRARY_PATH_FDS environment variable.
+ *
+ * Returns a freshly-opened close-on-exec file descriptor for the library,
+ * or -1 if the library cannot be found.
+ */
+static char *
+search_library_pathfds(const char *name, const char *path, int *fdp)
+{
+	char *envcopy, *fdstr, *found, *last_token;
+	size_t len;
+	int dirfd, fd;
+
+	dbg("%s('%s', '%s', fdp)\n", __func__, name, path);
+
+	/* Don't load from user-specified libdirs into setuid binaries. */
+	if (!trust)
+		return (NULL);
+
+	/* We can't do anything if LD_LIBRARY_PATH_FDS isn't set. */
+	if (path == NULL)
+		return (NULL);
+
+	/* LD_LIBRARY_PATH_FDS only works with relative paths. */
+	if (name[0] == '/') {
+		dbg("Absolute path (%s) passed to %s", name, __func__);
+		return (NULL);
+	}
+
+	/*
+	 * Use strtok_r() to walk the FD:FD:FD list.  This requires a local
+	 * copy of the path, as strtok_r rewrites separator tokens
+	 * with '\0'.
+	 */
+	found = NULL;
+	envcopy = xstrdup(path);
+	for (fdstr = strtok_r(envcopy, ":", &last_token); fdstr != NULL;
+	    fdstr = strtok_r(NULL, ":", &last_token)) {
+		dirfd = parse_libdir(fdstr);
+		if (dirfd < 0)
+			break;
+		fd = openat(dirfd, name, O_RDONLY | O_CLOEXEC);
+		if (fd >= 0) {
+			*fdp = fd;
+			len = strlen(fdstr) + strlen(name) + 3;
+			found = xmalloc(len);
+			if (rtld_snprintf(found, len, "#%d/%s", dirfd, name) < 0) {
+				_rtld_error("error generating '%d/%s'",
+				    dirfd, name);
+				die();
+			}
+			dbg("open('%s') => %d", found, fd);
+			break;
+		}
+	}
+	free(envcopy);
+
+	return (found);
+}
+
 
 int
 dlclose(void *handle)
@@ -3578,7 +3631,20 @@ r_debug_state(struct r_debug* rd, struct link_map *m)
      * even when marked __noinline.  However, gdb depends on those
      * calls being made.
      */
-    __asm __volatile("" : : : "memory");
+    __compiler_membar();
+}
+
+/*
+ * A function called after init routines have completed. This can be used to
+ * break before a program's entry routine is called, and can be used when
+ * main is not available in the symbol table.
+ */
+void
+_r_debug_postinit(struct link_map *m)
+{
+
+	/* See r_debug_state(). */
+	__compiler_membar();
 }
 
 /*
@@ -4849,6 +4915,36 @@ symlook_init_from_req(SymLook *dst, const SymLook *src)
 	dst->lockstate = src->lockstate;
 }
 
+
+/*
+ * Parse a file descriptor number without pulling in more of libc (e.g. atoi).
+ */
+static int
+parse_libdir(const char *str)
+{
+	static const int RADIX = 10;  /* XXXJA: possibly support hex? */
+	const char *orig;
+	int fd;
+	char c;
+
+	orig = str;
+	fd = 0;
+	for (c = *str; c != '\0'; c = *++str) {
+		if (c < '0' || c > '9')
+			return (-1);
+
+		fd *= RADIX;
+		fd += c - '0';
+	}
+
+	/* Make sure we actually parsed something. */
+	if (str == orig) {
+		_rtld_error("failed to parse directory FD from '%s'", str);
+		return (-1);
+	}
+	return (fd);
+}
+
 /*
  * Overrides for libc_pic-provided functions.
  */
@@ -4916,64 +5012,4 @@ rtld_strerror(int errnum)
 	if (errnum < 0 || errnum >= sys_nerr)
 		return ("Unknown error");
 	return (sys_errlist[errnum]);
-}
-
-/* PC-BSD custom hacks to rtld / rpath mashing
- * 03/28/2014
- * Author: Kris Moore <kris@pcbsd.org>
- */
-int strpos(const char *haystack, char *needle)
-{
-   char *p = strstr(haystack, needle);
-   if (p) {
-      return p - haystack;
-   }
-   return -1;
-}
-
-const char *replace_str(const char *str, char *orig, char *rep)
-{
-	static char buffer[4096];
-	char *p;
-
-	if(!(p = strstr(str, orig)))  // Is 'orig' even in 'str'?
-		return str;
-
-	strncpy(buffer, str, p-str); // Copy characters from 'str' start to 'orig' st$
-	buffer[p-str] = '\0';
-
-	sprintf(buffer+(p-str), "%s%s", rep, p+strlen(orig));
-
-	return buffer;
-}
-
-/**********************************************************************************
-*  OK, this is where all the path re-mapping happens.
-*  We are going to be taking the current filesystem path, and checking it against
-*  a list of ones we want to "virtualize" so that it appears we have a different
-*  /usr/local namespace
-***********************************************************************************/
-int get_modified_path(char *npath, const char *opath)
-{
-	// Just break out now if path == NULL
-	if ( opath == NULL )
-		return -1;
-
-	// Setup our pbidir variable on first time
-	if ( pbiinit == 0 )
-	{
-		strcpy(pbidir, usingpbidir);
-		strcat(pbidir, "/local");
-		pbiinit=1;
-	}
-
-	// Lastly, lets do all the parsing for /usr/local matching
-	if ( strpos(opath, "/usr/local") == 0 )
-	{
-		strcpy(npath, replace_str(opath, "/usr/local", pbidir));
-		return 0;
-	}
-
-	strcpy(npath, opath);
-	return 0;
 }

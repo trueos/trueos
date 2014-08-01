@@ -380,6 +380,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			char            file[MAXPATHLEN];
 			char            home[MAXPATHLEN];
 			uid_t           uid = pwd->pw_uid;
+			struct group    *gr;
+			char            grname[LOGNAMESIZE];
 
 			if (strcmp(pwd->pw_name, "root") == 0)
 				errx(EX_DATAERR, "cannot remove user 'root'");
@@ -406,6 +408,11 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			 */
 			sprintf(file, "%s/%s", _PATH_MAILDIR, pwd->pw_name);
 			strlcpy(home, pwd->pw_dir, sizeof(home));
+			gr = GETGRGID(pwd->pw_gid);
+			if (gr != NULL)
+				strlcpy(grname, gr->gr_name, LOGNAMESIZE);
+			else
+				grname[0] = '\0';
 
 			rc = delpwent(pwd);
 			if (rc == -1)
@@ -426,18 +433,18 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 			grp = GETGRNAM(a_name->val);
 			if (grp != NULL &&
-			    (grp->gr_mem == NULL || *grp->gr_mem == NULL))
+			    (grp->gr_mem == NULL || *grp->gr_mem == NULL) &&
+			    strcmp(a_name->val, grname) == 0)
 				delgrent(GETGRNAM(a_name->val));
 			SETGRENT();
 			while ((grp = GETGRENT()) != NULL) {
-				int i;
+				int i, j;
 				char group[MAXLOGNAME];
 				if (grp->gr_mem != NULL) {
 					for (i = 0; grp->gr_mem[i] != NULL; i++) {
 						if (!strcmp(grp->gr_mem[i], a_name->val)) {
-							while (grp->gr_mem[i] != NULL) {
-								grp->gr_mem[i] = grp->gr_mem[i+1];
-							}	
+							for (j = i; grp->gr_mem[j] != NULL; j++)
+								grp->gr_mem[j] = grp->gr_mem[j+1];
 							strlcpy(group, grp->gr_name, MAXLOGNAME);
 							chggrent(group, grp);
 						}

@@ -48,6 +48,8 @@ __FBSDID("$FreeBSD$");
 #include <libutil.h>
 #include <readpassphrase.h>
 
+#include <crypto/crypto_verify_bytes.h>
+
 #include <fs/pefs/pefs.h>
 
 #include "pefs_ctl.h"
@@ -850,7 +852,7 @@ pefs_addchain(int argc, char *argv[])
 
 	pefs_keychain_get(&kch, fsroot, PEFS_KEYCHAIN_IGNORE_MISSING, k1);
 	TAILQ_FOREACH(kc, &kch, kc_entry) {
-		if (memcmp(k2->pxk_keyid, kc->kc_key.pxk_keyid,
+		if (crypto_verify_bytes(k2->pxk_keyid, kc->kc_key.pxk_keyid,
 		    PEFS_KEYID_SIZE) == 0) {
 			pefs_keychain_free(&kch);
 			bzero(k1->pxk_key, PEFS_KEY_SIZE);

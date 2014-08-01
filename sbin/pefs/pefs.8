@@ -222,6 +222,7 @@ Use
 .Fl F
 option to delete all elements from the chain.
 .It Cm randomchain Ar filesystem
+The command is deprecated and will not be available in future versions.
 Create random key chain elements.
 Minimum and maximum number of elements is controlled by
 .Fl n Ar min
@@ -229,8 +230,7 @@ and
 .Fl N Ar max
 options.
 The command can be used to add false elements into key chain database, which
-would complicate analysis of key usage patterns by attacker.
-It can also be used be achieve some approximation of deniable encryption.
+may complicate analysis of key usage patterns by attacker.
 .It Cm showchains Ar filesystem
 Print all elements of the key chain staring with given parent key.
 .It Cm showalgs

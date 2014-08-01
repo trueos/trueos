@@ -321,7 +321,7 @@ SYSCTL_INT(_machdep, OID_AUTO, nkpt, CTLFLAG_RD, &nkpt, 0,
     "Number of kernel page table pages allocated on bootup");
 
 static int ndmpdp;
-static vm_paddr_t dmaplimit;
+vm_paddr_t dmaplimit;
 vm_offset_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 pt_entry_t pg_nx;
 
@@ -332,8 +332,8 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD, &pat_works, 1,
     "Is page attribute table fully functional?");
 
 static int pg_ps_enabled = 1;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
-    "Are large page mappings enabled?");
+SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &pg_ps_enabled, 0, "Are large page mappings enabled?");
 
 #define	PAT_INDEX_SIZE	8
 static int pat_index[PAT_INDEX_SIZE];	/* cache mode to PAT index conversion */
@@ -368,8 +368,8 @@ static int pmap_flags = PMAP_PDE_SUPERPAGE;	/* flags for x86 pmaps */
 static struct unrhdr pcid_unr;
 static struct mtx pcid_mtx;
 int pmap_pcid_enabled = 0;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN, &pmap_pcid_enabled,
-    0, "Is TLB Context ID enabled ?");
+SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &pmap_pcid_enabled, 0, "Is TLB Context ID enabled ?");
 int invpcid_works = 0;
 SYSCTL_INT(_vm_pmap, OID_AUTO, invpcid_works, CTLFLAG_RD, &invpcid_works, 0,
     "Is the invpcid instruction available ?");
@@ -838,7 +838,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	kernel_pmap->pm_pml4 = (pdp_entry_t *)PHYS_TO_DMAP(KPML4phys);
 	kernel_pmap->pm_cr3 = KPML4phys;
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
-	CPU_ZERO(&kernel_pmap->pm_save);
+	CPU_FILL(&kernel_pmap->pm_save);	/* always superset of pm_active */
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 	kernel_pmap->pm_flags = pmap_flags;
 
@@ -1494,7 +1494,8 @@ pmap_invalidate_all(pmap_t pmap)
 		} else {
 			invltlb_globpcid();
 		}
-		CPU_CLR_ATOMIC(cpuid, &pmap->pm_save);
+		if (!CPU_ISSET(cpuid, &pmap->pm_active))
+			CPU_CLR_ATOMIC(cpuid, &pmap->pm_save);
 		smp_invltlb(pmap);
 	} else {
 		other_cpus = all_cpus;
@@ -1528,7 +1529,8 @@ pmap_invalidate_all(pmap_t pmap)
 			}
 		} else if (CPU_ISSET(cpuid, &pmap->pm_active))
 			invltlb();
-		CPU_CLR_ATOMIC(cpuid, &pmap->pm_save);
+		if (!CPU_ISSET(cpuid, &pmap->pm_active))
+			CPU_CLR_ATOMIC(cpuid, &pmap->pm_save);
 		if (pmap_pcid_enabled)
 			CPU_AND(&other_cpus, &pmap->pm_save);
 		else
@@ -2135,7 +2137,7 @@ _pmap_unwire_ptp(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 	 * the page table page is globally performed before TLB shoot-
 	 * down is begun.
 	 */
-	atomic_subtract_rel_int(&cnt.v_wire_count, 1);
+	atomic_subtract_rel_int(&vm_cnt.v_wire_count, 1);
 
 	/* 
 	 * Put page on a list so that it is released after
@@ -2328,7 +2330,7 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			if (_pmap_allocpte(pmap, NUPDE + NUPDPE + pml4index,
 			    lockp) == NULL) {
 				--m->wire_count;
-				atomic_subtract_int(&cnt.v_wire_count, 1);
+				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 				vm_page_free_zero(m);
 				return (NULL);
 			}
@@ -2361,7 +2363,7 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 			if (_pmap_allocpte(pmap, NUPDE + pdpindex,
 			    lockp) == NULL) {
 				--m->wire_count;
-				atomic_subtract_int(&cnt.v_wire_count, 1);
+				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 				vm_page_free_zero(m);
 				return (NULL);
 			}
@@ -2375,7 +2377,7 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 				if (_pmap_allocpte(pmap, NUPDE + pdpindex,
 				    lockp) == NULL) {
 					--m->wire_count;
-					atomic_subtract_int(&cnt.v_wire_count,
+					atomic_subtract_int(&vm_cnt.v_wire_count,
 					    1);
 					vm_page_free_zero(m);
 					return (NULL);
@@ -2515,7 +2517,7 @@ pmap_release(pmap_t pmap)
 	pmap->pm_pml4[PML4PML4I] = 0;	/* Recursive Mapping */
 
 	m->wire_count--;
-	atomic_subtract_int(&cnt.v_wire_count, 1);
+	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 	vm_page_free_zero(m);
 	if (pmap->pm_pcid != -1)
 		free_unr(&pcid_unr, pmap->pm_pcid);
@@ -2814,7 +2816,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 		SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 		/* Recycle a freed page table page. */
 		m_pc->wire_count = 1;
-		atomic_add_int(&cnt.v_wire_count, 1);
+		atomic_add_int(&vm_cnt.v_wire_count, 1);
 	}
 	pmap_free_zero_pages(&free);
 	return (m_pc);
@@ -2866,7 +2868,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 	dump_drop_page(m->phys_addr);
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 }
 
@@ -3484,7 +3486,7 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 			    ("pmap_remove_pde: pte page wire count error"));
 			mpte->wire_count = 0;
 			pmap_add_delayed_free_list(mpte, free, FALSE);
-			atomic_subtract_int(&cnt.v_wire_count, 1);
+			atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 		}
 	}
 	return (pmap_unuse_pt(pmap, sva, *pmap_pdpe(pmap, sva), free));
@@ -4426,9 +4428,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		va = start + ptoa(diff);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
-		    (VM_PAGE_TO_PHYS(m) & PDRMASK) == 0 &&
-		    pmap_ps_enabled(pmap) &&
-		    vm_reserv_level_iffullpop(m) == 0 &&
+		    m->psind == 1 && pmap_ps_enabled(pmap) &&
 		    pmap_enter_pde(pmap, va, m, prot, &lock))
 			m = &m[NBPDR / PAGE_SIZE - 1];
 		else
@@ -5288,7 +5288,7 @@ pmap_remove_pages(pmap_t pmap)
 						    ("pmap_remove_pages: pte page wire count error"));
 						mpte->wire_count = 0;
 						pmap_add_delayed_free_list(mpte, &free, FALSE);
-						atomic_subtract_int(&cnt.v_wire_count, 1);
+						atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 					}
 				} else {
 					pmap_resident_count_dec(pmap, 1);

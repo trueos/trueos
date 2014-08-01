@@ -71,6 +71,7 @@ ENTRY(armv7_setttb)
 				
 	orr 	r0, r0, #PT_ATTR
  	mcr	p15, 0, r0, c2, c0, 0	/* Translation Table Base Register 0 (TTBR0) */
+	isb
 #ifdef SMP
  	mcr     p15, 0, r0, c8, c3, 0   /* invalidate I+D TLBs Inner Shareable*/
 #else
@@ -84,10 +85,10 @@ END(armv7_setttb)
 ENTRY(armv7_tlb_flushID)
 	dsb
 #ifdef SMP
-	mcr	p15, 0, r0, c8, c3, 0	/* flush I+D tlb */
-	mcr	p15, 0, r0, c7, c1, 6	/* flush BTB */
+	mcr	p15, 0, r0, c8, c3, 0	/* flush Unified TLB all entries Inner Shareable */
+	mcr	p15, 0, r0, c7, c1, 6	/* flush BTB Inner Shareable */
 #else
-	mcr	p15, 0, r0, c8, c7, 0	/* flush I+D tlb */
+	mcr	p15, 0, r0, c8, c7, 0	/* flush Unified TLB all entries */
 	mcr	p15, 0, r0, c7, c5, 6	/* flush BTB */
 #endif
 	dsb
@@ -99,10 +100,10 @@ ENTRY(armv7_tlb_flushID_SE)
 	ldr	r1, .Lpage_mask
 	bic	r0, r0, r1
 #ifdef SMP
-	mcr	p15, 0, r0, c8, c3, 3	/* flush D tlb single entry Inner Shareable*/
+	mcr	p15, 0, r0, c8, c3, 3	/* flush Unified TLB single entry Inner Shareable */
 	mcr	p15, 0, r0, c7, c1, 6	/* flush BTB Inner Shareable */
 #else
-	mcr	p15, 0, r0, c8, c7, 1	/* flush D tlb single entry */
+	mcr	p15, 0, r0, c8, c7, 1	/* flush Unified TLB single entry */
 	mcr	p15, 0, r0, c7, c5, 6	/* flush BTB */
 #endif
 	dsb
@@ -249,6 +250,17 @@ ENTRY(armv7_idcache_wbinv_range)
 	RET
 END(armv7_idcache_wbinv_range)
 
+ENTRY_NP(armv7_icache_sync_all)
+#ifdef SMP
+	mcr	p15, 0, r0, c7, c1, 0	/* Invalidate all I cache to PoU Inner Shareable */
+#else
+	mcr	p15, 0, r0, c7, c5, 0	/* Invalidate all I cache to PoU (ICIALLU) */
+#endif
+	isb				/* instruction synchronization barrier */
+	dsb				/* data synchronization barrier */
+	RET
+END(armv7_icache_sync_all)
+
 ENTRY_NP(armv7_icache_sync_range)
 	ldr	ip, .Larmv7_line_size
 .Larmv7_sync_next:
@@ -273,6 +285,7 @@ ENTRY(armv7_context_switch)
 	orr     r0, r0, #PT_ATTR
 			
 	mcr	p15, 0, r0, c2, c0, 0	/* set the new TTB */
+	isb
 #ifdef SMP
 	mcr	p15, 0, r0, c8, c3, 0	/* and flush the I+D tlbs Inner Sharable */
 #else
@@ -306,6 +319,10 @@ ENTRY(armv7_auxctrl)
 	RET
 END(armv7_auxctrl)
 
+/*
+ * Invalidate all I+D+branch cache.  Used by startup code, which counts
+ * on the fact that only r0-r3,ip are modified and no stack space is used.
+ */
 ENTRY(armv7_idcache_inv_all)
 	mov     r0, #0
 	mcr     p15, 2, r0, c0, c0, 0   @ set cache level to L1

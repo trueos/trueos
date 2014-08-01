@@ -69,7 +69,7 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
   sendmail_msp_queue_enable="NO" 
 
   #Enable samba server 
-  samba_enable="YES" 
+  samba_server_enable="YES" 
   winbindd_enable="YES"
  
   # Disable LPD  

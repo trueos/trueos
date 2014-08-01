@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/disk.h>
 #include <sys/sysent.h>
 #include <sys/malloc.h>
@@ -828,7 +828,7 @@ chroot_refuse_vdir_fds(fdp)
 
 	FILEDESC_LOCK_ASSERT(fdp);
 
-	for (fd = 0; fd < fdp->fd_nfiles ; fd++) {
+	for (fd = 0; fd <= fdp->fd_lastfile; fd++) {
 		fp = fget_locked(fdp, fd);
 		if (fp == NULL)
 			continue;
@@ -2553,9 +2553,9 @@ kern_readlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		auio.uio_td = td;
 		auio.uio_resid = count;
 		error = VOP_READLINK(vp, &auio, td->td_ucred);
+		td->td_retval[0] = count - auio.uio_resid;
 	}
 	vput(vp);
-	td->td_retval[0] = count - auio.uio_resid;
 	return (error);
 }
 
