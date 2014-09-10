@@ -46,6 +46,11 @@ if [ -e "/etc/defaults/trueos" ] ; then
   # Enable panic mail
   panicmail_enable="YES"
   panicmail_autosubmit="YES"
+
+  # Enable AppCafe / PHP / SysCache
+  php_fpm_enable="YES"
+  syscache_enable="YES"
+  appcafe_enable="YES"
 fi
 
 # Defaults for PC-BSD desktops
@@ -177,4 +182,9 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
   # Enable panic mail
   panicmail_enable="YES"
   panicmail_autosubmit="YES"
+
+  # Enable AppCafe / PHP / SysCache
+  php_fpm_enable="YES"
+  syscache_enable="YES"
+  appcafe_enable="YES"
 fi
