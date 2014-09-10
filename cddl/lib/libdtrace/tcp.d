@@ -160,6 +160,7 @@ typedef struct tcpinfoh {
 	struct tcphdr *tcp_hdr;		/* raw TCP header */
 } tcpinfoh_t;
 
+/*
 #pragma D binding "1.6.3" translator
 translator csinfo_t < struct tcpcb *p > {
 	cs_addr =	NULL;
@@ -167,12 +168,14 @@ translator csinfo_t < struct tcpcb *p > {
 	cs_pid =	0;
 	cs_zoneid =	0;
 };
+*/
 
+/*
 #pragma D binding "1.6.3" translator
 translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_addr =		(uintptr_t)p;
-	tcps_local =		-1; /* XXX */
-	tcps_active =		-1; /* XXX */
+	tcps_local =		-1;
+	tcps_active =		-1; 
 	tcps_lport =		p == NULL ? 0 : ntohs(p->t_inpcb->inp_inc.inc_ie.ie_lport);
 	tcps_rport =		p == NULL ? 0 : ntohs(p->t_inpcb->inp_inc.inc_ie.ie_fport);
 	tcps_laddr =		p == NULL ? 0 :
@@ -197,10 +200,11 @@ translator tcpsinfo_t < struct tcpcb *p > {
 	tcps_cwnd_ssthresh =	p == NULL ? -1  : p->snd_ssthresh;
 	tcps_sack_fack =	p == NULL ? 0  : p->snd_fack;
 	tcps_sack_snxt =	p == NULL ? 0  : p->sack_newdata;
-	tcps_rto =		p == NULL ? -1  : p->t_rxtcur / 1000; /* XXX */
+	tcps_rto =		p == NULL ? -1  : p->t_rxtcur / 1000;
 	tcps_mss =		p == NULL ? -1  : p->t_maxseg;
 	tcps_retransmit =	p == NULL ? -1 : p->t_rxtshift > 0 ? 1 : 0;
 };
+*/
 
 #pragma D binding "1.6.3" translator
 translator tcpinfo_t < struct tcphdr *p > {
