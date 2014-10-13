@@ -441,8 +441,8 @@ ipsec4_process_packet(
 	sav = isr->sav;
 
 #ifdef DEV_ENC
-	encif->if_opackets++;
-	encif->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(encif, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(encif, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
 	/* pass the mbuf to enc0 for bpf processing */
 	ipsec_bpf(m, sav, AF_INET, ENC_OUT|ENC_BEFORE);
@@ -498,9 +498,11 @@ ipsec4_process_packet(
 				goto bad;
 			}
 			ip = mtod(m, struct ip *);
-			ip->ip_len = htons(m->m_pkthdr.len);
-			ip->ip_sum = 0;
-			ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
+			if (ip->ip_v == IPVERSION) {
+				ip->ip_len = htons(m->m_pkthdr.len);
+				ip->ip_sum = 0;
+				ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
+			}
 
 			/* Encapsulate the packet */
 			error = ipip_output(m, isr, &mp, 0, 0);
@@ -639,8 +641,8 @@ ipsec6_process_packet(
 	dst = &sav->sah->saidx.dst;
 
 #ifdef DEV_ENC
-	encif->if_opackets++;
-	encif->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(encif, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(encif, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
 	/* pass the mbuf to enc0 for bpf processing */
 	ipsec_bpf(m, isr->sav, AF_INET6, ENC_OUT|ENC_BEFORE);

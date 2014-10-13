@@ -130,7 +130,7 @@ SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": enable non-executable stack");
 
 #if __ELF_WORD_SIZE == 32
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 int i386_read_exec = 0;
 SYSCTL_INT(_kern_elf32, OID_AUTO, read_exec, CTLFLAG_RW, &i386_read_exec, 0,
     "enable execution from readable segments");
@@ -292,6 +292,19 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 		    strncmp((const char *)&hdr->e_ident[OLD_EI_BRAND],
 		    bi->compat_3_brand, strlen(bi->compat_3_brand)) == 0))
 			return (bi);
+	}
+
+	/* No known brand, see if the header is recognized by any brand */
+	for (i = 0; i < MAX_BRANDS; i++) {
+		bi = elf_brand_list[i];
+		if (bi == NULL || bi->flags & BI_BRAND_NOTE_MANDATORY ||
+		    bi->header_supported == NULL)
+			continue;
+		if (hdr->e_machine == bi->machine) {
+			ret = bi->header_supported(imgp);
+			if (ret)
+				return (bi);
+		}
 	}
 
 	/* Lacking a known brand, search for a recognized interpreter. */
@@ -1099,8 +1112,8 @@ core_output(struct vnode *vp, void *base, size_t len, off_t offset,
 #endif
 	} else {
 		error = vn_rdwr_inchunks(UIO_WRITE, vp, base, len, offset,
-		    UIO_USERSPACE, IO_UNIT | IO_DIRECT, active_cred, file_cred,
-		    NULL, td);
+		    UIO_USERSPACE, IO_UNIT | IO_DIRECT | IO_RANGELOCKED,
+		    active_cred, file_cred, NULL, td);
 	}
 	return (error);
 }
@@ -1147,8 +1160,8 @@ sbuf_drain_core_output(void *arg, const char *data, int len)
 #endif
 		error = vn_rdwr_inchunks(UIO_WRITE, p->vp,
 		    __DECONST(void *, data), len, p->offset, UIO_SYSSPACE,
-		    IO_UNIT | IO_DIRECT, p->active_cred, p->file_cred, NULL,
-		    p->td);
+		    IO_UNIT | IO_DIRECT | IO_RANGELOCKED, p->active_cred,
+		    p->file_cred, NULL, p->td);
 	if (locked)
 		PROC_LOCK(p->td->td_proc);
 	if (error != 0)
@@ -1770,8 +1783,10 @@ __elfN(note_procstat_proc)(void *arg, struct sbuf *sb, size_t *sizep)
 		KASSERT(*sizep == size, ("invalid size"));
 		structsize = sizeof(elf_kinfo_proc_t);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		sx_slock(&proctree_lock);
 		PROC_LOCK(p);
 		kern_proc_out(p, sb, ELF_KERN_PROC_MASK);
+		sx_sunlock(&proctree_lock);
 	}
 	*sizep = size;
 }
@@ -2112,7 +2127,7 @@ __elfN(trans_prot)(Elf_Word flags)
 	if (flags & PF_R)
 		prot |= VM_PROT_READ;
 #if __ELF_WORD_SIZE == 32
-#if defined(__amd64__) || defined(__ia64__)
+#if defined(__amd64__)
 	if (i386_read_exec && (flags & PF_R))
 		prot |= VM_PROT_EXECUTE;
 #endif

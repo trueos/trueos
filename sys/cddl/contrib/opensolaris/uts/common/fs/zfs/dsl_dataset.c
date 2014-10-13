@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Portions Copyright (c) 2011 Martin Matuska <mm@FreeBSD.org>
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2014, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 RackTop Systems.
  */
@@ -270,6 +270,7 @@ dsl_dataset_evict(dmu_buf_t *db, void *dsv)
 	if (mutex_owned(&ds->ds_opening_lock))
 		mutex_exit(&ds->ds_opening_lock);
 	mutex_destroy(&ds->ds_opening_lock);
+	mutex_destroy(&ds->ds_sendstream_lock);
 	refcount_destroy(&ds->ds_longholds);
 
 	kmem_free(ds, sizeof (dsl_dataset_t));
@@ -398,6 +399,7 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 		if (err != 0) {
 			mutex_destroy(&ds->ds_lock);
 			mutex_destroy(&ds->ds_opening_lock);
+			mutex_destroy(&ds->ds_sendstream_lock);
 			refcount_destroy(&ds->ds_longholds);
 			bplist_destroy(&ds->ds_pending_deadlist);
 			dsl_deadlist_close(&ds->ds_deadlist);
@@ -454,6 +456,7 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 			dsl_dir_rele(ds->ds_dir, ds);
 			mutex_destroy(&ds->ds_lock);
 			mutex_destroy(&ds->ds_opening_lock);
+			mutex_destroy(&ds->ds_sendstream_lock);
 			refcount_destroy(&ds->ds_longholds);
 			kmem_free(ds, sizeof (dsl_dataset_t));
 			if (err != 0) {
@@ -696,7 +699,13 @@ dsl_dataset_create_sync_dd(dsl_dir_t *dd, dsl_dataset_t *origin,
 		dsphys->ds_uncompressed_bytes =
 		    origin->ds_phys->ds_uncompressed_bytes;
 		dsphys->ds_bp = origin->ds_phys->ds_bp;
-		dsphys->ds_flags |= origin->ds_phys->ds_flags;
+
+		/*
+		 * Inherit flags that describe the dataset's contents
+		 * (INCONSISTENT) or properties (Case Insensitive).
+		 */
+		dsphys->ds_flags |= origin->ds_phys->ds_flags &
+		    (DS_FLAG_INCONSISTENT | DS_FLAG_CI_DATASET);
 
 		dmu_buf_will_dirty(origin->ds_dbuf, tx);
 		origin->ds_phys->ds_num_children++;
@@ -1401,7 +1410,7 @@ dsl_dataset_snapshot(nvlist_t *snaps, nvlist_t *props, nvlist_t *errors)
 	if (error == 0) {
 		error = dsl_sync_task(firstname, dsl_dataset_snapshot_check,
 		    dsl_dataset_snapshot_sync, &ddsa,
-		    fnvlist_num_pairs(snaps) * 3);
+		    fnvlist_num_pairs(snaps) * 3, ZFS_SPACE_CHECK_NORMAL);
 	}
 
 	if (suspended != NULL) {
@@ -1514,7 +1523,7 @@ dsl_dataset_snapshot_tmp(const char *fsname, const char *snapname,
 	}
 
 	error = dsl_sync_task(fsname, dsl_dataset_snapshot_tmp_check,
-	    dsl_dataset_snapshot_tmp_sync, &ddsta, 3);
+	    dsl_dataset_snapshot_tmp_sync, &ddsta, 3, ZFS_SPACE_CHECK_RESERVED);
 
 	if (needsuspend)
 		zil_resume(cookie);
@@ -1603,6 +1612,12 @@ dsl_dataset_stats(dsl_dataset_t *ds, nvlist_t *nv)
 		    ds->ds_phys->ds_unique_bytes);
 		get_clones_stat(ds, nv);
 	} else {
+		if (ds->ds_prev != NULL && ds->ds_prev != dp->dp_origin_snap) {
+			char buf[MAXNAMELEN];
+			dsl_dataset_name(ds->ds_prev, buf);
+			dsl_prop_nvlist_add_string(nv, ZFS_PROP_PREV_SNAP, buf);
+		}
+
 		dsl_dir_stats(ds->ds_dir, nv);
 	}
 
@@ -1701,7 +1716,7 @@ dsl_dataset_space(dsl_dataset_t *ds,
 		else
 			*availbytesp = 0;
 	}
-	*usedobjsp = ds->ds_phys->ds_bp.blk_fill;
+	*usedobjsp = BP_GET_FILL(&ds->ds_phys->ds_bp);
 	*availobjsp = DN_MAX_OBJECT - *usedobjsp;
 }
 
@@ -1879,7 +1894,8 @@ dsl_dataset_rename_snapshot(const char *fsname,
 	ddrsa.ddrsa_recursive = recursive;
 
 	return (dsl_sync_task(fsname, dsl_dataset_rename_snapshot_check,
-	    dsl_dataset_rename_snapshot_sync, &ddrsa, 1));
+	    dsl_dataset_rename_snapshot_sync, &ddrsa,
+	    1, ZFS_SPACE_CHECK_RESERVED));
 }
 
 /*
@@ -2054,7 +2070,8 @@ dsl_dataset_rollback(const char *fsname, void *owner, nvlist_t *result)
 	ddra.ddra_result = result;
 
 	return (dsl_sync_task(fsname, dsl_dataset_rollback_check,
-	    dsl_dataset_rollback_sync, &ddra, 1));
+	    dsl_dataset_rollback_sync, &ddra,
+	    1, ZFS_SPACE_CHECK_RESERVED));
 }
 
 struct promotenode {
@@ -2246,6 +2263,9 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 	dsl_dir_t *odd = NULL;
 	uint64_t oldnext_obj;
 	int64_t delta;
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	char *oldname, *newname;
+#endif
 
 	VERIFY0(promote_hold(ddpa, dp, FTAG));
 	hds = ddpa->ddpa_clone;
@@ -2311,6 +2331,14 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 		    dd->dd_phys->dd_clones, origin_head->ds_object, tx));
 	}
 
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	/* Take the spa_namespace_lock early so zvol renames don't deadlock. */
+	mutex_enter(&spa_namespace_lock);
+
+	oldname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
+	newname = kmem_alloc(MAXPATHLEN, KM_SLEEP);
+#endif
+
 	/* move snapshots to this dir */
 	for (snap = list_head(&ddpa->shared_snaps); snap;
 	    snap = list_next(&ddpa->shared_snaps, snap)) {
@@ -2344,6 +2372,12 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 		dsl_dir_rele(ds->ds_dir, ds);
 		VERIFY0(dsl_dir_hold_obj(dp, dd->dd_object,
 		    NULL, ds, &ds->ds_dir));
+
+#if defined(__FreeBSD__) && defined(_KERNEL)
+		dsl_dataset_name(ds, newname);
+		zfsvfs_update_fromname(oldname, newname);
+		zvol_rename_minors(oldname, newname);
+#endif
 
 		/* move any clone references */
 		if (ds->ds_phys->ds_next_clones_obj &&
@@ -2382,6 +2416,12 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 		ASSERT(!dsl_prop_hascb(ds));
 	}
 
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	mutex_exit(&spa_namespace_lock);
+
+	kmem_free(newname, MAXPATHLEN);
+	kmem_free(oldname, MAXPATHLEN);
+#endif
 	/*
 	 * Change space accounting.
 	 * Note, pa->*usedsnap and dd_used_breakdown[SNAP] will either
@@ -2575,7 +2615,8 @@ dsl_dataset_promote(const char *name, char *conflsnap)
 	ddpa.cr = CRED();
 
 	return (dsl_sync_task(name, dsl_dataset_promote_check,
-	    dsl_dataset_promote_sync, &ddpa, 2 + numsnaps));
+	    dsl_dataset_promote_sync, &ddpa,
+	    2 + numsnaps, ZFS_SPACE_CHECK_RESERVED));
 }
 
 int
@@ -2920,7 +2961,7 @@ dsl_dataset_set_refquota(const char *dsname, zprop_source_t source,
 	ddsqra.ddsqra_value = refquota;
 
 	return (dsl_sync_task(dsname, dsl_dataset_set_refquota_check,
-	    dsl_dataset_set_refquota_sync, &ddsqra, 0));
+	    dsl_dataset_set_refquota_sync, &ddsqra, 0, ZFS_SPACE_CHECK_NONE));
 }
 
 static int
@@ -3035,7 +3076,8 @@ dsl_dataset_set_refreservation(const char *dsname, zprop_source_t source,
 	ddsqra.ddsqra_value = refreservation;
 
 	return (dsl_sync_task(dsname, dsl_dataset_set_refreservation_check,
-	    dsl_dataset_set_refreservation_sync, &ddsqra, 0));
+	    dsl_dataset_set_refreservation_sync, &ddsqra,
+	    0, ZFS_SPACE_CHECK_NONE));
 }
 
 /*

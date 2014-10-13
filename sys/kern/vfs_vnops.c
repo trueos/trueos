@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/syslog.h>
 #include <sys/unistd.h>
+#include <sys/user.h>
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -103,6 +104,7 @@ struct 	fileops vnops = {
 	.fo_chown = vn_chown,
 	.fo_sendfile = vn_sendfile,
 	.fo_seek = vn_seek,
+	.fo_fill_kinfo = vn_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -438,7 +440,8 @@ static int
 sequential_heuristic(struct uio *uio, struct file *fp)
 {
 
-	if (atomic_load_acq_int(&(fp->f_flag)) & FRDAHEAD)
+	ASSERT_VOP_LOCKED(fp->f_vnode, __func__);
+	if (fp->f_flag & FRDAHEAD)
 		return (fp->f_seqcount << IO_SEQSHIFT);
 
 	/*
@@ -501,13 +504,16 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 	error = 0;
 
 	if ((ioflg & IO_NODELOCKED) == 0) {
-		if (rw == UIO_READ) {
-			rl_cookie = vn_rangelock_rlock(vp, offset,
-			    offset + len);
-		} else {
-			rl_cookie = vn_rangelock_wlock(vp, offset,
-			    offset + len);
-		}
+		if ((ioflg & IO_RANGELOCKED) == 0) {
+			if (rw == UIO_READ) {
+				rl_cookie = vn_rangelock_rlock(vp, offset,
+				    offset + len);
+			} else {
+				rl_cookie = vn_rangelock_wlock(vp, offset,
+				    offset + len);
+			}
+		} else
+			rl_cookie = NULL;
 		mp = NULL;
 		if (rw == UIO_WRITE) { 
 			if (vp->v_type != VCHR &&
@@ -1830,6 +1836,37 @@ vfs_write_resume(struct mount *mp, int flags)
 }
 
 /*
+ * Helper loop around vfs_write_suspend() for filesystem unmount VFS
+ * methods.
+ */
+int
+vfs_write_suspend_umnt(struct mount *mp)
+{
+	int error;
+
+	KASSERT((curthread->td_pflags & TDP_IGNSUSP) == 0,
+	    ("vfs_write_suspend_umnt: recursed"));
+
+	/* dounmount() already called vn_start_write(). */
+	for (;;) {
+		vn_finished_write(mp);
+		error = vfs_write_suspend(mp, 0);
+		if (error != 0)
+			return (error);
+		MNT_ILOCK(mp);
+		if ((mp->mnt_kern_flag & MNTK_SUSPENDED) != 0)
+			break;
+		MNT_IUNLOCK(mp);
+		vn_start_write(NULL, &mp, V_WAIT);
+	}
+	mp->mnt_kern_flag &= ~(MNTK_SUSPENDED | MNTK_SUSPEND2);
+	wakeup(&mp->mnt_flag);
+	MNT_IUNLOCK(mp);
+	curthread->td_pflags |= TDP_IGNSUSP;
+	return (0);
+}
+
+/*
  * Implement kqueues for files by translating it to vnode operation.
  */
 static int
@@ -1953,12 +1990,30 @@ vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	return (error);
 }
 
+static int
+vn_get_ino_alloc_vget(struct mount *mp, void *arg, int lkflags,
+    struct vnode **rvp)
+{
+
+	return (VFS_VGET(mp, *(ino_t *)arg, lkflags, rvp));
+}
+
 int
 vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
+{
+
+	return (vn_vget_ino_gen(vp, vn_get_ino_alloc_vget, &ino,
+	    lkflags, rvp));
+}
+
+int
+vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc, void *alloc_arg,
+    int lkflags, struct vnode **rvp)
 {
 	struct mount *mp;
 	int ltype, error;
 
+	ASSERT_VOP_LOCKED(vp, "vn_vget_ino_get");
 	mp = vp->v_mount;
 	ltype = VOP_ISLOCKED(vp);
 	KASSERT(ltype == LK_EXCLUSIVE || ltype == LK_SHARED,
@@ -1978,12 +2033,17 @@ vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags, struct vnode **rvp)
 		}
 	}
 	VOP_UNLOCK(vp, 0);
-	error = VFS_VGET(mp, ino, lkflags, rvp);
+	error = alloc(mp, alloc_arg, lkflags, rvp);
 	vfs_unbusy(mp);
-	vn_lock(vp, ltype | LK_RETRY);
+	if (*rvp != vp)
+		vn_lock(vp, ltype | LK_RETRY);
 	if (vp->v_iflag & VI_DOOMED) {
-		if (error == 0)
-			vput(*rvp);
+		if (error == 0) {
+			if (*rvp == vp)
+				vunref(vp);
+			else
+				vput(*rvp);
+		}
 		error = ENOENT;
 	}
 	return (error);
@@ -2177,12 +2237,10 @@ vn_utimes_perm(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 {
 	int error;
 
-	error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
-
 	/*
-	 * From utimes(2):
-	 * Grant permission if the caller is the owner of the file or
-	 * the super-user.  If the time pointer is null, then write
+	 * Grant permission if the caller is the owner of the file, or
+	 * the super-user, or has ACL_WRITE_ATTRIBUTES permission on
+	 * on the file.  If the time pointer is null, then write
 	 * permission on the file is also sufficient.
 	 *
 	 * From NFSv4.1, draft 21, 6.2.1.3.1, Discussion of Mask Attributes:
@@ -2190,7 +2248,66 @@ vn_utimes_perm(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	 * will be allowed to set the times [..] to the current
 	 * server time.
 	 */
+	error = VOP_ACCESSX(vp, VWRITE_ATTRIBUTES, cred, td);
 	if (error != 0 && (vap->va_vaflags & VA_UTIMES_NULL) != 0)
 		error = VOP_ACCESS(vp, VWRITE, cred, td);
 	return (error);
+}
+
+int
+vn_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+	struct vnode *vp;
+	int error;
+
+	if (fp->f_type == DTYPE_FIFO)
+		kif->kf_type = KF_TYPE_FIFO;
+	else
+		kif->kf_type = KF_TYPE_VNODE;
+	vp = fp->f_vnode;
+	vref(vp);
+	FILEDESC_SUNLOCK(fdp);
+	error = vn_fill_kinfo_vnode(vp, kif);
+	vrele(vp);
+	FILEDESC_SLOCK(fdp);
+	return (error);
+}
+
+int
+vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
+{
+	struct vattr va;
+	char *fullpath, *freepath;
+	int error;
+
+	kif->kf_vnode_type = vntype_to_kinfo(vp->v_type);
+	freepath = NULL;
+	fullpath = "-";
+	error = vn_fullpath(curthread, vp, &fullpath, &freepath);
+	if (error == 0) {
+		strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
+	}
+	if (freepath != NULL)
+		free(freepath, M_TEMP);
+
+	/*
+	 * Retrieve vnode attributes.
+	 */
+	va.va_fsid = VNOVAL;
+	va.va_rdev = NODEV;
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	error = VOP_GETATTR(vp, &va, curthread->td_ucred);
+	VOP_UNLOCK(vp, 0);
+	if (error != 0)
+		return (error);
+	if (va.va_fsid != VNOVAL)
+		kif->kf_un.kf_file.kf_file_fsid = va.va_fsid;
+	else
+		kif->kf_un.kf_file.kf_file_fsid =
+		    vp->v_mount->mnt_stat.f_fsid.val[0];
+	kif->kf_un.kf_file.kf_file_fileid = va.va_fileid;
+	kif->kf_un.kf_file.kf_file_mode = MAKEIMODE(va.va_type, va.va_mode);
+	kif->kf_un.kf_file.kf_file_size = va.va_size;
+	kif->kf_un.kf_file.kf_file_rdev = va.va_rdev;
+	return (0);
 }

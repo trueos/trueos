@@ -1802,6 +1802,11 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     const Elf_Dyn *dyn_soname;
     const Elf_Dyn *dyn_runpath;
 
+#ifdef RTLD_INIT_PAGESIZES_EARLY
+    /* The page size is required by the dynamic memory allocator. */
+    init_pagesizes(aux_info);
+#endif
+
     /*
      * Conjure up an Obj_Entry structure for the dynamic linker.
      *
@@ -1838,8 +1843,10 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     /* Now that non-local variables can be accesses, copy out obj_rtld. */
     memcpy(&obj_rtld, &objtmp, sizeof(obj_rtld));
 
+#ifndef RTLD_INIT_PAGESIZES_EARLY
     /* The page size is required by the dynamic memory allocator. */
     init_pagesizes(aux_info);
+#endif
 
     if (aux_info[AT_OSRELDATE] != NULL)
 	    osreldate = aux_info[AT_OSRELDATE]->a_un.a_val;
@@ -2539,7 +2546,7 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 		}
 	}
 
-	/* Process the non-PLT relocations. */
+	/* Process the non-PLT non-IFUNC relocations. */
 	if (reloc_non_plt(obj, rtldobj, flags, lockstate))
 		return (-1);
 
@@ -2552,7 +2559,6 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 		}
 	}
 
-
 	/* Set the special PLT or GOT entries. */
 	init_pltgot(obj);
 
@@ -2563,6 +2569,16 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 	if (obj->bind_now || bind_now)
 		if (reloc_jmpslots(obj, flags, lockstate) == -1)
 			return (-1);
+
+	/*
+	 * Process the non-PLT IFUNC relocations.  The relocations are
+	 * processed in two phases, because IFUNC resolvers may
+	 * reference other symbols, which must be readily processed
+	 * before resolvers are called.
+	 */
+	if (obj->non_plt_gnu_ifunc &&
+	    reloc_non_plt(obj, rtldobj, flags | SYMLOOK_IFUNC, lockstate))
+		return (-1);
 
 	if (obj->relro_size > 0) {
 		if (mprotect(obj->relro_page, obj->relro_size,
@@ -2777,7 +2793,7 @@ search_library_pathfds(const char *name, const char *path, int *fdp)
 	size_t len;
 	int dirfd, fd;
 
-	dbg("%s('%s', '%s', fdp)\n", __func__, name, path);
+	dbg("%s('%s', '%s', fdp)", __func__, name, path);
 
 	/* Don't load from user-specified libdirs into setuid binaries. */
 	if (!trust)
@@ -3077,9 +3093,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
     const Elf_Sym *def;
     SymLook req;
     RtldLockState lockstate;
-#ifndef __ia64__
     tls_index ti;
-#endif
     int res;
 
     def = NULL;
@@ -3184,24 +3198,17 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 
 	/*
 	 * The value required by the caller is derived from the value
-	 * of the symbol. For the ia64 architecture, we need to
-	 * construct a function descriptor which the caller can use to
-	 * call the function with the right 'gp' value. For other
-	 * architectures and for non-functions, the value is simply
-	 * the relocated value of the symbol.
+	 * of the symbol. this is simply the relocated value of the
+	 * symbol.
 	 */
 	if (ELF_ST_TYPE(def->st_info) == STT_FUNC)
 	    return (make_function_pointer(def, defobj));
 	else if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC)
 	    return (rtld_resolve_ifunc(defobj, def));
 	else if (ELF_ST_TYPE(def->st_info) == STT_TLS) {
-#ifdef __ia64__
-	    return (__tls_get_addr(defobj->tlsindex, def->st_value));
-#else
 	    ti.ti_module = defobj->tlsindex;
 	    ti.ti_offset = def->st_value;
 	    return (__tls_get_addr(&ti));
-#endif
 	} else
 	    return (defobj->relocbase + def->st_value);
     }
@@ -3370,8 +3377,7 @@ rtld_fill_dl_phdr_info(const Obj_Entry *obj, struct dl_phdr_info *phdr_info)
 {
 
 	phdr_info->dlpi_addr = (Elf_Addr)obj->relocbase;
-	phdr_info->dlpi_name = STAILQ_FIRST(&obj->names) ?
-	    STAILQ_FIRST(&obj->names)->name : obj->path;
+	phdr_info->dlpi_name = obj->path;
 	phdr_info->dlpi_phdr = obj->phdr;
 	phdr_info->dlpi_phnum = obj->phsize / sizeof(obj->phdr[0]);
 	phdr_info->dlpi_tls_modid = obj->tlsindex;
@@ -4334,7 +4340,7 @@ tls_get_addr_common(Elf_Addr **dtvp, int index, size_t offset)
 	return (tls_get_addr_slow(dtvp, index, offset));
 }
 
-#if defined(__arm__) || defined(__ia64__) || defined(__mips__) || defined(__powerpc__)
+#if defined(__arm__) || defined(__mips__) || defined(__powerpc__)
 
 /*
  * Allocate Static TLS using the Variant I method.

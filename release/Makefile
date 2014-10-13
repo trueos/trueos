@@ -23,6 +23,9 @@
 #  WITH_DVD: if set, generate dvd1.iso
 #  WITH_COMPRESSED_IMAGES: if set, compress installation images with xz(1)
 #		(uncompressed images are not removed)
+#  WITH_VMIMAGES: if set, build virtual machine images with the release
+#  WITH_COMPRESSED_VMIMAGES: if set, compress virtual machine disk images
+#  		with xz(1) (extremely time consuming)
 #  TARGET/TARGET_ARCH: architecture of built release
 #
 
@@ -94,6 +97,11 @@ IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
 
+VMTARGETS=	vm-base vm-image
+VMFORMATS?=	vhd vmdk qcow2 raw
+VMSIZE?=	20G
+VMBASE?=	vm
+
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
@@ -103,7 +111,16 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+CLEANFILES+=	${VMBASE}.img
+. for FORMAT in ${VMFORMATS}
+CLEANFILES+=	${VMBASE}.${FORMAT}
+. endfor
+.endif
 CLEANDIRS=	dist ftp release bootonly dvd
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+CLEANDIRS+=	${VMTARGETS}
+.endif
 beforeclean:
 	chflags -R noschg .
 .include <bsd.obj.mk>
@@ -155,10 +172,13 @@ system: packagesystem
 	mkdir -p release
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 		DESTDIR=${.OBJDIR}/release MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
-		MK_PROFILE=no MK_SENDMAIL=no MK_TESTS=no MK_LIB32=no
+		MK_PROFILE=no MK_SENDMAIL=no MK_TESTS=no MK_LIB32=no \
+		MK_DEBUG_FILES=no
 # Copy distfiles
 	mkdir -p release/usr/freebsd-dist
-	cp *.txz MANIFEST release/usr/freebsd-dist
+	for dist in MANIFEST $$(ls *.txz | grep -v -- '-dbg'); \
+	    do cp $${dist} release/usr/freebsd-dist; \
+	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* release
@@ -180,7 +200,7 @@ bootonly: packagesystem
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_INSTALLIB=no MK_RESCUE=no MK_DICT=no \
-	    MK_KERNEL_SYMBOLS=no MK_TESTS=no
+	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p bootonly/usr/freebsd-dist
 	cp MANIFEST bootonly/usr/freebsd-dist
@@ -200,10 +220,12 @@ dvd:
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
-		MK_TESTS=no
+		MK_TESTS=no MK_DEBUG_FILES=no
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
-	cp *.txz MANIFEST ${.TARGET}/usr/freebsd-dist
+	for dist in MANIFEST $$(ls *.txz | grep -v -- '-dbg'); \
+	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
+	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
@@ -258,6 +280,9 @@ ftp: packagesystem
 release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${VMTARGETS}
+.endif
 
 install:
 .if defined(DESTDIR) && !empty(DESTDIR)
@@ -272,3 +297,44 @@ install:
 .endfor
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
 	cd ${DESTDIR} && md5 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.MD5
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	mkdir -p ${DESTDIR}/vmimages
+. for FORMAT in ${VMFORMATS}
+	cp -p ${VMBASE}.${FORMAT} \
+		${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+. endfor
+. if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
+# This is very time consuming, so defer it after the images are moved to
+# the DESTDIR.
+.  for FORMAT in ${VMFORMATS}
+	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
+	${XZCMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+.  endfor
+. endif
+	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA256
+	cd ${DESTDIR}/vmimages && md5 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.MD5
+.endif
+
+vm-base:
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
+		${VMBASE}.img ${WORLDDIR} ${.OBJDIR}/${.TARGET} ${VMSIZE}
+. endif
+.endif
+	touch ${.TARGET}
+
+vm-image: vm-base
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
+.  for FORMAT in ${VMFORMATS}
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
+		${VMBASE}.img ${FORMAT} ${VMBASE}.${FORMAT}
+.  endfor
+. endif
+.endif
+	touch ${.TARGET}

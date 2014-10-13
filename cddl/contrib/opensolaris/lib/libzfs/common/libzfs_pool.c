@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
@@ -303,7 +303,7 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 		case ZPOOL_PROP_ALLOCATED:
 		case ZPOOL_PROP_FREE:
 		case ZPOOL_PROP_FREEING:
-		case ZPOOL_PROP_EXPANDSZ:
+		case ZPOOL_PROP_LEAKED:
 			if (literal) {
 				(void) snprintf(buf, len, "%llu",
 				    (u_longlong_t)intval);
@@ -311,7 +311,16 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 				(void) zfs_nicenum(intval, buf, len);
 			}
 			break;
-
+		case ZPOOL_PROP_EXPANDSZ:
+			if (intval == 0) {
+				(void) strlcpy(buf, "-", len);
+			} else if (literal) {
+				(void) snprintf(buf, len, "%llu",
+				    (u_longlong_t)intval);
+			} else {
+				(void) zfs_nicenum(intval, buf, len);
+			}
+			break;
 		case ZPOOL_PROP_CAPACITY:
 			if (literal) {
 				(void) snprintf(buf, len, "%llu",
@@ -321,13 +330,19 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 				    (u_longlong_t)intval);
 			}
 			break;
-
+		case ZPOOL_PROP_FRAGMENTATION:
+			if (intval == UINT64_MAX) {
+				(void) strlcpy(buf, "-", len);
+			} else {
+				(void) snprintf(buf, len, "%llu%%",
+				    (u_longlong_t)intval);
+			}
+			break;
 		case ZPOOL_PROP_DEDUPRATIO:
 			(void) snprintf(buf, len, "%llu.%02llux",
 			    (u_longlong_t)(intval / 100),
 			    (u_longlong_t)(intval % 100));
 			break;
-
 		case ZPOOL_PROP_HEALTH:
 			verify(nvlist_lookup_nvlist(zpool_get_config(zhp, NULL),
 			    ZPOOL_CONFIG_VDEV_TREE, &nvroot) == 0);
@@ -3512,7 +3527,7 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 static int
 zbookmark_compare(const void *a, const void *b)
 {
-	return (memcmp(a, b, sizeof (zbookmark_t)));
+	return (memcmp(a, b, sizeof (zbookmark_phys_t)));
 }
 
 /*
@@ -3524,7 +3539,7 @@ zpool_get_errlog(zpool_handle_t *zhp, nvlist_t **nverrlistp)
 {
 	zfs_cmd_t zc = { 0 };
 	uint64_t count;
-	zbookmark_t *zb = NULL;
+	zbookmark_phys_t *zb = NULL;
 	int i;
 
 	/*
@@ -3537,7 +3552,7 @@ zpool_get_errlog(zpool_handle_t *zhp, nvlist_t **nverrlistp)
 	if (count == 0)
 		return (0);
 	if ((zc.zc_nvlist_dst = (uintptr_t)zfs_alloc(zhp->zpool_hdl,
-	    count * sizeof (zbookmark_t))) == (uintptr_t)NULL)
+	    count * sizeof (zbookmark_phys_t))) == (uintptr_t)NULL)
 		return (-1);
 	zc.zc_nvlist_dst_size = count;
 	(void) strcpy(zc.zc_name, zhp->zpool_name);
@@ -3546,11 +3561,14 @@ zpool_get_errlog(zpool_handle_t *zhp, nvlist_t **nverrlistp)
 		    &zc) != 0) {
 			free((void *)(uintptr_t)zc.zc_nvlist_dst);
 			if (errno == ENOMEM) {
+				void *dst;
+
 				count = zc.zc_nvlist_dst_size;
-				if ((zc.zc_nvlist_dst = (uintptr_t)
-				    zfs_alloc(zhp->zpool_hdl, count *
-				    sizeof (zbookmark_t))) == (uintptr_t)NULL)
+				dst = zfs_alloc(zhp->zpool_hdl, count *
+				    sizeof (zbookmark_phys_t));
+				if (dst == NULL)
 					return (-1);
+				zc.zc_nvlist_dst = (uintptr_t)dst;
 			} else {
 				return (-1);
 			}
@@ -3566,11 +3584,11 @@ zpool_get_errlog(zpool_handle_t *zhp, nvlist_t **nverrlistp)
 	 * _not_ copied as part of the process.  So we point the start of our
 	 * array appropriate and decrement the total number of elements.
 	 */
-	zb = ((zbookmark_t *)(uintptr_t)zc.zc_nvlist_dst) +
+	zb = ((zbookmark_phys_t *)(uintptr_t)zc.zc_nvlist_dst) +
 	    zc.zc_nvlist_dst_size;
 	count -= zc.zc_nvlist_dst_size;
 
-	qsort(zb, count, sizeof (zbookmark_t), zbookmark_compare);
+	qsort(zb, count, sizeof (zbookmark_phys_t), zbookmark_compare);
 
 	verify(nvlist_alloc(nverrlistp, 0, KM_SLEEP) == 0);
 

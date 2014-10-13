@@ -44,7 +44,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libdevstat \
 	libdwarf \
 	libedit \
-	${_libefi} \
 	libexecinfo \
 	libexpat \
 	libfetch \
@@ -70,6 +69,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libnetgraph} \
 	${_libngatm} \
 	libnv \
+	libohash \
 	libopie \
 	libpam \
 	libpcap \
@@ -235,11 +235,6 @@ _librtld_db=	librtld_db
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _libvmmapi=	libvmmapi
-.endif
-
-.if ${MACHINE_CPUARCH} == "ia64"
-_libefi=	libefi
-_libsmb=	libsmb
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"

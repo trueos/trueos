@@ -153,17 +153,15 @@ gpt_tblsz(void)
 	return ((nparts + ents - 1) / ents);
 }
 
-static u_int
-gpt_metadata(u_int where)
+static lba_t
+gpt_metadata(u_int where, lba_t blk)
 {
-	u_int secs;
 
-	if (where != SCHEME_META_IMG_START && where != SCHEME_META_IMG_END)
-		return (0);
-
-	secs = gpt_tblsz();
-	secs += (where == SCHEME_META_IMG_START) ? 2 : 1;
-	return (secs);
+	if (where == SCHEME_META_IMG_START || where == SCHEME_META_IMG_END) {
+		blk += gpt_tblsz();
+		blk += (where == SCHEME_META_IMG_START) ? 2 : 1;
+	}
+	return (round_block(blk));
 }
 
 static int
@@ -211,7 +209,7 @@ gpt_mktbl(u_int tblsz)
 	STAILQ_FOREACH(part, &partlist, link) {
 		ent = tbl + part->index;
 		gpt_uuid_enc(&ent->ent_type, ALIAS_TYPE2PTR(part->type));
-		uuidgen(&uuid, 1);
+		mkimg_uuid(&uuid);
 		gpt_uuid_enc(&ent->ent_uuid, &uuid);
 		le64enc(&ent->ent_lba_start, part->block);
 		le64enc(&ent->ent_lba_end, part->block + part->size - 1);
@@ -279,7 +277,7 @@ gpt_write(lba_t imgsz, void *bootcode)
 	le32enc(&hdr->hdr_size, offsetof(struct gpt_hdr, padding));
 	le64enc(&hdr->hdr_lba_start, 2 + tblsz);
 	le64enc(&hdr->hdr_lba_end, imgsz - tblsz - 2);
-	uuidgen(&uuid, 1);
+	mkimg_uuid(&uuid);
 	gpt_uuid_enc(&hdr->hdr_uuid, &uuid);
 	le32enc(&hdr->hdr_entries, nparts);
 	le32enc(&hdr->hdr_entsz, sizeof(struct gpt_ent));

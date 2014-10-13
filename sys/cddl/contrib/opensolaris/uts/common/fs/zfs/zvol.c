@@ -23,12 +23,12 @@
  *
  * Copyright (c) 2006-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
- * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  *
  * Portions Copyright 2010 Robert Milkowski
  *
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 /* Portions Copyright 2011 Martin Matuska <mm@FreeBSD.org> */
@@ -167,6 +167,14 @@ static LIST_HEAD(, zvol_state) all_zvols;
  */
 int zvol_maxphys = DMU_MAX_ACCESS/2;
 
+/*
+ * Toggle unmap functionality.
+ */
+boolean_t zvol_unmap_enabled = B_TRUE;
+SYSCTL_INT(_vfs_zfs_vol, OID_AUTO, unmap_enabled, CTLFLAG_RWTUN,
+    &zvol_unmap_enabled, 0,
+    "Enable UNMAP functionality");
+
 static d_open_t		zvol_d_open;
 static d_close_t	zvol_d_close;
 static d_read_t		zvol_read;
@@ -304,7 +312,7 @@ struct maparg {
 /*ARGSUSED*/
 static int
 zvol_map_block(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
-    const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
+    const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	struct maparg *ma = arg;
 	zvol_extent_t *ze;
@@ -313,6 +321,8 @@ zvol_map_block(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	if (BP_IS_HOLE(bp) ||
 	    zb->zb_object != ZVOL_OBJ || zb->zb_level != 0)
 		return (0);
+
+	VERIFY(!BP_IS_EMBEDDED(bp));
 
 	VERIFY3U(ma->ma_blks, ==, zb->zb_blkid);
 	ma->ma_blks++;
@@ -849,6 +859,7 @@ zvol_update_volsize(objset_t *os, uint64_t volsize)
 
 	tx = dmu_tx_create(os);
 	dmu_tx_hold_zap(tx, ZVOL_ZAP_OBJ, TRUE, NULL);
+	dmu_tx_mark_netfree(tx);
 	error = dmu_tx_assign(tx, TXG_WAIT);
 	if (error) {
 		dmu_tx_abort(tx);
@@ -879,7 +890,8 @@ zvol_remove_minors(const char *name)
 	LIST_FOREACH_SAFE(zv, &all_zvols, zv_links, tzv) {
 		if (strcmp(zv->zv_name, name) == 0 ||
 		    (strncmp(zv->zv_name, name, namelen) == 0 &&
-		     zv->zv_name[namelen] == '/')) {
+		    strlen(zv->zv_name) > namelen && (zv->zv_name[namelen] == '/' ||
+		    zv->zv_name[namelen] == '@'))) {
 			(void) zvol_remove_zv(zv);
 		}
 	}
@@ -1627,7 +1639,11 @@ zvol_write(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 #endif
 
+#ifdef sun
 	sync = !(zv->zv_flags & ZVOL_WCE) ||
+#else
+	sync = (ioflag & IO_SYNC) ||
+#endif
 	    (zv->zv_objset->os_sync == ZFS_SYNC_ALWAYS);
 
 	rl = zfs_range_lock(&zv->zv_znode, uio->uio_loffset, uio->uio_resid,
@@ -1963,6 +1979,9 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		dkioc_free_t df;
 		dmu_tx_t *tx;
 
+		if (!zvol_unmap_enabled)
+			break;
+
 		if (ddi_copyin((void *)arg, &df, sizeof (df), flag)) {
 			error = SET_ERROR(EFAULT);
 			break;
@@ -1975,12 +1994,13 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		 */
 		if (df.df_start >= zv->zv_volsize)
 			break;	/* No need to do anything... */
-		if (df.df_start + df.df_length > zv->zv_volsize)
-			df.df_length = DMU_OBJECT_END;
+
+		mutex_exit(&spa_namespace_lock);
 
 		rl = zfs_range_lock(&zv->zv_znode, df.df_start, df.df_length,
 		    RL_WRITER);
 		tx = dmu_tx_create(zv->zv_objset);
+		dmu_tx_mark_netfree(tx);
 		error = dmu_tx_assign(tx, TXG_WAIT);
 		if (error != 0) {
 			dmu_tx_abort(tx);
@@ -2014,7 +2034,7 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 				    dmu_objset_pool(zv->zv_objset), 0);
 			}
 		}
-		break;
+		return (error);
 	}
 
 	default:
@@ -2105,7 +2125,8 @@ zvol_dump_init(zvol_state_t *zv, boolean_t resize)
 			return (SET_ERROR(ENOTSUP));
 		(void) dsl_sync_task(spa_name(spa),
 		    zfs_mvdev_dump_feature_check,
-		    zfs_mvdev_dump_activate_feature_sync, NULL, 2);
+		    zfs_mvdev_dump_activate_feature_sync, NULL,
+		    2, ZFS_SPACE_CHECK_RESERVED);
 	}
 
 	tx = dmu_tx_create(os);
@@ -2561,9 +2582,10 @@ zvol_create_minors(const char *name)
 	if (dmu_objset_type(os) == DMU_OST_ZVOL) {
 		dsl_dataset_long_hold(os->os_dsl_dataset, FTAG);
 		dsl_pool_rele(dmu_objset_pool(os), FTAG);
-		if ((error = zvol_create_minor(name)) == 0)
+		error = zvol_create_minor(name);
+		if (error == 0 || error == EEXIST) {
 			error = zvol_create_snapshots(os, name);
-		else {
+		} else {
 			printf("ZFS WARNING: Unable to create ZVOL %s (error=%d).\n",
 			    name, error);
 		}
@@ -2664,12 +2686,17 @@ zvol_rename_minors(const char *oldname, const char *newname)
 	size_t oldnamelen, newnamelen;
 	zvol_state_t *zv;
 	char *namebuf;
+	boolean_t locked = B_FALSE;
 
 	oldnamelen = strlen(oldname);
 	newnamelen = strlen(newname);
 
 	DROP_GIANT();
-	mutex_enter(&spa_namespace_lock);
+	/* See comment in zvol_open(). */
+	if (!MUTEX_HELD(&spa_namespace_lock)) {
+		mutex_enter(&spa_namespace_lock);
+		locked = B_TRUE;
+	}
 
 	LIST_FOREACH(zv, &all_zvols, zv_links) {
 		if (strcmp(zv->zv_name, oldname) == 0) {
@@ -2684,7 +2711,8 @@ zvol_rename_minors(const char *oldname, const char *newname)
 		}
 	}
 
-	mutex_exit(&spa_namespace_lock);
+	if (locked)
+		mutex_exit(&spa_namespace_lock);
 	PICKUP_GIANT();
 }
 
@@ -2798,6 +2826,9 @@ zvol_d_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 		zil_commit(zv->zv_zilog, ZVOL_OBJ);
 		break;
 	case DIOCGDELETE:
+		if (!zvol_unmap_enabled)
+			break;
+
 		offset = ((off_t *)data)[0];
 		length = ((off_t *)data)[1];
 		if ((offset % DEV_BSIZE) != 0 || (length % DEV_BSIZE) != 0 ||

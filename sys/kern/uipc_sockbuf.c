@@ -1015,6 +1015,37 @@ sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff)
 }
 
 /*
+ * Return the first mbuf and the mbuf data offset for the provided
+ * send offset without changing the "sb_sndptroff" field.
+ */
+struct mbuf *
+sbsndmbuf(struct sockbuf *sb, u_int off, u_int *moff)
+{
+	struct mbuf *m;
+
+	KASSERT(sb->sb_mb != NULL, ("%s: sb_mb is NULL", __func__));
+
+	/*
+	 * If the "off" is below the stored offset, which happens on
+	 * retransmits, just use "sb_mb":
+	 */
+	if (sb->sb_sndptr == NULL || sb->sb_sndptroff > off) {
+		m = sb->sb_mb;
+	} else {
+		m = sb->sb_sndptr;
+		off -= sb->sb_sndptroff;
+	}
+	while (off > 0 && m != NULL) {
+		if (off < m->m_len)
+			break;
+		off -= m->m_len;
+		m = m->m_next;
+	}
+	*moff = off;
+	return (m);
+}
+
+/*
  * Drop a record off the front of a sockbuf and move the next record to the
  * front.
  */
@@ -1071,6 +1102,11 @@ sbcreatecontrol(caddr_t p, int size, int type, int level)
 	m->m_len = 0;
 	KASSERT(CMSG_SPACE((u_int)size) <= M_TRAILINGSPACE(m),
 	    ("sbcreatecontrol: short mbuf"));
+	/*
+	 * Don't leave the padding between the msg header and the
+	 * cmsg data and the padding after the cmsg data un-initialized.
+	 */
+	bzero(cp, CMSG_SPACE((u_int)size));
 	if (p != NULL)
 		(void)memcpy(CMSG_DATA(cp), p, size);
 	m->m_len = CMSG_SPACE(size);

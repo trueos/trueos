@@ -15,7 +15,7 @@ MK_SSP=	no
 
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
-.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${TARGET_CPUARCH} == "arm"
 CFLAGS+=	-DTARGET_ARM_EABI
 .endif
 
@@ -28,6 +28,7 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-I${.CURDIR}/../../usr.bin/cc/cc_tools
 
 LDFLAGS+=	-nodefaultlibs
+DPADD+=		${LIBC}
 LDADD+=		-lc
 
 OBJS=		# added to below in various ways depending on TARGET_CPUARCH
@@ -55,7 +56,7 @@ LIB2FUNCS+= _fixuns${mode}si
 .endfor
 
 # Likewise double-word routines.
-.if ${TARGET_CPUARCH} != "arm" || ${MK_ARM_EABI} == "no"
+.if ${TARGET_CPUARCH} != "arm"
 # These are implemented in an ARM specific file but will not be filtered out
 .for mode in sf df xf tf
 LIB2FUNCS+= _fix${mode}di _fixuns${mode}di
@@ -116,14 +117,10 @@ CFLAGS.clang+=	-fheinous-gnu-extensions
 
 LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
-.if ${MK_ARM_EABI} != "no"
 LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
 # Some compilers generate __aeabi_ functions libgcc_s is missing
 DPADD+=		${LIBCOMPILER_RT}
 LDADD+=		-lcompiler_rt
-.else
-LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
-.endif
 .endif
 
 .if ${TARGET_CPUARCH} == mips
@@ -135,17 +132,6 @@ LIB2FUNCS_EXTRA+= floatdisf.c floatundidf.c
 LIB2FUNCS_EXTRA+= fixsfdi.c floatundisf.c
 LIB2FUNCS_EXTRA+= fixdfdi.c fixunssfsi.c
 .endif
-.endif
-
-.if ${TARGET_CPUARCH} == "ia64"
-#	from config/ia64/t-ia64
-LIB1ASMSRC   = lib1funcs.asm
-LIB1ASMFUNCS = __divxf3 __divdf3 __divsf3 \
-	__divdi3 __moddi3 __udivdi3 __umoddi3 \
-	__divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
-	__nonlocal_goto __restore_stack_nonlocal __trampoline \
-	_fixtfdi _fixunstfdi _floatditf
-LIB2ADDEH = unwind-ia64.c unwind-sjlj.c unwind-c.c
 .endif
 
 .if ${TARGET_ARCH} == "powerpc"
@@ -329,7 +315,7 @@ CLEANFILES += cs-*.h option*
 SHLIB_MKMAP      = ${GCCDIR}/mkmap-symver.awk
 SHLIB_MKMAP_OPTS =
 SHLIB_MAPFILES   = ${GCCDIR}/libgcc-std.ver
-.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${TARGET_CPUARCH} == "arm"
 SHLIB_MAPFILES  += ${GCCDIR}/config/arm/libgcc-bpabi.ver
 .endif
 VERSION_MAP      = libgcc.map

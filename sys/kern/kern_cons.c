@@ -607,6 +607,7 @@ SYSINIT(cndev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, cn_drvinit, NULL);
 #ifdef HAS_TIMER_SPKR
 
 static int beeping;
+static struct callout beeping_timer;
 
 static void
 sysbeepstop(void *chan)
@@ -629,11 +630,18 @@ sysbeep(int pitch, int period)
 	timer_spkr_setfreq(pitch);
 	if (!beeping) {
 		beeping = period;
-		timeout(sysbeepstop, (void *)NULL, period);
+		callout_reset(&beeping_timer, period, sysbeepstop, NULL);
 	}
 	return (0);
 }
 
+static void
+sysbeep_init(void *unused)
+{
+
+	callout_init(&beeping_timer, CALLOUT_MPSAFE);
+}
+SYSINIT(sysbeep, SI_SUB_SOFTINTR, SI_ORDER_ANY, sysbeep_init, NULL);
 #else
 
 /*
@@ -652,6 +660,7 @@ sysbeep(int pitch __unused, int period __unused)
 /*
  * Temporary support for sc(4) to vt(4) transition.
  */
+static unsigned vty_prefer;
 static char vty_name[16];
 SYSCTL_STRING(_kern, OID_AUTO, vty, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, vty_name,
     0, "Console vty driver");
@@ -676,6 +685,10 @@ vty_enabled(unsigned vty)
 				break;
 			}
 #endif
+			if (vty_prefer != 0) {
+				vty_selected = vty_prefer;
+				break;
+			}
 #if defined(DEV_SC)
 			vty_selected = VTY_SC;
 #elif defined(DEV_VT)
@@ -689,5 +702,18 @@ vty_enabled(unsigned vty)
 			strcpy(vty_name, "sc");
 	}
 	return ((vty_selected & vty) != 0);
+}
+
+void
+vty_set_preferred(unsigned vty)
+{
+
+	vty_prefer = vty;
+#if !defined(DEV_SC)
+	vty_prefer &= ~VTY_SC;
+#endif
+#if !defined(DEV_VT)
+	vty_prefer &= ~VTY_VT;
+#endif
 }
 

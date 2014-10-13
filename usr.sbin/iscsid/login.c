@@ -26,8 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -211,6 +213,7 @@ login_handle_redirection(struct connection *conn, struct pdu *response)
 
 	log_debugx("received redirection to \"%s\"", target_address);
 	kernel_modify(conn, target_address);
+	keys_delete(response_keys);
 }
 
 static struct pdu *
@@ -260,6 +263,7 @@ login_receive(struct connection *conn)
 		    "is %d, should be %d", ntohl(bhslr->bhslr_statsn),
 		    conn->conn_statsn + 1);
 	}
+	conn->conn_tsih = ntohs(bhslr->bhslr_tsih);
 	conn->conn_statsn = ntohl(bhslr->bhslr_statsn);
 
 	initial = false;
@@ -295,6 +299,7 @@ login_new_request(struct connection *conn, int csg)
 	login_set_nsg(request, nsg);
 
 	memcpy(bhslr->bhslr_isid, &conn->conn_isid, sizeof(bhslr->bhslr_isid));
+	bhslr->bhslr_tsih = htons(conn->conn_tsih);
 	bhslr->bhslr_initiator_task_tag = 0;
 	bhslr->bhslr_cmdsn = 0;
 	bhslr->bhslr_expstatsn = htonl(conn->conn_statsn + 1);
@@ -570,7 +575,7 @@ login_negotiate(struct connection *conn)
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
 	struct iscsi_bhs_login_response *bhslr;
-	int i;
+	int i, nrequests = 0;
 
 	log_debugx("beginning operational parameter negotiation");
 	request = login_new_request(conn, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
@@ -624,19 +629,41 @@ login_negotiate(struct connection *conn)
 		    response_keys->keys_names[i], response_keys->keys_values[i]);
 	}
 
-	bhslr = (struct iscsi_bhs_login_response *)response->pdu_bhs;
-	if ((bhslr->bhslr_flags & BHSLR_FLAGS_TRANSIT) == 0)
-		log_warnx("received final login response "
-		    "without the \"T\" flag");
-	else if (login_nsg(response) != BHSLR_STAGE_FULL_FEATURE_PHASE)
+	keys_delete(response_keys);
+	response_keys = NULL;
+
+	for (;;) {
+		bhslr = (struct iscsi_bhs_login_response *)response->pdu_bhs;
+		if ((bhslr->bhslr_flags & BHSLR_FLAGS_TRANSIT) != 0)
+			break;
+
+		nrequests++;
+		if (nrequests > 5) {
+			log_warnx("received login response "
+			    "without the \"T\" flag too many times; giving up");
+			break;
+		}
+
+		log_debugx("received login response "
+		    "without the \"T\" flag; sending another request");
+
+		pdu_delete(response);
+
+		request = login_new_request(conn,
+		    BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
+		pdu_send(request);
+		pdu_delete(request);
+
+		response = login_receive(conn);
+	}
+
+	if (login_nsg(response) != BHSLR_STAGE_FULL_FEATURE_PHASE)
 		log_warnx("received final login response with wrong NSG 0x%x",
 		    login_nsg(response));
+	pdu_delete(response);
 
 	log_debugx("operational parameter negotiation done; "
 	    "transitioning to Full Feature phase");
-
-	keys_delete(response_keys);
-	pdu_delete(response);
 }
 
 static void
@@ -824,24 +851,6 @@ login_chap(struct connection *conn)
 	log_debugx("CHAP authentication done");
 }
 
-static void
-login_create_isid(struct connection *conn)
-{
-	int rv;
-
-	/*
-	 * RFC 3720, 10.12.5: 10b, "Random" ISID.
-	 *
-	 */
-	conn->conn_isid[0] = 0x80; 
-
-	rv = RAND_bytes(&conn->conn_isid[1], 3);
-	if (rv != 1) {
-		log_errx(1, "RAND_bytes failed: %s",
-		    ERR_error_string(ERR_get_error(), NULL));
-	}
-}
-
 void
 login(struct connection *conn)
 {
@@ -850,8 +859,6 @@ login(struct connection *conn)
 	struct iscsi_bhs_login_response *bhslr2;
 	const char *auth_method;
 	int i;
-
-	login_create_isid(conn);
 
 	log_debugx("beginning Login phase; sending Login PDU");
 	request = login_new_request(conn, BHSLR_STAGE_SECURITY_NEGOTIATION);

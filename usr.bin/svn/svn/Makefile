@@ -1,14 +1,10 @@
 # $FreeBSD$
 
-MAN=
-
 .include "${.CURDIR}/../Makefile.inc"
 
 .PATH:	${SVNDIR}/svn
 
 PROG=	svn${SVNLITE}
-
-NO_PIE=	yes
 
 SRCS=	add-cmd.c blame-cmd.c cat-cmd.c changelist-cmd.c checkout-cmd.c \
 	cl-conflicts.c cleanup-cmd.c commit-cmd.c conflict-callbacks.c \
@@ -55,6 +51,7 @@ DPADD=	${LIBSVN_CLIENT} ${LIBSVN_WC} ${LIBSVN_RA} ${LIBSVN_RA_LOCAL} \
 	${LIBBSDXML} ${LIBAPR} ${LIBSQLITE} ${LIBZ} ${LIBCRYPT} ${LIBMAGIC} \
 	${LIBCRYPTO} ${LIBSSL} ${LIBPTHREAD}
 
+CLEANFILES+=	svnlite.1
 .if(defined(ORGANIZATION) && !empty(ORGANIZATION))
 DPSRCS+=	freebsd-organization.h
 CLEANFILES+=	freebsd-organization.h
@@ -63,5 +60,9 @@ freebsd-organization.h:
 	@echo '#define ORGANIZATION_NAME ${ORGANIZATION}' \
 	    > freebsd-organization.h
 .endif
+
+svnlite.1: svn.1
+	# Avoid the website
+	sed -E 's,(^| |B|`)svn,\1svnlite,g' ${SVNDIR}/svn/svn.1 > ${.OBJDIR}/svnlite.1
 
 .include <bsd.prog.mk>

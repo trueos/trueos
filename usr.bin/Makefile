@@ -163,6 +163,7 @@ SUBDIR=	alias \
 	${_tests} \
 	tftp \
 	time \
+	timeout \
 	tip \
 	top \
 	touch \
@@ -359,7 +360,7 @@ SUBDIR+=	yacc
 SUBDIR+=	vi
 .endif
 
-.if ${MK_VT_SUPPORT} != "no"
+.if ${MK_VT} != "no"
 SUBDIR+=	vtfontcvt
 .endif
 

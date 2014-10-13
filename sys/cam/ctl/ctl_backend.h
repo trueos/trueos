@@ -73,6 +73,8 @@
  * The DEV_TYPE flag tells us that the device_type field is filled in.
  *
  * The UNMAP flag tells us that this LUN supports UNMAP.
+ *
+ * The OFFLINE flag tells us that this LUN can not access backing store.
  */
 typedef enum {
 	CTL_LUN_FLAG_ID_REQ		= 0x01,
@@ -82,7 +84,8 @@ typedef enum {
 	CTL_LUN_FLAG_SERIAL_NUM		= 0x10,
 	CTL_LUN_FLAG_DEVID		= 0x20,
 	CTL_LUN_FLAG_DEV_TYPE		= 0x40,
-	CTL_LUN_FLAG_UNMAP		= 0x80
+	CTL_LUN_FLAG_UNMAP		= 0x80,
+	CTL_LUN_FLAG_OFFLINE		= 0x100
 } ctl_backend_lun_flags;
 
 #ifdef _KERNEL
@@ -144,6 +147,8 @@ typedef void (*be_lun_config_t)(void *be_lun,
  *
  * pblockoff is the lowest LBA on the LUN aligned ot physical sector.
  *
+ * atomicblock is the number of blocks that can be written atomically.
+ *
  * req_lun_id is the requested LUN ID.  CTL only pays attention to this
  * field if the CTL_LUN_FLAG_ID_REQ flag is set.  If the requested LUN ID is
  * not available, the LUN addition will fail.  If a particular LUN ID isn't
@@ -180,12 +185,6 @@ typedef void (*be_lun_config_t)(void *be_lun,
  * The links field is for CTL internal use only, and should not be used by
  * the backend.
  */
-struct ctl_be_lun_option {
-	STAILQ_ENTRY(ctl_be_lun_option)	links;
-	char			*name;
-	char			*value;
-};
-
 struct ctl_be_lun {
 	uint8_t			lun_type;	/* passed to CTL */
 	ctl_backend_lun_flags	flags;		/* passed to CTL */
@@ -194,6 +193,7 @@ struct ctl_be_lun {
 	uint32_t		blocksize;	/* passed to CTL */
 	uint16_t		pblockexp;	/* passed to CTL */
 	uint16_t		pblockoff;	/* passed to CTL */
+	uint32_t		atomicblock;	/* passed to CTL */
 	uint32_t		req_lun_id;	/* passed to CTL */
 	uint32_t		lun_id;		/* returned from CTL */
 	uint8_t			serial_num[CTL_SN_LEN];	 /* passed to CTL */
@@ -202,7 +202,7 @@ struct ctl_be_lun {
 	be_lun_config_t		lun_config_status; /* passed to CTL */
 	struct ctl_backend_driver *be;		/* passed to CTL */
 	void			*ctl_lun;	/* used by CTL */
-	STAILQ_HEAD(, ctl_be_lun_option) options; /* passed to CTL */
+	ctl_options_t		options;	/* passed to CTL */
 	STAILQ_ENTRY(ctl_be_lun) links;		/* used by CTL */
 };
 
@@ -300,14 +300,6 @@ int ctl_lun_online(struct ctl_be_lun *be_lun);
  * Let the backend notify the initiator about changed capacity.
  */
 void ctl_lun_capacity_changed(struct ctl_be_lun *be_lun);
-
-/*
- * KPI to manipulate LUN options
- */
-struct ctl_lun_req;
-void ctl_init_opts(struct ctl_be_lun *be_lun, struct ctl_lun_req *req);
-void ctl_free_opts(struct ctl_be_lun *be_lun);
-char * ctl_get_opt(struct ctl_be_lun *be_lun, const char *name);
 
 #endif /* _KERNEL */
 #endif /* _CTL_BACKEND_H_ */

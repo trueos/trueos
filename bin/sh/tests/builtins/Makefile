@@ -1,9 +1,13 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
-FILESDIR=	${TESTSBASE}/bin/sh/builtins
-KYUAFILE=	no
+TESTSDIR=	${TESTSBASE}/bin/sh/${.CURDIR:T}
+
+.PATH: ${.CURDIR:H}
+ATF_TESTS_SH=	functional_test
+
+FILESDIR=	${TESTSDIR}
 
 FILES=		alias.0 alias.0.stdout
 FILES+=		alias.1 alias.1.stderr
@@ -14,6 +18,7 @@ FILES+=		break2.0 break2.0.stdout
 FILES+=		break3.0
 FILES+=		break4.4
 FILES+=		break5.4
+FILES+=		break6.0
 FILES+=		builtin1.0
 FILES+=		case1.0
 FILES+=		case2.0
@@ -67,6 +72,8 @@ FILES+=		eval3.0
 FILES+=		eval4.0
 FILES+=		eval5.0
 FILES+=		eval6.0
+FILES+=		eval7.0
+FILES+=		eval8.7
 FILES+=		exec1.0
 FILES+=		exec2.0
 FILES+=		exit1.0
@@ -95,11 +102,14 @@ FILES+=		jobid2.0
 FILES+=		kill1.0 kill2.0
 FILES+=		lineno.0 lineno.0.stdout
 FILES+=		lineno2.0
+FILES+=		lineno3.0 lineno3.0.stdout
 FILES+=		local1.0
 FILES+=		local2.0
 FILES+=		local3.0
 FILES+=		local4.0
+.if ${MK_NLS} != "no"
 FILES+=		locale1.0
+.endif
 FILES+=		printf1.0
 FILES+=		printf2.0
 FILES+=		printf3.0

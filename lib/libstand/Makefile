@@ -57,18 +57,13 @@ SRCS+= ntoh.c
 
 # string functions from libc
 .PATH: ${.CURDIR}/../libc/string
-.if ${MACHINE_CPUARCH} != "ia64"
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
 	memmove.c memset.c qdivrem.c strcat.c strchr.c strcmp.c strcpy.c \
 	strcspn.c strlen.c strncat.c strncmp.c strncpy.c strpbrk.c \
 	strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
-.endif
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${.CURDIR}/../libc/arm/gen
 
-.if ${MK_ARM_EABI} == "no"
-SRCS+= divsi3.S
-.else
 # Compiler support functions
 .PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/
 # __clzsi2 and ctzsi2 for various builtin functions
@@ -80,19 +75,7 @@ SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 .PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/arm/
 SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
-.endif
 
-.endif
-.if ${MACHINE_CPUARCH} == "ia64"
-.PATH: ${.CURDIR}/../libc/ia64/string
-SRCS+=	bcmp.c bcopy.S bzero.S ffs.S memccpy.c memchr.c memcmp.c memcpy.S \
-	memmove.S memset.c strcat.c strchr.c strcmp.c strcpy.c strcspn.c \
-	strlen.c strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
-	strspn.c strstr.c strtok.c swab.c
-
-.PATH: ${.CURDIR}/../libc/ia64/gen
-SRCS+= __divdi3.S __divsi3.S __moddi3.S __modsi3.S
-SRCS+= __udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S
 .endif
 .if ${MACHINE_CPUARCH} == "powerpc"
 .PATH: ${.CURDIR}/../libc/quad
@@ -174,6 +157,7 @@ SRCS+=	bootp.c rarp.c bootparam.c
 SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
+SRCS+=	pkgfs.c
 .if ${MK_NAND} != "no"
 SRCS+=	nandfs.c
 .endif

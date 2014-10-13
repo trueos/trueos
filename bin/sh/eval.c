@@ -168,6 +168,8 @@ evalstring(char *s, int flags)
 			else
 				evaltree(n, flags);
 			any = 1;
+			if (evalskip)
+				break;
 		}
 		popstackmark(&smark);
 		setstackmark(&smark);
@@ -316,9 +318,10 @@ evalloop(union node *n, int flags)
 	loopnest++;
 	status = 0;
 	for (;;) {
-		evaltree(n->nbinary.ch1, EV_TESTED);
+		if (!evalskip)
+			evaltree(n->nbinary.ch1, EV_TESTED);
 		if (evalskip) {
-skipping:	  if (evalskip == SKIPCONT && --skipcount <= 0) {
+			if (evalskip == SKIPCONT && --skipcount <= 0) {
 				evalskip = 0;
 				continue;
 			}
@@ -337,8 +340,6 @@ skipping:	  if (evalskip == SKIPCONT && --skipcount <= 0) {
 		}
 		evaltree(n->nbinary.ch2, flags);
 		status = exitstatus;
-		if (evalskip)
-			goto skipping;
 	}
 	loopnest--;
 	exitstatus = status;
@@ -648,15 +649,15 @@ evalbackcmd(union node *n, struct backcmd *result)
 	struct jmploc *savehandler;
 	struct localvar *savelocalvars;
 
-	setstackmark(&smark);
 	result->fd = -1;
 	result->buf = NULL;
 	result->nleft = 0;
 	result->jp = NULL;
 	if (n == NULL) {
 		exitstatus = 0;
-		goto out;
+		return;
 	}
+	setstackmark(&smark);
 	exitstatus = oexitstatus;
 	if (is_valid_fast_cmdsubst(n)) {
 		savelocalvars = localvars;
@@ -698,7 +699,6 @@ evalbackcmd(union node *n, struct backcmd *result)
 		result->fd = pip[0];
 		result->jp = jp;
 	}
-out:
 	popstackmark(&smark);
 	TRACE(("evalbackcmd done: fd=%d buf=%p nleft=%d jp=%p\n",
 		result->fd, result->buf, result->nleft, result->jp));
@@ -1250,8 +1250,16 @@ bltincmd(int argc, char **argv)
 int
 breakcmd(int argc, char **argv)
 {
-	int n = argc > 1 ? number(argv[1]) : 1;
+	long n;
+	char *end;
 
+	if (argc > 1) {
+		/* Allow arbitrarily large numbers. */
+		n = strtol(argv[1], &end, 10);
+		if (!is_digit(argv[1][0]) || *end != '\0')
+			error("Illegal number: %s", argv[1]);
+	} else
+		n = 1;
 	if (n > loopnest)
 		n = loopnest;
 	if (n > 0) {

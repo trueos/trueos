@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  */
 
@@ -116,8 +116,8 @@ int zfs_delay_min_dirty_percent = 60;
 
 /*
  * This controls how quickly the delay approaches infinity.
- * Larger values cause it to delay less for a given amount of dirty data.
- * Therefore larger values will cause there to be more dirty data for a
+ * Larger values cause it to delay more for a given amount of dirty data.
+ * Therefore larger values will cause there to be less dirty data for a
  * given throughput.
  *
  * For the smoothest delay, this value should be about 1 billion divided
@@ -129,11 +129,6 @@ int zfs_delay_min_dirty_percent = 60;
  */
 uint64_t zfs_delay_scale = 1000 * 1000 * 1000 / 2000;
 
-
-/*
- * XXX someday maybe turn these into #defines, and you have to tune it on a
- * per-pool basis using zfs.conf.
- */
 
 #ifdef __FreeBSD__
 
@@ -150,8 +145,10 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max_max, CTLFLAG_RDTUN,
     &zfs_dirty_data_max_max, 0,
     "The absolute cap on dirty_data_max when auto calculating");
 
-SYSCTL_INT(_vfs_zfs, OID_AUTO, dirty_data_max_percent, CTLFLAG_RDTUN,
-    &zfs_dirty_data_max_percent, 0,
+static int sysctl_zfs_dirty_data_max_percent(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, dirty_data_max_percent,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
+    sysctl_zfs_dirty_data_max_percent, "I",
     "The percent of physical memory used to auto calculate dirty_data_max");
 
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_sync, CTLFLAG_RWTUN,
@@ -171,6 +168,24 @@ SYSCTL_PROC(_vfs_zfs, OID_AUTO, delay_scale,
     CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(uint64_t),
     sysctl_zfs_delay_scale, "QU",
     "Controls how quickly the delay approaches infinity");
+
+static int
+sysctl_zfs_dirty_data_max_percent(SYSCTL_HANDLER_ARGS)
+{
+	int val, err;
+
+	val = zfs_dirty_data_max_percent;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < 0 || val > 100)
+		return (EINVAL);
+
+	zfs_dirty_data_max_percent = val;
+
+	return (0);
+}
 
 static int
 sysctl_zfs_delay_min_dirty_percent(SYSCTL_HANDLER_ARGS)
@@ -329,6 +344,13 @@ dsl_pool_open(dsl_pool_t *dp)
 		    dp->dp_meta_objset, obj));
 	}
 
+	/*
+	 * Note: errors ignored, because the leak dir will not exist if we
+	 * have not encountered a leak yet.
+	 */
+	(void) dsl_pool_open_special_dir(dp, LEAK_DIR_NAME,
+	    &dp->dp_leak_dir);
+
 	if (spa_feature_is_active(dp->dp_spa, SPA_FEATURE_ASYNC_DESTROY)) {
 		err = zap_lookup(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
 		    DMU_POOL_BPTREE_OBJ, sizeof (uint64_t), 1,
@@ -376,6 +398,8 @@ dsl_pool_close(dsl_pool_t *dp)
 		dsl_dir_rele(dp->dp_mos_dir, dp);
 	if (dp->dp_free_dir)
 		dsl_dir_rele(dp->dp_free_dir, dp);
+	if (dp->dp_leak_dir)
+		dsl_dir_rele(dp->dp_leak_dir, dp);
 	if (dp->dp_root_dir)
 		dsl_dir_rele(dp->dp_root_dir, dp);
 
@@ -682,17 +706,12 @@ dsl_pool_adjustedsize(dsl_pool_t *dp, boolean_t netfree)
 	uint64_t space, resv;
 
 	/*
-	 * Reserve about 1.6% (1/64), or at least 32MB, for allocation
-	 * efficiency.
-	 * XXX The intent log is not accounted for, so it must fit
-	 * within this slop.
-	 *
 	 * If we're trying to assess whether it's OK to do a free,
 	 * cut the reservation in half to allow forward progress
 	 * (e.g. make it possible to rm(1) files from a full pool).
 	 */
 	space = spa_get_dspace(dp->dp_spa);
-	resv = MAX(space >> 6, SPA_MINDEVSIZE >> 1);
+	resv = spa_get_slop_space(dp->dp_spa);
 	if (netfree)
 		resv >>= 1;
 

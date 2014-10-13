@@ -305,6 +305,7 @@ struct vattr {
 #define	IO_NORMAL	0x0800		/* operate on regular data */
 #define	IO_NOMACCHECK	0x1000		/* MAC checks unnecessary */
 #define	IO_BUFLOCKED	0x2000		/* ffs flag; indir buf is locked */
+#define	IO_RANGELOCKED	0x4000		/* range locked */
 
 #define IO_SEQMAX	0x7F		/* seq heuristic max value */
 #define IO_SEQSHIFT	16		/* seq heuristic in upper 16 bits */
@@ -428,6 +429,7 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 
 #define	VN_LOCK_AREC(vp)	lockallowrecurse((vp)->v_vnlock)
 #define	VN_LOCK_ASHARE(vp)	lockallowshare((vp)->v_vnlock)
+#define	VN_LOCK_DSHARE(vp)	lockdisableshare((vp)->v_vnlock)
 
 #endif /* _KERNEL */
 
@@ -502,7 +504,9 @@ extern struct vnodeop_desc *vnodeop_descs[];
  * reliable since if the thread sleeps between changing the lock
  * state and checking it with the assert, some other thread could
  * change the state.  They are good enough for debugging a single
- * filesystem using a single-threaded test.
+ * filesystem using a single-threaded test.  Note that the unreliability is
+ * limited to false negatives; efforts were made to ensure that false
+ * positives cannot occur.
  */
 void	assert_vi_locked(struct vnode *vp, const char *str);
 void	assert_vi_unlocked(struct vnode *vp, const char *str);
@@ -592,6 +596,8 @@ struct ucred;
 struct uio;
 struct vattr;
 struct vnode;
+
+typedef int (*vn_get_ino_t)(struct mount *, void *, int, struct vnode **);
 
 /* cache_* may belong in namei.h. */
 #define	cache_enter(dvp, vp, cnp)					\
@@ -696,6 +702,8 @@ int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, struct thread *td);
 int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
 	    struct vnode **rvp);
+int	vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc,
+	    void *alloc_arg, int lkflags, struct vnode **rvp);
 int	vn_utimes_perm(struct vnode *vp, struct vattr *vap,
 	    struct ucred *cred, struct thread *td);
 
@@ -717,6 +725,7 @@ int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
 void	vfs_write_resume(struct mount *mp, int flags);
 int	vfs_write_suspend(struct mount *mp, int flags);
+int	vfs_write_suspend_umnt(struct mount *mp);
 int	vop_stdbmap(struct vop_bmap_args *);
 int	vop_stdfsync(struct vop_fsync_args *);
 int	vop_stdgetwritemount(struct vop_getwritemount_args *);

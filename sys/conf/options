@@ -136,6 +136,7 @@ KDTRACE_FRAME	opt_kdtrace.h
 KN_HASHSIZE	opt_kqueue.h
 KSTACK_MAX_PAGES
 KSTACK_PAGES
+KSTACK_USAGE_PROF
 KTRACE
 KTRACE_REQUEST_POOL	opt_ktrace.h
 LIBICONV
@@ -221,6 +222,7 @@ INCLUDE_CONFIG_FILE	opt_config.h
 # time, since the corresponding lkms cannot work if there are any static
 # dependencies.  Unusability is enforced by hiding the defines for the
 # options in a never-included header.
+AUTOFS		opt_dontuse.h
 CD9660		opt_dontuse.h
 EXT2FS		opt_dontuse.h
 FDESCFS		opt_dontuse.h
@@ -362,7 +364,7 @@ SYM_SETUP_PCI_PARITY	opt_sym.h	#-PCI parity checking
 SYM_SETUP_MAX_LUN	opt_sym.h	#-Number of LUNs supported
 					# default:8, range:[1..64]
 
-# Options used only in pci/ncr.c
+# Options used only in dev/ncr/*
 SCSI_NCR_DEBUG		opt_ncr.h
 SCSI_NCR_MAX_SYNC	opt_ncr.h
 SCSI_NCR_MAX_WIDE	opt_ncr.h
@@ -457,6 +459,7 @@ SCTP_LTRACE_ERRORS	opt_sctp.h # Log to KTR error returns.
 SCTP_USE_PERCPU_STAT	opt_sctp.h # Use per cpu stats.
 SCTP_MCORE_INPUT	opt_sctp.h # Have multiple input threads for input mbufs
 SCTP_LOCAL_TRACE_BUF	opt_sctp.h # Use tracebuffer exported via sysctl
+SCTP_DETAILED_STR_STATS	opt_sctp.h # Use per PR-SCTP policy stream stats
 #
 #
 #
@@ -685,6 +688,7 @@ WITNESS			opt_global.h
 WITNESS_KDB		opt_witness.h
 WITNESS_NO_VNODE	opt_witness.h
 WITNESS_SKIPSPIN	opt_witness.h
+WITNESS_COUNT		opt_witness.h
 OPENSOLARIS_WITNESS	opt_global.h
 
 # options for ACPI support
@@ -736,8 +740,6 @@ SAFE_RNDTEST		opt_safe.h
 
 # syscons/vt options
 MAXCONS			opt_syscons.h
-VT_FB_DEFAULT_WIDTH	opt_syscons.h
-VT_FB_DEFAULT_HEIGHT	opt_syscons.h
 SC_ALT_MOUSE_IMAGE	opt_syscons.h
 SC_CUT_SPACES2TABS	opt_syscons.h
 SC_CUT_SEPCHARS		opt_syscons.h
@@ -760,6 +762,11 @@ SC_NORM_REV_ATTR	opt_syscons.h
 SC_PIXEL_MODE		opt_syscons.h
 SC_RENDER_DEBUG		opt_syscons.h
 SC_TWOBUTTON_MOUSE	opt_syscons.h
+VT_ALT_TO_ESC_HACK	opt_syscons.h
+VT_FB_DEFAULT_WIDTH	opt_syscons.h
+VT_FB_DEFAULT_HEIGHT	opt_syscons.h
+VT_MAXWINDOWS		opt_syscons.h
+VT_TWOBUTTON_MOUSE	opt_syscons.h
 DEV_SC			opt_syscons.h
 DEV_VT			opt_syscons.h
 
