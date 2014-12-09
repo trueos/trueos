@@ -58,7 +58,6 @@
 #include <netinet/ip_ecn.h>
 #include <netinet/ip6.h>
 
-#include <net/route.h>
 #include <netipsec/ipsec.h>
 #include <netipsec/ah.h>
 #include <netipsec/ah_var.h>
@@ -100,10 +99,10 @@ VNET_PCPUSTAT_SYSUNINIT(ahstat);
 
 #ifdef INET
 SYSCTL_DECL(_net_inet_ah);
-SYSCTL_VNET_INT(_net_inet_ah, OID_AUTO,
-	ah_enable,	CTLFLAG_RW,	&VNET_NAME(ah_enable),	0, "");
-SYSCTL_VNET_INT(_net_inet_ah, OID_AUTO,
-	ah_cleartos,	CTLFLAG_RW,	&VNET_NAME(ah_cleartos), 0, "");
+SYSCTL_INT(_net_inet_ah, OID_AUTO, ah_enable,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ah_enable), 0, "");
+SYSCTL_INT(_net_inet_ah, OID_AUTO, ah_cleartos,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ah_cleartos), 0, "");
 SYSCTL_VNET_PCPUSTAT(_net_inet_ah, IPSECCTL_STATS, stats, struct ahstat,
     ahstat, "AH statistics (struct ahstat, netipsec/ah_var.h)");
 #endif

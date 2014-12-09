@@ -38,14 +38,45 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20141202: update to mandoc CVS 20141201
+OLD_FILES+=usr.bin/preconv
+OLD_FILES+=share/man/man1/preconv.1.gz
+# 20141129: mrouted rc.d scripts removed from base
+OLD_FILES+=etc/rc.d/mrouted
+# 20141126: convert sbin/mdconfig/tests to ATF format tests
+OLD_FILES+=usr/tests/sbin/mdconfig/legacy_test
+OLD_FILES+=usr/tests/sbin/mdconfig/mdconfig.test
+OLD_FILES+=usr/tests/sbin/mdconfig/run.pl
+# 20141126: remove xform_ipip decapsulation fallback
+OLD_FILES+=usr/include/netipsec/ipip_var.h
+# 20141109: faith/faithd removal
+OLD_FILES+=etc/rc.d/faith
+OLD_FILES+=usr/share/man/man4/faith.4.gz
+OLD_FILES+=usr/share/man/man4/if_faith.4.gz
+OLD_FILES+=usr/sbin/faithd
+OLD_FILES+=usr/share/man/man8/faithd.8.gz
+# 20141107: overhaul if_gre(4)
+OLD_FILES+=usr/include/netinet/ip_gre.h
+# 20141102: postrandom obsoleted by new /dev/random code
+OLD_FILES+=etc/rc.d/postrandom
+# 20141031: initrandom obsoleted by new /dev/random code
+OLD_FILES+=etc/rc.d/initrandom
+# 20141028: debug files accidentally installed as directory name
+OLD_FILES+=usr/lib/debug/usr/lib/i18n
+OLD_FILES+=usr/lib/debug/usr/lib/private
+OLD_FILES+=usr/lib/debug/usr/lib32/i18n
+OLD_FILES+=usr/lib/debug/usr/lib32/private
+# 20141015: OpenSSL 1.0.1j import
+OLD_FILES+=usr/share/openssl/man/man3/CMS_sign_add1_signer.3.gz
 # 20140922: sleepq_calc_signal_retval.9 and sleepq_catch_signals.9 removed
 OLD_FILES+=usr/share/man/man9/sleepq_calc_signal_retval.9.gz
 OLD_FILES+=usr/share/man/man9/sleepq_catch_signals.9.gz
 # 20140917: hv_kvpd rc.d script removed in favor of devd configuration
 OLD_FILES+=etc/rc.d/hv_kvpd
 # 20140917: libnv was accidentally being installed to /usr/lib instead of /lib
-OLD_LIBS+=usr/lib/libnv.a
 OLD_LIBS+=usr/lib/libnv.so.0
+# 20140829: rc.d/kerberos removed
+OLD_FILES+=etc/rc.d/kerberos
 # 20140814: libopie version bump
 OLD_LIBS+=usr/lib/libopie.so.7
 OLD_LIBS+=usr/lib32/libopie.so.7
@@ -114,10 +145,12 @@ OLD_FILES+=usr/include/readline/chardefs.h
 OLD_FILES+=usr/include/readline/history.h
 OLD_FILES+=usr/include/readline/keymaps.h
 OLD_FILES+=usr/include/readline/readline.h
+OLD_FILES+=usr/include/readline/tilde.h
 OLD_FILES+=usr/include/readline/rlconf.h
 OLD_FILES+=usr/include/readline/rlstdc.h
 OLD_FILES+=usr/include/readline/rltypedefs.h
 OLD_FILES+=usr/include/readline/rltypedefs.h
+OLD_DIRS+=usr/include/readline
 OLD_FILES+=usr/share/info/readline.info.gz
 OLD_FILES+=usr/share/man/man3/readline.3.gz
 # 20140625: csup removal
@@ -364,7 +397,6 @@ OLD_FILES+=usr/share/man/man1/atf-report.1.gz
 OLD_FILES+=usr/share/man/man1/atf-run.1.gz
 OLD_FILES+=usr/share/man/man1/atf-version.1.gz
 OLD_FILES+=usr/share/man/man5/atf-formats.5.gz
-OLD_FILES+=usr/share/man/man7/atf.7.gz
 OLD_FILES+=usr/share/xml/atf/tests-results.dtd
 OLD_FILES+=usr/share/xsl/atf/tests-results.xsl
 # 20131009: freebsd-version moved from /libexec to /bin

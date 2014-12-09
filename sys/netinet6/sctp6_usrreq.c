@@ -83,7 +83,7 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 
 #endif
 	uint32_t mflowid;
-	uint8_t use_mflowid;
+	uint8_t mflowtype;
 
 	iphlen = *offp;
 	if (SCTP_GET_PKT_VRFID(*i_pak, vrf_id)) {
@@ -113,13 +113,8 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 	    m->m_pkthdr.len,
 	    if_name(m->m_pkthdr.rcvif),
 	    (int)m->m_pkthdr.csum_flags, CSUM_BITS);
-	if (m->m_flags & M_FLOWID) {
-		mflowid = m->m_pkthdr.flowid;
-		use_mflowid = 1;
-	} else {
-		mflowid = 0;
-		use_mflowid = 0;
-	}
+	mflowid = m->m_pkthdr.flowid;
+	mflowtype = M_HASHTYPE_GET(m);
 	SCTP_STAT_INCR(sctps_recvpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
 	/* Get IP, SCTP, and first chunk header together in the first mbuf. */
@@ -147,10 +142,6 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 	dst.sin6_port = sh->dest_port;
 	dst.sin6_addr = ip6->ip6_dst;
 	if (in6_setscope(&dst.sin6_addr, m->m_pkthdr.rcvif, NULL) != 0) {
-		goto out;
-	}
-	if (faithprefix_p != NULL && (*faithprefix_p) (&dst.sin6_addr)) {
-		/* XXX send icmp6 host/port unreach? */
 		goto out;
 	}
 	length = ntohs(ip6->ip6_plen) + iphlen;
@@ -184,7 +175,7 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 	    compute_crc,
 #endif
 	    ecn_bits,
-	    use_mflowid, mflowid,
+	    mflowtype, mflowid,
 	    vrf_id, port);
 out:
 	if (m) {

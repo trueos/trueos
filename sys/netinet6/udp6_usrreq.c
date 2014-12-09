@@ -208,12 +208,6 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	ifp = m->m_pkthdr.rcvif;
 	ip6 = mtod(m, struct ip6_hdr *);
 
-	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
-		/* XXX send icmp6 host/port unreach? */
-		m_freem(m);
-		return (IPPROTO_DONE);
-	}
-
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, sizeof(struct udphdr), IPPROTO_DONE);
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -849,7 +843,6 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		 */
 #ifdef	RSS
 		m->m_pkthdr.flowid = rss_hash_ip6_2tuple(*faddr, *laddr);
-		m->m_flags |= M_FLOWID;
 		M_HASHTYPE_SET(m, M_HASHTYPE_RSS_IPV6);
 #endif
 		flags = 0;

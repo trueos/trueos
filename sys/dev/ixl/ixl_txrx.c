@@ -66,8 +66,8 @@ ixl_mq_start(struct ifnet *ifp, struct mbuf *m)
 	struct tx_ring		*txr;
 	int 			err, i;
 
-	/* Which queue to use */
-	if ((m->m_flags & M_FLOWID) != 0)
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		i = m->m_pkthdr.flowid % vsi->num_queues;
 	else
 		i = curcpu % vsi->num_queues;
@@ -238,6 +238,11 @@ ixl_xmit(struct ixl_queue *que, struct mbuf **m_headp)
 		maxsegs = IXL_MAX_TSO_SEGS;
 		if (ixl_tso_detect_sparse(m_head)) {
 			m = m_defrag(m_head, M_NOWAIT);
+			if (m == NULL) {
+				m_freem(*m_headp);
+				*m_headp = NULL;
+				return (ENOBUFS);
+			}
 			*m_headp = m;
 		}
 	}
@@ -791,6 +796,7 @@ ixl_txeof(struct ixl_queue *que)
 
 	mtx_assert(&txr->mtx, MA_OWNED);
 
+
 	/* These are not the descriptors you seek, move along :) */
 	if (txr->avail == que->num_desc) {
 		que->busy = 0;
@@ -1083,8 +1089,8 @@ int
 ixl_init_rx_ring(struct ixl_queue *que)
 {
 	struct	rx_ring 	*rxr = &que->rxr;
-#if defined(INET6) || defined(INET)
 	struct ixl_vsi		*vsi = que->vsi;
+#if defined(INET6) || defined(INET)
 	struct ifnet		*ifp = vsi->ifp;
 	struct lro_ctrl		*lro = &rxr->lro;
 #endif
@@ -1185,6 +1191,9 @@ skip_head:
 	rxr->split = 0;
 	rxr->bytes = 0;
 	rxr->discard = FALSE;
+
+	wr32(vsi->hw, rxr->tail, que->num_desc - 1);
+	ixl_flush(vsi->hw);
 
 #if defined(INET6) || defined(INET)
 	/*
@@ -1365,6 +1374,7 @@ ixl_rxeof(struct ixl_queue *que, int count)
 
 	IXL_RX_LOCK(rxr);
 
+
 	for (i = rxr->next_check; count != 0;) {
 		struct mbuf	*sendmp, *mh, *mp;
 		u32		rsc, status, error;
@@ -1533,7 +1543,7 @@ ixl_rxeof(struct ixl_queue *que, int count)
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 				ixl_rx_checksum(sendmp, status, error, ptype);
 			sendmp->m_pkthdr.flowid = que->msix;
-			sendmp->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
 		}
 next_desc:
 		bus_dmamap_sync(rxr->dma.tag, rxr->dma.map,
@@ -1660,3 +1670,4 @@ ixl_get_counter(if_t ifp, ift_counter cnt)
 	}
 }
 #endif
+

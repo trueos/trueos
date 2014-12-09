@@ -3270,14 +3270,14 @@ pci_reserve_secbus(device_t bus, device_t dev, pcicfgregs *cfg,
 
 	case 0x00dd10de:
 		/* Compaq R3000 BIOS sets wrong subordinate bus number. */
-		if ((cp = getenv("smbios.planar.maker")) == NULL)
+		if ((cp = kern_getenv("smbios.planar.maker")) == NULL)
 			break;
 		if (strncmp(cp, "Compal", 6) != 0) {
 			freeenv(cp);
 			break;
 		}
 		freeenv(cp);
-		if ((cp = getenv("smbios.planar.product")) == NULL)
+		if ((cp = kern_getenv("smbios.planar.product")) == NULL)
 			break;
 		if (strncmp(cp, "08A0", 4) != 0) {
 			freeenv(cp);
@@ -3651,7 +3651,7 @@ pci_set_power_child(device_t dev, device_t child, int state)
 	dinfo = device_get_ivars(child);
 	dstate = state;
 	if (device_is_attached(child) &&
-	    PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
+	    PCIB_POWER_FOR_SLEEP(pcib, child, &dstate) == 0)
 		pci_set_powerstate(child, dstate);
 }
 
