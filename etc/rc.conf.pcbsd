@@ -17,9 +17,6 @@ if [ -e "/etc/defaults/trueos" ] ; then
   # FSCK Enhancements
   fsck_y_enable="YES"
 
-  # Enable pbid
-  pbid_enable="YES"
-
   # Enable the Warden
   warden_enable="YES"
 
@@ -39,10 +36,6 @@ if [ -e "/etc/defaults/trueos" ] ; then
   kldxref_enable="YES"
   kldxref_clobber="YES"
 
-  # Enable the crash-reporter for textdumps
-  ix_textdump_enable="YES"
-  ix_diagnose_enable="YES"
-
   # Enable panic mail
   panicmail_enable="YES"
   panicmail_autosubmit="YES"
@@ -51,6 +44,10 @@ if [ -e "/etc/defaults/trueos" ] ; then
   php_fpm_enable="YES"
   syscache_enable="YES"
   appcafe_enable="YES"
+
+  # Clean out temporary files.
+  clear_tmp_enable="YES"
+  clean_tmp_X="YES"
 fi
 
 # Defaults for PC-BSD desktops
@@ -73,15 +70,13 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
   sendmail_outbound_enable="NO"
   sendmail_msp_queue_enable="NO" 
 
-  #Enable samba server 
-  samba_server_enable="YES" 
-  winbindd_enable="YES"
- 
   # Disable LPD  
   lpd_enable="NO" 
  
   # Enable CUPS 
   cupsd_enable="YES" 
+
+  # Enable Linux emulation
   linux_enable="YES"
  
   # FSCK Enhancements 
@@ -112,17 +107,11 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
   # Enable IPV6 support
   ipv6_activate_all_interfaces="YES"
 
-  # Enable BSDStats
-  bsdstats_enable="YES"
-
   # Enable webcamd
   webcamd_enable="YES"
 
   # Disable writing syslogs to remote devices by default
   syslogd_flags="-c -ss"
-
-  # Enable pbid
-  pbid_enable="YES"
 
   # Enable the pcdm display manager
   pcdm_enable="YES"
@@ -171,10 +160,6 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
   # Overwrite old linker.hints at boot
   kldxref_enable="YES"
   kldxref_clobber="YES"
-
-  # Enable the crash-reporter for textdumps
-  ix_textdump_enable="YES"
-  ix_diagnose_enable="YES"
 
   # Enable panic mail
   panicmail_enable="YES"
