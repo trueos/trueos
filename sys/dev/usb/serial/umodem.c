@@ -112,7 +112,7 @@ __FBSDID("$FreeBSD$");
 static int umodem_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
-SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RWTUN,
     &umodem_debug, 0, "Debug level");
 #endif
 
@@ -125,7 +125,7 @@ static const STRUCT_USB_HOST_ID umodem_devs[] = {
 		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
 		USB_IFACE_PROTOCOL(UIPROTO_CDC_NONE)},
 	/* Huawei Modem class match */
-	{USB_IFACE_CLASS(UICLASS_CDC),
+	{USB_VENDOR(USB_VENDOR_HUAWEI),USB_IFACE_CLASS(UICLASS_CDC),
 		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
 		USB_IFACE_PROTOCOL(0xFF)},
 	/* Kyocera AH-K3001V */

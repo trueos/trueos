@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/vmmeter.h>
@@ -176,7 +177,7 @@ trap(struct trapframe *frame)
 	 * handled the trap and modified the trap frame so that this
 	 * function can return normally.
 	 */
-	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame))
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type) != 0)
 		return;
 #endif
 
