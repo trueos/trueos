@@ -86,6 +86,10 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
   powerd_enable="YES"
   powerd_flags="-a hiadaptive -b adaptive" # set CPU frequency
 
+  # Set some better defaults for power saving
+  performance_cx_lowest="Cmax"
+  economy_cx_lowest="Cmax"
+
   # enable HAL / DBUS
   dbus_enable="YES"
   hald_enable="YES"
