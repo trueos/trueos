@@ -917,8 +917,6 @@ void _thr_stack_fix_protection(struct pthread *thrd);
 int *__error_threaded(void) __hidden;
 void __thr_interpose_libc(void) __hidden;
 pid_t __thr_fork(void);
-int __thr_pause(void) __hidden;
-int __thr_raise(int sig);
 int __thr_setcontext(const ucontext_t *ucp);
 int __thr_sigaction(int sig, const struct sigaction *act,
     struct sigaction *oact) __hidden;
@@ -929,6 +927,9 @@ int __thr_sigtimedwait(const sigset_t *set, siginfo_t *info,
 int __thr_sigwait(const sigset_t *set, int *sig);
 int __thr_sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int __thr_swapcontext(ucontext_t *oucp, const ucontext_t *ucp);
+
+struct tcb *_tcb_ctor(struct pthread *, int);
+void	_tcb_dtor(struct tcb *);
 
 __END_DECLS
 

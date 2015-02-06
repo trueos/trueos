@@ -36,12 +36,8 @@ scalbln (double x, long n)
 	int in;
 
 	in = (int)n;
-	if (in != n) {
-		if (n > 0)
-			in = INT_MAX;
-		else
-			in = INT_MIN;
-	}
+	if (in != n)
+		in = (n > 0) ? INT_MAX: INT_MIN;
 	return (scalbn(x, in));
 }
 
@@ -51,12 +47,8 @@ scalblnf (float x, long n)
 	int in;
 
 	in = (int)n;
-	if (in != n) {
-		if (n > 0)
-			in = INT_MAX;
-		else
-			in = INT_MIN;
-	}
+	if (in != n)
+		in = (n > 0) ? INT_MAX: INT_MIN;
 	return (scalbnf(x, in));
 }
 
@@ -66,11 +58,7 @@ scalblnl (long double x, long n)
 	int in;
 
 	in = (int)n;
-	if (in != n) {
-		if (n > 0)
-			in = INT_MAX;
-		else
-			in = INT_MIN;
-	}
-	return (scalbnl(x, (int)n));
+	if (in != n)
+		in = (n > 0) ? INT_MAX: INT_MIN;
+	return (scalbnl(x, in));
 }

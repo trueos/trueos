@@ -13,6 +13,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libc \
 	libc_nonshared \
 	libcompiler_rt \
+	${_libclang_rt} \
 	${_libcplusplus} \
 	${_libcxxrt} \
 	libelf \
@@ -40,6 +41,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libcom_err} \
 	libcompat \
 	libcrypt \
+	libdevctl \
 	libdevinfo \
 	libdevstat \
 	libdpv \
@@ -52,7 +54,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libfetch \
 	libfigpar \
 	libgeom \
-	libgpio \
+	${_libgpio} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \
@@ -62,7 +64,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libkvm \
 	${_libldns} \
 	liblzma \
-	libmagic \
+	${_libmagic} \
 	libmandoc \
 	libmemstat \
 	libmd \
@@ -81,7 +83,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libpmc} \
 	${_libproc} \
 	libprocstat \
-	libradius \
+	${_libradius} \
 	librpcsvc \
 	librt \
 	${_librtld_db} \
@@ -141,7 +143,7 @@ SUBDIR_DEPEND_liblibrpcsec_gss= libgssapi
 SUBDIR_DEPEND_libmagic= libz
 SUBDIR_DEPEND_libmemstat= libkvm
 SUBDIR_DEPEND_libopie= libmd
-SUBDIR_DEPEND_libpam= libcrypt libopie libradius librpcsvc libtacplus libutil ${_libypclnt} ${_libcom_err} 
+SUBDIR_DEPEND_libpam= libcrypt libopie ${_libradius} librpcsvc libtacplus libutil ${_libypclnt} ${_libcom_err} 
 SUBDIR_DEPEND_libpjdlog= libutil
 SUBDIR_DEPEND_libprocstat= libkvm libutil
 SUBDIR_DEPEND_libradius= libmd
@@ -194,6 +196,14 @@ _cuse=		libcuse
 _libelftc=	libelftc
 .endif
 
+.if ${MK_FILE} != "no"
+_libmagic=	libmagic
+.endif
+
+.if ${MK_GPIO} != "no"
+_libgpio=	libgpio
+.endif
+
 .if ${MK_GSSAPI} != "no"
 _libgssapi=	libgssapi
 _librpcsec_gss=	librpcsec_gss
@@ -209,6 +219,15 @@ _libcom_err= libcom_err
 
 .if ${MK_LDNS} != "no"
 _libldns=	libldns
+.endif
+
+# The libraries under libclang_rt can only be built by clang, and only make
+# sense to build when clang is enabled at all.  Furthermore, they can only be
+# built for certain architectures.
+.if ${MK_CLANG} != "no" && ${COMPILER_TYPE} == "clang" && \
+    (${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64" || \
+    (${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH} != "armeb"))
+_libclang_rt=	libclang_rt
 .endif
 
 .if ${MK_LIBCPLUSPLUS} != "no"
@@ -244,7 +263,9 @@ _librtld_db=	librtld_db
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+.if ${MK_BHYVE} != "no"
 _libvmmapi=	libvmmapi
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
@@ -268,6 +289,10 @@ _libmp=		libmp
 
 .if ${MK_PMC} != "no"
 _libpmc=	libpmc
+.endif
+
+.if ${MK_RADIUS_SUPPORT} != "no"
+_libradius=	libradius
 .endif
 
 .if ${MK_SENDMAIL} != "no"

@@ -85,6 +85,7 @@ COMPAT_FREEBSD6	opt_compat.h
 COMPAT_FREEBSD7	opt_compat.h
 COMPAT_FREEBSD9	opt_compat.h
 COMPAT_FREEBSD10	opt_compat.h
+COMPAT_LINUXAPI	opt_compat.h
 COMPILING_LINT	opt_global.h
 COMPRESS_USER_CORES opt_core.h
 CY_PCI_FASTINTR
@@ -128,6 +129,7 @@ GEOM_SHSEC	opt_geom.h
 GEOM_STRIPE	opt_geom.h
 GEOM_SUNLABEL	opt_geom.h
 GEOM_UNCOMPRESS	opt_geom.h
+GEOM_UNCOMPRESS_DEBUG	opt_geom.h
 GEOM_UZIP	opt_geom.h
 GEOM_VINUM	opt_geom.h
 GEOM_VIRSTOR	opt_geom.h
@@ -208,7 +210,7 @@ SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
 VFS_AIO
-VERBOSE_SYSINIT	opt_global.h
+VERBOSE_SYSINIT
 WLCACHE		opt_wavelan.h
 WLDEBUG		opt_wavelan.h
 
@@ -396,11 +398,6 @@ BOOTP_NFSROOT		opt_bootp.h
 BOOTP_NFSV3		opt_bootp.h
 BOOTP_WIRED_TO		opt_bootp.h
 DEVICE_POLLING
-DEV_ENC			opt_enc.h
-DEV_PF			opt_pf.h
-DEV_PFLOG		opt_pf.h
-DEV_PFSYNC		opt_pf.h
-DEV_VLAN		opt_vlan.h
 DUMMYNET		opt_ipdn.h
 INET			opt_inet.h
 INET6			opt_inet6.h
@@ -655,6 +652,7 @@ USB_HOST_ALIGN		opt_usb.h
 USB_REQ_DEBUG		opt_usb.h
 USB_TEMPLATE		opt_usb.h
 USB_VERBOSE		opt_usb.h
+USB_DMA_SINGLE_ALLOC	opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
 U3G_DEBUG		opt_u3g.h
 UKBD_DFLT_KEYMAP	opt_ukbd.h
@@ -698,10 +696,16 @@ ISAPNP			opt_isa.h
 
 # various 'device presence' options.
 DEV_BPF			opt_bpf.h
-DEV_NETMAP		opt_global.h
-DEV_MCA			opt_mca.h
 DEV_CARP		opt_carp.h
+DEV_ENC			opt_enc.h
+DEV_MCA			opt_mca.h
+DEV_NETMAP		opt_global.h
+DEV_PCI			opt_pci.h
+DEV_PF			opt_pf.h
+DEV_PFLOG		opt_pf.h
+DEV_PFSYNC		opt_pf.h
 DEV_SPLASH		opt_splash.h
+DEV_VLAN		opt_vlan.h
 
 # EISA support
 DEV_EISA		opt_eisa.h

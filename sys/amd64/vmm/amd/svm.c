@@ -80,6 +80,7 @@ SYSCTL_NODE(_hw_vmm, OID_AUTO, svm, CTLFLAG_RW, NULL, NULL);
 #define AMD_CPUID_SVM_DECODE_ASSIST	BIT(7)  /* Decode assist */
 #define AMD_CPUID_SVM_PAUSE_INC		BIT(10) /* Pause intercept filter. */
 #define AMD_CPUID_SVM_PAUSE_FTH		BIT(12) /* Pause filter threshold */
+#define	AMD_CPUID_SVM_AVIC		BIT(13)	/* AVIC present */
 
 #define	VMCB_CACHE_DEFAULT	(VMCB_CACHE_ASID 	|	\
 				VMCB_CACHE_IOPM		|	\
@@ -1201,7 +1202,6 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	struct vmcb_state *state;
 	struct vmcb_ctrl *ctrl;
 	struct svm_regctx *ctx;
-	struct vm_exception exception;
 	uint64_t code, info1, info2, val;
 	uint32_t eax, ecx, edx;
 	int error, errcode_valid, handled, idtvec, reflect;
@@ -1315,6 +1315,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			/* fallthru */
 		default:
 			errcode_valid = 0;
+			info1 = 0;
 			break;
 		}
 		KASSERT(vmexit->inst_length == 0, ("invalid inst_length (%d) "
@@ -1323,17 +1324,10 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 
 		if (reflect) {
 			/* Reflect the exception back into the guest */
-			bzero(&exception, sizeof(struct vm_exception));
-			exception.vector = idtvec;
-			if (errcode_valid) {
-				exception.error_code = info1;
-				exception.error_code_valid = 1;
-			}
 			VCPU_CTR2(svm_sc->vm, vcpu, "Reflecting exception "
-			    "%d/%#x into the guest", exception.vector,
-			    exception.error_code);
-			error = vm_inject_exception(svm_sc->vm, vcpu,
-			    &exception);
+			    "%d/%#x into the guest", idtvec, (int)info1);
+			error = vm_inject_exception(svm_sc->vm, vcpu, idtvec,
+			    errcode_valid, info1, 0);
 			KASSERT(error == 0, ("%s: vm_inject_exception error %d",
 			    __func__, error));
 		}

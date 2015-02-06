@@ -47,7 +47,7 @@ SUBDIR=	\
 	ata \
 	ath \
 	ath_pci \
-	autofs \
+	${_autofs} \
 	${_auxio} \
 	${_bce} \
 	bfe \
@@ -86,7 +86,6 @@ SUBDIR=	\
 	${_ct} \
 	${_ctau} \
 	ctl \
-	cuse \
 	${_cxgb} \
 	${_cxgbe} \
 	dc \
@@ -169,8 +168,6 @@ SUBDIR=	\
 	${_ipw} \
 	${_ipwfw} \
 	${_isci} \
-	iscsi \
-	iscsi_initiator \
 	isp \
 	${_ispfw} \
 	${_iwi} \
@@ -198,6 +195,7 @@ SUBDIR=	\
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
+	${_linuxapi} \
 	lmc \
 	lpt \
 	mac_biba \
@@ -317,7 +315,7 @@ SUBDIR=	\
 	sis \
 	sk \
 	${_smbfs} \
-	${_sn} \
+	sn \
 	${_snc} \
 	snp \
 	${_sound} \
@@ -384,6 +382,10 @@ SUBDIR=	\
 	${_zfs} \
 	zlib
 
+.if ${MK_AUTOFS} != "no" || defined(ALL_MODULES)
+_autofs=	autofs
+.endif
+
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../opencrypto)
 _crypto=	crypto
@@ -392,6 +394,10 @@ _cryptodev=	cryptodev
 .if exists(${.CURDIR}/../crypto)
 _random=	random
 .endif
+.endif
+
+.if ${MK_CUSE} != "no" || defined(ALL_MODULES)
+SUBDIR+=	cuse
 .endif
 
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
@@ -410,6 +416,11 @@ _ipfw=		ipfw
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
+.endif
+
+.if ${MK_ISCSI} != "no" || defined(ALL_MODULES)
+SUBDIR+=	iscsi
+SUBDIR+=	iscsi_initiator
 .endif
 
 .if ${MK_NAND} != "no" || defined(ALL_MODULES)
@@ -438,12 +449,12 @@ _ispfw=		ispfw
 _mwlfw=		mwlfw
 _ralfw=		ralfw
 _sf=		sf
-_sn=		sn
 _ti=		ti
 _txp=		txp
 .endif
 
-.if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} == "amd64"
+.if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
+	${MACHINE_ARCH} != "powerpc"
 _cxgbe=		cxgbe
 .endif
 
@@ -473,6 +484,7 @@ _cardbus=	cardbus
 _cbb=		cbb
 _cpuctl=	cpuctl
 _cpufreq=	cpufreq
+_cs=		cs
 _dpms=		dpms
 _drm=		drm
 _drm2=		drm2
@@ -481,9 +493,11 @@ _dtrace=	dtrace
 .endif
 _ed=		ed
 _em=		em
+_ep=		ep
 _et=		et
 _exca=		exca
 _ext2fs=	ext2fs
+_fe=		fe
 _filemon=	filemon
 _i2c=		i2c
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
@@ -498,6 +512,9 @@ _ipoib=         ipoib
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
+.if ${MK_OFED} != "no"
+_linuxapi=	linuxapi
+.endif
 _ndis=		ndis
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
@@ -518,6 +535,7 @@ _vmware=	vmware
 _vxge=  	vxge
 _wbwd=		wbwd
 _wi=		wi
+_xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
@@ -606,7 +624,10 @@ _qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe
 _sfxge=		sfxge
+
+.if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
@@ -624,10 +645,7 @@ _coff=		coff
 .if ${MK_SOURCELESS_UCODE} != "no"
 _cp=		cp
 .endif
-_cs=		cs
 _elink=		elink
-_ep=		ep
-_fe=		fe
 _glxiic=	glxiic
 _glxsb=		glxsb
 _ibcs2=		ibcs2
@@ -643,7 +661,6 @@ _streams=	streams
 _stg=		stg
 _svr4=		svr4
 _wds=		wds
-_xe=		xe
 .if ${MACHINE} == "i386"
 .if ${MK_EISA} != "no"
 _ahb=		ahb
