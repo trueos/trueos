@@ -23,9 +23,8 @@ if [ -e "/etc/defaults/trueos" ] ; then
   # Load the following kernel modules
   kld_list="libiconv libmchain msdosfs_iconv sem udf udf_iconv ext2fs reiserfs smbfs fdescfs linsysfs fuse"
 
-  # Enable ntpd
-  ntpd_enable="YES"
-  ntpd_sync_on_start="YES"
+  # Enable openntpd
+  openntpd_enable="YES"
 
   # Enable IPFW for Warden
   firewall_enable="YES"
@@ -152,9 +151,8 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
   # Enable uhidd
   uhidd_enable="YES"
 
-  # Enable ntpd
-  ntpd_enable="YES"
-  ntpd_sync_on_start="YES"
+  # Enable openntpd
+  openntpd_enable="YES"
 
   # Enable IPFW for Warden
   firewall_enable="YES"
