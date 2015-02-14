@@ -174,4 +174,8 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
 
   # Enable AutoFS mounting
   autofs_enable="YES"
+
+  # Enable NFS locking
+  rpc_lockd_enable="YES"
+  rpc_statd_enable="YES"
 fi
