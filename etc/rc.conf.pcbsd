@@ -171,4 +171,7 @@ if [ -e "/etc/defaults/pcbsd" ] ; then
   php_fpm_enable="YES"
   syscache_enable="YES"
   appcafe_enable="YES"
+
+  # Enable AutoFS mounting
+  autofs_enable="YES"
 fi
