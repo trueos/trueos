@@ -43,7 +43,6 @@ BIN1=	crontab \
 	protocols \
 	rc \
 	rc.bsdextended \
-	rc.conf.pcbsd \
 	rc.firewall \
 	rc.initdiskless \
 	rc.shutdown \
