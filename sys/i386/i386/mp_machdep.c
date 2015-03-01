@@ -719,9 +719,6 @@ init_secondary(void)
 	load_cr0(cr0);
 	CHECK_WRITE(0x38, 5);
 	
-	/* Disable local APIC just to be sure. */
-	lapic_disable();
-
 	/* signal our startup to the BSP. */
 	mp_naps++;
 	CHECK_WRITE(0x39, 6);
@@ -738,6 +735,14 @@ init_secondary(void)
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 	lidt(&r_idt);
 #endif
+
+	/*
+	 * On real hardware, switch to x2apic mode if possible.  Do it
+	 * after aps_ready was signalled, to avoid manipulating the
+	 * mode while BSP might still want to send some IPI to us
+	 * (second startup IPI is ignored on modern hardware etc).
+	 */
+	lapic_xapic_mode();
 
 	/* Initialize the PAT MSR if present. */
 	pmap_init_pat();
@@ -1552,6 +1557,7 @@ cpususpend_handler(void)
 		cpu_ops.cpu_resume();
 
 	/* Resume MCA and local APIC */
+	lapic_xapic_mode();
 	mca_resume();
 	lapic_setup(0);
 

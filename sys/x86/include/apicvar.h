@@ -126,7 +126,12 @@
 
 #define	IPI_STOP	(APIC_IPI_INTS + 7)	/* Stop CPU until restarted. */
 #define	IPI_SUSPEND	(APIC_IPI_INTS + 8)	/* Suspend CPU until restarted. */
-#define	IPI_STOP_HARD	(APIC_IPI_INTS + 9)	/* Stop CPU with a NMI. */
+
+/*
+ * IPI_STOP_HARD does not need to occupy a slot in the IPI vector space since
+ * it is delivered using an NMI anyways.
+ */
+#define	IPI_STOP_HARD	255			/* Stop CPU with a NMI. */
 
 /*
  * The spurious interrupt can share the priority class with the IPIs since
@@ -189,6 +194,7 @@ int	ioapic_set_smi(void *cookie, u_int pin);
 struct apic_ops {
 	void	(*create)(u_int, int);
 	void	(*init)(vm_paddr_t);
+	void	(*xapic_mode)(void);
 	void	(*setup)(int);
 	void	(*dump)(const char *);
 	void	(*disable)(void);
@@ -240,6 +246,13 @@ lapic_init(vm_paddr_t addr)
 {
 
 	apic_ops.init(addr);
+}
+
+static inline void
+lapic_xapic_mode(void)
+{
+
+	apic_ops.xapic_mode();
 }
 
 static inline void
@@ -416,6 +429,13 @@ void	lapic_handle_error(void);
 void	lapic_handle_intr(int vector, struct trapframe *frame);
 void	lapic_handle_timer(struct trapframe *frame);
 void	xen_intr_handle_upcall(struct trapframe *frame);
+
+extern int x2apic_mode;
+extern int lapic_eoi_suppression;
+
+#ifdef _SYS_SYSCTL_H_
+SYSCTL_DECL(_hw_apic);
+#endif
 
 #endif /* !LOCORE */
 #endif /* _X86_APICVAR_H_ */

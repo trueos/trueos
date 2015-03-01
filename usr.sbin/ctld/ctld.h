@@ -120,19 +120,31 @@ struct portal_group {
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
 	TAILQ_HEAD(, port)		pg_ports;
+	char				*pg_offload;
 	char				*pg_redirection;
 
 	uint16_t			pg_tag;
 };
 
+struct pport {
+	TAILQ_ENTRY(pport)		pp_next;
+	TAILQ_HEAD(, port)		pp_ports;
+	struct conf			*pp_conf;
+	char				*pp_name;
+
+	uint32_t			pp_ctl_port;
+};
+
 struct port {
 	TAILQ_ENTRY(port)		p_next;
 	TAILQ_ENTRY(port)		p_pgs;
+	TAILQ_ENTRY(port)		p_pps;
 	TAILQ_ENTRY(port)		p_ts;
 	struct conf			*p_conf;
 	char				*p_name;
 	struct auth_group		*p_auth_group;
 	struct portal_group		*p_portal_group;
+	struct pport			*p_pport;
 	struct target			*p_target;
 
 	uint32_t			p_ctl_port;
@@ -169,7 +181,6 @@ struct target {
 	TAILQ_HEAD(, port)		t_ports;
 	char				*t_name;
 	char				*t_alias;
-	char				*t_offload;
 	char				*t_redirection;
 };
 
@@ -187,6 +198,7 @@ struct conf {
 	TAILQ_HEAD(, auth_group)	conf_auth_groups;
 	TAILQ_HEAD(, port)		conf_ports;
 	TAILQ_HEAD(, portal_group)	conf_portal_groups;
+	TAILQ_HEAD(, pport)		conf_pports;
 	TAILQ_HEAD(, isns)		conf_isns;
 	int				conf_isns_period;
 	int				conf_isns_timeout;
@@ -280,7 +292,7 @@ char			*rchap_get_response(struct rchap *rchap);
 void			rchap_delete(struct rchap *rchap);
 
 struct conf		*conf_new(void);
-struct conf		*conf_new_from_file(const char *path);
+struct conf		*conf_new_from_file(const char *path, struct conf *old);
 struct conf		*conf_new_from_kernel(void);
 void			conf_delete(struct conf *conf);
 int			conf_verify(struct conf *conf);
@@ -324,6 +336,8 @@ int			portal_group_add_listen(struct portal_group *pg,
 			    const char *listen, bool iser);
 int			portal_group_set_filter(struct portal_group *pg,
 			    const char *filter);
+int			portal_group_set_offload(struct portal_group *pg,
+			    const char *offload);
 int			portal_group_set_redirection(struct portal_group *pg,
 			    const char *addr);
 
@@ -333,8 +347,16 @@ void			isns_register(struct isns *isns, struct isns *oldisns);
 void			isns_check(struct isns *isns);
 void			isns_deregister(struct isns *isns);
 
+struct pport		*pport_new(struct conf *conf, const char *name,
+			    uint32_t ctl_port);
+struct pport		*pport_find(const struct conf *conf, const char *name);
+struct pport		*pport_copy(struct pport *pport, struct conf *conf);
+void			pport_delete(struct pport *pport);
+
 struct port		*port_new(struct conf *conf, struct target *target,
 			    struct portal_group *pg);
+struct port		*port_new_pp(struct conf *conf, struct target *target,
+			    struct pport *pp);
 struct port		*port_find(const struct conf *conf, const char *name);
 struct port		*port_find_in_pg(const struct portal_group *pg,
 			    const char *target);
@@ -346,8 +368,6 @@ struct target		*target_find(struct conf *conf,
 			    const char *name);
 int			target_set_redirection(struct target *target,
 			    const char *addr);
-int			target_set_offload(struct target *target,
-			    const char *offload);
 
 struct lun		*lun_new(struct conf *conf, const char *name);
 void			lun_delete(struct lun *lun);
@@ -396,7 +416,6 @@ void			keys_delete(struct keys *keys);
 void			keys_load(struct keys *keys, const struct pdu *pdu);
 void			keys_save(struct keys *keys, struct pdu *pdu);
 const char		*keys_find(struct keys *keys, const char *name);
-int			keys_find_int(struct keys *keys, const char *name);
 void			keys_add(struct keys *keys,
 			    const char *name, const char *value);
 void			keys_add_int(struct keys *keys,

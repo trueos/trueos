@@ -170,7 +170,7 @@ _DP_edit=	ncursesw
 .if ${MK_OPENSSL} != "no"
 _DP_bsnmp=	crypto
 .endif
-_DP_grom=	bsdxml sbuf
+_DP_geom=	bsdxml sbuf
 _DP_cam=	sbuf
 _DP_casper=	capsicum nv pjdlog
 _DP_capsicum=	nv
@@ -224,6 +224,7 @@ _DP_pam+=	ypclnt
 _DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc \
 		pthread
 _DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
+_DP_lzma=	pthread
 _DP_ucl=	m
 
 # Define spacial cases
