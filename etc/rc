@@ -106,31 +106,6 @@ done
 
 unset files local_rc
 
-# Check if we are needing to finish up a freebsd-update
-if [ -e "/var/.freebsd-update-finish" ] ; then
-   TERM="cons25" ; export TERM
-   clear
-
-   # Enable networking first
-   run_rc_script /etc/rc.d/netif ${_boot}
-
-   TERM="cons25" ; export TERM
-   clear
-
-   /usr/local/bin/pc-updatemanager finish-major-update
-
-   rm /var/.freebsd-update-finish 2>/dev/null
-
-   sync
-
-   clear
-   echo "Rebooting..."
-   shutdown -r now
-fi
-
-# Tickle /etc/version
-uname -r > /etc/version
-
 # Now that disks are mounted, for each dir in $local_startup
 # search for init scripts that use the new rc.d semantics.
 #
