@@ -356,6 +356,8 @@ typedef struct drm_pci_id_list
 
 #if defined(__i386__) || defined(__amd64__)
 #define	CONFIG_ACPI
+#define	CONFIG_DRM_I915_KMS
+#define	CONFIG_INTEL_IOMMU
 #endif
 
 #define	CONFIG_AGP	1
@@ -369,6 +371,7 @@ extern const char *fb_mode_option;
 #define	MODULE_DESCRIPTION(desc)
 #define	MODULE_LICENSE(license)
 #define	MODULE_PARM_DESC(name, desc)
+#define	MODULE_DEVICE_TABLE(name, list)
 #define	module_param_named(name, var, type, perm)
 
 #define	printk		printf
@@ -376,6 +379,34 @@ extern const char *fb_mode_option;
 
 struct fb_info *	framebuffer_alloc(void);
 void			framebuffer_release(struct fb_info *info);
+
+#define	console_lock()
+#define	console_unlock()
+#define console_try_lock()	true
+
+#define	PM_EVENT_SUSPEND	0x0002
+#define	PM_EVENT_QUIESCE	0x0008
+#define	PM_EVENT_PRETHAW	PM_EVENT_QUIESCE
+
+typedef struct pm_message {
+	int event;
+} pm_message_t;
+
+static inline int
+pci_read_config_byte(device_t kdev, int where, u8 *val)
+{
+
+	*val = (u8)pci_read_config(kdev, where, 1);
+	return (0);
+}
+
+static inline int
+pci_write_config_byte(device_t kdev, int where, u8 val)
+{
+
+	pci_write_config(dev, where, val, 1);
+	return (0);
+}
 
 #define KIB_NOTYET()							\
 do {									\

@@ -677,6 +677,8 @@ struct drm_driver {
 	void (*postclose) (struct drm_device *, struct drm_file *);
 	void (*lastclose) (struct drm_device *);
 	int (*unload) (struct drm_device *);
+	int (*suspend) (struct drm_device *, pm_message_t state);
+	int (*resume) (struct drm_device *);
 	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
 	int (*dma_quiescent) (struct drm_device *);
 	int (*context_dtor) (struct drm_device *dev, int context);
@@ -1739,6 +1741,8 @@ int	drm_probe_helper(device_t kdev, drm_pci_id_list_t *idlist);
 int	drm_attach_helper(device_t kdev, drm_pci_id_list_t *idlist,
 	    struct drm_driver *driver);
 int	drm_generic_detach(device_t kdev);
+int	drm_suspend(device_t *kdev);
+int	drm_resume(device_t *kdev);
 
 void drm_event_wakeup(struct drm_pending_event *e);
 
