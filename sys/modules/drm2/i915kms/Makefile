@@ -3,6 +3,12 @@
 .PATH:	${.CURDIR}/../../../dev/drm2/i915
 KMOD	= i915kms
 SRCS	= \
+	dvo_ch7017.c \
+	dvo_ch7xxx.c \
+	dvo_ivch.c \
+	dvo_ns2501.c \
+	dvo_sil164.c \
+	dvo_tfp410.c \
 	i915_debug.c \
 	i915_dma.c \
 	i915_drv.c \
@@ -50,6 +56,8 @@ SRCS	+=								\
 	iicbb_if.h							\
 	iicbus_if.h							\
 	pci_if.h
+
+CFLAGS+=	-I${.CURDIR}/../../../dev
 
 .include <bsd.kmod.mk>
 
