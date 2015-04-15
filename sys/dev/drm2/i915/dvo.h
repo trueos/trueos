@@ -28,8 +28,8 @@
 #include <sys/bus.h>
 #include <dev/iicbus/iic.h>
 #include <dev/iicbus/iiconf.h>
-#include <drm2/drmP.h>
-#include <drm2/drm_crtc.h>
+#include <dev/drm2/drmP.h>
+#include <dev/drm2/drm_crtc.h>
 #else
 #include <linux/i2c.h>
 #include <drm/drmP.h>
