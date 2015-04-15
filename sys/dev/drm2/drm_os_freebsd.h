@@ -411,7 +411,7 @@ static inline int
 pci_write_config_byte(device_t kdev, int where, u8 val)
 {
 
-	pci_write_config(dev, where, val, 1);
+	pci_write_config(kdev, where, val, 1);
 	return (0);
 }
 
