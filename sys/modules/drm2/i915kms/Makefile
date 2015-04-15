@@ -57,8 +57,6 @@ SRCS	+=								\
 	iicbus_if.h							\
 	pci_if.h
 
-CFLAGS+=	-I${.CURDIR}/../../../dev
-
 .include <bsd.kmod.mk>
 
 CWARNFLAGS.i915_debug.c=	-Wno-unused-function
