@@ -42,6 +42,7 @@ export PATH
 # Prototypes that can be redefined per-chroot or per-target.
 load_chroot_env() { }
 load_target_env() { }
+buildenv_setup() { }
 
 # The directory within which the release will be built.
 CHROOTDIR="/scratch"
@@ -237,6 +238,7 @@ fi
 
 # Embedded builds do not use the 'make release' target.
 if [ -n "${EMBEDDEDBUILD}" ]; then
+	buildenv_setup
 	# If a crochet configuration file exists in *this* checkout of
 	# release/, copy it to the /tmp/external directory within the chroot.
 	# This allows building embedded releases without relying on updated
@@ -279,6 +281,7 @@ if [ -d ${CHROOTDIR}/usr/ports ]; then
 	fi
 fi
 
+buildenv_setup
 load_target_env
 eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
 eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
