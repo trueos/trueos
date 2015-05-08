@@ -24,10 +24,16 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifndef __user
-#define __user
+#define	__user
 #endif
 #ifndef __iomem
-#define __iomem
+#define	__iomem
+#endif
+#ifndef __always_unused
+#define	__always_unused
+#endif
+#ifndef __must_check
+#define	__must_check
 #endif
 
 #define	cpu_to_le16(x)	htole16(x)
@@ -93,6 +99,7 @@ typedef void			irqreturn_t;
 #define	DRM_UDELAY(udelay)	DELAY(udelay)
 #define	drm_msleep(x, msg)	pause((msg), ((int64_t)(x)) * hz / 1000)
 #define	DRM_MSLEEP(msecs)	drm_msleep((msecs), "drm_msleep")
+#define	get_seconds()		time_second
 
 #define	DRM_READ8(map, offset)						\
 	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
@@ -360,11 +367,18 @@ typedef struct drm_pci_id_list
 #define	CONFIG_INTEL_IOMMU
 #endif
 
+#ifdef COMPAT_FREEBSD32
+#define	CONFIG_COMPAT
+#endif
+
 #define	CONFIG_AGP	1
 #define	CONFIG_MTRR	1
 
 #define	CONFIG_FB	1
 extern const char *fb_mode_option;
+
+#undef	CONFIG_DEBUG_FS
+#undef	CONFIG_VGA_CONSOLE
 
 #define	EXPORT_SYMBOL(x)
 #define	MODULE_AUTHOR(author)
@@ -389,7 +403,7 @@ void			framebuffer_release(struct fb_info *info);
 
 #define	console_lock()
 #define	console_unlock()
-#define console_try_lock()	true
+#define	console_trylock()	true
 
 #define	PM_EVENT_SUSPEND	0x0002
 #define	PM_EVENT_QUIESCE	0x0008
