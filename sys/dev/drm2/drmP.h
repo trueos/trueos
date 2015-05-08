@@ -1097,7 +1097,7 @@ struct drm_device {
 	char busid_str[128];
 	int modesetting;
 
-	drm_pci_id_list_t *id_entry;	/* PCI ID, name, and chipset private */
+	const drm_pci_id_list_t *id_entry;	/* PCI ID, name, and chipset private */
 };
 
 #define DRM_SWITCH_POWER_ON 0
@@ -1737,8 +1737,8 @@ struct dmi_system_id {
 bool dmi_check_system(const struct dmi_system_id *);
 
 /* Device setup support (drm_drv.c) */
-int	drm_probe_helper(device_t kdev, drm_pci_id_list_t *idlist);
-int	drm_attach_helper(device_t kdev, drm_pci_id_list_t *idlist,
+int	drm_probe_helper(device_t kdev, const drm_pci_id_list_t *idlist);
+int	drm_attach_helper(device_t kdev, const drm_pci_id_list_t *idlist,
 	    struct drm_driver *driver);
 int	drm_generic_suspend(device_t kdev);
 int	drm_generic_resume(device_t kdev);

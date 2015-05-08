@@ -67,8 +67,8 @@ ns_to_timeval(const int64_t nsec)
         return (tv);
 }
 
-static drm_pci_id_list_t *
-drm_find_description(int vendor, int device, drm_pci_id_list_t *idlist)
+static const drm_pci_id_list_t *
+drm_find_description(int vendor, int device, const drm_pci_id_list_t *idlist)
 {
 	int i = 0;
 
@@ -87,9 +87,9 @@ drm_find_description(int vendor, int device, drm_pci_id_list_t *idlist)
  * method.
  */
 int
-drm_probe_helper(device_t kdev, drm_pci_id_list_t *idlist)
+drm_probe_helper(device_t kdev, const drm_pci_id_list_t *idlist)
 {
-	drm_pci_id_list_t *id_entry;
+	const drm_pci_id_list_t *id_entry;
 	int vendor, device;
 
 	vendor = pci_get_vendor(kdev);
@@ -118,7 +118,7 @@ drm_probe_helper(device_t kdev, drm_pci_id_list_t *idlist)
  * method.
  */
 int
-drm_attach_helper(device_t kdev, drm_pci_id_list_t *idlist,
+drm_attach_helper(device_t kdev, const drm_pci_id_list_t *idlist,
     struct drm_driver *driver)
 {
 	struct drm_device *dev;
