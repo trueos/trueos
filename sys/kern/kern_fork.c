@@ -943,13 +943,14 @@ fail:
 #endif
 	racct_proc_exit(newproc);
 fail1:
-	crfree(proc_set_cred(newproc, NULL));
+	crfree(newproc->p_ucred);
+	newproc->p_ucred = NULL;
 fail2:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
-		fdclose(td->td_proc->p_fd, fp_procdesc, *procdescp, td);
+		fdclose(td, fp_procdesc, *procdescp);
 		fdrop(fp_procdesc, td);
 	}
 	pause("fork", hz / 2);

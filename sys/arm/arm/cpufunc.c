@@ -893,6 +893,7 @@ set_cpufuncs()
 #endif /* CPU_ARM9E */
 #if defined(CPU_ARM1176)
 	if (cputype == CPU_ID_ARM1176JZS) {
+		cpufuncs = arm1176_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
 
@@ -1185,7 +1186,8 @@ arm11x6_setup(void)
 		CPU_CONTROL_32BD_ENABLE |
 		CPU_CONTROL_LABT_ENABLE |
 		CPU_CONTROL_SYST_ENABLE |
-		CPU_CONTROL_IC_ENABLE;
+		CPU_CONTROL_IC_ENABLE   |
+		CPU_CONTROL_UNAL_ENABLE;
 
 	/*
 	 * "write as existing" bits
