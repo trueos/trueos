@@ -651,12 +651,13 @@ typedef struct drm_i915_private {
 	 */
 	uint32_t gpio_mmio_base;
 
-	struct pci_dev *bridge_dev;
+	device_t bridge_dev;
 	struct intel_ring_buffer ring[I915_NUM_RINGS];
 	uint32_t next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;
-	struct resource mch_res;
+	int mch_res_rid;
+	struct resource *mch_res;
 
 	atomic_t irq_received;
 
@@ -744,7 +745,7 @@ typedef struct drm_i915_private {
 #ifdef FREEBSD_WIP
 	struct completion error_completion;
 #endif /* FREEBSD_WIP */
-	struct workqueue_struct *wq;
+	struct taskqueue *wq;
 
 	/* Display functions */
 	struct drm_i915_display_funcs display;
@@ -1315,7 +1316,7 @@ extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
 extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
 extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 
-extern void intel_console_resume(struct task *work);
+extern void intel_console_resume(void *context, int pending);
 
 /* i915_irq.c */
 void i915_hangcheck_elapsed(void *context);
@@ -1494,6 +1495,7 @@ int __must_check
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
 				     struct intel_ring_buffer *pipelined);
+void i915_gem_free_all_phys_object(struct drm_device *dev);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
 uint32_t

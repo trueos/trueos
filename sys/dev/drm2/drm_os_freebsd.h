@@ -136,6 +136,7 @@ typedef void			irqreturn_t;
 #define	smp_rmb()			rmb()
 #define	smp_mb__before_atomic_inc()	mb()
 #define	smp_mb__after_atomic_inc()	mb()
+#define	barrier()			__compiler_membar()
 
 #define	do_div(a, b)		((a) /= (b))
 #define	div64_u64(a, b)		((a) / (b))
