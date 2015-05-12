@@ -1455,7 +1455,7 @@ static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv;
-	struct intel_device_info *info;
+	const struct intel_device_info *info;
 	int ret = 0, mmio_bar, mmio_size;
 #ifdef __linux__
 	uint32_t aperture_size;
@@ -1684,8 +1684,8 @@ out_mtrrfree:
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 	io_mapping_free(dev_priv->mm.gtt_mapping);
-#endif /* FREEBSD_WIP */
 out_rmmap:
+#endif /* FREEBSD_WIP */
 	if (dev_priv->mmio_map != NULL)
 		drm_rmmap(dev, dev_priv->mmio_map);
 put_gmch:
