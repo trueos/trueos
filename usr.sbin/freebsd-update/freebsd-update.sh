@@ -1617,6 +1617,17 @@ fetch_filter_unmodified_notpresent () {
 	    cut -f 1,2,7 -d '|' |
 	    fgrep '|-|' >> mlines
 
+	# Any files which have already been removed from system can be removed
+        # from mlines as well
+	while read f
+	do
+		file=`echo $f | cut -f 1 -d '|'`
+		if [ -e "$file" ] ; then
+			echo "$file" > mlines.tmp
+		fi
+	done < mlines
+	mv mlines.tmp mlines
+
 	# If we have items to force updates on, remove from mlines
 	for fUp in $FORCEUPDATES
 	do
