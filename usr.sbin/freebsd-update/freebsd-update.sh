@@ -1619,7 +1619,7 @@ fetch_filter_unmodified_notpresent () {
 
 	# Any files which have already been removed from system can be removed
         # from mlines as well
-	if [ "$UPGRADE" = "YES" ] ; then
+	if [ "$4" != "/dev/null" ] ; then
 		while read f
 		do
 			file=`echo $f | cut -f 1 -d '|'`
@@ -2620,7 +2620,6 @@ upgrade_run () {
 	# in INDEX-OLD or INDEX-NEW.  Also remove lines where the entry in
 	# INDEX-PRESENT has type - and there isn't a corresponding entry in
 	# INDEX-OLD with type -.
-	UPGRADE=YES
 	fetch_filter_unmodified_notpresent	\
 	    INDEX-OLD INDEX-PRESENT INDEX-NEW tomerge-old
 
