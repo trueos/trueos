@@ -582,7 +582,6 @@ t4_attach(device_t dev)
 #ifdef DEV_NETMAP
 	int nm_rqidx, nm_tqidx;
 #endif
-	const char *pcie_ts;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -613,7 +612,7 @@ t4_attach(device_t dev)
 
 	mtx_init(&sc->sfl_lock, "starving freelists", 0, MTX_DEF);
 	TAILQ_INIT(&sc->sfl);
-	callout_init(&sc->sfl_callout, CALLOUT_MPSAFE);
+	callout_init(&sc->sfl_callout, 1);
 
 	mtx_init(&sc->regwin_lock, "register and memory window", 0, MTX_DEF);
 
@@ -905,25 +904,10 @@ t4_attach(device_t dev)
 		goto done;
 	}
 
-	switch (sc->params.pci.speed) {
-		case 0x1:
-			pcie_ts = "2.5";
-			break;
-		case 0x2:
-			pcie_ts = "5.0";
-			break;
-		case 0x3:
-			pcie_ts = "8.0";
-			break;
-		default:
-			pcie_ts = "??";
-			break;
-	}
 	device_printf(dev,
-	    "PCIe x%d (%s GTS/s) (%d), %d ports, %d %s interrupt%s, %d eq, %d iq\n",
-	    sc->params.pci.width, pcie_ts, sc->params.pci.speed,
-	    sc->params.nports, sc->intr_count,
-	    sc->intr_type == INTR_MSIX ? "MSI-X" :
+	    "PCIe gen%d x%d, %d ports, %d %s interrupt%s, %d eq, %d iq\n",
+	    sc->params.pci.speed, sc->params.pci.width, sc->params.nports,
+	    sc->intr_count, sc->intr_type == INTR_MSIX ? "MSI-X" :
 	    (sc->intr_type == INTR_MSI ? "MSI" : "INTx"),
 	    sc->intr_count > 1 ? "s" : "", sc->sge.neq, sc->sge.niq);
 
@@ -1082,7 +1066,7 @@ cxgbe_attach(device_t dev)
 	pi->ifp = ifp;
 	ifp->if_softc = pi;
 
-	callout_init(&pi->tick, CALLOUT_MPSAFE);
+	callout_init(&pi->tick, 1);
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
