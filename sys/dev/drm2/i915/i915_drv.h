@@ -742,9 +742,7 @@ typedef struct drm_i915_private {
 	/* Protected by dev->error_lock. */
 	struct drm_i915_error_state *first_error;
 	struct task error_work;
-#ifdef FREEBSD_WIP
-	struct completion error_completion;
-#endif /* FREEBSD_WIP */
+	int error_completion;
 	struct taskqueue *wq;
 
 	/* Display functions */
@@ -1319,7 +1317,7 @@ extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 extern void intel_console_resume(void *context, int pending);
 
 /* i915_irq.c */
-void i915_hangcheck_elapsed(void *context);
+void i915_hangcheck_elapsed(void *data);
 void i915_handle_error(struct drm_device *dev, bool wedged);
 
 extern void intel_irq_init(struct drm_device *dev);

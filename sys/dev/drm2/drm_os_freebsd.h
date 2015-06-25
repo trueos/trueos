@@ -390,6 +390,7 @@ extern const char *fb_mode_option;
 #define	module_param_named(name, var, type, perm)
 
 #define	printk		printf
+#define	pr_err		DRM_ERROR
 #define	KERN_DEBUG	""
 
 /* I2C compatibility. */
