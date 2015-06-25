@@ -709,6 +709,7 @@ options 	ALTQ_CBQ	# Class Based Queueing
 options 	ALTQ_RED	# Random Early Detection
 options 	ALTQ_RIO	# RED In/Out
 options 	ALTQ_HFSC	# Hierarchical Packet Scheduler
+options		ALTQ_FAIRQ	# Fair Packet Scheduler
 options 	ALTQ_CDNR	# Traffic conditioner
 options 	ALTQ_PRIQ	# Priority Queueing
 options 	ALTQ_NOPCC	# Required if the TSC is unusable
@@ -2645,6 +2646,8 @@ device		usb
 device		udbp
 # USB Fm Radio
 device		ufm
+# USB temperature meter
+device		ugold
 # USB LED
 device		uled
 # Human Interface Device (anything with buttons and dials)
