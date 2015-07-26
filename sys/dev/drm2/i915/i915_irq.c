@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD: head/sys/dev/drm2/i915/i915_irq.c 280183 2015-03-17 18:50:33
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/intel_drv.h>
 
+#include <sys/sleepqueue.h>
+
 /* For display hotplug interrupt */
 static void
 ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
@@ -522,7 +524,7 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 	taskqueue_enqueue(dev_priv->wq, &dev_priv->rps.work);
 }
 
-static void valleyview_irq_handler(int irq, void *arg)
+static void valleyview_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -674,7 +676,7 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 					 I915_READ(FDI_RX_IIR(pipe)));
 }
 
-static void ivybridge_irq_handler(int irq, void *arg)
+static void ivybridge_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -741,7 +743,7 @@ static void ilk_gt_irq_handler(struct drm_device *dev,
 		notify_ring(dev, &dev_priv->ring[VCS]);
 }
 
-static void ironlake_irq_handler(int irq, void *arg)
+static void ironlake_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -1455,7 +1457,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 			wakeup(&ring->irq_queue);
 	}
 
-	taskqueue_enqueue(dev_priv->wq, &dev_priv->error_task);
+	taskqueue_enqueue(dev_priv->wq, &dev_priv->error_work);
 }
 
 static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
@@ -1648,12 +1650,15 @@ static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring, bool *err)
 	    i915_seqno_passed(ring->get_seqno(ring, false),
 			      ring_last_seqno(ring))) {
 		/* Issue a wake-up to catch stuck h/w. */
-		if (waitqueue_active(&ring->irq_queue)) {
+		sleepq_lock(ring);
+		if (sleepq_sleepcnt(ring, 0) != 0) {
+			sleepq_release(ring);
 			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
 				  ring->name);
 			wakeup(&ring->irq_queue);
 			*err = true;
-		}
+		} else
+			sleepq_release(ring);
 		return true;
 	}
 	return false;
@@ -1754,8 +1759,7 @@ void i915_hangcheck_elapsed(void *data)
 
 repeat:
 	/* Reset timer case chip hangs without another request being added */
-	mod_timer(&dev_priv->hangcheck_timer,
-		  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
+        callout_schedule(&dev_priv->hangcheck_timer, DRM_I915_HANGCHECK_PERIOD);
 }
 
 /* drm_dma.h hooks
@@ -1981,11 +1985,11 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	dev_priv->pipestat[1] = 0;
 
 	/* Hack for broken MSIs on VLV */
-	pci_write_config_dword(dev_priv->dev->pdev, 0x94, 0xfee00000);
-	pci_read_config_word(dev->pdev, 0x98, &msid);
+	pci_write_config(dev_priv->dev->dev, 0x94, 0xfee00000, 4);
+	msid = pci_read_config(dev->dev, 0x98, 2);
 	msid &= 0xff; /* mask out delivery bits */
 	msid |= (1<<14);
-	pci_write_config_word(dev_priv->dev->pdev, 0x98, msid);
+	pci_write_config(dev_priv->dev->dev, 0x98, msid, 2);
 
 	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
 	I915_WRITE(VLV_IER, enable_mask);
@@ -2123,7 +2127,7 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static void i8xx_irq_handler(int irq, void *arg)
+static void i8xx_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -2298,7 +2302,7 @@ static int i915_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static irqreturn_t i915_irq_handler(int irq, void *arg)
+static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -2310,7 +2314,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT,
 		I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT
 	};
-	int pipe, ret = IRQ_NONE;
+	int pipe;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -2402,13 +2406,10 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 		 * trigger the 99% of 100,000 interrupts test for disabling
 		 * stray interrupts.
 		 */
-		ret = IRQ_HANDLED;
 		iir = new_iir;
 	} while (iir & ~flip_mask);
 
 	i915_update_dri1_breadcrumb(dev);
-
-	return ret;
 }
 
 static void i915_irq_uninstall(struct drm_device * dev)
@@ -2535,14 +2536,14 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static irqreturn_t i965_irq_handler(int irq, void *arg)
+static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 iir, new_iir;
 	u32 pipe_stats[I915_MAX_PIPES];
 	int irq_received;
-	int ret = IRQ_NONE, pipe;
+	int pipe;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -2581,8 +2582,6 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 
 		if (!irq_received)
 			break;
-
-		ret = IRQ_HANDLED;
 
 		/* Consume port.  Then clear IIR or we'll miss events */
 		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
@@ -2646,8 +2645,6 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 	}
 
 	i915_update_dri1_breadcrumb(dev);
-
-	return ret;
 }
 
 static void i965_irq_uninstall(struct drm_device * dev)
