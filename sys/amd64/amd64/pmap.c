@@ -381,7 +381,7 @@ caddr_t CADDR1 = 0;
 
 static int pmap_flags = PMAP_PDE_SUPERPAGE;	/* flags for x86 pmaps */
 
-int pmap_pcid_enabled = 0;
+int pmap_pcid_enabled = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &pmap_pcid_enabled, 0, "Is TLB Context ID enabled ?");
 int invpcid_works = 0;
@@ -909,11 +909,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 		 * pc_pcid_next and pc_pcid_gen are initialized by AP
 		 * during pcpu setup.
 		 */
-#ifdef SMP
 		load_cr4(rcr4() | CR4_PCIDE);
-#else
-		pmap_pcid_enabled = 0;
-#endif
 	} else {
 		pmap_pcid_enabled = 0;
 	}
@@ -1559,61 +1555,79 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 #else /* !SMP */
 /*
  * Normal, non-SMP, invalidation functions.
- * We inline these within pmap.c for speed.
  */
-PMAP_INLINE void
+void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
 
-	switch (pmap->pm_type) {
-	case PT_X86:
-		if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-			invlpg(va);
-		break;
-	case PT_RVI:
-	case PT_EPT:
+	if (pmap->pm_type == PT_RVI || pmap->pm_type == PT_EPT) {
 		pmap->pm_eptgen++;
-		break;
-	default:
-		panic("pmap_invalidate_page: unknown type: %d", pmap->pm_type);
+		return;
 	}
+	KASSERT(pmap->pm_type == PT_X86,
+	    ("pmap_invalidate_range: unknown type %d", pmap->pm_type));
+
+	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap))
+		invlpg(va);
+	else if (pmap_pcid_enabled)
+		pmap->pm_pcids[0].pm_gen = 0;
 }
 
-PMAP_INLINE void
+void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	vm_offset_t addr;
 
-	switch (pmap->pm_type) {
-	case PT_X86:
-		if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-			for (addr = sva; addr < eva; addr += PAGE_SIZE)
-				invlpg(addr);
-		break;
-	case PT_RVI:
-	case PT_EPT:
+	if (pmap->pm_type == PT_RVI || pmap->pm_type == PT_EPT) {
 		pmap->pm_eptgen++;
-		break;
-	default:
-		panic("pmap_invalidate_range: unknown type: %d", pmap->pm_type);
+		return;
+	}
+	KASSERT(pmap->pm_type == PT_X86,
+	    ("pmap_invalidate_range: unknown type %d", pmap->pm_type));
+
+	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap)) {
+		for (addr = sva; addr < eva; addr += PAGE_SIZE)
+			invlpg(addr);
+	} else if (pmap_pcid_enabled) {
+		pmap->pm_pcids[0].pm_gen = 0;
 	}
 }
 
-PMAP_INLINE void
+void
 pmap_invalidate_all(pmap_t pmap)
 {
+	struct invpcid_descr d;
 
-	switch (pmap->pm_type) {
-	case PT_X86:
-		if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
-			invltlb();
-		break;
-	case PT_RVI:
-	case PT_EPT:
+	if (pmap->pm_type == PT_RVI || pmap->pm_type == PT_EPT) {
 		pmap->pm_eptgen++;
-		break;
-	default:
-		panic("pmap_invalidate_all: unknown type %d", pmap->pm_type);
+		return;
+	}
+	KASSERT(pmap->pm_type == PT_X86,
+	    ("pmap_invalidate_all: unknown type %d", pmap->pm_type));
+
+	if (pmap == kernel_pmap) {
+		if (pmap_pcid_enabled && invpcid_works) {
+			bzero(&d, sizeof(d));
+			invpcid(&d, INVPCID_CTXGLOB);
+		} else {
+			invltlb_globpcid();
+		}
+	} else if (pmap == PCPU_GET(curpmap)) {
+		if (pmap_pcid_enabled) {
+			if (invpcid_works) {
+				d.pcid = pmap->pm_pcids[0].pm_pcid;
+				d.pad = 0;
+				d.addr = 0;
+				invpcid(&d, INVPCID_CTX);
+			} else {
+				load_cr3(pmap->pm_cr3 | pmap->pm_pcids[0].
+				    pm_pcid);
+			}
+		} else {
+			invltlb();
+		}
+	} else if (pmap_pcid_enabled) {
+		pmap->pm_pcids[0].pm_gen = 0;
 	}
 }
 
@@ -1629,10 +1643,10 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 {
 
 	pmap_update_pde_store(pmap, pde, newpde);
-	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
+	if (pmap == kernel_pmap || pmap == PCPU_GET(curpmap))
 		pmap_update_pde_invalidate(pmap, va, newpde);
 	else
-		CPU_ZERO(&pmap->pm_save);
+		pmap->pm_pcids[0].pm_gen = 0;
 }
 #endif /* !SMP */
 
@@ -2108,16 +2122,23 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, pd_entry_t ptepde,
 void
 pmap_pinit0(pmap_t pmap)
 {
+	int i;
 
 	PMAP_LOCK_INIT(pmap);
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(KPML4phys);
 	pmap->pm_cr3 = KPML4phys;
 	pmap->pm_root.rt_root = 0;
 	CPU_ZERO(&pmap->pm_active);
-	PCPU_SET(curpmap, pmap);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	pmap->pm_flags = pmap_flags;
+	CPU_FOREACH(i) {
+		pmap->pm_pcids[i].pm_pcid = PMAP_PCID_NONE;
+		pmap->pm_pcids[i].pm_gen = 0;
+	}
+	PCPU_SET(curpmap, kernel_pmap);
+	pmap_activate(curthread);
+	CPU_FILL(&kernel_pmap->pm_active);
 }
 
 /*
@@ -3914,7 +3935,6 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	pd_entry_t newpde;
 	pt_entry_t *firstpte, oldpte, pa, *pte;
 	pt_entry_t PG_G, PG_A, PG_M, PG_RW, PG_V;
-	vm_offset_t oldpteva;
 	vm_page_t mpte;
 	int PG_PTE_CACHE;
 
@@ -3974,10 +3994,9 @@ setpte:
 			if (!atomic_cmpset_long(pte, oldpte, oldpte & ~PG_RW))
 				goto setpte;
 			oldpte &= ~PG_RW;
-			oldpteva = (oldpte & PG_FRAME & PDRMASK) |
-			    (va & ~PDRMASK);
 			CTR2(KTR_PMAP, "pmap_promote_pde: protect for va %#lx"
-			    " in pmap %p", oldpteva, pmap);
+			    " in pmap %p", (oldpte & PG_FRAME & PDRMASK) |
+			    (va & ~PDRMASK), pmap);
 		}
 		if ((oldpte & PG_PTE_PROMOTE) != (newpde & PG_PTE_PROMOTE)) {
 			atomic_add_long(&pmap_pde_p_failures, 1);
@@ -4825,6 +4844,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			    PG_PS_FRAME, &lock))) {
 				*pde = srcptepaddr & ~PG_W;
 				pmap_resident_count_inc(dst_pmap, NBPDR / PAGE_SIZE);
+				atomic_add_long(&pmap_pde_mappings, 1);
 			} else
 				dstmpde->wire_count--;
 			continue;
@@ -6602,9 +6622,10 @@ pmap_activate_sw(struct thread *td)
 		    pmap->pm_pcids[cpuid].pm_pcid < PMAP_PCID_OVERMAX,
 		    ("pmap %p cpu %d pcid %#x", pmap, cpuid,
 		    pmap->pm_pcids[cpuid].pm_pcid));
-		KASSERT(pmap != PMAP_PCID_KERN || pmap == kernel_pmap,
-		    ("non-kernel pmap %p cpu %d pcid %#x", pmap, cpuid,
-		    pmap->pm_pcids[cpuid].pm_pcid));
+		KASSERT(pmap->pm_pcids[cpuid].pm_pcid != PMAP_PCID_KERN ||
+		    pmap == kernel_pmap,
+		    ("non-kernel pmap thread %p pmap %p cpu %d pcid %#x",
+		    td, pmap, cpuid, pmap->pm_pcids[cpuid].pm_pcid));
 		if (!cached || (cr3 & ~CR3_PCID_MASK) != pmap->pm_cr3) {
 			load_cr3(pmap->pm_cr3 | pmap->pm_pcids[cpuid].pm_pcid |
 			    cached);

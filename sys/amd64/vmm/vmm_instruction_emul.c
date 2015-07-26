@@ -113,6 +113,10 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_byte = 0x2B,
 		.op_type = VIE_OP_TYPE_SUB,
 	},
+	[0x39] = {
+		.op_byte = 0x39,
+		.op_type = VIE_OP_TYPE_CMP,
+	},
 	[0x3B] = {
 		.op_byte = 0x3B,
 		.op_type = VIE_OP_TYPE_CMP,
@@ -1050,34 +1054,46 @@ emulate_cmp(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
 {
 	int error, size;
-	uint64_t op1, op2, rflags, rflags2;
+	uint64_t regop, memop, op1, op2, rflags, rflags2;
 	enum vm_reg_name reg;
 
 	size = vie->opsize;
 	switch (vie->op.op_byte) {
+	case 0x39:
 	case 0x3B:
 		/*
+		 * 39/r		CMP r/m16, r16
+		 * 39/r		CMP r/m32, r32
+		 * REX.W 39/r	CMP r/m64, r64
+		 *
 		 * 3B/r		CMP r16, r/m16
 		 * 3B/r		CMP r32, r/m32
 		 * REX.W + 3B/r	CMP r64, r/m64
 		 *
-		 * Compare first operand (reg) with second operand (r/m) and
+		 * Compare the first operand with the second operand and
 		 * set status flags in EFLAGS register. The comparison is
 		 * performed by subtracting the second operand from the first
 		 * operand and then setting the status flags.
 		 */
 
-		/* Get the first operand */
+		/* Get the register operand */
 		reg = gpr_map[vie->reg];
-		error = vie_read_register(vm, vcpuid, reg, &op1);
+		error = vie_read_register(vm, vcpuid, reg, &regop);
 		if (error)
 			return (error);
 
-		/* Get the second operand */
-		error = memread(vm, vcpuid, gpa, &op2, size, arg);
+		/* Get the memory operand */
+		error = memread(vm, vcpuid, gpa, &memop, size, arg);
 		if (error)
 			return (error);
 
+		if (vie->op.op_byte == 0x3B) {
+			op1 = regop;
+			op2 = memop;
+		} else {
+			op1 = memop;
+			op2 = regop;
+		}
 		rflags2 = getcc(size, op1, op2);
 		break;
 	case 0x80:
@@ -1661,12 +1677,12 @@ ptp_release(void **cookie)
 }
 
 static void *
-ptp_hold(struct vm *vm, vm_paddr_t ptpphys, size_t len, void **cookie)
+ptp_hold(struct vm *vm, int vcpu, vm_paddr_t ptpphys, size_t len, void **cookie)
 {
 	void *ptr;
 
 	ptp_release(cookie);
-	ptr = vm_gpa_hold(vm, ptpphys, len, VM_PROT_RW, cookie);
+	ptr = vm_gpa_hold(vm, vcpu, ptpphys, len, VM_PROT_RW, cookie);
 	return (ptr);
 }
 
@@ -1713,7 +1729,8 @@ restart:
 			/* Zero out the lower 12 bits. */
 			ptpphys &= ~0xfff;
 
-			ptpbase32 = ptp_hold(vm, ptpphys, PAGE_SIZE, &cookie);
+			ptpbase32 = ptp_hold(vm, vcpuid, ptpphys, PAGE_SIZE,
+			    &cookie);
 
 			if (ptpbase32 == NULL)
 				goto error;
@@ -1772,7 +1789,8 @@ restart:
 		/* Zero out the lower 5 bits and the upper 32 bits */
 		ptpphys &= 0xffffffe0UL;
 
-		ptpbase = ptp_hold(vm, ptpphys, sizeof(*ptpbase) * 4, &cookie);
+		ptpbase = ptp_hold(vm, vcpuid, ptpphys, sizeof(*ptpbase) * 4,
+		    &cookie);
 		if (ptpbase == NULL)
 			goto error;
 
@@ -1795,7 +1813,7 @@ restart:
 		/* Zero out the lower 12 bits and the upper 12 bits */
 		ptpphys >>= 12; ptpphys <<= 24; ptpphys >>= 12;
 
-		ptpbase = ptp_hold(vm, ptpphys, PAGE_SIZE, &cookie);
+		ptpbase = ptp_hold(vm, vcpuid, ptpphys, PAGE_SIZE, &cookie);
 		if (ptpbase == NULL)
 			goto error;
 
@@ -2299,27 +2317,17 @@ decode_moffset(struct vie *vie)
 }
 
 /*
- * Verify that all the bytes in the instruction buffer were consumed.
- */
-static int
-verify_inst_length(struct vie *vie)
-{
-
-	if (vie->num_processed)
-		return (0);
-	else
-		return (-1);
-}
-
-/*
  * Verify that the 'guest linear address' provided as collateral of the nested
  * page table fault matches with our instruction decoding.
  */
 static int
-verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
+verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie,
+    enum vm_cpu_mode cpu_mode)
 {
 	int error;
-	uint64_t base, idx, gla2;
+	uint64_t base, segbase, idx, gla2;
+	enum vm_reg_name seg;
+	struct seg_desc desc;
 
 	/* Skip 'gla' verification */
 	if (gla == VIE_INVALID_GLA)
@@ -2339,7 +2347,7 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 		 * instruction
 		 */
 		if (vie->base_register == VM_REG_GUEST_RIP)
-			base += vie->num_valid;
+			base += vie->num_processed;
 	}
 
 	idx = 0;
@@ -2352,14 +2360,48 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 		}
 	}
 
-	/* XXX assuming that the base address of the segment is 0 */
-	gla2 = base + vie->scale * idx + vie->displacement;
+	/*
+	 * From "Specifying a Segment Selector", Intel SDM, Vol 1
+	 *
+	 * In 64-bit mode, segmentation is generally (but not
+	 * completely) disabled.  The exceptions are the FS and GS
+	 * segments.
+	 *
+	 * In legacy IA-32 mode, when the ESP or EBP register is used
+	 * as the base, the SS segment is the default segment.  For
+	 * other data references, except when relative to stack or
+	 * string destination the DS segment is the default.  These
+	 * can be overridden to allow other segments to be accessed.
+	 */
+	if (vie->segment_override)
+		seg = vie->segment_register;
+	else if (vie->base_register == VM_REG_GUEST_RSP ||
+	    vie->base_register == VM_REG_GUEST_RBP)
+		seg = VM_REG_GUEST_SS;
+	else
+		seg = VM_REG_GUEST_DS;
+	if (cpu_mode == CPU_MODE_64BIT && seg != VM_REG_GUEST_FS &&
+	    seg != VM_REG_GUEST_GS) {
+		segbase = 0;
+	} else {
+		error = vm_get_seg_desc(vm, cpuid, seg, &desc);
+		if (error) {
+			printf("verify_gla: error %d getting segment"
+			       " descriptor %d", error,
+			       vie->segment_register);
+			return (-1);
+		}
+		segbase = desc.base;
+	}
+
+	gla2 = segbase + base + vie->scale * idx + vie->displacement;
 	gla2 &= size2mask[vie->addrsize];
 	if (gla != gla2) {
-		printf("verify_gla mismatch: "
+		printf("verify_gla mismatch: segbase(0x%0lx)"
 		       "base(0x%0lx), scale(%d), index(0x%0lx), "
 		       "disp(0x%0lx), gla(0x%0lx), gla2(0x%0lx)\n",
-		       base, vie->scale, idx, vie->displacement, gla, gla2);
+		       segbase, base, vie->scale, idx, vie->displacement,
+		       gla, gla2);
 		return (-1);
 	}
 
@@ -2392,11 +2434,8 @@ vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
 	if (decode_moffset(vie))
 		return (-1);
 
-	if (verify_inst_length(vie))
-		return (-1);
-
 	if ((vie->op.op_flags & VIE_OP_F_NO_GLA_VERIFICATION) == 0) {
-		if (verify_gla(vm, cpuid, gla, vie))
+		if (verify_gla(vm, cpuid, gla, vie, cpu_mode))
 			return (-1);
 	}
 

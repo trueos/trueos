@@ -9,8 +9,12 @@
 
 .include <src.opts.mk>
 
-ROOTSRCDIR=	${.MAKE.MAKEFILES:M*/src.libnames.mk:H:H:H}
-ROOTOBJDIR=	${.OBJDIR:S/${.CURDIR}//}${ROOTSRCDIR}
+.if ${.OBJDIR:S,${.CURDIR},,} != ${.OBJDIR}
+ROOTOBJDIR=	${.OBJDIR:S,${.CURDIR},,}${SRCTOP}
+.elif defined(OBJTOP) && ${.OBJDIR:M${OBJTOP}*} != ""
+ROOTOBJDIR=	${OBJTOP}
+.endif
+
 _PRIVATELIBS=	\
 		atf_c \
 		atf_cxx \
@@ -32,7 +36,6 @@ _INTERNALLIBS=	\
 		fifolog \
 		ipf \
 		lpr \
-		mandoc \
 		netbsd \
 		ntp \
 		ntpevent \
@@ -78,6 +81,7 @@ _LIBRARIES=	\
 		devstat \
 		dialog \
 		dpv \
+		dtrace \
 		dwarf \
 		edit \
 		elf \
@@ -107,7 +111,6 @@ _LIBRARIES=	\
 		lzma \
 		m \
 		magic \
-		mandoc \
 		md \
 		memstat \
 		mp \
@@ -120,6 +123,8 @@ _LIBRARIES=	\
 		nv \
 		opie \
 		pam \
+		panel \
+		panelw \
 		pcap \
 		pcsclite \
 		pjdlog \
@@ -133,6 +138,7 @@ _LIBRARIES=	\
 		rpcsec_gss \
 		rpcsvc \
 		rt \
+		rtld_db \
 		sbuf \
 		sdp \
 		sm \
@@ -230,6 +236,9 @@ _DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
 _DP_lzma=	pthread
 _DP_ucl=	m
 _DP_vmmapi=	util
+_DP_ctf=	z
+_DP_proc=	rtld_db util
+_DP_dtrace=	rtld_db pthread
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
@@ -252,7 +261,7 @@ LDADD_${_l}?=	-lprivate${_l}
 .else
 LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l}
 .endif
-.if defined(_DP_${_l}) && defined(NO_SHARED)
+.if defined(_DP_${_l}) && defined(NO_SHARED) && (${NO_SHARED} != "no" && ${NO_SHARED} != "NO")
 .for _d in ${_DP_${_l}}
 DPADD_${_l}+=	${DPADD_${_d}}
 LDADD_${_l}+=	${LDADD_${_d}}
@@ -274,6 +283,9 @@ LDADD_ipf+=	${LDADD_kvm}
 
 DPADD_mt+=	${DPADD_sbuf}
 LDADD_mt+=	${LDADD_sbuf}
+
+DPADD_dtrace+=	${DPADD_ctf} ${DPADD_elf} ${DPADD_proc}
+LDADD_dtrace+=	${LDADD_ctf} ${LDADD_elf} ${LDADD_proc}
 
 # The following depends on libraries which are using pthread
 DPADD_hdb+=	${DPADD_pthread}
@@ -306,9 +318,6 @@ LIBREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 LIBOHASHDIR=	${ROOTOBJDIR}/lib/libohash
 LIBOHASH?=	${LIBOHASHDIR}/libohash.a
 
-LIBMANDOCDIR=	${ROOTOBJDIR}/lib/libmandoc
-LIBMANDOC?=	${LIBMANDOCDIR}/libmandoc.a
-
 LIBSMDIR=	${ROOTOBJDIR}/lib/libsm
 LIBSM?=		${LIBSMDIR}/libsm.a
 
@@ -331,7 +340,7 @@ LIBIPFDIR=	${ROOTOBJDIR}/sbin/ipf/libipf
 LIBIPF?=	${LIBIPFDIR}/libipf.a
 
 LIBTELNETDIR=	${ROOTOBJDIR}/lib/libtelnet
-LIBTELNET?=	${LIBIPFDIR}/libtelnet.a
+LIBTELNET?=	${LIBTELNETDIR}/libtelnet.a
 
 LIBCRONDIR=	${ROOTOBJDIR}/usr.sbin/cron/lib
 LIBCRON?=	${LIBCRONDIR}/libcron.a
@@ -340,7 +349,7 @@ LIBNTPDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntp
 LIBNTP?=	${LIBNTPDIR}/libntp.a
 
 LIBNTPEVENTDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntpevent
-LIBNTPEVENT?=	${LIBNTPDIR}/libntpevent.a
+LIBNTPEVENT?=	${LIBNTPEVENTDIR}/libntpevent.a
 
 LIBOPTSDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libopts
 LIBOTPS?=	${LIBOPTSDIR}/libopts.a

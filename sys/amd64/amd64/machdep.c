@@ -398,10 +398,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Align to 16 bytes. */
 	sfp = (struct sigframe *)((unsigned long)sp & ~0xFul);
 
-	/* Translate the signal if appropriate. */
-	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
-		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-
 	/* Build the argument list for the signal handler. */
 	regs->tf_rdi = sig;			/* arg 1 in %rdi */
 	regs->tf_rdx = (register_t)&sfp->sf_uc;	/* arg 3 in %rdx */
@@ -882,11 +878,26 @@ DB_SHOW_COMMAND(sysregs, db_show_sysregs)
 	db_printf("cr2\t0x%016lx\n", rcr2());
 	db_printf("cr3\t0x%016lx\n", rcr3());
 	db_printf("cr4\t0x%016lx\n", rcr4());
-	db_printf("EFER\t%016lx\n", rdmsr(MSR_EFER));
-	db_printf("FEATURES_CTL\t%016lx\n", rdmsr(MSR_IA32_FEATURE_CONTROL));
-	db_printf("DEBUG_CTL\t%016lx\n", rdmsr(MSR_DEBUGCTLMSR));
-	db_printf("PAT\t%016lx\n", rdmsr(MSR_PAT));
-	db_printf("GSBASE\t%016lx\n", rdmsr(MSR_GSBASE));
+	if (rcr4() & CR4_XSAVE)
+		db_printf("xcr0\t0x%016lx\n", rxcr(0));
+	db_printf("EFER\t0x%016lx\n", rdmsr(MSR_EFER));
+	if (cpu_feature2 & (CPUID2_VMX | CPUID2_SMX))
+		db_printf("FEATURES_CTL\t%016lx\n",
+		    rdmsr(MSR_IA32_FEATURE_CONTROL));
+	db_printf("DEBUG_CTL\t0x%016lx\n", rdmsr(MSR_DEBUGCTLMSR));
+	db_printf("PAT\t0x%016lx\n", rdmsr(MSR_PAT));
+	db_printf("GSBASE\t0x%016lx\n", rdmsr(MSR_GSBASE));
+}
+
+DB_SHOW_COMMAND(dbregs, db_show_dbregs)
+{
+
+	db_printf("dr0\t0x%016lx\n", rdr0());
+	db_printf("dr1\t0x%016lx\n", rdr1());
+	db_printf("dr2\t0x%016lx\n", rdr2());
+	db_printf("dr3\t0x%016lx\n", rdr3());
+	db_printf("dr6\t0x%016lx\n", rdr6());
+	db_printf("dr7\t0x%016lx\n", rdr7());	
 }
 #endif
 

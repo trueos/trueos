@@ -32,7 +32,7 @@ makeoptions	MODULES_EXTRA="dtb/am335x"
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# all architectures - kernel ELF linker loads CTF data
 makeoptions	WITH_CTF=1
-makeoptions	MODULES_EXTRA+="opensolaris dtrace dtrace/lockstat dtrace/profile dtrace/fbt"
+makeoptions	MODULES_EXTRA+="opensolaris dtrace dtrace/profile dtrace/fbt"
 
 options 	HZ=100
 options 	SCHED_4BSD		# 4BSD scheduler
@@ -40,7 +40,7 @@ options 	PLATFORM
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
-options 	BREAK_TO_DEBUGGER
+options 	ALT_BREAK_TO_DEBUGGER
 #options 	VERBOSE_SYSINIT		# Enable verbose sysinit messages
 options 	KDB			# Enable kernel debugger support
 # For minimum debugger support (stable branch) use:
@@ -133,5 +133,16 @@ device		axe			# ASIX Electronics USB Ethernet
 device		usb_template    	# Control of the gadget
 device		usfs
 
+# Pinmux
+device		fdt_pinctrl
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
+
+# Comment following lines for boot console on serial port
+device		vt
+device		videomode
+device		hdmi
+device		ums
+device		ukbd
+device		kbdmux

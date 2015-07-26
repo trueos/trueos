@@ -1756,6 +1756,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 				m->wire_count = 0;
 			}
 			m->object = NULL;
+			m->oflags = VPO_UNMANAGED;
 			vm_page_free(m);
 			return (NULL);
 		}
@@ -1826,6 +1827,7 @@ vm_page_alloc_contig_vdrop(struct spglist *lst)
  *
  *	optional allocation flags:
  *	VM_ALLOC_NOBUSY		do not exclusive busy the page
+ *	VM_ALLOC_NODUMP		do not include the page in a kernel core dump
  *	VM_ALLOC_NOOBJ		page is not associated with an object and
  *				should not be exclusive busy
  *	VM_ALLOC_SBUSY		shared busy the allocated page
@@ -2706,7 +2708,6 @@ vm_page_cache(vm_page_t m)
 #else
 	if (TRUE) {
 #endif
-		vm_phys_set_pool(VM_FREEPOOL_CACHE, m, 0);
 		vm_phys_free_pages(m, 0);
 	}
 	vm_page_free_wakeup();
@@ -3153,8 +3154,8 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
 	/*
 	 * Scan the valid bits looking for invalid sections that
-	 * must be zerod.  Invalid sub-DEV_BSIZE'd areas ( where the
-	 * valid bit may be set ) have already been zerod by
+	 * must be zeroed.  Invalid sub-DEV_BSIZE'd areas ( where the
+	 * valid bit may be set ) have already been zeroed by
 	 * vm_page_set_validclean().
 	 */
 	for (b = i = 0; i <= PAGE_SIZE / DEV_BSIZE; ++i) {

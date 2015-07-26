@@ -447,7 +447,7 @@ acpi_attach(device_t dev)
 
     sc = device_get_softc(dev);
     sc->acpi_dev = dev;
-    callout_init(&sc->susp_force_to, TRUE);
+    callout_init(&sc->susp_force_to, 1);
 
     error = ENXIO;
 
@@ -3664,7 +3664,7 @@ acpi_UserNotify(const char *subsystem, ACPI_HANDLE h, uint8_t notify)
 
     handle_buf.Pointer = NULL;
     handle_buf.Length = ACPI_ALLOCATE_BUFFER;
-    status = AcpiNsHandleToPathname(h, &handle_buf);
+    status = AcpiNsHandleToPathname(h, &handle_buf, FALSE);
     if (ACPI_FAILURE(status))
 	return;
     snprintf(notify_buf, sizeof(notify_buf), "notify=0x%02x", notify);

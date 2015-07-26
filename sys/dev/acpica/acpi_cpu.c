@@ -183,9 +183,12 @@ static int	acpi_cpu_cx_cst(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_startup(void *arg);
 static void	acpi_cpu_startup_cx(struct acpi_cpu_softc *sc);
 static void	acpi_cpu_cx_list(struct acpi_cpu_softc *sc);
+#if defined(__i386__) || defined(__amd64__)
 static void	acpi_cpu_idle(sbintime_t sbt);
+#endif
 static void	acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context);
-static int	acpi_cpu_quirks(void);
+static void	acpi_cpu_quirks(void);
+static void	acpi_cpu_quirks_piix4(void);
 static int	acpi_cpu_usage_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_cpu_usage_counters_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_cpu_set_cx_lowest(struct acpi_cpu_softc *sc);
@@ -474,12 +477,14 @@ enable_idle(struct acpi_cpu_softc *sc)
     sc->cpu_disable_idle = FALSE;
 }
 
+#if defined(__i386__) || defined(__amd64__)
 static int
 is_idle_disabled(struct acpi_cpu_softc *sc)
 {
 
     return (sc->cpu_disable_idle);
 }
+#endif
 
 /*
  * Disable any entry to the idle function during suspend and re-enable it
@@ -746,6 +751,7 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
     }
 }
 
+#if defined(__i386__) || defined(__amd64__)
 static void
 acpi_cpu_cx_cst_mwait(struct acpi_cx *cx_ptr, uint64_t address, int accsize)
 {
@@ -755,6 +761,7 @@ acpi_cpu_cx_cst_mwait(struct acpi_cx *cx_ptr, uint64_t address, int accsize)
 	cx_ptr->mwait_hw_coord = (accsize & CST_FFH_MWAIT_HW_COORD) != 0;
 	cx_ptr->mwait_bm_avoidance = (accsize & CST_FFH_MWAIT_BM_AVOID) != 0;
 }
+#endif
 
 static void
 acpi_cpu_cx_cst_free_plvlx(device_t cpu_dev, struct acpi_cx *cx_ptr)
@@ -781,8 +788,11 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
     ACPI_OBJECT	*top;
     ACPI_OBJECT	*pkg;
     uint32_t	 count;
+    int		 i;
+#if defined(__i386__) || defined(__amd64__)
     uint64_t	 address;
-    int		 i, vendor, class, accsize;
+    int		 vendor, class, accsize;
+#endif
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -993,7 +1003,9 @@ acpi_cpu_startup(void *arg)
 	sc = device_get_softc(cpu_devices[i]);
 	enable_idle(sc);
     }
+#if defined(__i386__) || defined(__amd64__)
     cpu_idle_hook = acpi_cpu_idle;
+#endif
 }
 
 static void
@@ -1055,6 +1067,7 @@ acpi_cpu_startup_cx(struct acpi_cpu_softc *sc)
     }
 }
 
+#if defined(__i386__) || defined(__amd64__)
 /*
  * Idle the CPU in the lowest state possible.  This function is called with
  * interrupts disabled.  Note that once it re-enables interrupts, a task
@@ -1068,6 +1081,7 @@ acpi_cpu_idle(sbintime_t sbt)
     struct	acpi_cx *cx_next;
     uint64_t	cputicks;
     uint32_t	start_time, end_time;
+    ACPI_STATUS	status;
     int		bm_active, cx_next_idx, i, us;
 
     /*
@@ -1113,8 +1127,8 @@ acpi_cpu_idle(sbintime_t sbt)
      */
     if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0 &&
 	cx_next_idx > sc->cpu_non_c3) {
-	AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active);
-	if (bm_active != 0) {
+	status = AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active);
+	if (ACPI_SUCCESS(status) && bm_active != 0) {
 	    AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, 1);
 	    cx_next_idx = sc->cpu_non_c3;
 	}
@@ -1201,6 +1215,7 @@ acpi_cpu_idle(sbintime_t sbt)
 
     sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + PM_USEC(end_time)) / 4;
 }
+#endif
 
 /*
  * Re-evaluate the _CST object when we are notified that it changed.
@@ -1234,12 +1249,9 @@ acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
     acpi_UserNotify("PROCESSOR", sc->cpu_handle, notify);
 }
 
-static int
+static void
 acpi_cpu_quirks(void)
 {
-    device_t acpi_dev;
-    uint32_t val;
-
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /*
@@ -1273,6 +1285,17 @@ acpi_cpu_quirks(void)
     }
 
     /* Look for various quirks of the PIIX4 part. */
+    acpi_cpu_quirks_piix4();
+}
+
+static void
+acpi_cpu_quirks_piix4(void)
+{
+#ifdef __i386__
+    device_t acpi_dev;
+    uint32_t val;
+    ACPI_STATUS status;
+
     acpi_dev = pci_find_device(PCI_VENDOR_INTEL, PCI_DEVICE_82371AB_3);
     if (acpi_dev != NULL) {
 	switch (pci_get_revid(acpi_dev)) {
@@ -1310,8 +1333,8 @@ acpi_cpu_quirks(void)
 	    	val |= PIIX4_STOP_BREAK_MASK;
 		pci_write_config(acpi_dev, PIIX4_DEVACTB_REG, val, 4);
 	    }
-	    AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_RLD, &val);
-	    if (val) {
+	    status = AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_RLD, &val);
+	    if (ACPI_SUCCESS(status) && val != 0) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		    "acpi_cpu: PIIX4: reset BRLD_EN_BM\n"));
 		AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_RLD, 0);
@@ -1321,8 +1344,7 @@ acpi_cpu_quirks(void)
 	    break;
 	}
     }
-
-    return (0);
+#endif
 }
 
 static int

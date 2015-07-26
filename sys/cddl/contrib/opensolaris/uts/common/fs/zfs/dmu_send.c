@@ -855,6 +855,10 @@ dmu_send_estimate(dsl_dataset_t *ds, dsl_dataset_t *fromds, uint64_t *sizep)
 	if (!dsl_dataset_is_snapshot(ds))
 		return (SET_ERROR(EINVAL));
 
+	/* fromsnap, if provided, must be a snapshot */
+	if (fromds != NULL && !dsl_dataset_is_snapshot(fromds))
+		return (SET_ERROR(EINVAL));
+
 	/*
 	 * fromsnap must be an earlier snapshot from the same fs as tosnap,
 	 * or the origin's fs.
@@ -983,10 +987,12 @@ recv_begin_check_existing_impl(dmu_recv_begin_arg_t *drba, dsl_dataset_t *ds,
 
 		dsl_dataset_rele(snap, FTAG);
 	} else {
-		/* if full, most recent snapshot must be $ORIGIN */
-		if (dsl_dataset_phys(ds)->ds_prev_snap_txg >= TXG_INITIAL)
-			return (SET_ERROR(ENODEV));
-		drba->drba_snapobj = dsl_dataset_phys(ds)->ds_prev_snap_obj;
+		/* if full, then must be forced */
+		if (!drba->drba_cookie->drc_force)
+			return (SET_ERROR(EEXIST));
+		/* start from $ORIGIN@$ORIGIN, if supported */
+		drba->drba_snapobj = dp->dp_origin_snap != NULL ?
+		    dp->dp_origin_snap->ds_object : 0;
 	}
 
 	return (0);
