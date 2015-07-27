@@ -39,8 +39,8 @@ typedef uint64_t	atomic64_t;
 #define	NB_BITS_PER_LONG		(sizeof(long) * NBBY)
 #define	BITS_TO_LONGS(x)		howmany(x, NB_BITS_PER_LONG)
 
-#define	atomic_read(p)			(*(volatile u_int *)(p))
-#define	atomic_set(p, v)		do { *(u_int *)(p) = (v); } while (0)
+#define	atomic_read(p)			atomic_load_acq_int(p)
+#define	atomic_set(p, v)		atomic_store_rel_int(p, v)
 
 #define	atomic64_read(p)		atomic_load_acq_64(p)
 #define	atomic64_set(p, v)		atomic_store_rel_64(p, v)

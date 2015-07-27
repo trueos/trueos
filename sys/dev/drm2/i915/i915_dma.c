@@ -1607,6 +1607,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	mtx_init(&dev_priv->irq_lock, "userirq", NULL, MTX_DEF);
 	mtx_init(&dev_priv->error_lock, "915err", NULL, MTX_DEF);
+	mtx_init(&dev_priv->error_completion_lock, "915cmp", NULL, MTX_DEF);
 	mtx_init(&dev_priv->rps.lock, "915rps", NULL, MTX_DEF);
 	mtx_init(&dev_priv->dpio_lock, "915dpi", NULL, MTX_DEF);
 
@@ -1654,10 +1655,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	return 0;
 
 out_gem_unload:
-#ifdef __linux__
-	if (dev_priv->mm.inactive_shrinker.shrink)
-		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
-#endif
+	EVENTHANDLER_DEREGISTER(vm_lowmem, dev_priv->mm.inactive_shrinker);
 
 	mtx_destroy(&dev_priv->irq_lock);
 	mtx_destroy(&dev_priv->error_lock);

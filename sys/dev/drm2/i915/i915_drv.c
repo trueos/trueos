@@ -146,8 +146,6 @@ MODULE_PARM_DESC(preliminary_hw_support,
 		"Enable Haswell and ValleyView Support. "
 		"(default: false)");
 
-int intel_iommu_enabled = 0;
-TUNABLE_INT("drm.i915.intel_iommu_enabled", &intel_iommu_enabled);
 int intel_iommu_gfx_mapped = 0;
 TUNABLE_INT("drm.i915.intel_iommu_gfx_mapped", &intel_iommu_gfx_mapped);
 

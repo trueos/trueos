@@ -116,6 +116,8 @@ describe_obj(struct sbuf *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (name: %d)", obj->base.name);
 	if (obj->pin_count)
 		seq_printf(m, " (pinned x %d)", obj->pin_count);
+	if (obj->pin_display)
+		seq_printf(m, " (display)");
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
 	if (obj->gtt_space != NULL)

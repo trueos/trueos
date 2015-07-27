@@ -10,6 +10,7 @@ __FBSDID("$FreeBSD$");
 #define	_DRM_OS_FREEBSD_H_
 
 #include <sys/fbio.h>
+#include <sys/smp.h>
 
 #if _BYTE_ORDER == _BIG_ENDIAN
 #define	__BIG_ENDIAN 4321
@@ -34,6 +35,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #ifndef __must_check
 #define	__must_check
+#endif
+#ifndef __force
+#define	__force
 #endif
 
 #define	cpu_to_le16(x)	htole16(x)
@@ -75,7 +79,17 @@ typedef void			irqreturn_t;
 #define	__exit
 #define	__read_mostly
 
-#define	WARN_ON(cond)		KASSERT(!(cond), ("WARN ON: " #cond))
+#define	BUILD_BUG_ON(x)		CTASSERT(!(x))
+
+#ifndef WARN
+#define WARN(condition, format, ...) ({				\
+	int __ret_warn_on = !!(condition);			\
+	if (unlikely(__ret_warn_on))				\
+	DRM_ERROR(format, ##__VA_ARGS__);			\
+	unlikely(__ret_warn_on);				\
+})
+#endif
+#define	WARN_ON(cond)		WARN(cond, "WARN ON: " #cond)
 #define	WARN_ON_SMP(cond)	WARN_ON(cond)
 #define	BUG_ON(cond)		KASSERT(!(cond), ("BUG ON: " #cond))
 #define	unlikely(x)            __builtin_expect(!!(x), 0)
@@ -203,6 +217,8 @@ ror32(uint32_t word, unsigned int shift)
 }
 
 #define	IS_ALIGNED(x, y)	(((x) & ((y) - 1)) == 0)
+#define	round_down(x, y)	rounddown2((x), (y))
+#define	round_up(x, y)		roundup2((x), (y))
 #define	get_unaligned(ptr)                                              \
 	({ __typeof__(*(ptr)) __tmp;                                    \
 	  memcpy(&__tmp, (ptr), sizeof(*(ptr))); __tmp; })
@@ -259,7 +275,9 @@ abs64(int64_t x)
 int64_t		timeval_to_ns(const struct timeval *tv);
 struct timeval	ns_to_timeval(const int64_t nsec);
 
-#define PAGE_ALIGN(addr) round_page(addr)
+#define	PAGE_ALIGN(addr) round_page(addr)
+#define	page_to_phys(x) VM_PAGE_TO_PHYS(x)
+#define	offset_in_page(x) ((x) & PAGE_MASK)
 
 #define	drm_get_device_from_kdev(_kdev)	(((struct drm_minor *)(_kdev)->si_drv1)->dev)
 
@@ -303,6 +321,83 @@ __get_user(size_t size, const void *ptr, void *x)
 }
 #define	get_user(x, ptr) __get_user(sizeof(*ptr), (ptr), &(x))
 
+static inline int
+__copy_to_user_inatomic(void __user *to, const void *from, unsigned n)
+{
+
+	return (copyout_nofault(from, to, n) != 0 ? n : 0);
+}
+
+static inline unsigned long
+__copy_from_user_inatomic_nocache(void *to, const void __user *from,
+    unsigned long n)
+{
+
+	/*
+	 * XXXKIB.  Equivalent Linux function is implemented using
+	 * MOVNTI for aligned moves.  For unaligned head and tail,
+	 * normal move is performed.  As such, it is not incorrect, if
+	 * only somewhat slower, to use normal copyin.  All uses
+	 * except shmem_pwrite_fast() have the destination mapped WC.
+	 */
+	return ((copyin_nofault(__DECONST(void *, from), to, n) != 0 ? n : 0));
+}
+
+static inline int
+fault_in_multipages_readable(const char __user *uaddr, int size)
+{
+	char c;
+	int ret = 0;
+	const char __user *end = uaddr + size - 1;
+
+	if (unlikely(size == 0))
+		return ret;
+
+	while (uaddr <= end) {
+		ret = -copyin(uaddr, &c, 1);
+		if (ret != 0)
+			return -EFAULT;
+		uaddr += PAGE_SIZE;
+	}
+
+	/* Check whether the range spilled into the next page. */
+	if (((unsigned long)uaddr & ~PAGE_MASK) ==
+			((unsigned long)end & ~PAGE_MASK)) {
+		ret = -copyin(end, &c, 1);
+	}
+
+	return ret;
+}
+
+static inline int
+fault_in_multipages_writeable(char __user *uaddr, int size)
+{
+	int ret = 0;
+	char __user *end = uaddr + size - 1;
+
+	if (unlikely(size == 0))
+		return ret;
+
+	/*
+	 * Writing zeroes into userspace here is OK, because we know that if
+	 * the zero gets there, we'll be overwriting it.
+	 */
+	while (uaddr <= end) {
+		ret = subyte(uaddr, 0);
+		if (ret != 0)
+			return -EFAULT;
+		uaddr += PAGE_SIZE;
+	}
+
+	/* Check whether the range spilled into the next page. */
+	if (((unsigned long)uaddr & ~PAGE_MASK) ==
+			((unsigned long)end & ~PAGE_MASK))
+		ret = subyte(end, 0);
+
+	return ret;
+}
+
+#define	to_user_ptr(x)		((void *)(uintptr_t)(x))
 #define	sigemptyset(set)	SIGEMPTYSET(set)
 #define	sigaddset(set, sig)	SIGADDSET(set, sig)
 
@@ -312,8 +407,11 @@ __get_user(size_t size, const void *ptr, void *x)
 #define jiffies			ticks
 #define	jiffies_to_msecs(x)	(((int64_t)(x)) * 1000 / hz)
 #define	msecs_to_jiffies(x)	(((int64_t)(x)) * hz / 1000)
+#define	timespec_to_jiffies(x)	(((x)->tv_sec * 1000000 + (x)->tv_nsec) * hz / 1000000)
 #define	time_after(a,b)		((long)(b) - (long)(a) < 0)
 #define	time_after_eq(a,b)	((long)(b) - (long)(a) <= 0)
+
+#define	getrawmonotonic(ts)	getnanouptime(ts)
 
 #define	wake_up(queue)			wakeup((void *)queue)
 #define	wake_up_interruptible(queue)	wakeup((void *)queue)
@@ -399,7 +497,6 @@ extern const char *fb_mode_option;
 #define	I2C_M_NOSTART	IIC_M_NOSTART
 #define	i2c_transfer	iicbus_transfer
 
-
 struct fb_info *	framebuffer_alloc(void);
 void			framebuffer_release(struct fb_info *info);
 
@@ -429,6 +526,13 @@ pci_write_config_byte(device_t kdev, int where, u8 val)
 
 	pci_write_config(kdev, where, val, 1);
 	return (0);
+}
+
+static inline void
+on_each_cpu(void callback(void *data), void *data, int wait)
+{
+
+	smp_rendezvous(NULL, callback, NULL, data);
 }
 
 #define KIB_NOTYET()							\

@@ -743,6 +743,7 @@ typedef struct drm_i915_private {
 	struct drm_i915_error_state *first_error;
 	struct task error_work;
 	int error_completion;
+	struct mtx error_completion_lock;
 	struct taskqueue *wq;
 
 	/* Display functions */
@@ -789,9 +790,7 @@ typedef struct drm_i915_private {
 		/** PPGTT used for aliasing the PPGTT with the GTT */
 		struct i915_hw_ppgtt *aliasing_ppgtt;
 
-#ifdef FREEBSD_WIP
-		struct shrinker inactive_shrinker;
-#endif /* FREEBSD_WIP */
+		eventhandler_tag inactive_shrinker;
 		bool shrinker_no_lock_stealing;
 
 		/**
@@ -957,8 +956,28 @@ enum i915_cache_level {
 	I915_CACHE_LLC_MLC, /* gen6+, in docs at least! */
 };
 
+struct drm_i915_gem_object_ops {
+	/* Interface between the GEM object and its backing storage.
+	 * get_pages() is called once prior to the use of the associated set
+	 * of pages before to binding them into the GTT, and put_pages() is
+	 * called after we no longer need them. As we expect there to be
+	 * associated cost with migrating pages between the backing storage
+	 * and making them available for the GPU (e.g. clflush), we may hold
+	 * onto the pages after they are no longer referenced by the GPU
+	 * in case they may be used again shortly (for example migrating the
+	 * pages to a different memory domain within the GTT). put_pages()
+	 * will therefore most likely be called when the object itself is
+	 * being released or under memory pressure (where we attempt to
+	 * reap pages for the shrinker).
+	 */
+	int (*get_pages)(struct drm_i915_gem_object *);
+	void (*put_pages)(struct drm_i915_gem_object *);
+};
+
 struct drm_i915_gem_object {
 	struct drm_gem_object base;
+
+	const struct drm_i915_gem_object_ops *ops;
 
 	/** Current space allocated to this object in the GTT, if any. */
 	struct drm_mm_node *gtt_space;
@@ -1033,6 +1052,7 @@ struct drm_i915_gem_object {
 	 */
 	unsigned int fault_mappable:1;
 	unsigned int pin_mappable:1;
+	unsigned int pin_display:1;
 
 	/*
 	 * Is the GPU currently using a fence to access this buffer,
@@ -1272,8 +1292,7 @@ extern unsigned int i915_preliminary_hw_support __read_mostly;
 
 extern struct drm_driver i915_driver_info;
 extern struct cdev_pager_ops i915_gem_pager_ops;
-extern int i915_prefault_disable;
-extern int intel_iommu_enabled;
+extern int intel_iommu_gfx_mapped;
 extern int i915_panel_invert_brightness;
 
 const struct intel_device_info *i915_get_device_id(int device);
@@ -1385,6 +1404,8 @@ int i915_gem_wait_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
 int i915_gem_init_object(struct drm_gem_object *obj);
+void i915_gem_object_init(struct drm_i915_gem_object *obj,
+			 const struct drm_i915_gem_object_ops *ops);
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
@@ -1493,6 +1514,13 @@ int __must_check
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
 				     struct intel_ring_buffer *pipelined);
+void i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj);
+int i915_gem_attach_phys_object(struct drm_device *dev,
+				struct drm_i915_gem_object *obj,
+				int id,
+				int align);
+void i915_gem_detach_phys_object(struct drm_device *dev,
+				 struct drm_i915_gem_object *obj);
 void i915_gem_free_all_phys_object(struct drm_device *dev);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
@@ -1570,6 +1598,19 @@ void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj);
 void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj);
 void i915_gem_object_do_bit_17_swizzle_page(struct drm_i915_gem_object *obj,
     struct vm_page *m);
+
+/* i915_gem_debug.c */
+void i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
+			  const char *where, uint32_t mark);
+#if WATCH_LISTS
+int i915_verify_lists(struct drm_device *dev);
+#else
+#define i915_verify_lists(dev) 0
+#endif
+void i915_gem_object_check_coherency(struct drm_i915_gem_object *obj,
+				     int handle);
+void i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
+			  const char *where, uint32_t mark);
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
