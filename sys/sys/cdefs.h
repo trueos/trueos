@@ -469,11 +469,13 @@
 #endif
 
 #if __GNUC_PREREQ__(4, 0)
-#define	__hidden	__attribute__((__visibility__("hidden")))
+#define	__sentinel	__attribute__((__sentinel__))
 #define	__exported	__attribute__((__visibility__("default")))
+#define	__hidden	__attribute__((__visibility__("hidden")))
 #else
-#define	__hidden
+#define	__sentinel
 #define	__exported
+#define	__hidden
 #endif
 
 /*
@@ -542,7 +544,7 @@
  * using these but GCC-compatible compilers tend to support the extensions
  * well enough to use them in limited cases.
  */ 
-#if __GNUC_PREREQ__(4, 1)
+#if defined(__GNUC_GNU_INLINE__) || defined(__GNUC_STDC_INLINE__)
 #if __has_attribute(artificial) || __GNUC_PREREQ__(4, 3)
 #define	__gnu_inline	__attribute__((__gnu_inline__, __artificial__))
 #else
