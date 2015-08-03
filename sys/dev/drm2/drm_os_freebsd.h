@@ -80,6 +80,7 @@ typedef void			irqreturn_t;
 #define	__read_mostly
 
 #define	BUILD_BUG_ON(x)		CTASSERT(!(x))
+#define	BUILD_BUG_ON_NOT_POWER_OF_2(x)
 
 #ifndef WARN
 #define WARN(condition, format, ...) ({				\
@@ -169,6 +170,10 @@ typedef void			irqreturn_t;
 #define	memset_io(a, b, c)	memset((a), (b), (c))
 #define	memcpy_fromio(a, b, c)	memcpy((a), (b), (c))
 #define	memcpy_toio(a, b, c)	memcpy((a), (b), (c))
+
+#define	VERIFY_READ	VM_PROT_READ
+#define	VERIFY_WRITE	VM_PROT_WRITE
+#define	access_ok(prot, p, l)	useracc((p), (l), (prot))
 
 /* XXXKIB what is the right code for the FreeBSD ? */
 /* kib@ used ENXIO here -- dumbbell@ */
@@ -327,9 +332,11 @@ __copy_to_user_inatomic(void __user *to, const void *from, unsigned n)
 
 	return (copyout_nofault(from, to, n) != 0 ? n : 0);
 }
+#define	__copy_to_user_inatomic_nocache(to, from, n) \
+    __copy_to_user_inatomic((to), (from), (n))
 
 static inline unsigned long
-__copy_from_user_inatomic_nocache(void *to, const void __user *from,
+__copy_from_user_inatomic(void *to, const void __user *from,
     unsigned long n)
 {
 
@@ -342,6 +349,8 @@ __copy_from_user_inatomic_nocache(void *to, const void __user *from,
 	 */
 	return ((copyin_nofault(__DECONST(void *, from), to, n) != 0 ? n : 0));
 }
+#define	__copy_from_user_inatomic_nocache(to, from, n) \
+    __copy_from_user_inatomic((to), (from), (n))
 
 static inline int
 fault_in_multipages_readable(const char __user *uaddr, int size)
@@ -395,6 +404,20 @@ fault_in_multipages_writeable(char __user *uaddr, int size)
 		ret = subyte(end, 0);
 
 	return ret;
+}
+
+enum __drm_capabilities {
+	CAP_SYS_ADMIN
+};
+
+static inline bool
+capable(enum __drm_capabilities cap)
+{
+
+	switch (cap) {
+	case CAP_SYS_ADMIN:
+		return DRM_SUSER(curthread);
+	}
 }
 
 #define	to_user_ptr(x)		((void *)(uintptr_t)(x))
