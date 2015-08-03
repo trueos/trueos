@@ -1560,6 +1560,8 @@ static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 {
 }
 
+#include <dev/drm2/drm_mem_util.h>
+
 extern int drm_fill_in_dev(struct drm_device *dev,
 			   struct drm_driver *driver);
 extern void drm_cancel_fill_in_dev(struct drm_device *dev);
