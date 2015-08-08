@@ -92,6 +92,7 @@ typedef void			irqreturn_t;
 #endif
 #define	WARN_ON(cond)		WARN(cond, "WARN ON: " #cond)
 #define	WARN_ON_SMP(cond)	WARN_ON(cond)
+#define	BUG()			panic("BUG")
 #define	BUG_ON(cond)		KASSERT(!(cond), ("BUG ON: " #cond))
 #define	unlikely(x)            __builtin_expect(!!(x), 0)
 #define	likely(x)              __builtin_expect(!!(x), 1)
