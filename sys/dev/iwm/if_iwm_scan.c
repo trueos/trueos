@@ -148,21 +148,11 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_ratectl.h>
 #include <net80211/ieee80211_radiotap.h>
 
-#include <if_iwmreg.h>
-#include <if_iwmvar.h>
-#include <if_iwm_debug.h>
-#include <if_iwm_util.h>
-#if 0
-#include <if_iwm_binding.h>
-#include <if_iwm_phy_db.h>
-#include <if_iwm_mac_ctxt.h>
-#include <if_iwm_phy_ctxt.h>
-#include <if_iwm_time_event.h>
-#include <if_iwm_power.h>
-#include <if_iwm_pcie_trans.h>
-#endif
-
-#include <if_iwm_scan.h>
+#include <dev/iwm/if_iwmreg.h>
+#include <dev/iwm/if_iwmvar.h>
+#include <dev/iwm/if_iwm_debug.h>
+#include <dev/iwm/if_iwm_util.h>
+#include <dev/iwm/if_iwm_scan.h>
 
 /*
  * BEGIN mvm/scan.c
@@ -266,7 +256,7 @@ static int
 iwm_mvm_scan_fill_channels(struct iwm_softc *sc, struct iwm_scan_cmd *cmd,
 	int flags, int n_ssids, int basic_ssid)
 {
-	struct ieee80211com *ic = sc->sc_ic;
+	struct ieee80211com *ic = &sc->sc_ic;
 	uint16_t passive_dwell = iwm_mvm_get_passive_dwell(sc, flags);
 	uint16_t active_dwell = iwm_mvm_get_active_dwell(sc, flags, n_ssids);
 	struct iwm_scan_channel *chan = (struct iwm_scan_channel *)
@@ -429,7 +419,7 @@ iwm_mvm_scan_request(struct iwm_softc *sc, int flags,
 
 	cmd->tx_cmd.len = htole16(iwm_mvm_fill_probe_req(sc,
 			    (struct ieee80211_frame *)cmd->data,
-			    sc->sc_bssid, n_ssids, ssid, ssid_len,
+			    sc->sc_ic.ic_macaddr, n_ssids, ssid, ssid_len,
 			    NULL, 0, sc->sc_capa_max_probe_len));
 
 	cmd->channel_count

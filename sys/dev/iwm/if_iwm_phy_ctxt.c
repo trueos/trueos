@@ -148,18 +148,11 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_ratectl.h>
 #include <net80211/ieee80211_radiotap.h>
 
-#include <if_iwmreg.h>
-#include <if_iwmvar.h>
-#include <if_iwm_debug.h>
-#include <if_iwm_util.h>
-
-#if 0
-#include <if_iwm_binding.h>
-#include <if_iwm_phy_db.h>
-#include <if_iwm_mac_ctxt.h>
-#include <if_iwm_pcie_trans.h>
-#endif
-#include <if_iwm_phy_ctxt.h>
+#include <dev/iwm/if_iwmreg.h>
+#include <dev/iwm/if_iwmvar.h>
+#include <dev/iwm/if_iwm_debug.h>
+#include <dev/iwm/if_iwm_util.h>
+#include <dev/iwm/if_iwm_phy_ctxt.h>
 
 /*
  * BEGIN iwlwifi/mvm/phy-ctxt.c
@@ -196,7 +189,7 @@ iwm_mvm_phy_ctxt_cmd_data(struct iwm_softc *sc,
 	struct iwm_phy_context_cmd *cmd, struct ieee80211_channel *chan,
 	uint8_t chains_static, uint8_t chains_dynamic)
 {
-	struct ieee80211com *ic = sc->sc_ic;
+	struct ieee80211com *ic = &sc->sc_ic;
 	uint8_t active_cnt, idle_cnt;
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET | IWM_DEBUG_CMD,
@@ -280,7 +273,7 @@ iwm_mvm_phy_ctxt_add(struct iwm_softc *sc, struct iwm_mvm_phy_ctxt *ctxt,
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET | IWM_DEBUG_CMD,
 	    "%s: called; channel=%d\n",
 	    __func__,
-	    ieee80211_chan2ieee(sc->sc_ic, chan));
+	    ieee80211_chan2ieee(&sc->sc_ic, chan));
 
 	return iwm_mvm_phy_ctxt_apply(sc, ctxt,
 	    chains_static, chains_dynamic, IWM_FW_CTXT_ACTION_ADD, 0);
@@ -301,7 +294,7 @@ iwm_mvm_phy_ctxt_changed(struct iwm_softc *sc,
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET | IWM_DEBUG_CMD,
 	    "%s: called; channel=%d\n",
 	    __func__,
-	    ieee80211_chan2ieee(sc->sc_ic, chan));
+	    ieee80211_chan2ieee(&sc->sc_ic, chan));
 
 	return iwm_mvm_phy_ctxt_apply(sc, ctxt,
 	    chains_static, chains_dynamic, IWM_FW_CTXT_ACTION_MODIFY, 0);

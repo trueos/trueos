@@ -5,15 +5,22 @@
 SUBDIR=	doc\
 	libiberty \
 	libbfd \
+	.WAIT \
 	libopcodes \
 	libbinutils \
+	.WAIT \
 	as \
 	ld \
 	${_objcopy} \
 	objdump \
 
-.if ${MK_ELFTOOLCHAIN_TOOLS} == "no" || ${MK_ELFCOPY_AS_OBJCOPY} == "no"
+.if ${MK_ELFCOPY_AS_OBJCOPY} == "no"
 _objcopy=	objcopy
+.endif
+
+
+.if !make(install)
+SUBDIR_PARALLEL=
 .endif
 
 .include <bsd.subdir.mk>
