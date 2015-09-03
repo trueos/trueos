@@ -51,24 +51,23 @@
 
 struct intel_gtt {
 	/* Size of memory reserved for graphics by the BIOS */
-	u_int stolen_size;
+	unsigned int stolen_size;
 	/* Total number of gtt entries. */
-	u_int gtt_total_entries;
-	/*
-	 * Part of the gtt that is mappable by the cpu, for those
-	 * chips where this is not the full gtt.
-	 */
-	u_int gtt_mappable_entries;
-
-	/*
-	 * Always false.
-	 */
-	u_int do_idle_maps;
-	
-	/*
-	 * Share the scratch page dma with ppgtts.
-	 */
+	unsigned int gtt_total_entries;
+	/* Part of the gtt that is mappable by the cpu, for those chips where
+	 * this is not the full gtt. */
+	unsigned int gtt_mappable_entries;
+	/* Whether i915 needs to use the dmar apis or not. */
+	unsigned int needs_dmar : 1;
+	/* Whether we idle the gpu before mapping/unmapping */
+	unsigned int do_idle_maps : 1;
+	/* Share the scratch page dma with ppgtts. */
 	vm_paddr_t scratch_page_dma;
+	vm_page_t scratch_page;
+	/* for ppgtt PDE access */
+	uint32_t *gtt;
+	/* needed for ioremap in drm/i915 */
+	bus_addr_t gma_bus_addr;
 };
 
 struct intel_gtt agp_intel_gtt_get(device_t dev);

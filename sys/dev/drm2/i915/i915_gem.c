@@ -217,7 +217,6 @@ i915_gem_init_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file)
 {
 	struct drm_i915_gem_init *args = data;
-	int ret;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;
@@ -235,11 +234,11 @@ i915_gem_init_ioctl(struct drm_device *dev, void *data,
 	 * against.
 	 */
 	DRM_LOCK(dev);
-	ret = i915_gem_init_global_gtt(dev, args->gtt_start,
+	i915_gem_init_global_gtt(dev, args->gtt_start,
 				 args->gtt_end, args->gtt_end);
 	DRM_UNLOCK(dev);
 
-	return ret;
+	return 0;
 }
 
 int

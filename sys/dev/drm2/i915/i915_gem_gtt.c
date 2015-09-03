@@ -148,6 +148,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 			goto err_pt_alloc;
 	}
 
+#ifdef FREEBSD_WIP
 	if (dev_priv->mm.gtt->needs_dmar) {
 		ppgtt->pt_dma_addr = malloc(sizeof(dma_addr_t)
 						*ppgtt->num_pd_entries,
@@ -158,7 +159,6 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 		for (i = 0; i < ppgtt->num_pd_entries; i++) {
 			dma_addr_t pt_addr;
 
-			/* FIXME FreeBSD */
 			pt_addr = pci_map_page(dev->pdev, ppgtt->pt_pages[i],
 					       0, 4096,
 					       PCI_DMA_BIDIRECTIONAL);
@@ -172,6 +172,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 			ppgtt->pt_dma_addr[i] = pt_addr;
 		}
 	}
+#endif /* FREEBSD_WIP */
 
 	ppgtt->scratch_page_dma_addr = dev_priv->mm.gtt->scratch_page_dma;
 
@@ -184,12 +185,14 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 
 	return 0;
 
+#ifdef FREEBSD_WIP
 err_pd_pin:
 	if (ppgtt->pt_dma_addr) {
 		for (i--; i >= 0; i--)
 			pci_unmap_page(dev->pdev, ppgtt->pt_dma_addr[i],
 				       4096, PCI_DMA_BIDIRECTIONAL);
 	}
+#endif /* FREEBSD_WIP */
 err_pt_alloc:
 	free(ppgtt->pt_dma_addr, DRM_I915_GEM);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
@@ -214,13 +217,15 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 	if (!ppgtt)
 		return;
 
+#ifdef FREEBSD_WIP
 	if (ppgtt->pt_dma_addr) {
 		for (i = 0; i < ppgtt->num_pd_entries; i++)
 			pci_unmap_page(dev->pdev, ppgtt->pt_dma_addr[i],
 				       4096, PCI_DMA_BIDIRECTIONAL);
 	}
+#endif /* FREEBSD_WIP */
 
-	kfree(ppgtt->pt_dma_addr);
+	free(ppgtt->pt_dma_addr, DRM_I915_GEM);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		vm_page_unwire(ppgtt->pt_pages[i], PQ_INACTIVE);
 		vm_page_free(ppgtt->pt_pages[i]);
@@ -229,45 +234,40 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 	free(ppgtt, DRM_I915_GEM);
 }
 
-static void i915_ppgtt_insert_sg_entries(struct i915_hw_ppgtt *ppgtt,
-					 const struct sg_table *pages,
+static void i915_ppgtt_insert_pages(struct i915_hw_ppgtt *ppgtt,
+					 vm_page_t *pages,
 					 unsigned first_entry,
+					 unsigned num_entries,
 					 enum i915_cache_level cache_level)
 {
-	gtt_pte_t *pt_vaddr;
+	uint32_t *pt_vaddr;
 	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
 	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
-	unsigned i, j, m, segment_len;
-	dma_addr_t page_addr;
-	struct scatterlist *sg;
+	unsigned j, last_pte;
+	vm_paddr_t page_addr;
+	struct sf_buf *sf;
 
-	/* init sg walking */
-	sg = pages->sgl;
-	i = 0;
-	segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
-	m = 0;
+	while (num_entries) {
+		last_pte = first_pte + num_entries;
+		if (last_pte > I915_PPGTT_PT_ENTRIES)
+			last_pte = I915_PPGTT_PT_ENTRIES;
 
-	while (i < pages->nents) {
-		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
+		sched_pin();
+		sf = sf_buf_alloc(ppgtt->pt_pages[act_pd], SFB_CPUPRIVATE);
+		pt_vaddr = (uint32_t *)(uintptr_t)sf_buf_kva(sf);
 
 		for (j = first_pte; j < I915_PPGTT_PT_ENTRIES; j++) {
-			page_addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
+			page_addr = VM_PAGE_TO_PHYS(*pages);
 			pt_vaddr[j] = pte_encode(ppgtt->dev, page_addr,
 						 cache_level);
 
-			/* grab the next page */
-			if (++m == segment_len) {
-				if (++i == pages->nents)
-					break;
-
-				sg = sg_next(sg);
-				segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
-				m = 0;
-			}
+			pages++;
 		}
 
-		kunmap_atomic(pt_vaddr);
+		sf_buf_free(sf);
+		sched_unpin();
 
+		num_entries -= last_pte - first_pte;
 		first_pte = 0;
 		act_pd++;
 	}
@@ -277,9 +277,10 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 			    struct drm_i915_gem_object *obj,
 			    enum i915_cache_level cache_level)
 {
-	i915_ppgtt_insert_sg_entries(ppgtt,
+	i915_ppgtt_insert_pages(ppgtt,
 				     obj->pages,
 				     obj->gtt_space->start >> PAGE_SHIFT,
+				     obj->base.size >> PAGE_SHIFT,
 				     cache_level);
 }
 
@@ -297,7 +298,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	uint32_t pd_offset;
 	struct intel_ring_buffer *ring;
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-	uint32_t __iomem *pd_addr;
+	u_int first_pd_entry_in_global_pt;
 	uint32_t pd_entry;
 	int i;
 
@@ -305,21 +306,23 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		return;
 
 
-	pd_addr = dev_priv->mm.gtt->gtt + ppgtt->pd_offset/sizeof(uint32_t);
+	first_pd_entry_in_global_pt = 512 * 1024 - I915_PPGTT_PD_ENTRIES;
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
-		dma_addr_t pt_addr;
+		vm_paddr_t pt_addr;
 
+#ifdef FREEBSD_WIP
 		if (dev_priv->mm.gtt->needs_dmar)
 			pt_addr = ppgtt->pt_dma_addr[i];
 		else
-			pt_addr = page_to_phys(ppgtt->pt_pages[i]);
+#endif /* FREEBSD_WIP */
+			pt_addr = VM_PAGE_TO_PHYS(ppgtt->pt_pages[i]);
 
 		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
 		pd_entry |= GEN6_PDE_VALID;
 
-		writel(pd_entry, pd_addr + i);
+		intel_gtt_write(first_pd_entry_in_global_pt + i, pd_entry);
 	}
-	readl(pd_addr);
+	intel_gtt_read_pte(first_pd_entry_in_global_pt);
 
 	pd_offset = ppgtt->pd_offset;
 	pd_offset /= 64; /* in cachelines, */
@@ -424,14 +427,10 @@ int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 	if (obj->has_dma_mapping)
 		return 0;
 
-	if (!dma_map_sg(&obj->base.dev->pdev->dev,
-			obj->pages->sgl, obj->pages->nents,
-			PCI_DMA_BIDIRECTIONAL))
-		return -ENOSPC;
-
 	return 0;
 }
 
+#ifdef FREEBSD_WIP
 /*
  * Binds an object into the global gtt with the specified cache level. The object
  * will be accessible to the GPU via commands whose operands reference offsets
@@ -480,20 +479,26 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
 }
+#endif /* FREEBSD_WIP */
 
 void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
 			      enum i915_cache_level cache_level)
 {
+#ifdef FREEBSD_WIP
 	struct drm_device *dev = obj->base.dev;
 	if (INTEL_INFO(dev)->gen < 6) {
+#endif /* FREEBSD_WIP */
 		unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 			AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
-		intel_gtt_insert_sg_entries(obj->pages,
-					    obj->gtt_space->start >> PAGE_SHIFT,
+		intel_gtt_insert_pages(obj->gtt_space->start >> PAGE_SHIFT,
+					    obj->base.size >> PAGE_SHIFT,
+					    obj->pages,
 					    flags);
+#ifdef FREEBSD_WIP
 	} else {
 		gen6_ggtt_bind_object(obj, cache_level);
 	}
+#endif /* FREEBSD_WIP */
 
 	obj->has_global_gtt_mapping = 1;
 }
@@ -515,10 +520,12 @@ void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 
 	interruptible = do_idling(dev_priv);
 
+#ifdef FREEBSD_WIP
 	if (!obj->has_dma_mapping)
 		dma_unmap_sg(&dev->pdev->dev,
 			     obj->pages->sgl, obj->pages->nents,
 			     PCI_DMA_BIDIRECTIONAL);
+#endif /* FREEBSD_WIP */
 
 	undo_idling(dev_priv, interruptible);
 }
@@ -560,8 +567,17 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 
 	/* ... but ensure that we clear the entire range. */
 	i915_ggtt_clear_range(dev, start / PAGE_SIZE, (end-start) / PAGE_SIZE);
+
+	device_printf(dev->dev,
+	    "taking over the fictitious range 0x%lx-0x%lx\n",
+	    dev->agp->base + start,
+	    dev->agp->base + start + dev_priv->mm.mappable_gtt_total);
+	vm_phys_fictitious_reg_range(dev->agp->base + start,
+	    dev->agp->base + start + dev_priv->mm.mappable_gtt_total,
+	    VM_MEMATTR_WRITE_COMBINING);
 }
 
+#ifdef FREEBSD_WIP
 static int setup_scratch_page(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -597,6 +613,7 @@ static void teardown_scratch_page(struct drm_device *dev)
 	put_page(dev_priv->mm.gtt->scratch_page);
 	__free_page(dev_priv->mm.gtt->scratch_page);
 }
+#endif /* FREEBSD_WIP */
 
 static inline unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
 {
@@ -624,10 +641,13 @@ static inline unsigned int gen7_get_stolen_size(u16 snb_gmch_ctl)
 int i915_gem_gtt_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+#ifdef FREEBSD_WIP
 	phys_addr_t gtt_bus_addr;
 	u16 snb_gmch_ctl;
 	int ret;
+#endif /* FREEBSD_WIP */
 
+#ifdef FREEBSD_WIP
 	/* On modern platforms we need not worry ourself with the legacy
 	 * hostbridge query stuff. Skip it entirely
 	 */
@@ -637,14 +657,18 @@ int i915_gem_gtt_init(struct drm_device *dev)
 			DRM_ERROR("failed to set up gmch\n");
 			return -EIO;
 		}
+#endif /* FREEBSD_WIP */
 
 		dev_priv->mm.gtt = intel_gtt_get();
 		if (!dev_priv->mm.gtt) {
 			DRM_ERROR("Failed to initialize GTT\n");
+#ifdef FREEBSD_WIP
 			intel_gmch_remove();
+#endif /* FREEBSD_WIP */
 			return -ENODEV;
 		}
 		return 0;
+#ifdef FREEBSD_WIP
 	}
 
 	dev_priv->mm.gtt = malloc(sizeof(*dev_priv->mm.gtt), DRM_I915_GEM, M_NOWAIT | M_ZERO);
@@ -659,7 +683,7 @@ int i915_gem_gtt_init(struct drm_device *dev)
 #endif
 
 	/* For GEN6+ the PTEs for the ggtt live at 2MB + BAR0 */
-	gtt_bus_addr = pci_resource_start(dev->pdev, 0) + (2<<20);
+	gtt_bus_addr = pci_resource_start(dev->dev, 0) + (2<<20);
 	dev_priv->mm.gtt->gma_bus_addr = pci_resource_start(dev->pdev, 2);
 
 	/* i9xx_setup */
@@ -710,14 +734,17 @@ err_out:
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gmch_remove();
 	return ret;
+#endif /* FREEBSD_WIP */
 }
 
 void i915_gem_gtt_fini(struct drm_device *dev)
 {
+#ifdef FREEBSD_WIP
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	iounmap(dev_priv->mm.gtt->gtt);
 	teardown_scratch_page(dev);
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gmch_remove();
 	free(dev_priv->mm.gtt, DRM_I915_GEM);
+#endif /* FREEBSD_WIP */
 }
