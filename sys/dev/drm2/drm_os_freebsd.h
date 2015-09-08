@@ -117,6 +117,14 @@ typedef void			irqreturn_t;
 #define	DRM_MSLEEP(msecs)	drm_msleep((msecs), "drm_msleep")
 #define	get_seconds()		time_second
 
+#define ioread8(addr)		*(volatile uint8_t *)((char *)addr)
+#define ioread16(addr)		*(volatile uint16_t *)((char *)addr)
+#define ioread32(addr)		*(volatile uint32_t *)((char *)addr)
+
+#define iowrite8(data, addr)	*(volatile uint8_t *)((char *)addr) = data;
+#define iowrite16(data, addr)	*(volatile uint16_t *)((char *)addr) = data;
+#define iowrite32(data, addr)	*(volatile uint32_t *)((char *)addr) = data;
+
 #define	DRM_READ8(map, offset)						\
 	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
 	    (vm_offset_t)(offset))
