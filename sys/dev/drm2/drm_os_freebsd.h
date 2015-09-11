@@ -169,6 +169,9 @@ typedef void			irqreturn_t;
 #define	div64_u64(a, b)		((a) / (b))
 #define	lower_32_bits(n)	((u32)(n))
 
+#define	__set_bit(n, s)		set_bit((n), (s))
+#define	__clear_bit(n, s)	clear_bit((n), (s))
+
 #define min_t(type, x, y) ({			\
 	type __min1 = (x);			\
 	type __min2 = (y);			\
