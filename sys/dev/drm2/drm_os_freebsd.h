@@ -495,7 +495,7 @@ typedef struct drm_pci_id_list
 #if defined(__i386__) || defined(__amd64__)
 #define	CONFIG_ACPI
 #define	CONFIG_DRM_I915_KMS
-#define	CONFIG_INTEL_IOMMU
+#undef	CONFIG_INTEL_IOMMU
 #endif
 
 #ifdef COMPAT_FREEBSD32
@@ -557,6 +557,22 @@ pci_write_config_byte(device_t kdev, int where, u8 val)
 {
 
 	pci_write_config(kdev, where, val, 1);
+	return (0);
+}
+
+static inline int
+pci_read_config_word(device_t kdev, int where, uint16_t *val)
+{
+
+	*val = (uint16_t)pci_read_config(kdev, where, 4);
+	return (0);
+}
+
+static inline int
+pci_write_config_word(device_t kdev, int where, uint16_t val)
+{
+
+	pci_write_config(kdev, where, val, 4);
 	return (0);
 }
 
