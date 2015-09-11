@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD: head/sys/dev/drm2/i915/i915_gem_gtt.c 285988 2015-07-28 21:4
 #include <dev/drm2/i915/intel_drv.h>
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
+#include <vm/vm_pageout.h>
 
 typedef uint32_t gtt_pte_t;
 
@@ -148,7 +149,6 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 			goto err_pt_alloc;
 	}
 
-#ifdef FREEBSD_WIP
 	if (dev_priv->mm.gtt->needs_dmar) {
 		ppgtt->pt_dma_addr = malloc(sizeof(dma_addr_t)
 						*ppgtt->num_pd_entries,
@@ -156,6 +156,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 		if (!ppgtt->pt_dma_addr)
 			goto err_pt_alloc;
 
+#ifdef CONFIG_INTEL_IOMMU /* <- Added as a marker on FreeBSD. */
 		for (i = 0; i < ppgtt->num_pd_entries; i++) {
 			dma_addr_t pt_addr;
 
@@ -171,8 +172,8 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 			}
 			ppgtt->pt_dma_addr[i] = pt_addr;
 		}
+#endif
 	}
-#endif /* FREEBSD_WIP */
 
 	ppgtt->scratch_page_dma_addr = dev_priv->mm.gtt->scratch_page_dma;
 
@@ -185,14 +186,14 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 
 	return 0;
 
-#ifdef FREEBSD_WIP
+#ifdef CONFIG_INTEL_IOMMU /* <- Added as a marker on FreeBSD. */
 err_pd_pin:
 	if (ppgtt->pt_dma_addr) {
 		for (i--; i >= 0; i--)
 			pci_unmap_page(dev->pdev, ppgtt->pt_dma_addr[i],
 				       4096, PCI_DMA_BIDIRECTIONAL);
 	}
-#endif /* FREEBSD_WIP */
+#endif
 err_pt_alloc:
 	free(ppgtt->pt_dma_addr, DRM_I915_GEM);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
@@ -217,13 +218,13 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 	if (!ppgtt)
 		return;
 
-#ifdef FREEBSD_WIP
+#ifdef CONFIG_INTEL_IOMMU /* <- Added as a marker on FreeBSD. */
 	if (ppgtt->pt_dma_addr) {
 		for (i = 0; i < ppgtt->num_pd_entries; i++)
 			pci_unmap_page(dev->pdev, ppgtt->pt_dma_addr[i],
 				       4096, PCI_DMA_BIDIRECTIONAL);
 	}
-#endif /* FREEBSD_WIP */
+#endif
 
 	free(ppgtt->pt_dma_addr, DRM_I915_GEM);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
@@ -310,11 +311,9 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		vm_paddr_t pt_addr;
 
-#ifdef FREEBSD_WIP
 		if (dev_priv->mm.gtt->needs_dmar)
 			pt_addr = ppgtt->pt_dma_addr[i];
 		else
-#endif /* FREEBSD_WIP */
 			pt_addr = VM_PAGE_TO_PHYS(ppgtt->pt_pages[i]);
 
 		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
@@ -577,18 +576,27 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 	    VM_MEMATTR_WRITE_COMBINING);
 }
 
-#ifdef FREEBSD_WIP
 static int setup_scratch_page(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct page *page;
+	vm_page_t page;
 	dma_addr_t dma_addr;
+	int tries = 0;
 
-	page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
-	if (page == NULL)
+retry:
+	page = vm_page_alloc_contig(NULL, 0,
+	    VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
+	    1, 0, 0xffffffff, PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
+	if (page == NULL) {
+		if (tries < 1) {
+			vm_pageout_grow_cache(tries, 0, 0xffffffff);
+			tries++;
+			goto retry;
+		}
 		return -ENOMEM;
-	get_page(page);
-	set_pages_uc(page, 1);
+	}
+	if ((page->flags & PG_ZERO) == 0)
+		pmap_zero_page(page);
 
 #ifdef CONFIG_INTEL_IOMMU
 	dma_addr = pci_map_page(dev->pdev, page, 0, PAGE_SIZE,
@@ -596,7 +604,7 @@ static int setup_scratch_page(struct drm_device *dev)
 	if (pci_dma_mapping_error(dev->pdev, dma_addr))
 		return -EINVAL;
 #else
-	dma_addr = page_to_phys(page);
+	dma_addr = VM_PAGE_TO_PHYS(page);
 #endif
 	dev_priv->mm.gtt->scratch_page = page;
 	dev_priv->mm.gtt->scratch_page_dma = dma_addr;
@@ -606,14 +614,12 @@ static int setup_scratch_page(struct drm_device *dev)
 
 static void teardown_scratch_page(struct drm_device *dev)
 {
+#ifdef CONFIG_INTEL_IOMMU /* <- Added as a marker on FreeBSD. */
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	set_pages_wb(dev_priv->mm.gtt->scratch_page, 1);
 	pci_unmap_page(dev->pdev, dev_priv->mm.gtt->scratch_page_dma,
 		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	put_page(dev_priv->mm.gtt->scratch_page);
-	__free_page(dev_priv->mm.gtt->scratch_page);
+#endif
 }
-#endif /* FREEBSD_WIP */
 
 static inline unsigned int gen6_get_total_gtt_size(u16 snb_gmch_ctl)
 {
@@ -641,17 +647,15 @@ static inline unsigned int gen7_get_stolen_size(u16 snb_gmch_ctl)
 int i915_gem_gtt_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-#ifdef FREEBSD_WIP
-	phys_addr_t gtt_bus_addr;
+	vm_paddr_t gtt_bus_addr;
 	u16 snb_gmch_ctl;
 	int ret;
-#endif /* FREEBSD_WIP */
 
-#ifdef FREEBSD_WIP
 	/* On modern platforms we need not worry ourself with the legacy
 	 * hostbridge query stuff. Skip it entirely
 	 */
 	if (INTEL_INFO(dev)->gen < 6) {
+#ifdef FREEBSD_WIP
 		ret = intel_gmch_probe(dev_priv->bridge_dev, dev->pdev, NULL);
 		if (!ret) {
 			DRM_ERROR("failed to set up gmch\n");
@@ -668,26 +672,27 @@ int i915_gem_gtt_init(struct drm_device *dev)
 			return -ENODEV;
 		}
 		return 0;
-#ifdef FREEBSD_WIP
 	}
 
 	dev_priv->mm.gtt = malloc(sizeof(*dev_priv->mm.gtt), DRM_I915_GEM, M_NOWAIT | M_ZERO);
 	if (!dev_priv->mm.gtt)
 		return -ENOMEM;
 
+#ifdef FREEBSD_WIP
 	if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(40)))
 		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(40));
+#endif /* FREEBSD_WIP */
 
 #ifdef CONFIG_INTEL_IOMMU
 	dev_priv->mm.gtt->needs_dmar = 1;
 #endif
 
 	/* For GEN6+ the PTEs for the ggtt live at 2MB + BAR0 */
-	gtt_bus_addr = pci_resource_start(dev->dev, 0) + (2<<20);
-	dev_priv->mm.gtt->gma_bus_addr = pci_resource_start(dev->pdev, 2);
+	gtt_bus_addr = drm_get_resource_start(dev, 0) + (2<<20);
+	dev_priv->mm.gtt->gma_bus_addr = drm_get_resource_start(dev, 2);
 
 	/* i9xx_setup */
-	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
+	pci_read_config_word(dev->dev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 	dev_priv->mm.gtt->gtt_total_entries =
 		gen6_get_total_gtt_size(snb_gmch_ctl) / sizeof(gtt_pte_t);
 	if (INTEL_INFO(dev)->gen < 7)
@@ -695,7 +700,7 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	else
 		dev_priv->mm.gtt->stolen_size = gen7_get_stolen_size(snb_gmch_ctl);
 
-	dev_priv->mm.gtt->gtt_mappable_entries = pci_resource_len(dev->pdev, 2) >> PAGE_SHIFT;
+	dev_priv->mm.gtt->gtt_mappable_entries = drm_get_resource_len(dev, 2) >> PAGE_SHIFT;
 	/* 64/512MB is the current min/max we actually know of, but this is just a
 	 * coarse sanity check.
 	 */
@@ -713,8 +718,10 @@ int i915_gem_gtt_init(struct drm_device *dev)
 		goto err_out;
 	}
 
-	dev_priv->mm.gtt->gtt = ioremap_wc(gtt_bus_addr,
-					   dev_priv->mm.gtt->gtt_total_entries * sizeof(gtt_pte_t));
+	dev_priv->mm.gtt->gtt = pmap_mapdev_attr(gtt_bus_addr,
+					   /* The size is used later by pmap_unmapdev. */
+					   dev_priv->mm.gtt->gtt_total_entries * sizeof(gtt_pte_t),
+					   VM_MEMATTR_WRITE_COMBINING);
 	if (!dev_priv->mm.gtt->gtt) {
 		DRM_ERROR("Failed to map the gtt page table\n");
 		teardown_scratch_page(dev);
@@ -731,20 +738,23 @@ int i915_gem_gtt_init(struct drm_device *dev)
 
 err_out:
 	free(dev_priv->mm.gtt, DRM_I915_GEM);
+#ifdef FREEBSD_WIP
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gmch_remove();
-	return ret;
 #endif /* FREEBSD_WIP */
+	return ret;
 }
 
 void i915_gem_gtt_fini(struct drm_device *dev)
 {
-#ifdef FREEBSD_WIP
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	iounmap(dev_priv->mm.gtt->gtt);
+	pmap_unmapdev((vm_offset_t)dev_priv->mm.gtt->gtt,
+	    dev_priv->mm.gtt->gtt_total_entries * sizeof(gtt_pte_t));
 	teardown_scratch_page(dev);
+#ifdef FREEBSD_WIP
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gmch_remove();
-	free(dev_priv->mm.gtt, DRM_I915_GEM);
 #endif /* FREEBSD_WIP */
+	if (INTEL_INFO(dev)->gen >= 6)
+		free(dev_priv->mm.gtt, DRM_I915_GEM);
 }
