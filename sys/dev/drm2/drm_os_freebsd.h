@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 #ifndef __force
 #define	__force
 #endif
+#ifndef uninitialized_var
+#define	uninitialized_var(x) x
+#endif
 
 #define	cpu_to_le16(x)	htole16(x)
 #define	le16_to_cpu(x)	le16toh(x)
@@ -564,12 +567,28 @@ static inline int
 pci_read_config_word(device_t kdev, int where, uint16_t *val)
 {
 
-	*val = (uint16_t)pci_read_config(kdev, where, 4);
+	*val = (uint16_t)pci_read_config(kdev, where, 2);
 	return (0);
 }
 
 static inline int
 pci_write_config_word(device_t kdev, int where, uint16_t val)
+{
+
+	pci_write_config(kdev, where, val, 2);
+	return (0);
+}
+
+static inline int
+pci_read_config_dword(device_t kdev, int where, uint32_t *val)
+{
+
+	*val = (uint32_t)pci_read_config(kdev, where, 4);
+	return (0);
+}
+
+static inline int
+pci_write_config_dword(device_t kdev, int where, uint32_t val)
 {
 
 	pci_write_config(kdev, where, val, 4);
