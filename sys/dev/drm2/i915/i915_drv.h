@@ -1628,6 +1628,7 @@ extern device_t intel_gmbus_get_adapter(
 		struct drm_i915_private *dev_priv, unsigned port);
 extern void intel_gmbus_set_speed(device_t idev, int speed);
 extern void intel_gmbus_force_bit(device_t idev, bool force_bit);
+extern bool intel_gmbus_is_forced_bit(device_t adapter);
 extern void intel_i2c_reset(struct drm_device *dev);
 
 /* intel_opregion.c */
