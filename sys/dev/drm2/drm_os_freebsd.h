@@ -93,6 +93,8 @@ typedef void			irqreturn_t;
 	unlikely(__ret_warn_on);				\
 })
 #endif
+#define	WARN_ONCE(condition, format, ...)			\
+	WARN(condition, format, ##__VA_ARGS__)
 #define	WARN_ON(cond)		WARN(cond, "WARN ON: " #cond)
 #define	WARN_ON_SMP(cond)	WARN_ON(cond)
 #define	BUG()			panic("BUG")
@@ -161,6 +163,7 @@ typedef void			irqreturn_t;
 #define	DRM_WRITEMEMORYBARRIER()	wmb()
 #define	DRM_MEMORYBARRIER()		mb()
 #define	smp_rmb()			rmb()
+#define	smp_wmb()			wmb()
 #define	smp_mb__before_atomic_inc()	mb()
 #define	smp_mb__after_atomic_inc()	mb()
 #define	barrier()			__compiler_membar()
