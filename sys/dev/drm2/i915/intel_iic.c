@@ -475,14 +475,14 @@ out:
 	return (-error);
 }
 
-device_t 
+device_t
 intel_gmbus_get_adapter(struct drm_i915_private *dev_priv,
     unsigned port)
 {
 
 	if (!intel_gmbus_is_port_valid(port))
 		DRM_ERROR("GMBUS get adapter %d: invalid port\n", port);
-	return (intel_gmbus_is_port_valid(port) ? dev_priv->gmbus[port - 1] :
+	return (intel_gmbus_is_port_valid(port) ? dev_priv->gmbus[port - 1]->gmbus :
 	    NULL);
 }
 
@@ -494,6 +494,15 @@ intel_gmbus_set_speed(device_t idev, int speed)
 	sc = device_get_softc(device_get_parent(idev));
 
 	sc->reg0 = (sc->reg0 & ~(0x3 << 8)) | speed;
+}
+
+bool
+intel_gmbus_is_forced_bit(device_t adapter)
+{
+	struct intel_iic_softc *sc;
+
+	sc = device_get_softc(device_get_parent(adapter));
+	return sc->force_bit_dev;
 }
 
 void
