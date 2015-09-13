@@ -34,6 +34,27 @@
 #include <dev/drm2/drm_fb_helper.h>
 #include <dev/drm2/drm_dp_helper.h>
 
+#define _intel_wait_for(DEV, COND, MS, W, WMSG)				\
+({									\
+	int end, ret;							\
+									\
+	end = ticks + (MS) * hz / 1000;					\
+	ret = 0;							\
+									\
+	while (!(COND)) {						\
+		if (time_after(ticks, end)) {				\
+			ret = -ETIMEDOUT;				\
+			break;						\
+		}							\
+		if (W)							\
+			pause((WMSG), 1);				\
+		else							\
+			DELAY(1000);					\
+	}								\
+									\
+	ret;								\
+})
+
 #define _wait_for(COND, MS, W, WMSG) ({ \
 	int timeout__ = ticks + (MS) * hz / 1000;			\
 	int ret__ = 0;							\
@@ -63,8 +84,8 @@
 	ret__;				\
 })
 
-#define wait_for(COND, MS) _wait_for(COND, MS, 1, "915wfi")
-#define wait_for_atomic(COND, MS) _wait_for(COND, MS, 0, "915wfa")
+#define wait_for(COND, MS) _intel_wait_for(NULL, COND, MS, 1, "915wfi")
+#define wait_for_atomic(COND, MS) _intel_wait_for(NULL, COND, MS, 0, "915wfa")
 
 #define KHz(x) (1000*x)
 #define MHz(x) KHz(1000*x)
@@ -191,6 +212,7 @@ struct intel_connector {
 
 	/* Cached EDID for eDP and LVDS. May hold ERR_PTR for invalid EDID. */
 	struct edid *edid;
+	int edid_err;
 };
 
 struct intel_crtc {
