@@ -1293,7 +1293,6 @@ extern unsigned int i915_preliminary_hw_support __read_mostly;
 extern struct drm_driver i915_driver_info;
 extern struct cdev_pager_ops i915_gem_pager_ops;
 extern int intel_iommu_gfx_mapped;
-extern int i915_panel_invert_brightness;
 
 const struct intel_device_info *i915_get_device_id(int device);
 
