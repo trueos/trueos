@@ -380,6 +380,42 @@ drm_clflush_virt_range(char *addr, unsigned long length)
 #endif
 }
 
+void
+hex_dump_to_buffer(const void *buf, size_t len, int rowsize, int groupsize,
+    char *linebuf, size_t linebuflen, bool ascii __unused)
+{
+	int i, j, c;
+
+	i = j = 0;
+
+	while (i < len && j <= linebuflen) {
+		c = ((const char *)buf)[i];
+
+		if (i != 0) {
+			if (i % rowsize == 0) {
+				/* Newline required. */
+				sprintf(linebuf + j, "\n");
+				++j;
+			} else if (i % groupsize == 0) {
+				/* Space required. */
+				sprintf(linebuf + j, " ");
+				++j;
+			}
+		}
+
+		if (j > linebuflen - 1)
+			break;
+
+		sprintf(linebuf + j, "%02X", c);
+		j += 2;
+
+		++i;
+	}
+
+	if (j <= linebuflen)
+		sprintf(linebuf + j, "\n");
+}
+
 #if DRM_LINUX
 
 #include <sys/sysproto.h>

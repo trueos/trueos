@@ -608,6 +608,9 @@ on_each_cpu(void callback(void *data), void *data, int wait)
 	smp_rendezvous(NULL, callback, NULL, data);
 }
 
+void	hex_dump_to_buffer(const void *buf, size_t len, int rowsize,
+	    int groupsize, char *linebuf, size_t linebuflen, bool ascii);
+
 #define KIB_NOTYET()							\
 do {									\
 	if (drm_debug && drm_notyet)					\
