@@ -963,4 +963,11 @@ struct drm_i915_reg_read {
 	__u64 offset;
 	__u64 val; /* Return value */
 };
+
+/* For use by IPS driver */
+extern unsigned long i915_read_mch_val(void);
+extern bool i915_gpu_raise(void);
+extern bool i915_gpu_lower(void);
+extern bool i915_gpu_busy(void);
+extern bool i915_gpu_turbo_disable(void);
 #endif /* _UAPI_I915_DRM_H_ */

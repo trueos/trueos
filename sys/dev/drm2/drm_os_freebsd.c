@@ -67,6 +67,25 @@ ns_to_timeval(const int64_t nsec)
         return (tv);
 }
 
+/* Copied from OFED. */
+unsigned long drm_linux_timer_hz_mask;
+
+static void
+drm_linux_timer_init(void *arg)
+{
+
+        /*
+         * Compute an internal HZ value which can divide 2**32 to
+         * avoid timer rounding problems when the tick value wraps
+         * around 2**32:
+         */
+        drm_linux_timer_hz_mask = 1;
+        while (drm_linux_timer_hz_mask < (unsigned long)hz)
+                drm_linux_timer_hz_mask *= 2;
+        drm_linux_timer_hz_mask--;
+}
+SYSINIT(drm_linux_timer, SI_SUB_DRIVERS, SI_ORDER_FIRST, drm_linux_timer_init, NULL);
+
 static const drm_pci_id_list_t *
 drm_find_description(int vendor, int device, const drm_pci_id_list_t *idlist)
 {

@@ -215,8 +215,10 @@ typedef void			irqreturn_t;
 #define	PCI_VENDOR_ID_SONY		0x104d
 #define	PCI_VENDOR_ID_VIA		0x1106
 
-#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
-#define	hweight32(i)	bitcount32(i)
+#define DIV_ROUND_UP(n,d) 	(((n) + (d) - 1) / (d))
+#define	DIV_ROUND_CLOSEST(n,d)	(((n) + (d) / 2) / (d))
+#define	div_u64(n, d)		((n) / (d))
+#define	hweight32(i)		bitcount32(i)
 
 static inline unsigned long
 roundup_pow_of_two(unsigned long x)
@@ -445,12 +447,16 @@ capable(enum __drm_capabilities cap)
 #define DRM_LOCK(dev)		sx_xlock(&(dev)->dev_struct_lock)
 #define DRM_UNLOCK(dev) 	sx_xunlock(&(dev)->dev_struct_lock)
 
+extern unsigned long drm_linux_timer_hz_mask;
 #define jiffies			ticks
 #define	jiffies_to_msecs(x)	(((int64_t)(x)) * 1000 / hz)
 #define	msecs_to_jiffies(x)	(((int64_t)(x)) * hz / 1000)
 #define	timespec_to_jiffies(x)	(((x)->tv_sec * 1000000 + (x)->tv_nsec) * hz / 1000000)
 #define	time_after(a,b)		((long)(b) - (long)(a) < 0)
 #define	time_after_eq(a,b)	((long)(b) - (long)(a) <= 0)
+#define	round_jiffies(j)	((unsigned long)(((j) + drm_linux_timer_hz_mask) & ~drm_linux_timer_hz_mask))
+#define	round_jiffies_up(j)		round_jiffies(j) /* TODO */
+#define	round_jiffies_up_relative(j)	round_jiffies_up(j) /* TODO */
 
 #define	getrawmonotonic(ts)	getnanouptime(ts)
 
@@ -521,6 +527,7 @@ extern const char *fb_mode_option;
 #undef	CONFIG_VGA_CONSOLE
 
 #define	EXPORT_SYMBOL(x)
+#define	EXPORT_SYMBOL_GPL(x)
 #define	MODULE_AUTHOR(author)
 #define	MODULE_DESCRIPTION(desc)
 #define	MODULE_LICENSE(license)
@@ -530,6 +537,8 @@ extern const char *fb_mode_option;
 
 #define	printk		printf
 #define	pr_err		DRM_ERROR
+#define	pr_warn		DRM_WARNING
+#define	pr_warn_once	DRM_WARNING
 #define	KERN_DEBUG	""
 
 /* I2C compatibility. */
