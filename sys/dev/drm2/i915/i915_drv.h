@@ -398,8 +398,8 @@ struct intel_fbc_work;
 
 struct intel_gmbus {
 	device_t gmbus_bridge;
-	device_t bbbus_bridge;
 	device_t gmbus;
+	device_t bbbus_bridge;
 	device_t bbbus;
 	u32 force_bit;
 	u32 reg0;
