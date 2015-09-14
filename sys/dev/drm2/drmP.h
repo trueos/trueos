@@ -216,6 +216,13 @@ struct drm_device;
 			__func__ , ##__VA_ARGS__);			\
 } while (0)
 
+/* TODO */
+#define DRM_LOG_KMS(fmt, ...) do {					\
+	if ((drm_debug & DRM_DEBUGBITS_KMS) != 0)			\
+		printf("[" DRM_NAME ":KMS:pid%d:%s] " fmt, DRM_CURRENTPID,\
+			__func__ , ##__VA_ARGS__);			\
+} while (0)
+
 /*@}*/
 
 /***********************************************************************/
