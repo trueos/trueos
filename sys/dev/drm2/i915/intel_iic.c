@@ -643,6 +643,15 @@ int intel_setup_gmbus(struct drm_device *dev)
 		struct intel_gmbus *bus = &dev_priv->gmbus[i];
 		u32 port = i + 1; /* +1 to map gmbus index to pin pair */
 
+		bus->dev_priv = dev_priv;
+
+		/* By default use a conservative clock rate */
+		bus->reg0 = port | GMBUS_RATE_100KHZ;
+
+		/* gmbus seems to be broken on i830 */
+		if (IS_I830(dev))
+			bus->force_bit = 1;
+
 		/*
 		 * bbbus_bridge
 		 *
@@ -706,15 +715,6 @@ int intel_setup_gmbus(struct drm_device *dev)
 			goto err;
 		}
 		bus->gmbus = iic_dev;
-
-		bus->dev_priv = dev_priv;
-
-		/* By default use a conservative clock rate */
-		bus->reg0 = port | GMBUS_RATE_100KHZ;
-
-		/* gmbus seems to be broken on i830 */
-		if (IS_I830(dev))
-			bus->force_bit = 1;
 
 		intel_gpio_setup(bus, port);
 	}
