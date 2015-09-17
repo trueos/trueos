@@ -485,6 +485,7 @@ static int
 intel_gmbus_attach(device_t idev)
 {
 	struct intel_iic_softc *sc;
+	struct drm_device *dev;
 	struct drm_i915_private *dev_priv;
 	int pin, port;
 
@@ -497,7 +498,8 @@ intel_gmbus_attach(device_t idev)
 	    "reserved");
 	device_set_desc(idev, sc->name);
 
-	dev_priv = device_get_softc(device_get_parent(idev));
+	dev = device_get_softc(device_get_parent(idev));
+	dev_priv = dev->dev_private;
 	sc->bus = &dev_priv->gmbus[pin];
 
 	/* add bus interface device */
@@ -555,6 +557,7 @@ static int
 intel_iicbb_attach(device_t idev)
 {
 	struct intel_iic_softc *sc;
+	struct drm_device *dev;
 	struct drm_i915_private *dev_priv;
 	int pin, port;
 
@@ -567,7 +570,8 @@ intel_iicbb_attach(device_t idev)
 	    "reserved");
 	device_set_desc(idev, sc->name);
 
-	dev_priv = device_get_softc(device_get_parent(idev));
+	dev = device_get_softc(device_get_parent(idev));
+	dev_priv = dev->dev_private;
 	sc->bus = &dev_priv->gmbus[pin];
 
 	/* add generic bit-banging code */
