@@ -4427,7 +4427,7 @@ void intel_gt_init(struct drm_device *dev)
 		dev_priv->gt.force_wake_get = __gen6_gt_force_wake_get;
 		dev_priv->gt.force_wake_put = __gen6_gt_force_wake_put;
 	}
-	TIMEOUT_TASK_INIT(dev_priv->tq, &dev_priv->rps.delayed_resume_work, 0,
+	TIMEOUT_TASK_INIT(dev_priv->wq, &dev_priv->rps.delayed_resume_work, 0,
 	    intel_gen6_powersave_work, dev_priv);
 }
 

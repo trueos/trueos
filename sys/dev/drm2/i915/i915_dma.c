@@ -1574,7 +1574,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		ret = -ENOMEM;
 		goto out_mtrrfree;
 	}
-	taskqueue_start_threads(&dev_priv->tq, 1, PWAIT, "i915 taskq");
+	taskqueue_start_threads(&dev_priv->wq, 1, PWAIT, "i915 taskq");
 
 	/* This must be called before any calls to HAS_PCH_* */
 	intel_detect_pch(dev);

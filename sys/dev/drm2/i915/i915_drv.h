@@ -934,8 +934,6 @@ typedef struct drm_i915_private {
 	/* Old dri1 support infrastructure, beware the dragons ya fools entering
 	 * here! */
 	struct i915_dri1_state dri1;
-
-	struct taskqueue *tq;
 } drm_i915_private_t;
 
 /* Iterate over initialised rings */

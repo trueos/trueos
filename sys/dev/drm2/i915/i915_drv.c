@@ -510,7 +510,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 			return error;
 		}
 
-		taskqueue_cancel_timeout(dev_priv->tq,
+		taskqueue_cancel_timeout(dev_priv->wq,
 		    &dev_priv->rps.delayed_resume_work, NULL);
 
 		intel_modeset_disable(dev);
