@@ -1332,6 +1332,15 @@ extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
 extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
 extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 
+extern int i915_batchbuffer(struct drm_device *dev, void *data,
+			    struct drm_file *file_priv);
+extern int i915_cmdbuffer(struct drm_device *dev, void *data,
+			  struct drm_file *file_priv);
+extern int i915_irq_emit(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+extern int i915_getparam(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+
 extern void intel_console_resume(void *context, int pending);
 
 /* i915_irq.c */

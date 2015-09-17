@@ -773,7 +773,7 @@ void intel_teardown_gmbus(struct drm_device *dev)
 		mtx_unlock(&Giant);
 
 		KASSERT(ret == 0, ("unable to detach iic bus %s: %d",
-		    i2c->name, ret));
+		    device_get_desc(bus->gmbus_bridge), ret));
 	}
 
 	sx_destroy(&dev_priv->gmbus_mutex);

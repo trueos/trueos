@@ -1073,6 +1073,11 @@ static const struct file_operations i915_driver_fops = {
 };
 #endif /* __linux__ */
 
+#ifdef COMPAT_FREEBSD32
+extern struct drm_ioctl_desc i915_compat_ioctls[];
+extern int i915_compat_ioctls_nr;
+#endif
+
 static struct drm_driver driver = {
 	/* Don't use MTRRs here; the Xserver or userspace app should
 	 * deal with them for Intel hardware.

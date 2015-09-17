@@ -33,6 +33,7 @@
 #define	AGP_AGP_I810_H
 
 #include <sys/param.h>
+#include <sys/rman.h>
 #include <sys/sglist.h>
 
 #include <vm/vm.h>
