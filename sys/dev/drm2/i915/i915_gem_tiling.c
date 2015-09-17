@@ -476,6 +476,23 @@ i915_gem_swizzle_page(vm_page_t page)
 }
 
 void
+i915_gem_object_do_bit_17_swizzle_page(struct drm_i915_gem_object *obj,
+    vm_page_t m)
+{
+	char new_bit_17;
+
+	if (obj->bit_17 == NULL)
+		return;
+
+	new_bit_17 = VM_PAGE_TO_PHYS(m) >> 17;
+	if ((new_bit_17 & 0x1) !=
+	    (test_bit(m->pindex, obj->bit_17) != 0)) {
+		i915_gem_swizzle_page(m);
+		vm_page_dirty(m);
+	}
+}
+
+void
 i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {
 	int page_count = obj->base.size >> PAGE_SHIFT;
