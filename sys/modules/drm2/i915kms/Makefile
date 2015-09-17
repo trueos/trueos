@@ -26,6 +26,7 @@ SRCS	= \
 	intel_ddi.c \
 	intel_display.c \
 	intel_dp.c \
+	intel_dvo.c \
 	intel_fb.c \
 	intel_hdmi.c \
 	intel_iic.c \
