@@ -564,19 +564,16 @@ int i915_suspend(struct drm_device *dev, pm_message_t state)
 	return 0;
 }
 
-#ifdef __linux__
-void intel_console_resume(struct work_struct *work)
+void intel_console_resume(void *arg, int pending)
 {
 	struct drm_i915_private *dev_priv =
-		container_of(work, struct drm_i915_private,
-			     console_resume_work);
+		arg;
 	struct drm_device *dev = dev_priv->dev;
 
 	console_lock();
 	intel_fbdev_set_suspend(dev, 0);
 	console_unlock();
 }
-#endif
 
 static int __i915_drm_thaw(struct drm_device *dev)
 {
