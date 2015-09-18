@@ -118,13 +118,13 @@ static bool ch7xxx_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 
 	struct iic_msg msgs[] = {
 		{
-			.slave = dvo->slave_addr,
+			.slave = dvo->slave_addr << 1,
 			.flags = 0,
 			.len = 1,
 			.buf = out_buf,
 		},
 		{
-			.slave = dvo->slave_addr,
+			.slave = dvo->slave_addr << 1,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = in_buf,
@@ -134,7 +134,7 @@ static bool ch7xxx_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 	out_buf[0] = addr;
 	out_buf[1] = 0;
 
-	if (i2c_transfer(adapter, msgs, 2) == 2) {
+	if (iicbus_transfer(adapter, msgs, 2) == 0) {
 		*ch = in_buf[0];
 		return true;
 	}
@@ -153,7 +153,7 @@ static bool ch7xxx_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 	device_t adapter = dvo->i2c_bus;
 	uint8_t out_buf[2];
 	struct iic_msg msg = {
-		.slave = dvo->slave_addr,
+		.slave = dvo->slave_addr << 1,
 		.flags = 0,
 		.len = 2,
 		.buf = out_buf,
@@ -162,7 +162,7 @@ static bool ch7xxx_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 	out_buf[0] = addr;
 	out_buf[1] = ch;
 
-	if (i2c_transfer(adapter, &msg, 1) == 1)
+	if (iicbus_transfer(adapter, &msg, 1) == 0)
 		return true;
 
 	if (!ch7xxx->quiet) {

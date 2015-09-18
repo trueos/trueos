@@ -545,7 +545,6 @@ extern const char *fb_mode_option;
 #define	I2C_M_RD	IIC_M_RD
 #define	I2C_M_WR	IIC_M_WR
 #define	I2C_M_NOSTART	IIC_M_NOSTART
-#define	i2c_transfer	iicbus_transfer
 
 struct fb_info *	framebuffer_alloc(void);
 void			framebuffer_release(struct fb_info *info);

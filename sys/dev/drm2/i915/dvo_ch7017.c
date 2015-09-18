@@ -169,31 +169,31 @@ static bool ch7017_read(struct intel_dvo_device *dvo, u8 addr, u8 *val)
 {
 	struct iic_msg msgs[] = {
 		{
-			.slave = dvo->slave_addr,
+			.slave = dvo->slave_addr << 1,
 			.flags = 0,
 			.len = 1,
 			.buf = &addr,
 		},
 		{
-			.slave = dvo->slave_addr,
+			.slave = dvo->slave_addr << 1,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = val,
 		}
 	};
-	return i2c_transfer(dvo->i2c_bus, msgs, 2) == 2;
+	return iicbus_transfer(dvo->i2c_bus, msgs, 2) == 0;
 }
 
 static bool ch7017_write(struct intel_dvo_device *dvo, u8 addr, u8 val)
 {
 	uint8_t buf[2] = { addr, val };
 	struct iic_msg msg = {
-		.slave = dvo->slave_addr,
+		.slave = dvo->slave_addr << 1,
 		.flags = 0,
 		.len = 2,
 		.buf = buf,
 	};
-	return i2c_transfer(dvo->i2c_bus, &msg, 1) == 1;
+	return iicbus_transfer(dvo->i2c_bus, &msg, 1) == 0;
 }
 
 /** Probes for a CH7017 on the given bus and slave address. */
