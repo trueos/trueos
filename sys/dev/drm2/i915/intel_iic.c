@@ -467,7 +467,7 @@ timeout:
 
 	/* Hardware may not support GMBUS over these pins? Try GPIO bitbanging instead. */
 	bus->force_bit = 1;
-	ret = -IICBUS_TRANSFER(adapter, msgs, num);
+	ret = -IICBUS_TRANSFER(bus->bbbus, msgs, num);
 
 out:
 	sx_xunlock(&dev_priv->gmbus_mutex);
