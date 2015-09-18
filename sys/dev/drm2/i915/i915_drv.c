@@ -961,6 +961,7 @@ static int i915_probe(device_t kdev)
 	 * implementation for gen3 (and only gen3) that used legacy drm maps
 	 * (gasp!) to share buffers between X and the client. Hence we need to
 	 * keep around the fake agp stuff for gen3, even when kms is enabled. */
+#ifdef FREEBSD_WIP
 	if (intel_info->gen != 3) {
 		driver.driver_features &=
 			~(DRIVER_USE_AGP | DRIVER_REQUIRE_AGP);
@@ -968,6 +969,7 @@ static int i915_probe(device_t kdev)
 		DRM_ERROR("drm/i915 can't work without intel_agp module!\n");
 		return (ENXIO);
 	}
+#endif /* FREEBSD_WIP */
 
 	return -drm_probe_helper(kdev, pciidlist);
 }
