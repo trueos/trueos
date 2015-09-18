@@ -217,24 +217,12 @@ intel_gpio_post_xfer(device_t adapter)
 }
 
 static void
-intel_gpio_setup_bridge(struct intel_gmbus *bus, device_t bridge)
-{
-	struct intel_iic_softc *sc;
-
-	sc = device_get_softc(bridge);
-	sc->bus = bus;
-}
-
-static void
 intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 {
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
 	/* -1 to map pin pair to gmbus index */
 	bus->gpio_reg = dev_priv->gpio_mmio_base + gmbus_ports[pin - 1].reg;
-
-	intel_gpio_setup_bridge(bus, bus->gmbus_bridge);
-	intel_gpio_setup_bridge(bus, bus->bbbus_bridge);
 }
 
 static int
@@ -664,6 +652,8 @@ int intel_setup_gmbus(struct drm_device *dev)
 		if (IS_I830(dev))
 			bus->force_bit = 1;
 
+		intel_gpio_setup(bus, port);
+
 		/*
 		 * bbbus_bridge
 		 *
@@ -726,9 +716,8 @@ int intel_setup_gmbus(struct drm_device *dev)
 			DRM_ERROR("gmbus bridge doesn't have iicbus child\n");
 			goto err;
 		}
-		bus->gmbus = iic_dev;
 
-		intel_gpio_setup(bus, port);
+		bus->gmbus = iic_dev;
 	}
 	mtx_unlock(&Giant);
 
