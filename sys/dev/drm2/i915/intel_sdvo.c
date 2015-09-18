@@ -2723,7 +2723,7 @@ static int intel_sdvo_ddc_proxy_xfer(device_t adapter,
 	sdvo = sc->intel_sdvo;
 
 	if (!intel_sdvo_set_control_bus_switch(sdvo, sdvo->ddc_bus))
-		return -EIO;
+		return EIO;
 
 	return (iicbus_transfer(sdvo->i2c, msgs, num));
 }
