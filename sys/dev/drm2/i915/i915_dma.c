@@ -1824,7 +1824,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv;
 
 	DRM_DEBUG_DRIVER("\n");
-	file_priv = malloc(sizeof(*file_priv), DRM_MEM_FILES, M_NOWAIT);
+	file_priv = malloc(sizeof(*file_priv), DRM_MEM_FILES, M_NOWAIT | M_ZERO);
 	if (!file_priv)
 		return -ENOMEM;
 
