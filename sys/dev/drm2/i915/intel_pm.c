@@ -4303,10 +4303,10 @@ static void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 {
 
-	mtx_lock(&dev_priv->gt_lock);
+	sx_xlock(&dev_priv->gt_lock);
 	if (dev_priv->forcewake_count++ == 0)
 		dev_priv->gt.force_wake_get(dev_priv);
-	mtx_unlock(&dev_priv->gt_lock);
+	sx_xunlock(&dev_priv->gt_lock);
 }
 
 void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv)
@@ -4340,10 +4340,10 @@ static void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv)
 void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
 
-	mtx_lock(&dev_priv->gt_lock);
+	sx_xlock(&dev_priv->gt_lock);
 	if (--dev_priv->forcewake_count == 0)
 		dev_priv->gt.force_wake_put(dev_priv);
-	mtx_unlock(&dev_priv->gt_lock);
+	sx_xunlock(&dev_priv->gt_lock);
 }
 
 int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
@@ -4413,7 +4413,7 @@ void intel_gt_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	mtx_init(&dev_priv->gt_lock, "i915_gt_lock", NULL, MTX_DEF);
+	sx_init(&dev_priv->gt_lock, "i915_gt_lock");
 
 	intel_gt_reset(dev);
 

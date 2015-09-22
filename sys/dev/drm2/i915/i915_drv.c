@@ -771,7 +771,7 @@ static int gen6_do_reset(struct drm_device *dev)
 	/* Hold gt_lock across reset to prevent any register access
 	 * with forcewake not set correctly
 	 */
-	mtx_lock(&dev_priv->gt_lock);
+	sx_xlock(&dev_priv->gt_lock);
 
 	/* Reset the chip */
 
@@ -793,7 +793,7 @@ static int gen6_do_reset(struct drm_device *dev)
 	/* Restore fifo count */
 	dev_priv->gt_fifo_count = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
 
-	mtx_unlock(&dev_priv->gt_lock);
+	sx_xunlock(&dev_priv->gt_lock);
 	return ret;
 }
 
@@ -1354,13 +1354,13 @@ u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 	if (IS_GEN5(dev_priv->dev)) \
 		ilk_dummy_write(dev_priv); \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
-		mtx_lock(&dev_priv->gt_lock); \
+		sx_xlock(&dev_priv->gt_lock); \
 		if (dev_priv->forcewake_count == 0) \
 			dev_priv->gt.force_wake_get(dev_priv); \
 		val = DRM_READ##x(dev_priv->mmio_map, reg); \
 		if (dev_priv->forcewake_count == 0) \
 			dev_priv->gt.force_wake_put(dev_priv); \
-		mtx_unlock(&dev_priv->gt_lock); \
+		sx_xunlock(&dev_priv->gt_lock); \
 	} else if (IS_VALLEYVIEW(dev_priv->dev) && IS_DISPLAYREG(reg)) { \
 		val = DRM_READ##x(dev_priv->mmio_map, reg + 0x180000);		\
 	} else { \
