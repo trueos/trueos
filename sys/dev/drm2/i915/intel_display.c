@@ -2941,9 +2941,11 @@ static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 	if (atomic_read(&dev_priv->mm.wedged))
 		return false;
 
-	mtx_lock(&dev->event_lock);
+	/*
+	 * NOTE Linux<->FreeBSD dev->event_lock is already locked in
+	 * intel_crtc_wait_for_pending_flips().
+	 */
 	pending = to_intel_crtc(crtc)->unpin_work != NULL;
-	mtx_unlock(&dev->event_lock);
 
 	return pending;
 }
