@@ -391,7 +391,7 @@ static void gen6_pm_rps_work(void *context, int pending)
 		gen6_set_rps(dev_priv->dev, new_delay);
 	}
 
-	mtx_lock(&dev_priv->rps.hw_lock);
+	mtx_unlock(&dev_priv->rps.hw_lock);
 }
 
 
