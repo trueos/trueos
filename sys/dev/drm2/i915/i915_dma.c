@@ -1609,9 +1609,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	mtx_init(&dev_priv->error_lock, "915err", NULL, MTX_DEF);
 	mtx_init(&dev_priv->error_completion_lock, "915cmp", NULL, MTX_DEF);
 	mtx_init(&dev_priv->rps.lock, "915rps", NULL, MTX_DEF);
-	mtx_init(&dev_priv->dpio_lock, "915dpi", NULL, MTX_DEF);
+	sx_init(&dev_priv->dpio_lock, "915dpi");
 
-	mtx_init(&dev_priv->rps.hw_lock, "915rpshw", NULL, MTX_DEF);
+	sx_init(&dev_priv->rps.hw_lock, "915rpshw");
 
 	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
 		dev_priv->num_pipe = 3;
@@ -1660,9 +1660,9 @@ out_gem_unload:
 	mtx_destroy(&dev_priv->irq_lock);
 	mtx_destroy(&dev_priv->error_lock);
 	mtx_destroy(&dev_priv->rps.lock);
-	mtx_destroy(&dev_priv->dpio_lock);
+	sx_destroy(&dev_priv->dpio_lock);
 
-	mtx_destroy(&dev_priv->rps.hw_lock);
+	sx_destroy(&dev_priv->rps.hw_lock);
 
 	if (dev->msi_enabled)
 		drm_pci_disable_msi(dev);
@@ -1807,9 +1807,9 @@ int i915_driver_unload(struct drm_device *dev)
 	mtx_destroy(&dev_priv->irq_lock);
 	mtx_destroy(&dev_priv->error_lock);
 	mtx_destroy(&dev_priv->rps.lock);
-	mtx_destroy(&dev_priv->dpio_lock);
+	sx_destroy(&dev_priv->dpio_lock);
 
-	mtx_destroy(&dev_priv->rps.hw_lock);
+	sx_destroy(&dev_priv->rps.hw_lock);
 
 #ifdef __linux__
 	pci_dev_put(dev_priv->bridge_dev);

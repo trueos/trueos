@@ -578,7 +578,7 @@ struct intel_gen6_power_mgmt {
 	 * Protects RPS/RC6 register access and PCU communication.
 	 * Must be taken after struct_mutex if nested.
 	 */
-	struct mtx hw_lock;
+	struct sx hw_lock;
 };
 
 struct intel_ilk_power_mgmt {
@@ -665,7 +665,7 @@ typedef struct drm_i915_private {
 	struct mtx irq_lock;
 
 	/* DPIO indirect register protection */
-	struct mtx dpio_lock;
+	struct sx dpio_lock;
 
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 pipestat[2];

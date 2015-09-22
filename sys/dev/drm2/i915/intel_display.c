@@ -413,7 +413,7 @@ u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg)
 {
 	u32 val = 0;
 
-	mtx_lock(&dev_priv->dpio_lock);
+	sx_xlock(&dev_priv->dpio_lock);
 	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100)) {
 		DRM_ERROR("DPIO idle wait timed out\n");
 		goto out_unlock;
@@ -429,7 +429,7 @@ u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg)
 	val = I915_READ(DPIO_DATA);
 
 out_unlock:
-	mtx_unlock(&dev_priv->dpio_lock);
+	sx_xunlock(&dev_priv->dpio_lock);
 	return val;
 }
 
@@ -437,7 +437,7 @@ static void intel_dpio_write(struct drm_i915_private *dev_priv, int reg,
 			     u32 val)
 {
 
-	mtx_lock(&dev_priv->dpio_lock);
+	sx_xlock(&dev_priv->dpio_lock);
 	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100)) {
 		DRM_ERROR("DPIO idle wait timed out\n");
 		goto out_unlock;
@@ -451,7 +451,7 @@ static void intel_dpio_write(struct drm_i915_private *dev_priv, int reg,
 		DRM_ERROR("DPIO write wait timed out\n");
 
 out_unlock:
-       mtx_unlock(&dev_priv->dpio_lock);
+       sx_xunlock(&dev_priv->dpio_lock);
 }
 
 static void vlv_init_dpio(struct drm_device *dev)
@@ -1504,7 +1504,7 @@ intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 {
 	u32 tmp;
 
-	mtx_lock(&dev_priv->dpio_lock);
+	sx_xlock(&dev_priv->dpio_lock);
 	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_BUSY) == 0, 100)) {
 		DRM_ERROR("timeout waiting for SBI to become ready\n");
 		goto out_unlock;
@@ -1526,7 +1526,7 @@ intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
 	}
 
 out_unlock:
-	mtx_unlock(&dev_priv->dpio_lock);
+	sx_xunlock(&dev_priv->dpio_lock);
 }
 
 static u32
@@ -1535,7 +1535,7 @@ intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
 {
 	u32 value = 0;
 
-	mtx_lock(&dev_priv->dpio_lock);
+	sx_xlock(&dev_priv->dpio_lock);
 	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_BUSY) == 0, 100)) {
 		DRM_ERROR("timeout waiting for SBI to become ready\n");
 		goto out_unlock;
@@ -1558,7 +1558,7 @@ intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
 	value = I915_READ(SBI_DATA);
 
 out_unlock:
-	mtx_unlock(&dev_priv->dpio_lock);
+	sx_xunlock(&dev_priv->dpio_lock);
 	return value;
 }
 

@@ -2455,7 +2455,7 @@ void gen6_set_rps(struct drm_device *dev, u8 val)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 limits = gen6_rps_limits(dev_priv, &val);
 
-	mtx_assert(&dev_priv->rps.hw_lock, MA_OWNED);
+	sx_assert(&dev_priv->rps.hw_lock, SA_XLOCKED);
 	WARN_ON(val > dev_priv->rps.max_delay);
 	WARN_ON(val < dev_priv->rps.min_delay);
 
@@ -2533,7 +2533,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 	int rc6_mode;
 	int i, ret;
 
-	mtx_assert(&dev_priv->rps.hw_lock, MA_OWNED);
+	sx_assert(&dev_priv->rps.hw_lock, SA_XLOCKED);
 
 	/* Here begins a magic sequence of register writes to enable
 	 * auto-downclocking.
@@ -2675,7 +2675,7 @@ static void gen6_update_ring_freq(struct drm_device *dev)
 	unsigned int ia_freq, max_ia_freq;
 	int scaling_factor = 180;
 
-	mtx_assert(&dev_priv->rps.hw_lock, MA_OWNED);
+	sx_assert(&dev_priv->rps.hw_lock, SA_XLOCKED);
 
 #ifdef FREEBSD_WIP
 	max_ia_freq = cpufreq_quick_get_max(0);
@@ -3453,9 +3453,9 @@ void intel_disable_gt_powersave(struct drm_device *dev)
 		ironlake_disable_rc6(dev);
 	} else if (INTEL_INFO(dev)->gen >= 6 && !IS_VALLEYVIEW(dev)) {
 		taskqueue_cancel_timeout(dev_priv->wq, &dev_priv->rps.delayed_resume_work, NULL);
-		mtx_lock(&dev_priv->rps.hw_lock);
+		sx_xlock(&dev_priv->rps.hw_lock);
 		gen6_disable_rps(dev);
-		mtx_unlock(&dev_priv->rps.hw_lock);
+		sx_xunlock(&dev_priv->rps.hw_lock);
 	}
 }
 
@@ -3464,10 +3464,10 @@ static void intel_gen6_powersave_work(void *arg, int pending)
 	struct drm_i915_private *dev_priv = arg;
 	struct drm_device *dev = dev_priv->dev;
 
-	mtx_lock(&dev_priv->rps.hw_lock);
+	sx_xlock(&dev_priv->rps.hw_lock);
 	gen6_enable_rps(dev);
 	gen6_update_ring_freq(dev);
-	mtx_unlock(&dev_priv->rps.hw_lock);
+	sx_xunlock(&dev_priv->rps.hw_lock);
 }
 
 void intel_enable_gt_powersave(struct drm_device *dev)
@@ -4433,7 +4433,7 @@ void intel_gt_init(struct drm_device *dev)
 
 int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val)
 {
-	mtx_assert(&dev_priv->rps.hw_lock, MA_OWNED);
+	sx_assert(&dev_priv->rps.hw_lock, SA_XLOCKED);
 
 	if (I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) {
 		DRM_DEBUG_DRIVER("warning: pcode (read) mailbox access failed\n");
@@ -4457,7 +4457,7 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val)
 
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
 {
-	mtx_assert(&dev_priv->rps.hw_lock, MA_OWNED);
+	sx_assert(&dev_priv->rps.hw_lock, SA_XLOCKED);
 
 	if (I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) {
 		DRM_DEBUG_DRIVER("warning: pcode (write) mailbox access failed\n");

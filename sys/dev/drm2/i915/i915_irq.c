@@ -376,7 +376,7 @@ static void gen6_pm_rps_work(void *context, int pending)
 	if ((pm_iir & GEN6_PM_DEFERRED_EVENTS) == 0)
 		return;
 
-	mtx_lock(&dev_priv->rps.hw_lock);
+	sx_xlock(&dev_priv->rps.hw_lock);
 
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD)
 		new_delay = dev_priv->rps.cur_delay + 1;
@@ -391,7 +391,7 @@ static void gen6_pm_rps_work(void *context, int pending)
 		gen6_set_rps(dev_priv->dev, new_delay);
 	}
 
-	mtx_unlock(&dev_priv->rps.hw_lock);
+	sx_xunlock(&dev_priv->rps.hw_lock);
 }
 
 
