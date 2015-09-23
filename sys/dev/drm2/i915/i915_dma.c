@@ -64,7 +64,7 @@ static inline u32
 intel_read_legacy_status_page(struct drm_i915_private *dev_priv, int reg)
 {
 	if (I915_NEED_GFX_HWS(dev_priv->dev))
-		return ((volatile u32*)(dev_priv->dri1.gfx_hws_cpu_addr))[reg];
+		return ioread32(dev_priv->dri1.gfx_hws_cpu_addr + reg);
 	else
 		return intel_read_status_page(LP_RING(dev_priv), reg);
 }
@@ -1057,7 +1057,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		DRM_ERROR("tried to set status page when mode setting active\n");
+		WARN(1, "tried to set status page when mode setting active\n");
 		return 0;
 	}
 
@@ -1114,11 +1114,10 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 	int reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
 	u64 mchbar_addr;
-	u64 temp;
 
 	if (INTEL_INFO(dev)->gen >= 4)
-		temp_hi = pci_read_config(dev_priv->bridge_dev, reg + 4, 4);
-	temp_lo = pci_read_config(dev_priv->bridge_dev, reg, 4);
+		pci_read_config_dword(dev_priv->bridge_dev, reg + 4, &temp_hi);
+	pci_read_config_dword(dev_priv->bridge_dev, reg, &temp_lo);
 	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
 
 	/* If ACPI doesn't have it, assume we need to allocate it ourselves */
@@ -1140,14 +1139,12 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 		return -ENOMEM;
 	}
 
-	if (INTEL_INFO(dev)->gen >= 4) {
-		temp = rman_get_start(dev_priv->mch_res);
-		temp >>= 32;
-		pci_write_config(dev_priv->bridge_dev, reg + 4, temp, 4);
-	}
+	if (INTEL_INFO(dev)->gen >= 4)
+		pci_write_config_dword(dev_priv->bridge_dev, reg + 4,
+				       upper_32_bits(rman_get_start(dev_priv->mch_res)));
 
-	pci_write_config(dev_priv->bridge_dev, reg,
-	    rman_get_start(dev_priv->mch_res) & UINT32_MAX, 4);
+	pci_write_config_dword(dev_priv->bridge_dev, reg,
+			       lower_32_bits(rman_get_start(dev_priv->mch_res)));
 	return 0;
 }
 
@@ -1163,10 +1160,10 @@ intel_setup_mchbar(struct drm_device *dev)
 	dev_priv->mchbar_need_disable = false;
 
 	if (IS_I915G(dev) || IS_I915GM(dev)) {
-		temp = pci_read_config(dev_priv->bridge_dev, DEVEN_REG, 4);
+		pci_read_config_dword(dev_priv->bridge_dev, DEVEN_REG, &temp);
 		enabled = !!(temp & DEVEN_MCHBAR_EN);
 	} else {
-		temp = pci_read_config(dev_priv->bridge_dev, mchbar_reg, 4);
+		pci_read_config_dword(dev_priv->bridge_dev, mchbar_reg, &temp);
 		enabled = temp & 1;
 	}
 
@@ -1181,11 +1178,11 @@ intel_setup_mchbar(struct drm_device *dev)
 
 	/* Space is allocated or reserved, so enable it. */
 	if (IS_I915G(dev) || IS_I915GM(dev)) {
-		pci_write_config(dev_priv->bridge_dev, DEVEN_REG,
-				       temp | DEVEN_MCHBAR_EN, 4);
+		pci_write_config_dword(dev_priv->bridge_dev, DEVEN_REG,
+				       temp | DEVEN_MCHBAR_EN);
 	} else {
-		temp = pci_read_config(dev_priv->bridge_dev, mchbar_reg, 4);
-		pci_write_config(dev_priv->bridge_dev, mchbar_reg, temp | 1, 4);
+		pci_read_config_dword(dev_priv->bridge_dev, mchbar_reg, &temp);
+		pci_write_config_dword(dev_priv->bridge_dev, mchbar_reg, temp | 1);
 	}
 }
 
@@ -1198,13 +1195,13 @@ intel_teardown_mchbar(struct drm_device *dev)
 
 	if (dev_priv->mchbar_need_disable) {
 		if (IS_I915G(dev) || IS_I915GM(dev)) {
-			temp = pci_read_config(dev_priv->bridge_dev, DEVEN_REG, 4);
+			pci_read_config_dword(dev_priv->bridge_dev, DEVEN_REG, &temp);
 			temp &= ~DEVEN_MCHBAR_EN;
-			pci_write_config(dev_priv->bridge_dev, DEVEN_REG, temp, 4);
+			pci_write_config_dword(dev_priv->bridge_dev, DEVEN_REG, temp);
 		} else {
-			temp = pci_read_config(dev_priv->bridge_dev, mchbar_reg, 4);
+			pci_read_config_dword(dev_priv->bridge_dev, mchbar_reg, &temp);
 			temp &= ~1;
-			pci_write_config(dev_priv->bridge_dev, mchbar_reg, temp, 4);
+			pci_write_config_dword(dev_priv->bridge_dev, mchbar_reg, temp);
 		}
 	}
 
