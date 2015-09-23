@@ -171,6 +171,7 @@ typedef void			irqreturn_t;
 #define	do_div(a, b)		((a) /= (b))
 #define	div64_u64(a, b)		((a) / (b))
 #define	lower_32_bits(n)	((u32)(n))
+#define	upper_32_bits(n)	((u32)(((n) >> 16) >> 16))
 
 #define	__set_bit(n, s)		set_bit((n), (s))
 #define	__clear_bit(n, s)	clear_bit((n), (s))
