@@ -426,6 +426,13 @@ int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 	if (obj->has_dma_mapping)
 		return 0;
 
+#ifdef FREEBSD_WIP
+	if (!dma_map_sg(&obj->base.dev->pdev->dev,
+			obj->pages->sgl, obj->pages->nents,
+			PCI_DMA_BIDIRECTIONAL))
+		return -ENOSPC;
+#endif /* FREEBSD_WIP */
+
 	return 0;
 }
 
