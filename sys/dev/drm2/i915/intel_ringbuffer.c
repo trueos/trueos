@@ -449,7 +449,7 @@ init_pipe_control(struct intel_ring_buffer *ring)
 	if (ring->private)
 		return 0;
 
-	pc = malloc(sizeof(*pc), DRM_I915_GEM, M_WAITOK);
+	pc = malloc(sizeof(*pc), DRM_I915_GEM, M_NOWAIT);
 	if (!pc)
 		return -ENOMEM;
 
