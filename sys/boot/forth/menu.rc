@@ -68,6 +68,11 @@ set mainmenu_command[6]="2 goto_menu"
 set mainmenu_keycode[6]=111
 set mainansi_caption[6]="Configure Boot ^[1mO^[mptions..."
 
+set mainmenu_caption[7]="Select Boot [E]nvironment..."
+set mainmenu_command[7]="3 goto_menu"
+set mainmenu_keycode[7]=101
+set mainansi_caption[7]="Select Boot ^[1mE^[37mnvironment..."
+
 \ 
 \ BOOT OPTIONS MENU
 \ 
@@ -118,6 +123,82 @@ set optionsmenu_command[6]="toggle_verbose"
 set optionsmenu_keycode[6]=118
 set optionsansi_caption[6]="^[1mV^[merbose..... ^[34;1mOff^[m"
 set optionstoggled_ansi[6]="^[1mV^[merbose..... ^[32;7mOn^[m"
+
+\ 
+\ BOOT ENVIRONMENT MENU
+\ 
+
+set menuset_name3="bootenv"
+
+set bootenvmenu_caption[1]="Selected: "
+set bootenvmenu_command[1]="1 goto_menu"
+set bootenvmenu_keycode[1]=8
+set bootenvansi_caption[1]="^[1mSelected: ^[37m"
+
+set bemenu_current="Selected: "
+set beansi_current="^[1m${bemenu_current}^[37m"
+set bemenu_page="[P]age: "
+set beansi_page="^[1mP^[37mage: "
+set bemenu_pageof=" of "
+set beansi_pageof="${bemenu_pageof}"
+set zfs_be_currpage=1
+
+: init_bootenv ( -- )
+	s" set menu_caption[1]=${bemenu_current}${vfs.root.mountfrom}" evaluate
+	s" set ansi_caption[1]=${beansi_current}${vfs.root.mountfrom}" evaluate
+	s" set menu_caption[3]=${bemenu_page}${zfs_be_currpage}${bemenu_pageof}${zfs_be_pages}" evaluate
+	s" set ansi_caption[3]=${beansi_page}${zfs_be_currpage}${bemenu_pageof}${zfs_be_pages}" evaluate
+;
+
+set bootenvmenu_init="init_bootenv"
+unset bootenvmenu_caption[1]
+unset bootenvansi_caption[1]
+
+: set_bootenv ( N -- N TRUE )
+	dup s" set vfs.root.mountfrom=${bootenv_root[E]}" 38 +c! evaluate
+	s" set currdev=${vfs.root.mountfrom}:" evaluate
+	s" /boot/defaults/loader.conf" read-conf
+	s" /boot/loader.conf" read-conf
+	s" unload" evaluate
+	init_bootenv
+	clear			\ Clear the screen (in screen.4th)
+	print_version		\ print version string (bottom-right; see version.4th)
+	draw-beastie		\ Draw FreeBSD logo at right (in beastie.4th)
+	draw-brand		\ Draw brand.4th logo at top (in brand.4th)
+	menu-init		\ Initialize menu and draw bounding box (in menu.4th)
+	menu-redraw		\ Redraw menu (in menu.4th)
+	TRUE
+;
+
+: set_be_page ( N -- N TRUE )
+	s" zfs_be_currpage" getenv dup -1 = if
+		drop s" 1"
+	else
+		0 s>d 2swap
+		>number ( ud caddr/u -- ud' caddr'/u' )	\ convert string to numbers
+		2drop					\ drop the string
+		1 um/mod ( ud u1 -- u2 u3 ) 		\ convert double ud' to single u3' and remainder u2
+		swap drop ( ud2 u3 -- u3 )		\ drop the remainder u2
+		1+					\ increment the page number
+		s>d <# #s #>				\ convert back to a string
+	then
+	s" zfs_be_currpage" setenv
+	s" reloadbe" evaluate
+	3 goto_menu
+	TRUE
+;
+
+set bootenvmenu_caption[2]="[A]ctive: ${vfs.root.mountfrom}"
+set bootenvansi_caption[2]="^[1mA^[37mctive: ${vfs.root.mountfrom}"
+set bootenvmenu_keycode[2]=97
+set bootenvmenu_command[2]="set_bootenv"
+set bootenv_root[2]="${zfs_be_active}"
+
+set bootenvmenu_keycode[3]=112
+set bootenvmenu_command[3]="set_be_page"
+
+set bootenvmenu_options=4
+set bootenvmenu_optionstext="Boot Environments:"
 
 \ Enable automatic booting (add ``autoboot_delay=N'' to loader.conf(5) to
 \ customize the timeout; default is 10-seconds)
