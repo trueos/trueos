@@ -1111,6 +1111,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	atomic_read(&dev_priv->mm.wedged))
 	end = 0;
 	flags = interruptible ? PCATCH : 0;
+	mtx_lock(&dev_priv->irq_lock);
 	do {
 		while (!EXIT_COND) {
 			end = -msleep_sbt(ring, &dev_priv->irq_lock, flags,
@@ -1125,6 +1126,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 		if (ret)
 			end = ret;
 	} while (end == -EWOULDBLOCK && wait_forever);
+	mtx_unlock(&dev_priv->irq_lock);
 
 	getrawmonotonic(&now);
 
