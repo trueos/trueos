@@ -717,8 +717,12 @@ int intel_setup_gmbus(struct drm_device *dev)
 err:
 	while (--i) {
 		struct intel_gmbus *bus = &dev_priv->gmbus[i];
-		device_delete_child(dev->dev, bus->gmbus_bridge);
+		if (bus->gmbus_bridge != NULL)
+			device_delete_child(dev->dev, bus->gmbus_bridge);
+		if (bus->bbbus_bridge != NULL)
+			device_delete_child(dev->dev, bus->bbbus_bridge);
 	}
+	mtx_unlock(&Giant);
 	sx_destroy(&dev_priv->gmbus_mutex);
 	return ret;
 }
@@ -762,8 +766,15 @@ void intel_teardown_gmbus(struct drm_device *dev)
 		ret = device_delete_child(dev->dev, bus->gmbus_bridge);
 		mtx_unlock(&Giant);
 
-		KASSERT(ret == 0, ("unable to detach iic bus %s: %d",
+		KASSERT(ret == 0, ("unable to detach iic gmbus %s: %d",
 		    device_get_desc(bus->gmbus_bridge), ret));
+
+		mtx_lock(&Giant);
+		ret = device_delete_child(dev->dev, bus->bbbus_bridge);
+		mtx_unlock(&Giant);
+
+		KASSERT(ret == 0, ("unable to detach iic bbbus %s: %d",
+		    device_get_desc(bus->bbbus_bridge), ret));
 	}
 
 	sx_destroy(&dev_priv->gmbus_mutex);
