@@ -1792,11 +1792,16 @@ int i915_driver_unload(struct drm_device *dev)
 			i915_free_hws(dev);
 	}
 
-	if (dev_priv->mmio_map != NULL)
-		drm_rmmap(dev, dev_priv->mmio_map);
-
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
+
+	/*
+	 * Note Linux<->FreeBSD: Free mmio_map after
+	 * intel_teardown_gmbus(), because, on FreeBSD,
+	 * intel_i2c_reset() is called during iicbus_detach().
+	 */
+	if (dev_priv->mmio_map != NULL)
+		drm_rmmap(dev, dev_priv->mmio_map);
 
 	if (dev_priv->wq != NULL)
 		taskqueue_free(dev_priv->wq);
