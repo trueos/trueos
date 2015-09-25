@@ -281,8 +281,25 @@ static enum { SYNCER_RUNNING, SYNCER_SHUTTING_DOWN, SYNCER_FINAL_DELAY }
  * XXX desiredvnodes is historical cruft and should not exist.
  */
 int desiredvnodes;
-SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW,
-    &desiredvnodes, 0, "Maximum number of vnodes");
+
+static int
+sysctl_update_desiredvnodes(SYSCTL_HANDLER_ARGS)
+{
+	int error, old_desiredvnodes;
+
+	old_desiredvnodes = desiredvnodes;
+	if ((error = sysctl_handle_int(oidp, arg1, arg2, req)) != 0)
+		return (error);
+	if (old_desiredvnodes != desiredvnodes) {
+		vfs_hash_changesize(desiredvnodes);
+		cache_changesize(desiredvnodes);
+	}
+	return (0);
+}
+
+SYSCTL_PROC(_kern, KERN_MAXVNODES, maxvnodes,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, &desiredvnodes, 0,
+    sysctl_update_desiredvnodes, "I", "Maximum number of vnodes");
 SYSCTL_ULONG(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
     &wantfreevnodes, 0, "Minimum number of vnodes (legacy)");
 static int vnlru_nowhere;
@@ -4328,6 +4345,15 @@ vop_mknod_post(void *ap, int rc)
 }
 
 void
+vop_reclaim_post(void *ap, int rc)
+{
+	struct vop_reclaim_args *a = ap;
+
+	if (!rc)
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_REVOKE);
+}
+
+void
 vop_remove_post(void *ap, int rc)
 {
 	struct vop_remove_args *a = ap;
@@ -4607,7 +4633,7 @@ filt_vfsread(struct knote *kn, long hint)
 	 * filesystem is gone, so set the EOF flag and schedule
 	 * the knote for deletion.
 	 */
-	if (hint == NOTE_REVOKE) {
+	if (hint == NOTE_REVOKE || (hint == 0 && vp->v_type == VBAD)) {
 		VI_LOCK(vp);
 		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
 		VI_UNLOCK(vp);
@@ -4636,7 +4662,7 @@ filt_vfswrite(struct knote *kn, long hint)
 	 * filesystem is gone, so set the EOF flag and schedule
 	 * the knote for deletion.
 	 */
-	if (hint == NOTE_REVOKE)
+	if (hint == NOTE_REVOKE || (hint == 0 && vp->v_type == VBAD))
 		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
 
 	kn->kn_data = 0;
@@ -4653,7 +4679,7 @@ filt_vfsvnode(struct knote *kn, long hint)
 	VI_LOCK(vp);
 	if (kn->kn_sfflags & hint)
 		kn->kn_fflags |= hint;
-	if (hint == NOTE_REVOKE) {
+	if (hint == NOTE_REVOKE || (hint == 0 && vp->v_type == VBAD)) {
 		kn->kn_flags |= EV_EOF;
 		VI_UNLOCK(vp);
 		return (1);

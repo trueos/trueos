@@ -1125,31 +1125,45 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * different position within the queue.  In either
 		 * case, addl_page_shortage should not be incremented.
 		 */
-		if (!vm_pageout_page_lock(m, &next)) {
-			vm_page_unlock(m);
-			continue;
+		if (!vm_pageout_page_lock(m, &next))
+			goto unlock_page;
+		else if (m->hold_count != 0) {
+			/*
+			 * Held pages are essentially stuck in the
+			 * queue.  So, they ought to be discounted
+			 * from the inactive count.  See the
+			 * calculation of the page_shortage for the
+			 * loop over the active queue below.
+			 */
+			addl_page_shortage++;
+			goto unlock_page;
 		}
 		object = m->object;
-		if (!VM_OBJECT_TRYWLOCK(object) &&
-		    !vm_pageout_fallback_object_lock(m, &next)) {
-			vm_page_unlock(m);
-			VM_OBJECT_WUNLOCK(object);
-			continue;
+		if (!VM_OBJECT_TRYWLOCK(object)) {
+			if (!vm_pageout_fallback_object_lock(m, &next))
+				goto unlock_object;
+			else if (m->hold_count != 0) {
+				addl_page_shortage++;
+				goto unlock_object;
+			}
 		}
-
-		/*
-		 * Don't mess with busy pages, keep them at at the
-		 * front of the queue, most likely they are being
-		 * paged out.  Increment addl_page_shortage for busy
-		 * pages, because they may leave the inactive queue
-		 * shortly after page scan is finished.
-		 */
 		if (vm_page_busied(m)) {
-			vm_page_unlock(m);
-			VM_OBJECT_WUNLOCK(object);
+			/*
+			 * Don't mess with busy pages.  Leave them at
+			 * the front of the queue.  Most likely, they
+			 * are being paged out and will leave the
+			 * queue shortly after the scan finishes.  So,
+			 * they ought to be discounted from the
+			 * inactive count.
+			 */
 			addl_page_shortage++;
+unlock_object:
+			VM_OBJECT_WUNLOCK(object);
+unlock_page:
+			vm_page_unlock(m);
 			continue;
 		}
+		KASSERT(m->hold_count == 0, ("Held page %p", m));
 
 		/*
 		 * We unlock the inactive page queue, invalidating the
@@ -1164,21 +1178,13 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * Invalid pages can be easily freed. They cannot be
 		 * mapped, vm_page_free() asserts this.
 		 */
-		if (m->valid == 0 && m->hold_count == 0) {
-			vm_page_free(m);
-			PCPU_INC(cnt.v_dfree);
-			--page_shortage;
-			goto drop_page;
-		}
+		if (m->valid == 0)
+			goto free_page;
 
 		/*
-		 * We bump the activation count if the page has been
-		 * referenced while in the inactive queue.  This makes
-		 * it less likely that the page will be added back to the
-		 * inactive queue prematurely again.  Here we check the 
-		 * page tables (or emulated bits, if any), given the upper 
-		 * level VM system not knowing anything about existing 
-		 * references.
+		 * If the page has been referenced and the object is not dead,
+		 * reactivate or requeue the page depending on whether the
+		 * object is mapped.
 		 */
 		if ((m->aflags & PGA_REFERENCED) != 0) {
 			vm_page_aflag_clear(m, PGA_REFERENCED);
@@ -1191,33 +1197,21 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			KASSERT(!pmap_page_is_mapped(m),
 			    ("vm_pageout_scan: page %p is mapped", m));
 		}
-
-		/*
-		 * If the upper level VM system knows about any page 
-		 * references, we reactivate the page or requeue it.
-		 */
 		if (act_delta != 0) {
 			if (object->ref_count != 0) {
 				vm_page_activate(m);
-				m->act_count += act_delta + ACT_ADVANCE;
-			} else {
-				vm_pagequeue_lock(pq);
-				queues_locked = TRUE;
-				vm_page_requeue_locked(m);
-			}
-			goto drop_page;
-		}
 
-		if (m->hold_count != 0) {
-			/*
-			 * Held pages are essentially stuck in the
-			 * queue.  So, they ought to be discounted
-			 * from the inactive count.  See the
-			 * calculation of the page_shortage for the
-			 * loop over the active queue below.
-			 */
-			addl_page_shortage++;
-			goto drop_page;
+				/*
+				 * Increase the activation count if the page
+				 * was referenced while in the inactive queue.
+				 * This makes it less likely that the page will
+				 * be returned prematurely to the inactive
+				 * queue.
+ 				 */
+				m->act_count += act_delta + ACT_ADVANCE;
+				goto drop_page;
+			} else if ((object->flags & OBJ_DEAD) == 0)
+				goto requeue_page;
 		}
 
 		/*
@@ -1238,9 +1232,19 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			/*
 			 * Clean pages can be freed.
 			 */
+free_page:
 			vm_page_free(m);
 			PCPU_INC(cnt.v_dfree);
 			--page_shortage;
+		} else if ((object->flags & OBJ_DEAD) != 0) {
+			/*
+			 * Leave dirty pages from dead objects at the front of
+			 * the queue.  They are being paged out and freed by
+			 * the thread that destroyed the object.  They will
+			 * leave the queue shortly after the scan finishes, so 
+			 * they should be discounted from the inactive count.
+			 */
+			addl_page_shortage++;
 		} else if ((m->flags & PG_WINATCFLS) == 0 && pass < 2) {
 			/*
 			 * Dirty pages need to be paged out, but flushing
@@ -1255,6 +1259,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			 * the thrash point for a heavily loaded machine.
 			 */
 			m->flags |= PG_WINATCFLS;
+requeue_page:
 			vm_pagequeue_lock(pq);
 			queues_locked = TRUE;
 			vm_page_requeue_locked(m);
@@ -1276,19 +1281,8 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				pageout_ok = vm_page_count_min();
 			else
 				pageout_ok = TRUE;
-
-			/*
-			 * We don't bother paging objects that are "dead".  
-			 * Those objects are in a "rundown" state.
-			 */
-			if (!pageout_ok || (object->flags & OBJ_DEAD) != 0) {
-				vm_pagequeue_lock(pq);
-				vm_page_unlock(m);
-				VM_OBJECT_WUNLOCK(object);
-				queues_locked = TRUE;
-				vm_page_requeue_locked(m);
-				goto relock_queues;
-			}
+			if (!pageout_ok)
+				goto requeue_page;
 			error = vm_pageout_clean(m);
 			/*
 			 * Decrement page_shortage on success to account for
@@ -1644,9 +1638,15 @@ vm_pageout_worker(void *arg)
 		}
 		if (vm_pages_needed) {
 			/*
-			 * Still not done, take a second pass without waiting
-			 * (unlimited dirty cleaning), otherwise sleep a bit
-			 * and try again.
+			 * We're still not done.  Either vm_pages_needed was
+			 * set by another thread during the previous scan
+			 * (typically, this happens during a level 0 scan) or
+			 * vm_pages_needed was already set and the scan failed
+			 * to free enough pages.  If we haven't yet performed
+			 * a level >= 2 scan (unlimited dirty cleaning), then
+			 * upgrade the level and scan again now.  Otherwise,
+			 * sleep a bit and try again later.  While sleeping,
+			 * vm_pages_needed can be cleared.
 			 */
 			if (domain->vmd_pass > 1)
 				msleep(&vm_pages_needed,
@@ -1657,15 +1657,14 @@ vm_pageout_worker(void *arg)
 			 * Good enough, sleep until required to refresh
 			 * stats.
 			 */
-			domain->vmd_pass = 0;
 			msleep(&vm_pages_needed, &vm_page_queue_free_mtx,
 			    PVM, "psleep", hz);
-
 		}
 		if (vm_pages_needed) {
 			vm_cnt.v_pdwakeups++;
 			domain->vmd_pass++;
-		}
+		} else
+			domain->vmd_pass = 0;
 		mtx_unlock(&vm_page_queue_free_mtx);
 		vm_pageout_scan(domain, domain->vmd_pass);
 	}

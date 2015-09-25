@@ -91,14 +91,14 @@ typedef enum {
  * WARNING:  Keep the bottom nibble here free, we OR in the data direction
  * flags for each command.
  *
- * Note:  "OK_ON_ALL_LUNS" == we don't have to have a lun configured
+ * Note:  "OK_ON_NO_LUN"   == we don't have to have a lun configured
  *        "OK_ON_BOTH"     == we have to have a lun configured
  *        "SA5"            == command has 5-bit service action at byte 1
  */
 typedef enum {
 	CTL_CMD_FLAG_NONE		= 0x0000,
 	CTL_CMD_FLAG_NO_SENSE		= 0x0010,
-	CTL_CMD_FLAG_OK_ON_ALL_LUNS	= 0x0020,
+	CTL_CMD_FLAG_OK_ON_NO_LUN	= 0x0020,
 	CTL_CMD_FLAG_ALLOW_ON_RESV	= 0x0040,
 	CTL_CMD_FLAG_ALLOW_ON_PR_WRESV	= 0x0080,
 	CTL_CMD_FLAG_OK_ON_PROC		= 0x0100,
@@ -106,10 +106,11 @@ typedef enum {
 	CTL_CMD_FLAG_OK_ON_BOTH		= 0x0300,
 	CTL_CMD_FLAG_OK_ON_STOPPED	= 0x0400,
 	CTL_CMD_FLAG_OK_ON_INOPERABLE	= 0x0800,
-	CTL_CMD_FLAG_OK_ON_OFFLINE	= 0x1000,
-	CTL_CMD_FLAG_OK_ON_SECONDARY	= 0x2000,
+	CTL_CMD_FLAG_OK_ON_STANDBY	= 0x1000,
+	CTL_CMD_FLAG_OK_ON_UNAVAIL	= 0x2000,
 	CTL_CMD_FLAG_ALLOW_ON_PR_RESV	= 0x4000,
-	CTL_CMD_FLAG_SA5		= 0x8000
+	CTL_CMD_FLAG_SA5		= 0x8000,
+	CTL_CMD_FLAG_RUN_HERE		= 0x10000
 } ctl_cmd_flags;
 
 typedef enum {
@@ -157,14 +158,9 @@ typedef enum {
 	CTL_LUN_PR_RESERVED	= 0x100,
 	CTL_LUN_PRIMARY_SC	= 0x200,
 	CTL_LUN_SENSE_DESC	= 0x400,
-	CTL_LUN_READONLY	= 0x800
+	CTL_LUN_READONLY	= 0x800,
+	CTL_LUN_PEER_SC_PRIMARY	= 0x1000
 } ctl_lun_flags;
-
-typedef enum {
-	CTL_LUN_SERSEQ_OFF,
-	CTL_LUN_SERSEQ_READ,
-	CTL_LUN_SERSEQ_ON
-} ctl_lun_serseq;
 
 typedef enum {
 	CTLBLOCK_FLAG_NONE	= 0x00,
@@ -287,6 +283,9 @@ static const struct ctl_page_index page_index_template[] = {
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, ctl_caching_sp_handler},
 	{SMS_CONTROL_MODE_PAGE, 0, sizeof(struct scsi_control_page), NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, ctl_control_page_handler},
+	{SMS_CONTROL_MODE_PAGE | SMPH_SPF, 0x01,
+	 sizeof(struct scsi_control_ext_page), NULL,
+	 CTL_PAGE_FLAG_NONE, NULL, NULL},
 	{SMS_INFO_EXCEPTIONS_PAGE, 0, sizeof(struct scsi_info_exceptions_page), NULL,
 	 CTL_PAGE_FLAG_NONE, NULL, NULL},
 	{SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF, 0x02,
@@ -306,6 +305,7 @@ struct ctl_mode_pages {
 	struct scsi_rigid_disk_page	rigid_disk_page[4];
 	struct scsi_caching_page	caching_page[4];
 	struct scsi_control_page	control_page[4];
+	struct scsi_control_ext_page	control_ext_page[4];
 	struct scsi_info_exceptions_page ie_page[4];
 	struct ctl_logical_block_provisioning_page lbp_page[4];
 	struct copan_debugconf_subpage	debugconf_subpage[4];
@@ -376,7 +376,6 @@ struct ctl_lun {
 	struct mtx			lun_lock;
 	uint64_t			lun;
 	ctl_lun_flags			flags;
-	ctl_lun_serseq			serseq;
 	STAILQ_HEAD(,ctl_error_desc)	error_list;
 	uint64_t			error_serial;
 	struct ctl_softc		*ctl_softc;
@@ -399,13 +398,14 @@ struct ctl_lun {
 	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
 #endif
 	ctl_ua_type			*pending_ua[CTL_MAX_PORTS];
+	uint8_t				ua_tpt_info[8];
 	time_t				lasttpt;
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_log_pages		log_pages;
 	struct ctl_lun_io_stats		stats;
 	uint32_t			res_idx;
 	unsigned int			PRGeneration;
-	uint64_t			*pr_keys[2 * CTL_MAX_PORTS];
+	uint64_t			*pr_keys[CTL_MAX_PORTS];
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
 	uint8_t				res_type;
@@ -441,11 +441,13 @@ struct ctl_softc {
 	ctl_gen_flags flags;
 	ctl_ha_mode ha_mode;
 	int ha_id;
-	int ha_state;
 	int is_single;
-	int port_offset;
-	int persis_offset;
-	int inquiry_pq_no_lun;
+	ctl_ha_link_state ha_link;
+	int port_min;
+	int port_max;
+	int port_cnt;
+	int init_min;
+	int init_max;
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
 	void *othersc_pool;
@@ -476,8 +478,6 @@ struct ctl_softc {
 extern const struct ctl_cmd_entry ctl_cmd_table[256];
 
 uint32_t ctl_get_initindex(struct ctl_nexus *nexus);
-uint32_t ctl_get_resindex(struct ctl_nexus *nexus);
-uint32_t ctl_port_idx(int port_num);
 int ctl_lun_map_init(struct ctl_port *port);
 int ctl_lun_map_deinit(struct ctl_port *port);
 int ctl_lun_map_set(struct ctl_port *port, uint32_t plun, uint32_t glun);
@@ -515,7 +515,6 @@ int ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio);
 int ctl_report_supported_opcodes(struct ctl_scsiio *ctsio);
 int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
 int ctl_report_timestamp(struct ctl_scsiio *ctsio);
-int ctl_isc(struct ctl_scsiio *ctsio);
 int ctl_get_lba_status(struct ctl_scsiio *ctsio);
 
 void ctl_tpc_init(struct ctl_softc *softc);
