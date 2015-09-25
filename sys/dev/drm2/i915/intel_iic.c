@@ -503,15 +503,9 @@ intel_gmbus_attach(device_t idev)
 static int
 intel_gmbus_detach(device_t idev)
 {
-	struct intel_iic_softc *sc;
-	device_t child;
 
-	sc = device_get_softc(idev);
-
-	child = sc->iic_dev;
 	bus_generic_detach(idev);
-	if (child != NULL)
-		device_delete_child(idev, child);
+	device_delete_children(idev);
 
 	return (0);
 }
@@ -576,15 +570,10 @@ intel_iicbb_attach(device_t idev)
 static int
 intel_iicbb_detach(device_t idev)
 {
-	struct intel_iic_softc *sc;
-	device_t child;
 
-	sc = device_get_softc(idev);
-
-	child = sc->iic_dev;
 	bus_generic_detach(idev);
-	if (child)
-		device_delete_child(idev, child);
+	device_delete_children(idev);
+
 	return (0);
 }
 
