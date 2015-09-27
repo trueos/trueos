@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <machine/bus.h>
-#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
@@ -583,7 +582,7 @@ dwmmc_attach(device_t dev)
 	if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_ROCKCHIP) {
 		sc->use_pio = 1;
 		sc->pwren_inverted = 1;
-	} else {
+	} else if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_EXYNOS) {
 		WRITE4(sc, EMMCP_MPSBEGIN0, 0);
 		WRITE4(sc, EMMCP_SEND0, 0);
 		WRITE4(sc, EMMCP_CTRL0, (MPSCTRL_SECURE_READ_BIT |
@@ -1209,4 +1208,5 @@ static driver_t dwmmc_driver = {
 static devclass_t dwmmc_devclass;
 
 DRIVER_MODULE(dwmmc, simplebus, dwmmc_driver, dwmmc_devclass, 0, 0);
+DRIVER_MODULE(dwmmc, ofwbus, dwmmc_driver, dwmmc_devclass, 0, 0);
 
