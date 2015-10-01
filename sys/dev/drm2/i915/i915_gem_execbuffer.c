@@ -214,6 +214,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		*(uint32_t *)(vaddr + page_offset) = reloc->delta;
 		sf_buf_free(sf);
 	} else {
+		struct drm_i915_private *dev_priv = dev->dev_private;
 		uint32_t __iomem *reloc_entry;
 		char __iomem *reloc_page;
 
@@ -227,7 +228,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 		/* Map the page containing the relocation we're going to perform.  */
 		reloc->offset += obj->gtt_offset;
-		reloc_page = pmap_mapdev_attr(dev->agp->base + (reloc->offset &
+		reloc_page = pmap_mapdev_attr(dev_priv->mm.gtt_base_addr + (reloc->offset &
 		    ~PAGE_MASK), PAGE_SIZE, PAT_WRITE_COMBINING);
 		reloc_entry = (uint32_t __iomem *)
 			(reloc_page + (reloc->offset & PAGE_MASK));

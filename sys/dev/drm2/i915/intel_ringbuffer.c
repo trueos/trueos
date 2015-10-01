@@ -1148,6 +1148,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 				  struct intel_ring_buffer *ring)
 {
 	struct drm_i915_gem_object *obj;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
 	ring->dev = dev;
@@ -1190,7 +1191,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 
 	ring->virtual_start =
 		pmap_mapdev_attr(
-		    dev->agp->base + obj->gtt_offset, ring->size,
+		    dev_priv->mm.gtt->gma_bus_addr + obj->gtt_offset, ring->size,
 		    VM_MEMATTR_WRITE_COMBINING);
 	if (ring->virtual_start == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");

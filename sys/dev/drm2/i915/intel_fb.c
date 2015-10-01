@@ -55,6 +55,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 			  struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_device *dev = ifbdev->helper.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd = {};
@@ -99,7 +100,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	info->fb_size = size;
 	info->fb_bpp = sizes->surface_bpp;
-	info->fb_pbase = dev->agp->base + obj->gtt_offset;
+	info->fb_pbase = dev_priv->mm.gtt_base_addr + obj->gtt_offset;
 	info->fb_vbase = (vm_offset_t)pmap_mapdev_attr(info->fb_pbase, size,
 	    PAT_WRITE_COMBINING);
 

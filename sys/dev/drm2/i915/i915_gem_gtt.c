@@ -576,10 +576,10 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 
 	device_printf(dev->dev,
 	    "taking over the fictitious range 0x%lx-0x%lx\n",
-	    dev->agp->base + start,
-	    dev->agp->base + start + dev_priv->mm.mappable_gtt_total);
-	vm_phys_fictitious_reg_range(dev->agp->base + start,
-	    dev->agp->base + start + dev_priv->mm.mappable_gtt_total,
+	    dev_priv->mm.gtt_base_addr + start,
+	    dev_priv->mm.gtt_base_addr + start + dev_priv->mm.mappable_gtt_total);
+	vm_phys_fictitious_reg_range(dev_priv->mm.gtt_base_addr + start,
+	    dev_priv->mm.gtt_base_addr + start + dev_priv->mm.mappable_gtt_total,
 	    VM_MEMATTR_WRITE_COMBINING);
 }
 

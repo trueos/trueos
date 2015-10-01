@@ -650,7 +650,7 @@ unlock:
  */
 
 static inline int
-fast_user_write(struct drm_device *dev,
+fast_user_write(vm_paddr_t mapping_addr,
 		off_t page_base, int page_offset,
 		char __user *user_data,
 		int length)
@@ -659,7 +659,7 @@ fast_user_write(struct drm_device *dev,
 	void *vaddr;
 	unsigned long unwritten;
 
-	vaddr_atomic = pmap_mapdev_attr(dev->agp->base + page_base,
+	vaddr_atomic = pmap_mapdev_attr(mapping_addr + page_base,
 	    length, PAT_WRITE_COMBINING);
 	/* We can use the cpu mem copy function because this is X86. */
 	vaddr = (char __force*)vaddr_atomic + page_offset;
@@ -679,6 +679,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 			 struct drm_i915_gem_pwrite *args,
 			 struct drm_file *file)
 {
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	ssize_t remain;
 	off_t offset, page_base;
 	char __user *user_data;
@@ -718,7 +719,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 		 * source page isn't available.  Return the error and we'll
 		 * retry in the slow path.
 		 */
-		if (fast_user_write(dev, page_base,
+		if (fast_user_write(dev_priv->mm.gtt_base_addr, page_base,
 				    page_offset, user_data, page_length)) {
 			ret = -EFAULT;
 			goto out_unpin;
@@ -1555,10 +1556,10 @@ retry:
 
 	obj->fault_mappable = true;
 	VM_OBJECT_WLOCK(vm_obj);
-	page = PHYS_TO_VM_PAGE(dev->agp->base + obj->gtt_offset + offset);
+	page = PHYS_TO_VM_PAGE(dev_priv->mm.gtt_base_addr + obj->gtt_offset + offset);
 	KASSERT((page->flags & PG_FICTITIOUS) != 0,
 	    ("physical address %#jx not fictitious",
-	    (uintmax_t)(dev->agp->base + obj->gtt_offset + offset)));
+	    (uintmax_t)(dev_priv->mm.gtt_base_addr + obj->gtt_offset + offset)));
 	if (page == NULL) {
 		VM_OBJECT_WUNLOCK(vm_obj);
 		cause = 60;

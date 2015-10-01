@@ -192,12 +192,13 @@ struct intel_overlay {
 static struct overlay_registers __iomem *
 intel_overlay_map_regs(struct intel_overlay *overlay)
 {
+	drm_i915_private_t *dev_priv = overlay->dev->dev_private;
 	struct overlay_registers __iomem *regs;
 
 	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
 		regs = (struct overlay_registers __iomem *)overlay->reg_bo->phys_obj->handle->vaddr;
 	else
-		regs = pmap_mapdev_attr(overlay->dev->agp->base +
+		regs = pmap_mapdev_attr(dev_priv->mm.gtt_base_addr +
 		    overlay->reg_bo->gtt_offset, PAGE_SIZE,
 		    PAT_WRITE_COMBINING);
 

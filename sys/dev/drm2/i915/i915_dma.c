@@ -1067,7 +1067,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	ring->status_page.gfx_addr = hws->addr & (0x1ffff<<12);
 
 	dev_priv->dri1.gfx_hws_cpu_addr =
-		pmap_mapdev_attr(dev->agp->base + hws->addr, PAGE_SIZE,
+		pmap_mapdev_attr(dev_priv->mm.gtt_base_addr + hws->addr, PAGE_SIZE,
 		    VM_MEMATTR_WRITE_COMBINING);
 	if (dev_priv->dri1.gfx_hws_cpu_addr == NULL) {
 		i915_dma_cleanup(dev);
@@ -1375,7 +1375,6 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 	master->driver_priv = NULL;
 }
 
-#ifdef FREEBSD_WIP
 static void
 i915_mtrr_setup(struct drm_i915_private *dev_priv, unsigned long base,
 		unsigned long size)
@@ -1398,7 +1397,6 @@ i915_mtrr_setup(struct drm_i915_private *dev_priv, unsigned long base,
 			 "performance may suffer.\n");
 	}
 }
-#endif /* FREEBSD_WIP */
 
 #ifdef __linux__
 static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
@@ -1454,9 +1452,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	struct drm_i915_private *dev_priv;
 	const struct intel_device_info *info;
 	int ret = 0, mmio_bar, mmio_size;
-#ifdef __linux__
 	uint32_t aperture_size;
-#endif
 
 	info = i915_get_device_id(dev->pci_device);
 
@@ -1535,10 +1531,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto put_gmch;
 	}
 
-#ifdef FREEBSD_WIP
 	aperture_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 	dev_priv->mm.gtt_base_addr = dev_priv->mm.gtt->gma_bus_addr;
 
+#ifdef __linux__
 	dev_priv->mm.gtt_mapping =
 		io_mapping_create_wc(dev_priv->mm.gtt_base_addr,
 				     aperture_size);
@@ -1546,10 +1542,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		ret = -EIO;
 		goto out_rmmap;
 	}
+#endif
 
 	i915_mtrr_setup(dev_priv, dev_priv->mm.gtt_base_addr,
 			aperture_size);
-#endif /* FREEBSD_WIP */
 
 	/* The i915 workqueue is primarily used for batched retirement of
 	 * requests (and thus managing bo) once the task has been completed
@@ -1671,16 +1667,17 @@ out_gem_unload:
 		dev_priv->wq = NULL;
 	}
 out_mtrrfree:
-#ifdef FREEBSD_WIP
 	if (dev_priv->mm.gtt_mtrr >= 0) {
-		mtrr_del(dev_priv->mm.gtt_mtrr,
+		drm_mtrr_del(dev_priv->mm.gtt_mtrr,
 			 dev_priv->mm.gtt_base_addr,
-			 aperture_size);
+			 aperture_size,
+			 DRM_MTRR_WC);
 		dev_priv->mm.gtt_mtrr = -1;
 	}
+#ifdef __linux__
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 out_rmmap:
-#endif /* FREEBSD_WIP */
+#endif
 	if (dev_priv->mmio_map != NULL)
 		drm_rmmap(dev, dev_priv->mmio_map);
 put_gmch:
@@ -1721,15 +1718,16 @@ int i915_driver_unload(struct drm_device *dev)
 		taskqueue_drain_timeout(dev_priv->wq,
 		    &dev_priv->mm.retire_work);
 
-#ifdef FREEBSD_WIP
+#ifdef __linux__
 	io_mapping_free(dev_priv->mm.gtt_mapping);
+#endif
 	if (dev_priv->mm.gtt_mtrr >= 0) {
-		mtrr_del(dev_priv->mm.gtt_mtrr,
+		drm_mtrr_del(dev_priv->mm.gtt_mtrr,
 			 dev_priv->mm.gtt_base_addr,
-			 dev_priv->mm.gtt->gtt_mappable_entries * PAGE_SIZE);
+			 dev_priv->mm.gtt->gtt_mappable_entries * PAGE_SIZE,
+			 DRM_MTRR_WC);
 		dev_priv->mm.gtt_mtrr = -1;
 	}
-#endif /* FREEBSD_WIP */
 
 #ifdef __linux__
 	acpi_video_unregister();
