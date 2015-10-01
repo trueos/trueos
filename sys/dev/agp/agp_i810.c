@@ -2289,6 +2289,10 @@ agp_intel_gtt_get(device_t dev)
 	res.gtt_mappable_entries = sc->gtt_mappable_entries;
 	res.do_idle_maps = 0;
 	res.scratch_page_dma = VM_PAGE_TO_PHYS(bogus_page);
+	if (sc->agp.as_aperture != NULL)
+		res.gma_bus_addr = rman_get_start(sc->agp.as_aperture);
+	else
+		res.gma_bus_addr = 0;
 	return (res);
 }
 
