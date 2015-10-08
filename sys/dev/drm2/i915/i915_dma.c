@@ -1628,6 +1628,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		}
 	}
 
+	pci_enable_busmaster(dev->dev);
+
 #ifdef __linux__
 	i915_setup_sysfs(dev);
 #endif

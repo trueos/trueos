@@ -858,7 +858,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (ctx_id != 0) {
 			DRM_DEBUG("Ring %s doesn't support contexts\n",
 				  ring->name);
-			return -EPERM;
+			ret = -EPERM;
+			goto pre_struct_lock_err;
 		}
 		break;
 	case I915_EXEC_BLT:
@@ -866,7 +867,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (ctx_id != 0) {
 			DRM_DEBUG("Ring %s doesn't support contexts\n",
 				  ring->name);
-			return -EPERM;
+			ret = -EPERM;
+			goto pre_struct_lock_err;
 		}
 		break;
 	default:
@@ -877,7 +879,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (!intel_ring_initialized(ring)) {
 		DRM_DEBUG("execbuf with invalid ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
-		return -EINVAL;
+		ret = -EINVAL;
+		goto pre_struct_lock_err;
 	}
 
 	mode = args->flags & I915_EXEC_CONSTANTS_MASK;
