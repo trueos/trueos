@@ -713,6 +713,7 @@ static int
 validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 		   int count)
 {
+#ifdef FREEBSD_WIP
 	int i;
 	int relocs_total = 0;
 	int relocs_max = INT_MAX / sizeof(struct drm_i915_gem_relocation_entry);
@@ -747,6 +748,7 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 		if (fault_in_multipages_readable(ptr, length))
 			return -EFAULT;
 	}
+#endif /* FREEBSD_WIP */
 
 	return 0;
 }
