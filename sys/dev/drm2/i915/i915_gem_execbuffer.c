@@ -1210,7 +1210,7 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 	}
 
 	exec2_list = malloc(sizeof(*exec2_list)*args->buffer_count,
-			     DRM_MEM_DRIVER, M_NOWAIT);
+			     DRM_I915_GEM, M_NOWAIT);
 	if (exec2_list == NULL)
 		exec2_list = drm_malloc_ab(sizeof(*exec2_list),
 					   args->buffer_count);
