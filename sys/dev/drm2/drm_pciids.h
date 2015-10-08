@@ -54,6 +54,7 @@
 	{0x8086, 0x0412, 0, "Intel Haswell"}, \
 	{0x8086, 0x0416, 0, "Intel Haswell (M)"}, \
 	{0x8086, 0x041A, 0, "Intel Haswell (S)"}, \
+	{0x8086, 0x0A16, 0, "Intel Haswell (ULT GT2 mobile)"}, \
 	{0x8086, 0x0C16, 0, "Intel Haswell (SDV)"}, \
 	{0x8086, 0x2562, 0, "Intel i845G GMCH"}, \
 	{0x8086, 0x2572, 0, "Intel i865G GMCH"}, \

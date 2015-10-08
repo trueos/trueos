@@ -796,6 +796,11 @@ static const struct agp_i810_match {
 		.driver = &agp_i810_hsw_driver
 	},
 	{
+		.devid = 0x0a168086,
+		.name = "Haswell ULT GT2 mobile",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
 		.devid = 0x0c168086,
 		.name = "Haswell SDV",
 		.driver = &agp_i810_hsw_driver
