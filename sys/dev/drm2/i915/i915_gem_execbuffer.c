@@ -738,6 +738,12 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 		if (!access_ok(VERIFY_WRITE, ptr, length))
 			return -EFAULT;
 
+		/*
+		 * NOTE Linux<->FreeBSD: The previous port called
+		 * vm_fault_quick_hold_pages(). If this code is restored,
+		 * i915_gem_do_execbuffer() needs to perform the necessary
+		 * cleanup in case of an error.
+		 */
 		if (fault_in_multipages_readable(ptr, length))
 			return -EFAULT;
 	}
@@ -858,8 +864,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (ctx_id != 0) {
 			DRM_DEBUG("Ring %s doesn't support contexts\n",
 				  ring->name);
-			ret = -EPERM;
-			goto pre_struct_lock_err;
+			return -EPERM;
 		}
 		break;
 	case I915_EXEC_BLT:
@@ -867,8 +872,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (ctx_id != 0) {
 			DRM_DEBUG("Ring %s doesn't support contexts\n",
 				  ring->name);
-			ret = -EPERM;
-			goto pre_struct_lock_err;
+			return -EPERM;
 		}
 		break;
 	default:
@@ -879,8 +883,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (!intel_ring_initialized(ring)) {
 		DRM_DEBUG("execbuf with invalid ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
-		ret = -EINVAL;
-		goto pre_struct_lock_err;
+		return -EINVAL;
 	}
 
 	mode = args->flags & I915_EXEC_CONSTANTS_MASK;
