@@ -499,7 +499,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 #ifdef __linux__
 	pci_save_state(dev->pdev);
-#endif /* FREEBSD_WIP */
+#endif
 
 	/* If KMS is active, we do the leavevt stuff here */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -859,7 +859,7 @@ int i915_reset(struct drm_device *dev)
 	/* Previous code in FreeBSD's i915: */
 	if (!sx_try_xlock(&dev->dev_struct_lock))
 		return (-EBUSY);
-#endif
+#endif /* FREEBSD_WIP */
 	DRM_LOCK(dev);
 
 	i915_gem_reset(dev);
@@ -1116,7 +1116,7 @@ static struct drm_driver driver = {
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = i915_gem_prime_export,
 	.gem_prime_import = i915_gem_prime_import,
-#endif
+#endif /* FREEBSD_WIP */
 
 	.dumb_create = i915_gem_dumb_create,
 	.dumb_map_offset = i915_gem_mmap_gtt,
