@@ -257,7 +257,7 @@ static void i915_ppgtt_insert_pages(struct i915_hw_ppgtt *ppgtt,
 		sf = sf_buf_alloc(ppgtt->pt_pages[act_pd], SFB_CPUPRIVATE);
 		pt_vaddr = (uint32_t *)(uintptr_t)sf_buf_kva(sf);
 
-		for (j = first_pte; j < I915_PPGTT_PT_ENTRIES; j++) {
+		for (j = first_pte; j < last_pte; j++) {
 			page_addr = VM_PAGE_TO_PHYS(*pages);
 			pt_vaddr[j] = pte_encode(ppgtt->dev, page_addr,
 						 cache_level);
