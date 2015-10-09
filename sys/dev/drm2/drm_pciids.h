@@ -48,14 +48,45 @@
 	{0x8086, 0x0162, 0, "Intel IvyBridge"}, \
 	{0x8086, 0x0166, 0, "Intel IvyBridge (M)"}, \
 	{0x8086, 0x016A, 0, "Intel IvyBridge (S)"}, \
-	{0x8086, 0x0402, 0, "Intel Haswell"}, \
-	{0x8086, 0x0406, 0, "Intel Haswell (M)"}, \
-	{0x8086, 0x040A, 0, "Intel Haswell (S)"}, \
-	{0x8086, 0x0412, 0, "Intel Haswell"}, \
-	{0x8086, 0x0416, 0, "Intel Haswell (M)"}, \
-	{0x8086, 0x041A, 0, "Intel Haswell (S)"}, \
+	{0x8086, 0x0402, 0, "Intel Haswell (GT1 desktop)"}, \
+	{0x8086, 0x0406, 0, "Intel Haswell (GT1 mobile)"}, \
+	{0x8086, 0x040A, 0, "Intel Haswell (GT1 server)"}, \
+	{0x8086, 0x0412, 0, "Intel Haswell (GT2 desktop)"}, \
+	{0x8086, 0x0416, 0, "Intel Haswell (GT2 mobile)"}, \
+	{0x8086, 0x041A, 0, "Intel Haswell (GT2 server)"}, \
+	{0x8086, 0x0422, 0, "Intel Haswell (GT2 desktop)"}, \
+	{0x8086, 0x0426, 0, "Intel Haswell (GT2 mobile)"}, \
+	{0x8086, 0x042A, 0, "Intel Haswell (GT2 server)"}, \
+	{0x8086, 0x0A02, 0, "Intel Haswell (ULT GT1 desktop)"}, \
+	{0x8086, 0x0A06, 0, "Intel Haswell (ULT GT1 mobile)"}, \
+	{0x8086, 0x0A0A, 0, "Intel Haswell (ULT GT1 server)"}, \
+	{0x8086, 0x0A12, 0, "Intel Haswell (ULT GT2 desktop)"}, \
 	{0x8086, 0x0A16, 0, "Intel Haswell (ULT GT2 mobile)"}, \
-	{0x8086, 0x0C16, 0, "Intel Haswell (SDV)"}, \
+	{0x8086, 0x0A1A, 0, "Intel Haswell (ULT GT2 server)"}, \
+	{0x8086, 0x0A22, 0, "Intel Haswell (ULT GT2 desktop)"}, \
+	{0x8086, 0x0A26, 0, "Intel Haswell (ULT GT2 mobile)"}, \
+	{0x8086, 0x0A2A, 0, "Intel Haswell (ULT GT2 server)"}, \
+	{0x8086, 0x0C02, 0, "Intel Haswell (SDV GT1 desktop)"}, \
+	{0x8086, 0x0C06, 0, "Intel Haswell (SDV GT1 mobile)"}, \
+	{0x8086, 0x0C0A, 0, "Intel Haswell (SDV GT1 server)"}, \
+	{0x8086, 0x0C12, 0, "Intel Haswell (SDV GT2 desktop)"}, \
+	{0x8086, 0x0C16, 0, "Intel Haswell (SDV GT2 mobile)"}, \
+	{0x8086, 0x0C1A, 0, "Intel Haswell (SDV GT2 server)"}, \
+	{0x8086, 0x0C22, 0, "Intel Haswell (SDV GT2 desktop)"}, \
+	{0x8086, 0x0C26, 0, "Intel Haswell (SDV GT2 mobile)"}, \
+	{0x8086, 0x0C2A, 0, "Intel Haswell (SDV GT2 server)"}, \
+	{0x8086, 0x0D02, 0, "Intel Haswell (CRW GT1 desktop)"}, \
+	{0x8086, 0x0D06, 0, "Intel Haswell (CRW GT1 mobile)"}, \
+	{0x8086, 0x0D0A, 0, "Intel Haswell (CRW GT1 server)"}, \
+	{0x8086, 0x0D12, 0, "Intel Haswell (CRW GT2 desktop)"}, \
+	{0x8086, 0x0D16, 0, "Intel Haswell (CRW GT2 mobile)"}, \
+	{0x8086, 0x0D1A, 0, "Intel Haswell (CRW GT2 server)"}, \
+	{0x8086, 0x0D22, 0, "Intel Haswell (CRW GT2 desktop)"}, \
+	{0x8086, 0x0D26, 0, "Intel Haswell (CRW GT2 mobile)"}, \
+	{0x8086, 0x0D2A, 0, "Intel Haswell (CRW GT2 server)"}, \
+	{0x8086, 0x0155, 0, "Intel Valleyview (desktop)"}, \
+	{0x8086, 0x0157, 0, "Intel Valleyview (mobile)"}, \
+	{0x8086, 0x0F30, 0, "Intel Valleyview (mobile)"}, \
 	{0x8086, 0x2562, 0, "Intel i845G GMCH"}, \
 	{0x8086, 0x2572, 0, "Intel i865G GMCH"}, \
 	{0x8086, 0x2582, 0, "Intel i915G"}, \
