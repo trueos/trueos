@@ -1026,8 +1026,6 @@ int
 i915_gem_check_wedge(struct drm_i915_private *dev_priv,
 		     bool interruptible)
 {
-	DRM_LOCK_ASSERT(dev_priv->dev);
-
 	if (atomic_read(&dev_priv->mm.wedged)) {
 		bool recovery_complete;
 
