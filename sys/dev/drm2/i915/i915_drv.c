@@ -784,7 +784,7 @@ static int gen6_do_reset(struct drm_device *dev)
 	/* Spin waiting for the device to ack the reset request */
 	/*
 	 * NOTE Linux<->FreeBSD: We use _intel_wait_for() instead of
-	 * wait_for(), because we want to set the 5th argument to 0.
+	 * wait_for(), because we want to set the 4th argument to 0.
 	 * This allows us to use a struct mtx for dev_priv->gt_lock and
 	 * avoid a LOR.
 	 */
