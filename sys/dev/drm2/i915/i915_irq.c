@@ -844,7 +844,7 @@ static void i915_error_work_func(void *context, int pending)
 			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
 #endif
 		}
-		wakeup(&dev_priv->error_completion);
+		complete_all(&dev_priv->error_completion);
 	}
 }
 
@@ -1447,7 +1447,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 	i915_report_and_clear_eir(dev);
 
 	if (wedged) {
-		dev_priv->error_completion = 0;
+		INIT_COMPLETION(dev_priv->error_completion);
 		atomic_set(&dev_priv->mm.wedged, 1);
 
 		/*

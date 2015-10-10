@@ -466,6 +466,11 @@ extern unsigned long drm_linux_timer_hz_mask;
 #define	wake_up_all(queue)			wakeup((void *)queue)
 #define	wake_up_interruptible_all(queue)	wakeup((void *)queue)
 
+#define	init_completion(completion)		completion = 0;
+#define	INIT_COMPLETION(completion)		completion = 0;
+#define	complete(completion)			wakeup_one((void *)completion)
+#define	complete_all(completion)		wakeup((void *)completion)
+
 MALLOC_DECLARE(DRM_MEM_DMA);
 MALLOC_DECLARE(DRM_MEM_SAREA);
 MALLOC_DECLARE(DRM_MEM_DRIVER);

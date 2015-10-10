@@ -4463,7 +4463,7 @@ i915_gem_load(struct drm_device *dev)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	TIMEOUT_TASK_INIT(dev_priv->wq, &dev_priv->mm.retire_work, 0,
 	    i915_gem_retire_work_handler, dev_priv);
-	dev_priv->error_completion = 0;
+	init_completion(dev_priv->error_completion);
 
 	/* On GEN3 we really need to make sure the ARB C3 LP bit is set */
 	if (IS_GEN3(dev)) {
