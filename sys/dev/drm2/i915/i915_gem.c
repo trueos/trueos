@@ -1113,7 +1113,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	mtx_lock(&dev_priv->irq_lock);
 	do {
 		while (!EXIT_COND) {
-			end = -msleep_sbt(ring, &dev_priv->irq_lock, flags,
+			end = -msleep_sbt(&ring->irq_queue, &dev_priv->irq_lock, flags,
 			    "915gwr", timeout_sbt, 0, 0);
 			if (end == -EINTR || end == -ERESTART)
 				end = -ERESTARTSYS;
