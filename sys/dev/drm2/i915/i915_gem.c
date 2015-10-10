@@ -1112,19 +1112,19 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	flags = interruptible ? PCATCH : 0;
 	mtx_lock(&dev_priv->irq_lock);
 	do {
-		while (!EXIT_COND) {
+		if (!EXIT_COND) {
 			end = -msleep_sbt(&ring->irq_queue, &dev_priv->irq_lock, flags,
 			    "915gwr", timeout_sbt, 0, 0);
 			if (end == -EINTR || end == -ERESTART)
 				end = -ERESTARTSYS;
-			if (end == -EWOULDBLOCK)
+			else if (end == -EWOULDBLOCK)
 				end = -ETIMEDOUT;
 		}
 
 		ret = i915_gem_check_wedge(dev_priv, interruptible);
 		if (ret)
 			end = ret;
-	} while (end == -EWOULDBLOCK && wait_forever);
+	} while (end == -ETIMEDOUT && wait_forever);
 	mtx_unlock(&dev_priv->irq_lock);
 
 	getrawmonotonic(&now);
