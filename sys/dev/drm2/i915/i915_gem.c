@@ -1031,7 +1031,7 @@ i915_gem_check_wedge(struct drm_i915_private *dev_priv,
 
 		/* Give the error handler a chance to run. */
 		mtx_lock(&dev_priv->error_completion_lock);
-		recovery_complete = (&dev_priv->error_completion) > 0;
+		recovery_complete = dev_priv->error_completion > 0;
 		mtx_unlock(&dev_priv->error_completion_lock);
 
 		/* Non-interruptible callers can't handle -EAGAIN, hence return
