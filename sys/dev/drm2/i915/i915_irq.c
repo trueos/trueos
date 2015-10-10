@@ -352,7 +352,7 @@ static void notify_ring(struct drm_device *dev,
 
 	CTR2(KTR_DRM, "request_complete %s %d", ring->name, ring->get_seqno(ring, false));
 
-	wakeup(&ring->irq_queue);
+	wake_up_all(&ring->irq_queue);
 	if (i915_enable_hangcheck) {
 		dev_priv->hangcheck_count = 0;
 		callout_schedule(&dev_priv->hangcheck_timer,
@@ -1454,7 +1454,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 		 * Wakeup waiting processes so they don't hang
 		 */
 		for_each_ring(ring, dev_priv, i)
-			wakeup(&ring->irq_queue);
+			wake_up_all(&ring->irq_queue);
 	}
 
 	taskqueue_enqueue(dev_priv->wq, &dev_priv->error_work);
@@ -1655,7 +1655,7 @@ static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring, bool *err)
 			sleepq_release(ring);
 			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
 				  ring->name);
-			wakeup(&ring->irq_queue);
+			wake_up_all(&ring->irq_queue);
 			*err = true;
 		} else
 			sleepq_release(ring);

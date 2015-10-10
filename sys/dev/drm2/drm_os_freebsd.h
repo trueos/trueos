@@ -461,8 +461,10 @@ extern unsigned long drm_linux_timer_hz_mask;
 
 #define	getrawmonotonic(ts)	getnanouptime(ts)
 
-#define	wake_up(queue)			wakeup((void *)queue)
-#define	wake_up_interruptible(queue)	wakeup((void *)queue)
+#define	wake_up(queue)				wakeup_one((void *)queue)
+#define	wake_up_interruptible(queue)		wakeup_one((void *)queue)
+#define	wake_up_all(queue)			wakeup((void *)queue)
+#define	wake_up_interruptible_all(queue)	wakeup((void *)queue)
 
 MALLOC_DECLARE(DRM_MEM_DMA);
 MALLOC_DECLARE(DRM_MEM_SAREA);
