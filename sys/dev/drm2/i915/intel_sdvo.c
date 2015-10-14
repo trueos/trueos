@@ -2687,14 +2687,10 @@ intel_sdvo_ddc_proxy_attach(device_t idev)
 static int
 intel_sdvo_ddc_proxy_detach(device_t idev)
 {
-	struct intel_sdvo_ddc_proxy_sc *sc;
-	device_t port;
 
-	sc = device_get_softc(idev);
-	port = sc->port;
 	bus_generic_detach(idev);
-	if (port != NULL)
-		device_delete_child(idev, port);
+	device_delete_children(idev);
+
 	return (0);
 }
 
