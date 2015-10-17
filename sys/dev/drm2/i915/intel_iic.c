@@ -27,7 +27,7 @@
  *	Chris Wilson <chris@chris-wilson.co.uk>
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD");
+__FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/i915/intel_drv.h>
