@@ -820,9 +820,21 @@ typedef struct {
 #define	ISP2400_FW_ATTR_SB2	0x0008
 #define	ISP2400_FW_ATTR_T10CRC	0x0010
 #define	ISP2400_FW_ATTR_VI	0x0020
+#define	ISP2400_FW_ATTR_MQ	0x0040
+#define	ISP2400_FW_ATTR_MSIX	0x0080
+#define	ISP2400_FW_ATTR_FCOE	0x0800
 #define	ISP2400_FW_ATTR_VP0	0x1000
 #define	ISP2400_FW_ATTR_EXPFW	0x2000
+#define	ISP2400_FW_ATTR_HOTFW	0x4000
 #define	ISP2400_FW_ATTR_EXTNDED	0x8000
+#define	ISP2400_FW_ATTR_EXTVP	0x00010000
+#define	ISP2400_FW_ATTR_VN2VN	0x00040000
+#define	ISP2400_FW_ATTR_EXMOFF	0x00080000
+#define	ISP2400_FW_ATTR_NPMOFF	0x00100000
+#define	ISP2400_FW_ATTR_DIFCHOP	0x00400000
+#define	ISP2400_FW_ATTR_SRIOV	0x02000000
+#define	ISP2400_FW_ATTR_ASICTMP	0x0200000000
+#define	ISP2400_FW_ATTR_ATIOMQ	0x0400000000
 
 /*
  * These are either manifestly true or are dependent on f/w attributes
@@ -1043,8 +1055,10 @@ typedef struct {
 	uint16_t	icb_prqstqlen;
 	uint16_t	icb_rqstaddr[4];
 	uint16_t	icb_respaddr[4];
-	uint16_t	icb_priaddr[4];	
-	uint16_t	icb_reserved1[4];
+	uint16_t	icb_priaddr[4];
+	uint16_t	icb_msixresp;
+	uint16_t	icb_msixatio;
+	uint16_t	icb_reserved1[2];
 	uint16_t	icb_atio_in;
 	uint16_t	icb_atioqlen;
 	uint16_t	icb_atioqaddr[4];
@@ -1053,7 +1067,11 @@ typedef struct {
 	uint32_t	icb_fwoptions1;
 	uint32_t	icb_fwoptions2;
 	uint32_t	icb_fwoptions3;
-	uint16_t	icb_reserved2[12];
+	uint16_t	icb_qos;
+	uint16_t	icb_reserved2[3];
+	uint16_t	icb_enodemac[3];
+	uint16_t	icb_disctime;
+	uint16_t	icb_reserved3[4];
 } isp_icb_2400_t;
 
 #define	RQRSP_ADDR0015	0
