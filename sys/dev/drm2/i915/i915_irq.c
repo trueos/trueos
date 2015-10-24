@@ -731,6 +731,9 @@ static void ivybridge_irq_handler(DRM_IRQ_ARGS)
 
 	I915_WRITE(DEIER, de_ier);
 	POSTING_READ(DEIER);
+
+	CTR3(KTR_DRM, "ivybridge_irq de %x gt %x pm %x", de_iir,
+	    gt_iir, pm_iir);
 }
 
 static void ilk_gt_irq_handler(struct drm_device *dev,
@@ -760,6 +763,9 @@ static void ironlake_irq_handler(DRM_IRQ_ARGS)
 	gt_iir = I915_READ(GTIIR);
 	pch_iir = I915_READ(SDEIIR);
 	pm_iir = I915_READ(GEN6_PMIIR);
+
+	CTR4(KTR_DRM, "ironlake_irq de %x gt %x pch %x pm %x", de_iir,
+	    gt_iir, pch_iir, pm_iir);
 
 	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0 &&
 	    (!IS_GEN6(dev) || pm_iir == 0))
@@ -1527,6 +1533,7 @@ static int i915_enable_vblank(struct drm_device *dev, int pipe)
 	if (dev_priv->info->gen == 3)
 		I915_WRITE(INSTPM, _MASKED_BIT_DISABLE(INSTPM_AGPBUSY_DIS));
 	mtx_unlock(&dev_priv->irq_lock);
+	CTR1(KTR_DRM, "i915_enable_vblank %d", pipe);
 
 	return 0;
 }
@@ -1542,6 +1549,7 @@ static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
 	ironlake_enable_display_irq(dev_priv, (pipe == 0) ?
 				    DE_PIPEA_VBLANK : DE_PIPEB_VBLANK);
 	mtx_unlock(&dev_priv->irq_lock);
+	CTR1(KTR_DRM, "ironlake_enable_vblank %d", pipe);
 
 	return 0;
 }
@@ -1557,6 +1565,7 @@ static int ivybridge_enable_vblank(struct drm_device *dev, int pipe)
 	ironlake_enable_display_irq(dev_priv,
 				    DE_PIPEA_VBLANK_IVB << (5 * pipe));
 	mtx_unlock(&dev_priv->irq_lock);
+	CTR1(KTR_DRM, "ivybridge_enable_vblank %d", pipe);
 
 	return 0;
 }
@@ -1598,6 +1607,7 @@ static void i915_disable_vblank(struct drm_device *dev, int pipe)
 			      PIPE_VBLANK_INTERRUPT_ENABLE |
 			      PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	mtx_unlock(&dev_priv->irq_lock);
+	CTR1(KTR_DRM, "i915_disable_vblank %d", pipe);
 }
 
 static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
@@ -1608,6 +1618,7 @@ static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
 	ironlake_disable_display_irq(dev_priv, (pipe == 0) ?
 				     DE_PIPEA_VBLANK : DE_PIPEB_VBLANK);
 	mtx_unlock(&dev_priv->irq_lock);
+	CTR1(KTR_DRM, "ironlake_disable_vblank %d", pipe);
 }
 
 static void ivybridge_disable_vblank(struct drm_device *dev, int pipe)
@@ -1618,6 +1629,7 @@ static void ivybridge_disable_vblank(struct drm_device *dev, int pipe)
 	ironlake_disable_display_irq(dev_priv,
 				     DE_PIPEA_VBLANK_IVB << (pipe * 5));
 	mtx_unlock(&dev_priv->irq_lock);
+	CTR1(KTR_DRM, "ivybridge_disable_vblank %d", pipe);
 }
 
 static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
@@ -1635,6 +1647,7 @@ static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
 		imr |= I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
 	I915_WRITE(VLV_IMR, imr);
 	mtx_unlock(&dev_priv->irq_lock);
+	CTR2(KTR_DRM, "%s %d", __func__, pipe);
 }
 
 static u32
