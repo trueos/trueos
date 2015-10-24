@@ -1230,8 +1230,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 		return;
 	}
 
-	DRM_INFO("capturing error event; look for more information in /debug/dri/%d/i915_error_state\n",
-		 dev->primary->index);
+	DRM_INFO("capturing error event; look for more information in sysctl hw.dri.%d.info.i915_error_state\n",
+		 dev->sysctl_node_idx);
 
 	refcount_init(&error->ref, 1);
 	error->eir = I915_READ(EIR);
