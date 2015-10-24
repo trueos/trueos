@@ -1772,7 +1772,7 @@ void i915_hangcheck_elapsed(void *data)
 
 repeat:
 	/* Reset timer case chip hangs without another request being added */
-        callout_schedule(&dev_priv->hangcheck_timer, DRM_I915_HANGCHECK_PERIOD);
+	callout_schedule(&dev_priv->hangcheck_timer, DRM_I915_HANGCHECK_PERIOD);
 }
 
 /* drm_dma.h hooks
