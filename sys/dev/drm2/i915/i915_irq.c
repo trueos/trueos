@@ -1663,15 +1663,15 @@ static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring, bool *err)
 	    i915_seqno_passed(ring->get_seqno(ring, false),
 			      ring_last_seqno(ring))) {
 		/* Issue a wake-up to catch stuck h/w. */
-		sleepq_lock(ring);
-		if (sleepq_sleepcnt(ring, 0) != 0) {
-			sleepq_release(ring);
+		sleepq_lock(&ring->irq_queue);
+		if (sleepq_sleepcnt(&ring->irq_queue, 0) != 0) {
+			sleepq_release(&ring->irq_queue);
 			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
 				  ring->name);
 			wake_up_all(&ring->irq_queue);
 			*err = true;
 		} else
-			sleepq_release(ring);
+			sleepq_release(&ring->irq_queue);
 		return true;
 	}
 	return false;
