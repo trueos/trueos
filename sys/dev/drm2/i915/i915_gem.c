@@ -146,6 +146,7 @@ static int
 i915_gem_wait_for_error(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct completion *x = &dev_priv->error_completion;
 	int ret;
 
 	if (!atomic_read(&dev_priv->mm.wedged))
@@ -156,22 +157,13 @@ i915_gem_wait_for_error(struct drm_device *dev)
 	 * userspace. If it takes that long something really bad is going on and
 	 * we should simply try to bail out and fail as gracefully as possible.
 	 */
-	mtx_lock(&dev_priv->error_completion_lock);
-	while (dev_priv->error_completion == 0) {
-		ret = -msleep(&dev_priv->error_completion,
-		    &dev_priv->error_completion_lock, PCATCH, "915wco", 10*HZ);
-		if (ret == -EINTR || ret == -ERESTART)
-			ret = -ERESTARTSYS;
-		if (ret == -EWOULDBLOCK) {
-			DRM_ERROR("Timed out waiting for the gpu reset to complete\n");
-			ret = -EIO;
-		}
-		if (ret != 0) {
-			mtx_unlock(&dev_priv->error_completion_lock);
-			return (ret);
-		}
+	ret = wait_for_completion_interruptible_timeout(x, 10*HZ);
+	if (ret == 0) {
+		DRM_ERROR("Timed out waiting for the gpu reset to complete\n");
+		return -EIO;
+	} else if (ret < 0) {
+		return ret;
 	}
-	mtx_unlock(&dev_priv->error_completion_lock);
 
 	if (atomic_read(&dev_priv->mm.wedged)) {
 		/* GPU is hung, bump the completion count to account for
@@ -179,9 +171,9 @@ i915_gem_wait_for_error(struct drm_device *dev)
 		 * end up waiting upon a subsequent completion event that
 		 * will never happen.
 		 */
-		mtx_lock(&dev_priv->error_completion_lock);
-		dev_priv->error_completion++;
-		mtx_unlock(&dev_priv->error_completion_lock);
+		mtx_lock(&x->lock);
+		x->done++;
+		mtx_unlock(&x->lock);
 	}
 	return 0;
 }
@@ -1027,12 +1019,13 @@ i915_gem_check_wedge(struct drm_i915_private *dev_priv,
 		     bool interruptible)
 {
 	if (atomic_read(&dev_priv->mm.wedged)) {
+		struct completion *x = &dev_priv->error_completion;
 		bool recovery_complete;
 
 		/* Give the error handler a chance to run. */
-		mtx_lock(&dev_priv->error_completion_lock);
-		recovery_complete = dev_priv->error_completion > 0;
-		mtx_unlock(&dev_priv->error_completion_lock);
+		mtx_lock(&x->lock);
+		recovery_complete = x->done > 0;
+		mtx_unlock(&x->lock);
 
 		/* Non-interruptible callers can't handle -EAGAIN, hence return
 		 * -EIO unconditionally for these. */
@@ -4463,7 +4456,7 @@ i915_gem_load(struct drm_device *dev)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	TIMEOUT_TASK_INIT(dev_priv->wq, &dev_priv->mm.retire_work, 0,
 	    i915_gem_retire_work_handler, dev_priv);
-	init_completion(dev_priv->error_completion);
+	init_completion(&dev_priv->error_completion);
 
 	/* On GEN3 we really need to make sure the ARB C3 LP bit is set */
 	if (IS_GEN3(dev)) {

@@ -466,10 +466,76 @@ extern unsigned long drm_linux_timer_hz_mask;
 #define	wake_up_all(queue)			wakeup((void *)queue)
 #define	wake_up_interruptible_all(queue)	wakeup((void *)queue)
 
-#define	init_completion(completion)		completion = 0;
-#define	INIT_COMPLETION(completion)		completion = 0;
-#define	complete(completion)			wakeup_one((void *)completion)
-#define	complete_all(completion)		wakeup((void *)completion)
+struct completion {
+	unsigned int done;
+	struct mtx lock;
+};
+
+#define	INIT_COMPLETION(c) ((c).done = 0);
+
+static inline void
+init_completion(struct completion *c)
+{
+
+	mtx_init(&c->lock, "drmcompl", NULL, MTX_DEF);
+	c->done = 0;
+}
+
+static inline void
+free_completion(struct completion *c)
+{
+
+	mtx_destroy(&c->lock);
+}
+
+static inline void
+complete_all(struct completion *c)
+{
+
+	mtx_lock(&c->lock);
+	c->done++;
+	mtx_unlock(&c->lock);
+	wakeup(c);
+}
+
+static inline long
+wait_for_completion_interruptible_timeout(struct completion *c,
+    unsigned long timeout)
+{
+	int start_jiffies, elapsed_jiffies, remaining_jiffies;
+	bool timeout_expired = false, awakened = false;
+	long ret;
+
+	start_jiffies = ticks;
+
+	mtx_lock(&c->lock);
+	while (c->done == 0) {
+		ret = -msleep(c, &c->lock, PCATCH, "drmwco", timeout);
+		switch(ret) {
+		case -EWOULDBLOCK:
+			timeout_expired = true;
+			ret = 0;
+			break;
+		case -EINTR:
+		case -ERESTART:
+			ret = -ERESTARTSYS;
+			break;
+		case 0:
+			awakened = true;
+			break;
+		}
+	}
+	mtx_unlock(&c->lock);
+
+	if (awakened) {
+		elapsed_jiffies = ticks - start_jiffies;
+		remaining_jiffies = timeout - elapsed_jiffies;
+		if (remaining_jiffies > 0)
+			ret = remaining_jiffies;
+	}
+
+	return (ret);
+}
 
 MALLOC_DECLARE(DRM_MEM_DMA);
 MALLOC_DECLARE(DRM_MEM_SAREA);

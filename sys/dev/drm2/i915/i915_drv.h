@@ -742,8 +742,7 @@ typedef struct drm_i915_private {
 	/* Protected by dev->error_lock. */
 	struct drm_i915_error_state *first_error;
 	struct task error_work;
-	int error_completion;
-	struct mtx error_completion_lock;
+	struct completion error_completion;
 	struct taskqueue *wq;
 
 	/* Display functions */
