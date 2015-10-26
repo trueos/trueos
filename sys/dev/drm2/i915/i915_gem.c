@@ -4659,7 +4659,7 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 	}
 	VM_OBJECT_WUNLOCK(obj->base.vm_obj);
 
-	return 0;
+	return ret;
 }
 
 static int
