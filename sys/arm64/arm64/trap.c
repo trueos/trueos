@@ -263,20 +263,6 @@ do_el1h_sync(struct trapframe *frame)
 		return;
 #endif
 
-	/*
-	 * Sanity check we are in an exception er can handle. The IL bit
-	 * is used to indicate the instruction length, except in a few
-	 * exceptions described in the ARMv8 ARM.
-	 *
-	 * It is unclear in some cases if the bit is implementation defined.
-	 * The Foundation Model and QEMU disagree on if the IL bit should
-	 * be set when we are in a data fault from the same EL and the ISV
-	 * bit (bit 24) is also set.
-	 */
-	KASSERT((esr & ESR_ELx_IL) == ESR_ELx_IL ||
-	    (exception == EXCP_DATA_ABORT && ((esr & ISS_DATA_ISV) == 0)),
-	    ("Invalid instruction length in exception"));
-
 	CTR4(KTR_TRAP,
 	    "do_el1_sync: curthread: %p, esr %lx, elr: %lx, frame: %p",
 	    curthread, esr, frame->tf_elr, frame);
@@ -376,6 +362,11 @@ do_el0_sync(struct trapframe *frame)
 		break;
 	case EXCP_UNKNOWN:
 		el0_excp_unknown(frame);
+		break;
+	case EXCP_PC_ALIGN:
+		td = curthread;
+		call_trapsignal(td, SIGBUS, BUS_ADRALN, (void *)frame->tf_elr);
+		userret(td, frame);
 		break;
 	case EXCP_BRK:
 		td = curthread;

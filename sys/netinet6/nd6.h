@@ -408,11 +408,8 @@ struct llentry *nd6_lookup(const struct in6_addr *, int, struct ifnet *);
 struct llentry *nd6_alloc(const struct in6_addr *, int, struct ifnet *);
 void nd6_setmtu(struct ifnet *);
 void nd6_llinfo_setstate(struct llentry *lle, int newstate);
-void nd6_llinfo_settimer(struct llentry *, long);
-void nd6_llinfo_settimer_locked(struct llentry *, long);
 void nd6_timer(void *);
 void nd6_purge(struct ifnet *);
-void nd6_nud_hint(struct rtentry *, struct in6_addr *, int);
 int nd6_resolve(struct ifnet *, int, struct mbuf *,
     const struct sockaddr *, u_char *, uint32_t *);
 int nd6_ioctl(u_long, caddr_t, struct ifnet *);

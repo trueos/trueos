@@ -266,6 +266,7 @@ compat/cloudabi/cloudabi_random.c	optional compat_cloudabi64
 compat/cloudabi/cloudabi_sock.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_thread.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_fd.c	optional compat_cloudabi64
+compat/cloudabi64/cloudabi64_module.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_poll.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_sock.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_syscalls.c	optional compat_cloudabi64
@@ -1397,8 +1398,8 @@ dev/etherswitch/ip17x/ip175c.c		optional ip17x
 dev/etherswitch/ip17x/ip175d.c		optional ip17x
 dev/etherswitch/ip17x/ip17x_phy.c	optional ip17x
 dev/etherswitch/ip17x/ip17x_vlans.c	optional ip17x
-dev/etherswitch/mdio_if.m		optional miiproxy
-dev/etherswitch/mdio.c			optional miiproxy
+dev/etherswitch/mdio_if.m		optional miiproxy | mdio
+dev/etherswitch/mdio.c			optional miiproxy | mdio
 dev/etherswitch/miiproxy.c		optional miiproxy
 dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
 dev/etherswitch/ukswitch/ukswitch.c	optional ukswitch
@@ -2853,8 +2854,7 @@ dev/xe/if_xe_pccard.c		optional xe pccard
 dev/xen/balloon/balloon.c	optional xenhvm
 dev/xen/blkfront/blkfront.c	optional xenhvm
 dev/xen/blkback/blkback.c	optional xenhvm
-dev/xen/console/console.c	optional xenhvm
-dev/xen/console/xencons_ring.c	optional xenhvm
+dev/xen/console/xen_console.c	optional xenhvm
 dev/xen/control/control.c	optional xenhvm
 dev/xen/grant_table/grant_table.c	optional xenhvm
 dev/xen/netback/netback.c	optional xenhvm
@@ -3683,6 +3683,7 @@ netinet/tcp_input.c		optional inet | inet6
 netinet/tcp_lro.c		optional inet | inet6
 netinet/tcp_output.c		optional inet | inet6
 netinet/tcp_offload.c		optional tcp_offload inet | tcp_offload inet6
+netinet/tcp_pcap.c		optional inet tcppcap | inet6 tcppcap
 netinet/tcp_reass.c		optional inet | inet6
 netinet/tcp_sack.c		optional inet | inet6
 netinet/tcp_subr.c		optional inet | inet6
@@ -3796,15 +3797,15 @@ nlm/nlm_prot_xdr.c		optional nfslockd | nfsd
 nlm/sm_inter_xdr.c		optional nfslockd | nfsd
 
 # Linux Kernel Compatibility API
-ofed/include/linux/linux_kmod.c			optional ofed | compat_linuxapi \
+ofed/include/linux/linux_kmod.c			optional ofed | compat_linuxkpi \
 	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_compat.c		optional ofed | compat_linuxapi \
+ofed/include/linux/linux_compat.c		optional ofed | compat_linuxkpi \
 	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_pci.c			optional ofed | compat_linuxapi \
+ofed/include/linux/linux_pci.c			optional ofed | compat_linuxkpi \
 	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_idr.c			optional ofed | compat_linuxapi \
+ofed/include/linux/linux_idr.c			optional ofed | compat_linuxkpi \
 	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_radix.c		optional ofed | compat_linuxapi \
+ofed/include/linux/linux_radix.c		optional ofed | compat_linuxkpi \
 	no-depend compile-with "${OFED_C}"
 # OpenFabrics Enterprise Distribution (Infiniband)
 ofed/drivers/infiniband/core/addr.c		optional ofed		\

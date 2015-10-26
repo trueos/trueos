@@ -104,6 +104,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
+#ifdef TCPPCAP
+#include <netinet/tcp_pcap.h>
+#endif
 #include <netinet/tcp_syncache.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
@@ -467,18 +470,6 @@ tcp_signature_verify_input(struct mbuf *m, int off0, int tlen, int optlen,
 	tcp_fields_to_host(th);
 	return (ret);
 }
-#endif
-
-/* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
-#ifdef INET6
-#define ND6_HINT(tp) \
-do { \
-	if ((tp) && (tp)->t_inpcb && \
-	    ((tp)->t_inpcb->inp_vflag & INP_IPV6) != 0) \
-		nd6_nud_hint(NULL, NULL, 0); \
-} while (0)
-#else
-#define ND6_HINT(tp)
 #endif
 
 /*
@@ -1536,6 +1527,11 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	KASSERT(tp->t_state != TCPS_TIME_WAIT, ("%s: TCPS_TIME_WAIT",
 	    __func__));
 
+#ifdef TCPPCAP
+	/* Save segment, if requested. */
+	tcp_pcap_add(th, m, &(tp->t_inpkts));
+#endif
+
 	/*
 	 * Segment received on connection.
 	 * Reset idle time and keep-alive timer.
@@ -1763,7 +1759,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				tp->snd_wl2 = th->th_ack;
 				tp->t_dupacks = 0;
 				m_freem(m);
-				ND6_HINT(tp); /* Some progress has been made. */
 
 				/*
 				 * If all outstanding data are acked, stop
@@ -1822,7 +1817,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->rcv_up = tp->rcv_nxt;
 			TCPSTAT_INC(tcps_rcvpack);
 			TCPSTAT_ADD(tcps_rcvbyte, tlen);
-			ND6_HINT(tp);	/* Some progress has been made */
 #ifdef TCPDEBUG
 			if (so->so_options & SO_DEBUG)
 				tcp_trace(TA_INPUT, ostate, tp,
@@ -2550,6 +2544,16 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						tp->snd_nxt = onxt;
 					goto drop;
 				} else if (V_tcp_do_rfc3042) {
+					/*
+					 * Process first and second duplicate
+					 * ACKs. Each indicates a segment
+					 * leaving the network, creating room
+					 * for more. Make sure we can send a
+					 * packet on reception of each duplicate
+					 * ACK by increasing snd_cwnd by one
+					 * segment. Restore the original
+					 * snd_cwnd after packet transmission.
+					 */
 					cc_ack_received(tp, th, CC_DUPACK);
 					u_long oldcwnd = tp->snd_cwnd;
 					tcp_seq oldsndmax = tp->snd_max;
@@ -2924,7 +2928,6 @@ dodata:							/* XXX */
 			thflags = th->th_flags & TH_FIN;
 			TCPSTAT_INC(tcps_rcvpack);
 			TCPSTAT_ADD(tcps_rcvbyte, tlen);
-			ND6_HINT(tp);
 			SOCKBUF_LOCK(&so->so_rcv);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				m_freem(m);

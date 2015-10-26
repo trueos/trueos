@@ -7,6 +7,7 @@
 
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= arpa protocols rpcsvc rpc xlocale
+SUBDIR_PARALLEL=
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	db.h \
 	dirent.h dlfcn.h elf.h elf-hints.h err.h fmtmsg.h fnmatch.h fstab.h \
@@ -166,7 +167,7 @@ compat:
 	    -f ${.CURDIR}/../etc/mtree/BSD.include.dist \
 	    -p ${DESTDIR}${INCLUDEDIR} > /dev/null
 .if ${MK_META_MODE} == "yes"
-	touch ${.TARGET}
+	@touch ${.TARGET}
 .endif
 
 copies:
@@ -255,8 +256,7 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
 .if ${MK_META_MODE} == "yes"
-	cd ${.OBJDIR}
-	touch ${.TARGET}
+	@touch ${.OBJDIR}/${.TARGET}
 .endif
 
 symlinks:
@@ -373,8 +373,7 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
 .if ${MK_META_MODE} == "yes"
-	cd ${.OBJDIR}
-	touch ${.TARGET}
+	@touch ${.OBJDIR}/${.TARGET}
 .endif
 
 .if ${MACHINE} == "host"

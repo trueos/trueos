@@ -37,6 +37,7 @@
 
 #ifdef _KERNEL
 #include <net/vnet.h>
+#include <sys/mbuf.h>
 
 /*
  * Kernel variables for tcp.
@@ -82,18 +83,6 @@ struct tcptemp {
 };
 
 #define tcp6cb		tcpcb  /* for KAME src sync over BSD*'s */
-
-/* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
-#ifdef INET6
-#define ND6_HINT(tp)						\
-do {								\
-	if ((tp) && (tp)->t_inpcb &&				\
-	    ((tp)->t_inpcb->inp_vflag & INP_IPV6) != 0)		\
-		nd6_nud_hint(NULL, NULL, 0);			\
-} while (0)
-#else
-#define ND6_HINT(tp)
-#endif
 
 /*
  * Tcp control block, one per tcp; fields:
@@ -216,7 +205,17 @@ struct tcpcb {
 
 	uint32_t t_ispare[8];		/* 5 UTO, 3 TBD */
 	void	*t_pspare2[4];		/* 1 TCP_SIGNATURE, 3 TBD */
-	uint64_t _pad[6];		/* 6 TBD (1-2 CC/RTT?) */
+#if defined(_KERNEL) && defined(TCPPCAP)
+	struct mbufq t_inpkts;		/* List of saved input packets. */
+	struct mbufq t_outpkts;		/* List of saved output packets. */
+#ifdef _LP64
+	uint64_t _pad[0];		/* all used! */
+#else
+	uint64_t _pad[2];		/* 2 are available */
+#endif /* _LP64 */
+#else
+	uint64_t _pad[6];
+#endif /* defined(_KERNEL) && defined(TCPPCAP) */
 };
 
 /*

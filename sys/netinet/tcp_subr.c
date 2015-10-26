@@ -92,6 +92,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/tcp6_var.h>
 #endif
 #include <netinet/tcpip.h>
+#ifdef TCPPCAP
+#include <netinet/tcp_pcap.h>
+#endif
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
@@ -427,6 +430,9 @@ tcp_init(void)
 		SHUTDOWN_PRI_DEFAULT);
 	EVENTHANDLER_REGISTER(maxsockets_change, tcp_zone_change, NULL,
 		EVENTHANDLER_PRI_ANY);
+#ifdef TCPPCAP
+	tcp_pcap_init();
+#endif
 }
 
 #ifdef VIMAGE
@@ -832,6 +838,12 @@ tcp_newtcpcb(struct inpcb *inp)
 	 */
 	inp->inp_ip_ttl = V_ip_defttl;
 	inp->inp_ppcb = tp;
+#ifdef TCPPCAP
+	/*
+	 * Init the TCP PCAP queues.
+	 */
+	tcp_pcap_tcpcb_init(tp);
+#endif
 	return (tp);		/* XXX */
 }
 
@@ -1015,6 +1027,12 @@ tcp_discardcb(struct tcpcb *tp)
 #endif
 		
 	tcp_free_sackholes(tp);
+
+#ifdef TCPPCAP
+	/* Free the TCP PCAP queues. */
+	tcp_pcap_drain(&(tp->t_inpkts));
+	tcp_pcap_drain(&(tp->t_outpkts));
+#endif
 
 	/* Allow the CC algorithm to clean up after itself. */
 	if (CC_ALGO(tp)->cb_destroy != NULL)
@@ -1541,11 +1559,6 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					 * in the route to the suggested new
 					 * value (if given) and then notify.
 					 */
-					bzero(&inc, sizeof(inc));
-					inc.inc_faddr = faddr;
-					inc.inc_fibnum =
-					    inp->inp_inc.inc_fibnum;
-
 				    	mtu = ntohs(icp->icmp_nextmtu);
 					/*
 					 * If no alternative MTU was
@@ -1560,14 +1573,18 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 						mtu = V_tcp_minmss +
 						    sizeof(struct tcpiphdr);
 					/*
-					 * Only cache the MTU if it
-					 * is smaller than the interface
-					 * or route MTU.  tcp_mtudisc()
-					 * will do right thing by itself.
+					 * Only process the offered MTU if it
+					 * is smaller than the current one.
 					 */
-					if (mtu <= tcp_maxmtu(&inc, NULL))
+					if (mtu < tp->t_maxopd +
+					    sizeof(struct tcpiphdr)) {
+						bzero(&inc, sizeof(inc));
+						inc.inc_faddr = faddr;
+						inc.inc_fibnum =
+						    inp->inp_inc.inc_fibnum;
 						tcp_hc_updatemtu(&inc, mtu);
-					tcp_mtudisc(inp, mtu);
+						tcp_mtudisc(inp, mtu);
+					}
 				} else
 					inp = (*notify)(inp,
 					    inetctlerrmap[cmd]);

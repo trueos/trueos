@@ -70,7 +70,7 @@ _${group}INS: ${_${group}INCS}
 	    ${.ALLSRC} ${DESTDIR}${${group}DIR}/${${group}NAME}
 .else
 	${INSTALL} -C -o ${${group}OWN} -g ${${group}GRP} -m ${${group}MODE} \
-	    ${.ALLSRC} ${DESTDIR}${${group}DIR}
+	    ${.ALLSRC} ${DESTDIR}${${group}DIR}/
 .endif
 .endif
 
@@ -91,12 +91,12 @@ realinstall: installincludes
 
 .if ${MK_STAGING} != "no" && !defined(_SKIP_BUILD)
 .if !defined(NO_STAGE_INCLUDES)
-staging: stage_includes
+STAGE_TARGETS+= stage_includes
 .if !empty(INCSLINKS)
-staging: stage_symlinks
+STAGE_TARGETS+= stage_symlinks
 STAGE_SYMLINKS.INCS= ${INCSLINKS}
 .endif
 .endif
 .endif
 
-.endif # ${MK_TOOLCHAIN} != "no"
+.endif # ${MK_INCLUDES} != "no"

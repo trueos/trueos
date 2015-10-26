@@ -121,7 +121,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _cross-tools _includes _libraries _depend \
 	build32 builddtb distribute32 install32 xdev xdev-build xdev-install \
-	xdev-links native-xtools \
+	xdev-links native-xtools installconfig \
 
 TGTS+=	${SUBDIR_TARGETS}
 
@@ -243,14 +243,8 @@ cleanworld:
 # Handle the user-driven targets, using the source relative mk files.
 #
 
-.if empty(.MAKEFLAGS:M-n)
-# skip this for -n to avoid changing previous behavior of 
-# 'make -n buildworld' etc.
-${TGTS}: .MAKE
 tinderbox toolchains kernel-toolchains: .MAKE
-.endif
-
-${TGTS}:
+${TGTS}: .PHONY .MAKE
 	${_+_}@cd ${.CURDIR}; ${_MAKE} ${.TARGET}
 
 # The historic default "all" target creates files which may cause stale
@@ -259,9 +253,9 @@ ${TGTS}:
 # if they want the historic behavior.
 .MAIN:	_guard
 
-_guard:
+_guard: .PHONY
 	@echo
-	@echo "Explicit target required (use \"all\" for historic behavior)"
+	@echo "Explicit target required.  Likely \"${SUBDIR_OVERRIDE:Dall:Ubuildworld}\" is wanted.  See build(7)."
 	@echo
 	@false
 
