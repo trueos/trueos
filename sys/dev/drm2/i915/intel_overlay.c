@@ -1165,7 +1165,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		goto out_unlock;
 
 	DRM_UNLOCK(dev);
-	sx_xlock(&dev->mode_config.mutex);
+	sx_xunlock(&dev->mode_config.mutex);
 
 	free(params, DRM_I915_GEM);
 
@@ -1173,7 +1173,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 
 out_unlock:
 	DRM_UNLOCK(dev);
-	sx_xlock(&dev->mode_config.mutex);
+	sx_xunlock(&dev->mode_config.mutex);
 	drm_gem_object_unreference_unlocked(&new_bo->base);
 out_free:
 	free(params, DRM_I915_GEM);
@@ -1315,7 +1315,7 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 	ret = 0;
 out_unlock:
 	DRM_UNLOCK(dev);
-	sx_xlock(&dev->mode_config.mutex);
+	sx_xunlock(&dev->mode_config.mutex);
 
 	return ret;
 }
