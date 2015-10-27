@@ -638,7 +638,7 @@ int i915_batchbuffer(struct drm_device *dev, void *data,
 	if (batch->num_cliprects) {
 		cliprects = malloc(batch->num_cliprects *
 				    sizeof(struct drm_clip_rect),
-				    DRM_MEM_DMA, M_NOWAIT | M_ZERO);
+				    DRM_MEM_DMA, M_WAITOK | M_ZERO);
 		if (cliprects == NULL)
 			return -ENOMEM;
 
@@ -687,7 +687,7 @@ int i915_cmdbuffer(struct drm_device *dev, void *data,
 	if (cmdbuf->num_cliprects < 0)
 		return -EINVAL;
 
-	batch_data = malloc(cmdbuf->sz, DRM_MEM_DMA, M_NOWAIT);
+	batch_data = malloc(cmdbuf->sz, DRM_MEM_DMA, M_WAITOK);
 	if (batch_data == NULL)
 		return -ENOMEM;
 
@@ -699,7 +699,7 @@ int i915_cmdbuffer(struct drm_device *dev, void *data,
 
 	if (cmdbuf->num_cliprects) {
 		cliprects = malloc(cmdbuf->num_cliprects *
-				    sizeof(struct drm_clip_rect), DRM_MEM_DMA, M_NOWAIT | M_ZERO);
+				    sizeof(struct drm_clip_rect), DRM_MEM_DMA, M_WAITOK | M_ZERO);
 		if (cliprects == NULL) {
 			ret = -ENOMEM;
 			goto fail_batch_free;
@@ -1468,7 +1468,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->types[9] = _DRM_STAT_DMA;
 
 	dev_priv = malloc(sizeof(drm_i915_private_t), DRM_MEM_DRIVER,
-	    M_NOWAIT | M_ZERO);
+	    M_WAITOK | M_ZERO);
 	if (dev_priv == NULL)
 		return -ENOMEM;
 
@@ -1560,7 +1560,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * so there is no point in running more than one instance of the
 	 * workqueue at any time.  Use an ordered one.
 	 */
-	dev_priv->wq = taskqueue_create("915", M_NOWAIT,
+	dev_priv->wq = taskqueue_create("915", M_WAITOK,
 	    taskqueue_thread_enqueue, &dev_priv->wq);
 	if (dev_priv->wq == NULL) {
 		DRM_ERROR("Failed to create our workqueue.\n");
@@ -1827,7 +1827,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv;
 
 	DRM_DEBUG_DRIVER("\n");
-	file_priv = malloc(sizeof(*file_priv), DRM_MEM_FILES, M_NOWAIT | M_ZERO);
+	file_priv = malloc(sizeof(*file_priv), DRM_MEM_FILES, M_WAITOK | M_ZERO);
 	if (!file_priv)
 		return -ENOMEM;
 
