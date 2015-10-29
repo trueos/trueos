@@ -502,14 +502,14 @@ static inline long
 wait_for_completion_interruptible_timeout(struct completion *c,
     unsigned long timeout)
 {
-	int start_jiffies, elapsed_jiffies, remaining_jiffies;
+	unsigned long start_jiffies, elapsed_jiffies;
 	bool timeout_expired = false, awakened = false;
-	long ret;
+	long ret = timeout;
 
 	start_jiffies = ticks;
 
 	mtx_lock(&c->lock);
-	while (c->done == 0) {
+	while (c->done == 0 && !timeout_expired) {
 		ret = -msleep(c, &c->lock, PCATCH, "drmwco", timeout);
 		switch(ret) {
 		case -EWOULDBLOCK:
@@ -529,9 +529,7 @@ wait_for_completion_interruptible_timeout(struct completion *c,
 
 	if (awakened) {
 		elapsed_jiffies = ticks - start_jiffies;
-		remaining_jiffies = timeout - elapsed_jiffies;
-		if (remaining_jiffies > 0)
-			ret = remaining_jiffies;
+		ret = timeout > elapsed_jiffies ? timeout - elapsed_jiffies : 1;
 	}
 
 	return (ret);
