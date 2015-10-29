@@ -175,7 +175,7 @@ intel_read_status_page(struct intel_ring_buffer *ring,
 {
 	/* Ensure that the compiler doesn't optimize away the load. */
 	barrier();
-	return ring->status_page.page_addr[reg];
+	return atomic_load_acq_32(ring->status_page.page_addr + reg);
 }
 
 /**
@@ -203,7 +203,7 @@ int __must_check intel_ring_begin(struct intel_ring_buffer *ring, int n);
 static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 				   u32 data)
 {
-	*(volatile uint32_t *)((char *)ring->virtual_start + ring->tail) = data;
+	iowrite32(data, ring->virtual_start + ring->tail);
 	ring->tail += 4;
 }
 void intel_ring_advance(struct intel_ring_buffer *ring);
