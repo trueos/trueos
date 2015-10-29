@@ -1171,6 +1171,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	/* Copy in the exec list from userland */
+	/* XXXKIB user-controlled malloc size */
 	exec_list = drm_malloc_ab(sizeof(*exec_list), args->buffer_count);
 	exec2_list = drm_malloc_ab(sizeof(*exec2_list), args->buffer_count);
 	if (exec_list == NULL || exec2_list == NULL) {
@@ -1250,6 +1251,7 @@ i915_gem_execbuffer2(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
+	/* XXXKIB user-controllable malloc size */
 	exec2_list = malloc(sizeof(*exec2_list)*args->buffer_count,
 			     DRM_I915_GEM, M_WAITOK);
 	if (exec2_list == NULL) {
