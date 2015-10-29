@@ -52,7 +52,7 @@ eb_create(int size)
 		count >>= 1;
 	eb = malloc(count*sizeof(struct hlist_head) +
 		     sizeof(struct eb_objects),
-		     DRM_I915_GEM, M_NOWAIT | M_ZERO);
+		     DRM_I915_GEM, M_WAITOK | M_ZERO);
 	if (eb == NULL)
 		return eb;
 
@@ -963,7 +963,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		}
 
 		cliprects = malloc(args->num_cliprects * sizeof(*cliprects),
-				    DRM_I915_GEM, M_NOWAIT);
+				    DRM_I915_GEM, M_WAITOK);
 		if (cliprects == NULL) {
 			ret = -ENOMEM;
 			goto pre_mutex_err;
