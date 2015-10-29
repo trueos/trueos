@@ -737,6 +737,10 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 
 		length = exec[i].relocation_count *
 			sizeof(struct drm_i915_gem_relocation_entry);
+		if (length == 0) {
+			(*map)[i] = NULL;
+			continue;
+		}
 
 		/*
 		 * Since both start and end of the relocation region
