@@ -28,6 +28,10 @@
 # 	See ALL_SUBDIR_TARGETS for list of targets that will recurse.
 # 	Custom targets can be added to SUBDIR_TARGETS in src.conf.
 #
+# 	Targets defined in STANDALONE_SUBDIR_TARGETS will always be ran
+# 	with SUBDIR_PARALLEL and will not respect .WAIT or SUBDIR_DEPEND_
+# 	values.
+#
 
 .if !target(__<bsd.subdir.mk>__)
 __<bsd.subdir.mk>__:
@@ -37,6 +41,10 @@ ALL_SUBDIR_TARGETS= all all-man buildconfig checkdpadd clean cleandepend \
 		    installconfig lint maninstall manlint obj objlink \
 		    realinstall regress tags \
 		    ${SUBDIR_TARGETS}
+
+# Described above.
+STANDALONE_SUBDIR_TARGETS?= obj checkdpadd clean cleandepend cleandir \
+			    cleanilinks cleanobj
 
 .include <bsd.init.mk>
 
@@ -72,10 +80,10 @@ _SUBDIR_SH=	\
 		cd ${.CURDIR}/$${dir}; \
 		${MAKE} $${target} DIRPRFX=${DIRPRFX}$${dir}/
 
-_SUBDIR: .USE .MAKE
+_SUBDIR: .USEBEFORE
 .if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
-	@${_+_}target=${.TARGET:S,realinstall,install,:S,^_sub.,,}; \
-	    for dir in ${SUBDIR:N.WAIT}; do ${_SUBDIR_SH}; done
+	@${_+_}target=${.TARGET:S,realinstall,install,}; \
+	    for dir in ${SUBDIR:N.WAIT}; do ( ${_SUBDIR_SH} ); done
 .endif
 
 ${SUBDIR:N.WAIT}: .PHONY .MAKE
@@ -86,7 +94,14 @@ ${SUBDIR:N.WAIT}: .PHONY .MAKE
 # Work around parsing of .if nested in .for by putting .WAIT string into a var.
 __wait= .WAIT
 .for __target in ${ALL_SUBDIR_TARGETS}
-.ifdef SUBDIR_PARALLEL
+# Can ordering be skipped for this and SUBDIR_PARALLEL forced?
+.if make(${__target}) && ${STANDALONE_SUBDIR_TARGETS:M${__target}}
+_is_standalone_target=	1
+SUBDIR:=	${SUBDIR:N.WAIT}
+.else
+_is_standalone_target=	0
+.endif
+.if defined(SUBDIR_PARALLEL) || ${_is_standalone_target} == 1
 __subdir_targets=
 .for __dir in ${SUBDIR}
 .if ${__wait} == ${__dir}
@@ -94,9 +109,11 @@ __subdir_targets+= .WAIT
 .else
 __subdir_targets+= ${__target}_subdir_${__dir}
 __deps=
+.if ${_is_standalone_target} == 0
 .for __dep in ${SUBDIR_DEPEND_${__dir}}
 __deps+= ${__target}_subdir_${__dep}
 .endfor
+.endif
 ${__target}_subdir_${__dir}: .PHONY .MAKE ${__deps}
 .if !defined(NO_SUBDIR)
 	@${_+_}target=${__target:realinstall=install}; \
@@ -104,13 +121,12 @@ ${__target}_subdir_${__dir}: .PHONY .MAKE ${__deps}
 	    ${_SUBDIR_SH};
 .endif
 .endif
-.endfor
+.endfor	# __dir in ${SUBDIR}
 ${__target}: ${__subdir_targets}
 .else
-${__target}: _sub.${__target}
-_sub.${__target}: _SUBDIR
-.endif
-.endfor
+${__target}: _SUBDIR
+.endif	# SUBDIR_PARALLEL || _is_standalone_target
+.endfor	# __target in ${ALL_SUBDIR_TARGETS}
 
 # This is to support 'make includes' calling 'make buildincludes' and
 # 'make installincludes' in the proper order, and to support these
@@ -119,8 +135,7 @@ _sub.${__target}: _SUBDIR
 .for __stage in build install
 ${__stage}${__target}:
 .if make(${__stage}${__target})
-${__stage}${__target}: _sub.${__stage}${__target}
-_sub.${__stage}${__target}: _SUBDIR
+${__stage}${__target}: _SUBDIR
 .endif
 .endfor
 .if !target(${__target})
