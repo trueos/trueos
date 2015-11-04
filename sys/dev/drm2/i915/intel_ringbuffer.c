@@ -449,7 +449,7 @@ init_pipe_control(struct intel_ring_buffer *ring)
 	if (ring->private)
 		return 0;
 
-	pc = malloc(sizeof(*pc), DRM_I915_GEM, M_NOWAIT);
+	pc = malloc(sizeof(*pc), DRM_I915_GEM, M_WAITOK);
 	if (!pc)
 		return -ENOMEM;
 
@@ -467,7 +467,7 @@ init_pipe_control(struct intel_ring_buffer *ring)
 		goto err_unref;
 
 	pc->gtt_offset = obj->gtt_offset;
-	pc->cpu_page =  (uint32_t *)kva_alloc(PAGE_SIZE);
+	pc->cpu_page = (uint32_t *)kva_alloc(PAGE_SIZE);
 	if (pc->cpu_page == NULL)
 		goto err_unpin;
 	pmap_qenter((uintptr_t)pc->cpu_page, &obj->pages[0], 1);
