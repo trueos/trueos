@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 typedef void *bus_dmaengine_t;
 struct bus_dmadesc;
-typedef void (*bus_dmaengine_callback_t)(void *arg);
+typedef void (*bus_dmaengine_callback_t)(void *arg, int error);
 
 /*
  * Called first to acquire a reference to the DMA channel
@@ -67,6 +67,16 @@ void ioat_put_dmaengine(bus_dmaengine_t dmaengine);
  */
 void ioat_acquire(bus_dmaengine_t dmaengine);
 void ioat_release(bus_dmaengine_t dmaengine);
+
+/*
+ * Issue a blockfill operation.  The 64-bit pattern 'fillpattern' is written to
+ * 'len' physically contiguous bytes at 'dst'.
+ *
+ * Only supported on devices with the BFILL capability.
+ */
+struct bus_dmadesc *ioat_blockfill(bus_dmaengine_t dmaengine, bus_addr_t dst,
+    uint64_t fillpattern, bus_size_t len, bus_dmaengine_callback_t callback_fn,
+    void *callback_arg, uint32_t flags);
 
 /* Issues the copy data operation */
 struct bus_dmadesc *ioat_copy(bus_dmaengine_t dmaengine, bus_addr_t dst,

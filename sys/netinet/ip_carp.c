@@ -1009,10 +1009,14 @@ static void
 carp_send_arp(struct carp_softc *sc)
 {
 	struct ifaddr *ifa;
+	struct in_addr addr;
 
-	CARP_FOREACH_IFA(sc, ifa)
-		if (ifa->ifa_addr->sa_family == AF_INET)
-			arp_ifinit2(sc->sc_carpdev, ifa, LLADDR(&sc->sc_addr));
+	CARP_FOREACH_IFA(sc, ifa) {
+		if (ifa->ifa_addr->sa_family != AF_INET)
+			continue;
+		addr = ((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+		arp_announce_ifaddr(sc->sc_carpdev, addr, LLADDR(&sc->sc_addr));
+	}
 }
 
 int
@@ -1769,6 +1773,13 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 		}
 		break;
 	    }
+	case SIOCSIFMTU:
+		if (ifr->ifr_mtu > ETHERMTU_JUMBO) {
+			error = EINVAL;
+		} else {
+			ifp->if_mtu = ifr->ifr_mtu;
+		}
+		break;
 	default:
 		error = EINVAL;
 	}

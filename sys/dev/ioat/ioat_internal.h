@@ -122,10 +122,39 @@ SYSCTL_DECL(_hw_ioat);
 
 extern int g_ioat_debug_level;
 
+struct generic_dma_control {
+	uint32_t int_enable:1;
+	uint32_t src_snoop_disable:1;
+	uint32_t dest_snoop_disable:1;
+	uint32_t completion_update:1;
+	uint32_t fence:1;
+	uint32_t reserved1:1;
+	uint32_t src_page_break:1;
+	uint32_t dest_page_break:1;
+	uint32_t bundle:1;
+	uint32_t dest_dca:1;
+	uint32_t hint:1;
+	uint32_t reserved2:13;
+	uint32_t op:8;
+};
+
+struct ioat_generic_hw_descriptor {
+	uint32_t size;
+	union {
+		uint32_t control_raw;
+		struct generic_dma_control control_generic;
+	} u;
+	uint64_t src_addr;
+	uint64_t dest_addr;
+	uint64_t next;
+	uint64_t reserved[4];
+};
+
 struct ioat_dma_hw_descriptor {
 	uint32_t size;
 	union {
 		uint32_t control_raw;
+		struct generic_dma_control control_generic;
 		struct {
 			uint32_t int_enable:1;
 			uint32_t src_snoop_disable:1;
@@ -156,6 +185,7 @@ struct ioat_fill_hw_descriptor {
 	uint32_t size;
 	union {
 		uint32_t control_raw;
+		struct generic_dma_control control_generic;
 		struct {
 			uint32_t int_enable:1;
 			uint32_t reserved:1;
@@ -183,6 +213,7 @@ struct ioat_xor_hw_descriptor {
 	uint32_t size;
 	union {
 		uint32_t control_raw;
+		struct generic_dma_control control_generic;
 		struct {
 			uint32_t int_enable:1;
 			uint32_t src_snoop_disable:1;
@@ -220,6 +251,7 @@ struct ioat_pq_hw_descriptor {
 	uint32_t size;
 	union {
 		uint32_t control_raw;
+		struct generic_dma_control control_generic;
 		struct {
 			uint32_t int_enable:1;
 			uint32_t src_snoop_disable:1;
@@ -261,6 +293,7 @@ struct ioat_pq_update_hw_descriptor {
 	uint32_t size;
 	union {
 		uint32_t control_raw;
+		struct generic_dma_control control_generic;
 		struct {
 			uint32_t int_enable:1;
 			uint32_t src_snoop_disable:1;
@@ -300,6 +333,7 @@ struct bus_dmadesc {
 struct ioat_descriptor {
 	struct bus_dmadesc	bus_dmadesc;
 	union {
+		struct ioat_generic_hw_descriptor	*generic;
 		struct ioat_dma_hw_descriptor		*dma;
 		struct ioat_fill_hw_descriptor		*fill;
 		struct ioat_xor_hw_descriptor		*xor;
@@ -309,8 +343,6 @@ struct ioat_descriptor {
 		struct ioat_raw_hw_descriptor		*raw;
 	} u;
 	uint32_t		id;
-	uint32_t		length;
-	enum validate_flags	*validate_result;
 	bus_addr_t		hw_desc_bus_addr;
 };
 
@@ -331,6 +363,7 @@ struct ioat_softc {
 })
 
 	int			version;
+	int			chan_idx;
 
 	struct mtx		submit_lock;
 	device_t		device;
@@ -339,6 +372,7 @@ struct ioat_softc {
 	int			pci_resource_id;
 	struct resource		*pci_resource;
 	uint32_t		max_xfer_size;
+	uint32_t		capabilities;
 
 	struct resource		*res;
 	int			rid;
@@ -354,6 +388,7 @@ struct ioat_softc {
 
 	struct callout		timer;
 
+	boolean_t		quiescing;
 	boolean_t		is_resize_pending;
 	boolean_t		is_completion_pending;
 	boolean_t		is_reset_pending;

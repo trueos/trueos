@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/limits.h>
 #include <sys/mbuf.h>
@@ -40,22 +39,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/queue.h>
-#include <sys/lock.h>
-#include <sys/sx.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
 
 #include <net/bpf.h>
 
 #include <net/if_types.h>
 
-#include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
@@ -65,16 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/clock.h>      /* for DELAY */
-#include <machine/bus.h>
-#include <machine/resource.h>
-#include <machine/frame.h>
-#include <machine/vmparam.h>
-
 #include <sys/bus.h>
-#include <sys/rman.h>
-
-#include <machine/intr_machdep.h>
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
@@ -1663,7 +1648,7 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = 0;
 		}
 #endif
-		/* FALLTHROUGH */
+		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, cmd);

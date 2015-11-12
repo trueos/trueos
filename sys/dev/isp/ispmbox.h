@@ -156,6 +156,8 @@
 #define	MBOX_SEND_CHANGE_REQUEST	0x0070
 #define	MBOX_FABRIC_LOGOUT		0x0071
 #define	MBOX_INIT_LIP_LOGIN		0x0072
+#define	MBOX_GET_PORT_NODE_NAME_LIST	0x0075
+#define	MBOX_GET_ID_LIST		0x007C
 #define	MBOX_LUN_RESET			0x007E
 
 #define	MBOX_DRIVER_HEARTBEAT		0x005B
@@ -189,13 +191,17 @@
 #define	MBOX_LOOP_ID_USED		0x4008
 #define	MBOX_ALL_IDS_USED		0x4009
 #define	MBOX_NOT_LOGGED_IN		0x400A
+#define	MBOX_LINK_DOWN_ERROR		0x400B
+#define	MBOX_LOOPBACK_ERROR		0x400C
+#define	MBOX_CHECKSUM_ERROR		0x4010
+#define	MBOX_INVALID_PRODUCT_KEY	0x4020
 /* pseudo mailbox completion codes */
 #define	MBOX_REGS_BUSY			0x6000	/* registers in use */
 #define	MBOX_TIMEOUT			0x6001	/* command timed out */
 
-#define	MBLOGALL			0x000f
-#define	MBLOGNONE			0x0000
-#define	MBLOGMASK(x)			((x) & 0xf)
+#define	MBLOGALL			0xffffffff
+#define	MBLOGNONE			0x00000000
+#define	MBLOGMASK(x)			(1 << (((x) - 1) & 0x1f))
 
 /*
  * Asynchronous event status codes
@@ -1342,6 +1348,40 @@ typedef struct {
 } isp_pdb_t;
 
 /*
+ * Port/Node Name List Element
+ */
+typedef struct {
+	uint8_t		pnnle_name[8];
+	uint16_t	pnnle_handle;
+	uint16_t	pnnle_reserved;
+} isp_pnnle_t;
+
+#define	PNNL_OPTIONS_NODE_NAMES	(1<<0)
+#define	PNNL_OPTIONS_PORT_DATA	(1<<2)
+#define	PNNL_OPTIONS_INITIATORS	(1<<3)
+
+/*
+ * Port and N-Port Handle List Element
+ */
+typedef struct {
+	uint16_t	pnhle_port_id_lo;
+	uint16_t	pnhle_port_id_hi_handle;
+} isp_pnhle_21xx_t;
+
+typedef struct {
+	uint16_t	pnhle_port_id_lo;
+	uint16_t	pnhle_port_id_hi;
+	uint16_t	pnhle_handle;
+} isp_pnhle_23xx_t;
+
+typedef struct {
+	uint16_t	pnhle_port_id_lo;
+	uint16_t	pnhle_port_id_hi;
+	uint16_t	pnhle_handle;
+	uint16_t	pnhle_reserved;
+} isp_pnhle_24xx_t;
+
+/*
  * Port Database Changed Async Event information for 24XX cards
  */
 #define	PDB24XX_AE_OK		0x00
@@ -1411,7 +1451,7 @@ typedef struct {
 #define	PLOGX_IOCBERR_FAILED	0x04	/* further info in IOPARM 1 */
 #define	PLOGX_IOCBERR_NOFABRIC	0x05
 #define	PLOGX_IOCBERR_NOTREADY	0x07
-#define	PLOGX_IOCBERR_NOLOGIN	0x08	/* further info in IOPARM 1 */
+#define	PLOGX_IOCBERR_NOLOGIN	0x09	/* further info in IOPARM 1 */
 #define	PLOGX_IOCBERR_NOPCB	0x0a
 #define	PLOGX_IOCBERR_REJECT	0x18	/* further info in IOPARM 1 */
 #define	PLOGX_IOCBERR_EINVAL	0x19	/* further info in IOPARM 1 */

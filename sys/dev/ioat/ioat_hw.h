@@ -54,6 +54,21 @@ __FBSDID("$FreeBSD$");
 #define	IOAT_CS_STATUS_OFFSET		0x0E
 
 #define	IOAT_DMACAPABILITY_OFFSET	0x10
+#define	IOAT_DMACAP_PB			(1 << 0)
+#define	IOAT_DMACAP_DCA			(1 << 4)
+#define	IOAT_DMACAP_BFILL		(1 << 6)
+#define	IOAT_DMACAP_XOR			(1 << 8)
+#define	IOAT_DMACAP_PQ			(1 << 9)
+#define	IOAT_DMACAP_DMA_DIF		(1 << 10)
+#define	IOAT_DMACAP_DWBES		(1 << 13)
+#define	IOAT_DMACAP_RAID16SS		(1 << 17)
+#define	IOAT_DMACAP_DMAMC		(1 << 18)
+#define	IOAT_DMACAP_CTOS		(1 << 19)
+
+#define	IOAT_DMACAP_STR \
+    "\20\24Completion_Timeout_Support\23DMA_with_Multicasting_Support" \
+    "\22RAID_Super_descriptors\16Descriptor_Write_Back_Error_Support" \
+    "\13DMA_with_DIF\12PQ\11XOR\07Block_Fill\05DCA\01Page_Break"
 
 /* DMA Channel Registers */
 #define	IOAT_CHANCTRL_OFFSET			0x80
@@ -66,7 +81,9 @@ __FBSDID("$FreeBSD$");
 #define	IOAT_CHANCTRL_ERR_COMPLETION_EN		0x0004
 #define	IOAT_CHANCTRL_INT_REARM			0x0001
 #define	IOAT_CHANCTRL_RUN			(IOAT_CHANCTRL_INT_REARM |\
-						 IOAT_CHANCTRL_ANY_ERR_ABORT_EN)
+						 IOAT_CHANCTRL_ERR_COMPLETION_EN |\
+						 IOAT_CHANCTRL_ANY_ERR_ABORT_EN |\
+						 IOAT_CHANCTRL_ERR_INT_EN)
 
 #define	IOAT_CHANCMD_OFFSET		0x84
 #define	IOAT_CHANCMD_RESET		0x20
@@ -83,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #define	IOAT_CHANSTS_IDLE		0x1
 #define	IOAT_CHANSTS_SUSPENDED		0x2
 #define	IOAT_CHANSTS_HALTED		0x3
+#define	IOAT_CHANSTS_ARMED		0x4
 
 #define	IOAT_CHANSTS_UNAFFILIATED_ERROR	0x8ULL
 #define	IOAT_CHANSTS_SOFT_ERROR		0x10ULL

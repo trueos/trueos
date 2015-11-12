@@ -98,7 +98,20 @@ _ftello(FILE *fp, fpos_t *offset)
 	 * Find offset of underlying I/O object, then
 	 * adjust for buffered bytes.
 	 */
-	if (fp->_flags & __SOFF)
+	if (!(fp->_flags & __SRD) && (fp->_flags & __SWR) &&
+	    fp->_p != NULL && fp->_p - fp->_bf._base > 0 &&
+	    ((fp->_flags & __SAPP) || (fp->_flags2 & __S2OAP))) {
+		if ((pos = _sseek(fp, (fpos_t)0, SEEK_END)) == -1) {
+			if (errno == ESPIPE ||
+			    (fp->_flags & __SOPT) || __sflush(fp) ||
+			    (pos = _sseek(fp, (fpos_t)0, SEEK_CUR)) == -1)
+				return (1);
+			else {
+				*offset = pos;
+				return (0);
+			}
+		}
+	} else if (fp->_flags & __SOFF)
 		pos = fp->_offset;
 	else {
 		pos = _sseek(fp, (fpos_t)0, SEEK_CUR);
@@ -118,32 +131,13 @@ _ftello(FILE *fp, fpos_t *offset)
 		}
 		if (HASUB(fp))
 			pos -= fp->_r;  /* Can be negative at this point. */
-	} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
-		/* XXX: Reuse __SALC for O_APPEND. */
-		if (fp->_flags & (__SAPP|__SALC)) {
-			int serrno = errno;
-
-			errno = 0;
-			if ((pos = _sseek(fp, (fpos_t)0, SEEK_END)) == -1) {
-				if (errno == ESPIPE ||
-				    (fp->_flags & __SOPT) || __sflush(fp) ||
-				    (pos =
-				    _sseek(fp, (fpos_t)0, SEEK_CUR)) == -1)
-					return (1);
-				else {
-					errno = serrno;
-					*offset = pos;
-					return (0);
-				}
-			}
-			errno = serrno;
-		}
+	} else if ((fp->_flags & __SWR) && fp->_p != NULL &&
+	    (n = fp->_p - fp->_bf._base) > 0) {
 		/*
 		 * Writing.  Any buffered characters cause the
 		 * position to be greater than that in the
 		 * underlying object.
 		 */
-		n = fp->_p - fp->_bf._base;
 		if (pos > OFF_MAX - n) {
 			errno = EOVERFLOW;
 			return (1);

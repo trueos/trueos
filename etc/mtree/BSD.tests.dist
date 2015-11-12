@@ -275,6 +275,8 @@
                 data
                 ..
             ..
+            rpc
+            ..
             ssp
             ..
             stdio
@@ -551,6 +553,8 @@
         jot
         ..
         lastcomm
+        ..
+        limits
         ..
         m4
         ..
