@@ -109,6 +109,8 @@ SRCS	= \
 	psm.c \
 	cz_clockpowergating.c \
 	cz_hwmgr.c \
+	ellesmere_hwmgr.c \
+	ellesmere_powertune.c \
 	fiji_clockpowergating.c \
 	fiji_hwmgr.c \
 	fiji_powertune.c \
@@ -190,6 +192,7 @@ CWARNFLAGS.amd_powerplay.c=	-Wno-missing-prototypes
 CWARNFLAGS.eventtasks.c=	-Wno-missing-prototypes
 CWARNFLAGS.cz_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.cz_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
+CWARNFLAGS.ellesmere_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.ellesmere_smumgr.c=	-Wno-missing-prototypes
 CWARNFLAGS.fiji_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.fiji_thermal.c=	-Wno-missing-prototypes
