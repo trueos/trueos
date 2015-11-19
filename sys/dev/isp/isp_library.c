@@ -400,31 +400,24 @@ isp_fc_runstate(ispsoftc_t *isp, int chan, int tval)
         if (fcp->role == ISP_ROLE_NONE) {
 		return (0);
 	}
-	if (fcp->isp_fwstate < FW_READY || fcp->isp_loopstate < LOOP_PDB_RCVD) {
-		if (isp_control(isp, ISPCTL_FCLINK_TEST, chan, tval) != 0) {
-			isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: linktest failed for channel %d", chan);
-			return (-1);
-		}
-		if (fcp->isp_fwstate != FW_READY || fcp->isp_loopstate < LOOP_PDB_RCVD) {
-			isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: f/w not ready for channel %d", chan);
-			return (-1);
-		}
+	if (isp_control(isp, ISPCTL_FCLINK_TEST, chan, tval) != 0) {
+		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: linktest failed for channel %d", chan);
+		return (-1);
 	}
-
 	if (isp_control(isp, ISPCTL_SCAN_LOOP, chan) != 0) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: scan loop fails on channel %d", chan);
-		return (LOOP_PDB_RCVD);
+		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: scan loop failed on channel %d", chan);
+		return (LOOP_LTEST_DONE);
 	}
 	if (isp_control(isp, ISPCTL_SCAN_FABRIC, chan) != 0) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: scan fabric fails on channel %d", chan);
+		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: scan fabric failed on channel %d", chan);
 		return (LOOP_LSCAN_DONE);
 	}
 	if (isp_control(isp, ISPCTL_PDB_SYNC, chan) != 0) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: pdb_sync fails on channel %d", chan);
+		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: pdb_sync failed on channel %d", chan);
 		return (LOOP_FSCAN_DONE);
 	}
-	if (fcp->isp_fwstate != FW_READY || fcp->isp_loopstate != LOOP_READY) {
-		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: f/w not ready again on channel %d", chan);
+	if (fcp->isp_loopstate != LOOP_READY) {
+		isp_prt(isp, ISP_LOG_SANCFG, "isp_fc_runstate: not ready again on channel %d", chan);
 		return (-1);
 	}
 	return (0);
@@ -536,7 +529,7 @@ isp_fc_fw_statename(int state)
 {
 	switch (state) {
 	case FW_CONFIG_WAIT:	return "Config Wait";
-	case FW_WAIT_AL_PA:	return "Waiting for AL_PA";
+	case FW_WAIT_LINK:	return "Wait Link";
 	case FW_WAIT_LOGIN:	return "Wait Login";
 	case FW_READY:		return "Ready";
 	case FW_LOSS_OF_SYNC:	return "Loss Of Sync";
@@ -552,9 +545,9 @@ isp_fc_loop_statename(int state)
 {
 	switch (state) {
 	case LOOP_NIL:                  return "NIL";
-	case LOOP_LIP_RCVD:             return "LIP Received";
-	case LOOP_PDB_RCVD:             return "PDB Received";
-	case LOOP_SCANNING_LOOP:        return "Scanning";
+	case LOOP_TESTING_LINK:         return "Testing Link";
+	case LOOP_LTEST_DONE:           return "Link Test Done";
+	case LOOP_SCANNING_LOOP:        return "Scanning Loop";
 	case LOOP_LSCAN_DONE:           return "Loop Scan Done";
 	case LOOP_SCANNING_FABRIC:      return "Scanning Fabric";
 	case LOOP_FSCAN_DONE:           return "Fabric Scan Done";
@@ -568,15 +561,15 @@ const char *
 isp_fc_toponame(fcparam *fcp)
 {
 
-	if (fcp->isp_fwstate != FW_READY) {
+	if (fcp->isp_loopstate < LOOP_LTEST_DONE) {
 		return "Unavailable";
 	}
 	switch (fcp->isp_topo) {
-	case TOPO_NL_PORT:      return "Private Loop";
-	case TOPO_FL_PORT:      return "FL Port";
-	case TOPO_N_PORT:       return "N-Port to N-Port";
-	case TOPO_F_PORT:       return "F Port";
-	case TOPO_PTP_STUB:     return "F Port (no FLOGI_ACC response)";
+	case TOPO_NL_PORT:      return "Private Loop (NL_Port)";
+	case TOPO_FL_PORT:      return "Public Loop (FL_Port)";
+	case TOPO_N_PORT:       return "Point-to-Point (N_Port)";
+	case TOPO_F_PORT:       return "Fabric (F_Port)";
+	case TOPO_PTP_STUB:     return "Point-to-Point (no response)";
 	default:                return "?????";
 	}
 }
@@ -604,7 +597,8 @@ isp_fc_enable_vp(ispsoftc_t *isp, int chan)
 	vp->vp_mod_cnt = 1;
 	vp->vp_mod_idx0 = chan;
 	vp->vp_mod_cmd = VP_MODIFY_ENA;
-	vp->vp_mod_ports[0].options = ICB2400_VPOPT_ENABLED;
+	vp->vp_mod_ports[0].options = ICB2400_VPOPT_ENABLED |
+	    ICB2400_VPOPT_ENA_SNSLOGIN;
 	if (fcp->role & ISP_ROLE_INITIATOR) {
 		vp->vp_mod_ports[0].options |= ICB2400_VPOPT_INI_ENABLE;
 	}
@@ -1733,6 +1727,10 @@ isp_get_ridacq(ispsoftc_t *isp, isp_ridacq_t *src, isp_ridacq_t *dst)
 	int i;
 	isp_get_hdr(isp, &src->ridacq_hdr, &dst->ridacq_hdr);
 	ISP_IOXGET_32(isp, &src->ridacq_handle, dst->ridacq_handle);
+	ISP_IOXGET_8(isp, &src->ridacq_vp_acquired, dst->ridacq_vp_acquired);
+	ISP_IOXGET_8(isp, &src->ridacq_vp_setup, dst->ridacq_vp_setup);
+	ISP_IOXGET_8(isp, &src->ridacq_vp_index, dst->ridacq_vp_index);
+	ISP_IOXGET_8(isp, &src->ridacq_vp_status, dst->ridacq_vp_status);
 	ISP_IOXGET_16(isp, &src->ridacq_vp_port_lo, dst->ridacq_vp_port_lo);
 	ISP_IOXGET_8(isp, &src->ridacq_vp_port_hi, dst->ridacq_vp_port_hi);
 	ISP_IOXGET_8(isp, &src->ridacq_format, dst->ridacq_format);
@@ -1741,17 +1739,6 @@ isp_get_ridacq(ispsoftc_t *isp, isp_ridacq_t *src, isp_ridacq_t *dst)
 	}
 	for (i = 0; i < sizeof (src->ridacq_reserved1) / sizeof (src->ridacq_reserved1[0]); i++) {
 		ISP_IOXGET_16(isp, &src->ridacq_reserved1[i], dst->ridacq_reserved1[i]);
-	}
-	if (dst->ridacq_format == 0) {
-		ISP_IOXGET_8(isp, &src->un.type0.ridacq_vp_acquired, dst->un.type0.ridacq_vp_acquired);
-		ISP_IOXGET_8(isp, &src->un.type0.ridacq_vp_setup, dst->un.type0.ridacq_vp_setup);
-		ISP_IOXGET_16(isp, &src->un.type0.ridacq_reserved0, dst->un.type0.ridacq_reserved0);
-	} else if (dst->ridacq_format == 1) {
-		ISP_IOXGET_16(isp, &src->un.type1.ridacq_vp_count, dst->un.type1.ridacq_vp_count);
-		ISP_IOXGET_8(isp, &src->un.type1.ridacq_vp_index, dst->un.type1.ridacq_vp_index);
-		ISP_IOXGET_8(isp, &src->un.type1.ridacq_vp_status, dst->un.type1.ridacq_vp_status);
-	} else {
-		ISP_MEMZERO(&dst->un, sizeof (dst->un));
 	}
 }
 
@@ -2170,6 +2157,20 @@ isp_put_rft_id(ispsoftc_t *isp, rft_id_t *src, rft_id_t *dst)
 }
 
 void
+isp_put_rff_id(ispsoftc_t *isp, rff_id_t *src, rff_id_t *dst)
+{
+	int i;
+
+	isp_put_ct_hdr(isp, &src->rffid_hdr, &dst->rffid_hdr);
+	ISP_IOZPUT_8(isp, src->rffid_reserved, &dst->rffid_reserved);
+	for (i = 0; i < 3; i++)
+		ISP_IOZPUT_8(isp, src->rffid_portid[i], &dst->rffid_portid[i]);
+	ISP_IOZPUT_16(isp, src->rffid_reserved2, &dst->rffid_reserved2);
+	ISP_IOZPUT_8(isp, src->rffid_fc4features, &dst->rffid_fc4features);
+	ISP_IOZPUT_8(isp, src->rffid_fc4type, &dst->rffid_fc4type);
+}
+
+void
 isp_get_ct_hdr(ispsoftc_t *isp, ct_hdr_t *src, ct_hdr_t *dst)
 {
 	ISP_IOZGET_8(isp, &src->ct_revision, dst->ct_revision);
@@ -2458,20 +2459,15 @@ isp_destroy_tgt_handle(ispsoftc_t *isp, uint32_t handle)
  * Find port database entries
  */
 int
-isp_find_pdb_by_wwn(ispsoftc_t *isp, int chan, uint64_t wwn, fcportdb_t **lptr)
+isp_find_pdb_empty(ispsoftc_t *isp, int chan, fcportdb_t **lptr)
 {
-	fcparam *fcp;
+	fcparam *fcp = FCPARAM(isp, chan);
 	int i;
 
-	if (chan >= isp->isp_nchan)
-		return (0);
-	fcp = FCPARAM(isp, chan);
 	for (i = 0; i < MAX_FC_TARG; i++) {
 		fcportdb_t *lp = &fcp->portdb[i];
 
-		if (lp->state == FC_PORTDB_STATE_NIL)
-			continue;
-		if (lp->port_wwn == wwn) {
+		if (lp->state == FC_PORTDB_STATE_NIL) {
 			*lptr = lp;
 			return (1);
 		}
@@ -2479,17 +2475,32 @@ isp_find_pdb_by_wwn(ispsoftc_t *isp, int chan, uint64_t wwn, fcportdb_t **lptr)
 	return (0);
 }
 
-#ifdef	ISP_TARGET_MODE
-
 int
-isp_find_pdb_by_handle(ispsoftc_t *isp, int chan, uint32_t handle, fcportdb_t **lptr)
+isp_find_pdb_by_wwpn(ispsoftc_t *isp, int chan, uint64_t wwpn, fcportdb_t **lptr)
 {
-	fcparam *fcp;
+	fcparam *fcp = FCPARAM(isp, chan);
 	int i;
 
-	if (chan >= isp->isp_nchan)
-		return (0);
-	fcp = FCPARAM(isp, chan);
+	for (i = 0; i < MAX_FC_TARG; i++) {
+		fcportdb_t *lp = &fcp->portdb[i];
+
+		if (lp->state == FC_PORTDB_STATE_NIL)
+			continue;
+		if (lp->port_wwn == wwpn) {
+			*lptr = lp;
+			return (1);
+		}
+	}
+	return (0);
+}
+
+int
+isp_find_pdb_by_handle(ispsoftc_t *isp, int chan, uint16_t handle,
+    fcportdb_t **lptr)
+{
+	fcparam *fcp = FCPARAM(isp, chan);
+	int i;
+
 	for (i = 0; i < MAX_FC_TARG; i++) {
 		fcportdb_t *lp = &fcp->portdb[i];
 
@@ -2504,20 +2515,18 @@ isp_find_pdb_by_handle(ispsoftc_t *isp, int chan, uint32_t handle, fcportdb_t **
 }
 
 int
-isp_find_pdb_by_sid(ispsoftc_t *isp, int chan, uint32_t sid, fcportdb_t **lptr)
+isp_find_pdb_by_portid(ispsoftc_t *isp, int chan, uint32_t portid,
+    fcportdb_t **lptr)
 {
-	fcparam *fcp;
+	fcparam *fcp = FCPARAM(isp, chan);
 	int i;
 
-	if (chan >= isp->isp_nchan)
-		return (0);
-	fcp = FCPARAM(isp, chan);
 	for (i = 0; i < MAX_FC_TARG; i++) {
 		fcportdb_t *lp = &fcp->portdb[i];
 
 		if (lp->state == FC_PORTDB_STATE_NIL)
 			continue;
-		if (lp->portid == sid) {
+		if (lp->portid == portid) {
 			*lptr = lp;
 			return (1);
 		}
@@ -2525,6 +2534,7 @@ isp_find_pdb_by_sid(ispsoftc_t *isp, int chan, uint32_t sid, fcportdb_t **lptr)
 	return (0);
 }
 
+#ifdef	ISP_TARGET_MODE
 void
 isp_find_chan_by_did(ispsoftc_t *isp, uint32_t did, uint16_t *cp)
 {
@@ -2533,7 +2543,8 @@ isp_find_chan_by_did(ispsoftc_t *isp, uint32_t did, uint16_t *cp)
 	*cp = ISP_NOCHAN;
 	for (chan = 0; chan < isp->isp_nchan; chan++) {
 		fcparam *fcp = FCPARAM(isp, chan);
-		if ((fcp->role & ISP_ROLE_TARGET) == 0 || fcp->isp_fwstate != FW_READY || fcp->isp_loopstate < LOOP_PDB_RCVD) {
+		if ((fcp->role & ISP_ROLE_TARGET) == 0 ||
+		    fcp->isp_loopstate < LOOP_LTEST_DONE) {
 			continue;
 		}
 		if (fcp->isp_portid == did) {
@@ -2568,8 +2579,8 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint64_t wwnn,
 	 * with new parameters.  Some cases of update can be suspicious,
 	 * so log them verbosely and dump the whole port database.
 	 */
-	if ((VALID_INI(wwpn) && isp_find_pdb_by_wwn(isp, chan, wwpn, &lp)) ||
-	    (s_id != PORT_NONE && isp_find_pdb_by_sid(isp, chan, s_id, &lp))) {
+	if ((VALID_INI(wwpn) && isp_find_pdb_by_wwpn(isp, chan, wwpn, &lp)) ||
+	    (s_id != PORT_NONE && isp_find_pdb_by_portid(isp, chan, s_id, &lp))) {
 		change = 0;
 		lp->new_portid = lp->portid;
 		lp->new_prli_word3 = lp->prli_word3;
@@ -2654,8 +2665,6 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t wwpn, uint64_t wwnn,
 			isp_async(isp, ISPASYNC_DEV_CHANGED, chan, lp);
 			lp->portid = lp->new_portid;
 			lp->prli_word3 = lp->new_prli_word3;
-			lp->new_prli_word3 = 0;
-			lp->new_portid = 0;
 		} else {
 			isp_prt(isp, ISP_LOGTINFO,
 			    "Chan %d WWPN 0x%016llx PortID 0x%06x "
@@ -2796,13 +2805,13 @@ isp_del_wwn_entries(ispsoftc_t *isp, isp_notify_t *mp)
 		}
 	}
 	if (mp->nt_wwn != INI_ANY) {
-		if (isp_find_pdb_by_wwn(isp, mp->nt_channel, mp->nt_wwn, &lp)) {
+		if (isp_find_pdb_by_wwpn(isp, mp->nt_channel, mp->nt_wwn, &lp)) {
 			isp_del_wwn_entry(isp, mp->nt_channel, lp->port_wwn, lp->handle, lp->portid);
 			return;
 		}
 	}
 	if (mp->nt_sid != PORT_ANY && mp->nt_sid != PORT_NONE) {
-		if (isp_find_pdb_by_sid(isp, mp->nt_channel, mp->nt_sid, &lp)) {
+		if (isp_find_pdb_by_portid(isp, mp->nt_channel, mp->nt_sid, &lp)) {
 			isp_del_wwn_entry(isp, mp->nt_channel, lp->port_wwn, lp->handle, lp->portid);
 			return;
 		}

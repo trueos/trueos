@@ -226,6 +226,8 @@ SUBDIR=	\
 	${_mlx4} \
 	${_mlx4ib} \
 	${_mlxen} \
+	${_mlx5} \
+	${_mlx5en} \
 	${_mly} \
 	mmc \
 	mmcsd \
@@ -343,6 +345,8 @@ SUBDIR=	\
 	${_syscons} \
 	sysvipc \
 	${_ti} \
+	tests/framework \
+	tests/callout_test \
 	tl \
 	tmpfs \
 	${_toecore} \
@@ -504,6 +508,11 @@ _cxgb=		cxgb
 .endif
 .endif
 
+.if ${MACHINE_CPUARCH} == "aarch64"
+_em=		em
+_igb=		igb
+.endif
+
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 _agp=		agp
 _an=		an
@@ -600,6 +609,11 @@ _iwnfw=		iwnfw
 _mlx4=		mlx4
 _mlx4ib=	mlx4ib
 _mlxen=		mlxen
+.endif
+_mlx5=		mlx5
+.if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
+	defined(ALL_MODULES)
+_mlx5en=	mlx5en
 .endif
 _mly=		mly
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)

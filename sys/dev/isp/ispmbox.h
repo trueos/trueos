@@ -167,12 +167,13 @@
 #define		MBGSD_GET_RATE		0
 #define		MBGSD_SET_RATE		1
 #define		MBGSD_SET_RATE_NOW	2	/* 24XX only */
-#define		MBGSD_ONEGB	0
-#define		MBGSD_TWOGB	1
-#define		MBGSD_AUTO	2
-#define		MBGSD_FOURGB	3		/* 24XX only */
-#define		MBGSD_EIGHTGB	4		/* 25XX only */
-
+#define		MBGSD_1GB	0x00
+#define		MBGSD_2GB	0x01
+#define		MBGSD_AUTO	0x02
+#define		MBGSD_4GB	0x03		/* 24XX only */
+#define		MBGSD_8GB	0x04		/* 25XX only */
+#define		MBGSD_16GB	0x05		/* 26XX only */
+#define		MBGSD_10GB	0x13		/* 26XX only */
 
 #define	ISP2100_SET_PCI_PARAM		0x00ff
 
@@ -1485,18 +1486,10 @@ typedef struct {
 typedef struct {
 	isphdr_t	ridacq_hdr;
 	uint32_t	ridacq_handle;
-	union {
-		struct {
-			uint8_t		ridacq_vp_acquired;
-			uint8_t		ridacq_vp_setup;
-			uint16_t	ridacq_reserved0;
-		} type0;	/* type 0 */
-		struct {
-			uint16_t	ridacq_vp_count;
-			uint8_t		ridacq_vp_index;
-			uint8_t		ridacq_vp_status;
-		} type1;	/* type 1 */
-	} un;
+	uint8_t		ridacq_vp_acquired;
+	uint8_t		ridacq_vp_setup;
+	uint8_t		ridacq_vp_index;
+	uint8_t		ridacq_vp_status;
 	uint16_t	ridacq_vp_port_lo;
 	uint8_t		ridacq_vp_port_hi;
 	uint8_t		ridacq_format;		/* 0 or 1 */
@@ -1506,8 +1499,11 @@ typedef struct {
 
 #define	RIDACQ_STS_COMPLETE	0
 #define	RIDACQ_STS_UNACQUIRED	1
-#define	RIDACQ_STS_CHANGED	20
-
+#define	RIDACQ_STS_CHANGED	2
+#define	RIDACQ_STS_SNS_TIMEOUT	3
+#define	RIDACQ_STS_SNS_REJECTED	4
+#define	RIDACQ_STS_SCR_TIMEOUT	5
+#define	RIDACQ_STS_SCR_REJECTED	6
 
 /*
  * Simple Name Server Data Structures
@@ -1518,6 +1514,7 @@ typedef struct {
 #define	SNS_GFF_ID	0x11F
 #define	SNS_GID_FT	0x171
 #define	SNS_RFT_ID	0x217
+#define	SNS_RFF_ID	0x21F
 typedef struct {
 	uint16_t	snscb_rblen;	/* response buffer length (words) */
 	uint16_t	snscb_reserved0;

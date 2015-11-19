@@ -399,8 +399,9 @@ typedef struct {
 	 */
 	uint16_t	prli_word3;		/* PRLI parameters */
 	uint16_t	new_prli_word3;		/* Incoming new PRLI parameters */
-	uint16_t			: 12,
+	uint16_t			: 11,
 			autologin	: 1,	/* F/W does PLOGI/PLOGO */
+			probational	: 1,
 			state		: 3;
 	uint32_t			: 6,
 			is_target	: 1,
@@ -414,14 +415,12 @@ typedef struct {
 	uint32_t	gone_timer;
 } fcportdb_t;
 
-#define	FC_PORTDB_STATE_NIL		0
-#define	FC_PORTDB_STATE_PROBATIONAL	1
-#define	FC_PORTDB_STATE_DEAD		2
-#define	FC_PORTDB_STATE_CHANGED		3
-#define	FC_PORTDB_STATE_NEW		4
-#define	FC_PORTDB_STATE_PENDING_VALID	5
-#define	FC_PORTDB_STATE_ZOMBIE		6
-#define	FC_PORTDB_STATE_VALID		7
+#define	FC_PORTDB_STATE_NIL		0	/* Empty DB slot */
+#define	FC_PORTDB_STATE_DEAD		1	/* Was valid, but no more. */
+#define	FC_PORTDB_STATE_CHANGED		2	/* Was valid, but changed. */
+#define	FC_PORTDB_STATE_NEW		3	/* Logged in, not announced. */
+#define	FC_PORTDB_STATE_ZOMBIE		4	/* Invalid, but announced. */
+#define	FC_PORTDB_STATE_VALID		5	/* Valid */
 
 #define	FC_PORTDB_TGT(isp, bus, pdb)		(int)(lp - FCPARAM(isp, bus)->portdb)
 
@@ -482,7 +481,7 @@ typedef struct {
 } fcparam;
 
 #define	FW_CONFIG_WAIT		0
-#define	FW_WAIT_AL_PA		1
+#define	FW_WAIT_LINK		1
 #define	FW_WAIT_LOGIN		2
 #define	FW_READY		3
 #define	FW_LOSS_OF_SYNC		4
@@ -491,8 +490,8 @@ typedef struct {
 #define	FW_NON_PART		7
 
 #define	LOOP_NIL		0
-#define	LOOP_LIP_RCVD		1
-#define	LOOP_PDB_RCVD		2
+#define	LOOP_TESTING_LINK	1
+#define	LOOP_LTEST_DONE		2
 #define	LOOP_SCANNING_LOOP	3
 #define	LOOP_LSCAN_DONE		4
 #define	LOOP_SCANNING_FABRIC	5
@@ -505,6 +504,8 @@ typedef struct {
 #define	TOPO_N_PORT		2
 #define	TOPO_F_PORT		3
 #define	TOPO_PTP_STUB		4
+
+#define TOPO_IS_FABRIC(x)	((x) == TOPO_FL_PORT || (x) == TOPO_F_PORT)
 
 /*
  * Soft Structure per host adapter
@@ -861,10 +862,10 @@ void isp_done(XS_T *);
  *        Update any operating parameters (speed, etc.)
  * ... ISPCTL_FCLINK_TEST, int channel);
  *        Test FC link status on this channel
- * ... ISPCTL_SCAN_FABRIC, int channel);
- *        Scan fabric on this channel
  * ... ISPCTL_SCAN_LOOP, int channel);
  *        Scan local loop on this channel
+ * ... ISPCTL_SCAN_FABRIC, int channel);
+ *        Scan fabric on this channel
  * ... ISPCTL_PDB_SYNC, int channel);
  *        Synchronize port database on this channel
  * ... ISPCTL_SEND_LIP, int channel);
@@ -881,12 +882,11 @@ void isp_done(XS_T *);
  *        Change role of specified channel
  *
  * ISPCTL_PDB_SYNC is somewhat misnamed. It actually is the final step, in
- * order, of ISPCTL_FCLINK_TEST, ISPCTL_SCAN_FABRIC, and ISPCTL_SCAN_LOOP.
+ * order, of ISPCTL_FCLINK_TEST, ISPCTL_SCAN_LOOP, and ISPCTL_SCAN_FABRIC.
  * The main purpose of ISPCTL_PDB_SYNC is to complete management of logging
  * and logging out of fabric devices (if one is on a fabric) and then marking
  * the 'loop state' as being ready to now be used for sending commands to
- * devices. Originally fabric name server and local loop scanning were
- * part of this function. It's now been separated to allow for finer control.
+ * devices.
  */
 typedef enum {
 	ISPCTL_RESET_BUS,

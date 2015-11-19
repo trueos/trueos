@@ -373,7 +373,11 @@
         file
         ..
         kern
+            acct
+            ..
             execve
+            ..
+            pipe
             ..
         ..
         kqueue
@@ -553,6 +557,8 @@
         jot
         ..
         lastcomm
+        ..
+        limits
         ..
         m4
         ..
