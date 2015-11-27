@@ -192,7 +192,7 @@ int intel_fbdev_init(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
-	ifbdev = malloc(sizeof(struct intel_fbdev), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	ifbdev = malloc(sizeof(struct intel_fbdev), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!ifbdev)
 		return -ENOMEM;
 
