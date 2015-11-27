@@ -351,7 +351,7 @@ hunt_mac_loopback_set(
 	return (0);
 
 fail1:
-	EFSYS_PROBE(fail2);
+	EFSYS_PROBE1(fail1, int, rc);
 
 	epp->ep_loopback_type = old_loopback_type;
 	epp->ep_loopback_link_mode = old_loopback_link_mode;
@@ -371,8 +371,8 @@ fail1:
 hunt_mac_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
-	__out_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
-	__out_opt			uint32_t *generationp)
+	__inout_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
+	__inout_opt			uint32_t *generationp)
 {
 	efx_qword_t value;
 	efx_qword_t generation_start;
