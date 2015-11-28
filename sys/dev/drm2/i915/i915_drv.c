@@ -700,7 +700,7 @@ static int i8xx_do_reset(struct drm_device *dev)
 		POSTING_READ(DEBUG_RESET_I830);
 	}
 
-	pause("i8xxrst2", 1);
+	pause("i8xxrst2", onems);
 
 	I915_WRITE(D_STATE, I915_READ(D_STATE) & ~DSTATE_GFX_RESET_I830);
 	POSTING_READ(D_STATE);
