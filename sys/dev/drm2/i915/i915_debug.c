@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
 
 #define	seq_printf(m, fmt, ...)	sbuf_printf((m), (fmt), ##__VA_ARGS__)
 
-#if defined(CONFIG_DEBUG_FS)
-
 enum {
 	ACTIVE_LIST,
 	INACTIVE_LIST,
@@ -1777,5 +1775,3 @@ i915_sysctl_cleanup(struct drm_device *dev)
 
 	free(dev->sysctl_private, DRM_MEM_DRIVER);
 }
-
-#endif /* CONFIG_DEBUG_FS */
