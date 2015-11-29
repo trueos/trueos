@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/intel_drv.h>
 
+#include <sys/sched.h>
+#include <sys/sf_buf.h>
 #include <sys/sleepqueue.h>
 
 /* For display hotplug interrupt */
@@ -883,7 +885,7 @@ static void i915_get_extra_instdone(struct drm_device *dev,
 	}
 }
 
-#ifdef CONFIG_DEBUG_FS
+//#ifdef CONFIG_DEBUG_FS
 static struct drm_i915_error_object *
 i915_error_object_create(struct drm_i915_private *dev_priv,
 			 struct drm_i915_gem_object *src)
@@ -903,14 +905,12 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 	reloc_offset = src->gtt_offset;
 	for (i = 0; i < count; i++) {
-		unsigned long flags;
 		void *d;
 
 		d = malloc(PAGE_SIZE, DRM_I915_GEM, M_NOWAIT);
 		if (d == NULL)
 			goto unwind;
 
-		local_irq_save(flags);
 		if (reloc_offset < dev_priv->mm.gtt_mappable_end &&
 		    src->has_global_gtt_mapping) {
 			void __iomem *s;
@@ -920,25 +920,32 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			 * captures what the GPU read.
 			 */
 
-			s = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
-						     reloc_offset);
+			s = pmap_mapdev_attr(dev_priv->mm.gtt_base_addr +
+						     reloc_offset,
+						     PAGE_SIZE, PAT_WRITE_COMBINING);
 			memcpy_fromio(d, s, PAGE_SIZE);
-			io_mapping_unmap_atomic(s);
+			pmap_unmapdev((vm_offset_t)s, PAGE_SIZE);
 		} else {
-			struct page *page;
+			struct sf_buf *sf;
 			void *s;
 
-			page = i915_gem_object_get_page(src, i);
+			drm_clflush_pages(&src->pages[i], 1);
 
-			drm_clflush_pages(&page, 1);
+			sched_pin();
+			sf = sf_buf_alloc(src->pages[i], SFB_CPUPRIVATE |
+			    SFB_NOWAIT);
+			if (sf != NULL) {
+				s = (void *)(uintptr_t)sf_buf_kva(sf);
+				memcpy(d, s, PAGE_SIZE);
+				sf_buf_free(sf);
+			} else {
+				bzero(d, PAGE_SIZE);
+				strcpy(d, "XXXKIB");
+			}
+			sched_unpin();
 
-			s = kmap_atomic(page);
-			memcpy(d, s, PAGE_SIZE);
-			kunmap_atomic(s);
-
-			drm_clflush_pages(&page, 1);
+			drm_clflush_pages(&src->pages[i], 1);
 		}
-		local_irq_restore(flags);
 
 		dst->pages[i] = d;
 
@@ -971,10 +978,8 @@ i915_error_object_free(struct drm_i915_error_object *obj)
 }
 
 void
-i915_error_state_free(struct kref *error_ref)
+i915_error_state_free(struct drm_i915_error_state *error)
 {
-	struct drm_i915_error_state *error = container_of(error_ref,
-							  typeof(*error), ref);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
@@ -984,8 +989,8 @@ i915_error_state_free(struct kref *error_ref)
 	}
 
 	free(error->active_bo, DRM_I915_GEM);
-	kfree(error->overlay, DRM_I915_GEM);
-	kfree(error, DRM_I915_GEM);
+	free(error->overlay, DRM_I915_GEM);
+	free(error, DRM_I915_GEM);
 }
 static void capture_bo(struct drm_i915_error_buffer *err,
 		       struct drm_i915_gem_object *obj)
@@ -1147,7 +1152,9 @@ static void i915_record_ring_state(struct drm_device *dev,
 		error->instdone[ring->id] = I915_READ(INSTDONE);
 	}
 
-	error->waiting[ring->id] = waitqueue_active(&ring->irq_queue);
+	sleepq_lock(&ring->irq_queue);
+	error->waiting[ring->id] = sleepq_sleepcnt(&ring->irq_queue, 0) != 0;
+	sleepq_release(&ring->irq_queue);
 	error->instpm[ring->id] = I915_READ(RING_INSTPM(ring->mmio_base));
 	error->seqno[ring->id] = ring->get_seqno(ring, false);
 	error->acthd[ring->id] = intel_ring_get_active_head(ring);
@@ -1308,7 +1315,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 					  error->pinned_bo_count,
 					  &dev_priv->mm.bound_list);
 
-	do_gettimeofday(&error->time);
+	microtime(&error->time);
 
 	error->overlay = intel_overlay_capture_error_state(dev);
 	error->display = intel_display_capture_error_state(dev);
@@ -1321,7 +1328,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	mtx_unlock(&dev_priv->error_lock);
 
 	if (error)
-		i915_error_state_free(&error->ref);
+		i915_error_state_free(error);
 }
 
 void i915_destroy_error_state(struct drm_device *dev)
@@ -1334,12 +1341,12 @@ void i915_destroy_error_state(struct drm_device *dev)
 	dev_priv->first_error = NULL;
 	mtx_unlock(&dev_priv->error_lock);
 
-	if (error)
-		kref_put(&error->ref, i915_error_state_free);
+	if (error && refcount_release(&error->ref))
+		i915_error_state_free(error);
 }
-#else
-#define i915_capture_error_state(x)
-#endif
+//#else
+//#define i915_capture_error_state(x)
+//#endif
 
 static void i915_report_and_clear_eir(struct drm_device *dev)
 {

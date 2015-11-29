@@ -1419,7 +1419,6 @@ void intel_cleanup_overlay(struct drm_device *dev)
 }
 
 //#ifdef CONFIG_DEBUG_FS
-
 #define	seq_printf(m, fmt, ...)	sbuf_printf((m), (fmt), ##__VA_ARGS__)
 
 struct intel_overlay_error_state {

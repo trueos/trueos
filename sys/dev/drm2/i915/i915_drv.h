@@ -1358,11 +1358,11 @@ i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
 
 void intel_enable_asle(struct drm_device *dev);
 
-#ifdef CONFIG_DEBUG_FS
+//#ifdef CONFIG_DEBUG_FS
 extern void i915_destroy_error_state(struct drm_device *dev);
-#else
-#define i915_destroy_error_state(x)
-#endif
+//#else
+//#define i915_destroy_error_state(x)
+//#endif
 
 /* i915_gem.c */
 int i915_gem_init_ioctl(struct drm_device *dev, void *data,
