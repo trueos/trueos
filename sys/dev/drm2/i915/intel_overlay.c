@@ -1064,7 +1064,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		return ret;
 	}
 
-	params = malloc(sizeof(struct put_image_params), DRM_I915_GEM, M_NOWAIT);
+	params = malloc(sizeof(struct put_image_params), DRM_I915_GEM, M_WAITOK);
 	if (!params)
 		return -ENOMEM;
 
@@ -1331,7 +1331,7 @@ void intel_setup_overlay(struct drm_device *dev)
 	if (!HAS_OVERLAY(dev))
 		return;
 
-	overlay = malloc(sizeof(struct intel_overlay), DRM_I915_GEM, M_NOWAIT | M_ZERO);
+	overlay = malloc(sizeof(struct intel_overlay), DRM_I915_GEM, M_WAITOK | M_ZERO);
 	if (!overlay)
 		return;
 
