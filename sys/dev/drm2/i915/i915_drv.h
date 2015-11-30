@@ -781,7 +781,7 @@ typedef struct drm_i915_private {
 		unsigned long stolen_base; /* limited to low memory (32-bit) */
 
 #ifdef __linux__
-		struct io_mapping gtt_mapping;
+		struct io_mapping *gtt_mapping;
 #endif
 		vm_paddr_t gtt_base_addr;
 		int gtt_mtrr;
@@ -1687,6 +1687,7 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 
 /* overlay */
+//#ifdef CONFIG_DEBUG_FS
 extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);
 extern void intel_overlay_print_error_state(struct sbuf *m, struct intel_overlay_error_state *error);
 
@@ -1694,6 +1695,7 @@ extern struct intel_display_error_state *intel_display_capture_error_state(struc
 extern void intel_display_print_error_state(struct sbuf *m,
 					    struct drm_device *dev,
 					    struct intel_display_error_state *error);
+//#endif
 
 static inline void
 trace_i915_reg_rw(boolean_t rw, int reg, uint64_t val, int sz)
