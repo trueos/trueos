@@ -115,11 +115,9 @@ static int get_context_size(struct drm_device *dev)
 		break;
 	case 7:
 		reg = I915_READ(GEN7_CXT_SIZE);
-#ifdef FREEBSD_WIP
 		if (IS_HASWELL(dev))
 			ret = HSW_CXT_TOTAL_SIZE(reg) * 64;
 		else
-#endif
 			ret = GEN7_CXT_TOTAL_SIZE(reg) * 64;
 		break;
 	default:
@@ -270,7 +268,7 @@ void i915_gem_context_init(struct drm_device *dev)
 
 	ctx_size = get_context_size(dev);
 	dev_priv->hw_context_size = get_context_size(dev);
-	dev_priv->hw_context_size = roundup(dev_priv->hw_context_size, 4096);
+	dev_priv->hw_context_size = round_up(dev_priv->hw_context_size, 4096);
 
 	if (ctx_size <= 0 || ctx_size > (1<<20)) {
 		dev_priv->hw_contexts_disabled = true;
