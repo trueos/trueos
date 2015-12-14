@@ -41,3 +41,5 @@
 #define	_PATH_RUNDOWN		"/etc/rc.shutdown"
 #define	_PATH_REROOT		"/dev/reroot"
 #define	_PATH_REROOT_INIT	_PATH_REROOT "/init"
+#define _PATH_UPDATE_TRIGGER	"/var/db/pc-updatemanager/shutdown-update-trigger"
+#define _PATH_UPDATE_CMD	"/usr/local/bin/pc-updatemanager"

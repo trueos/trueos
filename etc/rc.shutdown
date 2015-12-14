@@ -107,9 +107,6 @@ if [ -n "$_rcshutdown_watchdog" ]; then
 fi
 
 # Insert other shutdown procedures here
-if [ -e "/var/run/pc-updatemanager/shutdown-update-trigger" ]; then
-	/usr/local/bin/pc-updatemanager doshutdownupdate
-fi
 
 echo '.'
 exit 0
