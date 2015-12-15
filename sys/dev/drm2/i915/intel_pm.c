@@ -2296,7 +2296,7 @@ err_unref:
 /**
  * Lock protecting IPS related data structures
  */
-static struct mtx mchdev_lock;
+struct mtx mchdev_lock;
 MTX_SYSINIT(mchdev, &mchdev_lock, "mchdev", MTX_DEF);
 
 /* Global for IPS driver to get at the current i915 device. Protected by
