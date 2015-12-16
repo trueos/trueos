@@ -31,18 +31,14 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include <sys/disklabel.h>
-#include <sys/param.h>
 #include "bootstrap.h"
-#ifdef EFI_ZFS_BOOT
-#include <libzfs.h>
-#endif
 
 #include <efi.h>
 #include <efilib.h>
 
 static int efi_parsedev(struct devdesc **, const char *, const char **);
 
-/*
+/* 
  * Point (dev) at an allocated device specifier for the device matching the
  * path in (devspec). If it contains an explicit device specification,
  * use that.  If not, use the default device.
@@ -88,7 +84,7 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 	struct devsw *dv;
 	char *cp;
 	const char *np;
-	int i;
+	int i, err;
 
 	/* minimum length check */
 	if (strlen(devspec) < 2)
@@ -103,44 +99,24 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 	if (devsw[i] == NULL)
 		return (ENOENT);
 
+	idev = malloc(sizeof(struct devdesc));
+	if (idev == NULL)
+		return (ENOMEM);
+
+	idev->d_dev = dv;
+	idev->d_type = dv->dv_type;
+	idev->d_unit = -1;
+
+	err = 0;
 	np = devspec + strlen(dv->dv_name);
-
-#ifdef EFI_ZFS_BOOT
-	if (dv->dv_type == DEVT_ZFS) {
-		int err;
-
-		idev = malloc(sizeof(struct zfs_devdesc));
-		if (idev == NULL)
-			return (ENOMEM);
-
-		err = zfs_parsedev((struct zfs_devdesc*)idev, np, path);
-		if (err != 0) {
+	if (*np != '\0' && *np != ':') {
+		idev->d_unit = strtol(np, &cp, 0);
+		if (cp == np) {
+			idev->d_unit = -1;
 			free(idev);
-			return (err);
+			return (EUNIT);
 		}
-		*dev = idev;
-		cp = strchr(np + 1, ':');
-	} else {
-#endif
-		idev = malloc(sizeof(struct devdesc));
-		if (idev == NULL)
-			return (ENOMEM);
-
-		idev->d_dev = dv;
-		idev->d_type = dv->dv_type;
-		idev->d_unit = -1;
-		if (*np != '\0' && *np != ':') {
-			idev->d_unit = strtol(np, &cp, 0);
-			if (cp == np) {
-				idev->d_unit = -1;
-				free(idev);
-				return (EUNIT);
-			}
-		}
-#ifdef EFI_ZFS_BOOT
 	}
-#endif
-
 	if (*cp != '\0' && *cp != ':') {
 		free(idev);
 		return (EINVAL);
@@ -159,13 +135,9 @@ char *
 efi_fmtdev(void *vdev)
 {
 	struct devdesc *dev = (struct devdesc *)vdev;
-	static char buf[SPECNAMELEN + 1];
+	static char buf[32];	/* XXX device length constant? */
 
 	switch(dev->d_type) {
-#ifdef EFI_ZFS_BOOT
-	case DEVT_ZFS:
-		return (zfs_fmtdev(dev));
-#endif
 	case DEVT_NONE:
 		strcpy(buf, "(no device)");
 		break;
@@ -175,7 +147,7 @@ efi_fmtdev(void *vdev)
 		break;
 	}
 
-	return (buf);
+	return(buf);
 }
 
 /*
@@ -189,7 +161,7 @@ efi_setcurrdev(struct env_var *ev, int flags, const void *value)
 
 	rv = efi_parsedev(&ncurr, value, NULL);
 	if (rv != 0)
-		return (rv);
+		return(rv);
 
 	free(ncurr);
 	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
