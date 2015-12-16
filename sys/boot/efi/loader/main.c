@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <stand.h>
 #include <string.h>
 #include <setjmp.h>
@@ -38,6 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <bootstrap.h>
 #include <smbios.h>
 
+#ifdef EFI_ZFS_BOOT
+#include <libzfs.h>
+#endif
+
 #include "loader_efi.h"
 
 extern char bootprog_name[];
@@ -45,7 +50,6 @@ extern char bootprog_rev[];
 extern char bootprog_date[];
 extern char bootprog_maker[];
 
-struct devdesc currdev;		/* our current device */
 struct arch_switch archsw;	/* MI/MD interface boundary */
 
 EFI_GUID acpi = ACPI_TABLE_GUID;
@@ -61,13 +65,43 @@ EFI_GUID memtype = MEMORY_TYPE_INFORMATION_TABLE_GUID;
 EFI_GUID debugimg = DEBUG_IMAGE_INFO_TABLE_GUID;
 EFI_GUID fdtdtb = FDT_TABLE_GUID;
 
+#ifdef EFI_ZFS_BOOT
+static void efi_zfs_probe(void);
+#endif
+
+/*
+ * Need this because EFI uses UTF-16 unicode string constants, but we
+ * use UTF-8. We can't use printf due to the possiblity of \0 and we
+ * don't support support wide characters either.
+ */
+static void
+print_str16(const CHAR16 *str)
+{
+	int i;
+
+	for (i = 0; str[i]; i++)
+		printf("%c", (char)str[i]);
+}
+
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
 {
 	char vendor[128];
 	EFI_LOADED_IMAGE *img;
 	EFI_GUID *guid;
-	int i;
+	int i, unit;
+	struct devsw *dev;
+	uint64_t pool_guid;
+
+	archsw.arch_autoload = efi_autoload;
+	archsw.arch_getdev = efi_getdev;
+	archsw.arch_copyin = efi_copyin;
+	archsw.arch_copyout = efi_copyout;
+	archsw.arch_readin = efi_readin;
+#ifdef EFI_ZFS_BOOT
+	/* Note this needs to be set before ZFS init. */
+	archsw.arch_zfs_probe = efi_zfs_probe;
+#endif
 
 	/*
 	 * XXX Chicken-and-egg problem; we want to have console output
@@ -92,6 +126,13 @@ main(int argc, CHAR16 *argv[])
 	/* Get our loaded image protocol interface structure. */
 	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
+	printf("Command line arguments:");
+	for (i = 0; i < argc; i++) {
+		printf(" ");
+		print_str16(argv[i]);
+	}
+	printf("\n");
+
 	printf("Image base: 0x%lx\n", (u_long)img->ImageBase);
 	printf("EFI version: %d.%02d\n", ST->Hdr.Revision >> 16,
 	    ST->Hdr.Revision & 0xffff);
@@ -105,9 +146,6 @@ main(int argc, CHAR16 *argv[])
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 
-	efi_handle_lookup(img->DeviceHandle, &currdev.d_dev, &currdev.d_unit);
-	currdev.d_type = currdev.d_dev->dv_type;
-
 	/*
 	 * Disable the watchdog timer. By default the boot manager sets
 	 * the timer to 5 minutes before invoking a boot option. If we
@@ -119,18 +157,43 @@ main(int argc, CHAR16 *argv[])
 	 */
 	BS->SetWatchdogTimer(0, 0, 0, NULL);
 
-	env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
-	    efi_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
-	    env_nounset);
+	if (efi_handle_lookup(img->DeviceHandle, &dev, &unit, &pool_guid) != 0)
+		return (EFI_NOT_FOUND);
+
+	switch (dev->dv_type) {
+#ifdef EFI_ZFS_BOOT
+	case DEVT_ZFS: {
+		struct zfs_devdesc currdev;
+
+		currdev.d_dev = dev;
+		currdev.d_unit = unit;
+		currdev.d_type = currdev.d_dev->dv_type;
+		currdev.d_opendata = NULL;
+		currdev.pool_guid = pool_guid;
+		currdev.root_guid = 0;
+		env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
+			   efi_setcurrdev, env_nounset);
+		env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
+			   env_nounset);
+		break;
+	}
+#endif
+	default: {
+		struct devdesc currdev;
+
+		currdev.d_dev = dev;
+		currdev.d_unit = unit;
+		currdev.d_opendata = NULL;
+		currdev.d_type = currdev.d_dev->dv_type;
+		env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
+			   efi_setcurrdev, env_nounset);
+		env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
+			   env_nounset);
+		break;
+	}
+	}
 
 	setenv("LINES", "24", 1);	/* optional */
-
-	archsw.arch_autoload = efi_autoload;
-	archsw.arch_getdev = efi_getdev;
-	archsw.arch_copyin = efi_copyin;
-	archsw.arch_copyout = efi_copyout;
-	archsw.arch_readin = efi_readin;
 
 	for (i = 0; i < ST->NumberOfTableEntries; i++) {
 		guid = &ST->ConfigurationTable[i].VendorGuid;
@@ -204,50 +267,47 @@ command_memmap(int argc, char *argv[])
 	status = BS->GetMemoryMap(&sz, 0, &key, &dsz, &dver);
 	if (status != EFI_BUFFER_TOO_SMALL) {
 		printf("Can't determine memory map size\n");
-		return CMD_ERROR;
+		return (CMD_ERROR);
 	}
 	map = malloc(sz);
 	status = BS->GetMemoryMap(&sz, map, &key, &dsz, &dver);
 	if (EFI_ERROR(status)) {
 		printf("Can't read memory map\n");
-		return CMD_ERROR;
+		return (CMD_ERROR);
 	}
 
 	ndesc = sz / dsz;
 	printf("%23s %12s %12s %8s %4s\n",
-	       "Type", "Physical", "Virtual", "#Pages", "Attr");
+	    "Type", "Physical", "Virtual", "#Pages", "Attr");
 
 	for (i = 0, p = map; i < ndesc;
-	     i++, p = NextMemoryDescriptor(p, dsz)) {
-	    printf("%23s %012lx %012lx %08lx ",
-		   types[p->Type],
-		   p->PhysicalStart,
-		   p->VirtualStart,
-		   p->NumberOfPages);
-	    if (p->Attribute & EFI_MEMORY_UC)
-		printf("UC ");
-	    if (p->Attribute & EFI_MEMORY_WC)
-		printf("WC ");
-	    if (p->Attribute & EFI_MEMORY_WT)
-		printf("WT ");
-	    if (p->Attribute & EFI_MEMORY_WB)
-		printf("WB ");
-	    if (p->Attribute & EFI_MEMORY_UCE)
-		printf("UCE ");
-	    if (p->Attribute & EFI_MEMORY_WP)
-		printf("WP ");
-	    if (p->Attribute & EFI_MEMORY_RP)
-		printf("RP ");
-	    if (p->Attribute & EFI_MEMORY_XP)
-		printf("XP ");
-	    printf("\n");
+	    i++, p = NextMemoryDescriptor(p, dsz)) {
+		printf("%23s %012lx %012lx %08lx ", types[p->Type],
+		   p->PhysicalStart, p->VirtualStart, p->NumberOfPages);
+		if (p->Attribute & EFI_MEMORY_UC)
+			printf("UC ");
+		if (p->Attribute & EFI_MEMORY_WC)
+			printf("WC ");
+		if (p->Attribute & EFI_MEMORY_WT)
+			printf("WT ");
+		if (p->Attribute & EFI_MEMORY_WB)
+			printf("WB ");
+		if (p->Attribute & EFI_MEMORY_UCE)
+			printf("UCE ");
+		if (p->Attribute & EFI_MEMORY_WP)
+			printf("WP ");
+		if (p->Attribute & EFI_MEMORY_RP)
+			printf("RP ");
+		if (p->Attribute & EFI_MEMORY_XP)
+			printf("XP ");
+		printf("\n");
 	}
 
-	return CMD_OK;
+	return (CMD_OK);
 }
 
-COMMAND_SET(configuration, "configuration",
-	    "print configuration tables", command_configuration);
+COMMAND_SET(configuration, "configuration", "print configuration tables",
+    command_configuration);
 
 static const char *
 guid_to_string(EFI_GUID *guid)
@@ -295,7 +355,7 @@ command_configuration(int argc, char *argv[])
 		printf(" at %p\n", ST->ConfigurationTable[i].VendorTable);
 	}
 
-	return CMD_OK;
+	return (CMD_OK);
 }
 
 
@@ -370,20 +430,17 @@ command_nvram(int argc, char *argv[])
 	status = RS->GetNextVariableName(&varsz, NULL, NULL);
 
 	for (; status != EFI_NOT_FOUND; ) {
-		status = RS->GetNextVariableName(&varsz, var,
-		    &varguid);
+		status = RS->GetNextVariableName(&varsz, var, &varguid);
 		//if (EFI_ERROR(status))
 			//break;
 
 		conout->OutputString(conout, var);
 		printf("=");
 		datasz = 0;
-		status = RS->GetVariable(var, &varguid, NULL, &datasz,
-		    NULL);
+		status = RS->GetVariable(var, &varguid, NULL, &datasz, NULL);
 		/* XXX: check status */
 		data = malloc(datasz);
-		status = RS->GetVariable(var, &varguid, NULL, &datasz,
-		    data);
+		status = RS->GetVariable(var, &varguid, NULL, &datasz, data);
 		if (EFI_ERROR(status))
 			printf("<error retrieving variable>");
 		else {
@@ -402,6 +459,29 @@ command_nvram(int argc, char *argv[])
 	return (CMD_OK);
 }
 
+#ifdef EFI_ZFS_BOOT
+COMMAND_SET(lszfs, "lszfs", "list child datasets of a zfs dataset",
+    command_lszfs);
+
+static int
+command_lszfs(int argc, char *argv[])
+{
+	int err;
+
+	if (argc != 2) {
+		command_errmsg = "wrong number of arguments";
+		return (CMD_ERROR);
+	}
+
+	err = zfs_list(argv[1]);
+	if (err != 0) {
+		command_errmsg = strerror(err);
+		return (CMD_ERROR);
+	}
+	return (CMD_OK);
+}
+#endif
+
 #ifdef LOADER_FDT_SUPPORT
 extern int command_fdt_internal(int argc, char *argv[]);
 
@@ -419,4 +499,24 @@ command_fdt(int argc, char *argv[])
 }
 
 COMMAND_SET(fdt, "fdt", "flattened device tree handling", command_fdt);
+#endif
+
+#ifdef EFI_ZFS_BOOT
+static void
+efi_zfs_probe(void)
+{
+	EFI_HANDLE h;
+	u_int unit;
+	int i;
+	char dname[SPECNAMELEN + 1];
+	uint64_t guid;
+
+	unit = 0;
+	h = efi_find_handle(&efipart_dev, 0);
+	for (i = 0; h != NULL; h = efi_find_handle(&efipart_dev, ++i)) {
+		snprintf(dname, sizeof(dname), "%s%d:", efipart_dev.dv_name, i);
+		if (zfs_probe_dev(dname, &guid) == 0)
+			(void)efi_handle_update_dev(h, &zfs_dev, unit++, guid);
+	}
+}
 #endif

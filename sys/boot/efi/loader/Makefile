@@ -23,6 +23,11 @@ SRCS=	autoload.c \
 	smbios.c \
 	vers.c
 
+.if ${MK_ZFS} != "no"
+SRCS+=	zfs.c
+.PATH:		${.CURDIR}/../../zfs
+.endif
+
 .PATH: ${.CURDIR}/arch/${MACHINE}
 # For smbios.c
 .PATH: ${.CURDIR}/../../i386/libi386
@@ -35,6 +40,13 @@ CFLAGS+=	-I${.CURDIR}/../include/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-I${.CURDIR}/../../i386/libi386
+.if ${MK_ZFS} != "no"
+CFLAGS+=	-I${.CURDIR}/../../zfs
+CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs
+CFLAGS+=	-DEFI_ZFS_BOOT
+# For zfsimpl.c
+CWARNFLAGS+=	-Wno-array-bounds
+.endif
 CFLAGS+=	-DNO_PCI -DEFI
 
 # make buildenv doesn't set DESTDIR, this means LIBSTAND
@@ -67,7 +79,7 @@ HAVE_BCACHE=    yes
 CFLAGS+=	-DEFI_STAGING_SIZE=${EFI_STAGING_SIZE}
 .endif
 
-# Always add MI sources 
+# Always add MI sources
 .PATH:		${.CURDIR}/../../common
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common

@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #define	RELOC_TYPE_RELATIVE	R_386_RELATIVE
 #endif
 
+void self_reloc(Elf_Addr baseaddr, ElfW_Dyn *dynamic);
+
 /*
  * A simple elf relocator.
  */
