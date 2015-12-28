@@ -126,7 +126,7 @@ SX_SYSINIT(ifdescr_sx, &ifdescr_sx, "ifnet descr");
 
 void	(*bridge_linkstate_p)(struct ifnet *ifp);
 void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
-void	(*lagg_linkstate_p)(struct ifnet *ifp);
+void	(*lagg_linkstate_p)(struct ifnet *ifp, int state);
 /* These are external hooks for CARP. */
 void	(*carp_linkstate_p)(struct ifnet *ifp);
 void	(*carp_demote_adj_p)(int, char *);
@@ -173,7 +173,7 @@ static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
 static void	if_attach_internal(struct ifnet *, int, struct if_clone *);
-static void	if_detach_internal(struct ifnet *, int, struct if_clone **);
+static int	if_detach_internal(struct ifnet *, int, struct if_clone **);
 
 #ifdef INET6
 /*
@@ -884,7 +884,7 @@ if_detach(struct ifnet *ifp)
 	CURVNET_RESTORE();
 }
 
-static void
+static int
 if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 {
 	struct ifaddr *ifa;
@@ -906,11 +906,19 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 #endif
 	IFNET_WUNLOCK();
 	if (!found) {
+		/*
+		 * While we would want to panic here, we cannot
+		 * guarantee that the interface is indeed still on
+		 * the list given we don't hold locks all the way.
+		 */
+		return (ENOENT);
+#if 0
 		if (vmove)
 			panic("%s: ifp=%p not on the ifnet tailq %p",
 			    __func__, ifp, &V_ifnet);
 		else
 			return; /* XXX this should panic as well? */
+#endif
 	}
 
 	/* Check if this is a cloned interface or not. */
@@ -993,6 +1001,8 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 			(*dp->dom_ifdetach)(ifp,
 			    ifp->if_afdata[dp->dom_family]);
 	}
+
+	return (0);
 }
 
 #ifdef VIMAGE
@@ -1007,12 +1017,16 @@ void
 if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 {
 	struct if_clone *ifc;
+	int rc;
 
 	/*
 	 * Detach from current vnet, but preserve LLADDR info, do not
 	 * mark as dead etc. so that the ifnet can be reattached later.
+	 * If we cannot find it, we lost the race to someone else.
 	 */
-	if_detach_internal(ifp, 1, &ifc);
+	rc = if_detach_internal(ifp, 1, &ifc);
+	if (rc != 0)
+		return;
 
 	/*
 	 * Unlink the ifnet from ifindex_table[] in current vnet, and shrink
@@ -1984,8 +1998,6 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 
 	if (ifp->if_carp)
 		(*carp_linkstate_p)(ifp);
-	if (ifp->if_lagg)
-		(*lagg_linkstate_p)(ifp);
 	rt_ifmsg(ifp);
 }
 
@@ -2007,8 +2019,6 @@ if_route(struct ifnet *ifp, int flag, int fam)
 			pfctlinput(PRC_IFUP, ifa->ifa_addr);
 	if (ifp->if_carp)
 		(*carp_linkstate_p)(ifp);
-	if (ifp->if_lagg)
-		(*lagg_linkstate_p)(ifp);
 	rt_ifmsg(ifp);
 #ifdef INET6
 	in6_if_up(ifp);
@@ -2023,27 +2033,17 @@ int	(*vlan_tag_p)(struct ifnet *, uint16_t *);
 int	(*vlan_setcookie_p)(struct ifnet *, void *);
 void	*(*vlan_cookie_p)(struct ifnet *);
 
-void
-if_link_state_change(struct ifnet *ifp, int link_state)
-{
-
-	return if_link_state_change_cond(ifp, link_state, 0);
-}
-
 /*
  * Handle a change in the interface link state. To avoid LORs
  * between driver lock and upper layer locks, as well as possible
  * recursions, we post event to taskqueue, and all job
  * is done in static do_link_state_change().
- *
- * If the current link state matches link_state and force isn't
- * specified no action is taken.
  */
 void
-if_link_state_change_cond(struct ifnet *ifp, int link_state, int force)
+if_link_state_change(struct ifnet *ifp, int link_state)
 {
-
-	if (ifp->if_link_state == link_state && !force)
+	/* Return if state hasn't changed. */
+	if (ifp->if_link_state == link_state)
 		return;
 
 	ifp->if_link_state = link_state;
@@ -2071,7 +2071,7 @@ do_link_state_change(void *arg, int pending)
 	if (ifp->if_bridge)
 		(*bridge_linkstate_p)(ifp);
 	if (ifp->if_lagg)
-		(*lagg_linkstate_p)(ifp);
+		(*lagg_linkstate_p)(ifp, link_state);
 
 	if (IS_DEFAULT_VNET(curvnet))
 		devctl_notify("IFNET", ifp->if_xname,
