@@ -1652,13 +1652,51 @@ flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
 		bp->b_flags &= ~B_ASYNC;
 		brelse(bp);
 		BO_LOCK(bo);
-		if (nbp != NULL &&
-		    (nbp->b_bufobj != bo ||
-		     nbp->b_lblkno != lblkno ||
-		     (nbp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) != xflags))
+		nbp = gbincore(bo, lblkno);
+		if (nbp == NULL || (nbp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
+		    != xflags)
 			break;			/* nbp invalid */
 	}
 	return (retval);
+}
+
+int
+bnoreuselist(struct bufv *bufv, struct bufobj *bo, daddr_t startn, daddr_t endn)
+{
+	struct buf *bp;
+	int error;
+	daddr_t lblkno;
+
+	ASSERT_BO_LOCKED(bo);
+
+	for (lblkno = startn;; lblkno++) {
+		bp = BUF_PCTRIE_LOOKUP_GE(&bufv->bv_root, lblkno);
+		if (bp == NULL || bp->b_lblkno >= endn)
+			break;
+		error = BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
+		    LK_INTERLOCK, BO_LOCKPTR(bo), "brlsfl", 0, 0);
+		if (error != 0) {
+			BO_RLOCK(bo);
+			return (error != ENOLCK ? error : EAGAIN);
+		}
+		KASSERT(bp->b_bufobj == bo,
+		    ("bp %p wrong b_bufobj %p should be %p",
+		    bp, bp->b_bufobj, bo));
+		if ((bp->b_flags & B_MANAGED) == 0)
+			bremfree(bp);
+		bp->b_flags |= B_RELBUF;
+		/*
+		 * In the VMIO case, use the B_NOREUSE flag to hint that the
+		 * pages backing each buffer in the range are unlikely to be
+		 * reused.  Dirty buffers will have the hint applied once
+		 * they've been written.
+		 */
+		if (bp->b_vp->v_object != NULL)
+			bp->b_flags |= B_NOREUSE;
+		brelse(bp);
+		BO_RLOCK(bo);
+	}
+	return (0);
 }
 
 /*
@@ -2770,6 +2808,8 @@ _vdrop(struct vnode *vp, bool locked)
 	VNASSERT(TAILQ_EMPTY(&vp->v_cache_dst), vp, ("vp has namecache dst"));
 	VNASSERT(LIST_EMPTY(&vp->v_cache_src), vp, ("vp has namecache src"));
 	VNASSERT(vp->v_cache_dd == NULL, vp, ("vp has namecache for .."));
+	VNASSERT(TAILQ_EMPTY(&vp->v_rl.rl_waiters), vp,
+	    ("Dangling rangelock waiters"));
 	VI_UNLOCK(vp);
 #ifdef MAC
 	mac_vnode_destroy(vp);
@@ -2782,6 +2822,8 @@ _vdrop(struct vnode *vp, bool locked)
 	/* XXX Elsewhere we detect an already freed vnode via NULL v_op. */
 	vp->v_op = NULL;
 #endif
+	bzero(&vp->v_un, sizeof(vp->v_un));
+	vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
 	vp->v_iflag = 0;
 	vp->v_vflag = 0;
 	bo->bo_flag = 0;

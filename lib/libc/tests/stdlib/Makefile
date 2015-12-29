@@ -3,6 +3,7 @@
 ATF_TESTS_C+=		heapsort_test
 ATF_TESTS_C+=		mergesort_test
 ATF_TESTS_C+=		qsort_test
+ATF_TESTS_C+=		tsearch_test
 
 # TODO: t_getenv_thread, t_mi_vector_hash
 NETBSD_ATF_TESTS_C+=	abs_test
@@ -36,11 +37,9 @@ CFLAGS+=	-I${.CURDIR}
 CFLAGS.$t+=	-I${LIBNETBSD_SRCDIR} -I${SRCTOP}/contrib/netbsd-tests
 LDFLAGS.$t+=	-L${LIBNETBSD_OBJDIR}
 
-DPADD.$t+=	${LIBNETBSD} ${LIBUTIL}
-LDADD.$t+=	-lnetbsd -lutil
+LIBADD.${t}+=	netbsd util
 .endfor
 
-DPADD.strtod_test+=		${LIBM}
-LDADD.strtod_test+=		-lm
+LIBADD.strtod_test+=		m
 
 .include <bsd.test.mk>

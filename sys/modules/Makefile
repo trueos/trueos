@@ -220,6 +220,7 @@ SUBDIR=	\
 	malo \
 	mcd \
 	md \
+	mdio \
 	mem \
 	mfi \
 	mii \
@@ -346,6 +347,7 @@ SUBDIR=	\
 	${_syscons} \
 	sysvipc \
 	${_ti} \
+	tcp/fastpath \
 	tests/framework \
 	tests/callout_test \
 	tl \
@@ -770,6 +772,12 @@ afterinstall:
 .endif
 
 .include "${SYSDIR}/conf/config.mk"
+
+# Use sys/conf/kmod.mk's MPATH to avoid redundantly running in every subdir.
+.if !defined(__MPATH)
+__MPATH!=find ${SYSDIR:tA}/ -name \*_if.m
+.export __MPATH
+.endif
 
 SUBDIR:= ${SUBDIR:u:O}
 

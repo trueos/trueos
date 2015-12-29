@@ -7,6 +7,7 @@ SUBDIR=	adduser \
 	arp \
 	binmiscctl \
 	bsdconfig \
+	camdd \
 	cdcontrol \
 	chkgrp \
 	chown \
@@ -45,6 +46,7 @@ SUBDIR=	adduser \
 	mixer \
 	mlxcontrol \
 	mountd \
+	mount_smbfs \
 	mpsutil \
 	mptutil \
 	mtest \
