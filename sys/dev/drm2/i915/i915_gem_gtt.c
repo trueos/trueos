@@ -589,14 +589,16 @@ static int setup_scratch_page(struct drm_device *dev)
 	vm_page_t page;
 	dma_addr_t dma_addr;
 	int tries = 0;
+	int req = VM_ALLOC_ZERO | VM_ALLOC_NOOBJ;
 
 retry:
-	page = vm_page_alloc_contig(NULL, 0,
-	    VM_ALLOC_ZERO | VM_ALLOC_NOOBJ,
-	    1, 0, 0xffffffff, PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
+	page = vm_page_alloc_contig(NULL, 0, req, 1, 0, 0xffffffff,
+	    PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
 	if (page == NULL) {
 		if (tries < 1) {
-			vm_pageout_grow_cache(tries, 0, 0xffffffff);
+			if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
+			    PAGE_SIZE, 0))
+				VM_WAIT;
 			tries++;
 			goto retry;
 		}
