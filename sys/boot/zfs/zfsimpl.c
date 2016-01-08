@@ -1867,7 +1867,7 @@ zfs_list_dataset(const spa_t *spa, uint64_t objnum/*, int pos, char *entry*/)
 	return (zap_list(spa, &child_dir_zap) != 0);
 }
 
-int
+static int
 zfs_callback_dataset(const spa_t *spa, uint64_t objnum, int (*callback)(const char *name))
 {
 	uint64_t dir_obj, child_dir_zapobj, zap_type;

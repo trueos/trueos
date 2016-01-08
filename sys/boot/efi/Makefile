@@ -16,4 +16,6 @@ SUBDIR+=	fdt
 SUBDIR+=	loader boot1
 .endif
 
+CWARNFLAGS+=	-Wall
+
 .include <bsd.subdir.mk>
