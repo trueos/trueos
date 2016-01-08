@@ -705,9 +705,8 @@ zfs_list(const char *name)
 	rv = zfs_lookup_dataset(spa, dsname, &objid);
 	if (rv != 0)
 		return (rv);
-	rv = zfs_list_dataset(spa, objid);
 
-	return (rv);
+	return (zfs_list_dataset(spa, objid));
 }
 
 int
@@ -720,7 +719,8 @@ zfs_bootenv(const char *name)
 	int		len, rv, pages, perpage, currpage;
 
 	if (strcmp(name, getenv("zfs_be_root")) != 0) {
-		setenv("zfs_be_root", name, 1);
+		if (setenv("zfs_be_root", name, 1) != 0)
+			return (ENOMEM);
 	}
 
 	SLIST_INIT(&zfs_be_head);
@@ -747,12 +747,14 @@ zfs_bootenv(const char *name)
 	perpage = (ZFS_BE_LAST - ZFS_BE_FIRST + 1);
 	pages = (zfs_env_count / perpage) + ((zfs_env_count % perpage) > 0 ? 1 : 0);
 	snprintf(becount, 4, "%d", pages);
-	setenv("zfs_be_pages", becount, 1);
+	if (setenv("zfs_be_pages", becount, 1) != 0)
+		return (ENOMEM);
 
 	/* Roll over the page counter if it has exceeded the maximum */
 	currpage = strtol(getenv("zfs_be_currpage"), NULL, 10);
 	if (currpage > pages) {
-		setenv("zfs_be_currpage", "1", 1);
+		if (setenv("zfs_be_currpage", "1", 1) != 0)
+			return (ENOMEM);
 	}
 
 	/* Populate the menu environment variables */
@@ -778,7 +780,7 @@ zfs_belist_add(const char *name)
 	SLIST_INSERT_HEAD(&zfs_be_head, zfs_be, entries);
 	zfs_env_count++;
 
-	return 0;
+	return (0);
 }
 
 int
@@ -789,19 +791,19 @@ zfs_set_env(void)
 	int rv, page, ctr;
 
 	beroot = getenv("zfs_be_root");
-	pagenum = getenv("zfs_be_currpage");
+	if (beroot == NULL) {
+		return (1);
+	}
 
+	pagenum = getenv("zfs_be_currpage");
 	if (pagenum != NULL) {
 		page = strtol(pagenum, NULL, 10);
 	} else {
 		page = 1;
 	}
 
-	if (beroot == NULL) {
-		return (1);
-	}
-
 	ctr = 1;
+	rv = 0;
 	zfs_env_index = ZFS_BE_FIRST;
 	SLIST_FOREACH_SAFE(zfs_be, &zfs_be_head, entries, zfs_be_tmp) {
 		/* Skip to the requested page number */
@@ -810,49 +812,48 @@ zfs_set_env(void)
 			continue;
 		}
 		
-		snprintf(envname, 32, "bootenvmenu_caption[%d]", zfs_env_index);
-		snprintf(envval, 256, "%s", zfs_be->name);
+		snprintf(envname, sizeof(envname), "bootenvmenu_caption[%d]", zfs_env_index);
+		snprintf(envval, sizeof(envval), "%s", zfs_be->name);
 		rv = setenv(envname, envval, 1);
-		if (rv){
-			return (rv);
+		if (rv != 0) {
+			break;
 		}
 
-		snprintf(envname, 32, "bootenvansi_caption[%d]", zfs_env_index);
+		snprintf(envname, sizeof(envname), "bootenvansi_caption[%d]", zfs_env_index);
 		rv = setenv(envname, envval, 1);
-		if (rv){
-			return (rv);
+		if (rv != 0){
+			break;
 		}
 
-		snprintf(envname, 32, "bootenvmenu_command[%d]", zfs_env_index);
+		snprintf(envname, sizeof(envname), "bootenvmenu_command[%d]", zfs_env_index);
 		rv = setenv(envname, "set_bootenv", 1);
-		if (rv){
-			return (rv);
+		if (rv != 0){
+			break;
 		}
 
-		snprintf(envname, 32, "bootenv_root[%d]", zfs_env_index);
-		snprintf(envval, 256, "zfs:%s/%s", beroot, zfs_be->name);
+		snprintf(envname, sizeof(envname), "bootenv_root[%d]", zfs_env_index);
+		snprintf(envval, sizeof(envval), "zfs:%s/%s", beroot, zfs_be->name);
 		rv = setenv(envname, envval, 1);
-		if (rv){
-			return (rv);
-		}
-
-		if (zfs_env_index >= ZFS_BE_LAST) {
-			zfs_env_index++;
+		if (rv != 0){
 			break;
 		}
 
 		zfs_env_index++;
+		if (zfs_env_index > ZFS_BE_LAST) {
+			break;
+		}
+
 	}
 	
 	for (; zfs_env_index <= ZFS_BE_LAST; zfs_env_index++) {
-		snprintf(envname, 32, "bootenvmenu_caption[%d]", zfs_env_index);
-		rv = unsetenv(envname);
-		snprintf(envname, 32, "bootenvansi_caption[%d]", zfs_env_index);
-		rv = unsetenv(envname);
-		snprintf(envname, 32, "bootenvmenu_command[%d]", zfs_env_index);
-		rv = unsetenv(envname);
-		snprintf(envname, 32, "bootenv_root[%d]", zfs_env_index);
-		rv = unsetenv(envname);
+		snprintf(envname, sizeof(envname), "bootenvmenu_caption[%d]", zfs_env_index);
+		(void)unsetenv(envname);
+		snprintf(envname, sizeof(envname), "bootenvansi_caption[%d]", zfs_env_index);
+		(void)unsetenv(envname);
+		snprintf(envname, sizeof(envname), "bootenvmenu_command[%d]", zfs_env_index);
+		(void)unsetenv(envname);
+		snprintf(envname, sizeof(envname), "bootenv_root[%d]", zfs_env_index);
+		(void)unsetenv(envname);
 	}
 
 	return (rv);

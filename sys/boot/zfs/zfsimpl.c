@@ -1874,28 +1874,33 @@ zfs_callback_dataset(const spa_t *spa, uint64_t objnum, int (*callback)(const ch
 	dnode_phys_t child_dir_zap, dir, dataset;
 	dsl_dataset_phys_t *ds;
 	dsl_dir_phys_t *dd;
+	int err;
 
-	if (objset_get_dnode(spa, &spa->spa_mos, objnum, &dataset)) {
+	err = objset_get_dnode(spa, &spa->spa_mos, objnum, &dataset);
+	if (err != 0) {
 		printf("ZFS: can't find dataset %ju\n", (uintmax_t)objnum);
-		return (EIO);
+		return (err);
 	}
 	ds = (dsl_dataset_phys_t *) &dataset.dn_bonus;
 	dir_obj = ds->ds_dir_obj;
 
-	if (objset_get_dnode(spa, &spa->spa_mos, dir_obj, &dir)) {
+	err = objset_get_dnode(spa, &spa->spa_mos, dir_obj, &dir);
+	if (err != 0) {
 		printf("ZFS: can't find dirobj %ju\n", (uintmax_t)dir_obj);
-		return (EIO);
+		return (err);
 	}
 	dd = (dsl_dir_phys_t *)&dir.dn_bonus;
 
 	child_dir_zapobj = dd->dd_child_dir_zapobj;
-	if (objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj, &child_dir_zap) != 0) {
+	err = objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj, &child_dir_zap);
+	if (err != 0) {
 		printf("ZFS: can't find child zap %ju\n", (uintmax_t)dir_obj);
-		return (EIO);
+		return (err);
 	}
 
-	if (dnode_read(spa, &child_dir_zap, 0, zap_scratch, child_dir_zap.dn_datablkszsec * 512))
-		return (EIO);
+	err = dnode_read(spa, &child_dir_zap, 0, zap_scratch, child_dir_zap.dn_datablkszsec * 512);
+	if (err != 0)
+		return (err);
 
 	zap_type = *(uint64_t *) zap_scratch;
 	if (zap_type == ZBT_MICRO)
