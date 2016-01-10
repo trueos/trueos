@@ -25,6 +25,9 @@
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "dvo.h"
 
 /*
@@ -192,7 +195,7 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 
 	out_buf[0] = addr;
 
-	if (iicbus_transfer(adapter, msgs, 3) == 0) {
+	if (-iicbus_transfer(adapter, msgs, 3) == 0) {
 		*data = (in_buf[1] << 8) | in_buf[0];
 		return true;
 	}
@@ -222,7 +225,7 @@ static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 	out_buf[1] = data & 0xff;
 	out_buf[2] = data >> 8;
 
-	if (iicbus_transfer(adapter, &msg, 1) == 0)
+	if (-iicbus_transfer(adapter, &msg, 1) == 0)
 		return true;
 
 	if (!priv->quiet) {
@@ -240,7 +243,7 @@ static bool ivch_init(struct intel_dvo_device *dvo,
 	struct ivch_priv *priv;
 	uint16_t temp;
 
-	priv = malloc(sizeof(struct ivch_priv), DRM_MEM_KMS, M_NOWAIT);
+	priv = malloc(sizeof(struct ivch_priv), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return false;
 
@@ -377,41 +380,41 @@ static void ivch_dump_regs(struct intel_dvo_device *dvo)
 	uint16_t val;
 
 	ivch_read(dvo, VR00, &val);
-	DRM_DEBUG_KMS("VR00: 0x%04x\n", val);
+	DRM_LOG_KMS("VR00: 0x%04x\n", val);
 	ivch_read(dvo, VR01, &val);
-	DRM_DEBUG_KMS("VR01: 0x%04x\n", val);
+	DRM_LOG_KMS("VR01: 0x%04x\n", val);
 	ivch_read(dvo, VR30, &val);
-	DRM_DEBUG_KMS("VR30: 0x%04x\n", val);
+	DRM_LOG_KMS("VR30: 0x%04x\n", val);
 	ivch_read(dvo, VR40, &val);
-	DRM_DEBUG_KMS("VR40: 0x%04x\n", val);
+	DRM_LOG_KMS("VR40: 0x%04x\n", val);
 
 	/* GPIO registers */
 	ivch_read(dvo, VR80, &val);
-	DRM_DEBUG_KMS("VR80: 0x%04x\n", val);
+	DRM_LOG_KMS("VR80: 0x%04x\n", val);
 	ivch_read(dvo, VR81, &val);
-	DRM_DEBUG_KMS("VR81: 0x%04x\n", val);
+	DRM_LOG_KMS("VR81: 0x%04x\n", val);
 	ivch_read(dvo, VR82, &val);
-	DRM_DEBUG_KMS("VR82: 0x%04x\n", val);
+	DRM_LOG_KMS("VR82: 0x%04x\n", val);
 	ivch_read(dvo, VR83, &val);
-	DRM_DEBUG_KMS("VR83: 0x%04x\n", val);
+	DRM_LOG_KMS("VR83: 0x%04x\n", val);
 	ivch_read(dvo, VR84, &val);
-	DRM_DEBUG_KMS("VR84: 0x%04x\n", val);
+	DRM_LOG_KMS("VR84: 0x%04x\n", val);
 	ivch_read(dvo, VR85, &val);
-	DRM_DEBUG_KMS("VR85: 0x%04x\n", val);
+	DRM_LOG_KMS("VR85: 0x%04x\n", val);
 	ivch_read(dvo, VR86, &val);
-	DRM_DEBUG_KMS("VR86: 0x%04x\n", val);
+	DRM_LOG_KMS("VR86: 0x%04x\n", val);
 	ivch_read(dvo, VR87, &val);
-	DRM_DEBUG_KMS("VR87: 0x%04x\n", val);
+	DRM_LOG_KMS("VR87: 0x%04x\n", val);
 	ivch_read(dvo, VR88, &val);
-	DRM_DEBUG_KMS("VR88: 0x%04x\n", val);
+	DRM_LOG_KMS("VR88: 0x%04x\n", val);
 
 	/* Scratch register 0 - AIM Panel type */
 	ivch_read(dvo, VR8E, &val);
-	DRM_DEBUG_KMS("VR8E: 0x%04x\n", val);
+	DRM_LOG_KMS("VR8E: 0x%04x\n", val);
 
 	/* Scratch register 1 - Status register */
 	ivch_read(dvo, VR8F, &val);
-	DRM_DEBUG_KMS("VR8F: 0x%04x\n", val);
+	DRM_LOG_KMS("VR8F: 0x%04x\n", val);
 }
 
 static void ivch_destroy(struct intel_dvo_device *dvo)

@@ -57,6 +57,12 @@ static const struct gmbus_port gmbus_ports[] = {
 
 #define I2C_RISEFALL_TIME 10
 
+/*
+ * FIXME Linux<->FreeBSD: dvo_ns2501.C wants the struct intel_gmbus
+ * below but it just has the device_t at hand. It still uses
+ * device_get_softc(), thus expects struct intel_gmbus to remain the
+ * first member.
+ */
 struct intel_iic_softc {
 	struct intel_gmbus *bus;
 	device_t iic_dev;

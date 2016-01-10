@@ -25,6 +25,9 @@
  *
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "dvo.h"
 
 #define CH7017_TV_DISPLAY_MODE		0x00
@@ -181,7 +184,7 @@ static bool ch7017_read(struct intel_dvo_device *dvo, u8 addr, u8 *val)
 			.buf = val,
 		}
 	};
-	return iicbus_transfer(dvo->i2c_bus, msgs, 2) == 0;
+	return -iicbus_transfer(dvo->i2c_bus, msgs, 2) == 0;
 }
 
 static bool ch7017_write(struct intel_dvo_device *dvo, u8 addr, u8 val)
@@ -193,7 +196,7 @@ static bool ch7017_write(struct intel_dvo_device *dvo, u8 addr, u8 val)
 		.len = 2,
 		.buf = buf,
 	};
-	return iicbus_transfer(dvo->i2c_bus, &msg, 1) == 0;
+	return -iicbus_transfer(dvo->i2c_bus, &msg, 1) == 0;
 }
 
 /** Probes for a CH7017 on the given bus and slave address. */
@@ -204,7 +207,7 @@ static bool ch7017_init(struct intel_dvo_device *dvo,
 	const char *str;
 	u8 val;
 
-	priv = malloc(sizeof(struct ch7017_priv), DRM_MEM_KMS, M_NOWAIT);
+	priv = malloc(sizeof(struct ch7017_priv), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return false;
 
@@ -227,8 +230,8 @@ static bool ch7017_init(struct intel_dvo_device *dvo,
 	default:
 		DRM_DEBUG_KMS("ch701x not detected, got %d: from %s "
 			      "slave %d.\n",
-		               val, device_get_nameunit(adapter),
-		               dvo->slave_addr);
+		              val, device_get_nameunit(adapter),
+		              dvo->slave_addr);
 		goto fail;
 	}
 

@@ -26,6 +26,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "dvo.h"
 
 #define CH7xxx_REG_VID		0x4a
@@ -134,14 +137,14 @@ static bool ch7xxx_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 	out_buf[0] = addr;
 	out_buf[1] = 0;
 
-	if (iicbus_transfer(adapter, msgs, 2) == 0) {
+	if (-iicbus_transfer(adapter, msgs, 2) == 0) {
 		*ch = in_buf[0];
 		return true;
 	}
 
 	if (!ch7xxx->quiet) {
 		DRM_DEBUG_KMS("Unable to read register 0x%02x from %s:%02x.\n",
-		        addr, device_get_nameunit(adapter), dvo->slave_addr);
+			  addr, device_get_nameunit(adapter), dvo->slave_addr);
 	}
 	return false;
 }
@@ -162,12 +165,12 @@ static bool ch7xxx_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 	out_buf[0] = addr;
 	out_buf[1] = ch;
 
-	if (iicbus_transfer(adapter, &msg, 1) == 0)
+	if (-iicbus_transfer(adapter, &msg, 1) == 0)
 		return true;
 
 	if (!ch7xxx->quiet) {
 		DRM_DEBUG_KMS("Unable to write register 0x%02x to %s:%d.\n",
-		          addr, device_get_nameunit(adapter), dvo->slave_addr);
+			  addr, device_get_nameunit(adapter), dvo->slave_addr);
 	}
 
 	return false;
@@ -181,7 +184,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 	uint8_t vendor, device;
 	char *name;
 
-	ch7xxx = malloc(sizeof(struct ch7xxx_priv), DRM_MEM_KMS, M_NOWAIT);
+	ch7xxx = malloc(sizeof(struct ch7xxx_priv), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
 	if (ch7xxx == NULL)
 		return false;
 
@@ -196,7 +199,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 	if (!name) {
 		DRM_DEBUG_KMS("ch7xxx not detected; got 0x%02x from %s "
 				"slave %d.\n",
-		         vendor, device_get_nameunit(adapter), dvo->slave_addr);
+			  vendor, device_get_nameunit(adapter), dvo->slave_addr);
 		goto out;
 	}
 
@@ -207,7 +210,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 	if (device != CH7xxx_DID) {
 		DRM_DEBUG_KMS("ch7xxx not detected; got 0x%02x from %s "
 				"slave %d.\n",
-		         vendor, device_get_nameunit(adapter), dvo->slave_addr);
+			  vendor, device_get_nameunit(adapter), dvo->slave_addr);
 		goto out;
 	}
 
@@ -316,9 +319,9 @@ static void ch7xxx_dump_regs(struct intel_dvo_device *dvo)
 	for (i = 0; i < CH7xxx_NUM_REGS; i++) {
 		uint8_t val;
 		if ((i % 8) == 0)
-			DRM_DEBUG_KMS("\n %02X: ", i);
+			DRM_LOG_KMS("\n %02X: ", i);
 		ch7xxx_readb(dvo, i, &val);
-		DRM_DEBUG_KMS("%02X ", val);
+		DRM_LOG_KMS("%02X ", val);
 	}
 }
 

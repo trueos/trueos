@@ -26,6 +26,9 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "dvo.h"
 
 #define SIL164_VID 0x0001
@@ -90,7 +93,7 @@ static bool sil164_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 	out_buf[0] = addr;
 	out_buf[1] = 0;
 
-	if (iicbus_transfer(adapter, msgs, 2) == 0) {
+	if (-iicbus_transfer(adapter, msgs, 2) == 0) {
 		*ch = in_buf[0];
 		return true;
 	}
@@ -117,7 +120,7 @@ static bool sil164_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 	out_buf[0] = addr;
 	out_buf[1] = ch;
 
-	if (iicbus_transfer(adapter, &msg, 1) == 0)
+	if (-iicbus_transfer(adapter, &msg, 1) == 0)
 		return true;
 
 	if (!sil->quiet) {
@@ -136,7 +139,7 @@ static bool sil164_init(struct intel_dvo_device *dvo,
 	struct sil164_priv *sil;
 	unsigned char ch;
 
-	sil = malloc(sizeof(struct sil164_priv), DRM_MEM_KMS, M_NOWAIT);
+	sil = malloc(sizeof(struct sil164_priv), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
 	if (sil == NULL)
 		return false;
 
@@ -246,15 +249,15 @@ static void sil164_dump_regs(struct intel_dvo_device *dvo)
 	uint8_t val;
 
 	sil164_readb(dvo, SIL164_FREQ_LO, &val);
-	DRM_DEBUG_KMS("SIL164_FREQ_LO: 0x%02x\n", val);
+	DRM_LOG_KMS("SIL164_FREQ_LO: 0x%02x\n", val);
 	sil164_readb(dvo, SIL164_FREQ_HI, &val);
-	DRM_DEBUG_KMS("SIL164_FREQ_HI: 0x%02x\n", val);
+	DRM_LOG_KMS("SIL164_FREQ_HI: 0x%02x\n", val);
 	sil164_readb(dvo, SIL164_REG8, &val);
-	DRM_DEBUG_KMS("SIL164_REG8: 0x%02x\n", val);
+	DRM_LOG_KMS("SIL164_REG8: 0x%02x\n", val);
 	sil164_readb(dvo, SIL164_REG9, &val);
-	DRM_DEBUG_KMS("SIL164_REG9: 0x%02x\n", val);
+	DRM_LOG_KMS("SIL164_REG9: 0x%02x\n", val);
 	sil164_readb(dvo, SIL164_REGC, &val);
-	DRM_DEBUG_KMS("SIL164_REGC: 0x%02x\n", val);
+	DRM_LOG_KMS("SIL164_REGC: 0x%02x\n", val);
 }
 
 static void sil164_destroy(struct intel_dvo_device *dvo)
