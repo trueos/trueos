@@ -436,7 +436,6 @@ int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
-#ifdef FREEBSD_WIP
 /*
  * Binds an object into the global gtt with the specified cache level. The object
  * will be accessible to the GPU via commands whose operands reference offsets
@@ -448,22 +447,15 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct sg_table *st = obj->pages;
-	struct scatterlist *sg = st->sgl;
 	const int first_entry = obj->gtt_space->start >> PAGE_SHIFT;
 	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
 	gtt_pte_t __iomem *gtt_entries = dev_priv->mm.gtt->gtt + first_entry;
-	int unused, i = 0;
-	unsigned int len, m = 0;
-	dma_addr_t addr;
+	int i = 0;
+	vm_paddr_t addr;
 
-	for_each_sg(st->sgl, sg, st->nents, unused) {
-		len = sg_dma_len(sg) >> PAGE_SHIFT;
-		for (m = 0; m < len; m++) {
-			addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
-			iowrite32(pte_encode(dev, addr, level), &gtt_entries[i]);
-			i++;
-		}
+	for (i = 0; i < obj->base.size >> PAGE_SHIFT; ++i) {
+		addr = VM_PAGE_TO_PHYS(obj->pages[i]);
+		iowrite32(pte_encode(dev, addr, level), &gtt_entries[i]);
 	}
 
 	BUG_ON(i > max_entries);
@@ -485,26 +477,21 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
 }
-#endif /* FREEBSD_WIP */
 
 void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
 			      enum i915_cache_level cache_level)
 {
-#ifdef FREEBSD_WIP
 	struct drm_device *dev = obj->base.dev;
 	if (INTEL_INFO(dev)->gen < 6) {
-#endif /* FREEBSD_WIP */
 		unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 			AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 		intel_gtt_insert_pages(obj->gtt_space->start >> PAGE_SHIFT,
 					    obj->base.size >> PAGE_SHIFT,
 					    obj->pages,
 					    flags);
-#ifdef FREEBSD_WIP
 	} else {
 		gen6_ggtt_bind_object(obj, cache_level);
 	}
-#endif /* FREEBSD_WIP */
 
 	obj->has_global_gtt_mapping = 1;
 }
