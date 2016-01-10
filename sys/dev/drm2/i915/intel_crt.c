@@ -727,11 +727,11 @@ void intel_crt_init(struct drm_device *dev)
 	if (dmi_check_system(intel_no_crt))
 		return;
 
-	crt = malloc(sizeof(struct intel_crt), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	crt = malloc(sizeof(struct intel_crt), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!crt)
 		return;
 
-	intel_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_connector) {
 		free(crt, DRM_MEM_KMS);
 		return;
