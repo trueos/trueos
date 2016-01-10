@@ -2005,11 +2005,11 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	dev_priv->pipestat[1] = 0;
 
 	/* Hack for broken MSIs on VLV */
-	pci_write_config(dev_priv->dev->dev, 0x94, 0xfee00000, 4);
-	msid = pci_read_config(dev->dev, 0x98, 2);
+	pci_write_config_dword(dev->dev, 0x94, 0xfee00000);
+	pci_read_config_word(dev->dev, 0x98, &msid);
 	msid &= 0xff; /* mask out delivery bits */
 	msid |= (1<<14);
-	pci_write_config(dev_priv->dev->dev, 0x98, msid, 2);
+	pci_write_config_word(dev->dev, 0x98, msid);
 
 	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
 	I915_WRITE(VLV_IER, enable_mask);
