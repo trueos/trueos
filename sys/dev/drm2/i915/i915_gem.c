@@ -190,9 +190,9 @@ int i915_mutex_lock_interruptible(struct drm_device *dev)
 	 * interruptible shall it be. might indeed be if dev_lock is
 	 * changed to sx
 	 */
-	ret = -sx_xlock_sig(&dev->dev_struct_lock);
+	ret = sx_xlock_sig(&dev->dev_struct_lock);
 	if (ret)
-		return ret;
+		return -EINTR;
 
 	WARN_ON(i915_verify_lists(dev));
 	return 0;
