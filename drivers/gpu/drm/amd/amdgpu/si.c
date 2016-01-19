@@ -1920,6 +1920,7 @@ static const struct amdgpu_ip_block_version hainan_ip_blocks[] =
 		.rev = 0,
 		.funcs = &si_ih_ip_funcs,
 	},
+/*
 	{
 		.type = AMD_IP_BLOCK_TYPE_SMC,
 		.major = 6,
@@ -1927,6 +1928,7 @@ static const struct amdgpu_ip_block_version hainan_ip_blocks[] =
 		.rev = 0,
 		.funcs = &si_null_ip_funcs,
 	},
+*/
 	{
 		.type = AMD_IP_BLOCK_TYPE_GFX,
 		.major = 6,

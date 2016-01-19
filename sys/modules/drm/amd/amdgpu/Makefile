@@ -78,9 +78,10 @@ SRCS	= \
 	cz_hwmgr.c \
         cz_smc.c \
 	cz_smumgr.c \
+	dce_v6_0.c \
+	dce_v8_0.c \
 	dce_v10_0.c \
 	dce_v11_0.c \
-	dce_v8_0.c \
 	dce_virtual.c \
 	eventactionchains.c \
 	eventinit.c \
@@ -96,6 +97,7 @@ SRCS	= \
 	fiji_smumgr.c \
 	fiji_thermal.c \
 	functiontables.c \
+	gfx_v6_0.c \
 	gfx_v7_0.c \
 	gfx_v8_0.c \
 	gmc_v6_0.c \
@@ -127,6 +129,8 @@ SRCS	= \
 	sched_fence.c \
 	sdma_v2_4.c \
 	sdma_v3_0.c \
+	si.c \
+	si_dma.c \
 	si_ih.c \
 	smumgr.c \
 	tonga_clockpowergating.c \
@@ -204,6 +208,7 @@ CWARNFLAGS.cz_smc.c=	-Wno-missing-prototypes
 CWARNFLAGS.cz_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.cz_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.dce_virtual.c=	-Wno-missing-prototypes
+CWARNFLAGS.dce_v6_0.c=	 -Wno-unused-const-variable
 CWARNFLAGS.dce_v8_0.c=	-Wno-missing-prototypes
 CWARNFLAGS.dce_v10_0.c=	-Wno-missing-prototypes
 CWARNFLAGS.dce_v11_0.c=	-Wno-missing-prototypes
@@ -214,6 +219,7 @@ CWARNFLAGS.fiji_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.fiji_smumgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.fiji_thermal.c=	-Wno-missing-prototypes
 CWARNFLAGS.gmc_v6_0.c=	-Wno-unused-const-variable
+CWARNFLAGS.gfx_v6_0.c=	-Wno-cast-qual -Wno-unused-const-variable
 CWARNFLAGS.gfx_v7_0.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.gfx_v8_0.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.gpu_scheduler.c=	-Wno-missing-prototypes
@@ -231,6 +237,7 @@ CWARNFLAGS.pp_acpi.c=	-Wno-missing-prototypes
 CWARNFLAGS.ppatomctrl.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.processpptables.c=	-Wno-missing-prototypes -Wno-sometimes-uninitialized
 CWARNFLAGS.sdma_v3_0.c=		-Wno-missing-prototypes
+CWARNFLAGS.si.c=		-Wno-missing-prototypes
 CWARNFLAGS.tonga_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.tonga_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual -Wno-unused-const-variable
 CWARNFLAGS.tonga_processpptables.c=	-Wno-missing-prototypes -Wno-cast-qual
