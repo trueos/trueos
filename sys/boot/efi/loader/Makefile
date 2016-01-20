@@ -4,13 +4,11 @@ MAN=
 
 .include <src.opts.mk>
 
-# In-tree GCC does not support __attribute__((ms_abi)).
-.if ${COMPILER_TYPE} != "gcc"
-
 MK_SSP=		no
 
 PROG=		loader.sym
 INTERNALPROG=
+WARNS?=		3
 
 # architecture-specific loader code
 SRCS=	autoload.c \
@@ -24,8 +22,13 @@ SRCS=	autoload.c \
 	vers.c
 
 .if ${MK_ZFS} != "no"
-SRCS+=	zfs.c
+SRCS+=		zfs.c
 .PATH:		${.CURDIR}/../../zfs
+
+# Disable warnings that are currently incompatible with the zfs boot code
+CWARNFLAGS.zfs.c+=	-Wno-sign-compare
+CWARNFLAGS.zfs.c+=	-Wno-array-bounds
+CWARNFLAGS.zfs.c+=	-Wno-missing-prototypes
 .endif
 
 .PATH: ${.CURDIR}/arch/${MACHINE}
@@ -44,8 +47,6 @@ CFLAGS+=	-I${.CURDIR}/../../i386/libi386
 CFLAGS+=	-I${.CURDIR}/../../zfs
 CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs
 CFLAGS+=	-DEFI_ZFS_BOOT
-# For zfsimpl.c
-CWARNFLAGS+=	-Wno-array-bounds
 .endif
 CFLAGS+=	-DNO_PCI -DEFI
 
@@ -123,8 +124,6 @@ LIBEFI=		${.OBJDIR}/../libefi/libefi.a
 DPADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSTAND} \
 		${LDSCRIPT}
 LDADD=		${LIBFICL} ${LIBEFI} ${LIBFDT} ${LIBEFI_FDT} ${LIBSTAND}
-
-.endif # ${COMPILER_TYPE} != "gcc"
 
 .include <bsd.prog.mk>
 

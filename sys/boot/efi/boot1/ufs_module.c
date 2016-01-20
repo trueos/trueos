@@ -47,13 +47,21 @@ static int
 dskread(void *buf, u_int64_t lba, int nblk)
 {
 	int size;
+	EFI_STATUS status;
 
 	lba = lba / (devinfo->dev->Media->BlockSize / DEV_BSIZE);
 	size = nblk * DEV_BSIZE;
 
-	if (devinfo->dev->ReadBlocks(devinfo->dev,
-	    devinfo->dev->Media->MediaId, lba, size, buf) != EFI_SUCCESS)
+	status = devinfo->dev->ReadBlocks(devinfo->dev,
+	    devinfo->dev->Media->MediaId, lba, size, buf);
+
+	if (status != EFI_SUCCESS) {
+		DPRINTF("dskread: failed dev: %p, id: %u, lba: %lu, size: %d, "
+		    "status: %lu\n", devinfo->dev,
+		    devinfo->dev->Media->MediaId, lba, size,
+		    EFI_ERROR_CODE(status));
 		return (-1);
+	}
 
 	return (0);
 }
@@ -98,7 +106,7 @@ fsstat(ufs_ino_t inode)
 #endif
 			    ) &&
 			    fs.fs_bsize <= MAXBSIZE &&
-			    fs.fs_bsize >= sizeof(struct fs))
+			    fs.fs_bsize >= (int32_t)sizeof(struct fs))
 				break;
 		}
 		if (sblock_try[n] == -1) {
@@ -122,10 +130,10 @@ fsstat(ufs_ino_t inode)
 		    sizeof(struct ufs2_dinode));
 #else
 		if (fs.fs_magic == FS_UFS1_MAGIC)
-			memcpy(&dp1, (struct ufs1_dinode *)blkbuf + n,
+			memcpy(&dp1, (struct ufs1_dinode *)(void *)blkbuf + n,
 			    sizeof(struct ufs1_dinode));
 		else
-			memcpy(&dp2, (struct ufs2_dinode *)blkbuf + n,
+			memcpy(&dp2, (struct ufs2_dinode *)(void *)blkbuf + n,
 			    sizeof(struct ufs2_dinode));
 #endif
 		inomap = inode;
@@ -163,6 +171,7 @@ try_load(dev_info_t *dev, const char *loader_path, void **bufp, size_t *bufsize)
 	ssize_t read;
 	void *buf;
 
+	dsk_meta = 0;
 	devinfo = dev;
 	if ((ino = lookup(loader_path)) == 0)
 		return (EFI_NOT_FOUND);
@@ -182,7 +191,7 @@ try_load(dev_info_t *dev, const char *loader_path, void **bufp, size_t *bufsize)
 
 	read = fsread(ino, buf, size);
 	if ((size_t)read != size) {
-		printf("Failed to read %s (%ld != %lu)\n", loader_path, read,
+		printf("Failed to read %s (%zd != %zu)\n", loader_path, read,
 		    size);
 		(void)bs->FreePool(buf);
 		return (EFI_INVALID_PARAMETER);
@@ -198,13 +207,13 @@ static EFI_STATUS
 load(const char *loader_path, dev_info_t **devinfop, void **buf,
     size_t *bufsize)
 {
-	dev_info_t *devinfo;
+	dev_info_t *dev;
 	EFI_STATUS status;
 
-	for (devinfo = devices; devinfo != NULL; devinfo = devinfo->next) {
-		status = try_load(devinfo, loader_path, buf, bufsize);
+	for (dev = devices; dev != NULL; dev = dev->next) {
+		status = try_load(dev, loader_path, buf, bufsize);
 		if (status == EFI_SUCCESS) {
-			*devinfop = devinfo;
+			*devinfop = dev;
 			return (EFI_SUCCESS);
 		} else if (status != EFI_NOT_FOUND) {
 			return (status);

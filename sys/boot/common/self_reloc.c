@@ -120,6 +120,6 @@ self_reloc(Elf_Addr baseaddr, ElfW_Dyn *dynamic)
 			/* XXX: do we need other relocations ? */
 			break;
 		}
-		rel = (ElfW_Rel *) ((caddr_t) rel + relent);
+		rel = (ElfW_Rel *)(void *)((caddr_t) rel + relent);
 	}
 }

@@ -343,35 +343,6 @@ sys_setfib(struct thread *td, struct setfib_args *uap)
  * Packet routing routines.
  */
 void
-rtalloc(struct route *ro)
-{
-
-	rtalloc_ign_fib(ro, 0UL, RT_DEFAULT_FIB);
-}
-
-void
-rtalloc_fib(struct route *ro, u_int fibnum)
-{
-	rtalloc_ign_fib(ro, 0UL, fibnum);
-}
-
-void
-rtalloc_ign(struct route *ro, u_long ignore)
-{
-	struct rtentry *rt;
-
-	if ((rt = ro->ro_rt) != NULL) {
-		if (rt->rt_ifp != NULL && rt->rt_flags & RTF_UP)
-			return;
-		RTFREE(rt);
-		ro->ro_rt = NULL;
-	}
-	ro->ro_rt = rtalloc1_fib(&ro->ro_dst, 1, ignore, RT_DEFAULT_FIB);
-	if (ro->ro_rt)
-		RT_UNLOCK(ro->ro_rt);
-}
-
-void
 rtalloc_ign_fib(struct route *ro, u_long ignore, u_int fibnum)
 {
 	struct rtentry *rt;
@@ -409,7 +380,6 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	struct rtentry *newrt;
 	struct rt_addrinfo info;
 	int err = 0, msgtype = RTM_MISS;
-	int needlock;
 
 	KASSERT((fibnum < rt_numfibs), ("rtalloc1_fib: bad fibnum"));
 	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
@@ -420,23 +390,16 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	/*
 	 * Look up the address in the table for that Address Family
 	 */
-	needlock = !(ignflags & RTF_RNH_LOCKED);
-	if (needlock)
-		RADIX_NODE_HEAD_RLOCK(rnh);
-#ifdef INVARIANTS	
-	else
-		RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
-#endif
+	RADIX_NODE_HEAD_RLOCK(rnh);
 	rn = rnh->rnh_matchaddr(dst, rnh);
 	if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		newrt = RNTORT(rn);
 		RT_LOCK(newrt);
 		RT_ADDREF(newrt);
-		if (needlock)
-			RADIX_NODE_HEAD_RUNLOCK(rnh);
-		goto done;
+		RADIX_NODE_HEAD_RUNLOCK(rnh);
+		return (newrt);
 
-	} else if (needlock)
+	} else
 		RADIX_NODE_HEAD_RUNLOCK(rnh);
 	
 	/*
@@ -456,10 +419,7 @@ miss:
 		bzero(&info, sizeof(info));
 		info.rti_info[RTAX_DST] = dst;
 		rt_missmsg_fib(msgtype, &info, 0, err, fibnum);
-	}	
-done:
-	if (newrt)
-		RT_LOCK_ASSERT(newrt);
+	}
 	return (newrt);
 }
 
@@ -550,17 +510,6 @@ done:
  * message from the network layer.
  */
 void
-rtredirect(struct sockaddr *dst,
-	struct sockaddr *gateway,
-	struct sockaddr *netmask,
-	int flags,
-	struct sockaddr *src)
-{
-
-	rtredirect_fib(dst, gateway, netmask, flags, src, RT_DEFAULT_FIB);
-}
-
-void
 rtredirect_fib(struct sockaddr *dst,
 	struct sockaddr *gateway,
 	struct sockaddr *netmask,
@@ -568,7 +517,7 @@ rtredirect_fib(struct sockaddr *dst,
 	struct sockaddr *src,
 	u_int fibnum)
 {
-	struct rtentry *rt, *rt0 = NULL;
+	struct rtentry *rt;
 	int error = 0;
 	short *stat = NULL;
 	struct rt_addrinfo info;
@@ -627,8 +576,8 @@ rtredirect_fib(struct sockaddr *dst,
 			 * Create new route, rather than smashing route to net.
 			 */
 		create:
-			rt0 = rt;
-			rt = NULL;
+			if (rt != NULL)
+				RTFREE_LOCKED(rt);
 		
 			flags |= RTF_DYNAMIC;
 			bzero((caddr_t)&info, sizeof(info));
@@ -637,21 +586,14 @@ rtredirect_fib(struct sockaddr *dst,
 			info.rti_info[RTAX_NETMASK] = netmask;
 			info.rti_ifa = ifa;
 			info.rti_flags = flags;
-			if (rt0 != NULL)
-				RT_UNLOCK(rt0);	/* drop lock to avoid LOR with RNH */
 			error = rtrequest1_fib(RTM_ADD, &info, &rt, fibnum);
 			if (rt != NULL) {
 				RT_LOCK(rt);
-				if (rt0 != NULL)
-					EVENTHANDLER_INVOKE(route_redirect_event, rt0, rt, dst);
 				flags = rt->rt_flags;
 			}
-			if (rt0 != NULL)
-				RTFREE(rt0);
 			
 			stat = &V_rtstat.rts_dynamic;
 		} else {
-			struct rtentry *gwrt;
 
 			/*
 			 * Smash the current notion of the gateway to
@@ -669,11 +611,7 @@ rtredirect_fib(struct sockaddr *dst,
 			RADIX_NODE_HEAD_LOCK(rnh);
 			RT_LOCK(rt);
 			rt_setgate(rt, rt_key(rt), gateway);
-			gwrt = rtalloc1(gateway, 1, RTF_RNH_LOCKED);
 			RADIX_NODE_HEAD_UNLOCK(rnh);
-			EVENTHANDLER_INVOKE(route_redirect_event, rt, gwrt, dst);
-			if (gwrt)
-				RTFREE_LOCKED(gwrt);
 		}
 	} else
 		error = EHOSTUNREACH;
@@ -693,13 +631,6 @@ out:
 	rt_missmsg_fib(RTM_REDIRECT, &info, flags, error, fibnum);
 	if (ifa != NULL)
 		ifa_free(ifa);
-}
-
-int
-rtioctl(u_long req, caddr_t data)
-{
-
-	return (rtioctl_fib(req, data, RT_DEFAULT_FIB));
 }
 
 /*
@@ -798,19 +729,6 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst, struct sockaddr *gateway,
  * all the bits of info needed
  */
 int
-rtrequest(int req,
-	struct sockaddr *dst,
-	struct sockaddr *gateway,
-	struct sockaddr *netmask,
-	int flags,
-	struct rtentry **ret_nrt)
-{
-
-	return (rtrequest_fib(req, dst, gateway, netmask, flags, ret_nrt,
-	    RT_DEFAULT_FIB));
-}
-
-int
 rtrequest_fib(int req,
 	struct sockaddr *dst,
 	struct sockaddr *gateway,
@@ -858,7 +776,7 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 		src = rt_key(rt);
 		dst = info->rti_info[RTAX_DST];
 		sa_len = src->sa_len;
-		if (src != NULL && dst != NULL) {
+		if (dst != NULL) {
 			if (src->sa_len > dst->sa_len)
 				return (ENOMEM);
 			memcpy(dst, src, src->sa_len);

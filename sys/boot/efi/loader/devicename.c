@@ -32,13 +32,15 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <sys/disklabel.h>
 #include <sys/param.h>
-#include "bootstrap.h"
+#include <bootstrap.h>
 #ifdef EFI_ZFS_BOOT
 #include <libzfs.h>
 #endif
 
 #include <efi.h>
 #include <efilib.h>
+
+#include "loader_efi.h"
 
 static int efi_parsedev(struct devdesc **, const char *, const char **);
 
@@ -120,8 +122,9 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 		}
 		*dev = idev;
 		cp = strchr(np + 1, ':');
-	} else {
+	} else
 #endif
+	{
 		idev = malloc(sizeof(struct devdesc));
 		if (idev == NULL)
 			return (ENOMEM);
@@ -137,9 +140,7 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 				return (EUNIT);
 			}
 		}
-#ifdef EFI_ZFS_BOOT
 	}
-#endif
 
 	if (*cp != '\0' && *cp != ':') {
 		free(idev);

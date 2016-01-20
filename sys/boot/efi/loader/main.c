@@ -92,6 +92,7 @@ main(int argc, CHAR16 *argv[])
 	int i, j, vargood, unit;
 	struct devsw *dev;
 	uint64_t pool_guid;
+	UINTN k;
 
 	archsw.arch_autoload = efi_autoload;
 	archsw.arch_getdev = efi_getdev;
@@ -198,6 +199,7 @@ main(int argc, CHAR16 *argv[])
 			   efi_setcurrdev, env_nounset);
 		env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
 			   env_nounset);
+		init_zfs_bootenv(zfs_fmtdev(&currdev));
 		break;
 	}
 #endif
@@ -218,10 +220,10 @@ main(int argc, CHAR16 *argv[])
 
 	setenv("LINES", "24", 1);	/* optional */
 
-	for (i = 0; i < ST->NumberOfTableEntries; i++) {
-		guid = &ST->ConfigurationTable[i].VendorGuid;
+	for (k = 0; k < ST->NumberOfTableEntries; k++) {
+		guid = &ST->ConfigurationTable[k].VendorGuid;
 		if (!memcmp(guid, &smbios, sizeof(EFI_GUID))) {
-			smbios_detect(ST->ConfigurationTable[i].VendorTable);
+			smbios_detect(ST->ConfigurationTable[k].VendorTable);
 			break;
 		}
 	}
@@ -305,8 +307,9 @@ command_memmap(int argc, char *argv[])
 
 	for (i = 0, p = map; i < ndesc;
 	     i++, p = NextMemoryDescriptor(p, dsz)) {
-		printf("%23s %012lx %012lx %08lx ", types[p->Type],
-		   p->PhysicalStart, p->VirtualStart, p->NumberOfPages);
+		printf("%23s %012jx %012jx %08jx ", types[p->Type],
+		   (uintmax_t)p->PhysicalStart, (uintmax_t)p->VirtualStart,
+		   (uintmax_t)p->NumberOfPages);
 		if (p->Attribute & EFI_MEMORY_UC)
 			printf("UC ");
 		if (p->Attribute & EFI_MEMORY_WC)
@@ -347,9 +350,10 @@ guid_to_string(EFI_GUID *guid)
 static int
 command_configuration(int argc, char *argv[])
 {
-	int i;
+	UINTN i;
 
-	printf("NumberOfTableEntries=%ld\n", ST->NumberOfTableEntries);
+	printf("NumberOfTableEntries=%lu\n",
+		(unsigned long)ST->NumberOfTableEntries);
 	for (i = 0; i < ST->NumberOfTableEntries; i++) {
 		EFI_GUID *guid;
 
@@ -445,9 +449,8 @@ command_nvram(int argc, char *argv[])
 	CHAR16 *data;
 	EFI_STATUS status;
 	EFI_GUID varguid = { 0,0,0,{0,0,0,0,0,0,0,0} };
-	UINTN varsz, datasz;
+	UINTN varsz, datasz, i;
 	SIMPLE_TEXT_OUTPUT_INTERFACE *conout;
-	int i;
 
 	conout = ST->ConOut;
 
@@ -503,6 +506,38 @@ command_lszfs(int argc, char *argv[])
 		command_errmsg = strerror(err);
 		return (CMD_ERROR);
 	}
+	return (CMD_OK);
+}
+
+COMMAND_SET(reloadbe, "reloadbe", "refresh the list of ZFS Boot Environments",
+	    command_reloadbe);
+
+static int
+command_reloadbe(int argc, char *argv[])
+{
+	int err;
+	char *root;
+
+	if (argc > 2) {
+		command_errmsg = "wrong number of arguments";
+		return (CMD_ERROR);
+	}
+
+	if (argc == 2) {
+		err = zfs_bootenv(argv[1]);
+	} else {
+		root = getenv("zfs_be_root");
+		if (root == NULL) {
+			return (CMD_OK);
+		}
+		err = zfs_bootenv(root);
+	}
+
+	if (err != 0) {
+		command_errmsg = strerror(err);
+		return (CMD_ERROR);
+	}
+
 	return (CMD_OK);
 }
 #endif

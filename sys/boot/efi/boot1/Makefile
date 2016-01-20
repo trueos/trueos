@@ -2,32 +2,29 @@
 
 MAN=
 
-CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
-		-Wmissing-prototypes -Wpointer-arith -Winline \
-		-Wundef -Wno-pointer-sign -Wmissing-include-dirs \
-		-fdiagnostics-show-option -Wno-unknown-pragmas \
-
-
-# EFI_GUID assignments
-CWARNFLAGS+=	-Wno-missing-braces
-# zfsimpl.c
-CWARNFLAGS+=	-Wno-unused-function -Wno-array-bounds
-
-.include <bsd.own.mk>
 .include <src.opts.mk>
-
-# In-tree GCC does not support __attribute__((ms_abi)).
-.if ${COMPILER_TYPE} != "gcc"
 
 MK_SSP=		no
 
 PROG=		boot1.sym
 INTERNALPROG=
+WARNS?=		6
+
+.if ${MK_ZFS} != "no"
+# Disable warnings that are currently incompatible with the zfs boot code
+CWARNFLAGS.zfs_module.c += -Wno-array-bounds
+CWARNFLAGS.zfs_module.c += -Wno-cast-align
+CWARNFLAGS.zfs_module.c += -Wno-cast-qual
+CWARNFLAGS.zfs_module.c += -Wno-missing-prototypes
+CWARNFLAGS.zfs_module.c += -Wno-sign-compare
+CWARNFLAGS.zfs_module.c += -Wno-unused-parameter
+CWARNFLAGS.zfs_module.c += -Wno-unused-function
+.endif
 
 # architecture-specific loader code
 SRCS=	boot1.c self_reloc.c start.S ufs_module.c
 .if ${MK_ZFS} != "no"
-SRCS+=	zfs_module.c
+SRCS+=		zfs_module.c
 .endif
 
 CFLAGS+=	-I.
@@ -36,6 +33,10 @@ CFLAGS+=	-I${.CURDIR}/../include/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../contrib/dev/acpica/include
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	-DEFI_UFS_BOOT
+.ifdef(EFI_DEBUG)
+CFLAGS+=	-DEFI_DEBUG
+.endif
+
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-I${.CURDIR}/../../zfs/
 CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs/
@@ -115,8 +116,6 @@ boot1.efifat: boot1.efi
 	dd if=boot1.efi of=${.TARGET} seek=${BOOT1_OFFSET} conv=notrunc
 
 CLEANFILES= boot1.efi boot1.efifat
-
-.endif # ${COMPILER_TYPE} != "gcc"
 
 .include <bsd.prog.mk>
 
