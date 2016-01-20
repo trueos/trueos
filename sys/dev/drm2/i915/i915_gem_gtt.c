@@ -448,7 +448,9 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const int first_entry = obj->gtt_space->start >> PAGE_SHIFT;
+#if defined(INVARIANTS)
 	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
+#endif
 	gtt_pte_t __iomem *gtt_entries = dev_priv->mm.gtt->gtt + first_entry;
 	int i = 0;
 	vm_paddr_t addr;
