@@ -2417,8 +2417,14 @@ u32 intel_compute_tile_offset(int *x, int *y,
 	const struct drm_i915_private *dev_priv = to_i915(state->base.plane->dev);
 	const struct drm_framebuffer *fb = state->base.fb;
 	unsigned int rotation = state->base.rotation;
-	u32 alignment = intel_surf_alignment(dev_priv, fb->modifier[plane]);
 	int pitch = intel_fb_pitch(fb, plane, rotation);
+	u32 alignment;
+
+	/* AUX_DIST needs only 4K alignment */
+	if (fb->pixel_format == DRM_FORMAT_NV12 && plane == 1)
+		alignment = 4096;
+	else
+		alignment = intel_surf_alignment(dev_priv, fb->modifier[plane]);
 
 	return _intel_compute_tile_offset(dev_priv, x, y, fb, plane, pitch,
 					  rotation, alignment);
@@ -2778,6 +2784,169 @@ valid_fb:
 	intel_crtc->base.state->plane_mask |= (1 << drm_plane_index(primary));
 	atomic_or(to_intel_plane(primary)->frontbuffer_bit,
 		  &obj->frontbuffer_bits);
+}
+
+static int skl_max_plane_width(const struct drm_framebuffer *fb, int plane,
+			       unsigned int rotation)
+{
+	int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
+
+	switch (fb->modifier[plane]) {
+	case DRM_FORMAT_MOD_NONE:
+	case I915_FORMAT_MOD_X_TILED:
+		switch (cpp) {
+		case 8:
+			return 4096;
+		case 4:
+		case 2:
+		case 1:
+			return 8192;
+		default:
+			MISSING_CASE(cpp);
+			break;
+		}
+		break;
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Yf_TILED:
+		switch (cpp) {
+		case 8:
+			return 2048;
+		case 4:
+			return 4096;
+		case 2:
+		case 1:
+			return 8192;
+		default:
+			MISSING_CASE(cpp);
+			break;
+		}
+		break;
+	default:
+		MISSING_CASE(fb->modifier[plane]);
+	}
+
+	return 2048;
+}
+
+static int skl_check_main_surface(struct intel_plane_state *plane_state)
+{
+	const struct drm_i915_private *dev_priv = to_i915(plane_state->base.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int rotation = plane_state->base.rotation;
+	int x = plane_state->src.x1 >> 16;
+	int y = plane_state->src.y1 >> 16;
+	int w = drm_rect_width(&plane_state->src) >> 16;
+	int h = drm_rect_height(&plane_state->src) >> 16;
+	int max_width = skl_max_plane_width(fb, 0, rotation);
+	int max_height = 4096;
+	u32 alignment, offset, aux_offset = plane_state->aux.offset;
+
+	if (w > max_width || h > max_height) {
+		DRM_DEBUG_KMS("requested Y/RGB source size %dx%d too big (limit %dx%d)\n",
+			      w, h, max_width, max_height);
+		return -EINVAL;
+	}
+
+	intel_add_fb_offsets(&x, &y, plane_state, 0);
+	offset = intel_compute_tile_offset(&x, &y, plane_state, 0);
+
+	alignment = intel_surf_alignment(dev_priv, fb->modifier[0]);
+
+	/*
+	 * AUX surface offset is specified as the distance from the
+	 * main surface offset, and it must be non-negative. Make
+	 * sure that is what we will get.
+	 */
+	if (offset > aux_offset)
+		offset = intel_adjust_tile_offset(&x, &y, plane_state, 0,
+						  offset, aux_offset & ~(alignment - 1));
+
+	/*
+	 * When using an X-tiled surface, the plane blows up
+	 * if the x offset + width exceed the stride.
+	 *
+	 * TODO: linear and Y-tiled seem fine, Yf untested,
+	 */
+	if (fb->modifier[0] == I915_FORMAT_MOD_X_TILED) {
+		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+
+		while ((x + w) * cpp > fb->pitches[0]) {
+			if (offset == 0) {
+				DRM_DEBUG_KMS("Unable to find suitable display surface offset\n");
+				return -EINVAL;
+			}
+
+			offset = intel_adjust_tile_offset(&x, &y, plane_state, 0,
+							  offset, offset - alignment);
+		}
+	}
+
+	plane_state->main.offset = offset;
+	plane_state->main.x = x;
+	plane_state->main.y = y;
+
+	return 0;
+}
+
+static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
+{
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int rotation = plane_state->base.rotation;
+	int max_width = skl_max_plane_width(fb, 1, rotation);
+	int max_height = 4096;
+	int x = plane_state->src.x1 >> 17;
+	int y = plane_state->src.y1 >> 17;
+	int w = drm_rect_width(&plane_state->src) >> 17;
+	int h = drm_rect_height(&plane_state->src) >> 17;
+	u32 offset;
+
+	intel_add_fb_offsets(&x, &y, plane_state, 1);
+	offset = intel_compute_tile_offset(&x, &y, plane_state, 1);
+
+	/* FIXME not quite sure how/if these apply to the chroma plane */
+	if (w > max_width || h > max_height) {
+		DRM_DEBUG_KMS("CbCr source size %dx%d too big (limit %dx%d)\n",
+			      w, h, max_width, max_height);
+		return -EINVAL;
+	}
+
+	plane_state->aux.offset = offset;
+	plane_state->aux.x = x;
+	plane_state->aux.y = y;
+
+	return 0;
+}
+
+int skl_check_plane_surface(struct intel_plane_state *plane_state)
+{
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int rotation = plane_state->base.rotation;
+	int ret;
+
+	/* Rotate src coordinates to match rotated GTT view */
+	if (intel_rotation_90_or_270(rotation))
+		drm_rect_rotate(&plane_state->src,
+				fb->width, fb->height, BIT(DRM_ROTATE_270));
+
+	/*
+	 * Handle the AUX surface first since
+	 * the main surface setup depends on it.
+	 */
+	if (fb->pixel_format == DRM_FORMAT_NV12) {
+		ret = skl_check_nv12_aux_surface(plane_state);
+		if (ret)
+			return ret;
+	} else {
+		plane_state->aux.offset = ~0xfff;
+		plane_state->aux.x = 0;
+		plane_state->aux.y = 0;
+	}
+
+	ret = skl_check_main_surface(plane_state);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static void i9xx_update_primary_plane(struct drm_plane *primary,

@@ -353,6 +353,16 @@ struct intel_atomic_state {
 struct intel_plane_state {
 	struct drm_plane_state base;
 	struct drm_rect clip;
+	bool visible;
+
+	struct {
+		u32 offset;
+		int x, y;
+	} main;
+	struct {
+		u32 offset;
+		int x, y;
+	} aux;
 
 	/*
 	 * scaler_id
