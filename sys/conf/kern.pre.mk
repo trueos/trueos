@@ -64,7 +64,7 @@ NOSTDINC= -nostdinc
 
 INCLUDES= ${NOSTDINC} ${INCLMAGIC} -I. -I$S
 
-.if make(depend) || make(kernel-depend)
+.if ${MK_FAST_DEPEND} == "no" && (make(depend) || make(kernel-depend))
 
 # This hack lets us use the ipfilter code without spamming a new
 # include path into contrib'ed source files.
@@ -252,6 +252,7 @@ EMBEDFS_FORMAT.mips?=		elf32-tradbigmips
 EMBEDFS_FORMAT.mipsel?=		elf32-tradlittlemips
 EMBEDFS_FORMAT.mips64?=		elf64-tradbigmips
 EMBEDFS_FORMAT.mips64el?=	elf64-tradlittlemips
+EMBEDFS_FORMAT.riscv?=		elf64-littleriscv
 .endif
 
 # Detect kernel config options that force stack frames to be turned on.

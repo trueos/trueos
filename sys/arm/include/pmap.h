@@ -46,9 +46,11 @@
  *
  * $FreeBSD$
  */
-#ifdef ARM_NEW_PMAP
+ #include <machine/acle-compat.h>
+
+#if __ARM_ARCH >= 6
 #include <machine/pmap-v6.h>
-#else /* ARM_NEW_PMAP */
+#else /* __ARM_ARCH >= 6 */
 
 #ifndef _MACHINE_PMAP_H_
 #define _MACHINE_PMAP_H_
@@ -174,7 +176,6 @@ typedef struct pmap *pmap_t;
 #ifdef _KERNEL
 extern struct pmap	kernel_pmap_store;
 #define kernel_pmap	(&kernel_pmap_store)
-#define pmap_kernel() kernel_pmap
 
 #define	PMAP_ASSERT_LOCKED(pmap) \
 				mtx_assert(&(pmap)->pm_mtx, MA_OWNED)
@@ -245,7 +246,7 @@ vtopte(vm_offset_t va)
 	pd_entry_t *pdep;
 	pt_entry_t *ptep;
 
-	if (pmap_get_pde_pte(pmap_kernel(), va, &pdep, &ptep) == FALSE)
+	if (pmap_get_pde_pte(kernel_pmap, va, &pdep, &ptep) == FALSE)
 		return (NULL);
 	return (ptep);
 }
@@ -263,6 +264,7 @@ void	pmap_kremove_device(vm_offset_t, vm_size_t);
 void	*pmap_kenter_temporary(vm_paddr_t pa, int i);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
 vm_paddr_t pmap_kextract(vm_offset_t va);
+vm_paddr_t pmap_dump_kextract(vm_offset_t, pt2_entry_t *);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
@@ -703,4 +705,4 @@ extern vm_paddr_t dump_avail[];
 #endif	/* !LOCORE */
 
 #endif	/* !_MACHINE_PMAP_H_ */
-#endif	/* !ARM_NEW_PMAP */
+#endif	/* __ARM_ARCH >= 6 */

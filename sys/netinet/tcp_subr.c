@@ -68,8 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/vnet.h>
 
-#include <netinet/cc.h>
 #include <netinet/in.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #ifdef INET6
 #include <netinet/ip6.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
@@ -88,11 +89,13 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_RFC7413
 #include <netinet/tcp_fastopen.h>
 #endif
+#include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_syncache.h>
+#include <netinet/cc/cc.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
@@ -672,6 +675,8 @@ tcp_init(void)
 	tcp_rexmit_min = TCPTV_MIN;
 	if (tcp_rexmit_min < 1)
 		tcp_rexmit_min = 1;
+	tcp_persmin = TCPTV_PERSMIN;
+	tcp_persmax = TCPTV_PERSMAX;
 	tcp_rexmit_slop = TCPTV_CPU_VAR;
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
 	tcp_tcbhashsize = hashsize;
@@ -1463,6 +1468,7 @@ tcp_close(struct tcpcb *tp)
 #endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
+	TCPSTAT_DEC(tcps_states[tp->t_state]);
 	KASSERT(inp->inp_socket != NULL, ("tcp_close: inp_socket NULL"));
 	so = inp->inp_socket;
 	soisdisconnected(so);
@@ -1584,7 +1590,8 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	 * resource-intensive to repeat twice on every request.
 	 */
 	if (req->oldptr == NULL) {
-		n = V_tcbinfo.ipi_count + syncache_pcbcount();
+		n = V_tcbinfo.ipi_count +
+		    TCPSTAT_FETCH(tcps_states[TCPS_SYN_RECEIVED]);
 		n += imax(n / 8, 10);
 		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xtcpcb);
 		return (0);
@@ -1601,7 +1608,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	n = V_tcbinfo.ipi_count;
 	INP_LIST_RUNLOCK(&V_tcbinfo);
 
-	m = syncache_pcbcount();
+	m = TCPSTAT_FETCH(tcps_states[TCPS_SYN_RECEIVED]);
 
 	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
 		+ (n + m) * sizeof(struct xtcpcb));
@@ -2204,27 +2211,20 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 u_long
 tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
-	struct route sro;
-	struct sockaddr_in *dst;
+	struct nhop4_extended nh4;
 	struct ifnet *ifp;
 	u_long maxmtu = 0;
 
 	KASSERT(inc != NULL, ("tcp_maxmtu with NULL in_conninfo pointer"));
 
-	bzero(&sro, sizeof(sro));
 	if (inc->inc_faddr.s_addr != INADDR_ANY) {
-	        dst = (struct sockaddr_in *)&sro.ro_dst;
-		dst->sin_family = AF_INET;
-		dst->sin_len = sizeof(*dst);
-		dst->sin_addr = inc->inc_faddr;
-		in_rtalloc_ign(&sro, 0, inc->inc_fibnum);
-	}
-	if (sro.ro_rt != NULL) {
-		ifp = sro.ro_rt->rt_ifp;
-		if (sro.ro_rt->rt_mtu == 0)
-			maxmtu = ifp->if_mtu;
-		else
-			maxmtu = min(sro.ro_rt->rt_mtu, ifp->if_mtu);
+
+		if (fib4_lookup_nh_ext(inc->inc_fibnum, inc->inc_faddr,
+		    NHR_REF, 0, &nh4) != 0)
+			return (0);
+
+		ifp = nh4.nh_ifp;
+		maxmtu = nh4.nh_mtu;
 
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
@@ -2236,7 +2236,7 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
 			}
 		}
-		RTFREE(sro.ro_rt);
+		fib4_free_nh_ext(inc->inc_fibnum, &nh4);
 	}
 	return (maxmtu);
 }
@@ -2246,26 +2246,22 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 u_long
 tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
-	struct route_in6 sro6;
+	struct nhop6_extended nh6;
+	struct in6_addr dst6;
+	uint32_t scopeid;
 	struct ifnet *ifp;
 	u_long maxmtu = 0;
 
 	KASSERT(inc != NULL, ("tcp_maxmtu6 with NULL in_conninfo pointer"));
 
-	bzero(&sro6, sizeof(sro6));
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inc->inc6_faddr)) {
-		sro6.ro_dst.sin6_family = AF_INET6;
-		sro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
-		sro6.ro_dst.sin6_addr = inc->inc6_faddr;
-		in6_rtalloc_ign(&sro6, 0, inc->inc_fibnum);
-	}
-	if (sro6.ro_rt != NULL) {
-		ifp = sro6.ro_rt->rt_ifp;
-		if (sro6.ro_rt->rt_mtu == 0)
-			maxmtu = IN6_LINKMTU(sro6.ro_rt->rt_ifp);
-		else
-			maxmtu = min(sro6.ro_rt->rt_mtu,
-				     IN6_LINKMTU(sro6.ro_rt->rt_ifp));
+		in6_splitscope(&inc->inc6_faddr, &dst6, &scopeid);
+		if (fib6_lookup_nh_ext(inc->inc_fibnum, &dst6, scopeid, 0,
+		    0, &nh6) != 0)
+			return (0);
+
+		ifp = nh6.nh_ifp;
+		maxmtu = nh6.nh_mtu;
 
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
@@ -2277,7 +2273,7 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
 			}
 		}
-		RTFREE(sro6.ro_rt);
+		fib6_free_nh_ext(inc->inc_fibnum, &nh6);
 	}
 
 	return (maxmtu);
@@ -2916,6 +2912,8 @@ tcp_state_change(struct tcpcb *tp, int newstate)
 	int pstate = tp->t_state;
 #endif
 
+	TCPSTAT_DEC(tcps_states[tp->t_state]);
+	TCPSTAT_INC(tcps_states[newstate]);
 	tp->t_state = newstate;
 	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, pstate);
 }

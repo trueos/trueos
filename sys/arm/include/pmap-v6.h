@@ -200,6 +200,8 @@ void pmap_tlb_flush_range(pmap_t , vm_offset_t , vm_size_t );
 void pmap_dcache_wb_range(vm_paddr_t , vm_size_t , vm_memattr_t );
 
 vm_paddr_t pmap_kextract(vm_offset_t );
+vm_paddr_t pmap_dump_kextract(vm_offset_t, pt2_entry_t *);
+
 int pmap_fault(pmap_t , vm_offset_t , uint32_t , int , bool);
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
@@ -268,15 +270,6 @@ void pmap_devmap_bootstrap(const struct pmap_devmap *);
  */
 void pmap_pte_init_mmu_v6(void);
 void vector_page_setprot(int);
-
-
-/*
- * sys/arm/arm/db_interface.c
- * sys/arm/arm/machdep.c
- * sys/arm/arm/minidump_machdep.c
- * sys/arm/arm/pmap.c
- */
-#define pmap_kernel() kernel_pmap
 
 /*
  * sys/arm/arm/bus_space_generic.c (just comment)

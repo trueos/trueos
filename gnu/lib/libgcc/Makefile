@@ -58,8 +58,10 @@ LIB2FUNCS+= _fixuns${mode}si
 .endfor
 
 # Likewise double-word routines.
-.if ${TARGET_CPUARCH} != "aarch64" && ${TARGET_CPUARCH} != "arm"
-# These are implemented in an ARM specific file but will not be filtered out
+.if ${TARGET_CPUARCH} != "aarch64" && ${TARGET_CPUARCH} != "arm" && \
+    ${TARGET_CPUARCH} != "riscv64"
+# These are implemented in an ARM specific file but will not be filtered out.
+# RISCVTODO: can't compile
 .for mode in sf df xf tf
 LIB2FUNCS+= _fix${mode}di _fixuns${mode}di
 LIB2FUNCS+= _floatdi${mode} _floatundi${mode}
@@ -193,7 +195,12 @@ LIB2_DIVMOD_FUNCS:= ${LIB2_DIVMOD_FUNCS:S/${sym}//g}
 .endif
 
 COMMONHDRS=	tm.h tconfig.h options.h gthr-default.h
-.if ${MK_LLVM_LIBUNWIND} == no
+.if ${MK_LLVM_LIBUNWIND} != "no"
+# unwind.h is a generated file when MK_LLVM_LIBUNWIND == "no", and a stale
+# copy may be left behind in OBJDIR when switching, so remove it explicitly.
+beforebuild:
+	@rm -f ${.OBJDIR}/unwind.h
+.else
 COMMONHDRS+=	unwind.h
 .endif
 
@@ -204,7 +211,7 @@ COMMONHDRS+=	unwind.h
 HIDE =  -fvisibility=hidden -DHIDE_EXPORTS
 CC_T =	${CC} -c ${CFLAGS} ${HIDE} -fPIC
 CC_P =	${CC} -c ${CFLAGS} ${HIDE} -p -fPIC
-CC_S =	${CC} -c ${CFLAGS} ${PICFLAG} -DSHARED
+CC_S =	${CC} -c ${CFLAGS} ${SHARED_CFLAGS} ${PICFLAG} -DSHARED
 
 #-----------------------------------------------------------------------
 #
@@ -317,7 +324,10 @@ EH_OBJS_T = ${LIB2ADDEHSTATIC:R:S/$/.o/}
 EH_OBJS_P = ${LIB2ADDEHSTATIC:R:S/$/.po/}
 EH_OBJS_S = ${LIB2ADDEHSHARED:R:S/$/.So/}
 EH_CFLAGS = -fexceptions -D__GLIBC__=3 -DElfW=__ElfN
+.if ${TARGET_CPUARCH} != "riscv64"
+# RISCVTODO: unwinding support
 SOBJS    += ${EH_OBJS_S}
+.endif
 
 .for _src in ${LIB2ADDEHSTATIC:M*.c}
 ${_src:R:S/$/.o/}: ${_src} ${COMMONHDRS}

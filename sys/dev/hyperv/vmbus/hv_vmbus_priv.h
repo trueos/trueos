@@ -58,6 +58,12 @@ typedef uint16_t hv_vmbus_status;
 #define HV_EVENT_FLAGS_BYTE_COUNT   (256)
 #define HV_EVENT_FLAGS_DWORD_COUNT  (256 / sizeof(uint32_t))
 
+/**
+ * max channel count <== event_flags_dword_count * bit_of_dword
+ */
+#define HV_CHANNEL_DWORD_LEN        (32)
+#define HV_CHANNEL_MAX_COUNT        \
+	((HV_EVENT_FLAGS_DWORD_COUNT) * HV_CHANNEL_DWORD_LEN)
 /*
  * MessageId: HV_STATUS_INSUFFICIENT_BUFFERS
  * MessageText:
@@ -196,9 +202,8 @@ typedef struct {
 	 * Each cpu has its own software interrupt handler for channel
 	 * event and msg handling.
 	 */
-	struct intr_event		*hv_event_intr_event[MAXCPU];
+	struct taskqueue		*hv_event_queue[MAXCPU];
 	struct intr_event		*hv_msg_intr_event[MAXCPU];
-	void				*event_swintr[MAXCPU];
 	void				*msg_swintr[MAXCPU];
 	/*
 	 * Host use this vector to intrrupt guest for vmbus channel
@@ -355,6 +360,10 @@ typedef struct {
 	TAILQ_HEAD(, hv_vmbus_channel)		channel_anchor;
 	struct mtx				channel_lock;
 
+	/**
+	 * channel table for fast lookup through id.
+	 */
+	hv_vmbus_channel                        **channels;
 	hv_vmbus_handle				work_queue;
 	struct sema				control_sema;
 } hv_vmbus_connection;
@@ -699,7 +708,6 @@ int			hv_vmbus_child_device_register(
 					struct hv_device *child_dev);
 int			hv_vmbus_child_device_unregister(
 					struct hv_device *child_dev);
-hv_vmbus_channel*	hv_vmbus_get_channel_from_rel_id(uint32_t rel_id);
 
 /**
  * Connection interfaces
@@ -708,7 +716,7 @@ int			hv_vmbus_connect(void);
 int			hv_vmbus_disconnect(void);
 int			hv_vmbus_post_message(void *buffer, size_t buf_size);
 int			hv_vmbus_set_event(hv_vmbus_channel *channel);
-void			hv_vmbus_on_events(void *);
+void			hv_vmbus_on_events(int cpu);
 
 /**
  * Event Timer interfaces

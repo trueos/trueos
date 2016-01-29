@@ -30,7 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -38,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -290,3 +290,38 @@ EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_fdt_driver,
     arm_gic_fdt_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 EARLY_DRIVER_MODULE(gic, ofwbus, arm_gic_fdt_driver, arm_gic_fdt_devclass,
     0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+
+static struct ofw_compat_data gicv2m_compat_data[] = {
+	{"arm,gic-v2m-frame",	true},
+	{NULL,			false}
+};
+
+static int
+arm_gicv2m_fdt_probe(device_t dev)
+{
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
+	if (!ofw_bus_search_compatible(dev, gicv2m_compat_data)->ocd_data)
+		return (ENXIO);
+
+	device_set_desc(dev, "ARM Generic Interrupt Controller MSI/MSIX");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static device_method_t arm_gicv2m_fdt_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		arm_gicv2m_fdt_probe),
+
+	/* End */
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_1(gicv2m, arm_gicv2m_fdt_driver, arm_gicv2m_fdt_methods,
+    sizeof(struct gicv2m_softc), arm_gicv2m_driver);
+
+static devclass_t arm_gicv2m_fdt_devclass;
+
+EARLY_DRIVER_MODULE(gicv2m, gic, arm_gicv2m_fdt_driver,
+    arm_gicv2m_fdt_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
