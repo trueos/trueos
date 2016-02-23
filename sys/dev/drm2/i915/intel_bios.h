@@ -480,6 +480,7 @@ struct bdb_edp {
 
 void intel_setup_bios(struct drm_device *dev);
 int intel_parse_bios(struct drm_device *dev);
+void intel_free_parsed_bios_data(struct drm_device *dev);
 
 /*
  * Driver<->VBIOS interaction occurs through scratch bits in

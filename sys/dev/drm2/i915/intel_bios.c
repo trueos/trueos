@@ -752,6 +752,25 @@ intel_parse_bios(struct drm_device *dev)
 	return 0;
 }
 
+/*
+ * NOTE Linux<->FreeBSD:
+ * Apparently, Linux doesn't free those pointers.
+ * TODO: Report that upstream.
+ */
+void
+intel_free_parsed_bios_data(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	free(dev_priv->lfp_lvds_vbt_mode, DRM_MEM_KMS);
+	free(dev_priv->sdvo_lvds_vbt_mode, DRM_MEM_KMS);
+	free(dev_priv->child_dev, DRM_MEM_KMS);
+
+	dev_priv->lfp_lvds_vbt_mode = NULL;
+	dev_priv->sdvo_lvds_vbt_mode = NULL;
+	dev_priv->child_dev = NULL;
+}
+
 /* Ensure that vital registers have been initialised, even if the BIOS
  * is absent or just failing to do its job.
  */

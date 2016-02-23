@@ -1354,6 +1354,7 @@ cleanup_vga_client:
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 out:
 #endif
+	intel_free_parsed_bios_data(dev);
 	return ret;
 }
 
@@ -1712,6 +1713,8 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->mm.inactive_shrinker.shrink)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
 #endif
+
+	intel_free_parsed_bios_data(dev);
 
 	DRM_LOCK(dev);
 	ret = i915_gpu_idle(dev);
