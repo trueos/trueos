@@ -1097,7 +1097,7 @@ static int i915_get_bridge_dev(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	dev_priv->bridge_dev = intel_gtt_get_bridge_device();
+	dev_priv->bridge_dev = pci_find_dbsf(0, 0, 0, 0);
 	if (!dev_priv->bridge_dev) {
 		DRM_ERROR("bridge device not found\n");
 		return -1;

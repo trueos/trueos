@@ -299,7 +299,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	uint32_t pd_offset;
 	struct intel_ring_buffer *ring;
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
-	u_int first_pd_entry_in_global_pt;
+	uint32_t __iomem *pd_addr;
 	uint32_t pd_entry;
 	int i;
 
@@ -307,7 +307,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		return;
 
 
-	first_pd_entry_in_global_pt = 512 * 1024 - I915_PPGTT_PD_ENTRIES;
+	pd_addr = dev_priv->mm.gtt->gtt + ppgtt->pd_offset/sizeof(uint32_t);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		vm_paddr_t pt_addr;
 
@@ -319,9 +319,10 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
 		pd_entry |= GEN6_PDE_VALID;
 
-		intel_gtt_write(first_pd_entry_in_global_pt + i, pd_entry);
+		/* NOTE Linux<->FreeBSD: Arguments of writel() are reversed. */
+		writel(pd_addr + i, pd_entry);
 	}
-	intel_gtt_read_pte(first_pd_entry_in_global_pt);
+	readl(pd_addr);
 
 	pd_offset = ppgtt->pd_offset;
 	pd_offset /= 64; /* in cachelines, */
