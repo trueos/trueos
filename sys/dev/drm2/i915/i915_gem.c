@@ -1404,7 +1404,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		args->addr_ptr = (uint64_t)addr;
 	}
 out:
-	drm_gem_object_unreference(obj);
+	drm_gem_object_unreference_unlocked(obj);
 	return (error);
 }
 
