@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/drm_dp_helper.h>
 #include <dev/drm2/drm_crtc_helper.h>
-//#include <sys/limits.h>
 
 bool intel_pipe_has_type(struct drm_crtc *crtc, int type);
 static void intel_increase_pllclock(struct drm_crtc *crtc);
