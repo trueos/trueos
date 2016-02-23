@@ -1190,7 +1190,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 		error->ring[i].num_requests = count;
 		error->ring[i].requests =
 			malloc(count*sizeof(struct drm_i915_error_request),
-				DRM_I915_GEM, M_NOWAIT);
+				DRM_I915_GEM, M_WAITOK);
 		if (error->ring[i].requests == NULL) {
 			error->ring[i].num_requests = 0;
 			continue;
