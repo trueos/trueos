@@ -166,7 +166,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 	if (lists_empty)
 		return -ENOSPC;
 
-	CTR2(KTR_DRM, "evict_everything %p %d", dev, purgeable_only);
+	CTR1(KTR_DRM, "evict_everything %p", dev);
 
 	/* The gpu_idle will flush everything in the write domain to the
 	 * active list. Then we must move everything off the active list

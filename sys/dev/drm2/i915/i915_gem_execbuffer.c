@@ -1118,8 +1118,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			goto err;
 	}
 
-	CTR4(KTR_DRM, "ring_dispatch %s %d exec %x %x", ring->name, seqno,
-	    exec_start, exec_len);
+	CTR3(KTR_DRM, "ring_dispatch ring=%s seqno=%d flags=%u", ring->name,
+	    intel_ring_get_seqno(ring), flags);
 
 	i915_gem_execbuffer_move_to_active(&objects, ring);
 	i915_gem_execbuffer_retire_commands(dev, file, ring);

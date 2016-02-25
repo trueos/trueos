@@ -1140,7 +1140,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	getrawmonotonic(&now);
 
 	ring->irq_put(ring);
-	CTR3(KTR_DRM, "request_wait_end %s %d %d", ring->name, seqno, ret);
+	CTR3(KTR_DRM, "request_wait_end %s %d %d", ring->name, seqno, end);
 #undef EXIT_COND
 
 	if (timeout) {
@@ -2362,7 +2362,7 @@ i915_add_request(struct intel_ring_buffer *ring,
 		mtx_unlock(&file_priv->mm.lock);
 	}
 
-	CTR2(KTR_DRM, "request_add %s %d", ring->name, seqno);
+	CTR2(KTR_DRM, "request_add %s %d", ring->name, request->seqno);
 	ring->outstanding_lazy_request = 0;
 
 	if (!dev_priv->mm.suspended) {
