@@ -1101,23 +1101,40 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 #define EXIT_COND \
 	(i915_seqno_passed(ring->get_seqno(ring, false), seqno) || \
 	atomic_read(&dev_priv->mm.wedged))
-	end = 0;
+	end = 1;
 	flags = interruptible ? PCATCH : 0;
 	mtx_lock(&dev_priv->irq_lock);
 	do {
 		if (!EXIT_COND) {
-			end = -msleep_sbt(&ring->irq_queue, &dev_priv->irq_lock, flags,
+			ret = -msleep_sbt(&ring->irq_queue, &dev_priv->irq_lock, flags,
 			    "915gwr", timeout_sbt, 0, 0);
-			if (end == -EINTR || end == -ERESTART)
+			/*
+			 * NOTE Linux<->FreeBSD: Convert msleep_sbt() return
+			 * value to something close to wait_event*_timeout()
+			 * functions used on Linux.
+			 *
+			 * >0 -> condition is true (end = time remaining)
+			 * =0 -> sleep timed out
+			 * <0 -> error (interrupted)
+			 *
+			 * We fake the remaining time by returning 1. We
+			 * compute a proper value later.
+			 */
+			if (EXIT_COND)
+				/* We fake a remaining time of 1 tick. */
+				end = 1;
+			else if (ret == -EINTR || ret == -ERESTART)
+				/* Interrupted. */
 				end = -ERESTARTSYS;
-			else if (end == -EWOULDBLOCK)
-				end = -ETIMEDOUT;
+			else
+				/* Timeout. */
+				end = 0;
 		}
 
 		ret = i915_gem_check_wedge(dev_priv, interruptible);
 		if (ret)
 			end = ret;
-	} while (end == -ETIMEDOUT && wait_forever);
+	} while (end == 0 && wait_forever);
 	mtx_unlock(&dev_priv->irq_lock);
 
 	getrawmonotonic(&now);
@@ -1137,8 +1154,10 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	case -ERESTARTSYS: /* Signal */
 	case -ETIMEDOUT: /* Timeout */
 		return (int)end;
+	case 0: /* Timeout */
+		return -ETIMEDOUT;
 	default: /* Completed */
-		WARN_ON(end != 0); /* We're not aware of other errors */
+		WARN_ON(end < 0); /* We're not aware of other errors */
 		return 0;
 	}
 }
