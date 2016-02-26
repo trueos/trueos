@@ -86,9 +86,12 @@ void *dpcpu[MAXCPU - 1];
 int
 cpu_mp_probe(void)
 {
+
+	KASSERT(mp_ncpus != 0, ("cpu_mp_probe: mp_ncpus is unset"));
+
 	CPU_SETOF(0, &all_cpus);
 
-	return (platform_mp_probe());
+	return (mp_ncpus > 1);
 }
 
 /* Start Application Processor via platform specific function */
@@ -231,7 +234,7 @@ init_secondary(int cpu)
 	cpu_initclocks_ap();
 
 	CTR0(KTR_SMP, "go into scheduler");
-	platform_mp_init_secondary();
+	intr_pic_init_secondary();
 
 	/* Enter the scheduler */
 	sched_throw(NULL);

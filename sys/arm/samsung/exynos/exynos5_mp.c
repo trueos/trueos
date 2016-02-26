@@ -71,13 +71,6 @@ exynos_get_soc_id(void)
 }
 
 void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 
@@ -87,13 +80,6 @@ platform_mp_setmaxid(void)
 		mp_ncpus = 2;
 
 	mp_maxid = mp_ncpus - 1;
-}
-
-int
-platform_mp_probe(void)
-{
-
-	return (mp_ncpus > 1);
 }
 
 void

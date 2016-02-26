@@ -80,13 +80,6 @@ rk30xx_boot2(void)
 }
 
 void
-platform_mp_init_secondary(void)
-{
-
-	intr_pic_init_secondary();
-}
-
-void
 platform_mp_setmaxid(void)
 {
 	bus_space_handle_t scu;
@@ -105,16 +98,6 @@ platform_mp_setmaxid(void)
 
 	mp_ncpus = ncpu;
 	mp_maxid = ncpu - 1;
-}
-
-int
-platform_mp_probe(void)
-{
-
-	if (mp_ncpus == 0)
-		platform_mp_setmaxid();
-
-	return (mp_ncpus > 1);
 }
 
 void

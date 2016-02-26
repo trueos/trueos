@@ -150,7 +150,7 @@ all:
 .else
 all: ${PROG} ${SCRIPTS}
 .if ${MK_MAN} != "no"
-all: _manpages
+all: all-man
 .endif
 .endif
 
@@ -258,8 +258,8 @@ NLSNAME?=	${PROG}
 .include <bsd.links.mk>
 
 .if ${MK_MAN} != "no"
-realinstall: _maninstall
-.ORDER: beforeinstall _maninstall
+realinstall: maninstall
+.ORDER: beforeinstall maninstall
 .endif
 
 .endif	# !target(install)
@@ -283,5 +283,6 @@ ${OBJS}: ${OBJS_DEPEND_GUESS}
 .endif
 
 .include <bsd.dep.mk>
+.include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>
 .include <bsd.sys.mk>
