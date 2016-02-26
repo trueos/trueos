@@ -101,6 +101,7 @@
 #define	 EXCP_SP_ALIGN		0x26	/* SP slignment fault */
 #define	 EXCP_TRAP_FP		0x2c	/* Trapped FP exception */
 #define	 EXCP_SERROR		0x2f	/* SError interrupt */
+#define	 EXCP_SOFTSTP_EL0	0x32	/* Software Step, from lower EL */
 #define	 EXCP_SOFTSTP_EL1	0x33	/* Software Step, from same EL */
 #define	 EXCP_WATCHPT_EL1	0x35	/* Watchpoint, from same EL */
 #define	 EXCP_BRK		0x3c	/* Breakpoint */
@@ -116,6 +117,15 @@
 
 /* ICC_PMR_EL1 */
 #define	ICC_PMR_EL1_PRIO_MASK	(0xFFUL)
+
+/* ICC_SGI1R_EL1 */
+#define	ICC_SGI1R_EL1_TL_MASK		0xffffUL
+#define	ICC_SGI1R_EL1_AFF1_SHIFT	16
+#define	ICC_SGI1R_EL1_SGIID_SHIFT	24
+#define	ICC_SGI1R_EL1_AFF2_SHIFT	32
+#define	ICC_SGI1R_EL1_AFF3_SHIFT	48
+#define	ICC_SGI1R_EL1_SGIID_MASK	0xfUL
+#define	ICC_SGI1R_EL1_IRM		(0x1UL << 40)
 
 /* ICC_SRE_EL1 */
 #define	ICC_SRE_EL1_SRE		(1U << 0)

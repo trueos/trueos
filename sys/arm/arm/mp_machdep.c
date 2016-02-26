@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/debug_monitor.h>
 #include <machine/smp.h>
 #include <machine/pcb.h>
-#include <machine/pmap.h>
-#include <machine/pte.h>
 #include <machine/physmem.h>
 #include <machine/intr.h>
 #include <machine/vmparam.h>
@@ -124,9 +122,7 @@ cpu_mp_start(void)
 		dpcpu[i] = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
 		    M_WAITOK | M_ZERO);
 
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
-	cpu_idcache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	/* Initialize boot code and start up processors */
 	platform_mp_start_ap();
@@ -156,7 +152,6 @@ init_secondary(int cpu)
 #ifndef ARM_INTRNG
 	int start = 0, end = 0;
 #endif
-#if __ARM_ARCH >= 6
 	uint32_t actlr_mask, actlr_set;
 
 	pmap_set_tex();
@@ -168,11 +163,6 @@ init_secondary(int cpu)
 	set_stackptrs(cpu);
 
 	enable_interrupts(PSR_A);
-#else /* __ARM_ARCH >= 6 */
-	cpu_setup();
-	setttb(pmap_pa);
-	cpu_tlb_flushID();
-#endif /* __ARM_ARCH >= 6 */
 	pc = &__pcpu[cpu];
 
 	/*
@@ -184,10 +174,6 @@ init_secondary(int cpu)
 
 	pcpu_init(pc, cpu, sizeof(struct pcpu));
 	dpcpu_init(dpcpu[cpu - 1], cpu);
-#if __ARM_ARCH < 6
-	/* Provide stack pointers for other processor modes. */
-	set_stackptrs(cpu);
-#endif
 	/* Signal our startup to BSP */
 	atomic_add_rel_32(&mp_naps, 1);
 
@@ -294,7 +280,7 @@ ipi_stop(void *dummy __unused)
 	 * stop will do the l2 cache flush after all other cores
 	 * have done their l1 flushes and stopped.
 	 */
-	cpu_idcache_wbinv_all();
+	dcache_wbinv_poc_all();
 
 	/* Indicate we are stopped */
 	CPU_SET_ATOMIC(cpu, &stopped_cpus);
@@ -351,13 +337,6 @@ ipi_hardclock(void *arg)
 	critical_exit();
 }
 
-static void
-ipi_tlb(void *dummy __unused)
-{
-
-	CTR1(KTR_SMP, "%s: IPI_TLB", __func__);
-	cpufuncs.cf_tlb_flushID();
-}
 #else
 static int
 ipi_handler(void *arg)
@@ -399,7 +378,7 @@ ipi_handler(void *arg)
 			 * stop will do the l2 cache flush after all other cores
 			 * have done their l1 flushes and stopped.
 			 */
-			cpu_idcache_wbinv_all();
+			dcache_wbinv_poc_all();
 
 			/* Indicate we are stopped */
 			CPU_SET_ATOMIC(cpu, &stopped_cpus);
@@ -422,10 +401,6 @@ ipi_handler(void *arg)
 		case IPI_HARDCLOCK:
 			CTR1(KTR_SMP, "%s: IPI_HARDCLOCK", __func__);
 			hardclockintr();
-			break;
-		case IPI_TLB:
-			CTR1(KTR_SMP, "%s: IPI_TLB", __func__);
-			cpufuncs.cf_tlb_flushID();
 			break;
 		default:
 			panic("Unknown IPI 0x%0x on cpu %d", ipi, curcpu);
@@ -456,7 +431,6 @@ release_aps(void *dummy __unused)
 	intr_ipi_set_handler(IPI_STOP, "stop", ipi_stop, NULL, 0);
 	intr_ipi_set_handler(IPI_PREEMPT, "preempt", ipi_preempt, NULL, 0);
 	intr_ipi_set_handler(IPI_HARDCLOCK, "hardclock", ipi_hardclock, NULL, 0);
-	intr_ipi_set_handler(IPI_TLB, "tlb", ipi_tlb, NULL, 0);
 
 #else
 #ifdef IPI_IRQ_START
@@ -525,7 +499,7 @@ ipi_all_but_self(u_int ipi)
 	other_cpus = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	platform_ipi_send(other_cpus, ipi);
+	pic_ipi_send(other_cpus, ipi);
 }
 
 void
@@ -537,7 +511,7 @@ ipi_cpu(int cpu, u_int ipi)
 	CPU_SET(cpu, &cpus);
 
 	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x", __func__, cpu, ipi);
-	platform_ipi_send(cpus, ipi);
+	pic_ipi_send(cpus, ipi);
 }
 
 void
@@ -545,13 +519,6 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 {
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	platform_ipi_send(cpus, ipi);
+	pic_ipi_send(cpus, ipi);
 }
 
-void
-tlb_broadcast(int ipi)
-{
-
-	if (smp_started)
-		ipi_all_but_self(ipi);
-}

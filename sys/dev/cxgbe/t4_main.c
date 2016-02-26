@@ -708,7 +708,7 @@ t4_attach(device_t dev)
 		sc->fw_msg_handler[i] = fw_msg_not_handled;
 	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, t4_filter_rpl);
 	t4_register_cpl_handler(sc, CPL_TRACE_PKT, t4_trace_pkt);
-	t4_register_cpl_handler(sc, CPL_TRACE_PKT_T5, t5_trace_pkt);
+	t4_register_cpl_handler(sc, CPL_T5_TRACE_PKT, t5_trace_pkt);
 	t4_init_sge_cpl_handlers(sc);
 
 	/* Prepare the adapter for operation */
@@ -5498,6 +5498,9 @@ cxgbe_sysctls(struct port_info *pi)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "pause_settings",
 	    CTLTYPE_STRING | CTLFLAG_RW, pi, PAUSE_TX, sysctl_pause_settings,
 	    "A", "PAUSE settings (bit 0 = rx_pause, bit 1 = tx_pause)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "max_speed", CTLFLAG_RD, NULL,
+	    port_top_speed(pi), "max speed (in Gbps)");
 
 	/*
 	 * dev.cxgbe.X.stats.

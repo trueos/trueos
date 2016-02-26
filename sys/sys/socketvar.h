@@ -64,7 +64,6 @@ struct socket;
  * (a) constant after allocation, no locking required.
  * (b) locked by SOCK_LOCK(so).
  * (c) locked by SOCKBUF_LOCK(&so->so_rcv).
- * (d) locked by SOCKBUF_LOCK(&so->so_snd).
  * (e) locked by ACCEPT_LOCK().
  * (f) not locked since integer reads/writes are atomic.
  * (g) used only as a sleep/wakeup address, no value.
@@ -95,16 +94,16 @@ struct socket {
 	TAILQ_HEAD(, socket) so_incomp;	/* (e) queue of partial unaccepted connections */
 	TAILQ_HEAD(, socket) so_comp;	/* (e) queue of complete unaccepted connections */
 	TAILQ_ENTRY(socket) so_list;	/* (e) list of unaccepted connections */
-	u_short	so_qlen;		/* (e) number of unaccepted connections */
-	u_short	so_incqlen;		/* (e) number of unaccepted incomplete
+	u_int	so_qlen;		/* (e) number of unaccepted connections */
+	u_int	so_incqlen;		/* (e) number of unaccepted incomplete
 					   connections */
-	u_short	so_qlimit;		/* (e) max number queued connections */
+	u_int	so_qlimit;		/* (e) max number queued connections */
 	short	so_timeo;		/* (g) connection timeout */
 	u_short	so_error;		/* (f) error affecting connection */
 	struct	sigio *so_sigio;	/* [sg] information for async I/O or
 					   out of band data (SIGURG) */
 	u_long	so_oobmark;		/* (c) chars to oob mark */
-	TAILQ_HEAD(, aiocblist) so_aiojobq; /* AIO ops waiting on socket */
+	TAILQ_HEAD(, kaiocb) so_aiojobq; /* AIO ops waiting on socket */
 
 	struct sockbuf so_rcv, so_snd;
 
@@ -172,9 +171,9 @@ struct xsocket {
 	caddr_t	so_pcb;		/* another convenient handle */
 	int	xso_protocol;
 	int	xso_family;
-	u_short	so_qlen;
-	u_short	so_incqlen;
-	u_short	so_qlimit;
+	u_int	so_qlen;
+	u_int	so_incqlen;
+	u_int	so_qlimit;
 	short	so_timeo;
 	u_short	so_error;
 	pid_t	so_pgid;

@@ -123,7 +123,6 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #if __ARM_ARCH >= 6
-#include <machine/cpu-v6.h>
 
 DB_SHOW_COMMAND(cp15, db_show_cp15)
 {
@@ -397,7 +396,7 @@ arm_vector_init(vm_offset_t va, int which)
 	}
 
 	/* Now sync the vectors. */
-	cpu_icache_sync_range(va, (ARM_NVEC * 2) * sizeof(u_int));
+	icache_sync(va, (ARM_NVEC * 2) * sizeof(u_int));
 
 	vector_page = va;
 
@@ -427,10 +426,8 @@ cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
 	const unsigned int mbyte = 1024 * 1024;
-#ifdef ARM_TP_ADDRESS
-#ifndef ARM_CACHE_LOCK_ENABLE
+#if __ARM_ARCH < 6 && !defined(ARM_CACHE_LOCK_ENABLE)
 	vm_page_t m;
-#endif
 #endif
 
 	identify_arm_cpu();
@@ -456,11 +453,9 @@ cpu_startup(void *dummy)
 	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
 	pmap_set_pcb_pagedir(kernel_pmap, pcb);
-#if __ARM_ARCH  < 6
+#if __ARM_ARCH < 6
 	vector_page_setprot(VM_PROT_READ);
 	pmap_postinit();
-#endif
-#ifdef ARM_TP_ADDRESS
 #ifdef ARM_CACHE_LOCK_ENABLE
 	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 	arm_lock_cache_line(ARM_TP_ADDRESS);
@@ -483,12 +478,7 @@ void
 cpu_flush_dcache(void *ptr, size_t len)
 {
 
-	cpu_dcache_wb_range((uintptr_t)ptr, len);
-#ifdef ARM_L2_PIPT
-	cpu_l2cache_wb_range((uintptr_t)vtophys(ptr), len);
-#else
-	cpu_l2cache_wb_range((uintptr_t)ptr, len);
-#endif
+	dcache_wb_poc((vm_offset_t)ptr, (vm_paddr_t)vtophys(ptr), len);
 }
 
 /* Get current clock frequency for the given cpu id. */
@@ -1626,7 +1616,7 @@ initarm(struct arm_boot_params *abp)
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	pmap_pa = kernel_l1pt.pv_pa;
-	setttb(kernel_l1pt.pv_pa);
+	cpu_setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
 
@@ -1679,7 +1669,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in setttb()
+	 * dirty data in the cache. This will have happened in cpu_setttb()
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.
@@ -1871,7 +1861,7 @@ initarm(struct arm_boot_params *abp)
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
-	 * dirty data in the cache. This will have happened in setttb()
+	 * dirty data in the cache. This will have happened in cpu_setttb()
 	 * but since we are boot strapping the addresses used for the read
 	 * may have just been remapped and thus the cache could be out
 	 * of sync. A re-clean after the switch will cure this.

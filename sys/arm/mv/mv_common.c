@@ -377,7 +377,7 @@ soc_id(uint32_t *dev, uint32_t *rev)
 	 * Notice: system identifiers are available in the registers range of
 	 * PCIE controller, so using this function is only allowed (and
 	 * possible) after the internal registers range has been mapped in via
-	 * pmap_devmap_bootstrap().
+	 * arm_devmap_bootstrap().
 	 */
 	*dev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 0) >> 16;
 	*rev = bus_space_read_4(fdtbus_bs_tag, MV_PCIE_BASE, 8) & 0xff;
@@ -2181,6 +2181,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
+#ifndef ARM_INTRNG
 static int
 fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
@@ -2204,6 +2205,7 @@ fdt_pic_decode_t fdt_pic_table[] = {
 	&fdt_pic_decode_ic,
 	NULL
 };
+#endif
 
 uint64_t
 get_sar_value(void)

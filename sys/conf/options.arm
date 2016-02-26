@@ -15,8 +15,6 @@ CPU_CORTEXA		opt_global.h
 CPU_KRAIT		opt_global.h
 CPU_FA526		opt_global.h
 CPU_MV_PJ4B		opt_global.h
-CPU_XSCALE_80219	opt_global.h
-CPU_XSCALE_80321	opt_global.h
 CPU_XSCALE_81342	opt_global.h
 CPU_XSCALE_IXP425	opt_global.h
 CPU_XSCALE_IXP435	opt_global.h
@@ -40,6 +38,10 @@ SOCDEV_PA		opt_global.h
 SOCDEV_VA		opt_global.h
 PV_STATS		opt_pmap.h
 QEMU_WORKAROUNDS	opt_global.h
+SOC_ALLWINNER_A10	opt_global.h
+SOC_ALLWINNER_A20	opt_global.h
+SOC_ALLWINNER_A31	opt_global.h
+SOC_ALLWINNER_A31S	opt_global.h
 SOC_BCM2835		opt_global.h
 SOC_BCM2836		opt_global.h
 SOC_IMX51		opt_global.h

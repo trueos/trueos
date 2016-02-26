@@ -70,7 +70,13 @@ options 	MAC			# TrustedBSD MAC Framework
 options 	RACCT			# Resource accounting framework
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	RCTL			# Resource limits
-# options 	SMP
+options 	SMP
+
+# Uncomment for memory disk
+# options 	MD_ROOT
+# options 	MD_ROOT_SIZE=8192	# 8MB ram disk
+# makeoptions	MFS_IMAGE=/path/to/img
+# options 	ROOTDEVNAME=\"ufs:/dev/md0\"
 
 # Debugging support.  Always need this:
 # options 	KDB			# Enable kernel debugger support.
@@ -98,7 +104,4 @@ device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		firmware	# firmware assist module
 
-# RISCVTODO: This needs to be done via loader (when it's available).
 options 	FDT
-options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=spike.dts
