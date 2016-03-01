@@ -1434,6 +1434,25 @@ i915_gem_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * calling drm_gem_object_reference(). That's why we don't
 	 * do this here. i915_gem_pager_dtor(), below, will call
 	 * drm_gem_object_unreference().
+	 *
+	 * On Linux, drm_gem_vm_open() references the object because
+	 * it's called the mapping is copied. drm_gem_vm_open() is not
+	 * called when the mapping is created. So the possible sequences
+	 * are:
+	 *     1. drm_gem_mmap():     ref++
+	 *     2. drm_gem_vm_close(): ref--
+	 *
+	 *     1. drm_gem_mmap():     ref++
+	 *     2. drm_gem_vm_open():  ref++ (for the copied vma)
+	 *     3. drm_gem_vm_close(): ref-- (for the copied vma)
+	 *     4. drm_gem_vm_close(): ref-- (for the initial vma)
+	 *
+	 * On FreeBSD, i915_gem_pager_ctor() is called once during the
+	 * creation of the mapping. i915_gem_pager_dtor() is called when
+	 * the mapping is taken down. So the only sequence is:
+	 *     1. drm_gem_mmap_single(): ref++
+	 *     2. i915_gem_pager_ctor(): <noop>
+	 *     3. i915_gem_pager_dtor(): ref--
 	 */
 
 	*color = 0; /* XXXKIB */
@@ -1463,23 +1482,14 @@ static int
 i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
     vm_page_t *mres)
 {
-	struct drm_gem_object *gem_obj;
-	struct drm_i915_gem_object *obj;
-	struct drm_device *dev;
-	drm_i915_private_t *dev_priv;
+	struct drm_gem_object *gem_obj = vm_obj->handle;
+	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
+	struct drm_device *dev = obj->base.dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	vm_page_t page, oldpage;
-	int cause, ret;
-	bool write;
+	int cause, ret, pinned;
+	bool write = (prot & VM_PROT_WRITE) != 0;
 
-	gem_obj = vm_obj->handle;
-	obj = to_intel_bo(gem_obj);
-	dev = obj->base.dev;
-	dev_priv = dev->dev_private;
-#if 0
-	write = (prot & VM_PROT_WRITE) != 0;
-#else
-	write = true;
-#endif
 	vm_object_pip_add(vm_obj, 1);
 
 	/*
@@ -1489,7 +1499,7 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 	 * object, then it owns the drm device sx and might find the
 	 * placeholder already. Then, since the page is busy,
 	 * i915_gem_release_mmap() sleeps waiting for the busy state
-	 * of the page cleared. We will be not able to acquire drm
+	 * of the page cleared. We will be unable to acquire drm
 	 * device lock until i915_gem_release_mmap() is able to make a
 	 * progress.
 	 */
@@ -1503,7 +1513,7 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 		oldpage = NULL;
 	VM_OBJECT_WUNLOCK(vm_obj);
 retry:
-	cause = ret = 0;
+	cause = ret = pinned = 0;
 	page = NULL;
 
 	if (i915_intr_pf) {
@@ -1535,40 +1545,27 @@ retry:
 		VM_OBJECT_WUNLOCK(vm_obj);
 
 	/* Now bind it into the GTT if needed */
-	if (!obj->map_and_fenceable) {
-		ret = i915_gem_object_unbind(obj);
-		if (ret != 0) {
-			cause = 20;
-			goto unlock;
-		}
-	}
-	if (!obj->gtt_space) {
-		ret = i915_gem_object_bind_to_gtt(obj, 0, true, true);
-		if (ret != 0) {
-			cause = 30;
-			goto unlock;
-		}
-
-		ret = i915_gem_object_set_to_gtt_domain(obj, write);
-		if (ret != 0) {
-			cause = 40;
-			goto unlock;
-		}
-	}
-
-	if (!obj->has_global_gtt_mapping)
-		i915_gem_gtt_bind_object(obj, obj->cache_level);
-
-	ret = i915_gem_object_get_fence(obj);
-	if (ret != 0) {
-		cause = 50;
+	ret = i915_gem_object_pin(obj, 0, true, false);
+	if (ret) {
+		cause = 20;
 		goto unlock;
 	}
+	pinned = 1;
 
-	if (i915_gem_object_is_inactive(obj))
-		list_move_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
+	ret = i915_gem_object_set_to_gtt_domain(obj, write);
+	if (ret) {
+		cause = 40;
+		goto unpin;
+	}
+
+	ret = i915_gem_object_get_fence(obj);
+	if (ret) {
+		cause = 50;
+		goto unpin;
+	}
 
 	obj->fault_mappable = true;
+
 	VM_OBJECT_WLOCK(vm_obj);
 	page = PHYS_TO_VM_PAGE(dev_priv->mm.gtt_base_addr + obj->gtt_offset + offset);
 	KASSERT((page->flags & PG_FICTITIOUS) != 0,
@@ -1578,13 +1575,14 @@ retry:
 		VM_OBJECT_WUNLOCK(vm_obj);
 		cause = 60;
 		ret = -EFAULT;
-		goto unlock;
+		goto unpin;
 	}
 	KASSERT((page->flags & PG_FICTITIOUS) != 0,
 	    ("not fictitious %p", page));
 	KASSERT(page->wire_count == 1, ("wire_count not 1 %p", page));
 
 	if (vm_page_busied(page)) {
+		i915_gem_object_unpin(obj);
 		DRM_UNLOCK(dev);
 		vm_page_lock(page);
 		VM_OBJECT_WUNLOCK(vm_obj);
@@ -1592,6 +1590,7 @@ retry:
 		goto retry;
 	}
 	if (vm_page_insert(page, vm_obj, OFF_TO_IDX(offset))) {
+		i915_gem_object_unpin(obj);
 		DRM_UNLOCK(dev);
 		VM_OBJECT_WUNLOCK(vm_obj);
 		VM_WAIT;
@@ -1604,6 +1603,13 @@ have_page:
 
 	CTR4(KTR_DRM, "fault %p %jx %x phys %x", gem_obj, offset, prot,
 	    page->phys_addr);
+	if (pinned) {
+		/*
+		 * We may have not pinned the object if the page was
+		 * found by the call to vm_page_lookup()
+		 */
+		i915_gem_object_unpin(obj);
+	}
 	DRM_UNLOCK(dev);
 	if (oldpage != NULL) {
 		vm_page_lock(oldpage);
@@ -1613,6 +1619,8 @@ have_page:
 	vm_object_pip_wakeup(vm_obj);
 	return (VM_PAGER_OK);
 
+unpin:
+	i915_gem_object_unpin(obj);
 unlock:
 	DRM_UNLOCK(dev);
 out:
@@ -1631,15 +1639,10 @@ out:
 static void
 i915_gem_pager_dtor(void *handle)
 {
-	struct drm_gem_object *obj;
-	struct drm_device *dev;
-
-	obj = handle;
-	dev = obj->dev;
+	struct drm_gem_object *obj = handle;
+	struct drm_device *dev = obj->dev;
 
 	DRM_LOCK(dev);
-	drm_gem_free_mmap_offset(obj);
-	i915_gem_release_mmap(to_intel_bo(obj));
 	drm_gem_object_unreference(obj);
 	DRM_UNLOCK(dev);
 }
