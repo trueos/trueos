@@ -92,8 +92,6 @@ static void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 
 static int i915_gem_object_get_pages_range(struct drm_i915_gem_object *obj,
     off_t start, off_t end);
-static void i915_gem_object_put_pages_range(struct drm_i915_gem_object *obj,
-    off_t start, off_t end);
 
 static vm_page_t i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex,
     bool *fresh);
@@ -476,8 +474,8 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		     struct drm_file *file)
 {
 	char __user *user_data;
-	ssize_t remain, sremain;
-	off_t offset, soffset;
+	ssize_t remain;
+	off_t offset;
 	int shmem_page_offset, page_length, ret = 0;
 	int obj_do_bit17_swizzling, page_do_bit17_swizzling;
 	int hit_slowpath = 0;
@@ -485,7 +483,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 	int needs_clflush = 0;
 
 	user_data = to_user_ptr(args->data_ptr);
-	sremain = remain = args->size;
+	remain = args->size;
 
 	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
 
@@ -500,8 +498,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 			return ret;
 	}
 
-	soffset = offset = args->offset;
-	ret = i915_gem_object_get_pages_range(obj, soffset, soffset + sremain);
+	ret = i915_gem_object_get_pages(obj);
 	if (ret)
 		return ret;
 
@@ -569,7 +566,6 @@ next_page:
 
 out:
 	i915_gem_object_unpin_pages(obj);
-	i915_gem_object_put_pages_range(obj, soffset, soffset + sremain);
 
 	if (hit_slowpath) {
 		/* Fixup: Kill any reinstated backing storage pages */
@@ -810,8 +806,8 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		      struct drm_i915_gem_pwrite *args,
 		      struct drm_file *file)
 {
-	ssize_t remain, sremain;
-	off_t offset, soffset;
+	ssize_t remain;
+	off_t offset;
 	char __user *user_data;
 	int shmem_page_offset, page_length, ret = 0;
 	int obj_do_bit17_swizzling, page_do_bit17_swizzling;
@@ -820,7 +816,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	int needs_clflush_before = 0;
 
 	user_data = to_user_ptr(args->data_ptr);
-	sremain = remain = args->size;
+	remain = args->size;
 
 	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
 
@@ -840,13 +836,13 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		needs_clflush_before =
 			!cpu_cache_is_coherent(dev, obj->cache_level);
 
-	soffset = offset = args->offset;
-	ret = i915_gem_object_get_pages_range(obj, soffset, soffset + sremain);
+	ret = i915_gem_object_get_pages(obj);
 	if (ret)
 		return ret;
 
 	i915_gem_object_pin_pages(obj);
 
+	offset = args->offset;
 	obj->dirty = 1;
 
 	VM_OBJECT_WLOCK(obj->base.vm_obj);
@@ -910,7 +906,6 @@ next_page:
 
 out:
 	i915_gem_object_unpin_pages(obj);
-	i915_gem_object_put_pages_range(obj, soffset, soffset + sremain);
 
 	if (hit_slowpath) {
 		/* Fixup: Kill any reinstated backing storage pages */
@@ -1959,19 +1954,6 @@ i915_gem_assert_pages_not_mapped(struct drm_device *dev, vm_page_t *ma,
 	}
 }
 #endif
-
-static void
-i915_gem_object_put_pages_range(struct drm_i915_gem_object *obj,
-    off_t start, off_t end)
-{
-	vm_object_t vm_obj;
-
-	vm_obj = obj->base.vm_obj;
-	VM_OBJECT_WLOCK(vm_obj);
-	i915_gem_object_put_pages_range_locked(obj,
-	    OFF_TO_IDX(trunc_page(start)), OFF_TO_IDX(round_page(end)));
-	VM_OBJECT_WUNLOCK(vm_obj);
-}
 
 static void
 i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
