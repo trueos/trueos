@@ -99,20 +99,6 @@ static vm_page_t i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex,
 MALLOC_DEFINE(DRM_I915_GEM, "i915gem", "Allocations from i915 gem");
 long i915_gem_wired_pages_cnt;
 
-static bool cpu_cache_is_coherent(struct drm_device *dev,
-				  enum i915_cache_level level)
-{
-	return HAS_LLC(dev) || level != I915_CACHE_NONE;
-}
-
-static bool cpu_write_needs_clflush(struct drm_i915_gem_object *obj)
-{
-	if (!cpu_cache_is_coherent(obj->base.dev, obj->cache_level))
-		return true;
-
-	return obj->pin_display;
-}
-
 static inline void i915_gem_object_fence_lost(struct drm_i915_gem_object *obj)
 {
 	if (obj->tiling_mode)
@@ -492,10 +478,13 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		 * read domain and manually flush cachelines (if required). This
 		 * optimizes for the case when the gpu will dirty the data
 		 * anyway again before the next pread happens. */
-		needs_clflush = !cpu_cache_is_coherent(dev, obj->cache_level);
-		ret = i915_gem_object_set_to_gtt_domain(obj, false);
-		if (ret)
-			return ret;
+		if (obj->cache_level == I915_CACHE_NONE)
+			needs_clflush = 1;
+		if (obj->gtt_space) {
+			ret = i915_gem_object_set_to_gtt_domain(obj, false);
+			if (ret)
+				return ret;
+		}
 	}
 
 	ret = i915_gem_object_get_pages(obj);
@@ -825,16 +814,19 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		 * write domain and manually flush cachelines (if required). This
 		 * optimizes for the case when the gpu will use the data
 		 * right away and we therefore have to clflush anyway. */
-		needs_clflush_after = cpu_write_needs_clflush(obj);
-		ret = i915_gem_object_set_to_gtt_domain(obj, true);
-		if (ret)
-			return ret;
+		if (obj->cache_level == I915_CACHE_NONE)
+			needs_clflush_after = 1;
+		if (obj->gtt_space) {
+			ret = i915_gem_object_set_to_gtt_domain(obj, true);
+			if (ret)
+				return ret;
+		}
 	}
 	/* Same trick applies for invalidate partially written cachelines before
 	 * writing.  */
-	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0)
-		needs_clflush_before =
-			!cpu_cache_is_coherent(dev, obj->cache_level);
+	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU)
+	    && obj->cache_level == I915_CACHE_NONE)
+		needs_clflush_before = 1;
 
 	ret = i915_gem_object_get_pages(obj);
 	if (ret)
@@ -992,7 +984,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 
 	if (obj->cache_level == I915_CACHE_NONE &&
 	    obj->tiling_mode == I915_TILING_NONE &&
-	    cpu_write_needs_clflush(obj)) {
+	    obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
 		ret = i915_gem_gtt_pwrite_fast(dev, obj, args, file);
 		/* Note that the gtt paths might fail with non-page-backed user
 		 * pointers (e.g. gtt mappings when moving data between
