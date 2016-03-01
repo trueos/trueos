@@ -233,11 +233,13 @@ static inline u32 intel_ring_get_seqno(struct intel_ring_buffer *ring)
 	return ring->outstanding_lazy_request;
 }
 
+#ifdef __linux__
 static inline void i915_trace_irq_get(struct intel_ring_buffer *ring, u32 seqno)
 {
 	if (ring->trace_irq_seqno == 0 && ring->irq_get(ring))
 		ring->trace_irq_seqno = seqno;
 }
+#endif
 
 /* DRI warts */
 int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size);
