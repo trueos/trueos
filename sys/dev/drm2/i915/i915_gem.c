@@ -1101,13 +1101,15 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 #define EXIT_COND \
 	(i915_seqno_passed(ring->get_seqno(ring, false), seqno) || \
 	atomic_read(&dev_priv->mm.wedged))
-	end = 1;
 	flags = interruptible ? PCATCH : 0;
 	mtx_lock(&dev_priv->irq_lock);
 	do {
-		if (!EXIT_COND) {
+		if (EXIT_COND) {
+			end = 1;
+		} else {
 			ret = -msleep_sbt(&ring->irq_queue, &dev_priv->irq_lock, flags,
 			    "915gwr", timeout_sbt, 0, 0);
+
 			/*
 			 * NOTE Linux<->FreeBSD: Convert msleep_sbt() return
 			 * value to something close to wait_event*_timeout()
