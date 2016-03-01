@@ -150,11 +150,14 @@ struct urtwn_softc {
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 
+	uint32_t			sc_debug;
 	uint8_t				sc_iface_index;
-	u_int				sc_flags;
+	uint8_t				sc_flags;
 #define URTWN_FLAG_CCK_HIPWR	0x01
 #define URTWN_DETACHED		0x02
-#define	URTWN_RUNNING		0x04
+#define URTWN_RUNNING		0x04
+#define URTWN_FW_LOADED		0x08
+#define URTWN_TEMP_MEASURED	0x10
 
 	u_int				chip;
 #define	URTWN_CHIP_92C		0x01
@@ -169,6 +172,7 @@ struct urtwn_softc {
 	void				(*sc_rf_write)(struct urtwn_softc *,
 					    int, uint8_t, uint32_t);
 	int				(*sc_power_on)(struct urtwn_softc *);
+	void				(*sc_power_off)(struct urtwn_softc *);
 
 	struct ieee80211_node		*node_list[R88E_MACID_MAX + 1];
 	struct mtx			nt_mtx;
@@ -179,8 +183,7 @@ struct urtwn_softc {
 	int8_t				ofdm_tx_pwr_diff;
 	int8_t				bw20_tx_pwr_diff;
 	int				avg_pwdb;
-	int				thcal_state;
-	int				thcal_lctemp;
+	uint8_t				thcal_lctemp;
 	int				ntxchains;
 	int				nrxchains;
 	int				ledlink;
@@ -195,14 +198,10 @@ struct urtwn_softc {
 	urtwn_datahead			sc_tx_inactive;
 	urtwn_datahead			sc_tx_pending;
 
-	const char			*fwname;
-	const struct firmware		*fw_fp;
-	struct urtwn_fw_info		fw;
-	void				*fw_virtaddr;
-
 	union urtwn_rom			rom;
 	uint16_t			last_rom_addr;
-		
+
+	struct callout			sc_calib_to;
 	struct callout			sc_watchdog_ch;
 	struct mtx			sc_mtx;
 	uint32_t			keys_bmap;

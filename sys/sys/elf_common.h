@@ -753,8 +753,9 @@ typedef struct {
 #define	STB_LOCAL	0	/* Local symbol */
 #define	STB_GLOBAL	1	/* Global symbol */
 #define	STB_WEAK	2	/* like global - lower precedence */
-#define	STB_LOOS	10	/* Reserved range for operating system */
-#define	STB_HIOS	12	/*   specific semantics. */
+#define	STB_LOOS	10	/* Start of operating system reserved range. */
+#define	STB_GNU_UNIQUE	10	/* Unique symbol (GNU) */
+#define	STB_HIOS	12	/* End of operating system reserved range. */
 #define	STB_LOPROC	13	/* reserved range for processor */
 #define	STB_HIPROC	15	/*   specific semantics. */
 
@@ -770,8 +771,9 @@ typedef struct {
 #define	STT_LOOS	10	/* Reserved range for operating system */
 #define	STT_GNU_IFUNC	10
 #define	STT_HIOS	12	/*   specific semantics. */
-#define	STT_LOPROC	13	/* reserved range for processor */
-#define	STT_HIPROC	15	/*   specific semantics. */
+#define	STT_LOPROC	13	/* Start of processor reserved range. */
+#define	STT_SPARC_REGISTER 13	/* SPARC register information. */
+#define	STT_HIPROC	15	/* End of processor reserved range. */
 
 /* Symbol visibility - ELFNN_ST_VISIBILITY - st_other */
 #define	STV_DEFAULT	0x0	/* Default visibility (see binding). */

@@ -1570,7 +1570,7 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int fr_offset,
 		MPASS(clm != NULL);
 		m = (struct mbuf *)(sd->cl + sd->nmbuf * MSIZE);
 		/* No bzero required */
-		if (m_init(m, NULL, 0, M_NOWAIT, MT_DATA,
+		if (m_init(m, M_NOWAIT, MT_DATA,
 		    fr_offset == 0 ? M_PKTHDR | M_NOFREE : M_NOFREE))
 			return (NULL);
 		fl->mbuf_inlined++;
@@ -2939,9 +2939,9 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
 	    CTLTYPE_INT | CTLFLAG_RD, &rxq->iq.cidx, 0, sysctl_uint16, "I",
 	    "consumer index");
 #if defined(INET) || defined(INET6)
-	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "lro_queued", CTLFLAG_RD,
+	SYSCTL_ADD_U64(&vi->ctx, children, OID_AUTO, "lro_queued", CTLFLAG_RD,
 	    &rxq->lro.lro_queued, 0, NULL);
-	SYSCTL_ADD_INT(&vi->ctx, children, OID_AUTO, "lro_flushed", CTLFLAG_RD,
+	SYSCTL_ADD_U64(&vi->ctx, children, OID_AUTO, "lro_flushed", CTLFLAG_RD,
 	    &rxq->lro.lro_flushed, 0, NULL);
 #endif
 	SYSCTL_ADD_UQUAD(&vi->ctx, children, OID_AUTO, "rxcsum", CTLFLAG_RD,
