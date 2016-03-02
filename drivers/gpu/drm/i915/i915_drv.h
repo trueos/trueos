@@ -1841,6 +1841,7 @@ struct drm_i915_private {
 	unsigned int skl_boot_cdclk;
 	unsigned int cdclk_freq, max_cdclk_freq, atomic_cdclk_freq;
 	unsigned int max_dotclk_freq;
+	unsigned int rawclk_freq;
 	unsigned int hpll_freq;
 	unsigned int czclk_freq;
 
