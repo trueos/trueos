@@ -67,10 +67,11 @@
 	ret__;								\
 })
 
-#define wait_for(COND, MS) _wait_for(COND, MS, 1)
-#define wait_for_atomic(COND, MS) _wait_for(COND, MS, 0)
-#define wait_for_atomic_us(COND, US) _wait_for((COND), \
-					       DIV_ROUND_UP((US), 1000), 0)
+#define wait_for(COND, MS)	  	_wait_for((COND), (MS) * 1000, 1000)
+#define wait_for_us(COND, US)	  	_wait_for((COND), (US), 1)
+
+#define wait_for_atomic(COND, MS) 	_wait_for((COND), (MS) * 1000, 0)
+#define wait_for_atomic_us(COND, US)	_wait_for((COND), (US), 0)
 
 #define KHz(x) (1000 * (x))
 #define MHz(x) KHz(1000 * (x))
