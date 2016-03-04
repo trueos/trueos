@@ -1640,14 +1640,14 @@ fetch_filter_unmodified_notpresent () {
 				echo "$file" > mlines.tmp
 			fi
 		done < mlines
-		mv mlines.tmp mlines
+		mv mlines.tmp mlines 2>/dev/null
 	fi
 
 	# If we have items to force updates on, remove from mlines
 	for fUp in $FORCEUPDATES
 	do
 		grep -v "^${fUp}|f|" mlines > mlines.tmp
-		mv mlines.tmp mlines
+		mv mlines.tmp mlines 2>/dev/null
 	done
 
 	# Remove lines from $1, $2, and $3
