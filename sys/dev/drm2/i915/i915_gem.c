@@ -4049,7 +4049,7 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 {
 	struct drm_i915_gem_object *obj;
 
-	obj = malloc(sizeof(*obj), DRM_I915_GEM, M_NOWAIT | M_ZERO);
+	obj = malloc(sizeof(*obj), DRM_I915_GEM, M_WAITOK | M_ZERO);
 	if (obj == NULL)
 		return NULL;
 
@@ -4520,7 +4520,7 @@ static int i915_gem_init_phys_object(struct drm_device *dev,
 		return 0;
 
 	phys_obj = malloc(sizeof(struct drm_i915_gem_phys_object),
-	    DRM_I915_GEM, M_NOWAIT | M_ZERO);
+	    DRM_I915_GEM, M_WAITOK | M_ZERO);
 	if (!phys_obj)
 		return -ENOMEM;
 

@@ -1362,7 +1362,7 @@ int i915_master_create(struct drm_device *dev, struct drm_master *master)
 {
 	struct drm_i915_master_private *master_priv;
 
-	master_priv = malloc(sizeof(*master_priv), DRM_MEM_DMA, M_NOWAIT | M_ZERO);
+	master_priv = malloc(sizeof(*master_priv), DRM_MEM_DMA, M_WAITOK | M_ZERO);
 	if (!master_priv)
 		return -ENOMEM;
 

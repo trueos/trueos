@@ -2267,7 +2267,7 @@ intel_dp_get_edid(struct drm_connector *connector, device_t adapter)
 			return NULL;
 
 		size = (intel_connector->edid->extensions + 1) * EDID_LENGTH;
-		edid = malloc(size, DRM_MEM_KMS, M_NOWAIT);
+		edid = malloc(size, DRM_MEM_KMS, M_WAITOK);
 		if (!edid)
 			return NULL;
 
@@ -2889,11 +2889,11 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 
-	intel_dig_port = malloc(sizeof(struct intel_digital_port), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_dig_port = malloc(sizeof(struct intel_digital_port), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_dig_port)
 		return;
 
-	intel_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_connector) {
 		free(intel_dig_port, DRM_MEM_KMS);
 		return;

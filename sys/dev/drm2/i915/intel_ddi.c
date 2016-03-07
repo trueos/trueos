@@ -1476,11 +1476,11 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	struct intel_connector *hdmi_connector = NULL;
 	struct intel_connector *dp_connector = NULL;
 
-	intel_dig_port = malloc(sizeof(struct intel_digital_port), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_dig_port = malloc(sizeof(struct intel_digital_port), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_dig_port)
 		return;
 
-	dp_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	dp_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!dp_connector) {
 		free(intel_dig_port, DRM_MEM_KMS);
 		return;
@@ -1488,7 +1488,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 
 	if (port != PORT_A) {
 		hdmi_connector = malloc(sizeof(struct intel_connector),
-					 DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+					 DRM_MEM_KMS, M_WAITOK | M_ZERO);
 		if (!hdmi_connector) {
 			free(dp_connector, DRM_MEM_KMS);
 			free(intel_dig_port, DRM_MEM_KMS);

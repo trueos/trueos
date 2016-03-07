@@ -6610,7 +6610,7 @@ intel_framebuffer_create(struct drm_device *dev,
 	struct intel_framebuffer *intel_fb;
 	int ret;
 
-	intel_fb = malloc(sizeof(*intel_fb), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_fb = malloc(sizeof(*intel_fb), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_fb) {
 		drm_gem_object_unreference_unlocked(&obj->base);
 		return -ENOMEM;
@@ -6924,7 +6924,7 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	int vtot = I915_READ(VTOTAL(cpu_transcoder));
 	int vsync = I915_READ(VSYNC(cpu_transcoder));
 
-	mode = malloc(sizeof(*mode), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	mode = malloc(sizeof(*mode), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!mode)
 		return NULL;
 
@@ -7444,7 +7444,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	     fb->pitches[0] != crtc->fb->pitches[0]))
 		return -EINVAL;
 
-	work = malloc(sizeof *work, DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	work = malloc(sizeof *work, DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (work == NULL)
 		return -ENOMEM;
 
@@ -8349,7 +8349,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	struct intel_crtc *intel_crtc;
 	int i;
 
-	intel_crtc = malloc(sizeof(struct intel_crtc) + (INTELFB_CONN_LIMIT * sizeof(struct drm_connector *)), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_crtc = malloc(sizeof(struct intel_crtc) + (INTELFB_CONN_LIMIT * sizeof(struct drm_connector *)), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (intel_crtc == NULL)
 		return;
 

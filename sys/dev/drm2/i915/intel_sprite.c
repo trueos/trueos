@@ -678,7 +678,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 	if (INTEL_INFO(dev)->gen < 5)
 		return -ENODEV;
 
-	intel_plane = malloc(sizeof(struct intel_plane), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_plane = malloc(sizeof(struct intel_plane), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_plane)
 		return -ENOMEM;
 

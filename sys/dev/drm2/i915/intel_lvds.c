@@ -963,11 +963,11 @@ bool intel_lvds_init(struct drm_device *dev)
 		}
 	}
 
-	lvds_encoder = malloc(sizeof(struct intel_lvds_encoder), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	lvds_encoder = malloc(sizeof(struct intel_lvds_encoder), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!lvds_encoder)
 		return false;
 
-	lvds_connector = malloc(sizeof(struct intel_lvds_connector), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	lvds_connector = malloc(sizeof(struct intel_lvds_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!lvds_connector) {
 		free(lvds_encoder, DRM_MEM_KMS);
 		return false;

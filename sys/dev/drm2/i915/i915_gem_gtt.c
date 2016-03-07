@@ -130,14 +130,14 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 	 * now. */
 	first_pd_entry_in_global_pt = dev_priv->mm.gtt->gtt_total_entries - I915_PPGTT_PD_ENTRIES;
 
-	ppgtt = malloc(sizeof(*ppgtt), DRM_I915_GEM, M_NOWAIT | M_ZERO);
+	ppgtt = malloc(sizeof(*ppgtt), DRM_I915_GEM, M_WAITOK | M_ZERO);
 	if (!ppgtt)
 		return ret;
 
 	ppgtt->dev = dev;
 	ppgtt->num_pd_entries = I915_PPGTT_PD_ENTRIES;
 	ppgtt->pt_pages = malloc(sizeof(struct page *)*ppgtt->num_pd_entries,
-				  DRM_I915_GEM, M_NOWAIT | M_ZERO);
+				  DRM_I915_GEM, M_WAITOK | M_ZERO);
 	if (!ppgtt->pt_pages)
 		goto err_ppgtt;
 
@@ -152,7 +152,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 	if (dev_priv->mm.gtt->needs_dmar) {
 		ppgtt->pt_dma_addr = malloc(sizeof(dma_addr_t)
 						*ppgtt->num_pd_entries,
-					     DRM_I915_GEM, M_NOWAIT | M_ZERO);
+					     DRM_I915_GEM, M_WAITOK | M_ZERO);
 		if (!ppgtt->pt_dma_addr)
 			goto err_pt_alloc;
 
@@ -673,7 +673,7 @@ int i915_gem_gtt_init(struct drm_device *dev)
 		return 0;
 	}
 
-	dev_priv->mm.gtt = malloc(sizeof(*dev_priv->mm.gtt), DRM_I915_GEM, M_NOWAIT | M_ZERO);
+	dev_priv->mm.gtt = malloc(sizeof(*dev_priv->mm.gtt), DRM_I915_GEM, M_WAITOK | M_ZERO);
 	if (!dev_priv->mm.gtt)
 		return -ENOMEM;
 

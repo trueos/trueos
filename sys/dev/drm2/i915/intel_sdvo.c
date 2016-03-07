@@ -2216,7 +2216,7 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
 
-	intel_sdvo_connector = malloc(sizeof(struct intel_sdvo_connector), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_sdvo_connector = malloc(sizeof(struct intel_sdvo_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_sdvo_connector)
 		return false;
 
@@ -2265,7 +2265,7 @@ intel_sdvo_tv_init(struct intel_sdvo *intel_sdvo, int type)
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
 
-	intel_sdvo_connector = malloc(sizeof(struct intel_sdvo_connector), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_sdvo_connector = malloc(sizeof(struct intel_sdvo_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_sdvo_connector)
 		return false;
 
@@ -2303,7 +2303,7 @@ intel_sdvo_analog_init(struct intel_sdvo *intel_sdvo, int device)
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
 
-	intel_sdvo_connector = malloc(sizeof(struct intel_sdvo_connector), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_sdvo_connector = malloc(sizeof(struct intel_sdvo_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_sdvo_connector)
 		return false;
 
@@ -2334,7 +2334,7 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
 
-	intel_sdvo_connector = malloc(sizeof(struct intel_sdvo_connector), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_sdvo_connector = malloc(sizeof(struct intel_sdvo_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_sdvo_connector)
 		return false;
 
@@ -2777,7 +2777,7 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	struct intel_sdvo *intel_sdvo;
 	u32 hotplug_mask;
 	int i;
-	intel_sdvo = malloc(sizeof(struct intel_sdvo), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_sdvo = malloc(sizeof(struct intel_sdvo), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_sdvo)
 		return false;
 

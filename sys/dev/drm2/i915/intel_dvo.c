@@ -425,11 +425,11 @@ void intel_dvo_init(struct drm_device *dev)
 	int i;
 	int encoder_type = DRM_MODE_ENCODER_NONE;
 
-	intel_dvo = malloc(sizeof(struct intel_dvo), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_dvo = malloc(sizeof(struct intel_dvo), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_dvo)
 		return;
 
-	intel_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	intel_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 	if (!intel_connector) {
 		free(intel_dvo, DRM_MEM_KMS);
 		return;
