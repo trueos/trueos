@@ -63,6 +63,8 @@ PROG_FULL=${PROG}.full
 DEBUGFILEDIR=	${DEBUGDIR}${BINDIR}
 .else
 DEBUGFILEDIR?=	${BINDIR}/.debug
+.endif
+.if !exists(${DESTDIR}${DEBUGFILEDIR})
 DEBUGMKDIR=
 .endif
 .else
@@ -277,12 +279,16 @@ lint: ${SRCS:M*.c}
 
 .if defined(PROG)
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
+.endif
+
+.include <bsd.dep.mk>
+
+.if defined(PROG)
 .if ${MK_FAST_DEPEND} == "no" && !exists(${.OBJDIR}/${DEPENDFILE})
 ${OBJS}: ${OBJS_DEPEND_GUESS}
 .endif
 .endif
 
-.include <bsd.dep.mk>
 .include <bsd.clang-analyze.mk>
 .include <bsd.obj.mk>
 .include <bsd.sys.mk>
