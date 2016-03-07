@@ -1482,7 +1482,8 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	vm_page_t page, oldpage;
-	int cause, ret, pinned;
+	int cause, ret;
+	bool pinned;
 	bool write = (prot & VM_PROT_WRITE) != 0;
 
 	vm_object_pip_add(vm_obj, 1);
@@ -1508,7 +1509,8 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 		oldpage = NULL;
 	VM_OBJECT_WUNLOCK(vm_obj);
 retry:
-	cause = ret = pinned = 0;
+	cause = ret = 0;
+	pinned = 0;
 	page = NULL;
 
 	if (i915_intr_pf) {
