@@ -1441,8 +1441,10 @@ i915_gem_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 *     4. drm_gem_vm_close(): ref-- (for the initial vma)
 	 *
 	 * On FreeBSD, i915_gem_pager_ctor() is called once during the
-	 * creation of the mapping. i915_gem_pager_dtor() is called when
-	 * the mapping is taken down. So the only sequence is:
+	 * creation of the mapping. No callback is called when the
+	 * mapping is shared during a fork(). i915_gem_pager_dtor() is
+	 * called when the last reference to the mapping is dropped. So
+	 * the only sequence is:
 	 *     1. drm_gem_mmap_single(): ref++
 	 *     2. i915_gem_pager_ctor(): <noop>
 	 *     3. i915_gem_pager_dtor(): ref--
