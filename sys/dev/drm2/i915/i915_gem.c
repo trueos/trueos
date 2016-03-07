@@ -1482,13 +1482,13 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	vm_page_t page, oldpage;
-	int cause, ret;
-	bool pinned;
+	int ret = 0;
 #ifdef FREEBSD_WIP
 	bool write = (prot & VM_PROT_WRITE) != 0;
 #else
 	bool write = true;
 #endif /* FREEBSD_WIP */
+	bool pinned;
 
 	vm_object_pip_add(vm_obj, 1);
 
@@ -1513,16 +1513,14 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 		oldpage = NULL;
 	VM_OBJECT_WUNLOCK(vm_obj);
 retry:
-	cause = ret = 0;
+	ret = 0;
 	pinned = 0;
 	page = NULL;
 
 	if (i915_intr_pf) {
 		ret = i915_mutex_lock_interruptible(dev);
-		if (ret != 0) {
-			cause = 10;
+		if (ret != 0)
 			goto out;
-		}
 	} else
 		DRM_LOCK(dev);
 
@@ -1547,23 +1545,17 @@ retry:
 
 	/* Now bind it into the GTT if needed */
 	ret = i915_gem_object_pin(obj, 0, true, false);
-	if (ret) {
-		cause = 20;
+	if (ret)
 		goto unlock;
-	}
 	pinned = 1;
 
 	ret = i915_gem_object_set_to_gtt_domain(obj, write);
-	if (ret) {
-		cause = 40;
+	if (ret)
 		goto unpin;
-	}
 
 	ret = i915_gem_object_get_fence(obj);
-	if (ret) {
-		cause = 50;
+	if (ret)
 		goto unpin;
-	}
 
 	obj->fault_mappable = true;
 
@@ -1574,7 +1566,6 @@ retry:
 	    (uintmax_t)(dev_priv->mm.gtt_base_addr + obj->gtt_offset + offset)));
 	if (page == NULL) {
 		VM_OBJECT_WUNLOCK(vm_obj);
-		cause = 60;
 		ret = -EFAULT;
 		goto unpin;
 	}
@@ -1626,8 +1617,8 @@ unlock:
 	DRM_UNLOCK(dev);
 out:
 	KASSERT(ret != 0, ("i915_gem_pager_fault: wrong return"));
-	CTR5(KTR_DRM, "fault_fail %p %jx %x err %d %d", gem_obj, offset, prot,
-	    -ret, cause);
+	CTR4(KTR_DRM, "fault_fail %p %jx %x err %d", gem_obj, offset, prot,
+	    -ret);
 	if (ret == -EAGAIN || ret == -EIO || ret == -EINTR) {
 		kern_yield(PRI_USER);
 		goto retry;
