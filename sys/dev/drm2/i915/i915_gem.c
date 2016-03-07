@@ -1484,7 +1484,11 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 	vm_page_t page, oldpage;
 	int cause, ret;
 	bool pinned;
+#ifdef FREEBSD_WIP
 	bool write = (prot & VM_PROT_WRITE) != 0;
+#else
+	bool write = true;
+#endif /* FREEBSD_WIP */
 
 	vm_object_pip_add(vm_obj, 1);
 
