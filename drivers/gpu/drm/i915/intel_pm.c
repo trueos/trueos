@@ -2337,7 +2337,6 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 			 drm_rect_height(&sprstate->dst) != drm_rect_height(&sprstate->src) >> 16);
 	}
 
-
 	usable_level = max_level;
 
 	/* ILK/SNB: LP2+ watermarks only w/o sprites */
@@ -2349,7 +2348,10 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 		usable_level = 0;
 
 	ilk_compute_wm_level(dev_priv, intel_crtc, 0, cstate,
-			     pristate, sprstate, curstate, &pipe_wm->wm[0]);
+			     pristate, sprstate, curstate, &pipe_wm->raw_wm[0]);
+
+	memset(&pipe_wm->wm, 0, sizeof(pipe_wm->wm));
+	pipe_wm->wm[0] = pipe_wm->raw_wm[0];
 
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		pipe_wm->linetime = hsw_compute_linetime_wm(dev, cstate);
@@ -2360,7 +2362,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 	ilk_compute_wm_reg_maximums(dev, 1, &max);
 
 	for (level = 1; level <= max_level; level++) {
-		struct intel_wm_level *wm = &pipe_wm->wm[level];
+		struct intel_wm_level *wm = &pipe_wm->raw_wm[level];
 
 		ilk_compute_wm_level(dev_priv, intel_crtc, level, cstate,
 				     pristate, sprstate, curstate, wm);
@@ -2370,12 +2372,13 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 		 * register maximums since such watermarks are
 		 * always invalid.
 		 */
-		if (level > usable_level) {
-			wm->enable = false;
-		} else if (!ilk_validate_wm_level(level, &max, wm)) {
-			wm->enable = false;
+		if (level > usable_level)
+			continue;
+
+		if (ilk_validate_wm_level(level, &max, wm))
+			pipe_wm->wm[level] = *wm;
+		else
 			usable_level = level;
-		}
 	}
 
 	return 0;
