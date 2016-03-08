@@ -271,14 +271,8 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 	}
 
 	/* FDI must always be 2.7 GHz */
-	if (HAS_DDI(dev)) {
-		pipe_config->ddi_pll_sel = PORT_CLK_SEL_SPLL;
+	if (HAS_DDI(dev))
 		pipe_config->port_clock = 135000 * 2;
-
-		pipe_config->dpll_hw_state.wrpll = 0;
-		pipe_config->dpll_hw_state.spll =
-			SPLL_PLL_ENABLE | SPLL_PLL_FREQ_1350MHz | SPLL_PLL_SSC;
-	}
 
 	return true;
 }
