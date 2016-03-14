@@ -109,9 +109,11 @@ SRCS	= \
 	psm.c \
 	cz_clockpowergating.c \
 	cz_hwmgr.c \
-	ellesmere_clockpowergating.c \
-	ellesmere_powertune.c \
-	ellesmere_thermal.c \
+	polaris10_clockpowergating.c \
+	polaris10_hwmgr.c \
+	polaris10_powertune.c \
+	polaris10_smumgr.c \
+	polaris10_thermal.c \
 	fiji_clockpowergating.c \
 	fiji_hwmgr.c \
 	fiji_powertune.c \
@@ -130,11 +132,10 @@ SRCS	= \
 	tonga_thermal.c \
 	smumgr.c \
 	cz_smumgr.c \
-	ellesmere_smumgr.c \
 	fiji_smumgr.c \
 	tonga_smumgr.c
 
-#	ellesmere_hwmgr.c \
+
 
 
 CFLAGS+= 	-I${.CURDIR}/../../../../contrib/ck/include
@@ -186,7 +187,7 @@ CWARNFLAGS.ci_dpm.c=	-Wno-unused-const-variable
 CWARNFLAGS.cz_smc.c=	-Wno-missing-prototypes
 CWARNFLAGS.fiji_smc.c=	-Wno-cast-qual
 CWARNFLAGS.gfx_v7_0.c=	-Wno-missing-prototypes -Wno-cast-qual
-CWARNFLAGS.gfx_v8_0.c=	-Wno-missing-prototypes
+CWARNFLAGS.gfx_v8_0.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.iceland_smc.c=	-Wno-missing-prototypes
 CWARNFLAGS.kv_dpm.c=	-Wno-unused-const-variable
 CWARNFLAGS.tonga_smc.c=	-Wno-cast-qual
@@ -195,10 +196,10 @@ CWARNFLAGS.amd_powerplay.c=	-Wno-missing-prototypes
 CWARNFLAGS.eventtasks.c=	-Wno-missing-prototypes
 CWARNFLAGS.cz_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.cz_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
-CWARNFLAGS.ellesmere_clockpowergating.c=	-Wno-missing-prototypes
-CWARNFLAGS.ellesmere_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
-CWARNFLAGS.ellesmere_smumgr.c=	-Wno-missing-prototypes
-CWARNFLAGS.ellesmere_thermal.c=	-Wno-missing-prototypes
+CWARNFLAGS.polaris10_clockpowergating.c=	-Wno-missing-prototypes
+CWARNFLAGS.polaris10_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
+CWARNFLAGS.polaris10_smumgr.c=	-Wno-missing-prototypes
+CWARNFLAGS.polaris10_thermal.c=	-Wno-missing-prototypes
 CWARNFLAGS.fiji_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.fiji_thermal.c=	-Wno-missing-prototypes
 CWARNFLAGS.pp_acpi.c=	-Wno-missing-prototypes 
