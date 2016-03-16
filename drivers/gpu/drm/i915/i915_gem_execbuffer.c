@@ -1375,7 +1375,7 @@ eb_get_batch(struct eb_vmas *eb)
 
 #define I915_USER_RINGS (4)
 
-static const enum intel_ring_id user_ring_map[I915_USER_RINGS + 1] = {
+static const enum intel_engine_id user_ring_map[I915_USER_RINGS + 1] = {
 	[I915_EXEC_DEFAULT]	= RCS,
 	[I915_EXEC_RENDER]	= RCS,
 	[I915_EXEC_BLT]		= BCS,
@@ -1423,7 +1423,7 @@ eb_select_ring(struct drm_i915_private *dev_priv,
 		*ring = &dev_priv->engine[user_ring_map[user_ring_id]];
 	}
 
-	if (!intel_ring_initialized(*ring)) {
+	if (!intel_engine_initialized(*ring)) {
 		DRM_DEBUG("execbuf with invalid ring: %u\n", user_ring_id);
 		return -EINVAL;
 	}
