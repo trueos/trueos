@@ -1060,6 +1060,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_uncore_init(dev);
 
+	intel_device_info_runtime_init(dev);
+
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
 		goto out_uncore_fini;
@@ -1133,8 +1135,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		if (pci_enable_msi(dev->pdev) < 0)
 			DRM_DEBUG_DRIVER("can't enable MSI");
 	}
-
-	intel_device_info_runtime_init(dev);
 
 	if (INTEL_INFO(dev)->num_pipes) {
 		ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
