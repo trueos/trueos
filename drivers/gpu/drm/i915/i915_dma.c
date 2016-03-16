@@ -1023,7 +1023,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret < 0)
 		goto out_free_priv;
 
+	/* This must be called before any calls to HAS_PCH_* */
+	intel_detect_pch(dev);
+
 	intel_pm_setup(dev);
+	intel_init_dpio(dev_priv);
+	intel_power_domains_init(dev_priv);
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -1047,9 +1052,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	ret = i915_mmio_setup(dev);
 	if (ret < 0)
 		goto put_bridge;
-
-	/* This must be called before any calls to HAS_PCH_* */
-	intel_detect_pch(dev);
 
 	intel_uncore_init(dev);
 
@@ -1127,15 +1129,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_device_info_runtime_init(dev);
 
-	intel_init_dpio(dev_priv);
-
 	if (INTEL_INFO(dev)->num_pipes) {
 		ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
 		if (ret)
 			goto out_gem_unload;
 	}
-
-	intel_power_domains_init(dev_priv);
 
 	ret = i915_load_modeset_init(dev);
 	if (ret < 0) {
