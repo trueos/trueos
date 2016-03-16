@@ -16,6 +16,7 @@ SRCS	= \
 	i915_gem.c \
 	i915_gem_batch_pool.c \
 	i915_gem_context.c \
+	i915_gem_debug.c \
 	i915_gem_dmabuf.c \
 	i915_gem_evict.c \
 	i915_gem_execbuffer.c \
@@ -115,6 +116,7 @@ CWARNFLAGS.intel_bios.c=	-Wno-cast-qual
 CWARNFLAGS.intel_csr.c=		-Wno-cast-qual
 CWARNFLAGS.intel_dp.c=		-Wno-enum-conversion -Wno-format -Wno-unused
 CWARNFLAGS.intel_ddi.c=		-Wno-compare-distinct-pointer-types		
+CWARNFLAGS.intel_dpll_mgr.c=	-Wno-compare-distinct-pointer-types
 CWARNFLAGS.intel_lvds.c=	-Wno-unused
 CWARNFLAGS.intel_display.c=	-Wno-tautological-pointer-compare -Wno-enum-conversion -Wno-cast-qual -Wno-incompatible-pointer-types-discards-qualifiers
 CWARNFLAGS.intel_dsi_panel_vbt.c= -Wno-cast-qual
