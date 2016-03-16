@@ -1167,9 +1167,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (IS_GEN5(dev))
 		intel_gpu_ips_init(dev_priv);
 
-	intel_runtime_pm_enable(dev_priv);
-
 	i915_audio_component_init(dev_priv);
+
+	intel_runtime_pm_enable(dev_priv);
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -1210,8 +1210,6 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_fbdev_fini(dev);
 
-	i915_audio_component_cleanup(dev_priv);
-
 	ret = i915_gem_suspend(dev);
 	if (ret) {
 		DRM_ERROR("failed to idle hardware: %d\n", ret);
@@ -1219,6 +1217,8 @@ int i915_driver_unload(struct drm_device *dev)
 	}
 
 	intel_power_domains_fini(dev_priv);
+
+	i915_audio_component_cleanup(dev_priv);
 
 	intel_gpu_ips_teardown();
 
