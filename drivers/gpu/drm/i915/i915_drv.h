@@ -103,6 +103,10 @@ MALLOC_DECLARE(DRM_I915_GEM);
 #define I915_STATE_WARN_ON(x)						\
 	I915_STATE_WARN((x), "%s", "WARN_ON(" __stringify(x) ")")
 
+bool __i915_inject_load_failure(const char *func, int line);
+#define i915_inject_load_failure() \
+	__i915_inject_load_failure(__func__, __LINE__)
+
 static inline const char *yesno(bool v)
 {
 	return v ? "yes" : "no";

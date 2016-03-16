@@ -50,6 +50,21 @@
 #include <linux/pm_runtime.h>
 #include <linux/oom.h>
 
+static unsigned int i915_load_fail_count;
+
+bool __i915_inject_load_failure(const char *func, int line)
+{
+	if (i915_load_fail_count >= i915.inject_load_failure)
+		return false;
+
+	if (++i915_load_fail_count == i915.inject_load_failure) {
+		DRM_INFO("Injecting failure at checkpoint %u [%s:%d]\n",
+			 i915.inject_load_failure, func, line);
+		return true;
+	}
+
+	return false;
+}
 
 #define pci_disable_msi linux_pci_disable_msi
 #define pci_enable_msi linux_pci_enable_msi
@@ -372,6 +387,9 @@ static int i915_load_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
+
+	if (i915_inject_load_failure())
+		return -ENODEV;
 
 	ret = intel_bios_init(dev_priv);
 	if (ret)
@@ -954,6 +972,9 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	struct intel_device_info *device_info;
 	int ret = 0;
 
+	if (i915_inject_load_failure())
+		return -ENODEV;
+
 	dev_priv->dev = dev;
 
 	/* Setup the write-once "constant" device info */
@@ -1068,6 +1089,9 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	int ret;
 
+	if (i915_inject_load_failure())
+		return -ENODEV;
+
 	if (i915_get_bridge_dev(dev))
 		return -EIO;
 
@@ -1110,6 +1134,9 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	uint32_t aperture_size;
 	int ret;
+
+	if (i915_inject_load_failure())
+		return -ENODEV;
 
 	intel_device_info_runtime_init(dev);
 
