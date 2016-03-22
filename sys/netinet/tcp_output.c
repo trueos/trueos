@@ -1317,7 +1317,7 @@ send:
 		ipov->ih_len = save;
 	}
 #endif /* TCPDEBUG */
-	TCP_PROBE3(debug__input, tp, th, mtod(m, const char *));
+	TCP_PROBE3(debug__output, tp, th, mtod(m, const char *));
 
 	/*
 	 * Fill in IP length and desired time to live and
@@ -1652,7 +1652,7 @@ tcp_setpersist(struct tcpcb *tp)
 int
 tcp_addoptions(struct tcpopt *to, u_char *optp)
 {
-	u_int mask, optlen = 0;
+	u_int32_t mask, optlen = 0;
 
 	for (mask = 1; mask < TOF_MAXOPT; mask <<= 1) {
 		if ((to->to_flags & mask) != mask)
