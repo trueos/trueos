@@ -134,7 +134,7 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	struct intel_engine_cs *engine;
 	struct i915_vma *vma;
 	int pin_count = 0;
-	int i;
+	enum intel_engine_id id;
 
 	seq_printf(m, "%pK: %s%s%s%s %8zdKiB %02x %02x [ ",
 		   &obj->base,
@@ -145,9 +145,9 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->base.size / 1024,
 		   obj->base.read_domains,
 		   obj->base.write_domain);
-	for_each_engine(engine, dev_priv, i)
+	for_each_engine_id(engine, dev_priv, id)
 		seq_printf(m, "%x ",
-				i915_gem_request_get_seqno(obj->last_read_req[i]));
+				i915_gem_request_get_seqno(obj->last_read_req[id]));
 	seq_printf(m, "] %x %x%s%s%s",
 		   i915_gem_request_get_seqno(obj->last_write_req),
 		   i915_gem_request_get_seqno(obj->last_fenced_req),
@@ -1336,7 +1336,8 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	u64 acthd[I915_NUM_ENGINES];
 	u32 seqno[I915_NUM_ENGINES];
 	u32 instdone[I915_NUM_INSTDONE_REG];
-	int i, j;
+	enum intel_engine_id id;
+	int j;
 
 	if (!i915.enable_hangcheck) {
 		seq_printf(m, "Hangcheck disabled\n");
@@ -1345,9 +1346,9 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 
 	intel_runtime_pm_get(dev_priv);
 
-	for_each_engine(engine, dev_priv, i) {
-		seqno[i] = engine->get_seqno(engine, false);
-		acthd[i] = intel_ring_get_active_head(engine);
+	for_each_engine_id(engine, dev_priv, id) {
+		seqno[id] = engine->get_seqno(engine, false);
+		acthd[id] = intel_ring_get_active_head(engine);
 	}
 
 	i915_get_extra_instdone(dev, instdone);
@@ -1361,13 +1362,13 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	} else
 		seq_printf(m, "Hangcheck inactive\n");
 
-	for_each_engine(engine, dev_priv, i) {
+	for_each_engine_id(engine, dev_priv, id) {
 		seq_printf(m, "%s:\n", engine->name);
 		seq_printf(m, "\tseqno = %x [current %x]\n",
-			   engine->hangcheck.seqno, seqno[i]);
+			   engine->hangcheck.seqno, seqno[id]);
 		seq_printf(m, "\tACTHD = 0x%08llx [current 0x%08llx]\n",
 			   (long long)engine->hangcheck.acthd,
-			   (long long)acthd[i]);
+			   (long long)acthd[id]);
 		seq_printf(m, "\tscore = %d\n", engine->hangcheck.score);
 		seq_printf(m, "\taction = %d\n", engine->hangcheck.action);
 
@@ -1949,7 +1950,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
 	struct intel_context *ctx;
-	int ret, i;
+	enum intel_engine_id id;
+	int ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
@@ -1967,11 +1969,11 @@ static int i915_context_status(struct seq_file *m, void *unused)
 
 		if (i915.enable_execlists) {
 			seq_putc(m, '\n');
-			for_each_engine(engine, dev_priv, i) {
+			for_each_engine_id(engine, dev_priv, id) {
 				struct drm_i915_gem_object *ctx_obj =
-					ctx->engine[i].state;
+					ctx->engine[id].state;
 				struct intel_ringbuffer *ringbuf =
-					ctx->engine[i].ringbuf;
+					ctx->engine[id].ringbuf;
 
 				seq_printf(m, "%s: ", engine->name);
 				if (ctx_obj)
@@ -3120,7 +3122,8 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
 	int num_rings = hweight32(INTEL_INFO(dev)->ring_mask);
-	int i, j, ret;
+	enum intel_engine_id id;
+	int j, ret;
 
 	if (!i915_semaphore_is_enabled(dev)) {
 		seq_puts(m, "Semaphores are disabled\n");
@@ -3139,14 +3142,14 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 		page = i915_gem_object_get_page(dev_priv->semaphore_obj, 0);
 
 		seqno = (uint64_t *)kmap_atomic(page);
-		for_each_engine(engine, dev_priv, i) {
+		for_each_engine_id(engine, dev_priv, id) {
 			uint64_t offset;
 
 			seq_printf(m, "%s\n", engine->name);
 
 			seq_puts(m, "  Last signal:");
 			for (j = 0; j < num_rings; j++) {
-				offset = i * I915_NUM_ENGINES + j;
+				offset = id * I915_NUM_ENGINES + j;
 				seq_printf(m, "0x%08llx (0x%02llx) ",
 					   seqno[offset], offset * 8);
 			}
@@ -3154,7 +3157,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 
 			seq_puts(m, "  Last wait:  ");
 			for (j = 0; j < num_rings; j++) {
-				offset = i + (j * I915_NUM_ENGINES);
+				offset = id + (j * I915_NUM_ENGINES);
 				seq_printf(m, "0x%08llx (0x%02llx) ",
 					   seqno[offset], offset * 8);
 			}
@@ -3164,7 +3167,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 		kunmap_atomic(seqno);
 	} else {
 		seq_puts(m, "  Last signal:");
-		for_each_engine(engine, dev_priv, i)
+		for_each_engine(engine, dev_priv, id)
 			for (j = 0; j < num_rings; j++)
 				seq_printf(m, "0x%08x\n",
 					   I915_READ(engine->semaphore.mbox.signal[j]));
@@ -3172,7 +3175,7 @@ static int i915_semaphore_status(struct seq_file *m, void *unused)
 	}
 
 	seq_puts(m, "\nSync seqno:\n");
-	for_each_engine(engine, dev_priv, i) {
+	for_each_engine(engine, dev_priv, id) {
 		for (j = 0; j < num_rings; j++) {
 			seq_printf(m, "  0x%08x ",
 				   engine->semaphore.sync_seqno[j]);
@@ -3222,6 +3225,7 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_workarounds *workarounds = &dev_priv->workarounds;
+	enum intel_engine_id id;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
@@ -3230,9 +3234,9 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 	intel_runtime_pm_get(dev_priv);
 
 	seq_printf(m, "Workarounds applied: %d\n", workarounds->count);
-	for_each_engine(engine, dev_priv, i)
+	for_each_engine_id(engine, dev_priv, id)
 		seq_printf(m, "HW whitelist count for %s: %d\n",
-			   engine->name, workarounds->hw_whitelist_count[i]);
+			   engine->name, workarounds->hw_whitelist_count[id]);
 	for (i = 0; i < workarounds->count; ++i) {
 		i915_reg_t addr;
 		u32 mask, value, read;
