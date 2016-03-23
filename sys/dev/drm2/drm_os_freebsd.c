@@ -12,79 +12,15 @@ devclass_t drm_devclass;
 MALLOC_DEFINE(DRM_MEM_DMA, "drm_dma", "DRM DMA Data Structures");
 MALLOC_DEFINE(DRM_MEM_SAREA, "drm_sarea", "DRM SAREA Data Structures");
 MALLOC_DEFINE(DRM_MEM_DRIVER, "drm_driver", "DRM DRIVER Data Structures");
-MALLOC_DEFINE(DRM_MEM_MAGIC, "drm_magic", "DRM MAGIC Data Structures");
-MALLOC_DEFINE(DRM_MEM_MINOR, "drm_minor", "DRM MINOR Data Structures");
-MALLOC_DEFINE(DRM_MEM_IOCTLS, "drm_ioctls", "DRM IOCTL Data Structures");
-MALLOC_DEFINE(DRM_MEM_MAPS, "drm_maps", "DRM MAP Data Structures");
-MALLOC_DEFINE(DRM_MEM_BUFS, "drm_bufs", "DRM BUFFER Data Structures");
-MALLOC_DEFINE(DRM_MEM_SEGS, "drm_segs", "DRM SEGMENTS Data Structures");
-MALLOC_DEFINE(DRM_MEM_PAGES, "drm_pages", "DRM PAGES Data Structures");
 MALLOC_DEFINE(DRM_MEM_FILES, "drm_files", "DRM FILE Data Structures");
-MALLOC_DEFINE(DRM_MEM_QUEUES, "drm_queues", "DRM QUEUE Data Structures");
-MALLOC_DEFINE(DRM_MEM_CMDS, "drm_cmds", "DRM COMMAND Data Structures");
-MALLOC_DEFINE(DRM_MEM_MAPPINGS, "drm_mapping", "DRM MAPPING Data Structures");
 MALLOC_DEFINE(DRM_MEM_BUFLISTS, "drm_buflists", "DRM BUFLISTS Data Structures");
 MALLOC_DEFINE(DRM_MEM_AGPLISTS, "drm_agplists", "DRM AGPLISTS Data Structures");
 MALLOC_DEFINE(DRM_MEM_CTXBITMAP, "drm_ctxbitmap",
     "DRM CTXBITMAP Data Structures");
-MALLOC_DEFINE(DRM_MEM_SGLISTS, "drm_sglists", "DRM SGLISTS Data Structures");
-MALLOC_DEFINE(DRM_MEM_MM, "drm_sman", "DRM MEMORY MANAGER Data Structures");
 MALLOC_DEFINE(DRM_MEM_HASHTAB, "drm_hashtab", "DRM HASHTABLE Data Structures");
 MALLOC_DEFINE(DRM_MEM_KMS, "drm_kms", "DRM KMS Data Structures");
-MALLOC_DEFINE(DRM_MEM_VBLANK, "drm_vblank", "DRM VBLANK Handling Data");
 
 const char *fb_mode_option = NULL;
-
-#define NSEC_PER_USEC	1000L
-#define NSEC_PER_SEC	1000000000L
-
-int64_t
-timeval_to_ns(const struct timeval *tv)
-{
-	return ((int64_t)tv->tv_sec * NSEC_PER_SEC) +
-		tv->tv_usec * NSEC_PER_USEC;
-}
-
-struct timeval
-ns_to_timeval(const int64_t nsec)
-{
-        struct timeval tv;
-	long rem;
-
-	if (nsec == 0) {
-		tv.tv_sec = 0;
-		tv.tv_usec = 0;
-		return (tv);
-	}
-
-        tv.tv_sec = nsec / NSEC_PER_SEC;
-	rem = nsec % NSEC_PER_SEC;
-        if (rem < 0) {
-                tv.tv_sec--;
-                rem += NSEC_PER_SEC;
-        }
-	tv.tv_usec = rem / 1000;
-        return (tv);
-}
-
-/* Copied from OFED. */
-unsigned long drm_linux_timer_hz_mask;
-
-static void
-drm_linux_timer_init(void *arg)
-{
-
-        /*
-         * Compute an internal HZ value which can divide 2**32 to
-         * avoid timer rounding problems when the tick value wraps
-         * around 2**32:
-         */
-        drm_linux_timer_hz_mask = 1;
-        while (drm_linux_timer_hz_mask < (unsigned long)hz)
-                drm_linux_timer_hz_mask *= 2;
-        drm_linux_timer_hz_mask--;
-}
-SYSINIT(drm_linux_timer, SI_SUB_DRIVERS, SI_ORDER_FIRST, drm_linux_timer_init, NULL);
 
 static const drm_pci_id_list_t *
 drm_find_description(int vendor, int device, const drm_pci_id_list_t *idlist)
@@ -495,3 +431,4 @@ MODULE_DEPEND(drmn, agp, 1, 1, 1);
 MODULE_DEPEND(drmn, pci, 1, 1, 1);
 MODULE_DEPEND(drmn, mem, 1, 1, 1);
 MODULE_DEPEND(drmn, iicbus, 1, 1, 1);
+MODULE_DEPEND(drmn, linuxkpi, 1, 1, 1);

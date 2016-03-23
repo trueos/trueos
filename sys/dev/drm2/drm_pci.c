@@ -193,7 +193,7 @@ int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 	int len, ret;
 	master->unique_len = 40;
 	master->unique_size = master->unique_len;
-	master->unique = malloc(master->unique_size, DRM_MEM_DRIVER, M_NOWAIT);
+	master->unique = kmalloc(master->unique_size, GFP_KERNEL);
 	if (master->unique == NULL)
 		return -ENOMEM;
 
@@ -225,7 +225,7 @@ int drm_pci_set_unique(struct drm_device *dev,
 
 	master->unique_len = u->unique_len;
 	master->unique_size = u->unique_len + 1;
-	master->unique = malloc(master->unique_size, DRM_MEM_DRIVER, M_WAITOK);
+	master->unique = kmalloc(master->unique_size, GFP_KERNEL);
 	if (!master->unique) {
 		ret = -ENOMEM;
 		goto err;

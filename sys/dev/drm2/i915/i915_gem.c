@@ -68,6 +68,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 
+/* CEM: Make sure we got the Linux version */
+CTASSERT(PAGE_MASK != (PAGE_SIZE - 1));
+
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
 static __must_check int i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
@@ -155,9 +158,7 @@ i915_gem_wait_for_error(struct drm_device *dev)
 		 * end up waiting upon a subsequent completion event that
 		 * will never happen.
 		 */
-		mtx_lock(&x->lock);
-		x->done++;
-		mtx_unlock(&x->lock);
+		complete(x);
 	}
 	return 0;
 }
@@ -686,7 +687,7 @@ i915_gem_gtt_pwrite_fast(struct drm_device *dev,
 		 * page_offset = offset within page
 		 * page_length = bytes to copy for this page
 		 */
-		page_base = offset & ~PAGE_MASK;
+		page_base = offset & PAGE_MASK;
 		page_offset = offset_in_page(offset);
 		page_length = remain;
 		if ((page_offset + remain) > PAGE_SIZE)
@@ -1010,9 +1011,7 @@ i915_gem_check_wedge(struct drm_i915_private *dev_priv,
 		bool recovery_complete;
 
 		/* Give the error handler a chance to run. */
-		mtx_lock(&x->lock);
-		recovery_complete = x->done > 0;
-		mtx_unlock(&x->lock);
+		recovery_complete = completion_done(x);
 
 		/* Non-interruptible callers can't handle -EAGAIN, hence return
 		 * -EIO unconditionally for these. */
@@ -3270,7 +3269,10 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 	i915_gem_object_pin_pages(obj);
 
-	node = malloc(sizeof(*node), DRM_MEM_MM, M_NOWAIT | M_ZERO);
+	if (atomic_read(&dev_priv->mm.wedged))
+		node = kzalloc(sizeof(*node), GFP_ATOMIC);
+	else
+		node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (node == NULL) {
 		i915_gem_object_unpin_pages(obj);
 		return -ENOMEM;
@@ -3293,7 +3295,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 			goto search_free;
 
 		i915_gem_object_unpin_pages(obj);
-		free(node, DRM_MEM_MM);
+		kfree(node);
 		return ret;
 	}
 	if (WARN_ON(!i915_gem_valid_gtt_space(dev, node, obj->cache_level))) {

@@ -319,8 +319,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
 		pd_entry |= GEN6_PDE_VALID;
 
-		/* NOTE Linux<->FreeBSD: Arguments of writel() are reversed. */
-		writel(pd_addr + i, pd_entry);
+		writel(pd_entry, pd_addr + i);
 	}
 	readl(pd_addr);
 

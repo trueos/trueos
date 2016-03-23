@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 
+#include <linux/math64.h>
+
 enum tv_margin {
 	TV_MARGIN_LEFT, TV_MARGIN_TOP,
 	TV_MARGIN_RIGHT, TV_MARGIN_BOTTOM

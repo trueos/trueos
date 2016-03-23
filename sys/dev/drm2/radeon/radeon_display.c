@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm_crtc_helper.h>
 #include <dev/drm2/drm_edid.h>
 
+#include <linux/math64.h>
+
 static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);

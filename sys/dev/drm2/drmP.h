@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/queue.h>
 #include <sys/signalvar.h>
+#include <sys/pciio.h>
 #include <sys/poll.h>
 #include <sys/sbuf.h>
 #include <sys/taskqueue.h>
@@ -94,14 +95,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 #include <sys/bus.h>
 
+/*
+ * CEM: drm.h brings in drm_os_freebsd.h, which brings in linuxkpi list.h.
+ * drm_gem_names and drm_hashtab use FreeBSD queue(9) macros.  Include them
+ * first so they get the BSD macros.
+ *
+ * We probably can (and should) drop drm_hashtab.h entirely and diff-reduce
+ * drm_hashtab.c to use the Linux list implementation.
+ */
+#include <dev/drm2/drm_gem_names.h>
+#include <dev/drm2/drm_hashtab.h>
+
 #include <dev/drm2/drm.h>
 #include <dev/drm2/drm_sarea.h>
 
 #include <dev/drm2/drm_atomic.h>
 #include <dev/drm2/drm_linux_list.h>
-#include <dev/drm2/drm_gem_names.h>
 
-#include <dev/drm2/drm_os_freebsd.h>
+#include <linux/device.h>
+#include <linux/module.h>
 
 #define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define __OS_HAS_MTRR (defined(CONFIG_MTRR))
@@ -109,7 +121,6 @@ __FBSDID("$FreeBSD$");
 struct drm_file;
 struct drm_device;
 
-#include <dev/drm2/drm_hashtab.h>
 #include <dev/drm2/drm_mm.h>
 
 #include "opt_compat.h"
@@ -1012,9 +1023,9 @@ struct drm_device {
 	/** \name Context support */
 	/*@{ */
 	int irq_enabled;		/**< True if irq handler is enabled */
-	atomic_t context_flag;		/**< Context swapping flag */
-	atomic_t interrupt_flag;	/**< Interruption handler flag */
-	atomic_t dma_flag;		/**< DMA dispatch flag */
+	volatile long context_flag;		/**< Context swapping flag */
+	volatile long interrupt_flag;	/**< Interruption handler flag */
+	volatile long dma_flag;		/**< DMA dispatch flag */
 	wait_queue_head_t context_wait;	/**< Processes waiting on ctx switch */
 	int last_checked;		/**< Last context checked for DMA */
 	int last_context;		/**< Last current context */
@@ -1688,12 +1699,20 @@ for ( ret = 0 ; !ret && !(condition) ; ) {			\
 	DRM_LOCK(dev);						\
 }
 
+/*
+ * CEM: linuxkpi macros expect a 'bsddev' device_t member; drm2 passes the
+ * device_t already.  Use our custom macros for now.
+ */
+#undef	dev_err
 #define	dev_err(dev, fmt, ...)						\
 	device_printf((dev), "error: " fmt, ## __VA_ARGS__)
+#undef	dev_warn
 #define	dev_warn(dev, fmt, ...)						\
 	device_printf((dev), "warning: " fmt, ## __VA_ARGS__)
+#undef	dev_info
 #define	dev_info(dev, fmt, ...)						\
 	device_printf((dev), "info: " fmt, ## __VA_ARGS__)
+#undef	dev_dbg
 #define	dev_dbg(dev, fmt, ...) do {					\
 	if ((drm_debug& DRM_DEBUGBITS_KMS) != 0) {			\
 		device_printf((dev), "debug: " fmt, ## __VA_ARGS__);	\
@@ -1717,10 +1736,6 @@ struct drm_vblank_info {
 					/* once per disable */
 	int inmodeset;			/* Display driver is setting mode */
 };
-
-#ifndef DMA_BIT_MASK
-#define DMA_BIT_MASK(n) (((n) == 64) ? ~0ULL : (1ULL<<(n)) - 1)
-#endif
 
 #define upper_32_bits(n) ((u32)(((n) >> 16) >> 16))
 

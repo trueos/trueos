@@ -87,6 +87,8 @@ __FBSDID("$FreeBSD$");
 #include "radeon_mode.h"
 #include "radeon_reg.h"
 
+#include <asm/atomic64.h>
+
 /*
  * Modules parameters.
  */

@@ -1235,6 +1235,7 @@ MODULE_DEPEND(i915kms, agp, 1, 1, 1);
 MODULE_DEPEND(i915kms, iicbus, 1, 1, 1);
 MODULE_DEPEND(i915kms, iic, 1, 1, 1);
 MODULE_DEPEND(i915kms, iicbb, 1, 1, 1);
+MODULE_DEPEND(i915kms, linuxkpi, 1, 1, 1);
 
 /* We give fast paths for the really cool registers */
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \

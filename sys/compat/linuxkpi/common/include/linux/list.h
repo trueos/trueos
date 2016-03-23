@@ -69,6 +69,8 @@
 #include <vm/vm_object.h>
 #include <vm/pmap.h>
 
+/* CEM: TODO: Port some of the queue(9) invariants? */
+
 #define	prefetch(x)
 
 struct list_head {

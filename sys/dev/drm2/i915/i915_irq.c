@@ -526,11 +526,12 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 	taskqueue_enqueue(dev_priv->wq, &dev_priv->rps.work);
 }
 
-static void valleyview_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 iir, gt_iir, pm_iir;
+	irqreturn_t ret = IRQ_NONE;
 	int pipe;
 	u32 pipe_stats[I915_MAX_PIPES];
 	bool blc_event;
@@ -544,6 +545,8 @@ static void valleyview_irq_handler(DRM_IRQ_ARGS)
 
 		if (gt_iir == 0 && pm_iir == 0 && iir == 0)
 			goto out;
+
+		ret = IRQ_HANDLED;
 
 		snb_gt_irq_handler(dev, dev_priv, gt_iir);
 
@@ -600,7 +603,7 @@ static void valleyview_irq_handler(DRM_IRQ_ARGS)
 	}
 
 out:
-	return;
+	return ret;
 }
 
 static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
@@ -678,11 +681,12 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 					 I915_READ(FDI_RX_IIR(pipe)));
 }
 
-static void ivybridge_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 de_iir, gt_iir, de_ier, pm_iir;
+	irqreturn_t ret = IRQ_NONE;
 	int i;
 
 	atomic_inc(&dev_priv->irq_received);
@@ -695,6 +699,7 @@ static void ivybridge_irq_handler(DRM_IRQ_ARGS)
 	if (gt_iir) {
 		snb_gt_irq_handler(dev, dev_priv, gt_iir);
 		I915_WRITE(GTIIR, gt_iir);
+		ret = IRQ_HANDLED;
 	}
 
 	de_iir = I915_READ(DEIIR);
@@ -722,6 +727,7 @@ static void ivybridge_irq_handler(DRM_IRQ_ARGS)
 		}
 
 		I915_WRITE(DEIIR, de_iir);
+		ret = IRQ_HANDLED;
 	}
 
 	pm_iir = I915_READ(GEN6_PMIIR);
@@ -729,6 +735,7 @@ static void ivybridge_irq_handler(DRM_IRQ_ARGS)
 		if (pm_iir & GEN6_PM_DEFERRED_EVENTS)
 			gen6_queue_rps_work(dev_priv, pm_iir);
 		I915_WRITE(GEN6_PMIIR, pm_iir);
+		ret = IRQ_HANDLED;
 	}
 
 	I915_WRITE(DEIER, de_ier);
@@ -736,6 +743,7 @@ static void ivybridge_irq_handler(DRM_IRQ_ARGS)
 
 	CTR3(KTR_DRM, "ivybridge_irq de %x gt %x pm %x", de_iir,
 	    gt_iir, pm_iir);
+	return ret;
 }
 
 static void ilk_gt_irq_handler(struct drm_device *dev,
@@ -748,10 +756,11 @@ static void ilk_gt_irq_handler(struct drm_device *dev,
 		notify_ring(dev, &dev_priv->ring[VCS]);
 }
 
-static void ironlake_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier, pch_iir, pm_iir;
 
 	atomic_inc(&dev_priv->irq_received);
@@ -772,6 +781,8 @@ static void ironlake_irq_handler(DRM_IRQ_ARGS)
 	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0 &&
 	    (!IS_GEN6(dev) || pm_iir == 0))
 		goto done;
+
+	ret = IRQ_HANDLED;
 
 	if (IS_GEN5(dev))
 		ilk_gt_irq_handler(dev, dev_priv, gt_iir);
@@ -820,6 +831,8 @@ static void ironlake_irq_handler(DRM_IRQ_ARGS)
 done:
 	I915_WRITE(DEIER, de_ier);
 	POSTING_READ(DEIER);
+
+	return ret;
 }
 
 /**
@@ -2147,7 +2160,7 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static void i8xx_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t i8xx_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -2163,7 +2176,7 @@ static void i8xx_irq_handler(DRM_IRQ_ARGS)
 
 	iir = I915_READ16(IIR);
 	if (iir == 0)
-		return;
+		return IRQ_NONE;
 
 	while (iir & ~flip_mask) {
 		/* Can't rely on pipestat interrupt bit in iir as it might
@@ -2220,6 +2233,8 @@ static void i8xx_irq_handler(DRM_IRQ_ARGS)
 
 		iir = new_iir;
 	}
+
+	return IRQ_HANDLED;
 }
 
 static void i8xx_irq_uninstall(struct drm_device * dev)
@@ -2334,7 +2349,7 @@ static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 		I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT,
 		I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT
 	};
-	int pipe;
+	int pipe, ret = IRQ_NONE;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -2426,10 +2441,13 @@ static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 		 * trigger the 99% of 100,000 interrupts test for disabling
 		 * stray interrupts.
 		 */
+		ret = IRQ_HANDLED;
 		iir = new_iir;
 	} while (iir & ~flip_mask);
 
 	i915_update_dri1_breadcrumb(dev);
+
+	return ret;
 }
 
 static void i915_irq_uninstall(struct drm_device * dev)
@@ -2563,7 +2581,7 @@ static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
 	u32 iir, new_iir;
 	u32 pipe_stats[I915_MAX_PIPES];
 	int irq_received;
-	int pipe;
+	int ret = IRQ_NONE, pipe;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -2602,6 +2620,8 @@ static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
 
 		if (!irq_received)
 			break;
+
+		ret = IRQ_HANDLED;
 
 		/* Consume port.  Then clear IIR or we'll miss events */
 		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
@@ -2665,6 +2685,8 @@ static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
 	}
 
 	i915_update_dri1_breadcrumb(dev);
+
+	return ret;
 }
 
 static void i965_irq_uninstall(struct drm_device * dev)

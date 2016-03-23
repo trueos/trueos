@@ -54,18 +54,11 @@ typedef struct {
 static inline void
 __wake_up(wait_queue_head_t *q, int all)
 {
-	int wakeup_swapper;
-	void *c;
 
-	c = &q->wchan;
-	sleepq_lock(c);
-	if (all)
-		wakeup_swapper = sleepq_broadcast(c, SLEEPQ_SLEEP, 0, 0);
+	if (all == 0)
+		wakeup_one(&q->wchan);
 	else
-		wakeup_swapper = sleepq_signal(c, SLEEPQ_SLEEP, 0, 0);
-	sleepq_release(c);
-	if (wakeup_swapper)
-		kick_proc0();
+		wakeup(&q->wchan);
 }
 
 #define	wake_up(q)				__wake_up(q, 0)

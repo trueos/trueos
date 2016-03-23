@@ -105,7 +105,7 @@ struct drm_master *drm_master_create(struct drm_minor *minor)
 {
 	struct drm_master *master;
 
-	master = malloc(sizeof(*master), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	master = kzalloc(sizeof(*master), GFP_KERNEL);
 	if (!master)
 		return NULL;
 
@@ -148,7 +148,7 @@ static void drm_master_destroy(struct drm_master *master)
 	}
 
 	if (master->unique) {
-		free(master->unique, DRM_MEM_DRIVER);
+		kfree(master->unique);
 		master->unique = NULL;
 		master->unique_len = 0;
 	}
@@ -156,12 +156,12 @@ static void drm_master_destroy(struct drm_master *master)
 	list_for_each_entry_safe(pt, next, &master->magicfree, head) {
 		list_del(&pt->head);
 		drm_ht_remove_item(&master->magiclist, &pt->hash_item);
-		free(pt, DRM_MEM_MAGIC);
+		kfree(pt);
 	}
 
 	drm_ht_remove(&master->magiclist);
 
-	free(master, DRM_MEM_KMS);
+	kfree(master);
 }
 
 void drm_master_put(struct drm_master **master)
@@ -352,8 +352,7 @@ int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type)
 	if (minor_id < 0)
 		return minor_id;
 
-	new_minor = malloc(sizeof(struct drm_minor), DRM_MEM_MINOR,
-	    M_NOWAIT | M_ZERO);
+	new_minor = kzalloc(sizeof(struct drm_minor), GFP_KERNEL);
 	if (!new_minor) {
 		ret = -ENOMEM;
 		goto err_idr;
@@ -393,7 +392,7 @@ int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type)
 
 
 err_mem:
-	free(new_minor, DRM_MEM_MINOR);
+	kfree(new_minor);
 err_idr:
 	*minor = NULL;
 	return ret;
@@ -420,7 +419,7 @@ int drm_put_minor(struct drm_minor **minor_p)
 
 	destroy_dev(minor->device);
 
-	free(minor, DRM_MEM_MINOR);
+	kfree(minor);
 	*minor_p = NULL;
 	return 0;
 }
@@ -467,7 +466,7 @@ void drm_put_dev(struct drm_device *dev)
 	drm_sysctl_cleanup(dev);
 
 	if (drm_core_has_AGP(dev) && dev->agp) {
-		free(dev->agp, DRM_MEM_AGPLISTS);
+		kfree(dev->agp);
 		dev->agp = NULL;
 	}
 

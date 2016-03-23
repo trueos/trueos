@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/sf_buf.h>
 
+/* CEM: Make sure we got the Linux version */
+CTASSERT(PAGE_MASK != (PAGE_SIZE - 1));
+
 struct eb_objects {
 	int and;
 	struct hlist_head buckets[0];
@@ -198,7 +201,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 	reloc->delta += target_offset;
 	if (use_cpu_reloc(obj)) {
-		uint32_t page_offset = reloc->offset & PAGE_MASK;
+		uint32_t page_offset = reloc->offset & ~PAGE_MASK;
 		char *vaddr;
 		struct sf_buf *sf;
 
@@ -229,9 +232,9 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		/* Map the page containing the relocation we're going to perform.  */
 		reloc->offset += obj->gtt_offset;
 		reloc_page = pmap_mapdev_attr(dev_priv->mm.gtt_base_addr + (reloc->offset &
-		    ~PAGE_MASK), PAGE_SIZE, PAT_WRITE_COMBINING);
+		    PAGE_MASK), PAGE_SIZE, PAT_WRITE_COMBINING);
 		reloc_entry = (uint32_t __iomem *)
-			(reloc_page + (reloc->offset & PAGE_MASK));
+			(reloc_page + (reloc->offset & ~PAGE_MASK));
 		*(volatile uint32_t *)reloc_entry = reloc->delta;
 		pmap_unmapdev((vm_offset_t)reloc_page, PAGE_SIZE);
 	}

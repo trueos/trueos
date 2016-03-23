@@ -101,4 +101,11 @@ atomic64_add_unless(atomic64_t *v, int64_t a, int64_t u)
 	return (c != u);
 }
 
+static inline long
+atomic64_xchg(atomic64_t *v, long i)
+{
+
+	return (atomic_swap_64(&v->counter, i));
+}
+
 #endif					/* _ASM_ATOMIC64_H_ */

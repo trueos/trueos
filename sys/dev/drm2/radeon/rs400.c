@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
 #include "radeon_asic.h"
 #include "rs400d.h"
 
+/* CEM: Make sure we got the Linux version */
+CTASSERT(PAGE_MASK != (PAGE_SIZE - 1));
+
 /* This files gather functions specifics to : rs400,rs480 */
 static int rs400_debugfs_pcie_gart_info_init(struct radeon_device *rdev);
 
@@ -220,7 +223,7 @@ int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 		return -EINVAL;
 	}
 
-	entry = (lower_32_bits(addr) & ~PAGE_MASK) |
+	entry = (lower_32_bits(addr) & PAGE_MASK) |
 		((upper_32_bits(addr) & 0xff) << 4) |
 		RS400_PTE_WRITEABLE | RS400_PTE_READABLE;
 	entry = cpu_to_le32(entry);

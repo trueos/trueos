@@ -73,6 +73,20 @@ __flsl(long mask)
 	return (flsl(mask) - 1);
 }
 
+/**
+ * ror32 - rotate a 32-bit value right
+ * @word: value to rotate
+ * @shift: bits to roll
+ *
+ * Source: include/linux/bitops.h
+ */
+static inline uint32_t
+ror32(uint32_t word, unsigned int shift)
+{
+
+	return (word >> shift) | (word << (32 - shift));
+}
+
 
 #define	ffz(mask)	__ffs(~(mask))
 
@@ -109,7 +123,7 @@ find_first_bit(unsigned long *addr, unsigned long size)
 }
 
 static inline unsigned long
-find_first_zero_bit(unsigned long *addr, unsigned long size)
+find_first_zero_bit(const unsigned long *addr, unsigned long size)
 {
 	long mask;
 	int bit;
@@ -315,8 +329,8 @@ bitmap_empty(unsigned long *addr, int size)
     !!(atomic_load_acq_long(&((volatile long *)(a))[BIT_WORD(i)]) &	\
     BIT_MASK(i))
 
-static inline long
-test_and_clear_bit(long bit, long *var)
+static inline int
+test_and_clear_bit(long bit, volatile unsigned long *var)
 {
 	long val;
 
@@ -324,14 +338,14 @@ test_and_clear_bit(long bit, long *var)
 	bit %= BITS_PER_LONG;
 	bit = (1UL << bit);
 	do {
-		val = *(volatile long *)var;
+		val = *var;
 	} while (atomic_cmpset_long(var, val, val & ~bit) == 0);
 
 	return !!(val & bit);
 }
 
-static inline long
-test_and_set_bit(long bit, long *var)
+static inline int
+test_and_set_bit(long bit, volatile unsigned long *var)
 {
 	long val;
 
@@ -339,7 +353,7 @@ test_and_set_bit(long bit, long *var)
 	bit %= BITS_PER_LONG;
 	bit = (1UL << bit);
 	do {
-		val = *(volatile long *)var;
+		val = *var;
 	} while (atomic_cmpset_long(var, val, val | bit) == 0);
 
 	return !!(val & bit);

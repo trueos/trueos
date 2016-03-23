@@ -45,7 +45,6 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	kvmalloc(size)			kmalloc((size), 0)
 #define	kzalloc(size, flags)		kmalloc((size), (flags) | M_ZERO)
 #define	kzalloc_node(size, flags, node)	kzalloc(size, flags)
-#define	kfree(ptr)			free(__DECONST(void *, (ptr)), M_KMALLOC)
 #define	kfree_const(ptr)		kfree(ptr)
 #define	krealloc(ptr, size, flags)	realloc((ptr), (size), M_KMALLOC, (flags))
 #define	kcalloc(n, size, flags)	        kmalloc((n) * (size), flags | M_ZERO)
@@ -54,6 +53,7 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	kvfree(arg)			kfree(arg)
 #define	vmalloc(size)                   kmalloc(size, GFP_KERNEL)
 #define	vmalloc_node(size, node)        kmalloc(size, GFP_KERNEL)
+#define	vmalloc_user(size)              kmalloc(size, GFP_KERNEL | __GFP_ZERO)
 
 struct kmem_cache {
 	uma_zone_t	cache_zone;
@@ -61,6 +61,13 @@ struct kmem_cache {
 };
 
 #define	SLAB_HWCACHE_ALIGN	0x0001
+
+static inline void
+kfree(const void *ptr)
+{
+
+	free(__DECONST(void *, ptr), M_KMALLOC);
+}
 
 static inline int
 kmem_ctor(void *mem, int size, void *arg, int flags)

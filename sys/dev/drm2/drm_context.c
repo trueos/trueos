@@ -366,7 +366,7 @@ int drm_addctx(struct drm_device *dev, void *data,
 		return -ENOMEM;
 	}
 
-	ctx_entry = malloc(sizeof(*ctx_entry), DRM_MEM_CTXBITMAP, M_NOWAIT);
+	ctx_entry = kmalloc(sizeof(*ctx_entry), GFP_KERNEL);
 	if (!ctx_entry) {
 		DRM_DEBUG("out of memory\n");
 		return -ENOMEM;
@@ -481,7 +481,7 @@ int drm_rmctx(struct drm_device *dev, void *data,
 		list_for_each_entry_safe(pos, n, &dev->ctxlist, head) {
 			if (pos->handle == ctx->handle) {
 				list_del(&pos->head);
-				free(pos, DRM_MEM_CTXBITMAP);
+				kfree(pos);
 				--dev->ctx_count;
 			}
 		}

@@ -38,7 +38,11 @@
 #define	ECOMM           ESTALE
 #define	ENODATA         ECONNREFUSED
 #define	ENOIOCTLCMD     ENOIOCTL
-#define	ERESTARTSYS     ERESTART
+/*
+ * CEM: BSD ERESTART is negative, may be confusing in Linux negative-error
+ * model.
+ */
+#define	ERESTARTSYS     512 /* Same value as Linux. */
 #define	ENOTSUPP        EOPNOTSUPP
 #define	ENONET          EHOSTDOWN
 

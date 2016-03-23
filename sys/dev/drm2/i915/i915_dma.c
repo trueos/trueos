@@ -28,6 +28,9 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#include <sys/types.h>
+#include <sys/bus.h>
+#include <sys/pciio.h>
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -781,7 +784,7 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 	if (ring->irq_get(ring)) {
 		mtx_lock(&dev_priv->irq_lock);
 		while (ret == 0 && READ_BREADCRUMB(dev_priv) < irq_nr) {
-			ret = -msleep(&ring->irq_queue, &dev_priv->irq_lock,
+			ret = -bsd_msleep(&ring->irq_queue, &dev_priv->irq_lock,
 			    PCATCH, "915wtq", 3 * DRM_HZ);
 			if (ret == -ERESTART)
 				ret = -ERESTARTSYS;
@@ -1658,7 +1661,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 out_gem_unload:
 	EVENTHANDLER_DEREGISTER(vm_lowmem, dev_priv->mm.inactive_shrinker);
 
-	free_completion(&dev_priv->error_completion);
 	mtx_destroy(&dev_priv->irq_lock);
 	mtx_destroy(&dev_priv->error_lock);
 	mtx_destroy(&dev_priv->rps.lock);
@@ -1819,7 +1821,6 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->wq != NULL)
 		taskqueue_free(dev_priv->wq);
 
-	free_completion(&dev_priv->error_completion);
 	mtx_destroy(&dev_priv->irq_lock);
 	mtx_destroy(&dev_priv->error_lock);
 	mtx_destroy(&dev_priv->rps.lock);

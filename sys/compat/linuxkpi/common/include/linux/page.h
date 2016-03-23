@@ -49,5 +49,16 @@
 
 #undef	PAGE_MASK
 #define	PAGE_MASK	(~(PAGE_SIZE-1))
+/*
+ * Modifying PAGE_MASK in the above way breaks trunc_page, round_page, and btoc
+ * macros.  Therefore, redefine them in a way that makes sense so linuxkpi
+ * consumers don't get totally broken behavior.
+ */
+#undef	btoc
+#define	btoc(x)	(((vm_offset_t)(x)+PAGE_SIZE-1)>>PAGE_SHIFT)
+#undef	round_page
+#define	round_page(x)	((((uintptr_t)(x)) + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
+#undef	trunc_page
+#define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE-1))
 
 #endif	/* _LINUX_PAGE_H_ */

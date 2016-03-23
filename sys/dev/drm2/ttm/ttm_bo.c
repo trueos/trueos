@@ -113,8 +113,8 @@ static void ttm_bo_release_list(struct ttm_buffer_object *bo)
 	struct ttm_bo_device *bdev = bo->bdev;
 	size_t acc_size = bo->acc_size;
 
-	MPASS(atomic_read(&bo->list_kref) == 0);
-	MPASS(atomic_read(&bo->kref) == 0);
+	MPASS(*(volatile u_int *)&bo->list_kref == 0);
+	MPASS(*(volatile u_int *)&bo->kref == 0);
 	MPASS(atomic_read(&bo->cpu_writers) == 0);
 	MPASS(bo->sync_obj == NULL);
 	MPASS(bo->mem.mm_node == NULL);
@@ -147,7 +147,7 @@ ttm_bo_wait_unreserved_locked(struct ttm_buffer_object *bo, bool interruptible)
 		wmsg = "ttbowu";
 	}
 	while (ttm_bo_is_reserved(bo)) {
-		ret = -msleep(bo, &bo->glob->lru_lock, flags, wmsg, 0);
+		ret = -bsd_msleep(bo, &bo->glob->lru_lock, flags, wmsg, 0);
 		if (ret == -EINTR || ret == -ERESTART)
 			ret = -ERESTARTSYS;
 		if (ret != 0)

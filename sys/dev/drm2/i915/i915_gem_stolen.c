@@ -28,6 +28,9 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#include <sys/types.h>
+#include <sys/bus.h>
+#include <sys/pciio.h>
 
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/i915/i915_drm.h>

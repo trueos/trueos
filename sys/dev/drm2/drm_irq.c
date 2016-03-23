@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
 
+#include <linux/math64.h>
+
 /* Access macro for slots in vblank timestamp ringbuffer. */
 #define vblanktimestamp(dev, crtc, count) ( \
 	(dev)->_vblank_time[(crtc) * DRM_VBLANKTIME_RBSIZE + \
@@ -191,13 +193,13 @@ void drm_vblank_cleanup(struct drm_device *dev)
 
 	vblank_disable_fn(dev);
 
-	free(dev->_vblank_count, DRM_MEM_VBLANK);
-	free(dev->vblank_refcount, DRM_MEM_VBLANK);
-	free(dev->vblank_enabled, DRM_MEM_VBLANK);
-	free(dev->last_vblank, DRM_MEM_VBLANK);
-	free(dev->last_vblank_wait, DRM_MEM_VBLANK);
-	free(dev->vblank_inmodeset, DRM_MEM_VBLANK);
-	free(dev->_vblank_time, DRM_MEM_VBLANK);
+	kfree(dev->_vblank_count);
+	kfree(dev->vblank_refcount);
+	kfree(dev->vblank_enabled);
+	kfree(dev->last_vblank);
+	kfree(dev->last_vblank_wait);
+	kfree(dev->vblank_inmodeset);
+	kfree(dev->_vblank_time);
 
 	mtx_destroy(&dev->vbl_lock);
 	mtx_destroy(&dev->vblank_time_lock);
@@ -216,38 +218,33 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 
 	dev->num_crtcs = num_crtcs;
 
-	dev->_vblank_count = malloc(sizeof(atomic_t) * num_crtcs,
-	    DRM_MEM_VBLANK, M_NOWAIT);
+	dev->_vblank_count = kmalloc(sizeof(atomic_t) * num_crtcs, GFP_KERNEL);
 	if (!dev->_vblank_count)
 		goto err;
 
-	dev->vblank_refcount = malloc(sizeof(atomic_t) * num_crtcs,
-	    DRM_MEM_VBLANK, M_NOWAIT);
+	dev->vblank_refcount = kmalloc(sizeof(atomic_t) * num_crtcs,
+				       GFP_KERNEL);
 	if (!dev->vblank_refcount)
 		goto err;
 
-	dev->vblank_enabled = malloc(num_crtcs * sizeof(int),
-	    DRM_MEM_VBLANK, M_NOWAIT | M_ZERO);
+	dev->vblank_enabled = kcalloc(num_crtcs, sizeof(int), GFP_KERNEL);
 	if (!dev->vblank_enabled)
 		goto err;
 
-	dev->last_vblank = malloc(num_crtcs * sizeof(u32),
-	    DRM_MEM_VBLANK, M_NOWAIT | M_ZERO);
+	dev->last_vblank = kcalloc(num_crtcs, sizeof(u32), GFP_KERNEL);
 	if (!dev->last_vblank)
 		goto err;
 
-	dev->last_vblank_wait = malloc(num_crtcs * sizeof(u32),
-	    DRM_MEM_VBLANK, M_NOWAIT | M_ZERO);
+	dev->last_vblank_wait = kcalloc(num_crtcs, sizeof(u32), GFP_KERNEL);
 	if (!dev->last_vblank_wait)
 		goto err;
 
-	dev->vblank_inmodeset = malloc(num_crtcs * sizeof(int),
-	    DRM_MEM_VBLANK, M_NOWAIT | M_ZERO);
+	dev->vblank_inmodeset = kcalloc(num_crtcs, sizeof(int), GFP_KERNEL);
 	if (!dev->vblank_inmodeset)
 		goto err;
 
-	dev->_vblank_time = malloc(num_crtcs * DRM_VBLANKTIME_RBSIZE *
-	    sizeof(struct timeval), DRM_MEM_VBLANK, M_NOWAIT | M_ZERO);
+	dev->_vblank_time = kcalloc(num_crtcs * DRM_VBLANKTIME_RBSIZE,
+				    sizeof(struct timeval), GFP_KERNEL);
 	if (!dev->_vblank_time)
 		goto err;
 
@@ -329,7 +326,7 @@ int drm_irq_install(struct drm_device *dev)
 		sh_flags |= INTR_EXCL;
 
 	ret = -bus_setup_intr(dev->dev, dev->irqr, sh_flags, NULL,
-	    dev->driver->irq_handler, dev, &dev->irqh);
+	    (driver_intr_t *)dev->driver->irq_handler, dev, &dev->irqh);
 
 	if (ret < 0) {
 		device_printf(dev->dev, "Error setting interrupt: %d\n", -ret);
@@ -1099,13 +1096,6 @@ int drm_modeset_ctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static void
-drm_vblank_event_destroy(struct drm_pending_event *e)
-{
-
-	free(e, DRM_MEM_VBLANK);
-}
-
 static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 				  union drm_wait_vblank *vblwait,
 				  struct drm_file *file_priv)
@@ -1115,7 +1105,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	unsigned int seq;
 	int ret;
 
-	e = malloc(sizeof *e, DRM_MEM_VBLANK, M_NOWAIT | M_ZERO);
+	e = kzalloc(sizeof *e, GFP_KERNEL);
 	if (e == NULL) {
 		ret = -ENOMEM;
 		goto err_put;
@@ -1128,7 +1118,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	e->event.user_data = vblwait->request.signal;
 	e->base.event = &e->event.base;
 	e->base.file_priv = file_priv;
-	e->base.destroy = drm_vblank_event_destroy;
+	e->base.destroy = (void (*) (struct drm_pending_event *)) kfree;
 
 	mtx_lock(&dev->event_lock);
 
@@ -1169,7 +1159,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 
 err_unlock:
 	mtx_unlock(&dev->event_lock);
-	free(e, DRM_MEM_VBLANK);
+	kfree(e);
 err_put:
 	drm_vblank_put(dev, pipe);
 	return ret;
@@ -1265,8 +1255,8 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		 * application when crtc is disabled or irq
 		 * uninstalled anyway.
 		 */
-		ret = -msleep(&dev->_vblank_count[crtc], &dev->vblank_time_lock,
-		    PCATCH, "drmvbl", 3 * hz);
+		ret = -bsd_msleep(&dev->_vblank_count[crtc],
+		    &dev->vblank_time_lock, PCATCH, "drmvbl", 3 * hz);
 		if (ret == -ERESTART)
 			ret = -ERESTARTSYS;
 		if (ret != 0)

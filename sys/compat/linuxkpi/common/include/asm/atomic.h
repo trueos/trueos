@@ -49,6 +49,7 @@ typedef struct {
 #define	atomic_sub(i, v)		atomic_sub_return((i), (v))
 #define	atomic_inc_return(v)		atomic_add_return(1, (v))
 #define	atomic_add_negative(i, v)	(atomic_add_return((i), (v)) < 0)
+#define	atomic_add_and_test(i, v)	(atomic_add_return((i), (v)) == 0)
 #define	atomic_sub_and_test(i, v)	(atomic_sub_return((i), (v)) == 0)
 #define	atomic_dec_and_test(v)		(atomic_sub_return(1, (v)) == 0)
 #define	atomic_inc_and_test(v)		(atomic_add_return(1, (v)) == 0)
@@ -104,6 +105,20 @@ atomic_add_unless(atomic_t *v, int a, int u)
 			break;
 	}
 	return (c != u);
+}
+
+static inline void
+atomic_clear_mask(unsigned int mask, atomic_t *v)
+{
+
+	atomic_clear_int(&v->counter, mask);
+}
+
+static inline int
+atomic_xchg(atomic_t *v, int i)
+{
+
+	return (atomic_swap_int(&v->counter, i));
 }
 
 #endif					/* _ASM_ATOMIC_H_ */

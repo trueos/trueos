@@ -62,7 +62,7 @@ __raw_writeq(uint64_t b, volatile void *addr)
 /*
  * XXX This is all x86 specific.  It should be bus space access.
  */
-#define mmiowb()
+#define	mmiowb()	barrier()
 
 #undef writel
 static inline void
@@ -92,11 +92,53 @@ writew(uint16_t b, void *addr)
         *(volatile uint16_t *)addr = b;
 }
 
+#undef ioread8
+static inline uint8_t
+ioread8(const volatile void *addr)
+{
+	return *(const volatile uint8_t *)addr;
+}
+
+#undef ioread16
+static inline uint16_t
+ioread16(const volatile void *addr)
+{
+	return *(const volatile uint16_t *)addr;
+}
+
+#undef ioread32
+static inline uint32_t
+ioread32(const volatile void *addr)
+{
+	return *(const volatile uint32_t *)addr;
+}
+
 #undef ioread32be
 static inline uint32_t
 ioread32be(const volatile void *addr)
 {
 	return be32toh(*(const volatile uint32_t *)addr);
+}
+
+#undef iowrite8
+static inline void
+iowrite8(uint8_t v, volatile void *addr)
+{
+	*(volatile uint8_t *)addr = v;
+}
+
+#undef iowrite16
+static inline void
+iowrite16(uint16_t v, volatile void *addr)
+{
+	*(volatile uint16_t *)addr = v;
+}
+
+#undef iowrite32
+static inline void
+iowrite32(uint32_t v, volatile void *addr)
+{
+	*(volatile uint32_t *)addr = v;
 }
 
 #undef iowrite32be

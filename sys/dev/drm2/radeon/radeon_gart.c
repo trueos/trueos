@@ -34,6 +34,9 @@ __FBSDID("$FreeBSD$");
 #include "radeon.h"
 #include "radeon_reg.h"
 
+/* CEM: Make sure we got the Linux version */
+CTASSERT(PAGE_MASK != (PAGE_SIZE - 1));
+
 /*
  * GART
  * The GART (Graphics Aperture Remapping Table) is an aperture
@@ -916,12 +919,7 @@ uint64_t radeon_vm_map_gart(struct radeon_device *rdev, uint64_t addr)
 	result = rdev->gart.pages_addr[addr >> PAGE_SHIFT];
 
 	/* in case cpu page size != gpu page size*/
-	/*
-	 * FreeBSD port note: FreeBSD's PAGE_MASK is the inverse of
-	 * Linux's one. That's why the test below doesn't inverse the
-	 * constant.
-	 */
-	result |= addr & (PAGE_MASK);
+	result |= addr & (~PAGE_MASK);
 
 	return result;
 }

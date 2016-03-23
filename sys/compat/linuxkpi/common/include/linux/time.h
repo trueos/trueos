@@ -125,7 +125,7 @@ timespec_valid(const struct timespec *ts)
 static inline unsigned long
 get_seconds(void)
 {
-	return time_uptime;
+	return time_second;
 }
 
 #endif /* _LINUX_TIME_H_ */

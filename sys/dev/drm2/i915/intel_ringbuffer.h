@@ -206,7 +206,7 @@ int __must_check intel_ring_begin(struct intel_ring_buffer *ring, int n);
 static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 				   u32 data)
 {
-	iowrite32(data, ring->virtual_start + ring->tail);
+	iowrite32(data, (char *)ring->virtual_start + ring->tail);
 	ring->tail += 4;
 }
 void intel_ring_advance(struct intel_ring_buffer *ring);

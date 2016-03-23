@@ -460,7 +460,7 @@ void drm_crtc_cleanup(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 
-	free(crtc->gamma_store, DRM_MEM_KMS);
+	kfree(crtc->gamma_store);
 	crtc->gamma_store = NULL;
 
 	drm_mode_object_put(dev, &crtc->base);
@@ -662,8 +662,8 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	plane->base.properties = &plane->properties;
 	plane->dev = dev;
 	plane->funcs = funcs;
-	plane->format_types = malloc(sizeof(uint32_t) * format_count,
-	    DRM_MEM_KMS, M_WAITOK);
+	plane->format_types = kmalloc(sizeof(uint32_t) * format_count,
+				      GFP_KERNEL);
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
 		drm_mode_object_put(dev, &plane->base);
@@ -698,7 +698,7 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	struct drm_device *dev = plane->dev;
 
 	sx_xlock(&dev->mode_config.mutex);
-	free(plane->format_types, DRM_MEM_KMS);
+	kfree(plane->format_types);
 	drm_mode_object_put(dev, &plane->base);
 	/* if not added to a list, it must be a private plane */
 	if (!list_empty(&plane->head)) {
@@ -725,13 +725,12 @@ struct drm_display_mode *drm_mode_create(struct drm_device *dev)
 {
 	struct drm_display_mode *nmode;
 
-	nmode = malloc(sizeof(struct drm_display_mode), DRM_MEM_KMS,
-	    M_WAITOK | M_ZERO);
+	nmode = kzalloc(sizeof(struct drm_display_mode), GFP_KERNEL);
 	if (!nmode)
 		return NULL;
 
 	if (drm_mode_object_get(dev, &nmode->base, DRM_MODE_OBJECT_MODE)) {
-		free(nmode, DRM_MEM_KMS);
+		kfree(nmode);
 		return NULL;
 	}
 
@@ -756,7 +755,7 @@ void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode)
 
 	drm_mode_object_put(dev, &mode->base);
 
-	free(mode, DRM_MEM_KMS);
+	kfree(mode);
 }
 EXPORT_SYMBOL(drm_mode_destroy);
 
@@ -1009,8 +1008,7 @@ int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *group)
 	total_objects += dev->mode_config.num_connector;
 	total_objects += dev->mode_config.num_encoder;
 
-	group->id_list = malloc(total_objects * sizeof(uint32_t),
-	    DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	group->id_list = kzalloc(total_objects * sizeof(uint32_t), GFP_KERNEL);
 	if (!group->id_list)
 		return -ENOMEM;
 
@@ -1022,7 +1020,7 @@ int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *group)
 
 void drm_mode_group_free(struct drm_mode_group *group)
 {
-	free(group->id_list, DRM_MEM_KMS);
+	kfree(group->id_list);
 	group->id_list = NULL;
 }
 
@@ -1996,9 +1994,9 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			goto out;
 		}
 
-		connector_set = malloc(crtc_req->count_connectors *
+		connector_set = kmalloc(crtc_req->count_connectors *
 					sizeof(struct drm_connector *),
-					DRM_MEM_KMS, M_WAITOK);
+					GFP_KERNEL);
 		if (!connector_set) {
 			ret = -ENOMEM;
 			goto out;
@@ -2038,7 +2036,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	ret = crtc->funcs->set_config(&set);
 
 out:
-	free(connector_set, DRM_MEM_KMS);
+	kfree(connector_set);
 	drm_mode_destroy(dev, mode);
 	sx_xunlock(&dev->mode_config.mutex);
 	return ret;
@@ -2522,8 +2520,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 			ret = -EINVAL;
 			goto out_err1;
 		}
-		clips = malloc(num_clips * sizeof(*clips), DRM_MEM_KMS,
-		    M_WAITOK | M_ZERO);
+		clips = kzalloc(num_clips * sizeof(*clips), GFP_KERNEL);
 		if (!clips) {
 			ret = -ENOMEM;
 			goto out_err1;
@@ -2546,7 +2543,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	}
 
 out_err2:
-	free(clips, DRM_MEM_KMS);
+	kfree(clips);
 out_err1:
 	sx_xunlock(&dev->mode_config.mutex);
 	return ret;
@@ -2773,14 +2770,12 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	struct drm_property *property = NULL;
 	int ret;
 
-	property = malloc(sizeof(struct drm_property), DRM_MEM_KMS,
-	    M_WAITOK | M_ZERO);
+	property = kzalloc(sizeof(struct drm_property), GFP_KERNEL);
 	if (!property)
 		return NULL;
 
 	if (num_values) {
-		property->values = malloc(sizeof(uint64_t)*num_values, DRM_MEM_KMS,
-		    M_WAITOK | M_ZERO);
+		property->values = kzalloc(sizeof(uint64_t)*num_values, GFP_KERNEL);
 		if (!property->values)
 			goto fail;
 	}
@@ -2801,8 +2796,8 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	list_add_tail(&property->head, &dev->mode_config.property_list);
 	return property;
 fail:
-	free(property->values, DRM_MEM_KMS);
-	free(property, DRM_MEM_KMS);
+	kfree(property->values);
+	kfree(property);
 	return NULL;
 }
 EXPORT_SYMBOL(drm_property_create);
@@ -2907,8 +2902,7 @@ int drm_property_add_enum(struct drm_property *property, int index,
 		}
 	}
 
-	prop_enum = malloc(sizeof(struct drm_property_enum), DRM_MEM_KMS,
-	    M_WAITOK | M_ZERO);
+	prop_enum = kzalloc(sizeof(struct drm_property_enum), GFP_KERNEL);
 	if (!prop_enum)
 		return -ENOMEM;
 
@@ -2928,14 +2922,14 @@ void drm_property_destroy(struct drm_device *dev, struct drm_property *property)
 
 	list_for_each_entry_safe(prop_enum, pt, &property->enum_blob_list, head) {
 		list_del(&prop_enum->head);
-		free(prop_enum, DRM_MEM_KMS);
+		kfree(prop_enum);
 	}
 
 	if (property->num_values)
-		free(property->values, DRM_MEM_KMS);
+		kfree(property->values);
 	drm_mode_object_put(dev, &property->base);
 	list_del(&property->head);
-	free(property, DRM_MEM_KMS);
+	kfree(property);
 }
 EXPORT_SYMBOL(drm_property_destroy);
 
@@ -3103,14 +3097,13 @@ static struct drm_property_blob *drm_property_create_blob(struct drm_device *dev
 	if (!length || !data)
 		return NULL;
 
-	blob = malloc(sizeof(struct drm_property_blob)+length, DRM_MEM_KMS,
-	    M_WAITOK | M_ZERO);
+	blob = kzalloc(sizeof(struct drm_property_blob)+length, GFP_KERNEL);
 	if (!blob)
 		return NULL;
 
 	ret = drm_mode_object_get(dev, &blob->base, DRM_MODE_OBJECT_BLOB);
 	if (ret) {
-		free(blob, DRM_MEM_KMS);
+		kfree(blob);
 		return NULL;
 	}
 
@@ -3127,7 +3120,7 @@ static void drm_property_destroy_blob(struct drm_device *dev,
 {
 	drm_mode_object_put(dev, &blob->base);
 	list_del(&blob->head);
-	free(blob, DRM_MEM_KMS);
+	kfree(blob);
 }
 
 int drm_mode_getblob_ioctl(struct drm_device *dev,
@@ -3433,8 +3426,8 @@ int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 {
 	crtc->gamma_size = gamma_size;
 
-	crtc->gamma_store = malloc(gamma_size * sizeof(uint16_t) * 3,
-	    DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	crtc->gamma_store = kzalloc(gamma_size * sizeof(uint16_t) * 3,
+	    GFP_KERNEL);
 	if (!crtc->gamma_store) {
 		crtc->gamma_size = 0;
 		return -ENOMEM;
@@ -3553,13 +3546,6 @@ out:
 	return ret;
 }
 
-static void
-free_vblank_event(void *arg)
-{
-
-	free(arg, DRM_MEM_KMS);
-}
-
 int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv)
 {
@@ -3632,7 +3618,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		file_priv->event_space -= sizeof e->event;
 		mtx_unlock(&dev->event_lock);
 
-		e = malloc(sizeof *e, DRM_MEM_KMS, M_WAITOK | M_ZERO);
+		e = kzalloc(sizeof *e, GFP_KERNEL);
 		if (e == NULL) {
 			mtx_lock(&dev->event_lock);
 			file_priv->event_space += sizeof e->event;
@@ -3646,7 +3632,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		e->base.event = &e->event.base;
 		e->base.file_priv = file_priv;
 		e->base.destroy =
-			(void (*) (struct drm_pending_event *)) free_vblank_event;
+			(void (*) (struct drm_pending_event *)) kfree;
 	}
 
 	ret = crtc->funcs->page_flip(crtc, fb, e);
@@ -3655,7 +3641,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			mtx_lock(&dev->event_lock);
 			file_priv->event_space += sizeof e->event;
 			mtx_unlock(&dev->event_lock);
-			free(e, DRM_MEM_KMS);
+			kfree(e);
 		}
 	}
 

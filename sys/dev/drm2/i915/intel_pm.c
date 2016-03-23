@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/intel_drv.h>
 #include <sys/kdb.h>
 
+#include <linux/math64.h>
+
 #define FORCEWAKE_ACK_TIMEOUT_MS 2
 
 /* FBC, or Frame Buffer Compression, is a technique employed to compress the

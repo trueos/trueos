@@ -50,7 +50,7 @@ int drm_dma_setup(struct drm_device *dev)
 {
 	int i;
 
-	dev->dma = malloc(sizeof(*dev->dma), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
+	dev->dma = kzalloc(sizeof(*dev->dma), GFP_KERNEL);
 	if (!dev->dma)
 		return -ENOMEM;
 
@@ -89,20 +89,19 @@ void drm_dma_takedown(struct drm_device *dev)
 					drm_pci_free(dev, dma->bufs[i].seglist[j]);
 				}
 			}
-			free(dma->bufs[i].seglist, DRM_MEM_SEGS);
+			kfree(dma->bufs[i].seglist);
 		}
 		if (dma->bufs[i].buf_count) {
 			for (j = 0; j < dma->bufs[i].buf_count; j++) {
-				free(dma->bufs[i].buflist[j].dev_private,
-				    DRM_MEM_BUFS);
+				kfree(dma->bufs[i].buflist[j].dev_private);
 			}
-			free(dma->bufs[i].buflist, DRM_MEM_BUFS);
+			kfree(dma->bufs[i].buflist);
 		}
 	}
 
-	free(dma->buflist, DRM_MEM_BUFS);
-	free(dma->pagelist, DRM_MEM_PAGES);
-	free(dev->dma, DRM_MEM_DRIVER);
+	kfree(dma->buflist);
+	kfree(dma->pagelist);
+	kfree(dev->dma);
 	dev->dma = NULL;
 }
 

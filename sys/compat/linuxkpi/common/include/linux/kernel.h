@@ -65,8 +65,9 @@
 #define	BUILD_BUG_ON(x)		CTASSERT(!(x))
 
 #define BUG()			panic("BUG")
-#define BUG_ON(condition)	do { if (condition) BUG(); } while(0)
-#define	WARN_ON			BUG_ON
+#define	BUG_ON(cond)		KASSERT(!(cond), ("BUG ON: " #cond " -> 0x%jx", (uintmax_t)(cond)))
+#define	WARN_ON(cond)		WARN(cond, "WARN ON: " #cond)
+#define	WARN_ON_SMP(cond)	WARN_ON(cond)
 
 #undef	ALIGN
 #define	ALIGN(x, y)		roundup2((x), (y))
@@ -116,7 +117,7 @@
 #define log_once(level,...) do {		\
 	static bool __log_once;			\
 						\
-	if (!__log_once) {			\
+	if (unlikely(!__log_once)) {		\
 		__log_once = true;		\
 		log(level, __VA_ARGS__);	\
 	}					\
@@ -133,6 +134,8 @@
 #define pr_warning(fmt, ...) \
 	log(LOG_WARNING, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warn pr_warning
+#define pr_warn_once(fmt, ...) \
+	log_once(LOG_WARNING, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_notice(fmt, ...) \
 	log(LOG_NOTICE, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info(fmt, ...) \
@@ -147,6 +150,15 @@
         int __ret_warn_on = !!(condition);                              \
         if (unlikely(__ret_warn_on))                                    \
                 pr_warning(format);                                     \
+        unlikely(__ret_warn_on);                                        \
+})
+#endif
+
+#ifndef WARN_ONCE
+#define WARN_ONCE(condition, format...) ({                              \
+        int __ret_warn_on = !!(condition);                              \
+        if (unlikely(__ret_warn_on))                                    \
+                pr_warn_once(format);                                   \
         unlikely(__ret_warn_on);                                        \
 })
 #endif
@@ -171,8 +183,15 @@
 #define min3(a, b, c)	min(a, min(b,c))
 #define max3(a, b, c)	max(a, max(b,c))
 
-#define min_t(type, _x, _y)	((type)(_x) < (type)(_y) ? (type)(_x) : (type)(_y))
-#define max_t(type, _x, _y)	((type)(_x) > (type)(_y) ? (type)(_x) : (type)(_y))
+#define min_t(type, x, y) ({			\
+	type __min1 = (x);			\
+	type __min2 = (y);			\
+	__min1 < __min2 ? __min1 : __min2; })
+
+#define max_t(type, x, y) ({			\
+	type __max1 = (x);			\
+	type __max2 = (y);			\
+	__max1 > __max2 ? __max1 : __max2; })
 
 #define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
 #define clamp(x, lo, hi)		min( max(x,lo), hi)

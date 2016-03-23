@@ -190,7 +190,7 @@ static int drm_open_helper(struct cdev *kdev, int flags, int fmt,
 
 	DRM_DEBUG("pid = %d, device = %s\n", DRM_CURRENTPID, devtoname(kdev));
 
-	priv = malloc(sizeof(*priv), DRM_MEM_FILES, M_NOWAIT | M_ZERO);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -283,7 +283,7 @@ static int drm_open_helper(struct cdev *kdev, int flags, int fmt,
 
 	return ret;
       out_free:
-	free(priv, DRM_MEM_FILES);
+	kfree(priv);
 	return ret;
 }
 
@@ -446,7 +446,7 @@ void drm_release(void *data)
 		drm_prime_destroy_file_private(&file_priv->prime);
 #endif /* FREEBSD_NOTYET */
 
-	free(file_priv, DRM_MEM_FILES);
+	kfree(file_priv);
 
 	/* ========================================================
 	 * End inline drm_release
@@ -516,7 +516,7 @@ drm_read(struct cdev *kdev, struct uio *uio, int ioflag)
 			error = EAGAIN;
 			goto out;
 		}
-		error = msleep(&file_priv->event_space, &dev->event_lock,
+		error = bsd_msleep(&file_priv->event_space, &dev->event_lock,
 	           PCATCH, "drmrea", 0);
 	       if (error != 0)
 		       goto out;

@@ -2247,7 +2247,7 @@ intel_finish_fb(struct drm_framebuffer *old_fb)
 	mtx_lock(&dev->event_lock);
 	while (!(atomic_read(&dev_priv->mm.wedged) ||
 	         atomic_read(&obj->pending_flip) == 0)) {
-		msleep(&dev_priv->pending_flip_queue, &dev->event_lock,
+		bsd_msleep(&dev_priv->pending_flip_queue, &dev->event_lock,
 		    0, "915flp", 0);
 	}
 	mtx_unlock(&dev->event_lock);
@@ -2959,7 +2959,7 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 
 	mtx_lock(&dev->event_lock);
 	while (intel_crtc_has_pending_flip(crtc)) {
-		msleep(&dev_priv->pending_flip_queue, &dev->event_lock,
+		bsd_msleep(&dev_priv->pending_flip_queue, &dev->event_lock,
 		    0, "915flp", 0);
 	}
 	mtx_unlock(&dev->event_lock);
@@ -8885,8 +8885,6 @@ static const struct intel_dmi_quirk intel_dmi_quirks[] = {
 		.hook = quirk_invert_brightness,
 	},
 };
-
-#define	PCI_ANY_ID	(~0u)
 
 static struct intel_quirk intel_quirks[] = {
 	/* HP Mini needs pipe A force quirk (LP: #322104) */
