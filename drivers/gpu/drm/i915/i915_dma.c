@@ -1401,10 +1401,10 @@ out_runtime_pm_put:
 	intel_runtime_pm_put(dev_priv);
 	i915_driver_cleanup_early(dev_priv);
 out_free_priv:
-	i915_locks_destroy(dev_priv);
-	kfree(dev_priv);
 
 	i915_load_error(dev_priv, "Device initialization failed (%d)\n", ret);
+	i915_locks_destroy(dev_priv);
+	kfree(dev_priv);
 
 	return ret;
 }
