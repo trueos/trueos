@@ -1456,6 +1456,7 @@ struct intel_vbt_data {
 		int lanes;
 		int preemphasis;
 		int vswing;
+		bool low_vswing;
 		bool initialized;
 		bool support;
 		int bpp;
@@ -1967,8 +1968,6 @@ struct drm_i915_private {
 	} gt;
 
 	struct intel_context *kernel_context;
-
-	bool edp_low_vswing;
 
 	/* perform PHY state sanity checks? */
 	bool chv_phy_assert[2];
