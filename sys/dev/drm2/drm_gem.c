@@ -220,6 +220,12 @@ drm_gem_remove_prime_handles(struct drm_gem_object *obj, struct drm_file *filp)
 				obj->export_dma_buf);
 	}
 }
+#else
+static void
+drm_gem_remove_prime_handles(struct drm_gem_object *obj __unused, struct drm_file *filp __unused)
+{
+	;
+}
 #endif
 
 /**
@@ -253,9 +259,7 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 	/* Release reference and decrement refcount. */
 	idr_remove(&filp->object_idr, handle);
 	spin_unlock(&filp->table_lock);
-#ifdef notyet
 	drm_gem_remove_prime_handles(obj, filp);
-#endif
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, filp);
 	drm_gem_object_handle_unreference_unlocked(obj);
@@ -536,15 +540,13 @@ drm_gem_open(struct drm_device *dev, struct drm_file *file_private)
  * handle references on objects.
  */
 static int
-drm_gem_object_release_handle(int name, void *ptr, void *data)
+drm_gem_object_release_handle(int id, void *ptr, void *data)
 {
 	struct drm_file *file_priv = data;
 	struct drm_gem_object *obj = ptr;
 	struct drm_device *dev = obj->dev;
 
-#if defined(FREEBSD_NOTYET)
 	drm_gem_remove_prime_handles(obj, file_priv);
-#endif
 
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, file_priv);
