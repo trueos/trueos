@@ -1,30 +1,28 @@
-/*-
- * Copyright (c) 2011 The FreeBSD Foundation
- * All rights reserved.
+/*
+ * Copyright © 2008 Intel Corporation
  *
- * This software was developed by Konstantin Belousov under sponsorship from
- * the FreeBSD Foundation.
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ *
+ * Authors:
+ *    Eric Anholt <eric@anholt.net>
+ *
  */
 
 #include <sys/cdefs.h>
@@ -598,6 +596,11 @@ drm_gem_object_free(struct kref *kref)
 }
 EXPORT_SYMBOL(drm_gem_object_free);
 
+static void drm_gem_object_ref_bug(struct kref *list_kref)
+{
+	BUG();
+}
+
 /**
  * Called after the last handle to the object has been closed
  *
@@ -608,83 +611,23 @@ EXPORT_SYMBOL(drm_gem_object_free);
 void drm_gem_object_handle_free(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-#ifdef notyet
-	struct drm_gem_object *obj1;
-#endif
 
+	/* XXX kib free obj1 - do we need to do the same ? */
+	/* Remove any name for this object */
+	spin_lock(&dev->object_name_lock);
 	if (obj->name) {
 		idr_remove(&dev->object_name_idr, obj->name);
 		obj->name = 0;
-#ifdef notyet
-		drm_gem_object_unreference(obj1);
-#endif
-	}
+		spin_unlock(&dev->object_name_lock);
+		/*
+		 * The object name held a reference to this object, drop
+		 * that now.
+		*
+		* This cannot be the last reference, since the handle holds one too.
+		 */
+		kref_put(&obj->refcount, drm_gem_object_ref_bug);
+	} else
+		spin_unlock(&dev->object_name_lock);
+
 }
-
-static struct drm_gem_object *
-drm_gem_object_from_offset(struct drm_device *dev, vm_ooffset_t offset)
-{
-	struct drm_gem_object *obj;
-	struct drm_gem_mm *mm;
-	struct drm_hash_item *hash;
-	struct drm_map_list *map_list;
-
-	if ((offset & DRM_GEM_MAPPING_MASK) != DRM_GEM_MAPPING_KEY)
-		return (NULL);
-	offset &= ~DRM_GEM_MAPPING_KEY;
-	mm = dev->mm_private;
-	if (drm_ht_find_item(&mm->offset_hash, DRM_GEM_MAPPING_IDX(offset),
-	    &hash) != 0) {
-	DRM_DEBUG("drm_gem_object_from_offset: offset 0x%jx obj not found\n",
-		    (uintmax_t)offset);
-		return (NULL);
-	}
-	map_list = drm_hash_entry(hash, struct drm_map_list, hash);
-	/* XXX */
-	if (!map_list)
-		return (NULL);
-	obj = __containerof(map_list, struct drm_gem_object, map_list);
-	return (obj);
-}
-
-int
-drm_gem_mmap_single(struct drm_device *dev, vm_ooffset_t *offset, vm_size_t size,
-    struct vm_object **obj_res, int nprot)
-{
-	struct drm_gem_object *gem_obj;
-	struct vm_object *vm_obj;
-
-	mutex_lock(&dev->struct_mutex);
-	gem_obj = drm_gem_object_from_offset(dev, *offset);
-	if (gem_obj == NULL) {
-		mutex_unlock(&dev->struct_mutex);
-		return (-ENODEV);
-	}
-	drm_gem_object_reference(gem_obj);
-	mutex_unlock(&dev->struct_mutex);
-	vm_obj = cdev_pager_allocate(gem_obj, OBJT_MGTDEVICE,
-	    dev->driver->gem_pager_ops, size, nprot,
-	    DRM_GEM_MAPPING_MAPOFF(*offset), curthread->td_ucred);
-	if (vm_obj == NULL) {
-		drm_gem_object_unreference_unlocked(gem_obj);
-		return (-EINVAL);
-	}
-	*offset = DRM_GEM_MAPPING_MAPOFF(*offset);
-	*obj_res = vm_obj;
-	return (0);
-}
-
-void
-drm_gem_pager_dtr(void *handle)
-{
-	struct drm_gem_object *obj;
-	struct drm_device *dev;
-
-	obj = handle;
-	dev = obj->dev;
-
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_free_mmap_offset(obj);
-	drm_gem_object_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
-}
+EXPORT_SYMBOL(drm_gem_object_handle_free);

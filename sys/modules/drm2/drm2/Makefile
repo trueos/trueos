@@ -18,6 +18,7 @@ SRCS	= \
 	drm_fb_helper.c \
 	drm_fops.c \
 	drm_gem.c \
+	drm_gem_freebsd.c \
 	drm_global.c \
 	drm_hashtab.c \
 	drm_ioctl.c \
