@@ -110,6 +110,10 @@ drm_gem_destroy(struct drm_device *dev)
 	dev->mm_private = NULL;
 }
 
+/**
+ * Initialize an already allocated GEM object of the specified size with
+ * shmfs backing store.
+ */
 int drm_gem_object_init(struct drm_device *dev,
 			struct drm_gem_object *obj, size_t size)
 {
@@ -149,6 +153,9 @@ int drm_gem_private_object_init(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_gem_private_object_init);
 
+/**
+ * Allocate a GEM object of the specified size with shmfs backing store
+ */
 struct drm_gem_object *
 drm_gem_object_alloc(struct drm_device *dev, size_t size)
 {
@@ -197,6 +204,7 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 {
 	struct drm_device *dev;
 	struct drm_gem_object *obj;
+
 	/* This is gross. The idr system doesn't let us try a delete and
 	 * return an error code.  It just spews if you fail at deleting.
 	 * So, we have to grab a lock around finding the object and then
@@ -271,6 +279,13 @@ drm_gem_handle_create(struct drm_file *file_priv,
 }
 EXPORT_SYMBOL(drm_gem_handle_create);
 
+
+/**
+ * drm_gem_free_mmap_offset - release a fake mmap offset for an object
+ * @obj: obj in question
+ *
+ * This routine frees fake offsets allocated by drm_gem_create_mmap_offset().
+ */
 void
 drm_gem_free_mmap_offset(struct drm_gem_object *obj)
 {
@@ -288,6 +303,17 @@ drm_gem_free_mmap_offset(struct drm_gem_object *obj)
 }
 EXPORT_SYMBOL(drm_gem_free_mmap_offset);
 
+/**
+ * drm_gem_create_mmap_offset - create a fake mmap offset for an object
+ * @obj: obj in question
+ *
+ * GEM memory mapping works by handing back to userspace a fake mmap offset
+ * it can use in a subsequent mmap(2) call.  The DRM core code then looks
+ * up the object based on the offset and sets up the various memory mapping
+ * structures.
+ *
+ * This routine allocates and attaches a fake offset for @obj.
+ */
 int
 drm_gem_create_mmap_offset(struct drm_gem_object *obj)
 {
@@ -342,7 +368,6 @@ out_free_list:
 
 	return ret;
 }
-
 EXPORT_SYMBOL(drm_gem_create_mmap_offset);
 
 /** Returns a reference to the object named by the handle. */
@@ -369,6 +394,9 @@ drm_gem_object_lookup(struct drm_device *dev, struct drm_file *filp,
 }
 EXPORT_SYMBOL(drm_gem_object_lookup);
 
+/**
+ * Releases the handle to an mm object.
+ */
 int
 drm_gem_close_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
@@ -384,6 +412,12 @@ drm_gem_close_ioctl(struct drm_device *dev, void *data,
 	return ret;
 }
 
+/**
+ * Create a global name for an object, returning the name.
+ *
+ * Note that the name does not hold a reference; when the object
+ * is freed, the name goes away.
+ */
 int
 drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
@@ -426,6 +460,12 @@ err:
 	return ret;
 }
 
+/**
+ * Open an object using the global name, returning a handle and the size.
+ *
+ * This handle (of course) holds a reference to the object, so the object
+ * will not go away until the handle is deleted.
+ */
 int
 drm_gem_open_ioctl(struct drm_device *dev, void *data,
 		   struct drm_file *file_priv)
@@ -457,6 +497,10 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+/**
+ * Called at device open time, sets up the structure for handling refcounting
+ * of mm objects.
+ */
 void
 drm_gem_open(struct drm_device *dev, struct drm_file *file_private)
 {
@@ -464,6 +508,10 @@ drm_gem_open(struct drm_device *dev, struct drm_file *file_private)
 	spin_lock_init(&file_private->table_lock);
 }
 
+/**
+ * Called at device close to release the file's
+ * handle references on objects.
+ */
 static int
 drm_gem_object_release_handle(int name, void *ptr, void *data)
 {
@@ -483,6 +531,11 @@ drm_gem_object_release_handle(int name, void *ptr, void *data)
 	return 0;
 }
 
+/**
+ * Called at close time when the filp is going away.
+ *
+ * Releases any remaining references on objects by this filp.
+ */
 void
 drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 {
@@ -502,6 +555,12 @@ drm_gem_object_release(struct drm_gem_object *obj)
 }
 EXPORT_SYMBOL(drm_gem_object_release);
 
+/**
+ * Called after the last reference to the object has been lost.
+ * Must be called holding struct_ mutex
+ *
+ * Frees the object
+ */
 void
 drm_gem_object_free(struct drm_gem_object *obj)
 {
@@ -513,6 +572,13 @@ drm_gem_object_free(struct drm_gem_object *obj)
 }
 EXPORT_SYMBOL(drm_gem_object_free);
 
+/**
+ * Called after the last handle to the object has been closed
+ *
+ * Removes any name for the object. Note that this must be
+ * called before drm_gem_object_free or we'll be touching
+ * freed memory
+ */
 void drm_gem_object_handle_free(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
