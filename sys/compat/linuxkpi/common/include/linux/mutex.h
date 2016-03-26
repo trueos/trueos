@@ -46,6 +46,7 @@ typedef struct mutex {
 #define	mutex_lock_interruptible(_m)	({ mutex_lock((_m)); 0; })
 #define	mutex_unlock(_m)		sx_xunlock(&(_m)->sx)
 #define	mutex_trylock(_m)		!!sx_try_xlock(&(_m)->sx)
+#define	mutex_is_locked(_m)		sx_xlocked(&(_m)->sx)
 
 #define DEFINE_MUTEX(lock)						\
 	mutex_t lock;							\
