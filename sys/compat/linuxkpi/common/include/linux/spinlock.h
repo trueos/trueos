@@ -63,6 +63,13 @@ spin_lock_init(spinlock_t *lock)
 	mtx_init(&lock->m, "lnxspin", NULL, MTX_DEF | MTX_NOWITNESS);
 }
 
+static inline void
+spin_lock_destroy(spinlock_t *lock)
+{
+	mtx_destroy(&lock->m);
+}
+
+
 #define	DEFINE_SPINLOCK(lock)						\
 	spinlock_t lock;						\
 	MTX_SYSINIT(lock, &(lock).m, "lnxspin", MTX_DEF)
