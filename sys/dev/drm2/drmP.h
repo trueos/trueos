@@ -95,6 +95,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 #include <sys/bus.h>
 
+#include <compat/linuxkpi/common/include/linux/idr.h>
+
 /*
  * CEM: drm.h brings in drm_os_freebsd.h, which brings in linuxkpi list.h.
  * drm_gem_names and drm_hashtab use FreeBSD queue(9) macros.  Include them
@@ -103,7 +105,7 @@ __FBSDID("$FreeBSD$");
  * We probably can (and should) drop drm_hashtab.h entirely and diff-reduce
  * drm_hashtab.c to use the Linux list implementation.
  */
-#include <dev/drm2/drm_gem_names.h>
+
 #include <dev/drm2/drm_hashtab.h>
 
 #include <dev/drm2/drm.h>
@@ -417,7 +419,10 @@ struct drm_file {
 	unsigned long lock_count;
 
 	void *driver_priv;
-	struct drm_gem_names object_names;
+	struct idr object_idr;
+
+	/** Lock for synchronization of access to object_idr. */
+	spinlock_t table_lock;
 
 	int is_master; /* this file private is a master for a minor */
 	struct drm_master *master; /* master this node is currently associated with
@@ -575,7 +580,8 @@ struct drm_ati_pcigart_info {
  * GEM specific mm private for tracking GEM objects
  */
 struct drm_gem_mm {
-	struct unrhdr *idxunr;
+/*	struct unrhdr *idxunr; */
+	struct drm_mm offset_manager;	/**< Offset mgmt for buffer objects */
 	struct drm_open_hash offset_hash; /**< User token hash table for maps */
 };
 
@@ -598,7 +604,7 @@ struct drm_gem_object {
 
 	/* Mapping info for this object */
 	bool on_map;
-	struct drm_hash_item map_list;
+	struct drm_map_list map_list;
 
 	/**
 	 * Size of the object, in bytes.  Immutable over the object's
@@ -1013,6 +1019,8 @@ struct drm_device {
 	int max_context;
 	unsigned long *ctx_bitmap;
 
+	struct idr ctx_idr;
+
 	/*@} */
 
 	/** \name DMA support */
@@ -1091,8 +1099,8 @@ struct drm_device {
 
 	/** \name GEM information */
 	/*@{ */
-	struct sx object_name_lock;
-	struct drm_gem_names object_names;
+	spinlock_t object_name_lock; /* XXX does this need to be an sx lock */
+	struct idr object_name_idr;
 	/*@} */
 	int switch_power_state;
 

@@ -62,6 +62,8 @@ __FBSDID("$FreeBSD$");
 #define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFUL >> PAGE_SHIFT) * 16)
 #endif
 
+#include <compat/linuxkpi/common/include/linux/idr.h>
+
 /**
  * Initialize the GEM device fields
  */
@@ -71,7 +73,8 @@ drm_gem_init(struct drm_device *dev)
 {
 	struct drm_gem_mm *mm;
 
-	drm_gem_names_init(&dev->object_names);
+	spin_lock_init(&dev->object_name_lock);
+	idr_init(&dev->object_name_idr);
 
 	mm = kzalloc(sizeof(struct drm_gem_mm), GFP_KERNEL);
 	if (!mm) {
@@ -81,12 +84,17 @@ drm_gem_init(struct drm_device *dev)
 
 	dev->mm_private = mm;
 
-	if (drm_ht_create(&mm->offset_hash, 19)) {
+	if (drm_ht_create(&mm->offset_hash, 12)) {
 		kfree(mm);
 		return -ENOMEM;
 	}
 
-	mm->idxunr = new_unrhdr(0, DRM_GEM_MAX_IDX, NULL);
+	if (drm_mm_init(&mm->offset_manager, DRM_FILE_PAGE_OFFSET_START,
+			DRM_FILE_PAGE_OFFSET_SIZE)) {
+		drm_ht_remove(&mm->offset_hash);
+		kfree(mm);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -96,11 +104,10 @@ drm_gem_destroy(struct drm_device *dev)
 {
 	struct drm_gem_mm *mm = dev->mm_private;
 
-	dev->mm_private = NULL;
+	drm_mm_takedown(&mm->offset_manager);
 	drm_ht_remove(&mm->offset_hash);
-	delete_unrhdr(mm->idxunr);
 	kfree(mm);
-	drm_gem_names_fini(&dev->object_names);
+	dev->mm_private = NULL;
 }
 
 int drm_gem_object_init(struct drm_device *dev,
@@ -190,17 +197,31 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 {
 	struct drm_device *dev;
 	struct drm_gem_object *obj;
+	/* This is gross. The idr system doesn't let us try a delete and
+	 * return an error code.  It just spews if you fail at deleting.
+	 * So, we have to grab a lock around finding the object and then
+	 * doing the delete on it and dropping the refcount, or the user
+	 * could race us to double-decrement the refcount and cause a
+	 * use-after-free later.  Given the frequency of our handle lookups,
+	 * we may want to use ida for number allocation and a hash table
+	 * for the pointers, anyway.
+	 */
+	spin_lock(&filp->table_lock);
 
-	obj = drm_gem_names_remove(&filp->object_names, handle);
+	/* Check if we currently have a reference on the object */
+	obj = idr_find(&filp->object_idr, handle);
 	if (obj == NULL) {
+		spin_unlock(&filp->table_lock);
 		return -EINVAL;
 	}
 	dev = obj->dev;
 
-#if defined(FREEBSD_NOTYET)
+	/* Release reference and decrement refcount. */
+	idr_remove(&filp->object_idr, handle);
+	spin_unlock(&filp->table_lock);
+#ifdef notyet
 	drm_gem_remove_prime_handles(obj, filp);
 #endif
-
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, filp);
 	drm_gem_object_handle_unreference_unlocked(obj);
@@ -222,9 +243,18 @@ drm_gem_handle_create(struct drm_file *file_priv,
 	struct drm_device *dev = obj->dev;
 	int ret;
 
-	*handlep = 0;
-	ret = drm_gem_name_create(&file_priv->object_names, obj, handlep);
-	if (ret != 0)
+	/*
+	 * Get the user-visible handle using idr.  Preload and perform
+	 * allocation under our spinlock.
+	 */
+	idr_preload(GFP_KERNEL);
+	spin_lock(&file_priv->table_lock);
+
+	ret = idr_alloc(&file_priv->object_idr, obj, 1, 0, GFP_NOWAIT);
+
+	spin_unlock(&file_priv->table_lock);
+	idr_preload_end();
+	if (ret < 0)
 		return ret;
 
 	drm_gem_object_handle_reference(obj);
@@ -246,14 +276,15 @@ drm_gem_free_mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_gem_mm *mm = dev->mm_private;
-	struct drm_hash_item *list = &obj->map_list;
+	struct drm_map_list *list = &obj->map_list;
 
 	if (!obj->on_map)
 		return;
 
-	drm_ht_remove_item(&mm->offset_hash, list);
-	free_unr(mm->idxunr, list->key);
-	obj->on_map = false;
+	drm_ht_remove_item(&mm->offset_hash, &list->hash);
+	drm_mm_put_block(list->file_offset_node);
+	kfree(list->map);
+	list->map = NULL;
 }
 EXPORT_SYMBOL(drm_gem_free_mmap_offset);
 
@@ -262,22 +293,56 @@ drm_gem_create_mmap_offset(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_gem_mm *mm = dev->mm_private;
+	struct drm_map_list *list;
+	struct drm_local_map *map;
 	int ret;
 
-	if (obj->on_map)
-		return 0;
+	/* Set the object up for mmap'ing */
+	list = &obj->map_list;
+	list->map = kzalloc(sizeof(struct drm_map_list), GFP_KERNEL);
+	if (!list->map)
+		return -ENOMEM;
 
-	obj->map_list.key = alloc_unr(mm->idxunr);
-	ret = drm_ht_insert_item(&mm->offset_hash, &obj->map_list);
+	map = list->map;
+	map->type = _DRM_GEM;
+	map->size = obj->size;
+	map->handle = obj;
+
+	/* Get a DRM GEM mmap offset allocated... */
+	list->file_offset_node = drm_mm_search_free(&mm->offset_manager,
+			obj->size / PAGE_SIZE, 0, false);
+
+	if (!list->file_offset_node) {
+		DRM_ERROR("failed to allocate offset for bo %d\n", obj->name);
+		ret = -ENOSPC;
+		goto out_free_list;
+	}
+
+	list->file_offset_node = drm_mm_get_block(list->file_offset_node,
+			obj->size / PAGE_SIZE, 0);
+	if (!list->file_offset_node) {
+		ret = -ENOMEM;
+		goto out_free_list;
+	}
+
+	list->hash.key = list->file_offset_node->start;
+	ret = drm_ht_insert_item(&mm->offset_hash, &list->hash);
 	if (ret) {
 		DRM_ERROR("failed to add to map hash\n");
-		free_unr(mm->idxunr, obj->map_list.key);
-		return ret;
+		goto out_free_mm;
 	}
-	obj->on_map = true;
 
 	return 0;
+
+out_free_mm:
+	drm_mm_put_block(list->file_offset_node);
+out_free_list:
+	kfree(list->map);
+	list->map = NULL;
+
+	return ret;
 }
+
 EXPORT_SYMBOL(drm_gem_create_mmap_offset);
 
 /** Returns a reference to the object named by the handle. */
@@ -287,8 +352,18 @@ drm_gem_object_lookup(struct drm_device *dev, struct drm_file *filp,
 {
 	struct drm_gem_object *obj;
 
-	obj = drm_gem_name_ref(&filp->object_names, handle,
-	    (void (*)(void *))drm_gem_object_reference);
+	spin_lock(&filp->table_lock);
+
+	/* Check if we currently have a reference on the object */
+	obj = idr_find(&filp->object_idr, handle);
+	if (obj == NULL) {
+		spin_unlock(&filp->table_lock);
+		return NULL;
+	}
+
+	drm_gem_object_reference(obj);
+
+	spin_unlock(&filp->table_lock);
 
 	return obj;
 }
@@ -324,14 +399,30 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 	if (obj == NULL)
 		return -ENOENT;
 
-	ret = drm_gem_name_create(&dev->object_names, obj, &obj->name);
-	if (ret != 0) {
-		if (ret == -EALREADY)
-			ret = 0;
-		drm_gem_object_unreference_unlocked(obj);
+	idr_preload(GFP_KERNEL);
+	spin_lock(&dev->object_name_lock);
+	if (!obj->name) {
+		ret = idr_alloc(&dev->object_name_idr, obj, 1, 0, GFP_NOWAIT);
+		obj->name = ret;
+		args->name = (uint64_t) obj->name;
+		spin_unlock(&dev->object_name_lock);
+		idr_preload_end();
+
+		if (ret < 0)
+			goto err;
+		ret = 0;
+
+		/* Allocate a reference for the name table.  */
+		drm_gem_object_reference(obj);
+	} else {
+		args->name = (uint64_t) obj->name;
+		spin_unlock(&dev->object_name_lock);
+		idr_preload_end();
+		ret = 0;
 	}
-	if (ret == 0)
-		args->name = obj->name;
+
+err:
+	drm_gem_object_unreference_unlocked(obj);
 	return ret;
 }
 
@@ -347,8 +438,11 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
 
-	obj = drm_gem_name_ref(&dev->object_names, args->name,
-	    (void (*)(void *))drm_gem_object_reference);
+	spin_lock(&dev->object_name_lock);
+	obj = idr_find(&dev->object_name_idr, (int) args->name);
+	if (obj)
+		drm_gem_object_reference(obj);
+	spin_unlock(&dev->object_name_lock);
 	if (!obj)
 		return -ENOENT;
 
@@ -366,12 +460,12 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 void
 drm_gem_open(struct drm_device *dev, struct drm_file *file_private)
 {
-
-	drm_gem_names_init(&file_private->object_names);
+	idr_init(&file_private->object_idr);
+	spin_lock_init(&file_private->table_lock);
 }
 
 static int
-drm_gem_object_release_handle(uint32_t name, void *ptr, void *data)
+drm_gem_object_release_handle(int name, void *ptr, void *data)
 {
 	struct drm_file *file_priv = data;
 	struct drm_gem_object *obj = ptr;
@@ -392,10 +486,9 @@ drm_gem_object_release_handle(uint32_t name, void *ptr, void *data)
 void
 drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 {
-	drm_gem_names_foreach(&file_private->object_names,
+	idr_for_each(&file_private->object_idr,
 	    drm_gem_object_release_handle, file_private);
-
-	drm_gem_names_fini(&file_private->object_names);
+	idr_destroy(&file_private->object_idr);
 }
 
 void
@@ -423,12 +516,16 @@ EXPORT_SYMBOL(drm_gem_object_free);
 void drm_gem_object_handle_free(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
+#ifdef notyet
 	struct drm_gem_object *obj1;
+#endif
 
 	if (obj->name) {
-		obj1 = drm_gem_names_remove(&dev->object_names, obj->name);
+		idr_remove(&dev->object_name_idr, obj->name);
 		obj->name = 0;
+#ifdef notyet
 		drm_gem_object_unreference(obj1);
+#endif
 	}
 }
 
@@ -437,18 +534,23 @@ drm_gem_object_from_offset(struct drm_device *dev, vm_ooffset_t offset)
 {
 	struct drm_gem_object *obj;
 	struct drm_gem_mm *mm;
-	struct drm_hash_item *map_list;
+	struct drm_hash_item *hash;
+	struct drm_map_list *map_list;
 
 	if ((offset & DRM_GEM_MAPPING_MASK) != DRM_GEM_MAPPING_KEY)
 		return (NULL);
 	offset &= ~DRM_GEM_MAPPING_KEY;
 	mm = dev->mm_private;
 	if (drm_ht_find_item(&mm->offset_hash, DRM_GEM_MAPPING_IDX(offset),
-	    &map_list) != 0) {
+	    &hash) != 0) {
 	DRM_DEBUG("drm_gem_object_from_offset: offset 0x%jx obj not found\n",
 		    (uintmax_t)offset);
 		return (NULL);
 	}
+	map_list = drm_hash_entry(hash, struct drm_map_list, hash);
+	/* XXX */
+	if (!map_list)
+		return (NULL);
 	obj = __containerof(map_list, struct drm_gem_object, map_list);
 	return (obj);
 }
