@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (c) 2006-2008 Intel Corporation
  * Copyright (c) 2007 Dave Airlie <airlied@linux.ie>
  * Copyright (c) 2008 Red Hat Inc.
@@ -3625,19 +3625,19 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 		ret = -ENOMEM;
-		mtx_lock(&dev->event_lock);
+		spin_lock(&dev->event_lock);
 		if (file_priv->event_space < sizeof e->event) {
-			mtx_unlock(&dev->event_lock);
+			spin_unlock(&dev->event_lock);
 			goto out;
 		}
 		file_priv->event_space -= sizeof e->event;
-		mtx_unlock(&dev->event_lock);
+		spin_unlock(&dev->event_lock);
 
 		e = kzalloc(sizeof *e, GFP_KERNEL);
 		if (e == NULL) {
-			mtx_lock(&dev->event_lock);
+			spin_lock(&dev->event_lock);
 			file_priv->event_space += sizeof e->event;
-			mtx_unlock(&dev->event_lock);
+			spin_unlock(&dev->event_lock);
 			goto out;
 		}
 
@@ -3653,9 +3653,9 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	ret = crtc->funcs->page_flip(crtc, fb, e);
 	if (ret) {
 		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-			mtx_lock(&dev->event_lock);
+			spin_lock(&dev->event_lock);
 			file_priv->event_space += sizeof e->event;
-			mtx_unlock(&dev->event_lock);
+			spin_unlock(&dev->event_lock);
 			kfree(e);
 		}
 	}

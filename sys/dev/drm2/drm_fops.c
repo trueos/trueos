@@ -510,20 +510,20 @@ drm_read(struct cdev *kdev, struct uio *uio, int ioflag)
 	}
 
 	dev = drm_get_device_from_kdev(kdev);
-	mtx_lock(&dev->event_lock);
+	spin_lock(&dev->event_lock);
 	while (list_empty(&file_priv->event_list)) {
 		if ((ioflag & O_NONBLOCK) != 0) {
 			error = EAGAIN;
 			goto out;
 		}
-		error = bsd_msleep(&file_priv->event_space, &dev->event_lock,
+		error = bsd_msleep(&file_priv->event_space, &dev->event_lock.m,
 	           PCATCH, "drmrea", 0);
 	       if (error != 0)
 		       goto out;
 	}
 
 	while (drm_dequeue_event(file_priv, uio, &e)) {
-		mtx_unlock(&dev->event_lock);
+		spin_unlock(&dev->event_lock);
 		error = uiomove(e->event, e->event->length, uio);
 		CTR3(KTR_DRM, "drm_event_dequeued %d %d %d", curproc->p_pid,
 		    e->event->type, e->event->length);
@@ -531,11 +531,11 @@ drm_read(struct cdev *kdev, struct uio *uio, int ioflag)
 		e->destroy(e);
 		if (error != 0)
 			return (error);
-		mtx_lock(&dev->event_lock);
+		spin_lock(&dev->event_lock);
 	}
 
 out:
-	mtx_unlock(&dev->event_lock);
+	spin_unlock(&dev->event_lock);
 	return (error);
 }
 EXPORT_SYMBOL(drm_read);
@@ -570,7 +570,7 @@ drm_poll(struct cdev *kdev, int events, struct thread *td)
 	dev = drm_get_device_from_kdev(kdev);
 
 	revents = 0;
-	mtx_lock(&dev->event_lock);
+	spin_lock(&dev->event_lock);
 	if ((events & (POLLIN | POLLRDNORM)) != 0) {
 		if (list_empty(&file_priv->event_list)) {
 			CTR0(KTR_DRM, "drm_poll empty list");
@@ -580,7 +580,7 @@ drm_poll(struct cdev *kdev, int events, struct thread *td)
 			CTR1(KTR_DRM, "drm_poll revents %x", revents);
 		}
 	}
-	mtx_unlock(&dev->event_lock);
+	spin_unlock(&dev->event_lock);
 	return (revents);
 }
 EXPORT_SYMBOL(drm_poll);
