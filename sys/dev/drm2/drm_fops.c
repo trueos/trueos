@@ -305,7 +305,7 @@ static void drm_events_release(struct drm_file *file_priv)
 	struct drm_pending_vblank_event *v, *vt;
 	unsigned long flags;
 
-	DRM_SPINLOCK_IRQSAVE(&dev->event_lock, flags);
+	spin_lock_irqsave(&dev->event_lock, flags);
 
 	/* Remove pending flips */
 	list_for_each_entry_safe(v, vt, &dev->vblank_event_list, base.link)
@@ -319,7 +319,7 @@ static void drm_events_release(struct drm_file *file_priv)
 	list_for_each_entry_safe(e, et, &file_priv->event_list, link)
 		e->destroy(e);
 
-	DRM_SPINUNLOCK_IRQRESTORE(&dev->event_lock, flags);
+	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
 /**
@@ -475,7 +475,7 @@ drm_dequeue_event(struct drm_file *file_priv, struct uio *uio,
 	bool ret = false;
 
 	/* Already locked in drm_read(). */
-	/* DRM_SPINLOCK_IRQSAVE(&dev->event_lock, flags); */
+	/* spin_lock_irqsave(&dev->event_lock, flags); */
 
 	*out = NULL;
 	if (list_empty(&file_priv->event_list))

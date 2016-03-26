@@ -1661,11 +1661,6 @@ SYSCTL_DECL(_hw_drm);
 #define DRM_SPINUNINIT(l)	mtx_destroy(l)
 #define DRM_SPINLOCK(l)		mtx_lock(l)
 #define DRM_SPINUNLOCK(u)	mtx_unlock(u)
-#define DRM_SPINLOCK_IRQSAVE(l, irqflags) do {		\
-	spin_lock(l);					\
-	(void)irqflags;					\
-} while (0)
-#define DRM_SPINUNLOCK_IRQRESTORE(u, irqflags) spin_unlock(u)
 
 #define DRM_SYSCTL_HANDLER_ARGS	(SYSCTL_HANDLER_ARGS)
 
