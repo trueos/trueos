@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/spinlock.h>
 
 #define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define __OS_HAS_MTRR (defined(CONFIG_MTRR))
@@ -983,7 +984,7 @@ struct drm_device {
 
 	/** \name Locks */
 	/*@{ */
-	struct mtx count_lock;		/**< For inuse, drm_device::open_count, drm_device::buf_use */
+	spinlock_t count_lock;		/**< For inuse, drm_device::open_count, drm_device::buf_use */
 	struct mutex struct_mutex;	/**< For others */
 	/*@} */
 
