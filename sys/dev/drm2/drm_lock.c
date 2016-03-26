@@ -94,12 +94,14 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		}
 
 		/* Contention */
-		ret = -sx_sleep(&master->lock.lock_queue, &drm_global_mutex,
-		    PCATCH, "drmlk2", 0);
-		if (ret == -ERESTART)
-			ret = -ERESTARTSYS;
-		if (ret != 0)
+		mutex_unlock(&drm_global_mutex);
+		schedule();
+		mutex_lock(&drm_global_mutex);
+		/* XXX do we need to do more ? */
+		if (SIGPENDING(curthread)) {
+			ret = -EINTR;
 			break;
+		}
 	}
 	mtx_lock(&master->lock.spinlock);
 	master->lock.user_waiters--;

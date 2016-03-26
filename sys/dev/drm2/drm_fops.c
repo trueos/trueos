@@ -133,7 +133,7 @@ int drm_open(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 	if (!(dev = minor->dev))
 		return ENODEV;
 
-	sx_xlock(&drm_global_mutex);
+	mutex_lock(&drm_global_mutex);
 
 	/*
 	 * FIXME Linux<->FreeBSD: On Linux, counter updated outside
@@ -144,7 +144,7 @@ int drm_open(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 
 	retcode = drm_open_helper(kdev, flags, fmt, p, dev);
 	if (retcode) {
-		sx_xunlock(&drm_global_mutex);
+		mutex_unlock(&drm_global_mutex);
 		return (-retcode);
 	}
 	atomic_inc(&dev->counts[_DRM_STAT_OPENS]);
@@ -153,7 +153,7 @@ int drm_open(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 		if (retcode)
 			goto err_undo;
 	}
-	sx_xunlock(&drm_global_mutex);
+	mutex_unlock(&drm_global_mutex);
 	return 0;
 
 err_undo:
@@ -161,7 +161,7 @@ err_undo:
 	device_unbusy(dev->dev);
 	mtx_unlock(&Giant);
 	dev->open_count--;
-	sx_xunlock(&drm_global_mutex);
+	mutex_unlock(&drm_global_mutex);
 	return -retcode;
 }
 EXPORT_SYMBOL(drm_open);
@@ -339,7 +339,7 @@ void drm_release(void *data)
 	struct drm_file *file_priv = data;
 	struct drm_device *dev = file_priv->minor->dev;
 
-	sx_xlock(&drm_global_mutex);
+	mutex_lock(&drm_global_mutex);
 
 	DRM_DEBUG("open_count = %d\n", dev->open_count);
 
@@ -463,7 +463,7 @@ void drm_release(void *data)
 		} else
 			drm_lastclose(dev);
 	}
-	sx_xunlock(&drm_global_mutex);
+	mutex_unlock(&drm_global_mutex);
 }
 EXPORT_SYMBOL(drm_release);
 

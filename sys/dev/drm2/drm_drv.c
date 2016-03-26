@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm_core.h>
 #include <dev/drm2/drm_global.h>
 
-struct sx drm_global_mutex;
+struct mutex drm_global_mutex;
 
 /** Ioctl table */
 static struct drm_ioctl_desc drm_ioctls[] = {
@@ -257,7 +257,7 @@ static const struct file_operations drm_stub_fops = {
 static int __init drm_core_init(void)
 {
 
-	sx_init(&drm_global_mutex, "drm_global_mutex");
+	mutex_init(&drm_global_mutex);
 
 	drm_global_init();
 
@@ -279,7 +279,7 @@ static void __exit drm_core_exit(void)
 
 	drm_global_release();
 
-	sx_destroy(&drm_global_mutex);
+	mutex_destroy(&drm_global_mutex);
 }
 
 SYSINIT(drm_register, SI_SUB_KLD, SI_ORDER_MIDDLE,
@@ -466,9 +466,9 @@ int drm_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int flags,
 		if (ioctl->flags & DRM_UNLOCKED)
 			retcode = func(dev, data, file_priv);
 		else {
-			sx_xlock(&drm_global_mutex);
+			mutex_lock(&drm_global_mutex);
 			retcode = func(dev, data, file_priv);
-			sx_xunlock(&drm_global_mutex);
+			mutex_unlock(&drm_global_mutex);
 		}
 	}
 

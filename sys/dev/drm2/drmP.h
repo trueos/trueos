@@ -1203,7 +1203,7 @@ d_ioctl_t drm_ioctl;
 extern int drm_lastclose(struct drm_device *dev);
 
 				/* Device support (drm_fops.h) */
-extern struct sx drm_global_mutex;
+extern struct mutex drm_global_mutex;
 d_open_t drm_open;
 d_read_t drm_read;
 extern void drm_release(void *data);
@@ -1449,6 +1449,16 @@ void drm_prime_remove_imported_buf_handle(struct drm_prime_file_private *prime_f
 int drm_prime_add_dma_buf(struct drm_device *dev, struct drm_gem_object *obj);
 int drm_prime_lookup_obj(struct drm_device *dev, struct dma_buf *buf,
 			 struct drm_gem_object **obj);
+void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf);
+#else
+struct dma_buf;
+
+static inline void
+drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv __unused, struct dma_buf *dma_buf __unused)
+{
+	;
+}
+
 #endif /* FREEBSD_NOTYET */
 
 				/* Scatter Gather Support (drm_scatter.h) */
