@@ -30,6 +30,8 @@
 #include <dev/drm2/drm_mode.h>
 
 #include <dev/drm2/drm_fourcc.h>
+#include <linux/mutex.h>
+#include <linux/idr.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -767,9 +769,10 @@ struct drm_mode_group {
  * global restrictions are also here, e.g. dimension restrictions.
  */
 struct drm_mode_config {
-	struct sx mutex; /* protects configuration (mode lists etc.) */
-	struct drm_gem_names crtc_names; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
-	/* this is limited to one for now */
+	struct mutex mutex; /* protects configuration (mode lists etc.) */
+	struct mutex idr_mutex; /* for IDR management */
+	struct idr crtc_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
+	struct mutex fb_lock;
 	int num_fb;
 	struct list_head fb_list;
 	int num_connector;
@@ -840,6 +843,10 @@ struct drm_prop_enum_list {
 	int type;
 	char *name;
 };
+
+extern void drm_modeset_lock_all(struct drm_device *dev);
+extern void drm_modeset_unlock_all(struct drm_device *dev);
+extern void drm_warn_on_modeset_not_all_locked(struct drm_device *dev);
 
 extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,
