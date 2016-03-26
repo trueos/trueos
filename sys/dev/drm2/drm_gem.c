@@ -207,7 +207,6 @@ free:
 }
 EXPORT_SYMBOL(drm_gem_object_alloc);
 
-#if defined(FREEBSD_NOTYET)
 static void
 drm_gem_remove_prime_handles(struct drm_gem_object *obj, struct drm_file *filp)
 {
@@ -220,13 +219,6 @@ drm_gem_remove_prime_handles(struct drm_gem_object *obj, struct drm_file *filp)
 				obj->export_dma_buf);
 	}
 }
-#else
-static void
-drm_gem_remove_prime_handles(struct drm_gem_object *obj __unused, struct drm_file *filp __unused)
-{
-	;
-}
-#endif
 
 /**
  * Removes the mapping from handle to filp for this object.

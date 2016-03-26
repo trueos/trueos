@@ -122,6 +122,12 @@ __FBSDID("$FreeBSD$");
 struct drm_file;
 struct drm_device;
 
+/* place holders */
+struct dma_buf { };
+struct dma_buf_attachment {
+	struct dma_buf *dmabuf;
+};
+
 #include <dev/drm2/drm_mm.h>
 
 #include "opt_compat.h"
@@ -637,13 +643,11 @@ struct drm_gem_object {
 
 	void *driver_private;
 
-#ifdef FREEBSD_NOTYET
 	/* dma buf exported from this GEM object */
 	struct dma_buf *export_dma_buf;
 
 	/* dma buf attachment backing this object */
 	struct dma_buf_attachment *import_attach;
-#endif /* FREEBSD_NOTYET */
 };
 
 #include <dev/drm2/drm_crtc.h>
