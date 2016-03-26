@@ -59,7 +59,7 @@ static struct drm_mm_node *drm_mm_kmalloc(struct drm_mm *mm, int atomic)
 		child = kzalloc(sizeof(*child), GFP_KERNEL);
 
 	if (unlikely(child == NULL)) {
-		mtx_lock(&mm->unused_lock);
+		spin_lock(&mm->unused_lock);
 		if (list_empty(&mm->unused_nodes))
 			child = NULL;
 		else {
@@ -69,7 +69,7 @@ static struct drm_mm_node *drm_mm_kmalloc(struct drm_mm *mm, int atomic)
 			list_del(&child->node_list);
 			--mm->num_unused;
 		}
-		mtx_unlock(&mm->unused_lock);
+		spin_unlock(&mm->unused_lock);
 	}
 	return child;
 }
@@ -83,21 +83,21 @@ int drm_mm_pre_get(struct drm_mm *mm)
 {
 	struct drm_mm_node *node;
 
-	mtx_lock(&mm->unused_lock);
+	spin_lock(&mm->unused_lock);
 	while (mm->num_unused < MM_UNUSED_TARGET) {
-		mtx_unlock(&mm->unused_lock);
+		spin_unlock(&mm->unused_lock);
 		node = kzalloc(sizeof(*node), GFP_KERNEL);
-		mtx_lock(&mm->unused_lock);
+		spin_lock(&mm->unused_lock);
 
 		if (unlikely(node == NULL)) {
 			int ret = (mm->num_unused < 2) ? -ENOMEM : 0;
-			mtx_unlock(&mm->unused_lock);
+			spin_unlock(&mm->unused_lock);
 			return ret;
 		}
 		++mm->num_unused;
 		list_add_tail(&node->node_list, &mm->unused_nodes);
 	}
-	mtx_unlock(&mm->unused_lock);
+	spin_unlock(&mm->unused_lock);
 	return 0;
 }
 EXPORT_SYMBOL(drm_mm_pre_get);
@@ -357,13 +357,13 @@ void drm_mm_put_block(struct drm_mm_node *node)
 
 	drm_mm_remove_node(node);
 
-	mtx_lock(&mm->unused_lock);
+	spin_lock(&mm->unused_lock);
 	if (mm->num_unused < MM_UNUSED_TARGET) {
 		list_add(&node->node_list, &mm->unused_nodes);
 		++mm->num_unused;
 	} else
 		kfree(node);
-	mtx_unlock(&mm->unused_lock);
+	spin_unlock(&mm->unused_lock);
 }
 EXPORT_SYMBOL(drm_mm_put_block);
 
@@ -645,7 +645,7 @@ int drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 	INIT_LIST_HEAD(&mm->unused_nodes);
 	mm->num_unused = 0;
 	mm->scanned_blocks = 0;
-	mtx_init(&mm->unused_lock, "drm_unused", NULL, MTX_DEF);
+	spin_lock_init(&mm->unused_lock);
 
 	/* Clever trick to avoid a special case in the free hole tracking. */
 	INIT_LIST_HEAD(&mm->head_node.node_list);
@@ -674,13 +674,13 @@ void drm_mm_takedown(struct drm_mm * mm)
 		return;
 	}
 
-	mtx_lock(&mm->unused_lock);
+	spin_lock(&mm->unused_lock);
 	list_for_each_entry_safe(entry, next, &mm->unused_nodes, node_list) {
 		list_del(&entry->node_list);
 		kfree(entry);
 		--mm->num_unused;
 	}
-	mtx_unlock(&mm->unused_lock);
+	spin_unlock(&mm->unused_lock);
 
 	BUG_ON(mm->num_unused != 0);
 }
