@@ -161,7 +161,7 @@ int drm_getmap(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	i = 0;
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	list_for_each(list, &dev->maplist) {
 		if (i == idx) {
 			r_list = list_entry(list, struct drm_map_list, head);
@@ -170,7 +170,7 @@ int drm_getmap(struct drm_device *dev, void *data,
 		i++;
 	}
 	if (!r_list || !r_list->map) {
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
@@ -180,7 +180,7 @@ int drm_getmap(struct drm_device *dev, void *data,
 	map->flags = r_list->map->flags;
 	map->handle = (void *)(unsigned long) r_list->user_token;
 	map->mtrr = r_list->map->mtrr;
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -209,7 +209,7 @@ int drm_getclient(struct drm_device *dev, void *data,
 	idx = client->idx;
 	i = 0;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(pt, &dev->filelist, lhead) {
 		if (i++ >= idx) {
 			client->auth = pt->authenticated;
@@ -217,12 +217,12 @@ int drm_getclient(struct drm_device *dev, void *data,
 			client->uid = pt->uid;
 			client->magic = pt->magic;
 			client->iocs = pt->ioctl_count;
-			DRM_UNLOCK(dev);
+			mutex_unlock(&dev->struct_mutex);
 
 			return 0;
 		}
 	}
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	return -EINVAL;
 }

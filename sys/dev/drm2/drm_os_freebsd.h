@@ -256,9 +256,6 @@ capable(enum __drm_capabilities cap)
 #define	sigemptyset(set)	SIGEMPTYSET(set)
 #define	sigaddset(set, sig)	SIGADDSET(set, sig)
 
-#define DRM_LOCK(dev)		sx_xlock(&(dev)->dev_struct_lock)
-#define DRM_UNLOCK(dev) 	sx_xunlock(&(dev)->dev_struct_lock)
-
 MALLOC_DECLARE(DRM_MEM_DMA);
 MALLOC_DECLARE(DRM_MEM_SAREA);
 MALLOC_DECLARE(DRM_MEM_DRIVER);

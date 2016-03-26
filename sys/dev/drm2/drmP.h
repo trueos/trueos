@@ -983,7 +983,7 @@ struct drm_device {
 	/** \name Locks */
 	/*@{ */
 	struct mtx count_lock;		/**< For inuse, drm_device::open_count, drm_device::buf_use */
-	struct sx dev_struct_lock;	/**< For others */
+	struct mutex struct_mutex;	/**< For others */
 	/*@} */
 
 	/** \name Usage Counters */
@@ -1014,7 +1014,7 @@ struct drm_device {
 	/*@{ */
 	struct list_head ctxlist;	/**< Linked list of context handles */
 	int ctx_count;			/**< Number of context handles */
-	struct mtx ctxlist_mutex;	/**< For ctxlist */
+	struct mutex ctxlist_mutex;	/**< For ctxlist */
 	drm_local_map_t **context_sareas;
 	int max_context;
 	unsigned long *ctx_bitmap;
@@ -1512,9 +1512,9 @@ drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
 {
 	if (obj != NULL) {
 		struct drm_device *dev = obj->dev;
-		DRM_LOCK(dev);
+		mutex_lock(&dev->struct_mutex);
 		drm_gem_object_unreference(obj);
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 	}
 }
 

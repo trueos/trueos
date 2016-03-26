@@ -57,12 +57,12 @@ static struct drm_file *drm_find_file(struct drm_master *master, drm_magic_t mag
 	struct drm_hash_item *hash;
 	struct drm_device *dev = master->minor->dev;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	if (!drm_ht_find_item(&master->magiclist, (unsigned long)magic, &hash)) {
 		pt = drm_hash_entry(hash, struct drm_magic_entry, hash_item);
 		retval = pt->priv;
 	}
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 	return retval;
 }
 
@@ -89,10 +89,10 @@ static int drm_add_magic(struct drm_master *master, struct drm_file *priv,
 		return -ENOMEM;
 	entry->priv = priv;
 	entry->hash_item.key = (unsigned long)magic;
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	drm_ht_insert_item(&master->magiclist, &entry->hash_item);
 	list_add_tail(&entry->head, &master->magicfree);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -114,15 +114,15 @@ int drm_remove_magic(struct drm_master *master, drm_magic_t magic)
 
 	DRM_DEBUG("%d\n", magic);
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	if (drm_ht_find_item(&master->magiclist, (unsigned long)magic, &hash)) {
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 	pt = drm_hash_entry(hash, struct drm_magic_entry, hash_item);
 	drm_ht_remove_item(&master->magiclist, hash);
 	list_del(&pt->head);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	kfree(pt);
 

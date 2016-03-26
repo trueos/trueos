@@ -562,14 +562,14 @@ drm_gem_mmap_single(struct drm_device *dev, vm_ooffset_t *offset, vm_size_t size
 	struct drm_gem_object *gem_obj;
 	struct vm_object *vm_obj;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	gem_obj = drm_gem_object_from_offset(dev, *offset);
 	if (gem_obj == NULL) {
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 		return (-ENODEV);
 	}
 	drm_gem_object_reference(gem_obj);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 	vm_obj = cdev_pager_allocate(gem_obj, OBJT_MGTDEVICE,
 	    dev->driver->gem_pager_ops, size, nprot,
 	    DRM_GEM_MAPPING_MAPOFF(*offset), curthread->td_ucred);
@@ -591,8 +591,8 @@ drm_gem_pager_dtr(void *handle)
 	obj = handle;
 	dev = obj->dev;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	drm_gem_free_mmap_offset(obj);
 	drm_gem_object_unreference(obj);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 }

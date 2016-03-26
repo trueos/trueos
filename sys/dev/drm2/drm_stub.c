@@ -189,7 +189,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	if (file_priv->minor->master)
 		return -EINVAL;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	file_priv->minor->master = drm_master_get(file_priv->master);
 	file_priv->is_master = 1;
 	if (dev->driver->master_set) {
@@ -199,7 +199,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			drm_master_put(&file_priv->minor->master);
 		}
 	}
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }
@@ -213,12 +213,12 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	if (!file_priv->minor->master)
 		return -EINVAL;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	if (dev->driver->master_drop)
 		dev->driver->master_drop(dev, file_priv, false);
 	drm_master_put(&file_priv->minor->master);
 	file_priv->is_master = 0;
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
 
@@ -235,8 +235,8 @@ int drm_fill_in_dev(struct drm_device *dev,
 	mtx_init(&dev->irq_lock, "drmirq", NULL, MTX_DEF);
 	mtx_init(&dev->count_lock, "drmcount", NULL, MTX_DEF);
 	mtx_init(&dev->event_lock, "drmev", NULL, MTX_DEF);
-	sx_init(&dev->dev_struct_lock, "drmslk");
-	mtx_init(&dev->ctxlist_mutex, "drmctxlist", NULL, MTX_DEF);
+	mutex_init(&dev->struct_mutex);
+	mutex_init(&dev->ctxlist_mutex);
 	mtx_init(&dev->pcir_lock, "drmpcir", NULL, MTX_DEF);
 
 	if (drm_ht_create(&dev->map_hash, 12)) {
@@ -323,8 +323,8 @@ void drm_cancel_fill_in_dev(struct drm_device *dev)
 	mtx_destroy(&dev->irq_lock);
 	mtx_destroy(&dev->count_lock);
 	mtx_destroy(&dev->event_lock);
-	sx_destroy(&dev->dev_struct_lock);
-	mtx_destroy(&dev->ctxlist_mutex);
+	mutex_destroy(&dev->struct_mutex);
+	mutex_destroy(&dev->ctxlist_mutex);
 	mtx_destroy(&dev->pcir_lock);
 }
 
@@ -489,8 +489,8 @@ void drm_put_dev(struct drm_device *dev)
 	mtx_destroy(&dev->irq_lock);
 	mtx_destroy(&dev->count_lock);
 	mtx_destroy(&dev->event_lock);
-	sx_destroy(&dev->dev_struct_lock);
-	mtx_destroy(&dev->ctxlist_mutex);
+	mutex_destroy(&dev->struct_mutex);
+	mutex_destroy(&dev->ctxlist_mutex);
 	mtx_destroy(&dev->pcir_lock);
 
 #ifdef FREEBSD_NOTYET

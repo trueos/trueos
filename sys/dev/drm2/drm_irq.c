@@ -291,20 +291,20 @@ int drm_irq_install(struct drm_device *dev)
 	if (drm_dev_to_irq(dev) == 0)
 		return -EINVAL;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 
 	/* Driver must have been initialized */
 	if (!dev->dev_private) {
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
 	if (dev->irq_enabled) {
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 		return -EBUSY;
 	}
 	dev->irq_enabled = 1;
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG("irq=%d\n", drm_dev_to_irq(dev));
 
@@ -330,9 +330,9 @@ int drm_irq_install(struct drm_device *dev)
 
 	if (ret < 0) {
 		device_printf(dev->dev, "Error setting interrupt: %d\n", -ret);
-		DRM_LOCK(dev);
+		mutex_lock(&dev->struct_mutex);
 		dev->irq_enabled = 0;
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 
@@ -341,9 +341,9 @@ int drm_irq_install(struct drm_device *dev)
 		ret = dev->driver->irq_postinstall(dev);
 
 	if (ret < 0) {
-		DRM_LOCK(dev);
+		mutex_lock(&dev->struct_mutex);
 		dev->irq_enabled = 0;
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 		bus_teardown_intr(dev->dev, dev->irqr, dev->irqh);
 		dev->driver->bus->free_irq(dev);
 	}
@@ -366,10 +366,10 @@ int drm_irq_uninstall(struct drm_device *dev)
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EINVAL;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	irq_enabled = dev->irq_enabled;
 	dev->irq_enabled = 0;
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	/*
 	 * Wake up any waiters so they don't hang.

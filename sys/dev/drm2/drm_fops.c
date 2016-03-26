@@ -223,12 +223,12 @@ static int drm_open_helper(struct cdev *kdev, int flags, int fmt,
 
 
 	/* if there is no current master make this fd it */
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	if (!priv->minor->master) {
 		/* create a new master */
 		priv->minor->master = drm_master_create(priv->minor);
 		if (!priv->minor->master) {
-			DRM_UNLOCK(dev);
+			mutex_unlock(&dev->struct_mutex);
 			ret = -ENOMEM;
 			goto out_free;
 		}
@@ -239,39 +239,39 @@ static int drm_open_helper(struct cdev *kdev, int flags, int fmt,
 
 		priv->authenticated = 1;
 
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 		if (dev->driver->master_create) {
 			ret = dev->driver->master_create(dev, priv->master);
 			if (ret) {
-				DRM_LOCK(dev);
+				mutex_lock(&dev->struct_mutex);
 				/* drop both references if this fails */
 				drm_master_put(&priv->minor->master);
 				drm_master_put(&priv->master);
-				DRM_UNLOCK(dev);
+				mutex_unlock(&dev->struct_mutex);
 				goto out_free;
 			}
 		}
-		DRM_LOCK(dev);
+		mutex_lock(&dev->struct_mutex);
 		if (dev->driver->master_set) {
 			ret = dev->driver->master_set(dev, priv, true);
 			if (ret) {
 				/* drop both references if this fails */
 				drm_master_put(&priv->minor->master);
 				drm_master_put(&priv->master);
-				DRM_UNLOCK(dev);
+				mutex_unlock(&dev->struct_mutex);
 				goto out_free;
 			}
 		}
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 	} else {
 		/* get a reference to the master */
 		priv->master = drm_master_get(priv->minor->master);
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 	}
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	list_add(&priv->lhead, &dev->filelist);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	mtx_lock(&Giant); /* FIXME: Giant required? */
 	device_busy(dev->dev);
@@ -400,7 +400,7 @@ void drm_release(void *data)
 	mutex_unlock(&dev->ctxlist_mutex);
 #endif /* FREEBSD_NOTYET */
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 
 	if (file_priv->is_master) {
 		struct drm_master *master = file_priv->master;
@@ -436,7 +436,7 @@ void drm_release(void *data)
 	drm_master_put(&file_priv->master);
 	file_priv->is_master = 0;
 	list_del(&file_priv->lhead);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, file_priv);
