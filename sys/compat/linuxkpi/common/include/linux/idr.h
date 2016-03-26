@@ -82,5 +82,7 @@ void	idr_destroy(struct idr *idp);
 void	idr_init(struct idr *idp);
 int	idr_alloc(struct idr *idp, void *ptr, int start, int end, gfp_t);
 int	idr_alloc_cyclic(struct idr *idp, void *ptr, int start, int end, gfp_t);
+int	idr_for_each(struct idr *idp, int (*fn)(int id, void *p, void *data), void *data);
+
 
 #endif	/* _LINUX_IDR_H_ */

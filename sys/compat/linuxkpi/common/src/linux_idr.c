@@ -539,3 +539,25 @@ idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
 	mtx_unlock(&idr->lock);
 	return (retval);
 }
+
+int
+idr_for_each(struct idr *idp, int (*fn)(int id, void *p, void *data),
+	     void *data)
+{
+#ifdef dfly	
+	int i, error = 0;
+	struct idr_node *nodes;
+
+	nodes = idp->idr_nodes;
+	for (i = 0; i < idp->idr_count; i++) {
+		if (nodes[i].data != NULL && nodes[i].allocated > 0) {
+			error = fn(i, nodes[i].data, data);
+			if (error != 0)
+				break;
+		}
+	}
+	return error;
+#endif
+	panic("implement me!!!!");
+	return (0);
+}
