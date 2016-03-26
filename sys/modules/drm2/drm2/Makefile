@@ -23,7 +23,6 @@ SRCS	= \
 	drm_hashtab.c \
 	drm_ioctl.c \
 	drm_irq.c \
-	drm_linux_list_sort.c \
 	drm_lock.c \
 	drm_memory.c \
 	drm_mm.c \

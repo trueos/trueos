@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_crtc.h>
+#include <linux/list.h>
 
 /**
  * drm_mode_debug_printmodeline - debug print a mode
@@ -947,7 +948,7 @@ static int drm_mode_compare(void *priv, struct list_head *lh_a, struct list_head
  */
 void drm_mode_sort(struct list_head *mode_list)
 {
-	drm_list_sort(NULL, mode_list, drm_mode_compare);
+	list_sort(NULL, mode_list, drm_mode_compare);
 }
 EXPORT_SYMBOL(drm_mode_sort);
 

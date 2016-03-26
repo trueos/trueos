@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Generic range manager structs
  */
-#include <dev/drm2/drm_linux_list.h>
-
 struct drm_mm_node {
 	struct list_head node_list;
 	struct list_head hole_stack;

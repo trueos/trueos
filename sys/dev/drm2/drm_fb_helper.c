@@ -42,7 +42,7 @@ MODULE_AUTHOR("David Airlie, Jesse Barnes");
 MODULE_DESCRIPTION("DRM KMS helper");
 MODULE_LICENSE("GPL and additional rights");
 
-static DRM_LIST_HEAD(kernel_fb_helper_list);
+static LIST_HEAD(kernel_fb_helper_list);
 
 #include <sys/kdb.h>
 #include <sys/param.h>

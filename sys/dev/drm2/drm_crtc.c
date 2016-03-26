@@ -2612,7 +2612,7 @@ int drm_mode_attachmode_crtc(struct drm_device *dev, struct drm_crtc *crtc,
 	struct drm_connector *connector;
 	int ret = 0;
 	struct drm_display_mode *dup_mode, *next;
-	DRM_LIST_HEAD(list);
+	LIST_HEAD(list);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (!connector->encoder)

@@ -111,8 +111,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm.h>
 #include <dev/drm2/drm_sarea.h>
 
-#include <dev/drm2/drm_linux_list.h>
-
 #include <linux/device.h>
 #include <linux/module.h>
 
