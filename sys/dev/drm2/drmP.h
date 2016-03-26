@@ -589,8 +589,8 @@ struct drm_gem_mm {
  * DRM for its buffer objects.
  */
 struct drm_gem_object {
-	/** Reference count of this object */
-	u_int refcount;
+	/** Reference count of this object - must come first*/
+	struct kref refcount;
 
 	/** Handle count of this object. Each handle also holds a reference */
 	atomic_t handle_count; /* number of handles on this object */
@@ -1474,7 +1474,7 @@ extern void drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 int drm_gem_init(struct drm_device *dev);
 void drm_gem_destroy(struct drm_device *dev);
 void drm_gem_object_release(struct drm_gem_object *obj);
-void drm_gem_object_free(struct drm_gem_object *obj);
+void drm_gem_object_free(struct kref *);
 struct drm_gem_object *drm_gem_object_alloc(struct drm_device *dev,
 					    size_t size);
 int drm_gem_object_init(struct drm_device *dev,
@@ -1492,18 +1492,16 @@ static inline void
 drm_gem_object_reference(struct drm_gem_object *obj)
 {
 
-	KASSERT(obj->refcount > 0, ("Dangling obj %p", obj));
-	refcount_acquire(&obj->refcount);
+	KASSERT((int32_t)obj->refcount > 0, ("Dangling obj %p", obj));
+	kref_get(&obj->refcount);
 }
+
 
 static inline void
 drm_gem_object_unreference(struct drm_gem_object *obj)
 {
-
-	if (obj == NULL)
-		return;
-	if (refcount_release(&obj->refcount))
-		drm_gem_object_free(obj);
+	if (obj != NULL)
+		kref_put(&obj->refcount, drm_gem_object_free);
 }
 
 static inline void
@@ -1512,7 +1510,7 @@ drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
 	if (obj != NULL) {
 		struct drm_device *dev = obj->dev;
 		mutex_lock(&dev->struct_mutex);
-		drm_gem_object_unreference(obj);
+		kref_put(&obj->refcount, drm_gem_object_free);
 		mutex_unlock(&dev->struct_mutex);
 	}
 }
@@ -1655,16 +1653,6 @@ SYSCTL_DECL(_hw_drm);
 	(void)irqflags;					\
 } while (0)
 #define DRM_SPINUNLOCK_IRQRESTORE(u, irqflags) mtx_unlock(u)
-#define DRM_SPINLOCK_ASSERT(l)	mtx_assert(l, MA_OWNED)
-#define	DRM_LOCK_SLEEP(dev, chan, flags, msg, timeout)			\
-    (sx_sleep((chan), &(dev)->dev_struct_lock, (flags), (msg), (timeout)))
-#if defined(INVARIANTS)
-#define	DRM_LOCK_ASSERT(dev)	sx_assert(&(dev)->dev_struct_lock, SA_XLOCKED)
-#define	DRM_UNLOCK_ASSERT(dev)	sx_assert(&(dev)->dev_struct_lock, SA_UNLOCKED)
-#else
-#define	DRM_LOCK_ASSERT(d)
-#define	DRM_UNLOCK_ASSERT(d)
-#endif
 
 #define DRM_SYSCTL_HANDLER_ARGS	(SYSCTL_HANDLER_ARGS)
 

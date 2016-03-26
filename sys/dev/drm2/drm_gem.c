@@ -45,6 +45,36 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm.h>
 #include <dev/drm2/drm_sarea.h>
 
+#include <compat/linuxkpi/common/include/linux/idr.h>
+
+/** @file drm_gem.c
+ *
+ * This file provides some of the base ioctls and library routines for
+ * the graphics memory manager implemented by each device driver.
+ *
+ * Because various devices have different requirements in terms of
+ * synchronization and migration strategies, implementing that is left up to
+ * the driver, and all that the general API provides should be generic --
+ * allocating objects, reading/writing data with the cpu, freeing objects.
+ * Even there, platform-dependent optimizations for reading/writing data with
+ * the CPU mean we'll likely hook those out to driver-specific calls.  However,
+ * the DRI2 implementation wants to have at least allocate/mmap be generic.
+ *
+ * The goal was to have swap-backed object allocation managed through
+ * struct file.  However, file descriptors as handles to a struct file have
+ * two major failings:
+ * - Process limits prevent more than 1024 or so being used at a time by
+ *   default.
+ * - Inability to allocate high fds will aggravate the X Server's select()
+ *   handling, and likely that of many GL client applications as well.
+ *
+ * This led to a plan of using our own integer IDs (called handles, following
+ * DRM terminology) to mimic fds, and implement the fd syscalls we need as
+ * ioctls.  The objects themselves will still include the struct file so
+ * that we can transition to fds if the required kernel infrastructure shows
+ * up at a later date, and as our interface with shmfs for memory allocation.
+ */
+
 /*
  * We make up offsets for buffer objects so we can recognize them at
  * mmap time.
@@ -62,7 +92,6 @@ __FBSDID("$FreeBSD$");
 #define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFUL >> PAGE_SHIFT) * 16)
 #endif
 
-#include <compat/linuxkpi/common/include/linux/idr.h>
 
 /**
  * Initialize the GEM device fields
@@ -117,14 +146,13 @@ drm_gem_destroy(struct drm_device *dev)
 int drm_gem_object_init(struct drm_device *dev,
 			struct drm_gem_object *obj, size_t size)
 {
-	KASSERT((size & (PAGE_SIZE - 1)) == 0,
-	    ("Bad size %ju", (uintmax_t)size));
+	BUG_ON((size & (PAGE_SIZE - 1)) != 0);
 
 	obj->dev = dev;
 	obj->vm_obj = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
 	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
 
-	obj->refcount = 1;
+	kref_init(&obj->refcount);
 	atomic_set(&obj->handle_count, 0);
 	obj->size = size;
 
@@ -140,12 +168,12 @@ EXPORT_SYMBOL(drm_gem_object_init);
 int drm_gem_private_object_init(struct drm_device *dev,
 			struct drm_gem_object *obj, size_t size)
 {
-	MPASS((size & (PAGE_SIZE - 1)) == 0);
+	BUG_ON((size & (PAGE_SIZE - 1)) != 0);
 
 	obj->dev = dev;
 	obj->vm_obj = NULL;
 
-	obj->refcount = 1;
+	kref_init(&obj->refcount);
 	atomic_set(&obj->handle_count, 0);
 	obj->size = size;
 
@@ -264,7 +292,7 @@ drm_gem_handle_create(struct drm_file *file_priv,
 	idr_preload_end();
 	if (ret < 0)
 		return ret;
-
+	*handlep = ret;
 	drm_gem_object_handle_reference(obj);
 
 	if (dev->driver->gem_open_object) {
@@ -292,9 +320,6 @@ drm_gem_free_mmap_offset(struct drm_gem_object *obj)
 	struct drm_device *dev = obj->dev;
 	struct drm_gem_mm *mm = dev->mm_private;
 	struct drm_map_list *list = &obj->map_list;
-
-	if (!obj->on_map)
-		return;
 
 	drm_ht_remove_item(&mm->offset_hash, &list->hash);
 	drm_mm_put_block(list->file_offset_node);
@@ -562,11 +587,12 @@ EXPORT_SYMBOL(drm_gem_object_release);
  * Frees the object
  */
 void
-drm_gem_object_free(struct drm_gem_object *obj)
+drm_gem_object_free(struct kref *kref)
 {
+	struct drm_gem_object *obj = (struct drm_gem_object *) kref;
 	struct drm_device *dev = obj->dev;
 
-	DRM_LOCK_ASSERT(dev);
+	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 	if (dev->driver->gem_free_object != NULL)
 		dev->driver->gem_free_object(obj);
 }
