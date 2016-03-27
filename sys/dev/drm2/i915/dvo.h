@@ -45,7 +45,7 @@ struct intel_dvo_device {
 
 	const struct intel_dvo_dev_ops *dev_ops;
 	void *dev_priv;
-	device_t i2c_bus;
+	struct i2c_adapter *i2c_bus;
 };
 
 struct intel_dvo_dev_ops {
@@ -54,7 +54,7 @@ struct intel_dvo_dev_ops {
 	 * Returns NULL if the device does not exist.
 	 */
 	bool (*init)(struct intel_dvo_device *dvo,
-		     device_t i2cbus);
+		     struct i2c_adapter *i2cbus);
 
 	/*
 	 * Called to allow the output a chance to create properties after the

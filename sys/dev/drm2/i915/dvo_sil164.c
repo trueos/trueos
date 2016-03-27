@@ -71,19 +71,21 @@ struct sil164_priv {
 static bool sil164_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 {
 	struct sil164_priv *sil = dvo->dev_priv;
-	device_t adapter = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
 	u8 out_buf[2];
 	u8 in_buf[2];
 
-	struct iic_msg msgs[] = {
+	struct i2c_msg msgs[] = {
 		{
-			.slave = dvo->slave_addr << 1,
+			.addr = dvo->slave_addr,
+			//.slave = dvo->slave_addr << 1,
 			.flags = 0,
 			.len = 1,
 			.buf = out_buf,
 		},
 		{
-			.slave = dvo->slave_addr << 1,
+			.addr = dvo->slave_addr,
+			//.slave = dvo->slave_addr << 1,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = in_buf,
@@ -93,14 +95,15 @@ static bool sil164_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 	out_buf[0] = addr;
 	out_buf[1] = 0;
 
-	if (-iicbus_transfer(adapter, msgs, 2) == 0) {
+	if (i2c_transfer(adapter, msgs, 2) == 2) {
+	//if (-iicbus_transfer(adapter, msgs, 2) == 0) {
 		*ch = in_buf[0];
 		return true;
-	}
+	};
 
 	if (!sil->quiet) {
 		DRM_DEBUG_KMS("Unable to read register 0x%02x from %s:%02x.\n",
-			  addr, device_get_nameunit(adapter), dvo->slave_addr);
+			  addr, adapter->name, dvo->slave_addr);
 	}
 	return false;
 }
@@ -108,10 +111,11 @@ static bool sil164_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 static bool sil164_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 {
 	struct sil164_priv *sil = dvo->dev_priv;
-	device_t adapter = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
 	uint8_t out_buf[2];
-	struct iic_msg msg = {
-		.slave = dvo->slave_addr << 1,
+	struct i2c_msg msg = {
+		.addr = dvo->slave_addr,
+		//.slave = dvo->slave_addr << 1,
 		.flags = 0,
 		.len = 2,
 		.buf = out_buf,
@@ -120,12 +124,13 @@ static bool sil164_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 	out_buf[0] = addr;
 	out_buf[1] = ch;
 
-	if (-iicbus_transfer(adapter, &msg, 1) == 0)
+	if (i2c_transfer(adapter, &msg, 1) == 1)
+	//if (-iicbus_transfer(adapter, &msg, 1) == 0)
 		return true;
 
 	if (!sil->quiet) {
 		DRM_DEBUG_KMS("Unable to write register 0x%02x to %s:%d.\n",
-			  addr, device_get_nameunit(adapter), dvo->slave_addr);
+			  addr, adapter->name, dvo->slave_addr);
 	}
 
 	return false;
@@ -133,7 +138,7 @@ static bool sil164_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 
 /* Silicon Image 164 driver for chip on i2c bus */
 static bool sil164_init(struct intel_dvo_device *dvo,
-			device_t adapter)
+			struct i2c_adapter *adapter)
 {
 	/* this will detect the SIL164 chip on the specified i2c bus */
 	struct sil164_priv *sil;
@@ -152,7 +157,7 @@ static bool sil164_init(struct intel_dvo_device *dvo,
 
 	if (ch != (SIL164_VID & 0xff)) {
 		DRM_DEBUG_KMS("sil164 not detected got %d: from %s Slave %d.\n",
-			  ch, device_get_nameunit(adapter), dvo->slave_addr);
+			  ch, adapter->name, dvo->slave_addr);
 		goto out;
 	}
 
@@ -161,7 +166,7 @@ static bool sil164_init(struct intel_dvo_device *dvo,
 
 	if (ch != (SIL164_DID & 0xff)) {
 		DRM_DEBUG_KMS("sil164 not detected got %d: from %s Slave %d.\n",
-			  ch, device_get_nameunit(adapter), dvo->slave_addr);
+			  ch, adapter->name, dvo->slave_addr);
 		goto out;
 	}
 	sil->quiet = false;

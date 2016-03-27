@@ -169,24 +169,27 @@ static void ivch_dump_regs(struct intel_dvo_device *dvo);
 static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
-	device_t adapter = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
 	u8 out_buf[1];
 	u8 in_buf[2];
 
-	struct iic_msg msgs[] = {
+	struct i2c_msg msgs[] = {
 		{
-			.slave = dvo->slave_addr << 1,
+			.addr = dvo->slave_addr,
+			//.slave = dvo->slave_addr << 1,
 			.flags = I2C_M_RD,
 			.len = 0,
 		},
 		{
-			.slave = 0 << 1,
+			.addr = 0,
+			//.slave = 0 << 1,
 			.flags = I2C_M_NOSTART,
 			.len = 1,
 			.buf = out_buf,
 		},
 		{
-			.slave = dvo->slave_addr << 1,
+			.addr = dvo->slave_addr,
+			//.slave = dvo->slave_addr << 1,
 			.flags = I2C_M_RD | I2C_M_NOSTART,
 			.len = 2,
 			.buf = in_buf,
@@ -195,15 +198,16 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 
 	out_buf[0] = addr;
 
-	if (-iicbus_transfer(adapter, msgs, 3) == 0) {
+	if (i2c_transfer(adapter, msgs, 3) == 3) {
+	//if (-iicbus_transfer(adapter, msgs, 3) == 0) {
 		*data = (in_buf[1] << 8) | in_buf[0];
 		return true;
-	}
+	};
 
 	if (!priv->quiet) {
 		DRM_DEBUG_KMS("Unable to read register 0x%02x from "
 				"%s:%02x.\n",
-			  addr, device_get_nameunit(adapter), dvo->slave_addr);
+			  addr, adapter->name, dvo->slave_addr);
 	}
 	return false;
 }
@@ -212,10 +216,11 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 {
 	struct ivch_priv *priv = dvo->dev_priv;
-	device_t adapter = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
 	u8 out_buf[3];
-	struct iic_msg msg = {
-		.slave = dvo->slave_addr << 1,
+	struct i2c_msg msg = {
+		.addr = dvo->slave_addr,
+//		.slave = dvo->slave_addr << 1,
 		.flags = 0,
 		.len = 3,
 		.buf = out_buf,
@@ -225,12 +230,13 @@ static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 	out_buf[1] = data & 0xff;
 	out_buf[2] = data >> 8;
 
-	if (-iicbus_transfer(adapter, &msg, 1) == 0)
+	if (i2c_transfer(adapter, &msg, 1) == 1)
+	//if (-iicbus_transfer(adapter, &msg, 1) == 0)
 		return true;
 
 	if (!priv->quiet) {
 		DRM_DEBUG_KMS("Unable to write register 0x%02x to %s:%d.\n",
-			  addr, device_get_nameunit(adapter), dvo->slave_addr);
+			  addr, adapter->name, dvo->slave_addr);
 	}
 
 	return false;
@@ -238,7 +244,7 @@ static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 
 /** Probes the given bus and slave address for an ivch */
 static bool ivch_init(struct intel_dvo_device *dvo,
-		      device_t adapter)
+		      struct i2c_adapter *adapter)
 {
 	struct ivch_priv *priv;
 	uint16_t temp;

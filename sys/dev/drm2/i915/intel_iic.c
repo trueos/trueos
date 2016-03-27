@@ -70,17 +70,17 @@ struct intel_iic_softc {
 };
 
 static inline struct intel_gmbus *
-to_intel_gmbus(device_t i2c)
+to_intel_gmbus(struct i2c_adapter *i2c)
 {
 	struct intel_iic_softc *sc;
 
-	sc = device_get_softc(i2c);
+	sc = device_get_softc((device_t) i2c);
 	return sc->bus;
 }
 
 bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
 {
-	struct intel_iic_softc *sc = device_get_softc(adapter);
+	struct intel_iic_softc *sc = device_get_softc((device_t)adapter);
 	struct intel_gmbus *bus = sc->bus;
 
 	return bus->force_bit;
@@ -361,7 +361,7 @@ gmbus_xfer(device_t adapter,
 	int i, reg_offset;
 	int ret = 0;
 
-	sx_xlock(&dev_priv->gmbus_mutex);
+	mutex_lock(&dev_priv->gmbus_mutex);
 
 	if (bus->force_bit) {
 		ret = -IICBUS_TRANSFER(bus->bbbus, msgs, num);
@@ -463,7 +463,7 @@ timeout:
 	ret = -IICBUS_TRANSFER(bus->bbbus, msgs, num);
 
 out:
-	sx_xunlock(&dev_priv->gmbus_mutex);
+	mutex_unlock(&dev_priv->gmbus_mutex);
 	return -ret;
 }
 
@@ -625,7 +625,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 	else
 		dev_priv->gpio_mmio_base = 0;
 
-	sx_init(&dev_priv->gmbus_mutex, "gmbus");
+	mutex_init(&dev_priv->gmbus_mutex);
 
 	/*
 	 * The Giant there is recursed, most likely.  Normally, the
@@ -728,33 +728,35 @@ err:
 			device_delete_child(dev->dev, bus->bbbus_bridge);
 	}
 	mtx_unlock(&Giant);
-	sx_destroy(&dev_priv->gmbus_mutex);
+	mutex_destroy(&dev_priv->gmbus_mutex);
 	return ret;
 }
 
-i2c_adapter* intel_gmbus_get_adapter(struct drm_i915_private *dev_priv,
+struct i2c_adapter* intel_gmbus_get_adapter(struct drm_i915_private *dev_priv,
 					    unsigned port)
 {
 	WARN_ON(!intel_gmbus_is_port_valid(port));
 	/* -1 to map pin pair to gmbus index */
-	return (intel_gmbus_is_port_valid(port)) ?
-		dev_priv->gmbus[port - 1].gmbus : NULL;
+	//XXXdevice_t i2cDev = (intel_gmbus_is_port_valid(port)) ?
+	// 	dev_priv->gmbus[port - 1].gmbus : NULL;
+	// XXXreturn (struct i2c_adapter) i2cDev;
+	return NULL;
 }
 
-void intel_gmbus_set_speed(device_t adapter, int speed)
+void intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 
 	bus->reg0 = (bus->reg0 & ~(0x3 << 8)) | speed;
 }
 
-void intel_gmbus_force_bit(device_t adapter, bool force_bit)
+void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
 
 	bus->force_bit += force_bit ? 1 : -1;
 	DRM_DEBUG_KMS("%sabling bit-banging on %s. force bit now %d\n",
-		      force_bit ? "en" : "dis", device_get_desc(adapter),
+		      force_bit ? "en" : "dis", device_get_desc((device_t)adapter),
 		      bus->force_bit);
 }
 
@@ -782,5 +784,5 @@ void intel_teardown_gmbus(struct drm_device *dev)
 		    device_get_desc(bus->bbbus_bridge), ret));
 	}
 
-	sx_destroy(&dev_priv->gmbus_mutex);
+	mutex_destroy(&dev_priv->gmbus_mutex);
 }

@@ -83,7 +83,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 		goto out;
 	}
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 
 	/* Flush everything out, we'll be doing GTT only from now on */
 	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
@@ -123,7 +123,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 		      obj->gtt_offset, obj);
 
 
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 #ifdef __linux__
 	vga_switcheroo_client_fb_set(dev->pdev, info);
 #endif
@@ -133,7 +133,7 @@ out_unpin:
 	i915_gem_object_unpin(obj);
 out_unref:
 	drm_gem_object_unreference(&obj->base);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 out:
 	return ret;
 }
@@ -252,7 +252,7 @@ void intel_fb_restore_mode(struct drm_device *dev)
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_plane *plane;
 
-	sx_xlock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 
 	ret = drm_fb_helper_restore_fbdev_mode(&dev_priv->fbdev->helper);
 	if (ret)
@@ -260,7 +260,8 @@ void intel_fb_restore_mode(struct drm_device *dev)
 
 	/* Be sure to shut off any planes that may be active */
 	list_for_each_entry(plane, &config->plane_list, head)
-		plane->funcs->disable_plane(plane);
+		if (plane->enabled)
+			plane->funcs->disable_plane(plane);
 
-	sx_xunlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 }

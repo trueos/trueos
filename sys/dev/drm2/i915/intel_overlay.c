@@ -693,8 +693,8 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 #endif
 	u32 swidth, swidthsw, sheight, ostride;
 
-	DRM_LOCK_ASSERT(dev);
-	sx_assert(&dev->mode_config.mutex, SA_XLOCKED);
+	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
+	BUG_ON(!mutex_is_locked(&dev->mode_config.mutex));
 	BUG_ON(!overlay);
 
 	ret = intel_overlay_release_old_vid(overlay);
@@ -800,8 +800,8 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 #endif
 	int ret;
 
-	DRM_LOCK_ASSERT(dev);
-	sx_assert(&dev->mode_config.mutex, SA_XLOCKED);
+	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
+	BUG_ON(!mutex_is_locked(&dev->mode_config.mutex));
 
 	ret = intel_overlay_recover_from_interrupt(overlay);
 	if (ret != 0)
@@ -1053,13 +1053,13 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 	}
 
 	if (!(put_image_rec->flags & I915_OVERLAY_ENABLE)) {
-		sx_xlock(&dev->mode_config.mutex);
-		DRM_LOCK(dev);
+		drm_modeset_lock_all(dev);
+		mutex_lock(&dev->struct_mutex);
 
 		ret = intel_overlay_switch_off(overlay);
 
-		DRM_UNLOCK(dev);
-		sx_xunlock(&dev->mode_config.mutex);
+		mutex_unlock(&dev->struct_mutex);
+		drm_modeset_unlock_all(dev);
 
 		return ret;
 	}
@@ -1083,8 +1083,8 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		goto out_free;
 	}
 
-	sx_xlock(&dev->mode_config.mutex);
-	DRM_LOCK(dev);
+	drm_modeset_lock_all(dev);
+	mutex_lock(&dev->struct_mutex);
 
 	if (new_bo->tiling_mode) {
 		DRM_ERROR("buffer used for overlay image can not be tiled\n");
@@ -1164,16 +1164,16 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 	if (ret != 0)
 		goto out_unlock;
 
-	DRM_UNLOCK(dev);
-	sx_xunlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev->struct_mutex);
+	drm_modeset_unlock_all(dev);
 
 	free(params, DRM_I915_GEM);
 
 	return 0;
 
 out_unlock:
-	DRM_UNLOCK(dev);
-	sx_xunlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev->struct_mutex);
+	drm_modeset_unlock_all(dev);
 	drm_gem_object_unreference_unlocked(&new_bo->base);
 out_free:
 	free(params, DRM_I915_GEM);
@@ -1249,8 +1249,8 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 		return -ENODEV;
 	}
 
-	sx_xlock(&dev->mode_config.mutex);
-	DRM_LOCK(dev);
+	drm_modeset_lock_all(dev);
+	mutex_lock(&dev->struct_mutex);
 
 	ret = -EINVAL;
 	if (!(attrs->flags & I915_OVERLAY_UPDATE_ATTRS)) {
@@ -1314,8 +1314,8 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 
 	ret = 0;
 out_unlock:
-	DRM_UNLOCK(dev);
-	sx_xunlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev->struct_mutex);
+	drm_modeset_unlock_all(dev);
 
 	return ret;
 }
@@ -1335,7 +1335,7 @@ void intel_setup_overlay(struct drm_device *dev)
 	if (!overlay)
 		return;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	if (WARN_ON(dev_priv->overlay))
 		goto out_free;
 
@@ -1387,7 +1387,7 @@ void intel_setup_overlay(struct drm_device *dev)
 	intel_overlay_unmap_regs(overlay, regs);
 
 	dev_priv->overlay = overlay;
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 	DRM_INFO("initialized overlay support\n");
 	return;
 
@@ -1397,7 +1397,7 @@ out_unpin_bo:
 out_free_bo:
 	drm_gem_object_unreference(&reg_bo->base);
 out_free:
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 	free(overlay, DRM_I915_GEM);
 	return;
 }

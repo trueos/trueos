@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/intel_sdvo_regs.h>
 #include <dev/iicbus/iic.h>
 #include <dev/iicbus/iiconf.h>
+#include <linux/i2c.h>
 #include "iicbus_if.h"
 
 #define SDVO_TMDS_MASK (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1)
@@ -69,10 +70,10 @@ static const char *tv_format_names[] = {
 struct intel_sdvo {
 	struct intel_encoder base;
 
-	device_t i2c;
+	struct i2c_adapter *i2c;
 	u8 slave_addr;
 
-	device_t ddc_iic_bus, ddc;
+	struct i2c_adapter ddc;
 
 	/* Register for the SDVO device: SDVOB or SDVOC */
 	uint32_t sdvo_reg;
@@ -267,15 +268,17 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 
 static bool intel_sdvo_read_byte(struct intel_sdvo *intel_sdvo, u8 addr, u8 *ch)
 {
-	struct iic_msg msgs[] = {
+	struct i2c_msg msgs[] = {
 		{
-			.slave = intel_sdvo->slave_addr << 1,
+			.addr = intel_sdvo->slave_addr,
+			//.slave = intel_sdvo->slave_addr << 1,
 			.flags = 0,
 			.len = 1,
 			.buf = &addr,
 		},
 		{
-			.slave = intel_sdvo->slave_addr << 1,
+			.addr = intel_sdvo->slave_addr,
+			//.slave = intel_sdvo->slave_addr << 1,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = ch,
@@ -283,7 +286,8 @@ static bool intel_sdvo_read_byte(struct intel_sdvo *intel_sdvo, u8 addr, u8 *ch)
 	};
 	int ret;
 
-	if ((ret = -iicbus_transfer(intel_sdvo->i2c, msgs, 2)) == 0)
+	if ((ret = i2c_transfer(intel_sdvo->i2c, msgs, 2)) == 2)
+	//if ((ret = -iicbus_transfer(intel_sdvo->i2c, msgs, 2)) == 0)
 		return true;
 
 	DRM_DEBUG_KMS("i2c transfer returned %d\n", ret);
@@ -447,7 +451,7 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 				 const void *args, int args_len)
 {
 	u8 *buf, status;
-	struct iic_msg *msgs;
+	struct i2c_msg *msgs;
 	int i, ret = true;
 
         /* Would be simpler to allocate both in one go ? */        
@@ -464,14 +468,16 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 	intel_sdvo_debug_write(intel_sdvo, cmd, args, args_len);
 
 	for (i = 0; i < args_len; i++) {
-		msgs[i].slave = intel_sdvo->slave_addr << 1;
+		//msgs[i].slave = intel_sdvo->slave_addr << 1;
+		msgs[i].addr = intel_sdvo->slave_addr;
 		msgs[i].flags = 0;
 		msgs[i].len = 2;
 		msgs[i].buf = buf + 2 *i;
 		buf[2*i + 0] = SDVO_I2C_ARG_0 - i;
 		buf[2*i + 1] = ((const u8*)args)[i];
 	}
-	msgs[i].slave = intel_sdvo->slave_addr << 1;
+	msgs[i].addr = intel_sdvo->slave_addr;
+	//msgs[i].slave = intel_sdvo->slave_addr << 1;
 	msgs[i].flags = 0;
 	msgs[i].len = 2;
 	msgs[i].buf = buf + 2*i;
@@ -480,21 +486,29 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 
 	/* the following two are to read the response */
 	status = SDVO_I2C_CMD_STATUS;
-	msgs[i+1].slave = intel_sdvo->slave_addr << 1;
+	msgs[i+1].addr = intel_sdvo->slave_addr;
+	//msgs[i+1].slave = intel_sdvo->slave_addr << 1;
 	msgs[i+1].flags = 0;
 	msgs[i+1].len = 1;
 	msgs[i+1].buf = &status;
 
-	msgs[i+2].slave = intel_sdvo->slave_addr << 1;
+	msgs[i+2].addr = intel_sdvo->slave_addr;
+	//msgs[i+2].slave = intel_sdvo->slave_addr << 1;
 	msgs[i+2].flags = I2C_M_RD;
 	msgs[i+2].len = 1;
 	msgs[i+2].buf = &status;
 
-	ret = -iicbus_transfer(intel_sdvo->i2c, msgs, i+3);
+	ret = i2c_transfer(intel_sdvo->i2c, msgs, i+3);
+	//ret = -iicbus_transfer(intel_sdvo->i2c, msgs, i+3);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("I2c transfer returned %d\n", ret);
 		ret = false;
 		goto out;
+	}
+	if (ret != i+3) {
+		/* failure in I2C transfer */
+		DRM_DEBUG_KMS("I2c transfer returned %d/%d\n", ret, i+3);
+		ret = false;
 	}
 
 out:
@@ -1453,7 +1467,7 @@ static struct edid *
 intel_sdvo_get_edid(struct drm_connector *connector)
 {
 	struct intel_sdvo *sdvo = intel_attached_sdvo(connector);
-	return drm_get_edid(connector, sdvo->ddc);
+	return drm_get_edid(connector, &sdvo->ddc);
 }
 
 /* Mac mini hack -- use the same DDC as the analog connector */
@@ -2033,8 +2047,9 @@ static void intel_sdvo_enc_destroy(struct drm_encoder *encoder)
 		drm_mode_destroy(encoder->dev,
 				 intel_sdvo->sdvo_lvds_fixed_mode);
 
-	device_delete_child(intel_sdvo->base.base.dev->dev,
-	    intel_sdvo->ddc_iic_bus);
+	i2c_del_adapter(&intel_sdvo->ddc);
+	//device_delete_child(intel_sdvo->base.base.dev->dev,
+	//    intel_sdvo->ddc_iic_bus);
 	intel_encoder_destroy(encoder);
 }
 
@@ -2704,8 +2719,10 @@ intel_sdvo_ddc_proxy_reset(device_t idev, u_char speed, u_char addr,
 	sc = device_get_softc(idev);
 	sdvo = sc->intel_sdvo;
 
-	return (IICBUS_RESET(device_get_parent(sdvo->i2c), speed, addr,
-	    oldaddr));
+	return -42;
+	//XXXTODO
+	//return (IICBUS_RESET(device_get_parent(sdvo->i2c), speed, addr,
+	//    oldaddr));
 }
 
 static int intel_sdvo_ddc_proxy_xfer(device_t adapter,
@@ -2721,7 +2738,9 @@ static int intel_sdvo_ddc_proxy_xfer(device_t adapter,
 	if (!intel_sdvo_set_control_bus_switch(sdvo, sdvo->ddc_bus))
 		return EIO;
 
-	return (iicbus_transfer(sdvo->i2c, msgs, num));
+	//return (iicbus_transfer(sdvo->i2c, msgs, num));
+	return -42;
+	//XXXTODO
 }
 
 static device_method_t intel_sdvo_ddc_proxy_methods[] = {
@@ -2745,27 +2764,29 @@ static bool
 intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
 			  struct drm_device *dev)
 {
-	struct intel_sdvo_ddc_proxy_sc *sc;
-	int ret;
+	//struct intel_sdvo_ddc_proxy_sc *sc;
+	//int ret;
 
-	sdvo->ddc_iic_bus = device_add_child(dev->dev,
-	    "intel_sdvo_ddc_proxy", sdvo->sdvo_reg);
-	if (sdvo->ddc_iic_bus == NULL) {
-		DRM_ERROR("cannot create ddc proxy bus %d\n", sdvo->sdvo_reg);
-		return (false);
-	}
-	device_quiet(sdvo->ddc_iic_bus);
-	ret = device_probe_and_attach(sdvo->ddc_iic_bus);
-	if (ret != 0) {
-		DRM_ERROR("cannot attach proxy bus %d error %d\n",
-		    sdvo->sdvo_reg, ret);
-		device_delete_child(dev->dev, sdvo->ddc_iic_bus);
-		return (false);
-	}
-	sc = device_get_softc(sdvo->ddc_iic_bus);
-	sc->intel_sdvo = sdvo;
+	//XXXTODO
+	//sdvo->ddc_iic_bus = device_add_child(dev->dev,
+	//    "intel_sdvo_ddc_proxy", sdvo->sdvo_reg);
+	//if (sdvo->ddc_iic_bus == NULL) {
+	//	DRM_ERROR("cannot create ddc proxy bus %d\n", sdvo->sdvo_reg);
+	//	return (false);
+	//}
+	//XXXTODO
+	//device_quiet(sdvo->ddc_iic_bus);
+	//ret = device_probe_and_attach(sdvo->ddc_iic_bus);
+	//if (ret != 0) {
+	//	DRM_ERROR("cannot attach proxy bus %d error %d\n",
+	//	    sdvo->sdvo_reg, ret);
+	//	device_delete_child(dev->dev, sdvo->ddc_iic_bus);
+	//	return (false);
+	//}
+	//sc = device_get_softc(sdvo->ddc_iic_bus);
+	//sc->intel_sdvo = sdvo;
 
-	sdvo->ddc = sc->port;
+	//sdvo->ddc = sc->port;
 
 	return true;
 }
@@ -2884,7 +2905,7 @@ err_output:
 
 err:
 	drm_encoder_cleanup(&intel_encoder->base);
-	device_delete_child(dev->dev, intel_sdvo->ddc_iic_bus);
+	i2c_del_adapter(&intel_sdvo->ddc);
 err_i2c_bus:
 	intel_sdvo_unselect_i2c_bus(intel_sdvo);
 	free(intel_sdvo, DRM_MEM_KMS);

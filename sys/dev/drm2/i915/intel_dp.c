@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 
+#include <linux/i2c.h>
+
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
 
 /**
@@ -668,8 +670,8 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 
 	ironlake_edp_panel_vdd_on(intel_dp);
 	ret = iic_dp_aux_add_bus(intel_connector->base.dev->dev, name,
-	    intel_dp_i2c_aux_ch, intel_dp, &intel_dp->dp_iic_bus,
-	    &intel_dp->adapter);
+	    intel_dp_i2c_aux_ch, intel_dp, (device_t*)&intel_dp->dp_iic_bus,
+	    (device_t*)&intel_dp->adapter);
 	ironlake_edp_panel_vdd_off(intel_dp, false);
 	return ret;
 }
@@ -2253,7 +2255,7 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 }
 
 static struct edid *
-intel_dp_get_edid(struct drm_connector *connector, device_t adapter)
+intel_dp_get_edid(struct drm_connector *connector, struct i2c_adapter adapter)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
@@ -2275,11 +2277,11 @@ intel_dp_get_edid(struct drm_connector *connector, device_t adapter)
 		return edid;
 	}
 
-	return drm_get_edid(connector, adapter);
+	return drm_get_edid(connector, &adapter);
 }
 
 static int
-intel_dp_get_edid_modes(struct drm_connector *connector, device_t adapter)
+intel_dp_get_edid_modes(struct drm_connector *connector, struct i2c_adapter adapter)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
@@ -2293,7 +2295,7 @@ intel_dp_get_edid_modes(struct drm_connector *connector, device_t adapter)
 						    intel_connector->edid);
 	}
 
-	return intel_ddc_get_modes(connector, adapter);
+	return intel_ddc_get_modes(connector, &adapter);
 }
 
 
@@ -2481,13 +2483,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 
-	if (intel_dp->dp_iic_bus != NULL) {
-		if (intel_dp->adapter != NULL) {
-			device_delete_child(intel_dp->dp_iic_bus,
-			    intel_dp->adapter);
-		}
-		device_delete_child(dev->dev, intel_dp->dp_iic_bus);
-	}
+	i2c_del_adapter(&intel_dp->adapter);
 	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
 		struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2829,7 +2825,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 							      &power_seq);
 
 		ironlake_edp_panel_vdd_on(intel_dp);
-		edid = drm_get_edid(connector, intel_dp->adapter);
+		edid = drm_get_edid(connector, &intel_dp->adapter);
 		if (edid) {
 			if (drm_add_edid_modes(connector, edid)) {
 				drm_mode_connector_update_edid_property(connector, edid);

@@ -74,4 +74,8 @@ spin_lock_destroy(spinlock_t *lock)
 	spinlock_t lock;						\
 	MTX_SYSINIT(lock, &(lock).m, "lnxspin", MTX_DEF)
 
+//XXX
+#define assert_spin_locked(lock) 
+
+
 #endif	/* _LINUX_SPINLOCK_H_ */

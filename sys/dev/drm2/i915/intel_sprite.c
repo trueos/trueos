@@ -507,7 +507,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	    (crtc_w == primary_w) && (crtc_h == primary_h))
 		disable_primary = true;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 
 	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
 	if (ret)
@@ -537,15 +537,15 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		 * do the pin & ref bookkeeping.
 		 */
 		if (old_obj != obj) {
-			DRM_UNLOCK(dev);
+			mutex_unlock(&dev->struct_mutex);
 			intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
-			DRM_LOCK(dev);
+			mutex_lock(&dev->struct_mutex);
 		}
 		intel_unpin_fb_obj(old_obj);
 	}
 
 out_unlock:
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 out:
 	return ret;
 }
@@ -564,10 +564,10 @@ intel_disable_plane(struct drm_plane *plane)
 	if (!intel_plane->obj)
 		goto out;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	intel_unpin_fb_obj(intel_plane->obj);
 	intel_plane->obj = NULL;
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 out:
 
 	return ret;
@@ -597,7 +597,7 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	if ((set->flags & (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE)) == (I915_SET_COLORKEY_DESTINATION | I915_SET_COLORKEY_SOURCE))
 		return -EINVAL;
 
-	sx_xlock(&dev->mode_config.mutex);
+	mutex_lock(&dev->mode_config.mutex);
 
 	obj = drm_mode_object_find(dev, set->plane_id, DRM_MODE_OBJECT_PLANE);
 	if (!obj) {
@@ -610,7 +610,7 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	ret = intel_plane->update_colorkey(plane, set);
 
 out_unlock:
-	sx_xunlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
 
@@ -626,7 +626,7 @@ int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;
 
-	sx_xlock(&dev->mode_config.mutex);
+	mutex_lock(&dev->mode_config.mutex);
 
 	obj = drm_mode_object_find(dev, get->plane_id, DRM_MODE_OBJECT_PLANE);
 	if (!obj) {
@@ -639,7 +639,7 @@ int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 	intel_plane->get_colorkey(plane, get);
 
 out_unlock:
-	sx_xunlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
 

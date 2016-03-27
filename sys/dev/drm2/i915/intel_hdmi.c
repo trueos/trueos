@@ -331,6 +331,7 @@ static void intel_set_infoframe(struct drm_encoder *encoder,
 static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 					 struct drm_display_mode *adjusted_mode)
 {
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	struct dip_infoframe avi_if = {
 		.type = DIP_TYPE_AVI,
 		.ver = DIP_VERSION_AVI,
@@ -340,7 +341,14 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		avi_if.body.avi.YQ_CN_PR |= DIP_AVI_PR_2;
 
-	avi_if.body.avi.VIC = drm_mode_cea_vic(adjusted_mode);
+	if (intel_hdmi->rgb_quant_range_selectable) {
+		if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_LIMITED;
+		else
+			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
+	}
+
+	avi_if.body.avi.VIC = drm_match_cea_mode(adjusted_mode);
 
 	intel_set_infoframe(encoder, &avi_if);
 }

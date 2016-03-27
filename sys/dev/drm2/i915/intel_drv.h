@@ -130,6 +130,11 @@
  * timings in the mode to prevent the crtc fixup from overwriting them.
  * Currently only lvds needs that. */
 #define INTEL_MODE_CRTC_TIMINGS_SET (0x20)
+/*
+ * Set when limited 16-235 (as opposed to full 0-255) RGB color range is
+ * to be used.
+ */
+#define INTEL_MODE_LIMITED_COLOR_RANGE (0x40)
 
 static inline void
 intel_mode_set_pixel_multiplier(struct drm_display_mode *mode,
@@ -305,6 +310,9 @@ struct cxsr_latency {
 #define DIP_LEN_AVI     13
 #define DIP_AVI_PR_1    0
 #define DIP_AVI_PR_2    1
+#define DIP_AVI_RGB_QUANT_RANGE_DEFAULT (0 << 2)
+#define DIP_AVI_RGB_QUANT_RANGE_LIMITED (1 << 2)
+#define DIP_AVI_RGB_QUANT_RANGE_FULL    (2 << 2)
 
 #define DIP_TYPE_SPD	0x83
 #define DIP_VERSION_SPD	0x1
@@ -359,9 +367,11 @@ struct intel_hdmi {
 	u32 sdvox_reg;
 	int ddc_bus;
 	uint32_t color_range;
+	bool color_range_auto;
 	bool has_hdmi_sink;
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
+	bool rgb_quant_range_selectable;
 	void (*write_infoframe)(struct drm_encoder *encoder,
 				struct dip_infoframe *frame);
 	void (*set_infoframes)(struct drm_encoder *encoder,
@@ -378,12 +388,13 @@ struct intel_dp {
 	bool has_audio;
 	enum hdmi_force_audio force_audio;
 	uint32_t color_range;
+	bool color_range_auto;
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
-	device_t dp_iic_bus;
-	device_t adapter;
+	struct i2c_adapter dp_iic_bus;
+	struct i2c_adapter adapter;
 	bool is_pch_edp;
 	uint8_t train_set[4];
 	int panel_power_up_delay;
@@ -442,7 +453,7 @@ int intel_pch_rawclk(struct drm_device *dev);
 
 int intel_connector_update_modes(struct drm_connector *connector,
 				struct edid *edid);
-int intel_ddc_get_modes(struct drm_connector *c, device_t adapter);
+int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
 
 extern void intel_attach_force_audio_property(struct drm_connector *connector);
 extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
