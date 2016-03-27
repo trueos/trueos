@@ -32,4 +32,7 @@
 #define	_LINUX_COMPAT_H_
 
 #define oops_in_progress (panicstr != NULL)
+#define preempt_disable() critical_enter()
+#define preempt_enable() critical_exit()
+
 #endif	/* _LINUX_COMPAT_H_ */
