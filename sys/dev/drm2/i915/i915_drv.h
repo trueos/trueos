@@ -87,7 +87,13 @@ enum port {
 };
 #define port_name(p) ((p) + 'A')
 
-#define I915_GEM_GPU_DOMAINS	(~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
+#define I915_GEM_GPU_DOMAINS \
+	(I915_GEM_DOMAIN_RENDER | \
+	 I915_GEM_DOMAIN_SAMPLER | \
+	 I915_GEM_DOMAIN_COMMAND | \
+	 I915_GEM_DOMAIN_INSTRUCTION | \
+	 I915_GEM_DOMAIN_VERTEX)
+
 
 #define for_each_pipe(p) for ((p) = 0; (p) < dev_priv->num_pipe; (p)++)
 
@@ -186,7 +192,7 @@ struct sdvo_device_mapping {
 struct intel_display_error_state;
 
 struct drm_i915_error_state {
-	u_int ref;
+	struct kref ref;
 	u32 eir;
 	u32 pgtbl_er;
 	u32 ier;
@@ -282,6 +288,7 @@ struct drm_i915_display_funcs {
 			  struct drm_i915_gem_object *obj);
 	int (*update_plane)(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 			    int x, int y);
+	void (*hpd_irq_setup)(struct drm_device *dev);
 	/* clock updates for mode set */
 	/* cursor updates */
 	/* render clock increase/decrease */
@@ -321,6 +328,7 @@ struct drm_i915_gt_funcs {
 	DEV_INFO_FLAG(has_llc)
 
 struct intel_device_info {
+	u32 display_mmio_offset;	
 	u8 gen;
 	u8 is_mobile:1;
 	u8 is_i85x:1;
@@ -348,6 +356,50 @@ struct intel_device_info {
 	u8 has_llc:1;
 };
 
+enum i915_cache_level {
+	I915_CACHE_NONE = 0,
+	I915_CACHE_LLC,
+	I915_CACHE_LLC_MLC, /* gen6+, in docs at least! */
+};
+
+/* The Graphics Translation Table is the way in which GEN hardware translates a
+ * Graphics Virtual Address into a Physical Address. In addition to the normal
+ * collateral associated with any va->pa translations GEN hardware also has a
+ * portion of the GTT which can be mapped by the CPU and remain both coherent
+ * and correct (in cases like swizzling). That region is referred to as GMADR in
+ * the spec.
+ */
+struct i915_gtt {
+	unsigned long start;		/* Start offset of used GTT */
+	size_t total;			/* Total size GTT can map */
+	size_t stolen_size;		/* Total size of stolen memory */
+
+	unsigned long mappable_end;	/* End offset that we can CPU map */
+	struct io_mapping *mappable;	/* Mapping to our CPU mappable region */
+	phys_addr_t mappable_base;	/* PA of our GMADR */
+
+	/** "Graphics Stolen Memory" holds the global PTEs */
+	void __iomem *gsm;
+
+	bool do_idle_maps;
+	dma_addr_t scratch_page_dma;
+	struct page *scratch_page;
+
+	/* global gtt ops */
+	int (*gtt_probe)(struct drm_device *dev, size_t *gtt_total,
+			  size_t *stolen, phys_addr_t *mappable_base,
+			  unsigned long *mappable_end);
+	void (*gtt_remove)(struct drm_device *dev);
+	void (*gtt_clear_range)(struct drm_device *dev,
+				unsigned int first_entry,
+				unsigned int num_entries);
+	void (*gtt_insert_entries)(struct drm_device *dev,
+				   struct sg_table *st,
+				   unsigned int pg_start,
+				   enum i915_cache_level cache_level);
+};
+#define gtt_total_entries(gtt) ((gtt).total >> PAGE_SHIFT)
+
 #define I915_PPGTT_PD_ENTRIES 512
 #define I915_PPGTT_PT_ENTRIES 1024
 struct i915_hw_ppgtt {
@@ -363,7 +415,7 @@ struct i915_hw_ppgtt {
 /* This must match up with the value previously used for execbuf2.rsvd1. */
 #define DEFAULT_CONTEXT_ID 0
 struct i915_hw_context {
-	uint32_t id;
+	int id;
 	bool is_initialized;
 	struct drm_i915_file_private *file_priv;
 	struct intel_ring_buffer *ring;
@@ -568,7 +620,7 @@ struct intel_gen6_power_mgmt {
 	u32 pm_iir;
 	/* lock - irqsave spinlock that protectects the work_struct and
 	 * pm_iir. */
-	struct mtx lock;
+	spinlock_t lock;
 
 	/* The below variables an all the rps hw state are protected by
 	 * dev->struct mutext. */
@@ -582,7 +634,7 @@ struct intel_gen6_power_mgmt {
 	 * Protects RPS/RC6 register access and PCU communication.
 	 * Must be taken after struct_mutex if nested.
 	 */
-	struct sx hw_lock;
+	struct mutex hw_lock;
 };
 
 struct intel_ilk_power_mgmt {
@@ -642,13 +694,13 @@ typedef struct drm_i915_private {
 	/** forcewake_count is protected by gt_lock */
 	unsigned forcewake_count;
 	/** gt_lock is also taken in irq contexts. */
-	struct mtx gt_lock;
+	spinlock_t gt_lock;
 
 	struct intel_gmbus gmbus[GMBUS_NUM_PORTS];
 
 	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
 	 * controller on different i2c buses. */
-	struct sx gmbus_mutex;
+	struct mutex gmbus_mutex;
 
 	/**
 	 * Base address of the gmbus and gpio block.
@@ -666,10 +718,10 @@ typedef struct drm_i915_private {
 	atomic_t irq_received;
 
 	/* protects the irq masks */
-	struct mtx irq_lock;
+	spinlock_t irq_lock;
 
 	/* DPIO indirect register protection */
-	struct sx dpio_lock;
+	struct mutex dpio_lock;
 
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 pipestat[2];
@@ -742,7 +794,7 @@ typedef struct drm_i915_private {
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 
-	struct mtx error_lock;
+	spinlock_t error_lock;
 	/* Protected by dev->error_lock. */
 	struct drm_i915_error_state *first_error;
 	struct task error_work;
@@ -951,12 +1003,6 @@ enum hdmi_force_audio {
 	HDMI_AUDIO_ON,			/* force turn on HDMI audio */
 };
 
-enum i915_cache_level {
-	I915_CACHE_NONE = 0,
-	I915_CACHE_LLC,
-	I915_CACHE_LLC_MLC, /* gen6+, in docs at least! */
-};
-
 struct drm_i915_gem_object_ops {
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set
@@ -1149,10 +1195,10 @@ struct drm_i915_gem_request {
 
 struct drm_i915_file_private {
 	struct {
-		struct mtx lock;
+		spinlock_t lock;
 		struct list_head request_list;
 	} mm;
-	struct drm_gem_names context_idr;
+	struct idr context_idr;
 };
 
 #define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)
