@@ -44,7 +44,7 @@ typedef struct mutex {
 #define	mutex_lock(_m)			sx_xlock(&(_m)->sx)
 #define	mutex_lock_nested(_m, _s)	mutex_lock(_m)
 #define mutex_lock_nest_lock(_m, _s)	mutex_lock(_m)
-#define	mutex_lock_interruptible(_m)	({ mutex_lock((_m)); 0; })
+#define	mutex_lock_interruptible(_m)	({ int ret = sx_xlock_sig(&(_m)->sx); ret ? -EINTR : 0; })
 #define	mutex_unlock(_m)		sx_xunlock(&(_m)->sx)
 #define	mutex_trylock(_m)		!!sx_try_xlock(&(_m)->sx)
 #define	mutex_is_locked(_m)		sx_xlocked(&(_m)->sx)
