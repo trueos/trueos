@@ -56,4 +56,5 @@ kstrdup_const(const char *src, gfp_t gfp)
 	return (kmemdup(src, strlen(src) + 1, gfp));
 }
 
+void *memchr_inv(const void *start, int c, size_t bytes);
 #endif	/* _LINUX_STRING_H_ */
