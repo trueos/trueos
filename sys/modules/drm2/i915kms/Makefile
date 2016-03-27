@@ -60,7 +60,8 @@ SRCS	+=								\
 	device_if.h							\
 	iicbb_if.h							\
 	iicbus_if.h							\
-	pci_if.h
+	pci_if.h							\
+	vnode_if.h
 
 .include <bsd.kmod.mk>
 
