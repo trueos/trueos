@@ -304,15 +304,16 @@ static void i915_hotplug_work_func(void *context, int pending)
 }
 
 /* defined intel_pm.c */
-extern struct mtx mchdev_lock;
+extern spinlock_t mchdev_lock;
 
 static void ironlake_handle_rps_change(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 busy_up, busy_down, max_avg, min_avg;
 	u8 new_delay;
+	unsigned long flags;
 
-	mtx_lock(&mchdev_lock);
+	spin_lock_irqsave(&mchdev_lock, flags);
 
 	I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
 
@@ -340,7 +341,7 @@ static void ironlake_handle_rps_change(struct drm_device *dev)
 	if (ironlake_set_drps(dev, new_delay))
 		dev_priv->ips.cur_delay = new_delay;
 
-	mtx_unlock(&mchdev_lock);
+	spin_unlock_irqrestore(&mchdev_lock, flags);
 
 	return;
 }
@@ -369,12 +370,12 @@ static void gen6_pm_rps_work(void *context, int pending)
 	u32 pm_iir, pm_imr;
 	u8 new_delay;
 
-	spin_lock(&dev_priv->rps.lock);
+	spin_lock_irq(&dev_priv->rps.lock);
 	pm_iir = dev_priv->rps.pm_iir;
 	dev_priv->rps.pm_iir = 0;
 	pm_imr = I915_READ(GEN6_PMIMR);
 	I915_WRITE(GEN6_PMIMR, 0);
-	spin_unlock(&dev_priv->rps.lock);
+	spin_unlock_irq(&dev_priv->rps.lock);
 
 	if ((pm_iir & GEN6_PM_DEFERRED_EVENTS) == 0)
 		return;
