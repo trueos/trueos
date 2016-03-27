@@ -421,14 +421,14 @@ ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	fbo->vm_node = NULL;
 	atomic_set(&fbo->cpu_writers, 0);
 
-	mtx_lock(&bdev->fence_lock);
+	spin_lock(&bdev->fence_lock);
 	if (bo->sync_obj)
 		fbo->sync_obj = driver->sync_obj_ref(bo->sync_obj);
 	else
 		fbo->sync_obj = NULL;
-	mtx_unlock(&bdev->fence_lock);
-	refcount_init(&fbo->list_kref, 1);
-	refcount_init(&fbo->kref, 1);
+	spin_unlock(&bdev->fence_lock);
+	kref_init(&fbo->list_kref);
+	kref_init(&fbo->kref);
 	fbo->destroy = &ttm_transfered_destroy;
 	fbo->acc_size = 0;
 
@@ -606,7 +606,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	struct ttm_buffer_object *ghost_obj;
 	void *tmp_obj = NULL;
 
-	mtx_lock(&bdev->fence_lock);
+	spin_lock(&bdev->fence_lock);
 	if (bo->sync_obj) {
 		tmp_obj = bo->sync_obj;
 		bo->sync_obj = NULL;
@@ -614,7 +614,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	bo->sync_obj = driver->sync_obj_ref(sync_obj);
 	if (evict) {
 		ret = ttm_bo_wait(bo, false, false, false);
-		mtx_unlock(&bdev->fence_lock);
+		spin_unlock(&bdev->fence_lock);
 		if (tmp_obj)
 			driver->sync_obj_unref(&tmp_obj);
 		if (ret)
@@ -637,7 +637,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		 */
 
 		set_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
-		mtx_unlock(&bdev->fence_lock);
+		spin_unlock(&bdev->fence_lock);
 		if (tmp_obj)
 			driver->sync_obj_unref(&tmp_obj);
 

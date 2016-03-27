@@ -108,18 +108,20 @@ static inline uint32_t ttm_bo_type_flags(unsigned type)
 	return 1 << (type);
 }
 
-static void ttm_bo_release_list(struct ttm_buffer_object *bo)
+static void ttm_bo_release_list(struct kref *list_kref)
 {
+	struct ttm_buffer_object *bo =
+	    container_of(list_kref, struct ttm_buffer_object, list_kref);
 	struct ttm_bo_device *bdev = bo->bdev;
 	size_t acc_size = bo->acc_size;
 
 	MPASS(*(volatile u_int *)&bo->list_kref == 0);
 	MPASS(*(volatile u_int *)&bo->kref == 0);
-	MPASS(atomic_read(&bo->cpu_writers) == 0);
-	MPASS(bo->sync_obj == NULL);
-	MPASS(bo->mem.mm_node == NULL);
-	MPASS(list_empty(&bo->lru));
-	MPASS(list_empty(&bo->ddestroy));
+	BUG_ON(atomic_read(&bo->cpu_writers) == 0);
+	BUG_ON(bo->sync_obj != NULL);
+	BUG_ON(bo->mem.mm_node != NULL);
+	BUG_ON(!list_empty(&bo->lru));
+	BUG_ON(!list_empty(&bo->ddestroy));
 
 	if (bo->ttm)
 		ttm_tt_destroy(bo->ttm);
@@ -147,7 +149,7 @@ ttm_bo_wait_unreserved_locked(struct ttm_buffer_object *bo, bool interruptible)
 		wmsg = "ttbowu";
 	}
 	while (ttm_bo_is_reserved(bo)) {
-		ret = -bsd_msleep(bo, &bo->glob->lru_lock, flags, wmsg, 0);
+		ret = -bsd_msleep(bo, &bo->glob->lru_lock.m, flags, wmsg, 0);
 		if (ret == -EINTR || ret == -ERESTART)
 			ret = -ERESTARTSYS;
 		if (ret != 0)
@@ -169,11 +171,11 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 
 		man = &bdev->man[bo->mem.mem_type];
 		list_add_tail(&bo->lru, &man->lru);
-		refcount_acquire(&bo->list_kref);
+		kref_get(&bo->list_kref);
 
 		if (bo->ttm != NULL) {
 			list_add_tail(&bo->swap, &bo->glob->swap_lru);
-			refcount_acquire(&bo->list_kref);
+			kref_get(&bo->list_kref);
 		}
 	}
 }
@@ -262,18 +264,18 @@ int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
 
 	return 0;
 }
+EXPORT_SYMBOL(ttm_bo_reserve);
+
+static void ttm_bo_ref_bug(struct kref *list_kref)
+{
+	BUG();
+}
 
 void ttm_bo_list_ref_sub(struct ttm_buffer_object *bo, int count,
 			 bool never_free)
 {
-	u_int old;
-
-	old = atomic_fetchadd_int(&bo->list_kref, -count);
-	if (old <= count) {
-		if (never_free)
-			panic("ttm_bo_ref_buf");
-		ttm_bo_release_list(bo);
-	}
+	kref_sub(&bo->list_kref, count,
+		 (never_free) ? ttm_bo_ref_bug : ttm_bo_release_list);
 }
 
 int ttm_bo_reserve(struct ttm_buffer_object *bo,
@@ -284,15 +286,14 @@ int ttm_bo_reserve(struct ttm_buffer_object *bo,
 	int put_count = 0;
 	int ret;
 
-	mtx_lock(&bo->glob->lru_lock);
 	ret = ttm_bo_reserve_nolru(bo, interruptible, no_wait, use_sequence,
 				   sequence);
 	if (likely(ret == 0)) {
+		spin_lock(&glob->lru_lock);
 		put_count = ttm_bo_del_from_lru(bo);
-		mtx_unlock(&glob->lru_lock);
+		spin_unlock(&glob->lru_lock);
 		ttm_bo_list_ref_sub(bo, put_count, true);
-	} else
-		mtx_unlock(&bo->glob->lru_lock);
+	}
 
 	return ret;
 }
@@ -337,16 +338,16 @@ int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 	struct ttm_bo_global *glob = bo->glob;
 	int put_count, ret;
 
-	mtx_lock(&glob->lru_lock);
 	ret = ttm_bo_reserve_slowpath_nolru(bo, interruptible, sequence);
 	if (likely(!ret)) {
+		spin_lock(&glob->lru_lock);
 		put_count = ttm_bo_del_from_lru(bo);
-		mtx_unlock(&glob->lru_lock);
+		spin_unlock(&glob->lru_lock);
 		ttm_bo_list_ref_sub(bo, put_count, true);
-	} else
-		mtx_unlock(&glob->lru_lock);
+	}
 	return ret;
 }
+EXPORT_SYMBOL(ttm_bo_reserve_slowpath);
 
 void ttm_bo_unreserve_locked(struct ttm_buffer_object *bo)
 {
@@ -359,9 +360,9 @@ void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_global *glob = bo->glob;
 
-	mtx_lock(&glob->lru_lock);
+	spin_lock(&glob->lru_lock);
 	ttm_bo_unreserve_locked(bo);
-	mtx_unlock(&glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 }
 
 /*
@@ -556,16 +557,16 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	int put_count;
 	int ret;
 
-	mtx_lock(&glob->lru_lock);
+	spin_lock(&glob->lru_lock);
 	ret = ttm_bo_reserve_nolru(bo, false, true, false, 0);
 
-	mtx_lock(&bdev->fence_lock);
+	spin_lock(&bdev->fence_lock);
 	(void) ttm_bo_wait(bo, false, false, true);
 	if (!ret && !bo->sync_obj) {
-		mtx_unlock(&bdev->fence_lock);
+		spin_unlock(&bdev->fence_lock);
 		put_count = ttm_bo_del_from_lru(bo);
 
-		mtx_unlock(&glob->lru_lock);
+		spin_unlock(&glob->lru_lock);
 		ttm_bo_cleanup_memtype_use(bo);
 
 		ttm_bo_list_ref_sub(bo, put_count, true);
@@ -574,16 +575,16 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	}
 	if (bo->sync_obj)
 		sync_obj = driver->sync_obj_ref(bo->sync_obj);
-	mtx_unlock(&bdev->fence_lock);
+	spin_unlock(&bdev->fence_lock);
 
 	if (!ret) {
 		atomic_set(&bo->reserved, 0);
 		wakeup(bo);
 	}
 
-	refcount_acquire(&bo->list_kref);
+	kref_get(&bo->list_kref);
 	list_add_tail(&bo->ddestroy, &bdev->ddestroy);
-	mtx_unlock(&glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 
 	if (sync_obj) {
 		driver->sync_obj_flush(sync_obj);
@@ -615,7 +616,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 	int put_count;
 	int ret;
 
-	mtx_lock(&bdev->fence_lock);
+	spin_lock(&bdev->fence_lock);
 	ret = ttm_bo_wait(bo, false, false, true);
 
 	if (ret && !no_wait_gpu) {
@@ -627,11 +628,11 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 		 * no new sync objects can be attached.
 		 */
 		sync_obj = driver->sync_obj_ref(bo->sync_obj);
-		mtx_unlock(&bdev->fence_lock);
+		spin_unlock(&bdev->fence_lock);
 
 		atomic_set(&bo->reserved, 0);
 		wakeup(bo);
-		mtx_unlock(&glob->lru_lock);
+		spin_unlock(&glob->lru_lock);
 
 		ret = driver->sync_obj_wait(sync_obj, false, interruptible);
 		driver->sync_obj_unref(&sync_obj);
@@ -642,13 +643,14 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 		 * remove sync_obj with ttm_bo_wait, the wait should be
 		 * finished, and no new wait object should have been added.
 		 */
-		mtx_lock(&bdev->fence_lock);
+		spin_lock(&bdev->fence_lock);
 		ret = ttm_bo_wait(bo, false, false, true);
-		mtx_unlock(&bdev->fence_lock);
+		WARN_ON(ret);
+		spin_unlock(&bdev->fence_lock);
 		if (ret)
 			return ret;
 
-		mtx_lock(&glob->lru_lock);
+		spin_lock(&glob->lru_lock);
 		ret = ttm_bo_reserve_nolru(bo, false, true, false, 0);
 
 		/*
@@ -660,16 +662,16 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 		 * here.
 		 */
 		if (ret) {
-			mtx_unlock(&glob->lru_lock);
+			spin_unlock(&glob->lru_lock);
 			return 0;
 		}
 	} else
-		mtx_unlock(&bdev->fence_lock);
+		spin_unlock(&bdev->fence_lock);
 
 	if (ret || unlikely(list_empty(&bo->ddestroy))) {
 		atomic_set(&bo->reserved, 0);
 		wakeup(bo);
-		mtx_unlock(&glob->lru_lock);
+		spin_unlock(&glob->lru_lock);
 		return ret;
 	}
 
@@ -677,7 +679,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 	list_del_init(&bo->ddestroy);
 	++put_count;
 
-	mtx_unlock(&glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 	ttm_bo_cleanup_memtype_use(bo);
 
 	ttm_bo_list_ref_sub(bo, put_count, true);
@@ -696,13 +698,13 @@ static int ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 	struct ttm_buffer_object *entry = NULL;
 	int ret = 0;
 
-	mtx_lock(&glob->lru_lock);
+	spin_lock(&glob->lru_lock);
 	if (list_empty(&bdev->ddestroy))
 		goto out_unlock;
 
 	entry = list_first_entry(&bdev->ddestroy,
 		struct ttm_buffer_object, ddestroy);
-	refcount_acquire(&entry->list_kref);
+	kref_get(&entry->list_kref);
 
 	for (;;) {
 		struct ttm_buffer_object *nentry = NULL;
@@ -710,38 +712,39 @@ static int ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 		if (entry->ddestroy.next != &bdev->ddestroy) {
 			nentry = list_first_entry(&entry->ddestroy,
 				struct ttm_buffer_object, ddestroy);
-			refcount_acquire(&nentry->list_kref);
+			kref_get(&nentry->list_kref);
 		}
 
 		ret = ttm_bo_reserve_nolru(entry, false, true, false, 0);
 		if (remove_all && ret) {
+			spin_unlock(&glob->lru_lock);
 			ret = ttm_bo_reserve_nolru(entry, false, false,
 						   false, 0);
+			spin_lock(&glob->lru_lock);
 		}
 
 		if (!ret)
 			ret = ttm_bo_cleanup_refs_and_unlock(entry, false,
 							     !remove_all);
 		else
-			mtx_unlock(&glob->lru_lock);
+			spin_unlock(&glob->lru_lock);
 
-		if (refcount_release(&entry->list_kref))
-			ttm_bo_release_list(entry);
+		kref_put(&entry->list_kref, ttm_bo_release_list);
 		entry = nentry;
 
 		if (ret || !entry)
 			goto out;
 
-		mtx_lock(&glob->lru_lock);
+		spin_lock(&glob->lru_lock);
 		if (list_empty(&entry->ddestroy))
 			break;
 	}
 
 out_unlock:
-	mtx_unlock(&glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 out:
-	if (entry && refcount_release(&entry->list_kref))
-		ttm_bo_release_list(entry);
+	if (entry)
+		kref_put(&entry->list_kref, ttm_bo_release_list);
 	return ret;
 }
 
@@ -755,8 +758,10 @@ static void ttm_bo_delayed_workqueue(void *arg, int pending __unused)
 	}
 }
 
-static void ttm_bo_release(struct ttm_buffer_object *bo)
+static void ttm_bo_release(struct kref *kref)
 {
+	struct ttm_buffer_object *bo =
+	    container_of(kref, struct ttm_buffer_object, kref);
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_mem_type_manager *man = &bdev->man[bo->mem.mem_type];
 
@@ -772,8 +777,7 @@ static void ttm_bo_release(struct ttm_buffer_object *bo)
 	ttm_mem_io_free_vm(bo);
 	ttm_mem_io_unlock(man);
 	ttm_bo_cleanup_refs_or_queue(bo);
-	if (refcount_release(&bo->list_kref))
-		ttm_bo_release_list(bo);
+	kref_put(&bo->list_kref, ttm_bo_release_list);
 }
 
 void ttm_bo_unref(struct ttm_buffer_object **p_bo)
@@ -781,9 +785,9 @@ void ttm_bo_unref(struct ttm_buffer_object **p_bo)
 	struct ttm_buffer_object *bo = *p_bo;
 
 	*p_bo = NULL;
-	if (refcount_release(&bo->kref))
-		ttm_bo_release(bo);
+	kref_put(&bo->kref, ttm_bo_release);
 }
+EXPORT_SYMBOL(ttm_bo_unref);
 
 int ttm_bo_lock_delayed_workqueue(struct ttm_bo_device *bdev)
 {
@@ -810,9 +814,9 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 	struct ttm_placement placement;
 	int ret = 0;
 
-	mtx_lock(&bdev->fence_lock);
+	spin_lock(&bdev->fence_lock);
 	ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu);
-	mtx_unlock(&bdev->fence_lock);
+	spin_unlock(&bdev->fence_lock);
 
 	if (unlikely(ret != 0)) {
 		if (ret != -ERESTARTSYS) {
@@ -821,7 +825,7 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo, bool interruptible,
 		goto out;
 	}
 
-	MPASS(ttm_bo_is_reserved(bo));
+	BUG_ON(!ttm_bo_is_reserved(bo));
 
 	evict_mem = bo->mem;
 	evict_mem.mm_node = NULL;
@@ -867,7 +871,7 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	struct ttm_buffer_object *bo;
 	int ret = -EBUSY, put_count;
 
-	mtx_lock(&glob->lru_lock);
+	spin_lock(&glob->lru_lock);
 	list_for_each_entry(bo, &man->lru, lru) {
 		ret = ttm_bo_reserve_nolru(bo, false, true, false, 0);
 		if (!ret)
@@ -875,32 +879,30 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	}
 
 	if (ret) {
-		mtx_unlock(&glob->lru_lock);
+		spin_unlock(&glob->lru_lock);
 		return ret;
 	}
 
-	refcount_acquire(&bo->list_kref);
+	kref_get(&bo->list_kref);
 
 	if (!list_empty(&bo->ddestroy)) {
 		ret = ttm_bo_cleanup_refs_and_unlock(bo, interruptible,
 						     no_wait_gpu);
-		if (refcount_release(&bo->list_kref))
-			ttm_bo_release_list(bo);
+		kref_put(&bo->list_kref, ttm_bo_release_list);
 		return ret;
 	}
 
 	put_count = ttm_bo_del_from_lru(bo);
-	mtx_unlock(&glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 
-	MPASS(ret == 0);
+	BUG_ON(ret != 0);
 
 	ttm_bo_list_ref_sub(bo, put_count, true);
 
 	ret = ttm_bo_evict(bo, interruptible, no_wait_gpu);
 	ttm_bo_unreserve(bo);
 
-	if (refcount_release(&bo->list_kref))
-		ttm_bo_release_list(bo);
+	kref_put(&bo->list_kref, ttm_bo_release_list);
 	return ret;
 }
 
@@ -1112,16 +1114,16 @@ int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	struct ttm_mem_reg mem;
 	struct ttm_bo_device *bdev = bo->bdev;
 
-	MPASS(ttm_bo_is_reserved(bo));
+	BUG_ON(!ttm_bo_is_reserved(bo));
 
 	/*
 	 * FIXME: It's possible to pipeline buffer moves.
 	 * Have the driver move function wait for idle when necessary,
 	 * instead of doing it here.
 	 */
-	mtx_lock(&bdev->fence_lock);
+	spin_lock(&bdev->fence_lock);
 	ret = ttm_bo_wait(bo, false, interruptible, no_wait_gpu);
-	mtx_unlock(&bdev->fence_lock);
+	spin_unlock(&bdev->fence_lock);
 	if (ret)
 		return ret;
 	mem.num_pages = bo->num_pages;
@@ -1252,8 +1254,8 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	}
 	bo->destroy = destroy;
 
-	refcount_init(&bo->kref, 1);
-	refcount_init(&bo->list_kref, 1);
+	kref_init(&bo->kref);
+	kref_init(&bo->list_kref);
 	atomic_set(&bo->cpu_writers, 0);
 	atomic_set(&bo->reserved, 1);
 	INIT_LIST_HEAD(&bo->lru);
@@ -1370,9 +1372,9 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 	 * Can't use standard list traversal since we're unlocking.
 	 */
 
-	mtx_lock(&glob->lru_lock);
+	spin_lock(&glob->lru_lock);
 	while (!list_empty(&man->lru)) {
-		mtx_unlock(&glob->lru_lock);
+		spin_unlock(&glob->lru_lock);
 		ret = ttm_mem_evict_first(bdev, mem_type, false, false);
 		if (ret) {
 			if (allow_errors) {
@@ -1381,9 +1383,9 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 				printf("[TTM] Cleanup eviction failed\n");
 			}
 		}
-		mtx_lock(&glob->lru_lock);
+		spin_lock(&glob->lru_lock);
 	}
-	mtx_unlock(&glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 	return 0;
 }
 
@@ -1491,8 +1493,8 @@ int ttm_bo_global_init(struct drm_global_reference *ref)
 	int req, ret;
 	int tries;
 
-	sx_init(&glob->device_list_mutex, "ttmdlm");
-	mtx_init(&glob->lru_lock, "ttmlru", NULL, MTX_DEF);
+	mutex_init(&glob->device_list_mutex);
+	spin_lock_init(&glob->lru_lock);
 	glob->mem_glob = bo_ref->mem_glob;
 	req = VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ;
 	tries = 0;
@@ -1552,9 +1554,9 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 		}
 	}
 
-	sx_xlock(&glob->device_list_mutex);
+	mutex_lock(&glob->device_list_mutex);
 	list_del(&bdev->device_list);
-	sx_xunlock(&glob->device_list_mutex);
+	mutex_unlock(&glob->device_list_mutex);
 
 	if (taskqueue_cancel_timeout(taskqueue_thread, &bdev->wq, NULL))
 		taskqueue_drain_timeout(taskqueue_thread, &bdev->wq);
@@ -1562,15 +1564,15 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 	while (ttm_bo_delayed_delete(bdev, true))
 		;
 
-	mtx_lock(&glob->lru_lock);
+	spin_lock(&glob->lru_lock);
 	if (list_empty(&bdev->ddestroy))
 		TTM_DEBUG("Delayed destroy list was clean\n");
 
 	if (list_empty(&bdev->man[0].lru))
 		TTM_DEBUG("Swap list was clean\n");
-	mtx_unlock(&glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 
-	MPASS(drm_mm_clean(&bdev->addr_space_mm));
+	BUG_ON(!drm_mm_clean(&bdev->addr_space_mm));
 	rw_wlock(&bdev->vm_lock);
 	drm_mm_takedown(&bdev->addr_space_mm);
 	rw_wunlock(&bdev->vm_lock);
@@ -1611,10 +1613,10 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	bdev->glob = glob;
 	bdev->need_dma32 = need_dma32;
 	bdev->val_seq = 0;
-	mtx_init(&bdev->fence_lock, "ttmfence", NULL, MTX_DEF);
-	sx_xlock(&glob->device_list_mutex);
+	spin_lock_init(&bdev->fence_lock);
+	mutex_lock(&glob->device_list_mutex);
 	list_add_tail(&bdev->device_list, &glob->device_list);
-	sx_xunlock(&glob->device_list_mutex);
+	mutex_unlock(&glob->device_list_mutex);
 
 	return 0;
 out_no_addr_mm:
@@ -1734,9 +1736,9 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 			void *tmp_obj = bo->sync_obj;
 			bo->sync_obj = NULL;
 			clear_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
-			mtx_unlock(&bdev->fence_lock);
+			spin_unlock(&bdev->fence_lock);
 			driver->sync_obj_unref(&tmp_obj);
-			mtx_lock(&bdev->fence_lock);
+			spin_lock(&bdev->fence_lock);
 			continue;
 		}
 
@@ -1744,32 +1746,33 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 			return -EBUSY;
 
 		sync_obj = driver->sync_obj_ref(bo->sync_obj);
-		mtx_unlock(&bdev->fence_lock);
+		spin_unlock(&bdev->fence_lock);
 		ret = driver->sync_obj_wait(sync_obj,
 					    lazy, interruptible);
 		if (unlikely(ret != 0)) {
 			driver->sync_obj_unref(&sync_obj);
-			mtx_lock(&bdev->fence_lock);
+			spin_lock(&bdev->fence_lock);
 			return ret;
 		}
-		mtx_lock(&bdev->fence_lock);
+		spin_lock(&bdev->fence_lock);
 		if (likely(bo->sync_obj == sync_obj)) {
 			void *tmp_obj = bo->sync_obj;
 			bo->sync_obj = NULL;
 			clear_bit(TTM_BO_PRIV_FLAG_MOVING,
 				  &bo->priv_flags);
-			mtx_unlock(&bdev->fence_lock);
+			spin_unlock(&bdev->fence_lock);
 			driver->sync_obj_unref(&sync_obj);
 			driver->sync_obj_unref(&tmp_obj);
-			mtx_lock(&bdev->fence_lock);
+			spin_lock(&bdev->fence_lock);
 		} else {
-			mtx_unlock(&bdev->fence_lock);
+			spin_unlock(&bdev->fence_lock);
 			driver->sync_obj_unref(&sync_obj);
-			mtx_lock(&bdev->fence_lock);
+			spin_lock(&bdev->fence_lock);
 		}
 	}
 	return 0;
 }
+EXPORT_SYMBOL(ttm_bo_wait);
 
 int ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait)
 {
@@ -1783,19 +1786,21 @@ int ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait)
 	ret = ttm_bo_reserve(bo, true, no_wait, false, 0);
 	if (unlikely(ret != 0))
 		return ret;
-	mtx_lock(&bdev->fence_lock);
+	spin_lock(&bdev->fence_lock);
 	ret = ttm_bo_wait(bo, false, true, no_wait);
-	mtx_unlock(&bdev->fence_lock);
+	spin_unlock(&bdev->fence_lock);
 	if (likely(ret == 0))
 		atomic_inc(&bo->cpu_writers);
 	ttm_bo_unreserve(bo);
 	return ret;
 }
+EXPORT_SYMBOL(ttm_bo_synccpu_write_grab);
 
 void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo)
 {
 	atomic_dec(&bo->cpu_writers);
 }
+EXPORT_SYMBOL(ttm_bo_synccpu_write_release);
 
 /**
  * A buffer object shrink method that tries to swap out the first
@@ -1811,7 +1816,7 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	int put_count;
 	uint32_t swap_placement = (TTM_PL_FLAG_CACHED | TTM_PL_FLAG_SYSTEM);
 
-	mtx_lock(&glob->lru_lock);
+	spin_lock(&glob->lru_lock);
 	list_for_each_entry(bo, &glob->swap_lru, swap) {
 		ret = ttm_bo_reserve_nolru(bo, false, true, false, 0);
 		if (!ret)
@@ -1819,21 +1824,20 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	}
 
 	if (ret) {
-		mtx_unlock(&glob->lru_lock);
+		spin_unlock(&glob->lru_lock);
 		return ret;
 	}
 
-	refcount_acquire(&bo->list_kref);
+	kref_get(&bo->list_kref);
 
 	if (!list_empty(&bo->ddestroy)) {
 		ret = ttm_bo_cleanup_refs_and_unlock(bo, false, false);
-		if (refcount_release(&bo->list_kref))
-			ttm_bo_release_list(bo);
+		kref_put(&bo->list_kref, ttm_bo_release_list);
 		return ret;
 	}
 
 	put_count = ttm_bo_del_from_lru(bo);
-	mtx_unlock(&glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 
 	ttm_bo_list_ref_sub(bo, put_count, true);
 
@@ -1841,9 +1845,9 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	 * Wait for GPU, then move to system cached.
 	 */
 
-	mtx_lock(&bo->bdev->fence_lock);
+	spin_lock(&bo->bdev->fence_lock);
 	ret = ttm_bo_wait(bo, false, false, false);
-	mtx_unlock(&bo->bdev->fence_lock);
+	spin_unlock(&bo->bdev->fence_lock);
 
 	if (unlikely(ret != 0))
 		goto out;
@@ -1883,8 +1887,7 @@ out:
 
 	atomic_set(&bo->reserved, 0);
 	wakeup(bo);
-	if (refcount_release(&bo->list_kref))
-		ttm_bo_release_list(bo);
+	kref_put(&bo->list_kref, ttm_bo_release_list);
 	return ret;
 }
 

@@ -155,7 +155,7 @@ reserve:
 	 * move.
 	 */
 
-	mtx_lock(&bdev->fence_lock);
+	spin_lock(&bdev->fence_lock);
 	if (test_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags)) {
 		/*
 		 * Here, the behavior differs between Linux and FreeBSD.
@@ -174,13 +174,13 @@ reserve:
 		 * and the process to receive SIGSEGV.
 		 */
 		ret = ttm_bo_wait(bo, false, false, false);
-		mtx_unlock(&bdev->fence_lock);
+		spin_unlock(&bdev->fence_lock);
 		if (unlikely(ret != 0)) {
 			retval = VM_PAGER_ERROR;
 			goto out_unlock;
 		}
 	} else
-		mtx_unlock(&bdev->fence_lock);
+		spin_unlock(&bdev->fence_lock);
 
 	ret = ttm_mem_io_lock(man, true);
 	if (unlikely(ret != 0)) {
@@ -334,7 +334,7 @@ ttm_bo_mmap_single(struct ttm_bo_device *bdev, vm_ooffset_t *offset, vm_size_t s
 	rw_wlock(&bdev->vm_lock);
 	bo = ttm_bo_vm_lookup_rb(bdev, OFF_TO_IDX(*offset), OFF_TO_IDX(size));
 	if (likely(bo != NULL))
-		refcount_acquire(&bo->kref);
+		kref_get(&bo->kref);
 	rw_wunlock(&bdev->vm_lock);
 
 	if (unlikely(bo == NULL)) {

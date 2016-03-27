@@ -93,10 +93,11 @@ void ttm_eu_backoff_reservation(struct list_head *list)
 
 	entry = list_first_entry(list, struct ttm_validate_buffer, head);
 	glob = entry->bo->glob;
-	mtx_lock(&glob->lru_lock);
+	spin_lock(&glob->lru_lock);
 	ttm_eu_backoff_reservation_locked(list);
-	mtx_unlock(&glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 }
+EXPORT_SYMBOL(ttm_eu_backoff_reservation);
 
 /*
  * Reserve buffers for validation.
@@ -129,10 +130,10 @@ int ttm_eu_reserve_buffers(struct list_head *list)
 	entry = list_first_entry(list, struct ttm_validate_buffer, head);
 	glob = entry->bo->glob;
 
-	mtx_lock(&glob->lru_lock);
+	spin_lock(&glob->lru_lock);
 	val_seq = entry->bo->bdev->val_seq++;
 
-retry_locked:
+retry:
 	list_for_each_entry(entry, list, head) {
 		struct ttm_buffer_object *bo = entry->bo;
 
@@ -146,8 +147,10 @@ retry_locked:
 			break;
 		case -EBUSY:
 			ttm_eu_del_from_lru_locked(list);
+			spin_unlock(&glob->lru_lock);
 			ret = ttm_bo_reserve_nolru(bo, true, false,
 						   true, val_seq);
+			spin_lock(&glob->lru_lock);
 			if (!ret)
 				break;
 
@@ -166,18 +169,18 @@ retry_locked:
 			 */
 			val_seq = entry->bo->bdev->val_seq++;
 
+			spin_unlock(&glob->lru_lock);
 			ttm_eu_list_ref_sub(list);
 			ret = ttm_bo_reserve_slowpath_nolru(bo, true, val_seq);
-			if (unlikely(ret != 0)) {
-				mtx_unlock(&glob->lru_lock);
+			if (unlikely(ret != 0))
 				return ret;
-			}
+			spin_lock(&glob->lru_lock);
 			entry->reserved = true;
 			if (unlikely(atomic_read(&bo->cpu_writers) > 0)) {
 				ret = -EBUSY;
 				goto err;
 			}
-			goto retry_locked;
+			goto retry;
 		default:
 			goto err;
 		}
@@ -190,17 +193,18 @@ retry_locked:
 	}
 
 	ttm_eu_del_from_lru_locked(list);
-	mtx_unlock(&glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 	ttm_eu_list_ref_sub(list);
 
 	return 0;
 
 err:
 	ttm_eu_backoff_reservation_locked(list);
-	mtx_unlock(&glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 	ttm_eu_list_ref_sub(list);
 	return ret;
 }
+EXPORT_SYMBOL(ttm_eu_reserve_buffers);
 
 void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj)
 {
@@ -218,8 +222,8 @@ void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj)
 	driver = bdev->driver;
 	glob = bo->glob;
 
-	mtx_lock(&glob->lru_lock);
-	mtx_lock(&bdev->fence_lock);
+	spin_lock(&glob->lru_lock);
+	spin_lock(&bdev->fence_lock);
 
 	list_for_each_entry(entry, list, head) {
 		bo = entry->bo;
@@ -228,8 +232,8 @@ void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj)
 		ttm_bo_unreserve_locked(bo);
 		entry->reserved = false;
 	}
-	mtx_unlock(&bdev->fence_lock);
-	mtx_unlock(&glob->lru_lock);
+	spin_unlock(&bdev->fence_lock);
+	spin_unlock(&glob->lru_lock);
 
 	list_for_each_entry(entry, list, head) {
 		if (entry->old_sync_obj)
