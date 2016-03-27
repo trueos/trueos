@@ -289,14 +289,14 @@ static void i915_hotplug_work_func(void *context, int pending)
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
 
-	sx_xlock(&mode_config->mutex);
+	mutex_lock(&mode_config->mutex);
 	DRM_DEBUG_KMS("running encoder hotplug functions\n");
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, base.head)
 		if (encoder->hot_plug)
 			encoder->hot_plug(encoder);
 
-	sx_xunlock(&mode_config->mutex);
+	mutex_unlock(&mode_config->mutex);
 
 	/* Just fire off a uevent and let userspace tell us what to do */
 	drm_helper_hpd_irq_event(dev);
@@ -378,7 +378,7 @@ static void gen6_pm_rps_work(void *context, int pending)
 	if ((pm_iir & GEN6_PM_DEFERRED_EVENTS) == 0)
 		return;
 
-	sx_xlock(&dev_priv->rps.hw_lock);
+	mutex_lock(&dev_priv->rps.hw_lock);
 
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD)
 		new_delay = dev_priv->rps.cur_delay + 1;
@@ -393,7 +393,7 @@ static void gen6_pm_rps_work(void *context, int pending)
 		gen6_set_rps(dev_priv->dev, new_delay);
 	}
 
-	sx_xunlock(&dev_priv->rps.hw_lock);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 
@@ -419,7 +419,7 @@ static void ivybridge_parity_work(void *context, int pending)
 	 * In order to prevent a get/put style interface, acquire struct mutex
 	 * any time we access those registers.
 	 */
-	DRM_LOCK(dev_priv->dev);
+	mutex_lock(&dev_priv->dev->struct_mutex);
 
 	misccpctl = I915_READ(GEN7_MISCCPCTL);
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
@@ -441,7 +441,7 @@ static void ivybridge_parity_work(void *context, int pending)
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 	mtx_unlock(&dev_priv->irq_lock);
 
-	DRM_UNLOCK(dev_priv->dev);
+	mutex_unlock(&dev_priv->dev->struct_mutex);
 
 #ifdef __linux__
 	parity_event[0] = "L3_PARITY_ERROR=1";
@@ -1493,20 +1493,21 @@ static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_gem_object *obj;
 	struct intel_unpin_work *work;
+	unsigned long flags;
 	bool stall_detected;
 
 	/* Ignore early vblank irqs */
 	if (intel_crtc == NULL)
 		return;
 
-	mtx_lock(&dev->event_lock);
+	spin_lock_irqsave(&dev->event_lock, flags);
 	work = intel_crtc->unpin_work;
 
 	if (work == NULL ||
 	    atomic_read(&work->pending) >= INTEL_FLIP_COMPLETE ||
 	    !work->enable_stall_check) {
 		/* Either the pending flip IRQ arrived, or we're too early. Don't check */
-		mtx_unlock(&dev->event_lock);
+		spin_unlock_irqrestore(&dev->event_lock, flags);
 		return;
 	}
 
@@ -1523,7 +1524,7 @@ static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
 							crtc->x * crtc->fb->bits_per_pixel/8);
 	}
 
-	mtx_unlock(&dev->event_lock);
+	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	if (stall_detected) {
 		DRM_DEBUG_DRIVER("Pageflip stall detected\n");

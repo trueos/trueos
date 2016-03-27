@@ -1075,9 +1075,9 @@ static void ironlake_panel_vdd_work(void *arg, int pending __unused)
 	struct intel_dp *intel_dp = arg;
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
-	sx_xlock(&dev->mode_config.mutex);
+	mutex_lock(&dev->mode_config.mutex);
 	ironlake_panel_vdd_off_sync(intel_dp);
-	sx_xunlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev->mode_config.mutex);
 }
 
 void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
@@ -2195,7 +2195,7 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 	}
 
 	/* If no HPD, poke DDC gently */
-	if (drm_probe_ddc(intel_dp->adapter))
+	if (drm_probe_ddc(&intel_dp->adapter))
 		return connector_status_connected;
 
 	/* Well we tried, say unknown for unreliable port types */

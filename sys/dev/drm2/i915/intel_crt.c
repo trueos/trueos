@@ -384,7 +384,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 }
 
 static struct edid *intel_crt_get_edid(struct drm_connector *connector,
-				device_t i2c)
+				struct i2c_adapter *i2c)
 {
 	struct edid *edid;
 
@@ -402,7 +402,7 @@ static struct edid *intel_crt_get_edid(struct drm_connector *connector,
 
 /* local version of intel_ddc_get_modes() to use intel_crt_get_edid() */
 static int intel_crt_ddc_get_modes(struct drm_connector *connector,
-				device_t adapter)
+				struct i2c_adapter *adapter)
 {
 	struct edid *edid;
 	int ret;
@@ -422,7 +422,7 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 	struct intel_crt *crt = intel_attached_crt(connector);
 	struct drm_i915_private *dev_priv = crt->base.base.dev->dev_private;
 	struct edid *edid;
-	device_t i2c;
+	struct i2c_adapter *i2c;
 
 	BUG_ON(crt->base.type != INTEL_OUTPUT_ANALOG);
 
@@ -629,7 +629,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
-	device_t i2c;
+	struct i2c_adapter *i2c;
 
 	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->crt_ddc_pin);
 	ret = intel_crt_ddc_get_modes(connector, i2c);

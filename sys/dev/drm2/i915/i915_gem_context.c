@@ -136,7 +136,7 @@ static void do_destroy(struct i915_hw_context *ctx)
 #endif
 
 	if (ctx->file_priv)
-		drm_gem_names_remove(&ctx->file_priv->context_idr, ctx->id);
+		idr_remove(&ctx->file_priv->context_idr, ctx->id);
 	else
 		KASSERT(ctx == dev_priv->ring[RCS].default_context,
 		    ("i915_gem_context: ctx != default_context"));
@@ -188,7 +188,8 @@ create_hw_context(struct drm_device *dev,
 
 again:
 	id = 0;
-	ret = drm_gem_name_create(&file_priv->context_idr, ctx, &id);
+	ret = idr_alloc(&file_priv->context_idr, ctx, DEFAULT_CONTEXT_ID + 1, 0,
+			GFP_KERNEL);
 	if (ret == 0)
 		ctx->id = id;
 
@@ -220,7 +221,7 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 	struct i915_hw_context *ctx;
 	int ret;
 
-	DRM_LOCK_ASSERT(dev_priv->dev);
+	BUG_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
 	ret = create_hw_context(dev_priv->dev, NULL, &ctx);
 	if (ret != 0)
@@ -308,7 +309,7 @@ void i915_gem_context_fini(struct drm_device *dev)
 	do_destroy(dev_priv->ring[RCS].default_context);
 }
 
-static int context_idr_cleanup(uint32_t id, void *p, void *data)
+static int context_idr_cleanup(int id, void *p, void *data)
 {
 	struct i915_hw_context *ctx = p;
 
@@ -323,16 +324,16 @@ void i915_gem_context_close(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
-	DRM_LOCK(dev);
-	drm_gem_names_foreach(&file_priv->context_idr, context_idr_cleanup, NULL);
-	drm_gem_names_fini(&file_priv->context_idr);
-	DRM_UNLOCK(dev);
+	mutex_lock(&dev->struct_mutex);
+	idr_for_each(&file_priv->context_idr, context_idr_cleanup, NULL);
+	idr_destroy(&file_priv->context_idr);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 static struct i915_hw_context *
 i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id)
 {
-	return (struct i915_hw_context *)drm_gem_find_ptr(&file_priv->context_idr, id);
+	return (struct i915_hw_context *)idr_find(&file_priv->context_idr, id);
 }
 
 static inline int
@@ -514,7 +515,7 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	ret = create_hw_context(dev, file_priv, &ctx);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 	if (ret != 0)
 		return (ret);
 
@@ -541,13 +542,13 @@ int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
 
 	ctx = i915_gem_context_get(file_priv, args->ctx_id);
 	if (!ctx) {
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 		return -ENOENT;
 	}
 
 	do_destroy(ctx);
 
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG_DRIVER("HW context %d destroyed\n", args->ctx_id);
 	return 0;

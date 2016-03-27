@@ -587,11 +587,11 @@ static int __i915_drm_thaw(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_init_pch_refclk(dev);
 
-		DRM_LOCK(dev);
+		mutex_lock(&dev->struct_mutex);
 		dev_priv->mm.suspended = 0;
 
 		error = i915_gem_init_hw(dev);
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 
 		intel_modeset_init_hw(dev);
 		intel_modeset_setup_hw_state(dev, false);
@@ -660,9 +660,9 @@ int i915_resume(struct drm_device *dev)
 	 */
 	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
 	    !dev_priv->opregion.header) {
-		DRM_LOCK(dev);
+		mutex_lock(&dev->struct_mutex);
 		i915_gem_restore_gtt_mappings(dev);
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 	}
 
 	ret = __i915_drm_thaw(dev);
@@ -862,7 +862,7 @@ int i915_reset(struct drm_device *dev)
 	if (!i915_try_reset)
 		return 0;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 
 	i915_gem_reset(dev);
 
@@ -875,7 +875,7 @@ int i915_reset(struct drm_device *dev)
 	dev_priv->last_gpu_reset = get_seconds();
 	if (ret) {
 		DRM_ERROR("Failed to reset chip.\n");
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 
@@ -914,12 +914,12 @@ int i915_reset(struct drm_device *dev)
 		 * some unknown reason, this blows up my ilk, so don't.
 		 */
 
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 
 		drm_irq_uninstall(dev);
 		drm_irq_install(dev);
 	} else {
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 	}
 
 	return 0;

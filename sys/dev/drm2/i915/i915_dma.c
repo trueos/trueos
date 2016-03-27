@@ -163,10 +163,10 @@ static int i915_dma_cleanup(struct drm_device * dev)
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	for (i = 0; i < I915_NUM_RINGS; i++)
 		intel_cleanup_ring_buffer(&dev_priv->ring[i]);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	/* Clear the HWS virtual address at teardown */
 	if (I915_NEED_GFX_HWS(dev))
@@ -604,9 +604,9 @@ static int i915_flush_ioctl(struct drm_device *dev, void *data,
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	ret = i915_quiescent(dev);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -654,9 +654,9 @@ int i915_batchbuffer(struct drm_device *dev, void *data,
 		}
 	}
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	ret = i915_dispatch_batchbuffer(dev, batch, cliprects);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	if (sarea_priv)
 		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
@@ -717,9 +717,9 @@ int i915_cmdbuffer(struct drm_device *dev, void *data,
 		}
 	}
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	ret = i915_dispatch_cmdbuffer(dev, cmdbuf, cliprects, batch_data);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
 		DRM_ERROR("i915_dispatch_cmdbuffer failed\n");
 		goto fail_clip_free;
@@ -782,14 +782,14 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 		master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
 
 	if (ring->irq_get(ring)) {
-		mtx_lock(&dev_priv->irq_lock);
+		spin_lock(&dev_priv->irq_lock);
 		while (ret == 0 && READ_BREADCRUMB(dev_priv) < irq_nr) {
-			ret = -bsd_msleep(&ring->irq_queue, &dev_priv->irq_lock,
+			ret = -bsd_msleep(&ring->irq_queue, &dev_priv->irq_lock.m,
 			    PCATCH, "915wtq", 3 * DRM_HZ);
 			if (ret == -ERESTART)
 				ret = -ERESTARTSYS;
 		}
-		mtx_unlock(&dev_priv->irq_lock);
+		spin_unlock(&dev_priv->irq_lock);
 		ring->irq_put(ring);
 	} else if (wait_for(READ_BREADCRUMB(dev_priv) >= irq_nr, 3000))
 		ret = -EBUSY;
@@ -821,9 +821,9 @@ int i915_irq_emit(struct drm_device *dev, void *data,
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	result = i915_emit_irq(dev);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	if (DRM_COPY_TO_USER(emit->irq_seq, &result, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
@@ -906,9 +906,9 @@ static int i915_flip_bufs(struct drm_device *dev, void *data,
 
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	ret = i915_dispatch_flip(dev);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -1344,9 +1344,9 @@ static int i915_load_modeset_init(struct drm_device *dev)
 cleanup_irq:
 	drm_irq_uninstall(dev);
 cleanup_gem:
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 	i915_gem_cleanup_aliasing_ppgtt(dev);
 cleanup_gem_stolen:
 	i915_gem_cleanup_stolen(dev);
@@ -1608,12 +1608,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!IS_I945G(dev) && !IS_I945GM(dev))
 		drm_pci_enable_msi(dev);
 
-	mtx_init(&dev_priv->irq_lock, "userirq", NULL, MTX_DEF);
-	mtx_init(&dev_priv->error_lock, "915err", NULL, MTX_DEF);
-	mtx_init(&dev_priv->rps.lock, "915rps", NULL, MTX_DEF);
-	sx_init(&dev_priv->dpio_lock, "915dpi");
+	spin_lock_init(&dev_priv->irq_lock);
+	spin_lock_init(&dev_priv->error_lock);
+	spin_lock_init(&dev_priv->rps.lock);
+	mutex_init(&dev_priv->dpio_lock);
 
-	sx_init(&dev_priv->rps.hw_lock, "915rpshw");
+	mutex_init(&dev_priv->rps.hw_lock);
 
 	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
 		dev_priv->num_pipe = 3;
@@ -1661,12 +1661,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 out_gem_unload:
 	EVENTHANDLER_DEREGISTER(vm_lowmem, dev_priv->mm.inactive_shrinker);
 
-	mtx_destroy(&dev_priv->irq_lock);
-	mtx_destroy(&dev_priv->error_lock);
-	mtx_destroy(&dev_priv->rps.lock);
-	sx_destroy(&dev_priv->dpio_lock);
+	spin_lock_destroy(&dev_priv->irq_lock);
+	spin_lock_destroy(&dev_priv->error_lock);
+	spin_lock_destroy(&dev_priv->rps.lock);
+	mutex_destroy(&dev_priv->dpio_lock);
 
-	sx_destroy(&dev_priv->rps.hw_lock);
+	mutex_destroy(&dev_priv->rps.hw_lock);
 
 	if (dev->msi_enabled)
 		drm_pci_disable_msi(dev);
@@ -1718,12 +1718,12 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_free_parsed_bios_data(dev);
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	ret = i915_gpu_idle(dev);
 	if (ret)
 		DRM_ERROR("failed to idle hardware: %d\n", ret);
 	i915_gem_retire_requests(dev);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	/* Cancel the retire work handler, which should be idle now. */
 	while (taskqueue_cancel_timeout(dev_priv->wq,
@@ -1786,11 +1786,11 @@ int i915_driver_unload(struct drm_device *dev)
 		/* Flush any outstanding unpin_work. */
 		taskqueue_drain_all(dev_priv->wq);
 
-		DRM_LOCK(dev);
+		mutex_lock(&dev->struct_mutex);
 		i915_gem_free_all_phys_object(dev);
 		i915_gem_cleanup_ringbuffer(dev);
 		i915_gem_context_fini(dev);
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 		i915_gem_cleanup_aliasing_ppgtt(dev);
 		i915_gem_cleanup_stolen(dev);
 		drm_mm_takedown(&dev_priv->mm.stolen);
@@ -1821,12 +1821,12 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->wq != NULL)
 		taskqueue_free(dev_priv->wq);
 
-	mtx_destroy(&dev_priv->irq_lock);
-	mtx_destroy(&dev_priv->error_lock);
-	mtx_destroy(&dev_priv->rps.lock);
-	sx_destroy(&dev_priv->dpio_lock);
+	spin_lock_destroy(&dev_priv->irq_lock);
+	spin_lock_destroy(&dev_priv->error_lock);
+	spin_lock_destroy(&dev_priv->rps.lock);
+	mutex_destroy(&dev_priv->dpio_lock);
 
-	sx_destroy(&dev_priv->rps.hw_lock);
+	mutex_destroy(&dev_priv->rps.hw_lock);
 
 #ifdef __linux__
 	pci_dev_put(dev_priv->bridge_dev);
@@ -1847,10 +1847,10 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 
 	file->driver_priv = file_priv;
 
-	mtx_init(&file_priv->mm.lock, "915fp", NULL, MTX_DEF);
+	spin_lock_init(&file_priv->mm.lock);
 	INIT_LIST_HEAD(&file_priv->mm.request_list);
 
-	drm_gem_names_init(&file_priv->context_idr);
+	idr_init(&file_priv->context_idr);
 
 	return 0;
 }
@@ -1900,7 +1900,7 @@ void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
-	mtx_destroy(&file_priv->mm.lock);
+	spin_lock_destroy(&file_priv->mm.lock);
 	free(file_priv, DRM_MEM_FILES);
 }
 

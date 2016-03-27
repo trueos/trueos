@@ -267,10 +267,11 @@ static int i915_gem_gtt_info(struct drm_device *dev, struct sbuf *m, void *data)
 	uintptr_t list = (uintptr_t)data;
 	struct drm_i915_gem_object *obj;
 	size_t total_obj_size, total_gtt_size;
-	int count;
+	int count, ret;
 
-	if (mutex_lock_interruptible(&dev->struct_mutex))
-		return -EINTR;
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	total_obj_size = total_gtt_size = count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
@@ -295,6 +296,7 @@ static int i915_gem_gtt_info(struct drm_device *dev, struct sbuf *m, void *data)
 
 static int i915_gem_pageflip_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
+	unsigned long flags;
 	struct intel_crtc *crtc;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, base.head) {
@@ -302,7 +304,7 @@ static int i915_gem_pageflip_info(struct drm_device *dev, struct sbuf *m, void *
 		const char plane = plane_name(crtc->plane);
 		struct intel_unpin_work *work;
 
-		spin_lock(&dev->event_lock);
+		spin_lock_irqsave(&dev->event_lock, flags);
 		work = crtc->unpin_work;
 		if (work == NULL) {
 			seq_printf(m, "No flip due on pipe %c (plane %c)\n",
@@ -332,7 +334,7 @@ static int i915_gem_pageflip_info(struct drm_device *dev, struct sbuf *m, void *
 					seq_printf(m, "New framebuffer gtt_offset 0x%08x\n", obj->gtt_offset);
 			}
 		}
-		spin_unlock(&dev->event_lock);
+		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
 	return 0;
@@ -343,10 +345,11 @@ static int i915_gem_request_info(struct drm_device *dev, struct sbuf *m, void *d
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
 	struct drm_i915_gem_request *gem_request;
-	int count, i;
+	int count, i, ret;
 
-	if (mutex_lock_interruptible(&dev->struct_mutex))
-		return -EINTR;
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	count = 0;
 	for_each_ring(ring, dev_priv, i) {
@@ -402,10 +405,11 @@ static int i915_interrupt_info(struct drm_device *dev, struct sbuf *m, void *dat
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring;
-	int i, pipe;
+	int i, pipe, ret;
 
-	if (mutex_lock_interruptible(&dev->struct_mutex))
-		return -EINTR;
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	if (IS_VALLEYVIEW(dev)) {
 		seq_printf(m, "Display IER:\t%08x\n",
@@ -494,10 +498,11 @@ static int i915_interrupt_info(struct drm_device *dev, struct sbuf *m, void *dat
 static int i915_gem_fence_regs_info(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int i;
+	int i, ret;
 
-	if (mutex_lock_interruptible(&dev->struct_mutex))
-		return -EINTR;
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	seq_printf(m, "Reserved fences = %d\n", dev_priv->fence_reg_start);
 	seq_printf(m, "Total fences = %d\n", dev_priv->num_fence_regs);
@@ -777,10 +782,11 @@ i915_error_state_write(struct drm_device *dev, const char *str, void *unused)
 static int i915_rstdby_delays(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	u16 crstanddelay;
+	u16 crstanddelay, ret;
 
-	if (mutex_lock_interruptible(&dev->struct_mutex))
-		return -EINTR;
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	crstanddelay = I915_READ16(CRSTANDVID);
 
@@ -794,6 +800,7 @@ static int i915_rstdby_delays(struct drm_device *dev, struct sbuf *m, void *unus
 static int i915_cur_delayinfo(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	int ret;
 
 	if (IS_GEN5(dev)) {
 		u16 rgvswctl = I915_READ16(MEMSWCTL);
@@ -815,8 +822,9 @@ static int i915_cur_delayinfo(struct drm_device *dev, struct sbuf *m, void *unus
 		int max_freq;
 
 		/* RPSTAT1 is in the GT power well */
-		if (mutex_lock_interruptible(&dev->struct_mutex))
-			return -EINTR;
+		ret = mutex_lock_interruptible(&dev->struct_mutex);
+		if (ret)
+			return ret;
 		gen6_gt_force_wake_get(dev_priv);
 
 		rpstat = I915_READ(GEN6_RPSTAT1);
@@ -879,10 +887,11 @@ static int i915_delayfreq_table(struct drm_device *dev, struct sbuf *m, void *un
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 delayfreq;
-	int i;
+	int i, ret;
 
-	if (mutex_lock_interruptible(&dev->struct_mutex))
-		return -EINTR;
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < 16; i++) {
 		delayfreq = I915_READ(PXVFREQ_BASE + i * 4);
@@ -904,10 +913,11 @@ static int i915_inttoext_table(struct drm_device *dev, struct sbuf *m, void *unu
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 inttoext;
-	int i;
+	int i, ret;
 
-	if (mutex_lock_interruptible(&dev->struct_mutex))
-		return -EINTR;
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	for (i = 1; i <= 32; i++) {
 		inttoext = I915_READ(INTTOEXT_BASE_ILK + i * 4);
@@ -923,10 +933,11 @@ static int ironlake_drpc_info(struct drm_device *dev, struct sbuf *m)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 rgvmodectl, rstdbyctl;
-	u16 crstandvid;
+	u16 crstandvid, ret;
 
-	if (mutex_lock_interruptible(&dev->struct_mutex))
-		return -EINTR;
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	rgvmodectl = I915_READ(MEMMODECTL);
 	rstdbyctl = I915_READ(RSTDBYCTL);
@@ -1179,6 +1190,7 @@ static int i915_ring_freq_table(struct drm_device *dev, struct sbuf *m,
     void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	int ret;
 	int gpu_freq, ia_freq;
 
 	if (!(IS_GEN6(dev) || IS_GEN7(dev))) {
@@ -1186,7 +1198,9 @@ static int i915_ring_freq_table(struct drm_device *dev, struct sbuf *m,
 		return 0;
 	}
 
-	mutex_lock(&dev_priv->rps.hw_lock);
+	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
+	if (ret)
+		return ret;
 
 	seq_printf(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\n");
 
@@ -1260,7 +1274,9 @@ static int i915_gem_framebuffer_info(struct drm_device *dev, struct sbuf *m, voi
 		   fb->base.bits_per_pixel);
 	describe_obj(m, fb->obj);
 	seq_printf(m, "\n");
+	mutex_unlock(&dev->mode_config.mutex);
 
+	mutex_lock(&dev->mode_config.fb_lock);
 	list_for_each_entry(fb, &dev->mode_config.fb_list, base.head) {
 		if (&fb->base == ifbdev->helper.fb)
 			continue;

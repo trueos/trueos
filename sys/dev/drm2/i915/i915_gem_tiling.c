@@ -353,7 +353,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		}
 	}
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 	if (args->tiling_mode != obj->tiling_mode ||
 	    args->stride != obj->stride) {
 		/* We need to rebind the object if its current allocation
@@ -400,7 +400,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	args->stride = obj->stride;
 	args->tiling_mode = obj->tiling_mode;
 	drm_gem_object_unreference(&obj->base);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	return ret;
 }
@@ -420,7 +420,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	if (&obj->base == NULL)
 		return -ENOENT;
 
-	DRM_LOCK(dev);
+	mutex_lock(&dev->struct_mutex);
 
 	args->tiling_mode = obj->tiling_mode;
 	switch (obj->tiling_mode) {
@@ -444,7 +444,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_9_10;
 
 	drm_gem_object_unreference(&obj->base);
-	DRM_UNLOCK(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
 }

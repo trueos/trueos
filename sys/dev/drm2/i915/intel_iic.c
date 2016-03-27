@@ -78,7 +78,7 @@ to_intel_gmbus(device_t i2c)
 	return sc->bus;
 }
 
-bool intel_gmbus_is_forced_bit(device_t adapter)
+bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter)
 {
 	struct intel_iic_softc *sc = device_get_softc(adapter);
 	struct intel_gmbus *bus = sc->bus;
@@ -732,7 +732,7 @@ err:
 	return ret;
 }
 
-device_t intel_gmbus_get_adapter(struct drm_i915_private *dev_priv,
+i2c_adapter* intel_gmbus_get_adapter(struct drm_i915_private *dev_priv,
 					    unsigned port)
 {
 	WARN_ON(!intel_gmbus_is_port_valid(port));
