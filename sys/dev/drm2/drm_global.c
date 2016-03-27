@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_DRM_GLOBAL, "drm_global", "DRM Global Items");
 
 struct drm_global_item {
-	struct sx mutex;
+	struct mutex mutex;
 	void *object;
 	int refcount;
 };
@@ -50,7 +50,7 @@ void drm_global_init(void)
 
 	for (i = 0; i < DRM_GLOBAL_NUM; ++i) {
 		struct drm_global_item *item = &glob[i];
-		sx_init(&item->mutex, "drmgi");
+		mutex_init(&item->mutex);
 		item->object = NULL;
 		item->refcount = 0;
 	}
@@ -61,9 +61,9 @@ void drm_global_release(void)
 	int i;
 	for (i = 0; i < DRM_GLOBAL_NUM; ++i) {
 		struct drm_global_item *item = &glob[i];
-		MPASS(item->object == NULL);
-		MPASS(item->refcount == 0);
-		sx_destroy(&item->mutex);
+		BUG_ON(item->object != NULL);
+		BUG_ON(item->refcount != 0);
+		mutex_destroy(&item->mutex);
 	}
 }
 
@@ -73,7 +73,7 @@ int drm_global_item_ref(struct drm_global_reference *ref)
 	struct drm_global_item *item = &glob[ref->global_type];
 	void *object;
 
-	sx_xlock(&item->mutex);
+	mutex_lock(&item->mutex);
 	if (item->refcount == 0) {
 		item->object = kzalloc(ref->size, GFP_KERNEL);
 		if (unlikely(item->object == NULL)) {
@@ -90,10 +90,10 @@ int drm_global_item_ref(struct drm_global_reference *ref)
 	++item->refcount;
 	ref->object = item->object;
 	object = item->object;
-	sx_xunlock(&item->mutex);
+	mutex_unlock(&item->mutex);
 	return 0;
 out_err:
-	sx_xunlock(&item->mutex);
+	mutex_unlock(&item->mutex);
 	item->object = NULL;
 	return ret;
 }
@@ -103,14 +103,15 @@ void drm_global_item_unref(struct drm_global_reference *ref)
 {
 	struct drm_global_item *item = &glob[ref->global_type];
 
-	sx_xlock(&item->mutex);
-	MPASS(item->refcount != 0);
-	MPASS(ref->object == item->object);
+	mutex_lock(&item->mutex);
+	BUG_ON(item->refcount == 0);
+	BUG_ON(ref->object != item->object);
 	if (--item->refcount == 0) {
 		ref->release(ref);
+		/* XXX on linux ref->release does the free -- check that we want this */
 		kfree(item->object);
 		item->object = NULL;
 	}
-	sx_xunlock(&item->mutex);
+	mutex_unlock(&item->mutex);
 }
 EXPORT_SYMBOL(drm_global_item_unref);

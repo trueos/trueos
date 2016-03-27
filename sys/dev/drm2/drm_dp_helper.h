@@ -24,7 +24,7 @@
 
 #ifndef _DRM_DP_HELPER_H_
 #define _DRM_DP_HELPER_H_
-
+#include <dev/drm2/i2c_compat.h>
 /*
  * Unless otherwise noted, all values are from the DP 1.1a spec.  Note that
  * DP and DPCD versions are independent.  Differences from 1.0 are not noted,
@@ -319,10 +319,28 @@ struct iic_dp_aux_data {
 	device_t port;
 };
 
+/**
+ * struct i2c_algo_dp_aux_data - driver interface structure for i2c over dp
+ * 				 aux algorithm
+ * @running: set by the algo indicating whether an i2c is ongoing or whether
+ * 	     the i2c bus is quiescent
+ * @address: i2c target address for the currently ongoing transfer
+ * @aux_ch: driver callback to transfer a single byte of the i2c payload
+ */
+struct i2c_algo_dp_aux_data {
+	bool running;
+	u16 address;
+	int (*aux_ch) (struct i2c_adapter *adapter,
+		       int mode, uint8_t write_byte,
+		       uint8_t *read_byte);
+};
+
 int iic_dp_aux_add_bus(device_t dev, const char *name,
     int (*ch)(device_t idev, int mode, uint8_t write_byte, uint8_t *read_byte),
     void *priv, device_t *bus, device_t *adapter);
 
+
+int i2c_dp_aux_add_bus(struct i2c_adapter *adapter);
 
 #define DP_LINK_STATUS_SIZE	   6
 bool drm_dp_channel_eq_ok(u8 link_status[DP_LINK_STATUS_SIZE],

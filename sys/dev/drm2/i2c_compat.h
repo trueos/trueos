@@ -117,4 +117,6 @@ struct completion dev_released;
 };
 
 int i2c_add_adapter(struct i2c_adapter *adapter);
+int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num);
+
 #endif

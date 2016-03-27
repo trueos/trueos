@@ -96,6 +96,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <compat/linuxkpi/common/include/linux/idr.h>
+#include <compat/linuxkpi/common/include/linux/string.h>
+#include <compat/linuxkpi/common/include/linux/compat.h>
 
 /*
  * CEM: drm.h brings in drm_os_freebsd.h, which brings in linuxkpi list.h.
@@ -114,6 +116,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
+#include <dev/drm2/i2c_compat.h>
 
 #define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define __OS_HAS_MTRR (defined(CONFIG_MTRR))
@@ -432,6 +436,7 @@ struct drm_file {
 	struct drm_master *master; /* master this node is currently associated with
 				      N.B. not always minor->master */
 	struct list_head fbs;
+	struct mutex fbs_lock;
 
 	struct selinfo event_poll;
 	struct list_head event_list;
