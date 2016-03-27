@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_edid.h>
-#include "drm_edid_modes.h"
 #include <dev/iicbus/iic.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/drm2/drm_edid.h>
