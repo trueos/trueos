@@ -115,9 +115,9 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	struct ttm_bo_device *bdev = bo->bdev;
 	size_t acc_size = bo->acc_size;
 
-	MPASS(*(volatile u_int *)&bo->list_kref == 0);
-	MPASS(*(volatile u_int *)&bo->kref == 0);
-	BUG_ON(atomic_read(&bo->cpu_writers) == 0);
+	BUG_ON(atomic_read(&bo->list_kref.refcount));
+	BUG_ON(atomic_read(&bo->kref.refcount));
+	BUG_ON(atomic_read(&bo->cpu_writers));
 	BUG_ON(bo->sync_obj != NULL);
 	BUG_ON(bo->mem.mm_node != NULL);
 	BUG_ON(!list_empty(&bo->lru));
@@ -163,11 +163,11 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_mem_type_manager *man;
 
-	MPASS(ttm_bo_is_reserved(bo));
+	BUG_ON(!ttm_bo_is_reserved(bo));
 
 	if (!(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
 
-		MPASS(list_empty(&bo->lru));
+		BUG_ON(!list_empty(&bo->lru));
 
 		man = &bdev->man[bo->mem.mem_type];
 		list_add_tail(&bo->lru, &man->lru);
@@ -1173,7 +1173,7 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 {
 	int ret;
 
-	MPASS(ttm_bo_is_reserved(bo));
+	BUG_ON(!ttm_bo_is_reserved(bo));
 	/* Check that range is valid */
 	if (placement->lpfn || placement->fpfn)
 		if (placement->fpfn > placement->lpfn ||
@@ -1210,8 +1210,8 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 int ttm_bo_check_placement(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement)
 {
-	MPASS(!((placement->fpfn || placement->lpfn) &&
-	    (bo->mem.num_pages > (placement->lpfn - placement->fpfn))));
+	BUG_ON((placement->fpfn || placement->lpfn) &&
+	       (bo->mem.num_pages > (placement->lpfn - placement->fpfn)));
 
 	return 0;
 }
@@ -1442,9 +1442,9 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 	int ret = -EINVAL;
 	struct ttm_mem_type_manager *man;
 
-	MPASS(type < TTM_NUM_MEM_TYPES);
+	BUG_ON(type >= TTM_NUM_MEM_TYPES);
 	man = &bdev->man[type];
-	MPASS(!man->has_type);
+	BUG_ON(man->has_type);
 	man->io_reserve_fastpath = true;
 	man->use_io_reserve_lru = false;
 	mutex_init(&man->io_reserve_mutex);

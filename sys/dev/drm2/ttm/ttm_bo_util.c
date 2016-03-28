@@ -480,7 +480,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 	struct ttm_tt *ttm = bo->ttm;
 	int i, ret;
 
-	MPASS(ttm != NULL);
+	BUG_ON(!ttm);
 
 	if (ttm->state == tt_unpopulated) {
 		ret = ttm->bdev->driver->ttm_tt_populate(ttm);
@@ -530,7 +530,7 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 	unsigned long offset, size;
 	int ret;
 
-	MPASS(list_empty(&bo->swap));
+	BUG_ON(!list_empty(&bo->swap));
 	map->virtual = NULL;
 	map->bo = bo;
 	if (num_pages > bo->num_pages)
@@ -578,7 +578,7 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 	case ttm_bo_map_premapped:
 		break;
 	default:
-		MPASS(0);
+		BUG();
 	}
 	(void) ttm_mem_io_lock(man, false);
 	ttm_mem_io_free(map->bo->bdev, &map->bo->mem);

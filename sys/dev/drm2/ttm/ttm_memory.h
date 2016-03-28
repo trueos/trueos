@@ -127,7 +127,7 @@ static inline void ttm_mem_unregister_shrink(struct ttm_mem_global *glob,
 					     struct ttm_mem_shrink *shrink)
 {
 	spin_lock(&glob->lock);
-	MPASS(glob->shrink == shrink);
+	BUG_ON(glob->shrink != shrink);
 	glob->shrink = NULL;
 	spin_unlock(&glob->lock);
 }
