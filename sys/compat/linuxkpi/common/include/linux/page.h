@@ -61,4 +61,46 @@
 #undef	trunc_page
 #define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE-1))
 
+struct io_mapping {
+	vm_paddr_t base;
+	unsigned long size;
+	vm_prot_t prot;
+};
+
+caddr_t kmap(vm_page_t page);
+caddr_t kmap_atomic(vm_page_t page);
+void kunmap(caddr_t vaddr);
+void kunmap_atomic(caddr_t vaddr);
+void mark_page_accessed(vm_page_t page);
+void page_cache_release(vm_page_t page);
+
+static inline struct
+io_mapping *io_mapping_create_wc(vm_paddr_t base, unsigned long size)
+{
+	return (NULL);
+}
+
+void iomap_free(resource_size_t base, unsigned long size);
+
+static inline void
+io_mapping_free(struct io_mapping *mapping)
+{
+#ifdef notyet	
+	iomap_free(mapping->base, mapping->size);
+	kfree(mapping);
+#endif	
+}
+
+void * iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
+
+void iounmap_atomic(void *vaddr);
+
+
+static inline void
+io_mapping_unmap_atomic(void *vaddr)
+{
+	iounmap_atomic(vaddr);
+}
+
+void *io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset);
 #endif	/* _LINUX_PAGE_H_ */
