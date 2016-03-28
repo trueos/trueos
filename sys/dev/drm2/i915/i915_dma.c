@@ -667,7 +667,7 @@ fail_free:
 	return ret;
 }
 
-int i915_cmdbuffer(struct drm_device *dev, void *data,
+static int i915_cmdbuffer(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -913,7 +913,7 @@ static int i915_flip_bufs(struct drm_device *dev, void *data,
 	return ret;
 }
 
-int i915_getparam(struct drm_device *dev, void *data,
+static int i915_getparam(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -998,6 +998,14 @@ int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_PINNED_BATCHES:
 		value = 1;
 		break;
+#ifdef notyet
+	case I915_PARAM_HAS_EXEC_NO_RELOC:
+		value = 1;
+		break;
+	case I915_PARAM_HAS_EXEC_HANDLE_LUT:
+		value = 1;
+		break;
+#endif		
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 				 param->param);
@@ -1541,18 +1549,15 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto put_gmch;
 	}
 
-	aperture_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
-	dev_priv->mm.gtt_base_addr = dev_priv->mm.gtt->gma_bus_addr;
+	aperture_size = dev_priv->gtt.mappable_end;
 
-#ifdef __linux__
-	dev_priv->mm.gtt_mapping =
-		io_mapping_create_wc(dev_priv->mm.gtt_base_addr,
+	dev_priv->gtt.mappable = 
+		io_mapping_create_wc(dev_priv->gtt.mappable_base,
 				     aperture_size);
-	if (dev_priv->mm.gtt_mapping == NULL) {
+	if (dev_priv->gtt.mappable == NULL) {
 		ret = -EIO;
 		goto out_rmmap;
 	}
-#endif
 
 	i915_mtrr_setup(dev_priv, dev_priv->mm.gtt_base_addr,
 			aperture_size);
@@ -1609,7 +1614,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		drm_pci_enable_msi(dev);
 
 	spin_lock_init(&dev_priv->irq_lock);
-	spin_lock_init(&dev_priv->error_lock);
+	spin_lock_init(&dev_priv->gpu_error.lock);
 	spin_lock_init(&dev_priv->rps.lock);
 	mutex_init(&dev_priv->dpio_lock);
 
@@ -1685,10 +1690,8 @@ out_mtrrfree:
 			 DRM_MTRR_WC);
 		dev_priv->mm.gtt_mtrr = -1;
 	}
-#ifdef __linux__
-	io_mapping_free(dev_priv->mm.gtt_mapping);
+	io_mapping_free(dev_priv->gtt.mappable);
 out_rmmap:
-#endif
 	if (dev_priv->mmio_map != NULL)
 		drm_rmmap(dev, dev_priv->mmio_map);
 put_gmch:
@@ -1736,8 +1739,8 @@ int i915_driver_unload(struct drm_device *dev)
 #endif
 	if (dev_priv->mm.gtt_mtrr >= 0) {
 		drm_mtrr_del(dev_priv->mm.gtt_mtrr,
-			 dev_priv->mm.gtt_base_addr,
-			 dev_priv->mm.gtt->gtt_mappable_entries * PAGE_SIZE,
+			 dev_priv->gtt.mappable_base,
+			 dev_priv->gtt.mappable_end,
 			 DRM_MTRR_WC);
 		dev_priv->mm.gtt_mtrr = -1;
 	}

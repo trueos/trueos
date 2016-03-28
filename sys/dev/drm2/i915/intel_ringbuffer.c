@@ -1146,7 +1146,7 @@ static int init_phys_hws_pga(struct intel_ring_buffer *ring)
 		addr |= (dev_priv->status_page_dmah->busaddr >> 28) & 0xf0;
 	I915_WRITE(HWS_PGA, addr);
 
-	ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
+	ring->status_page.page_addr = (u32*)dev_priv->status_page_dmah->vaddr;
 	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
 
 	return 0;
@@ -1199,7 +1199,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 
 	ring->virtual_start =
 		pmap_mapdev_attr(
-		    dev_priv->mm.gtt->gma_bus_addr + obj->gtt_offset, ring->size,
+		    dev_priv->gtt.mappable_base + obj->gtt_offset, ring->size,
 		    VM_MEMATTR_WRITE_COMBINING);
 	if (ring->virtual_start == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");
@@ -1365,7 +1365,7 @@ static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 
 		DRM_MSLEEP(1);
 
-		ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
+		ret = i915_gem_check_wedge(&dev_priv->gpu_error, dev_priv->mm.interruptible);
 		if (ret) {
 			CTR1(KTR_DRM, "ring_wait_end %s wedged", ring->name);
 			return ret;
@@ -1436,7 +1436,7 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	int n = 4*num_dwords;
 	int ret;
 
-	ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
+	ret = i915_gem_check_wedge(&dev_priv->gpu_error, dev_priv->mm.interruptible);
 	if (ret)
 		return ret;
 
