@@ -230,7 +230,7 @@ int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
 	ttm_dma_tt_alloc_page_directory(ttm_dma);
 	if (!ttm->pages || !ttm_dma->dma_address) {
 		ttm_tt_destroy(ttm);
-		printf("Failed allocating page table\n");
+		pr_err("Failed allocating page table\n");
 		return -ENOMEM;
 	}
 	return 0;

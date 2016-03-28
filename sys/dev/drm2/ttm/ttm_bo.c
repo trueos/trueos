@@ -257,7 +257,7 @@ int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
 		bo->val_seq = sequence;
 		bo->seq_valid = true;
 		if (wake_up)
-			wakeup(bo);
+			wake_up_all(&bo->event_queue);
 	} else {
 		bo->seq_valid = false;
 	}
@@ -323,7 +323,7 @@ int ttm_bo_reserve_slowpath_nolru(struct ttm_buffer_object *bo,
 	bo->val_seq = sequence;
 	bo->seq_valid = true;
 	if (wake_up)
-		wakeup(bo);
+		wake_up_all(&bo->event_queue);
 
 	return 0;
 }
@@ -349,7 +349,7 @@ void ttm_bo_unreserve_locked(struct ttm_buffer_object *bo)
 {
 	ttm_bo_add_to_lru(bo);
 	atomic_set(&bo->reserved, 0);
-	wakeup(bo);
+	wake_up_all(&bo->event_queue);
 }
 
 void ttm_bo_unreserve(struct ttm_buffer_object *bo)
@@ -533,7 +533,7 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 	ttm_bo_mem_put(bo, &bo->mem);
 
 	atomic_set(&bo->reserved, 0);
-	wakeup(&bo);
+	wake_up_all(&bo->event_queue);
 
 	/*
 	 * Since the final reference to this bo may not be dropped by
@@ -576,7 +576,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 
 	if (!ret) {
 		atomic_set(&bo->reserved, 0);
-		wakeup(bo);
+		wake_up_all(&bo->event_queue);
 	}
 
 	kref_get(&bo->list_kref);
@@ -587,8 +587,8 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 		driver->sync_obj_flush(sync_obj);
 		driver->sync_obj_unref(&sync_obj);
 	}
-	taskqueue_enqueue_timeout(taskqueue_thread, &bdev->wq,
-	    ((hz / 100) < 1) ? 1 : hz / 100);
+	schedule_delayed_work(&bdev->wq,
+			      ((HZ / 100) < 1) ? 1 : HZ / 100);
 }
 
 /**
@@ -628,7 +628,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 		spin_unlock(&bdev->fence_lock);
 
 		atomic_set(&bo->reserved, 0);
-		wakeup(bo);
+		wake_up_all(&bo->event_queue);
 		spin_unlock(&glob->lru_lock);
 
 		ret = driver->sync_obj_wait(sync_obj, false, interruptible);
@@ -667,7 +667,7 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 
 	if (ret || unlikely(list_empty(&bo->ddestroy))) {
 		atomic_set(&bo->reserved, 0);
-		wakeup(bo);
+		wake_up_all(&bo->event_queue);
 		spin_unlock(&glob->lru_lock);
 		return ret;
 	}
@@ -745,13 +745,14 @@ out:
 	return ret;
 }
 
-static void ttm_bo_delayed_workqueue(void *arg, int pending __unused)
+static void ttm_bo_delayed_workqueue(struct work_struct *work)
 {
-	struct ttm_bo_device *bdev = arg;
+	struct ttm_bo_device *bdev =
+	    container_of(work, struct ttm_bo_device, wq.work);
 
 	if (ttm_bo_delayed_delete(bdev, false)) {
-		taskqueue_enqueue_timeout(taskqueue_thread, &bdev->wq,
-		    ((hz / 100) < 1) ? 1 : hz / 100);
+		schedule_delayed_work(&bdev->wq,
+				      ((HZ / 100) < 1) ? 1 : HZ / 100);
 	}
 }
 
@@ -788,20 +789,15 @@ EXPORT_SYMBOL(ttm_bo_unref);
 
 int ttm_bo_lock_delayed_workqueue(struct ttm_bo_device *bdev)
 {
-	int pending;
-
-	if (taskqueue_cancel_timeout(taskqueue_thread, &bdev->wq, &pending))
-		taskqueue_drain_timeout(taskqueue_thread, &bdev->wq);
-	return (pending);
+	return cancel_delayed_work_sync(&bdev->wq);
 }
 EXPORT_SYMBOL(ttm_bo_lock_delayed_workqueue);
 
 void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev, int resched)
 {
-	if (resched) {
-		taskqueue_enqueue_timeout(taskqueue_thread, &bdev->wq,
-		    ((hz / 100) < 1) ? 1 : hz / 100);
-	}
+	if (resched)
+		schedule_delayed_work(&bdev->wq,
+				      ((HZ / 100) < 1) ? 1 : HZ / 100);
 }
 EXPORT_SYMBOL(ttm_bo_unlock_delayed_workqueue);
 
@@ -1259,6 +1255,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	kref_init(&bo->list_kref);
 	atomic_set(&bo->cpu_writers, 0);
 	atomic_set(&bo->reserved, 1);
+	init_waitqueue_head(&bo->event_queue);
 	INIT_LIST_HEAD(&bo->lru);
 	INIT_LIST_HEAD(&bo->ddestroy);
 	INIT_LIST_HEAD(&bo->swap);
@@ -1357,6 +1354,7 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 	bo = malloc(sizeof(*bo), M_TTM_BO, M_WAITOK | M_ZERO);
 	if (unlikely(bo == NULL))
 		return -ENOMEM;
+
 	acc_size = ttm_bo_acc_size(bdev, size, sizeof(struct ttm_buffer_object));
 	ret = ttm_bo_init(bdev, bo, size, type, placement, page_alignment,
 			  interruptible, persistent_swap_storage, acc_size,
@@ -1529,7 +1527,7 @@ retry:
 	ttm_mem_init_shrink(&glob->shrink, ttm_bo_swapout);
 	ret = ttm_mem_register_shrink(glob->mem_glob, &glob->shrink);
 	if (unlikely(ret != 0)) {
-		pr_err("[TTM] Could not register buffer object swapout\n");
+		pr_err("Could not register buffer object swapout\n");
 		goto out_no_shrink;
 	}
 
@@ -1560,7 +1558,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 			man->use_type = false;
 			if ((i != TTM_PL_SYSTEM) && ttm_bo_clean_mm(bdev, i)) {
 				ret = -EBUSY;
-				pr_err("[TTM] DRM memory manager type %d is not clean\n",
+				pr_err("DRM memory manager type %d is not clean\n",
 				       i);
 			}
 			man->has_type = false;
@@ -1571,8 +1569,7 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 	list_del(&bdev->device_list);
 	mutex_unlock(&glob->device_list_mutex);
 
-	if (taskqueue_cancel_timeout(taskqueue_thread, &bdev->wq, NULL))
-		taskqueue_drain_timeout(taskqueue_thread, &bdev->wq);
+	cancel_delayed_work_sync(&bdev->wq);
 
 	while (ttm_bo_delayed_delete(bdev, true))
 		;
@@ -1620,8 +1617,7 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 	if (unlikely(ret != 0))
 		goto out_no_addr_mm;
 
-	TIMEOUT_TASK_INIT(taskqueue_thread, &bdev->wq, 0,
-	    ttm_bo_delayed_workqueue, bdev);
+	INIT_DELAYED_WORK(&bdev->wq, ttm_bo_delayed_workqueue);
 	INIT_LIST_HEAD(&bdev->ddestroy);
 	bdev->dev_mapping = NULL;
 	bdev->glob = glob;
@@ -1904,7 +1900,7 @@ out:
 	 */
 
 	atomic_set(&bo->reserved, 0);
-	wakeup(bo);
+	wake_up_all(&bo->event_queue);
 	kref_put(&bo->list_kref, ttm_bo_release_list);
 	return ret;
 }

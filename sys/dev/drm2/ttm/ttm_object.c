@@ -239,8 +239,7 @@ struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 		return NULL;
 
 	if (tfile != base->tfile && !base->shareable) {
-		printf("[TTM] Attempted access of non-shareable object %p\n",
-		    base);
+		pr_err("Attempted access of non-shareable object\n");
 		ttm_base_object_unref(&base);
 		return NULL;
 	}
@@ -429,10 +428,12 @@ struct ttm_object_device *ttm_object_device_init(struct ttm_mem_global
 						 *mem_glob,
 						 unsigned int hash_order)
 {
-	struct ttm_object_device *tdev;
+	struct ttm_object_device *tdev = malloc(sizeof(*tdev), M_TTM_OBJ_DEV, M_WAITOK);
 	int ret;
 
-	tdev = malloc(sizeof(*tdev), M_TTM_OBJ_DEV, M_WAITOK);
+	if (unlikely(tdev == NULL))
+		return NULL;
+
 	tdev->mem_glob = mem_glob;
 	spin_lock_init(&tdev->object_lock);
 	atomic_set(&tdev->object_count, 0);

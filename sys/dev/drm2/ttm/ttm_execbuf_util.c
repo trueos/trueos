@@ -49,7 +49,7 @@ static void ttm_eu_backoff_reservation_locked(struct list_head *list)
 		}
 		entry->reserved = false;
 		atomic_set(&bo->reserved, 0);
-		wakeup(bo);
+		wake_up_all(&bo->event_queue);
 	}
 }
 
@@ -240,3 +240,4 @@ void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj)
 			driver->sync_obj_unref(&entry->old_sync_obj);
 	}
 }
+EXPORT_SYMBOL(ttm_eu_fence_buffer_objects);

@@ -72,6 +72,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 
 	return 0;
 }
+EXPORT_SYMBOL(ttm_bo_move_ttm);
 
 int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible)
 {
@@ -395,15 +396,17 @@ static void ttm_transfered_destroy(struct ttm_buffer_object *bo)
  * !0: Failure.
  */
 
-static int
-ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
-    struct ttm_buffer_object **new_obj)
+static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
+				      struct ttm_buffer_object **new_obj)
 {
 	struct ttm_buffer_object *fbo;
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_bo_driver *driver = bdev->driver;
 
 	fbo = malloc(sizeof(*fbo), M_TTM_TRANSF_OBJ, M_WAITOK);
+	if (!fbo)
+		return -ENOMEM;
+
 	*fbo = *bo;
 
 	/**
@@ -411,6 +414,7 @@ ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	 * TODO: Explicit member copy would probably be better here.
 	 */
 
+	init_waitqueue_head(&fbo->event_queue);
 	INIT_LIST_HEAD(&fbo->ddestroy);
 	INIT_LIST_HEAD(&fbo->lru);
 	INIT_LIST_HEAD(&fbo->swap);

@@ -69,6 +69,7 @@
 
 struct ttm_lock {
 	struct ttm_base_object base;
+	wait_queue_head_t queue;
 	spinlock_t lock;
 	int32_t rw;
 	uint32_t flags;

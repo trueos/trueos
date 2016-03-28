@@ -68,7 +68,7 @@ static int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 	ret = -agp_bind_pages(agp_be->bridge, agp_be->pages,
 			      ttm->num_pages << PAGE_SHIFT, agp_be->offset);
 	if (ret)
-		printf("[TTM] AGP Bind memory failed\n");
+		pr_err("AGP Bind memory failed\n");
 
 	return ret;
 }

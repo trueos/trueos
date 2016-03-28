@@ -561,7 +561,7 @@ struct ttm_bo_device {
 	 * Internal protection.
 	 */
 
-	struct timeout_task wq;
+	struct delayed_work wq;
 
 	bool need_dma32;
 };

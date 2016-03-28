@@ -51,7 +51,7 @@ MALLOC_DEFINE(M_TTM_ZONE, "ttm_zone", "TTM Zone");
 static void ttm_mem_zone_kobj_release(struct ttm_mem_zone *zone)
 {
 
-	printf("[TTM] Zone %7s: Used memory at exit: %llu kiB\n",
+	pr_info("Zone %7s: Used memory at exit: %llu kiB\n",
 		zone->name, (unsigned long long)zone->used_mem >> 10);
 	free(zone, M_TTM_ZONE);
 }
@@ -183,9 +183,10 @@ out:
 
 
 
-static void ttm_shrink_work(void *arg, int pending __unused)
+static void ttm_shrink_work(struct work_struct *work)
 {
-	struct ttm_mem_global *glob = arg;
+	struct ttm_mem_global *glob =
+	    container_of(work, struct ttm_mem_global, work);
 
 	ttm_shrink(glob, true, 0ULL);
 }
@@ -254,10 +255,8 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 	struct ttm_mem_zone *zone;
 
 	spin_lock_init(&glob->lock);
-	glob->swap_queue = taskqueue_create("ttm_swap", M_WAITOK,
-	    taskqueue_thread_enqueue, &glob->swap_queue);
-	taskqueue_start_threads(&glob->swap_queue, 1, PVM, "ttm swap");
-	TASK_INIT(&glob->work, 0, ttm_shrink_work, glob);
+	glob->swap_queue = create_singlethread_workqueue("ttm_swap");
+	INIT_WORK(&glob->work, ttm_shrink_work);
 
 	refcount_init(&glob->kobj_ref, 1);
 
@@ -271,7 +270,7 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 		goto out_no_zone;
 	for (i = 0; i < glob->num_zones; ++i) {
 		zone = glob->zones[i];
-		printf("[TTM] Zone %7s: Available graphics memory: %llu kiB\n",
+		pr_info("Zone %7s: Available graphics memory: %llu kiB\n",
 			zone->name, (unsigned long long)zone->max_mem >> 10);
 	}
 	ttm_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
@@ -292,8 +291,8 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 	ttm_page_alloc_fini();
 	ttm_dma_page_alloc_fini();
 
-	taskqueue_drain(glob->swap_queue, &glob->work);
-	taskqueue_free(glob->swap_queue);
+	flush_workqueue(glob->swap_queue);
+	destroy_workqueue(glob->swap_queue);
 	glob->swap_queue = NULL;
 	for (i = 0; i < glob->num_zones; ++i) {
 		zone = glob->zones[i];
@@ -303,6 +302,7 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 	if (refcount_release(&glob->kobj_ref))
 		ttm_mem_global_kobj_release(glob);
 }
+EXPORT_SYMBOL(ttm_mem_global_release);
 
 static void ttm_check_swapping(struct ttm_mem_global *glob)
 {
@@ -322,7 +322,7 @@ static void ttm_check_swapping(struct ttm_mem_global *glob)
 	spin_unlock(&glob->lock);
 
 	if (unlikely(needs_swapping))
-		taskqueue_enqueue(glob->swap_queue, &glob->work);
+		(void)queue_work(glob->swap_queue, &glob->work);
 
 }
 
