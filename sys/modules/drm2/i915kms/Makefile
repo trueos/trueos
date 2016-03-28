@@ -9,13 +9,14 @@ SRCS	= \
 	dvo_ns2501.c \
 	dvo_sil164.c \
 	dvo_tfp410.c \
-	i915_debug.c \
+	i915_debugfs.c \
 	i915_dma.c \
 	i915_drv.c \
 	i915_gem.c \
 	i915_gem_context.c \
 	i915_gem_evict.c \
 	i915_gem_execbuffer.c \
+	i915_gem_freebsd.c \
 	i915_gem_gtt.c \
 	i915_gem_stolen.c \
 	i915_gem_tiling.c \
@@ -30,7 +31,7 @@ SRCS	= \
 	intel_dvo.c \
 	intel_fb.c \
 	intel_hdmi.c \
-	intel_iic.c \
+	intel_i2c.c \
 	intel_lvds.c \
 	intel_modes.c \
 	intel_opregion.c \
