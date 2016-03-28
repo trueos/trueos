@@ -78,14 +78,10 @@ int ttm_mem_io_lock(struct ttm_mem_type_manager *man, bool interruptible)
 	if (likely(man->io_reserve_fastpath))
 		return 0;
 
-	if (interruptible) {
-		if (sx_xlock_sig(&man->io_reserve_mutex))
-			return (-EINTR);
-		else
-			return (0);
-	}
+	if (interruptible)
+		return mutex_lock_interruptible(&man->io_reserve_mutex);
 
-	sx_xlock(&man->io_reserve_mutex);
+	mutex_lock(&man->io_reserve_mutex);
 	return 0;
 }
 
@@ -94,7 +90,7 @@ void ttm_mem_io_unlock(struct ttm_mem_type_manager *man)
 	if (likely(man->io_reserve_fastpath))
 		return;
 
-	sx_xunlock(&man->io_reserve_mutex);
+	mutex_unlock(&man->io_reserve_mutex);
 }
 
 static int ttm_mem_io_evict(struct ttm_mem_type_manager *man)

@@ -1447,7 +1447,7 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 	MPASS(!man->has_type);
 	man->io_reserve_fastpath = true;
 	man->use_io_reserve_lru = false;
-	sx_init(&man->io_reserve_mutex, "ttmman");
+	mutex_init(&man->io_reserve_mutex);
 	INIT_LIST_HEAD(&man->io_reserve_lru);
 
 	ret = bdev->driver->init_mem_type(bdev, type, man);

@@ -69,7 +69,7 @@
 
 struct ttm_lock {
 	struct ttm_base_object base;
-	struct mtx lock;
+	spinlock_t lock;
 	int32_t rw;
 	uint32_t flags;
 	bool kill_takers;
