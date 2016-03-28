@@ -66,7 +66,7 @@ __wake_up(wait_queue_head_t *q, int all)
 #define	wake_up_all(q)				__wake_up(q, 1)
 #define	wake_up_interruptible(q)		__wake_up(q, 0)
 #define	wake_up_interruptible_nr(q, nr)		__wake_up(q, 1)
-#define	wake_up_interruptible_all(q, nr)	__wake_up(q, 1)
+#define	wake_up_interruptible_all(q)		__wake_up(q, 1)
 
 #define	wait_event(q, cond)						\
 do {									\
