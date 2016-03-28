@@ -66,6 +66,12 @@ SRCS	+=								\
 
 .include <bsd.kmod.mk>
 
-CWARNFLAGS.i915_debug.c=	-Wno-unused-function
+CWARNFLAGS.i915_debugfs.c=	-Wno-unused-function
 CWARNFLAGS.intel_lvds.c=	-Wno-unused
 CWARNFLAGS.intel_tv.c=		-Wno-unused
+CWARNFLAGS.intel_display.c=	-Wno-tautological-pointer-compare
+CWARNFLAGS.intel_overlay.c=	-Wno-tautological-pointer-compare
+CWARNFLAGS.i915_gem.c=		-Wno-tautological-pointer-compare
+CWARNFLAGS.i915_gem_gtt.c=	-Wno-tautological-pointer-compare
+CWARNFLAGS.i915_gem_tiling.c=	-Wno-tautological-pointer-compare
+CWARNFLAGS.i915_gem_execbuffer.c=	-Wno-tautological-pointer-compare
