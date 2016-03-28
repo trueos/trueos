@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2016
+.Dd March 22, 2016
 .Dt FILEMON 4
 .Os
 .Sh NAME
@@ -51,7 +51,7 @@ calls.
 .Pp
 .Nm
 is not intended to be a security auditing tool.
-Many syscalls are not tracked and binaries of foreign ABI will not be fully
+Many system calls are not tracked and binaries of foreign ABI will not be fully
 audited.
 It is intended for auditing of processes for the purpose of determining its
 dependencies in an efficient and easily parsable format.
@@ -160,6 +160,21 @@ No process having the specified process ID exists.
 .It Bq Er EBUSY
 The process ID specified is already being traced and was not the current
 process.
+.El
+.Pp
+The
+.Fn close
+system call on the filemon file descriptor may fail with the errors from
+.Xr write 2
+if any error is encountered while writing the log.
+It may also fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+An invalid address was used for a traced system call argument, resulting in
+no log entry for the system call.
+.It Bq Er ENAMETOOLONG
+An argument for a traced system call was too long, resulting in
+no log entry for the system call.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/filemon"
