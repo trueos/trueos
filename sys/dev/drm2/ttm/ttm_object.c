@@ -313,6 +313,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 
 	return ret;
 }
+EXPORT_SYMBOL(ttm_ref_object_add);
 
 static void ttm_ref_object_release(struct kref *kref)
 {
@@ -356,6 +357,7 @@ int ttm_ref_object_base_unref(struct ttm_object_file *tfile,
 	write_unlock(&tfile->lock);
 	return 0;
 }
+EXPORT_SYMBOL(ttm_ref_object_base_unref);
 
 void ttm_object_file_release(struct ttm_object_file **p_tfile)
 {
@@ -384,6 +386,7 @@ void ttm_object_file_release(struct ttm_object_file **p_tfile)
 	write_unlock(&tfile->lock);
 	ttm_object_file_unref(&tfile);
 }
+EXPORT_SYMBOL(ttm_object_file_release);
 
 struct ttm_object_file *ttm_object_file_init(struct ttm_object_device *tdev,
 					     unsigned int hash_order)
@@ -418,6 +421,7 @@ out_err:
 
 	return NULL;
 }
+EXPORT_SYMBOL(ttm_object_file_init);
 
 MALLOC_DEFINE(M_TTM_OBJ_DEV, "ttm_obj_dev", "TTM Device Objects");
 
@@ -440,6 +444,7 @@ struct ttm_object_device *ttm_object_device_init(struct ttm_mem_global
 	free(tdev, M_TTM_OBJ_DEV);
 	return NULL;
 }
+EXPORT_SYMBOL(ttm_object_device_init);
 
 void ttm_object_device_release(struct ttm_object_device **p_tdev)
 {

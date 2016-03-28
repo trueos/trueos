@@ -50,8 +50,6 @@ struct ttm_range_manager {
 	spinlock_t lock;
 };
 
-MALLOC_DEFINE(M_TTM_RMAN, "ttm_rman", "TTM Range Manager");
-
 static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 			       struct ttm_buffer_object *bo,
 			       struct ttm_placement *placement,
@@ -104,6 +102,8 @@ static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
 	}
 }
 
+MALLOC_DEFINE(M_TTM_RMAN, "ttm_rman", "TTM RMAN");
+
 static int ttm_bo_man_init(struct ttm_mem_type_manager *man,
 			   unsigned long p_size)
 {
@@ -131,7 +131,6 @@ static int ttm_bo_man_takedown(struct ttm_mem_type_manager *man)
 	if (drm_mm_clean(mm)) {
 		drm_mm_takedown(mm);
 		spin_unlock(&rman->lock);
-		spin_lock_destroy(&rman->lock);
 		free(rman, M_TTM_RMAN);
 		man->priv = NULL;
 		return 0;

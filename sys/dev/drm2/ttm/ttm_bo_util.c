@@ -371,6 +371,7 @@ out:
 	ttm_bo_mem_put(bo, &old_copy);
 	return ret;
 }
+EXPORT_SYMBOL(ttm_bo_move_memcpy);
 
 MALLOC_DEFINE(M_TTM_TRANSF_OBJ, "ttm_transf_obj", "TTM Transfer Objects");
 
@@ -554,6 +555,7 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 		return ttm_bo_ioremap(bo, offset, size, map);
 	}
 }
+EXPORT_SYMBOL(ttm_bo_kmap);
 
 void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 {
@@ -587,6 +589,7 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 	map->page = NULL;
 	map->sf = NULL;
 }
+EXPORT_SYMBOL(ttm_bo_kunmap);
 
 int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      void *sync_obj,

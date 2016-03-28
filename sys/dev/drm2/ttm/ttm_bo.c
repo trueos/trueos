@@ -1339,6 +1339,7 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
 	size += ttm_round_pot(sizeof(struct ttm_dma_tt));
 	return size;
 }
+EXPORT_SYMBOL(ttm_bo_dma_acc_size);
 
 int ttm_bo_create(struct ttm_bo_device *bdev,
 			unsigned long size,
@@ -1676,6 +1677,9 @@ void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo)
 	ttm_bo_unmap_virtual_locked(bo);
 	ttm_mem_io_unlock(man);
 }
+
+
+EXPORT_SYMBOL(ttm_bo_unmap_virtual);
 
 static void ttm_bo_vm_insert_rb(struct ttm_buffer_object *bo)
 {
