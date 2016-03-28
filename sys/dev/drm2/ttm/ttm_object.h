@@ -124,7 +124,7 @@ struct ttm_base_object {
 	enum ttm_object_type object_type;
 	bool shareable;
 	struct ttm_object_file *tfile;
-	u_int refcount;
+	struct kref refcount;
 	void (*refcount_release) (struct ttm_base_object **base);
 	void (*ref_obj_release) (struct ttm_base_object *base,
 				 enum ttm_ref_type ref_type);
