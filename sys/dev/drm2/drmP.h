@@ -380,7 +380,7 @@ struct drm_freelist {
 };
 
 typedef struct drm_dma_handle {
-	void *vaddr;
+	caddr_t vaddr;
 	bus_addr_t busaddr;
 	bus_dma_tag_t tag;
 	bus_dmamap_t map;

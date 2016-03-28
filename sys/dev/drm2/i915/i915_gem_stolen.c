@@ -98,7 +98,7 @@ static void i915_warn_stolen(struct drm_device *dev)
 	DRM_INFO("hint: you may be able to increase stolen memory size in the BIOS to avoid this\n");
 }
 
-static void i915_setup_compression(struct drm_device *dev, int size)
+static int i915_setup_compression(struct drm_device *dev, int size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_mm_node *compressed_fb, *uninitialized_var(compressed_llb);
@@ -147,7 +147,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 
 	DRM_DEBUG_KMS("FBC base 0x%08lx, ll base 0x%08lx, size %dM\n",
 		      (long)cfb_base, (long)ll_base, size >> 20);
-	return;
+	return 0;
 
 err_llb:
 	drm_mm_put_block(compressed_llb);
@@ -156,6 +156,39 @@ err_fb:
 err:
 	dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 	i915_warn_stolen(dev);
+	return -ENOSPC;
+}
+
+int i915_gem_stolen_setup_compression(struct drm_device *dev, int size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->mm.stolen_base == 0)
+		return -ENODEV;
+
+	if (size < dev_priv->cfb_size)
+		return 0;
+
+	/* Release any current block */
+	i915_gem_stolen_cleanup_compression(dev);
+
+	return i915_setup_compression(dev, size);
+}
+
+void i915_gem_stolen_cleanup_compression(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->cfb_size == 0)
+		return;
+
+	if (dev_priv->compressed_fb)
+		drm_mm_put_block(dev_priv->compressed_fb);
+
+	if (dev_priv->compressed_llb)
+		drm_mm_put_block(dev_priv->compressed_llb);
+
+	dev_priv->cfb_size = 0;
 }
 
 static void i915_cleanup_compression(struct drm_device *dev)
@@ -176,31 +209,16 @@ void i915_gem_cleanup_stolen(struct drm_device *dev)
 int i915_gem_init_stolen(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long prealloc_size = dev_priv->mm.gtt->stolen_size;
 
 	dev_priv->mm.stolen_base = i915_stolen_to_physical(dev);
 	if (dev_priv->mm.stolen_base == 0)
 		return 0;
 
-	DRM_DEBUG_KMS("found %d bytes of stolen memory at %08lx\n",
-		      dev_priv->mm.gtt->stolen_size, dev_priv->mm.stolen_base);
+	DRM_DEBUG_KMS("found %ld bytes of stolen memory at %08lx\n",
+		      dev_priv->gtt.stolen_size, dev_priv->mm.stolen_base);
 
 	/* Basic memrange allocator for stolen space */
-	drm_mm_init(&dev_priv->mm.stolen, 0, prealloc_size);
-
-	/* Try to set up FBC with a reasonable compressed buffer size */
-	if (I915_HAS_FBC(dev) && i915_powersave) {
-		int cfb_size;
-
-		/* Leave 1M for line length buffer & misc. */
-
-		/* Try to get a 32M buffer... */
-		if (prealloc_size > (36*1024*1024))
-			cfb_size = 32*1024*1024;
-		else /* fall back to 7/8 of the stolen space */
-			cfb_size = prealloc_size * 7 / 8;
-		i915_setup_compression(dev, cfb_size);
-	}
+	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_size);
 
 	return 0;
 }
