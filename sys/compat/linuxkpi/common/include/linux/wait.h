@@ -130,8 +130,12 @@ finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 }
 
 /* XXXTODO this requires implementation still*/
-extern void add_wait_queue(wait_queue_head_t *q, wait_queue_t *wait);
-extern void remove_wait_queue(wait_queue_head_t *q, wait_queue_t *wait);
+static inline void add_wait_queue(wait_queue_head_t *q, wait_queue_t *wait) {
+	panic("XXX implement me!");
+}
+static inline void remove_wait_queue(wait_queue_head_t *q, wait_queue_t *wait) {
+	panic("XXX implement me!");
+}
 
 
 #endif	/* _LINUX_WAIT_H_ */
