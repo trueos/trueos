@@ -288,6 +288,7 @@ drm_gem_handle_create(struct drm_file *file_priv,
 	if (ret < 0)
 		return ret;
 	*handlep = ret;
+
 	drm_gem_object_handle_reference(obj);
 
 	if (dev->driver->gem_open_object) {
