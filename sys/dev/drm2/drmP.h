@@ -117,7 +117,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
-#include <dev/drm2/i2c_compat.h>
+#include <linux/i2c.h>
+
 
 #define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define __OS_HAS_MTRR (defined(CONFIG_MTRR))
@@ -1817,7 +1818,7 @@ void	drm_driver_irq_uninstall(struct drm_device *dev);
 extern int		drm_sysctl_init(struct drm_device *dev);
 extern int		drm_sysctl_cleanup(struct drm_device *dev);
 
-static int	drm_version(struct drm_device *dev, void *data,
+extern int	drm_version(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv);
 
 /* consistent PCI memory functions (drm_pci.c) */

@@ -24,7 +24,6 @@
 
 #ifndef _DRM_DP_HELPER_H_
 #define _DRM_DP_HELPER_H_
-#include <dev/drm2/i2c_compat.h>
 /*
  * Unless otherwise noted, all values are from the DP 1.1a spec.  Note that
  * DP and DPCD versions are independent.  Differences from 1.0 are not noted,
