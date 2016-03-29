@@ -118,8 +118,6 @@ struct ttm_ref_object {
 	struct ttm_object_file *tfile;
 };
 
-MALLOC_DEFINE(M_TTM_OBJ_FILE, "ttm_obj_file", "TTM File Objects");
-
 static inline struct ttm_object_file *
 ttm_object_file_ref(struct ttm_object_file *tfile)
 {
@@ -132,7 +130,7 @@ static void ttm_object_file_destroy(struct kref *kref)
 	struct ttm_object_file *tfile =
 		container_of(kref, struct ttm_object_file, refcount);
 
-	free(tfile, M_TTM_OBJ_FILE);
+	kfree(tfile);
 }
 
 
@@ -248,8 +246,6 @@ struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 }
 EXPORT_SYMBOL(ttm_base_object_lookup);
 
-MALLOC_DEFINE(M_TTM_OBJ_REF, "ttm_obj_ref", "TTM Ref Objects");
-
 int ttm_ref_object_add(struct ttm_object_file *tfile,
 		       struct ttm_base_object *base,
 		       enum ttm_ref_type ref_type, bool *existed)
@@ -279,7 +275,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 					   false, false);
 		if (unlikely(ret != 0))
 			return ret;
-		ref = malloc(sizeof(*ref), M_TTM_OBJ_REF, M_WAITOK);
+		ref = kmalloc(sizeof(*ref), GFP_KERNEL);
 		if (unlikely(ref == NULL)) {
 			ttm_mem_global_free(mem_glob, sizeof(*ref));
 			return -ENOMEM;
@@ -307,7 +303,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 		BUG_ON(ret != -EINVAL);
 
 		ttm_mem_global_free(mem_glob, sizeof(*ref));
-		free(ref, M_TTM_OBJ_REF);
+		kfree(ref);
 	}
 
 	return ret;
@@ -333,7 +329,7 @@ static void ttm_ref_object_release(struct kref *kref)
 
 	ttm_base_object_unref(&ref->obj);
 	ttm_mem_global_free(mem_glob, sizeof(*ref));
-	free(ref, M_TTM_OBJ_REF);
+	kfree(ref);
 	write_lock(&tfile->lock);
 }
 
@@ -390,7 +386,7 @@ EXPORT_SYMBOL(ttm_object_file_release);
 struct ttm_object_file *ttm_object_file_init(struct ttm_object_device *tdev,
 					     unsigned int hash_order)
 {
-	struct ttm_object_file *tfile = malloc(sizeof(*tfile), M_TTM_OBJ_FILE, M_WAITOK);
+	struct ttm_object_file *tfile = kmalloc(sizeof(*tfile), GFP_KERNEL);
 	unsigned int i;
 	unsigned int j = 0;
 	int ret;
@@ -416,19 +412,17 @@ out_err:
 	for (i = 0; i < j; ++i)
 		drm_ht_remove(&tfile->ref_hash[i]);
 
-	free(tfile, M_TTM_OBJ_FILE);
+	kfree(tfile);
 
 	return NULL;
 }
 EXPORT_SYMBOL(ttm_object_file_init);
 
-MALLOC_DEFINE(M_TTM_OBJ_DEV, "ttm_obj_dev", "TTM Device Objects");
-
 struct ttm_object_device *ttm_object_device_init(struct ttm_mem_global
 						 *mem_glob,
 						 unsigned int hash_order)
 {
-	struct ttm_object_device *tdev = malloc(sizeof(*tdev), M_TTM_OBJ_DEV, M_WAITOK);
+	struct ttm_object_device *tdev = kmalloc(sizeof(*tdev), GFP_KERNEL);
 	int ret;
 
 	if (unlikely(tdev == NULL))
@@ -442,7 +436,7 @@ struct ttm_object_device *ttm_object_device_init(struct ttm_mem_global
 	if (likely(ret == 0))
 		return tdev;
 
-	free(tdev, M_TTM_OBJ_DEV);
+	kfree(tdev);
 	return NULL;
 }
 EXPORT_SYMBOL(ttm_object_device_init);
@@ -457,5 +451,5 @@ void ttm_object_device_release(struct ttm_object_device **p_tdev)
 	drm_ht_remove(&tdev->object_hash);
 	spin_unlock(&tdev->object_lock);
 
-	free(tdev, M_TTM_OBJ_DEV);
+	kfree(tdev);
 }

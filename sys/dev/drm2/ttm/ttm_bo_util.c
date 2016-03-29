@@ -668,3 +668,4 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 
 	return 0;
 }
+EXPORT_SYMBOL(ttm_bo_move_accel_cleanup);

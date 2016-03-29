@@ -223,7 +223,7 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 	 */
 
 	if (mem <= ((uint64_t) 1ULL << 32)) {
-		free(zone, M_TTM_ZONE);
+		kfree(zone);
 		return 0;
 	}
 
@@ -470,3 +470,4 @@ size_t ttm_round_pot(size_t size)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(ttm_round_pot);
