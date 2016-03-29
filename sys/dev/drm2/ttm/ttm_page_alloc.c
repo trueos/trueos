@@ -332,7 +332,7 @@ static void ttm_pages_put(vm_page_t *pages, unsigned npages)
 
 	/* Our VM handles vm memattr automatically on the page free. */
 	if (set_pages_array_wb(pages, npages))
-		printf("[TTM] Failed to set %d pages to wb!\n", npages);
+		pr_err("Failed to set %d pages to wb!\n", npages);
 	for (i = 0; i < npages; ++i)
 		ttm_vm_page_free(pages[i]);
 }
@@ -637,7 +637,7 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
 			++pool->nrefills;
 			pool->npages += alloc_size;
 		} else {
-			printf("[TTM] Failed to fill pool (%p)\n", pool);
+			pr_err("Failed to fill pool (%p)\n", pool);
 			/* If we have any pages left put them to the pool. */
 			TAILQ_FOREACH(p, &pool->list, plinks.q) {
 				++cpages;
@@ -661,10 +661,11 @@ static unsigned ttm_page_pool_get_pages(struct ttm_page_pool *pool,
 					enum ttm_caching_state cstate,
 					unsigned count)
 {
+	unsigned long irq_flags;
 	vm_page_t p;
 	unsigned i;
 
-	spin_lock(&pool->lock);
+	spin_lock_irqsave(&pool->lock, irq_flags);
 	ttm_page_pool_fill_locked(pool, ttm_flags, cstate, count);
 
 	if (count >= pool->npages) {
@@ -682,7 +683,7 @@ static unsigned ttm_page_pool_get_pages(struct ttm_page_pool *pool,
 	pool->npages -= count;
 	count = 0;
 out:
-	spin_unlock(&pool->lock);
+	spin_unlock_irqrestore(&pool->lock, irq_flags);
 	return count;
 }
 
@@ -690,6 +691,7 @@ out:
 static void ttm_put_pages(vm_page_t *pages, unsigned npages, int flags,
 			  enum ttm_caching_state cstate)
 {
+	unsigned long irq_flags;
 	struct ttm_page_pool *pool = ttm_get_pool(flags, cstate);
 	unsigned i;
 
@@ -704,7 +706,7 @@ static void ttm_put_pages(vm_page_t *pages, unsigned npages, int flags,
 		return;
 	}
 
-	spin_lock(&pool->lock);
+	spin_lock_irqsave(&pool->lock, irq_flags);
 	for (i = 0; i < npages; i++) {
 		if (pages[i]) {
 			TAILQ_INSERT_TAIL(&pool->list, pages[i], plinks.q);
@@ -721,7 +723,7 @@ static void ttm_put_pages(vm_page_t *pages, unsigned npages, int flags,
 		if (npages < NUM_PAGES_TO_ALLOC)
 			npages = NUM_PAGES_TO_ALLOC;
 	}
-	spin_unlock(&pool->lock);
+	spin_unlock_irqrestore(&pool->lock, irq_flags);
 	if (npages)
 		ttm_page_pool_free(pool, npages);
 }
@@ -745,9 +747,11 @@ static int ttm_get_pages(vm_page_t *pages, unsigned npages, int flags,
 		for (r = 0; r < npages; ++r) {
 			p = ttm_vm_page_alloc(flags, cstate);
 			if (!p) {
-				printf("[TTM] Unable to allocate page\n");
+
+				pr_err("Unable to allocate page\n");
 				return -ENOMEM;
 			}
+
 			pages[r] = p;
 		}
 		return 0;
@@ -785,7 +789,7 @@ static int ttm_get_pages(vm_page_t *pages, unsigned npages, int flags,
 		if (r) {
 			/* If there is any pages in the list put them back to
 			 * the pool. */
-			printf("[TTM] Failed to allocate extra pages for large request\n");
+			pr_err("Failed to allocate extra pages for large request\n");
 			ttm_put_pages(pages, count, flags, cstate);
 			return r;
 		}
@@ -808,14 +812,17 @@ static void ttm_page_pool_init_locked(struct ttm_page_pool *pool, int flags,
 int ttm_page_alloc_init(struct ttm_mem_global *glob, unsigned max_pages)
 {
 
-	if (_manager != NULL)
-		printf("[TTM] manager != NULL\n");
-	printf("[TTM] Initializing pool allocator\n");
 
-	_manager = malloc(sizeof(*_manager), M_TTM_POOLMGR, M_WAITOK | M_ZERO);
+	WARN_ON(_manager);
+
+	pr_info("Initializing pool allocator\n");
+
+	_manager = kzalloc(sizeof(*_manager), GFP_KERNEL);
 
 	ttm_page_pool_init_locked(&_manager->wc_pool, 0, "wc");
+
 	ttm_page_pool_init_locked(&_manager->uc_pool, 0, "uc");
+
 	ttm_page_pool_init_locked(&_manager->wc_pool_dma32,
 	    TTM_PAGE_FLAG_DMA32, "wc dma");
 	ttm_page_pool_init_locked(&_manager->uc_pool_dma32,
@@ -835,7 +842,7 @@ void ttm_page_alloc_fini(void)
 {
 	int i;
 
-	printf("[TTM] Finalizing pool allocator\n");
+	pr_info("Finalizing pool allocator\n");
 	ttm_pool_mm_shrink_fini(_manager);
 
 	for (i = 0; i < NUM_POOLS; ++i)
@@ -883,6 +890,7 @@ int ttm_pool_populate(struct ttm_tt *ttm)
 	ttm->state = tt_unbound;
 	return 0;
 }
+EXPORT_SYMBOL(ttm_pool_populate);
 
 void ttm_pool_unpopulate(struct ttm_tt *ttm)
 {

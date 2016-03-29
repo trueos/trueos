@@ -453,3 +453,4 @@ void ttm_object_device_release(struct ttm_object_device **p_tdev)
 
 	kfree(tdev);
 }
+EXPORT_SYMBOL(ttm_object_device_release);
