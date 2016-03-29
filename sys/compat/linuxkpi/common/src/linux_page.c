@@ -133,3 +133,85 @@ io_mapping_map_atomic_wc(struct io_mapping *mapping,
 	mapping->prot = PAT_WRITE_COMBINING;
 	return iomap_atomic_prot_pfn(pfn, mapping->prot);
 }
+
+
+int
+set_memory_wc(unsigned long addr, int numpages)
+{
+
+	return (pmap_change_attr(addr, numpages, PAT_WRITE_COMBINING));
+}
+
+int
+set_memory_wb(unsigned long addr, int numpages)
+{
+
+	return (pmap_change_attr(addr, numpages, PAT_WRITE_BACK));
+}
+
+/* look at actual flags e.g. GFP_KERNEL | GFP_DMA32 | __GFP_ZERO */
+vm_page_t
+alloc_page(int flags)
+{
+	vm_page_t page;
+	int tries;
+	int req;
+
+	req = VM_ALLOC_ZERO | VM_ALLOC_NOOBJ;
+	tries = 0;
+retry:
+	page = vm_page_alloc_contig(NULL, 0, req, 1, 0, 0xffffffff,
+	    PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
+	if (page == NULL) {
+		if (tries < 1) {
+			if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
+			    PAGE_SIZE, 0))
+				VM_WAIT;
+			tries++;
+			goto retry;
+		}
+		return (NULL);
+	}
+	if ((flags & __GFP_ZERO) && ((page->flags & PG_ZERO) == 0))
+		pmap_zero_page(page);
+}
+
+vm_paddr_t
+page_to_phys(vm_page_t page)
+{
+	return (VM_PAGE_TO_PHYS(page));
+}
+
+void *
+acpi_os_ioremap(vm_paddr_t pa, vm_size_t size)
+{
+	return ((void *)pmap_mapbios(pa, size));
+}
+
+void
+unmap_mapping_range(void *obj,
+		    loff_t const holebegin, loff_t const holelen, int even_cows)
+{
+	vm_object_t devobj;
+	vm_page_t page;
+	int i, page_count;
+
+	devobj = cdev_pager_lookup(obj);
+	if (devobj != NULL) {
+		page_count = OFF_TO_IDX(obj->base.size);
+
+		VM_OBJECT_WLOCK(devobj);
+retry:
+		for (i = 0; i < page_count; i++) {
+			page = vm_page_lookup(devobj, i);
+			if (page == NULL)
+				continue;
+			if (vm_page_sleep_if_busy(page, "915unm"))
+				goto retry;
+			cdev_pager_free_page(devobj, page);
+		}
+		VM_OBJECT_WUNLOCK(devobj);
+		vm_object_deallocate(devobj);
+	}
+
+}

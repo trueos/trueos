@@ -71,7 +71,6 @@ caddr_t kmap(vm_page_t page);
 caddr_t kmap_atomic(vm_page_t page);
 void kunmap(caddr_t vaddr);
 void kunmap_atomic(caddr_t vaddr);
-void mark_page_accessed(vm_page_t page);
 void page_cache_release(vm_page_t page);
 
 static inline struct
@@ -102,5 +101,20 @@ io_mapping_unmap_atomic(void *vaddr)
 	iounmap_atomic(vaddr);
 }
 
-void *io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset);
+extern void *io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset);
+extern void *io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset);
+extern int set_memory_wc(unsigned long addr, int numpages);
+extern int set_memory_wb(unsigned long addr, int numpages);
+
+#define iowrite32(v, addr)	writel((v), (addr))
+vm_page_t alloc_page(int);
+/* bump refcount */
+int set_pages_uc(vm_page_t page, int numpages);
+int set_memory_uc(unsigned long addr, int numpages);
+vm_paddr_t page_to_phys(vm_page_t page);
+
+void *acpi_os_ioremap(vm_paddr_t pa, vm_size_t size);
+
+void unmap_mapping_range(void *obj,
+			 loff_t const holebegin, loff_t const holelen, int even_cows);
 #endif	/* _LINUX_PAGE_H_ */

@@ -99,4 +99,6 @@ kthread_stop(struct task_struct *task)
 	return task->task_ret;
 }
 
+extern int in_atomic(void);
+
 #endif	/* _LINUX_KTHREAD_H_ */

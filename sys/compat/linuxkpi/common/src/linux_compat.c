@@ -1246,6 +1246,12 @@ linux_irq_handler(void *ent)
 	irqe->handler(irqe->irq, irqe->arg);
 }
 
+int
+in_atomic(void)
+{
+
+	return ((curthread->td_pflags & TDP_NOFAULTING) != 0);
+}
 static void
 linux_compat_init(void *arg)
 {

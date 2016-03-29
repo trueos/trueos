@@ -101,6 +101,12 @@ set_page_dirty(struct vm_page *page)
 {
 	vm_page_dirty(page);
 }
+static inline void
+mark_page_accessed(struct vm_page *page)
+{
+	vm_page_reference(page);
+}
+
 
 static inline void
 get_page(struct vm_page *page)
