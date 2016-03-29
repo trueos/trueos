@@ -388,6 +388,7 @@ struct drm_freelist {
 typedef struct drm_dma_handle {
 	caddr_t vaddr;
 	bus_addr_t busaddr;
+	size_t size;
 	bus_dma_tag_t tag;
 	bus_dmamap_t map;
 } drm_dma_handle_t;
