@@ -31,7 +31,7 @@ SRCS	= \
 	drm_scatter.c \
 	drm_stub.c \
 	drm_sysctl.c \
-	drm_vm.c \
+	drm_vm_freebsd.c \
 	drm_os_freebsd.c \
 	i2c_compat.c \
 	ttm_agp_backend.c \

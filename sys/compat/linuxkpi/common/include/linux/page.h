@@ -66,7 +66,7 @@ struct io_mapping {
 	unsigned long size;
 	vm_prot_t prot;
 };
-
+/* XXX note that this is incomplete */
 caddr_t kmap(vm_page_t page);
 caddr_t kmap_atomic(vm_page_t page);
 void kunmap(caddr_t vaddr);
