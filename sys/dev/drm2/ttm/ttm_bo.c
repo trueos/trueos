@@ -98,7 +98,7 @@ static ssize_t ttm_bo_global_show(struct ttm_bo_global *glob,
     char *buffer)
 {
 
-	return snpr_err(buffer, PAGE_SIZE, "%lu\n",
+	return snprintf(buffer, PAGE_SIZE, "%lu\n",
 			(unsigned long) atomic_read(&glob->bo_count));
 }
 #endif
@@ -1235,7 +1235,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 		if (destroy)
 			(*destroy)(bo);
 		else
-			free(bo, M_TTM_BO);
+			kfree(bo);
 		return -ENOMEM;
 	}
 
@@ -1245,7 +1245,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 		if (destroy)
 			(*destroy)(bo);
 		else
-			free(bo, M_TTM_BO);
+			kfree(bo);
 		ttm_mem_global_free(mem_glob, acc_size);
 		return -EINVAL;
 	}
@@ -1351,7 +1351,7 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 	size_t acc_size;
 	int ret;
 
-	bo = malloc(sizeof(*bo), M_TTM_BO, M_WAITOK | M_ZERO);
+	bo = kzalloc(sizeof(*bo), GFP_KERNEL);
 	if (unlikely(bo == NULL))
 		return -ENOMEM;
 
@@ -1539,7 +1539,7 @@ retry:
 out_no_shrink:
 	vm_page_free(glob->dummy_read_page);
 out_no_drp:
-	free(glob, M_DRM_GLOBAL);
+	kfree(glob);
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_global_init);
@@ -1910,3 +1910,4 @@ void ttm_bo_swapout_all(struct ttm_bo_device *bdev)
 	while (ttm_bo_swapout(&bdev->glob->shrink) == 0)
 		;
 }
+EXPORT_SYMBOL(ttm_bo_swapout_all);

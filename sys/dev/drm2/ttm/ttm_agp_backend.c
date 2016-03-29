@@ -86,8 +86,8 @@ static void ttm_agp_destroy(struct ttm_tt *ttm)
 	struct ttm_agp_backend *agp_be = container_of(ttm, struct ttm_agp_backend, ttm);
 
 	ttm_tt_fini(ttm);
-	free(agp_be->pages, M_TTM_AGP);
-	free(agp_be, M_TTM_AGP);
+	kfree(agp_be->pages);
+	kfree(agp_be);
 }
 
 static struct ttm_backend_func ttm_agp_func = {
@@ -103,19 +103,20 @@ struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
 {
 	struct ttm_agp_backend *agp_be;
 
-	agp_be = malloc(sizeof(*agp_be), M_TTM_AGP, M_WAITOK | M_ZERO);
+	agp_be = kmalloc(sizeof(*agp_be), GFP_KERNEL);
+	if (!agp_be)
+		return NULL;
 
 	agp_be->bridge = bridge;
 	agp_be->ttm.func = &ttm_agp_func;
 
 	if (ttm_tt_init(&agp_be->ttm, bdev, size, page_flags, dummy_read_page)) {
-		free(agp_be, M_TTM_AGP);
 		return NULL;
 	}
 
 	agp_be->offset = 0;
-	agp_be->pages = malloc(agp_be->ttm.num_pages * sizeof(*agp_be->pages),
-			       M_TTM_AGP, M_WAITOK);
+	agp_be->pages = kmalloc(agp_be->ttm.num_pages * sizeof(*agp_be->pages),
+			       GFP_KERNEL);
 
 	return &agp_be->ttm;
 }

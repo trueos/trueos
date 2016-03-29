@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm_mm.h>
 
 #include <linux/spinlock.h>
+#include <linux/module.h>
 
 /**
  * Currently we use a spinlock for the lock, but a mutex *may* be
@@ -102,18 +103,19 @@ static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
 	}
 }
 
-MALLOC_DEFINE(M_TTM_RMAN, "ttm_rman", "TTM RMAN");
-
 static int ttm_bo_man_init(struct ttm_mem_type_manager *man,
 			   unsigned long p_size)
 {
 	struct ttm_range_manager *rman;
 	int ret;
 
-	rman = malloc(sizeof(*rman), M_TTM_RMAN, M_ZERO | M_WAITOK);
+	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
+	if (!rman)
+		return -ENOMEM;
+
 	ret = drm_mm_init(&rman->mm, 0, p_size);
 	if (ret) {
-		free(rman, M_TTM_RMAN);
+		kfree(rman);
 		return ret;
 	}
 
@@ -131,7 +133,7 @@ static int ttm_bo_man_takedown(struct ttm_mem_type_manager *man)
 	if (drm_mm_clean(mm)) {
 		drm_mm_takedown(mm);
 		spin_unlock(&rman->lock);
-		free(rman, M_TTM_RMAN);
+		kfree(rman);
 		man->priv = NULL;
 		return 0;
 	}
@@ -156,3 +158,4 @@ const struct ttm_mem_type_manager_func ttm_bo_manager_func = {
 	ttm_bo_man_put_node,
 	ttm_bo_man_debug
 };
+EXPORT_SYMBOL(ttm_bo_manager_func);
