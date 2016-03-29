@@ -639,9 +639,9 @@ int i915_batchbuffer(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (batch->num_cliprects) {
-		cliprects = malloc(batch->num_cliprects *
+		cliprects = kcalloc(batch->num_cliprects,
 				    sizeof(struct drm_clip_rect),
-				    DRM_MEM_DMA, M_WAITOK | M_ZERO);
+				    GFP_KERNEL);
 		if (cliprects == NULL)
 			return -ENOMEM;
 
@@ -662,7 +662,7 @@ int i915_batchbuffer(struct drm_device *dev, void *data,
 		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
 
 fail_free:
-	free(cliprects, DRM_MEM_DMA);
+	kfree(cliprects);
 
 	return ret;
 }
@@ -690,7 +690,7 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	if (cmdbuf->num_cliprects < 0)
 		return -EINVAL;
 
-	batch_data = malloc(cmdbuf->sz, DRM_MEM_DMA, M_WAITOK);
+	batch_data = kmalloc(cmdbuf->sz, GFP_KERNEL);
 	if (batch_data == NULL)
 		return -ENOMEM;
 
@@ -701,8 +701,8 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	}
 
 	if (cmdbuf->num_cliprects) {
-		cliprects = malloc(cmdbuf->num_cliprects *
-				    sizeof(struct drm_clip_rect), DRM_MEM_DMA, M_WAITOK | M_ZERO);
+		cliprects = kcalloc(cmdbuf->num_cliprects,
+				    sizeof(struct drm_clip_rect), GFP_KERNEL);
 		if (cliprects == NULL) {
 			ret = -ENOMEM;
 			goto fail_batch_free;
@@ -729,9 +729,9 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
 
 fail_clip_free:
-	free(cliprects, DRM_MEM_DMA);
+	kfree(cliprects);
 fail_batch_free:
-	free(batch_data, DRM_MEM_DMA);
+	kfree(batch_data);
 
 	return ret;
 }
@@ -1373,7 +1373,7 @@ int i915_master_create(struct drm_device *dev, struct drm_master *master)
 {
 	struct drm_i915_master_private *master_priv;
 
-	master_priv = malloc(sizeof(*master_priv), DRM_MEM_DMA, M_WAITOK | M_ZERO);
+	master_priv = kzalloc(sizeof(*master_priv), GFP_KERNEL);
 	if (!master_priv)
 		return -ENOMEM;
 
@@ -1388,7 +1388,7 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 	if (!master_priv)
 		return;
 
-	free(master_priv, DRM_MEM_DMA);
+	kfree(master_priv);
 
 	master->driver_priv = NULL;
 }
@@ -1485,8 +1485,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->types[8] = _DRM_STAT_SECONDARY;
 	dev->types[9] = _DRM_STAT_DMA;
 
-	dev_priv = malloc(sizeof(drm_i915_private_t), DRM_MEM_DRIVER,
-	    M_WAITOK | M_ZERO);
+	dev_priv = kzalloc(sizeof(drm_i915_private_t), GFP_KERNEL);
 	if (dev_priv == NULL)
 		return -ENOMEM;
 
@@ -1619,6 +1618,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	mutex_init(&dev_priv->dpio_lock);
 
 	mutex_init(&dev_priv->rps.hw_lock);
+	mutex_init(&dev_priv->modeset_restore_lock);
 
 	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
 		dev_priv->num_pipe = 3;
@@ -1701,7 +1701,7 @@ put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 #endif
 free_priv:
-	free(dev_priv, DRM_MEM_DRIVER);
+	kfree(dev_priv);
 	return ret;
 }
 
@@ -1762,7 +1762,7 @@ int i915_driver_unload(struct drm_device *dev)
 		 * config parsed from VBT
 		 */
 		if (dev_priv->child_dev && dev_priv->child_dev_num) {
-			free(dev_priv->child_dev, DRM_MEM_DRIVER);
+			kfree(dev_priv->child_dev);
 			dev_priv->child_dev = NULL;
 			dev_priv->child_dev_num = 0;
 		}
@@ -1834,7 +1834,7 @@ int i915_driver_unload(struct drm_device *dev)
 #ifdef __linux__
 	pci_dev_put(dev_priv->bridge_dev);
 #endif
-	free(dev->dev_private, DRM_MEM_DRIVER);
+	kfree(dev->dev_private);
 
 	return 0;
 }
@@ -1844,7 +1844,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv;
 
 	DRM_DEBUG_DRIVER("\n");
-	file_priv = malloc(sizeof(*file_priv), DRM_MEM_FILES, M_WAITOK | M_ZERO);
+	file_priv = kmalloc(sizeof(*file_priv), GFP_KERNEL);
 	if (!file_priv)
 		return -ENOMEM;
 
@@ -1904,7 +1904,7 @@ void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 
 	spin_lock_destroy(&file_priv->mm.lock);
-	free(file_priv, DRM_MEM_FILES);
+	kfree(file_priv);
 }
 
 struct drm_ioctl_desc i915_ioctls[] = {

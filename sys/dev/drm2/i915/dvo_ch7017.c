@@ -212,7 +212,7 @@ static bool ch7017_init(struct intel_dvo_device *dvo,
 	const char *str;
 	u8 val;
 
-	priv = malloc(sizeof(struct ch7017_priv), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	priv = kzalloc(sizeof(struct ch7017_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return false;
 
@@ -244,7 +244,7 @@ static bool ch7017_init(struct intel_dvo_device *dvo,
 	return true;
 
 fail:
-	free(priv, DRM_MEM_KMS);
+	kfree(priv);
 	return false;
 }
 
@@ -364,7 +364,7 @@ static void ch7017_dpms(struct intel_dvo_device *dvo, bool enable)
 	}
 
 	/* XXX: Should actually wait for update power status somehow */
-	drm_msleep(20, "ch7017");
+	msleep(20);
 }
 
 static bool ch7017_get_hw_state(struct intel_dvo_device *dvo)
@@ -405,7 +405,7 @@ static void ch7017_destroy(struct intel_dvo_device *dvo)
 	struct ch7017_priv *priv = dvo->dev_priv;
 
 	if (priv) {
-		free(priv, DRM_MEM_KMS);
+		kfree(priv);
 		dvo->dev_priv = NULL;
 	}
 }

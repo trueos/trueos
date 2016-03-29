@@ -71,8 +71,8 @@ typedef uint32_t gtt_pte_t;
 #define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
 
 static inline gtt_pte_t gen6_pte_encode(struct drm_device *dev,
-				   dma_addr_t addr,
-				   enum i915_cache_level level)
+					dma_addr_t addr,
+					enum i915_cache_level level)
 {
 	gtt_pte_t pte = GEN6_PTE_VALID;
 	pte |= GEN6_PTE_ADDR_ENCODE(addr);
@@ -310,8 +310,8 @@ void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
 			      struct drm_i915_gem_object *obj)
 {
 	i915_ppgtt_clear_range(ppgtt,
-			       obj->gtt_space->start >> PAGE_SHIFT,
-			       obj->base.size >> PAGE_SHIFT);
+			   obj->gtt_space->start >> PAGE_SHIFT,
+			   obj->base.size >> PAGE_SHIFT);
 }
 
 void i915_gem_init_ppgtt(struct drm_device *dev)
@@ -391,7 +391,6 @@ static inline bool needs_idle_maps(struct drm_device *dev)
 #endif
 	return false;
 }
-
 
 static bool do_idling(struct drm_i915_private *dev_priv)
 {
@@ -477,9 +476,6 @@ static void gen6_ggtt_insert_entries(struct drm_device *dev,
 		}
 	}
 
-
-
-
 	/* XXX: This serves as a posting read to make sure that the PTE has
 	 * actually been updated. There is some concern that even though
 	 * registers and PTEs are within the same BAR that they are potentially
@@ -543,6 +539,7 @@ static void i915_ggtt_clear_range(struct drm_device *dev,
 {
 	intel_gtt_clear_range(first_entry, num_entries);
 }
+
 
 void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
 			      enum i915_cache_level cache_level)

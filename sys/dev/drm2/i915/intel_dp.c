@@ -1048,7 +1048,7 @@ void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp)
 	 */
 	if (!ironlake_edp_have_panel_power(intel_dp)) {
 		DRM_DEBUG_KMS("eDP was not running\n");
-		DRM_MSLEEP(intel_dp->panel_power_up_delay);
+		msleep(intel_dp->panel_power_up_delay);
 	}
 }
 
@@ -1194,7 +1194,7 @@ void ironlake_edp_backlight_on(struct intel_dp *intel_dp)
 	 * link.  So delay a bit to make sure the image is solid before
 	 * allowing it to appear.
 	 */
-	DRM_MSLEEP(intel_dp->backlight_on_delay);
+	msleep(intel_dp->backlight_on_delay);
 	pp = ironlake_get_pp_control(dev_priv);
 	pp |= EDP_BLC_ENABLE;
 	I915_WRITE(PCH_PP_CONTROL, pp);
@@ -1219,7 +1219,7 @@ void ironlake_edp_backlight_off(struct intel_dp *intel_dp)
 	pp &= ~EDP_BLC_ENABLE;
 	I915_WRITE(PCH_PP_CONTROL, pp);
 	POSTING_READ(PCH_PP_CONTROL);
-	DRM_MSLEEP(intel_dp->backlight_off_delay);
+	msleep(intel_dp->backlight_off_delay);
 }
 
 static void ironlake_edp_pll_on(struct intel_dp *intel_dp)
@@ -1298,7 +1298,7 @@ void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 							  DP_SET_POWER_D0);
 			if (ret == 1)
 				break;
-			DRM_MSLEEP(1);
+			msleep(1);
 		}
 	}
 }
@@ -1424,7 +1424,7 @@ intel_dp_aux_native_read_retry(struct intel_dp *intel_dp, uint16_t address,
 					       recv_bytes);
 		if (ret == recv_bytes)
 			return true;
-		DRM_MSLEEP(1);
+		msleep(1);
 	}
 
 	return false;
@@ -2006,7 +2006,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	}
 	POSTING_READ(intel_dp->output_reg);
 
-	DRM_MSLEEP(17);
+	msleep(17);
 
 	if (HAS_PCH_IBX(dev) &&
 	    I915_READ(intel_dp->output_reg) & DP_PIPEB_SELECT) {
@@ -2036,7 +2036,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 			 * continuing.
 			 */
 			POSTING_READ(intel_dp->output_reg);
-			DRM_MSLEEP(50);
+			msleep(50);
 		} else
 			intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
 	}
@@ -2044,7 +2044,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	DP &= ~DP_AUDIO_OUTPUT_ENABLE;
 	I915_WRITE(intel_dp->output_reg, DP & ~DP_PORT_EN);
 	POSTING_READ(intel_dp->output_reg);
-	DRM_MSLEEP(intel_dp->panel_power_down_delay);
+	msleep(intel_dp->panel_power_down_delay);
 }
 
 static bool
@@ -2265,11 +2265,11 @@ intel_dp_get_edid(struct drm_connector *connector, struct i2c_adapter adapter)
 		int size;
 
 		/* invalid edid */
-		if (intel_connector->edid_err)
+		if (IS_ERR(intel_connector->edid))
 			return NULL;
 
 		size = (intel_connector->edid->extensions + 1) * EDID_LENGTH;
-		edid = malloc(size, DRM_MEM_KMS, M_WAITOK);
+		edid = kmalloc(size, GFP_KERNEL);
 		if (!edid)
 			return NULL;
 
@@ -2338,7 +2338,7 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 		edid = intel_dp_get_edid(connector, intel_dp->adapter);
 		if (edid) {
 			intel_dp->has_audio = drm_detect_monitor_audio(edid);
-			free(edid, DRM_MEM_KMS);
+			kfree(edid);
 		}
 	}
 
@@ -2384,7 +2384,7 @@ intel_dp_detect_audio(struct drm_connector *connector)
 	edid = intel_dp_get_edid(connector, intel_dp->adapter);
 	if (edid) {
 		has_audio = drm_detect_monitor_audio(edid);
-		free(edid, DRM_MEM_KMS);
+		kfree(edid);
 	}
 
 	return has_audio;
@@ -2468,13 +2468,13 @@ intel_dp_destroy(struct drm_connector *connector)
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
-	free(intel_connector->edid, DRM_MEM_KMS);
+	kfree(intel_connector->edid);
 
 	if (is_edp(intel_dp))
 		intel_panel_fini(&intel_connector->panel);
 
 	drm_connector_cleanup(connector);
-	free(connector, DRM_MEM_KMS);
+	kfree(connector);
 }
 
 void intel_dp_encoder_destroy(struct drm_encoder *encoder)
@@ -2494,7 +2494,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 		    &intel_dp->panel_vdd_work);
 		ironlake_panel_vdd_off_sync(intel_dp);
 	}
-	free(intel_dig_port, DRM_MEM_KMS);
+	kfree(intel_dig_port);
 }
 
 static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
@@ -2885,13 +2885,13 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 
-	intel_dig_port = malloc(sizeof(struct intel_digital_port), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	intel_dig_port = kzalloc(sizeof(struct intel_digital_port), GFP_KERNEL);
 	if (!intel_dig_port)
 		return;
 
-	intel_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
-		free(intel_dig_port, DRM_MEM_KMS);
+		kfree(intel_dig_port);
 		return;
 	}
 

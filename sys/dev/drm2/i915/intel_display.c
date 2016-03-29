@@ -4361,6 +4361,8 @@ static void vlv_update_pll(struct drm_crtc *crtc,
 	bool is_sdvo;
 	u32 temp;
 
+	mutex_lock(&dev_priv->dpio_lock);
+
 	is_sdvo = intel_pipe_has_type(crtc, INTEL_OUTPUT_SDVO) ||
 		intel_pipe_has_type(crtc, INTEL_OUTPUT_HDMI);
 
@@ -4444,6 +4446,8 @@ static void vlv_update_pll(struct drm_crtc *crtc,
 			temp |= (1 << 21);
 		intel_dpio_write(dev_priv, DPIO_DATA_CHANNEL2, temp);
 	}
+
+	mutex_unlock(&dev_priv->dpio_lock);
 }
 
 static void i9xx_update_pll(struct drm_crtc *crtc,
@@ -4993,6 +4997,8 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	if (!has_vga)
 		return;
 
+	mutex_lock(&dev_priv->dpio_lock);
+
 	/* XXX: Rip out SDV support once Haswell ships for real. */
 	if (IS_HASWELL(dev) && (dev->pci_device & 0xFF00) == 0x0C00)
 		is_sdv = true;
@@ -5135,6 +5141,8 @@ static void lpt_init_pch_refclk(struct drm_device *dev)
 	tmp = intel_sbi_read(dev_priv, SBI_DBUFF0, SBI_ICLK);
 	tmp |= SBI_DBUFF0_ENABLE;
 	intel_sbi_write(dev_priv, SBI_DBUFF0, tmp, SBI_ICLK);
+
+	mutex_unlock(&dev_priv->dpio_lock);
 }
 
 /*
@@ -6602,7 +6610,7 @@ intel_framebuffer_create(struct drm_device *dev,
 	struct intel_framebuffer *intel_fb;
 	int ret;
 
-	intel_fb = malloc(sizeof(*intel_fb), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb) {
 		drm_gem_object_unreference_unlocked(&obj->base);
 		return ERR_PTR(-ENOMEM);
@@ -6611,7 +6619,7 @@ intel_framebuffer_create(struct drm_device *dev,
 	ret = intel_framebuffer_init(dev, intel_fb, mode_cmd, obj);
 	if (ret) {
 		drm_gem_object_unreference_unlocked(&obj->base);
-		free(intel_fb, DRM_MEM_KMS);
+		kfree(intel_fb);
 		return ERR_PTR(ret);
 	}
 
@@ -6810,6 +6818,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
 
+		mutex_unlock(&crtc->mutex);
 		return;
 	}
 
@@ -6920,7 +6929,7 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	int vtot = I915_READ(VTOTAL(cpu_transcoder));
 	int vsync = I915_READ(VSYNC(cpu_transcoder));
 
-	mode = malloc(sizeof(*mode), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
 	if (!mode)
 		return NULL;
 
@@ -7059,12 +7068,12 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 	if (work) {
 		taskqueue_cancel(dev_priv->wq, &work->work, NULL);
 		taskqueue_drain(dev_priv->wq, &work->work);
-		free(work, DRM_MEM_KMS);
+		kfree(work);
 	}
 
 	drm_crtc_cleanup(crtc);
 
-	free(intel_crtc, DRM_MEM_KMS);
+	kfree(intel_crtc);
 }
 
 static void intel_unpin_work_fn(void *arg, int pending)
@@ -7084,7 +7093,7 @@ static void intel_unpin_work_fn(void *arg, int pending)
 	BUG_ON(atomic_read(&to_intel_crtc(work->crtc)->unpin_work_count) == 0);
 	atomic_dec(&to_intel_crtc(work->crtc)->unpin_work_count);
 
-	free(work, DRM_MEM_KMS);
+	kfree(work);
 }
 
 static void do_intel_finish_page_flip(struct drm_device *dev,
@@ -7444,7 +7453,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	     fb->pitches[0] != crtc->fb->pitches[0]))
 		return -EINVAL;
 
-	work = malloc(sizeof *work, DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL)
 		return -ENOMEM;
 
@@ -7461,7 +7470,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (intel_crtc->unpin_work) {
 		spin_unlock_irqrestore(&dev->event_lock, flags);
-		free(work, DRM_MEM_KMS);
+		kfree(work);
 		drm_vblank_put(dev, intel_crtc->pipe);
 
 		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
@@ -7520,7 +7529,7 @@ cleanup:
 
 	drm_vblank_put(dev, intel_crtc->pipe);
 free_work:
-	free(work, DRM_MEM_KMS);
+	kfree(work);
 
 	return ret;
 }
@@ -8023,9 +8032,9 @@ static void intel_set_config_free(struct intel_set_config *config)
 	if (!config)
 		return;
 
-	free(config->save_connector_encoders, DRM_MEM_KMS);
-	free(config->save_encoder_crtcs, DRM_MEM_KMS);
-	free(config, DRM_MEM_KMS);
+	kfree(config->save_connector_encoders);
+	kfree(config->save_encoder_crtcs);
+	kfree(config);
 }
 
 static int intel_set_config_save_state(struct drm_device *dev,
@@ -8036,14 +8045,14 @@ static int intel_set_config_save_state(struct drm_device *dev,
 	int count;
 
 	config->save_encoder_crtcs =
-		malloc(dev->mode_config.num_encoder *
-			sizeof(struct drm_crtc *), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+		kcalloc(dev->mode_config.num_encoder,
+			sizeof(struct drm_crtc *), GFP_KERNEL);
 	if (!config->save_encoder_crtcs)
 		return -ENOMEM;
 
 	config->save_connector_encoders =
-		malloc(dev->mode_config.num_connector *
-			sizeof(struct drm_encoder *), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+		kcalloc(dev->mode_config.num_connector,
+			sizeof(struct drm_encoder *), GFP_KERNEL);
 	if (!config->save_connector_encoders)
 		return -ENOMEM;
 
@@ -8250,7 +8259,7 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 	dev = set->crtc->dev;
 
 	ret = -ENOMEM;
-	config = malloc(sizeof(*config), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	config = kzalloc(sizeof(*config), GFP_KERNEL);
 	if (!config)
 		goto out_config;
 
@@ -8349,7 +8358,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	struct intel_crtc *intel_crtc;
 	int i;
 
-	intel_crtc = malloc(sizeof(struct intel_crtc) + (INTELFB_CONN_LIMIT * sizeof(struct drm_connector *)), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	intel_crtc = kzalloc(sizeof(struct intel_crtc) + (INTELFB_CONN_LIMIT * sizeof(struct drm_connector *)), GFP_KERNEL);
 	if (intel_crtc == NULL)
 		return;
 
@@ -8685,14 +8694,15 @@ int intel_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->offsets[0] != 0)
 		return -EINVAL;
 
+	drm_helper_mode_fill_fb_struct(&intel_fb->base, mode_cmd);
+	intel_fb->obj = obj;
+
 	ret = drm_framebuffer_init(dev, &intel_fb->base, &intel_fb_funcs);
 	if (ret) {
 		DRM_ERROR("framebuffer init failed %d\n", ret);
 		return ret;
 	}
 
-	drm_helper_mode_fill_fb_struct(&intel_fb->base, mode_cmd);
-	intel_fb->obj = obj;
 	return 0;
 }
 
@@ -9334,6 +9344,10 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	}
 
 	if (force_restore) {
+		/*
+		 * We need to use raw interfaces for restoring state to avoid
+		 * checking (bogus) intermediate states.
+		 */
 		for_each_pipe(pipe) {
 			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 			intel_set_mode(&crtc->base, &crtc->base.mode,
@@ -9483,7 +9497,7 @@ intel_display_capture_error_state(struct drm_device *dev)
 	enum transcoder cpu_transcoder;
 	int i;
 
-	error = malloc(sizeof(*error), DRM_MEM_KMS, M_NOWAIT);
+	error = kmalloc(sizeof(*error), GFP_ATOMIC);
 	if (error == NULL)
 		return NULL;
 

@@ -142,7 +142,7 @@ static void do_destroy(struct i915_hw_context *ctx)
 		    ("i915_gem_context: ctx != default_context"));
 
 	drm_gem_object_unreference(&ctx->obj->base);
-	free(ctx, DRM_I915_GEM);
+	kfree(ctx);
 }
 
 static int
@@ -154,13 +154,13 @@ create_hw_context(struct drm_device *dev,
 	struct i915_hw_context *ctx;
 	int ret, id;
 
-	ctx = malloc(sizeof(*ctx), DRM_I915_GEM, M_NOWAIT | M_ZERO);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx == NULL)
 		return (-ENOMEM);
 
 	ctx->obj = i915_gem_alloc_object(dev, dev_priv->hw_context_size);
 	if (ctx->obj == NULL) {
-		free(ctx, DRM_I915_GEM);
+		kfree(ctx);
 		DRM_DEBUG_DRIVER("Context object allocated failed\n");
 		return (-ENOMEM);
 	}
@@ -190,7 +190,7 @@ again:
 	id = 0;
 	ret = idr_alloc(&file_priv->context_idr, ctx, DEFAULT_CONTEXT_ID + 1, 0,
 			GFP_KERNEL);
-	if (ret == 0)
+	if (ret < 0)
 		ctx->id = id;
 
 	if (ret == -EAGAIN)
@@ -313,7 +313,7 @@ static int context_idr_cleanup(int id, void *p, void *data)
 {
 	struct i915_hw_context *ctx = p;
 
-	KASSERT(id != DEFAULT_CONTEXT_ID, ("i915_gem_context: id == DEFAULT_CONTEXT_ID in cleanup"));
+	BUG_ON(id == DEFAULT_CONTEXT_ID);
 
 	do_destroy(ctx);
 
@@ -390,8 +390,7 @@ static int do_switch(struct i915_hw_context *to)
 	u32 hw_flags = 0;
 	int ret;
 
-	KASSERT(!(from_obj != NULL && from_obj->pin_count == 0),
-	    ("i915_gem_context: invalid \"from\" context"));
+	BUG_ON(from_obj != NULL && from_obj->pin_count == 0);
 
 	if (from_obj == to->obj)
 		return 0;
@@ -442,7 +441,7 @@ static int do_switch(struct i915_hw_context *to)
 		 * swapped, but there is no way to do that yet.
 		 */
 		from_obj->dirty = 1;
-		KASSERT(from_obj->ring == ring, ("i915_gem_context: from_ring != ring"));
+		BUG_ON(from_obj->ring != ring);
 		i915_gem_object_unpin(from_obj);
 
 		drm_gem_object_unreference(&from_obj->base);

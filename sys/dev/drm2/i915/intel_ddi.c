@@ -1366,8 +1366,8 @@ void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder)
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
 	enum port port = intel_dig_port->port;
-	bool wait = false;
 	uint32_t val;
+	bool wait = false;
 
 	if (I915_READ(DP_TP_CTL(port)) & DP_TP_CTL_ENABLE) {
 		val = I915_READ(DDI_BUF_CTL(port));
@@ -1476,22 +1476,22 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	struct intel_connector *hdmi_connector = NULL;
 	struct intel_connector *dp_connector = NULL;
 
-	intel_dig_port = malloc(sizeof(struct intel_digital_port), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	intel_dig_port = kzalloc(sizeof(struct intel_digital_port), GFP_KERNEL);
 	if (!intel_dig_port)
 		return;
 
-	dp_connector = malloc(sizeof(struct intel_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	dp_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!dp_connector) {
-		free(intel_dig_port, DRM_MEM_KMS);
+		kfree(intel_dig_port);
 		return;
 	}
 
 	if (port != PORT_A) {
-		hdmi_connector = malloc(sizeof(struct intel_connector),
-					 DRM_MEM_KMS, M_WAITOK | M_ZERO);
+		hdmi_connector = kzalloc(sizeof(struct intel_connector),
+					 GFP_KERNEL);
 		if (!hdmi_connector) {
-			free(dp_connector, DRM_MEM_KMS);
-			free(intel_dig_port, DRM_MEM_KMS);
+			kfree(dp_connector);
+			kfree(intel_dig_port);
 			return;
 		}
 	}

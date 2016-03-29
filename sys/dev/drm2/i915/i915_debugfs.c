@@ -587,7 +587,6 @@ static void print_error_buffers(struct sbuf *m,
 				struct drm_i915_error_buffer *err,
 				int count)
 {
-
 	seq_printf(m, "%s [%d]:\n", name, count);
 
 	while (count--) {
@@ -825,6 +824,7 @@ static int i915_cur_delayinfo(struct drm_device *dev, struct sbuf *m, void *unus
 		ret = mutex_lock_interruptible(&dev->struct_mutex);
 		if (ret)
 			return ret;
+
 		gen6_gt_force_wake_get(dev_priv);
 
 		rpstat = I915_READ(GEN6_RPSTAT1);
@@ -998,15 +998,16 @@ static int gen6_drpc_info(struct drm_device *dev, struct sbuf *m)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 rpmodectl1, gt_core_status, rcctl1, rc6vids = 0;
 	unsigned forcewake_count;
-	int count=0;
+	int count=0, ret;
 
 
-	if (mutex_lock_interruptible(&dev->struct_mutex))
-		return -EINTR;
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
-	spin_lock(&dev_priv->gt_lock);
+	spin_lock_irq(&dev_priv->gt_lock);
 	forcewake_count = dev_priv->forcewake_count;
-	spin_unlock(&dev_priv->gt_lock);
+	spin_unlock_irq(&dev_priv->gt_lock);
 
 	if (forcewake_count) {
 		seq_printf(m, "RC information inaccurate because somebody "
@@ -1166,12 +1167,14 @@ static int i915_emon_status(struct drm_device *dev, struct sbuf *m, void *unused
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	unsigned long temp, chipset, gfx;
+	int ret;
 
 	if (!IS_GEN5(dev))
 		return -ENODEV;
 
-	if (mutex_lock_interruptible(&dev->struct_mutex))
-		return -EINTR;
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	temp = i915_mch_val(dev_priv);
 	chipset = i915_chipset_val(dev_priv);
@@ -1222,9 +1225,11 @@ static int i915_ring_freq_table(struct drm_device *dev, struct sbuf *m,
 static int i915_gfxec(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	int ret;
 
-	if (mutex_lock_interruptible(&dev->struct_mutex))
-		return -EINTR;
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	seq_printf(m, "GFXEC: %ld\n", (unsigned long)I915_READ(0x112f4));
 
@@ -1238,9 +1243,11 @@ static int i915_opregion(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_opregion *opregion = &dev_priv->opregion;
+	int ret;
 
-	if (mutex_lock_interruptible(&dev->struct_mutex))
-		return -EINTR;
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 
 	if (opregion->header)
 		seq_write(m, opregion->header, OPREGION_SIZE);
@@ -1301,8 +1308,8 @@ static int i915_context_status(struct drm_device *dev, struct sbuf *m, void *dat
 	int ret;
 
 	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
-	if (ret != 0)
-		return -EINTR;
+	if (ret)
+		return ret;
 
 	if (dev_priv->ips.pwrctx) {
 		seq_printf(m, "power context ");
@@ -1327,9 +1334,9 @@ static int i915_gen6_forcewake_count_info(struct drm_device *dev, struct sbuf *m
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned forcewake_count;
 
-	spin_lock(&dev_priv->gt_lock);
+	spin_lock_irq(&dev_priv->gt_lock);
 	forcewake_count = dev_priv->forcewake_count;
-	spin_unlock(&dev_priv->gt_lock);
+	spin_unlock_irq(&dev_priv->gt_lock);
 
 	seq_printf(m, "forcewake count = %u\n", forcewake_count);
 
@@ -1338,7 +1345,6 @@ static int i915_gen6_forcewake_count_info(struct drm_device *dev, struct sbuf *m
 
 static const char *swizzle_string(unsigned swizzle)
 {
-
 	switch(swizzle) {
 	case I915_BIT_6_SWIZZLE_NONE:
 		return "none";
@@ -1368,7 +1374,7 @@ static int i915_swizzle_info(struct drm_device *dev, struct sbuf *m, void *data)
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
-		return -EINTR;
+		return ret;
 
 	seq_printf(m, "bit6 swizzle for X-tiling = %s\n",
 		   swizzle_string(dev_priv->mm.bit_6_swizzle_x));
@@ -1445,9 +1451,9 @@ static int i915_dpio_info(struct drm_device *dev, struct sbuf *m, void *data)
 		return 0;
 	}
 
-	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
+	ret = mutex_lock_interruptible(&dev_priv->dpio_lock);
 	if (ret)
-		return -EINTR;
+		return ret;
 
 	seq_printf(m, "DPIO_CTL: 0x%08x\n", I915_READ(DPIO_CTL));
 
@@ -1474,7 +1480,7 @@ static int i915_dpio_info(struct drm_device *dev, struct sbuf *m, void *data)
 	seq_printf(m, "DPIO_FASTCLK_DISABLE: 0x%08x\n",
 		   intel_dpio_read(dev_priv, DPIO_FASTCLK_DISABLE));
 
-	mutex_unlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev_priv->dpio_lock);
 
 	return 0;
 }

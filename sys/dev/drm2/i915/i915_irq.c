@@ -918,7 +918,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 	count = src->base.size / PAGE_SIZE;
 
-	dst = malloc(sizeof(*dst) + count * sizeof(u32 *), DRM_I915_GEM, M_NOWAIT);
+	dst = kmalloc(sizeof(*dst) + count * sizeof(u32 *), GFP_ATOMIC);
 	if (dst == NULL)
 		return NULL;
 
@@ -926,7 +926,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 	for (i = 0; i < count; i++) {
 		void *d;
 
-		d = malloc(PAGE_SIZE, DRM_I915_GEM, M_NOWAIT);
+		d = kmalloc(PAGE_SIZE, GFP_ATOMIC);
 		if (d == NULL)
 			goto unwind;
 
@@ -977,8 +977,8 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 unwind:
 	while (i--)
-		free(dst->pages[i], DRM_I915_GEM);
-	free(dst, DRM_I915_GEM);
+		kfree(dst->pages[i]);
+	kfree(dst);
 	return NULL;
 }
 
@@ -991,9 +991,9 @@ i915_error_object_free(struct drm_i915_error_object *obj)
 		return;
 
 	for (page = 0; page < obj->page_count; page++)
-		free(obj->pages[page], DRM_I915_GEM);
+		kfree(obj->pages[page]);
 
-	free(obj, DRM_I915_GEM);
+	kfree(obj);
 }
 
 void
@@ -1096,6 +1096,8 @@ static void i915_gem_record_fences(struct drm_device *dev,
 			error->fence[i] = I915_READ(FENCE_REG_830_0 + (i * 4));
 		break;
 
+	default:
+		BUG();
 	}
 }
 

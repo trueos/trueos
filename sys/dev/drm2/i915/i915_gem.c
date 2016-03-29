@@ -65,11 +65,6 @@ static long i915_gem_purge(struct drm_i915_private *dev_priv, long target);
 static void i915_gem_shrink_all(struct drm_i915_private *dev_priv);
 static void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
 
-
-
-MALLOC_DEFINE(DRM_I915_GEM, "i915gem", "Allocations from i915 gem");
-#define kfree(_m) free((_m), DRM_I915_GEM);
-
 long i915_gem_wired_pages_cnt;
 
 static inline void i915_gem_object_fence_lost(struct drm_i915_gem_object *obj)
@@ -1860,7 +1855,6 @@ i915_gem_init_seqno(struct drm_device *dev, u32 seqno)
 	/* Carefully retire all requests without writing to the rings */
 	for_each_ring(ring, dev_priv, i) {
 		ret = intel_ring_idle(ring);
-
 		if (ret)
 			return ret;
 	}
@@ -2472,7 +2466,6 @@ static void i965_write_fence_reg(struct drm_device *dev, int reg,
 		fence_pitch_shift = I965_FENCE_PITCH_SHIFT;
 	}
 
-	
 	if (obj) {
 		u32 size = obj->gtt_space->size;
 
@@ -2585,13 +2578,14 @@ static void i915_gem_write_fence(struct drm_device *dev, int reg,
 
 	switch (INTEL_INFO(dev)->gen) {
 	case 7:
-	case 6: 
+	case 6:
 	case 5:
 	case 4: i965_write_fence_reg(dev, reg, obj); break;
 	case 3: i915_write_fence_reg(dev, reg, obj); break;
 	case 2: i830_write_fence_reg(dev, reg, obj); break;
 	default: BUG();
 	}
+
 	/* And similarly be paranoid that no direct access to this region
 	 * is reordered to before the fence is installed.
 	 */
@@ -3065,7 +3059,7 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 		return ret;
 
 	i915_gem_object_flush_cpu_write_domain(obj);
-	
+
 	/* Serialise direct access to this object with the barriers for
 	 * coherent writes from the GPU, by effectively invalidating the
 	 * GTT domain upon first access.
@@ -3800,7 +3794,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	i915_gem_info_remove_obj(dev_priv, obj->base.size);
 
 	kfree(obj->bit_17);
-	i915_gem_object_free(obj);	
+	i915_gem_object_free(obj);
 }
 
 int
@@ -3972,7 +3966,7 @@ i915_gem_init_hw(struct drm_device *dev)
 	i915_gem_l3_remap(dev);
 
 	i915_gem_init_swizzling(dev);
-	
+
 	ret = i915_gem_init_rings(dev);
 	if (ret)
 		return ret;
@@ -3994,7 +3988,6 @@ int i915_gem_init(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_init_global_gtt(dev);
-
 	ret = i915_gem_init_hw(dev);
 	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
@@ -4103,6 +4096,7 @@ i915_gem_load(struct drm_device *dev)
 				  sizeof(struct drm_i915_gem_object), 0,
 				  SLAB_HWCACHE_ALIGN,
 				  NULL);
+
 	INIT_LIST_HEAD(&dev_priv->mm.active_list);
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);
 	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
@@ -4292,7 +4286,7 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 	for (i = 0; i < page_count; i++) {
 		vm_page_t page = i915_gem_wire_page(obj->base.vm_obj, i, NULL);
 		char *dst, *src;
-		
+
 		if (page == NULL) {
 			ret = -EIO;
 			break;
@@ -4389,7 +4383,7 @@ i915_gem_inactive_shrink(void *arg)
 	if (!mutex_trylock(&dev->struct_mutex)) {
 		if (!mutex_is_locked_by(&dev->struct_mutex, curthread))
 			return;
-	
+
 		if (dev_priv->mm.shrinker_no_lock_stealing)
 			return;
 

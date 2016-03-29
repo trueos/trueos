@@ -330,7 +330,7 @@ void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 
 	intel_cancel_fbc_work(dev_priv);
 
-	work = malloc(sizeof *work, DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL) {
 		dev_priv->display.enable_fbc(crtc, interval);
 		return;
@@ -492,6 +492,7 @@ void intel_update_fbc(struct drm_device *dev)
 		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		goto out_disable;
 	}
+
 	/* If the scanout has not changed, don't modify the FBC settings.
 	 * Note that we make the fundamental assumption that the fb->obj
 	 * cannot be unpinned (and have its GTT offset and fence revoked)

@@ -180,7 +180,7 @@ static bool tfp410_init(struct intel_dvo_device *dvo,
 	struct tfp410_priv *tfp;
 	int id;
 
-	tfp = malloc(sizeof(struct tfp410_priv), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	tfp = kzalloc(sizeof(struct tfp410_priv), GFP_KERNEL);
 	if (tfp == NULL)
 		return false;
 
@@ -204,7 +204,7 @@ static bool tfp410_init(struct intel_dvo_device *dvo,
 	tfp->quiet = false;
 	return true;
 out:
-	free(tfp, DRM_MEM_KMS);
+	kfree(tfp);
 	return false;
 }
 
@@ -309,7 +309,7 @@ static void tfp410_destroy(struct intel_dvo_device *dvo)
 	struct tfp410_priv *tfp = dvo->dev_priv;
 
 	if (tfp) {
-		free(tfp, DRM_MEM_KMS);
+		kfree(tfp);
 		dvo->dev_priv = NULL;
 	}
 }

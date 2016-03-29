@@ -557,12 +557,12 @@ static void intel_lvds_destroy(struct drm_connector *connector)
 		acpi_lid_notifier_unregister(&lvds_connector->lid_notifier);
 #endif /* FREEBSD_WIP */
 
-	free(lvds_connector->base.edid, DRM_MEM_KMS);
+	kfree(lvds_connector->base.edid);
 
 	intel_panel_fini(&lvds_connector->base.panel);
 
 	drm_connector_cleanup(connector);
-	free(connector, DRM_MEM_KMS);
+	kfree(connector);
 }
 
 static int intel_lvds_set_property(struct drm_connector *connector,
@@ -963,13 +963,13 @@ bool intel_lvds_init(struct drm_device *dev)
 		}
 	}
 
-	lvds_encoder = malloc(sizeof(struct intel_lvds_encoder), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	lvds_encoder = kzalloc(sizeof(struct intel_lvds_encoder), GFP_KERNEL);
 	if (!lvds_encoder)
 		return false;
 
-	lvds_connector = malloc(sizeof(struct intel_lvds_connector), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	lvds_connector = kzalloc(sizeof(struct intel_lvds_connector), GFP_KERNEL);
 	if (!lvds_connector) {
-		free(lvds_encoder, DRM_MEM_KMS);
+		kfree(lvds_encoder);
 		return false;
 	}
 
@@ -1037,7 +1037,7 @@ bool intel_lvds_init(struct drm_device *dev)
 			drm_mode_connector_update_edid_property(connector,
 								edid);
 		} else {
-			free(edid, DRM_MEM_KMS);
+			kfree(edid);
 			edid = NULL;
 			edid_err = -EINVAL;
 		}
@@ -1144,7 +1144,7 @@ failed:
 	drm_encoder_cleanup(encoder);
 	if (fixed_mode)
 		drm_mode_destroy(dev, fixed_mode);
-	free(lvds_encoder, DRM_MEM_KMS);
-	free(lvds_connector, DRM_MEM_KMS);
+	kfree(lvds_encoder);
+	kfree(lvds_connector);
 	return false;
 }

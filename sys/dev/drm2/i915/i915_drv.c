@@ -392,7 +392,7 @@ static const struct intel_gfx_device_id {
 	INTEL_VGA_DEVICE(0x042B, &intel_haswell_d_info), /* GT3 reserved */
 	INTEL_VGA_DEVICE(0x040E, &intel_haswell_d_info), /* GT1 reserved */
 	INTEL_VGA_DEVICE(0x041E, &intel_haswell_d_info), /* GT2 reserved */
-	INTEL_VGA_DEVICE(0x042E, &intel_haswell_d_info), /* GT3 reserved */	
+	INTEL_VGA_DEVICE(0x042E, &intel_haswell_d_info), /* GT3 reserved */
 	INTEL_VGA_DEVICE(0x0C02, &intel_haswell_d_info), /* SDV GT1 desktop */
 	INTEL_VGA_DEVICE(0x0C12, &intel_haswell_d_info), /* SDV GT2 desktop */
 	INTEL_VGA_DEVICE(0x0C22, &intel_haswell_d_info), /* SDV GT3 desktop */
@@ -407,7 +407,7 @@ static const struct intel_gfx_device_id {
 	INTEL_VGA_DEVICE(0x0C2B, &intel_haswell_d_info), /* SDV GT3 reserved */
 	INTEL_VGA_DEVICE(0x0C0E, &intel_haswell_d_info), /* SDV GT1 reserved */
 	INTEL_VGA_DEVICE(0x0C1E, &intel_haswell_d_info), /* SDV GT2 reserved */
-	INTEL_VGA_DEVICE(0x0C2E, &intel_haswell_d_info), /* SDV GT3 reserved */	
+	INTEL_VGA_DEVICE(0x0C2E, &intel_haswell_d_info), /* SDV GT3 reserved */
 	INTEL_VGA_DEVICE(0x0A02, &intel_haswell_d_info), /* ULT GT1 desktop */
 	INTEL_VGA_DEVICE(0x0A12, &intel_haswell_d_info), /* ULT GT2 desktop */
 	INTEL_VGA_DEVICE(0x0A22, &intel_haswell_d_info), /* ULT GT3 desktop */
@@ -437,7 +437,7 @@ static const struct intel_gfx_device_id {
 	INTEL_VGA_DEVICE(0x0D2B, &intel_haswell_d_info), /* CRW GT3 reserved */
 	INTEL_VGA_DEVICE(0x0D0E, &intel_haswell_d_info), /* CRW GT1 reserved */
 	INTEL_VGA_DEVICE(0x0D1E, &intel_haswell_d_info), /* CRW GT2 reserved */
-	INTEL_VGA_DEVICE(0x0D2E, &intel_haswell_d_info), /* CRW GT3 reserved */	
+	INTEL_VGA_DEVICE(0x0D2E, &intel_haswell_d_info), /* CRW GT3 reserved */
 	INTEL_VGA_DEVICE(0x0f30, &intel_valleyview_m_info),
 	INTEL_VGA_DEVICE(0x0157, &intel_valleyview_m_info),
 	INTEL_VGA_DEVICE(0x0155, &intel_valleyview_d_info),
@@ -645,9 +645,9 @@ static int i915_drm_thaw(struct drm_device *dev)
 	intel_gt_reset(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		DRM_LOCK(dev);
+		mutex_lock(&dev->struct_mutex);
 		i915_gem_restore_gtt_mappings(dev);
-		DRM_UNLOCK(dev);
+		mutex_unlock(&dev->struct_mutex);
 	}
 
 	__i915_drm_thaw(dev);
@@ -695,14 +695,9 @@ int i915_resume(struct drm_device *dev)
 static int i8xx_do_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int onems;
 
 	if (IS_I85X(dev))
 		return -ENODEV;
-
-	onems = hz / 1000;
-	if (onems == 0)
-		onems = 1;
 
 	I915_WRITE(D_STATE, I915_READ(D_STATE) | DSTATE_GFX_RESET_I830);
 	POSTING_READ(D_STATE);
@@ -713,13 +708,13 @@ static int i8xx_do_reset(struct drm_device *dev)
 			   DEBUG_RESET_RENDER |
 			   DEBUG_RESET_FULL);
 		POSTING_READ(DEBUG_RESET_I830);
-		pause("i8xxrst1", onems);
+		msleep(1);
 
 		I915_WRITE(DEBUG_RESET_I830, 0);
 		POSTING_READ(DEBUG_RESET_I830);
 	}
 
-	pause("i8xxrst2", onems);
+	msleep(1);
 
 	I915_WRITE(D_STATE, I915_READ(D_STATE) & ~DSTATE_GFX_RESET_I830);
 	POSTING_READ(D_STATE);
@@ -968,7 +963,7 @@ static int i915_probe(device_t kdev)
 	if (intel_info->is_valleyview)
 		if(!i915_preliminary_hw_support) {
 			DRM_ERROR("Preliminary hardware support disabled\n");
-			return (ENXIO);
+			return -ENODEV;
 		}
 
 	/* Only bind to function 0 of the device. Early generations
@@ -977,7 +972,7 @@ static int i915_probe(device_t kdev)
 	 * functions have the same PCI-ID!
 	 */
 	if (pci_get_function(kdev))
-		return (ENXIO);
+		return -ENODEV;
 
 	/* We've managed to ship a kms-enabled ddx that shipped with an XvMC
 	 * implementation for gen3 (and only gen3) that used legacy drm maps
@@ -988,7 +983,7 @@ static int i915_probe(device_t kdev)
 			~(DRIVER_USE_AGP | DRIVER_REQUIRE_AGP);
 	} else if (!intel_agp_enabled) {
 		DRM_ERROR("drm/i915 can't work without intel_agp module!\n");
-		return (ENXIO);
+		return -ENODEV;
 	}
 
 	return -drm_probe_helper(kdev, pciidlist);

@@ -144,7 +144,7 @@ static bool sil164_init(struct intel_dvo_device *dvo,
 	struct sil164_priv *sil;
 	unsigned char ch;
 
-	sil = malloc(sizeof(struct sil164_priv), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	sil = kzalloc(sizeof(struct sil164_priv), GFP_KERNEL);
 	if (sil == NULL)
 		return false;
 
@@ -175,7 +175,7 @@ static bool sil164_init(struct intel_dvo_device *dvo,
 	return true;
 
 out:
-	free(sil, DRM_MEM_KMS);
+	kfree(sil);
 	return false;
 }
 
@@ -270,7 +270,7 @@ static void sil164_destroy(struct intel_dvo_device *dvo)
 	struct sil164_priv *sil = dvo->dev_priv;
 
 	if (sil) {
-		free(sil, DRM_MEM_KMS);
+		kfree(sil);
 		dvo->dev_priv = NULL;
 	}
 }

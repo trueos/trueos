@@ -1064,7 +1064,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		return ret;
 	}
 
-	params = malloc(sizeof(struct put_image_params), DRM_I915_GEM, M_WAITOK);
+	params = kmalloc(sizeof(struct put_image_params), GFP_KERNEL);
 	if (!params)
 		return -ENOMEM;
 
@@ -1167,7 +1167,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 	mutex_unlock(&dev->struct_mutex);
 	drm_modeset_unlock_all(dev);
 
-	free(params, DRM_I915_GEM);
+	kfree(params);
 
 	return 0;
 
@@ -1176,7 +1176,7 @@ out_unlock:
 	drm_modeset_unlock_all(dev);
 	drm_gem_object_unreference_unlocked(&new_bo->base);
 out_free:
-	free(params, DRM_I915_GEM);
+	kfree(params);
 
 	return ret;
 }
@@ -1331,7 +1331,7 @@ void intel_setup_overlay(struct drm_device *dev)
 	if (!HAS_OVERLAY(dev))
 		return;
 
-	overlay = malloc(sizeof(struct intel_overlay), DRM_I915_GEM, M_WAITOK | M_ZERO);
+	overlay = kzalloc(sizeof(struct intel_overlay), GFP_KERNEL);
 	if (!overlay)
 		return;
 
@@ -1398,7 +1398,7 @@ out_free_bo:
 	drm_gem_object_unreference(&reg_bo->base);
 out_free:
 	mutex_unlock(&dev->struct_mutex);
-	free(overlay, DRM_I915_GEM);
+	kfree(overlay);
 	return;
 }
 
@@ -1415,7 +1415,7 @@ void intel_cleanup_overlay(struct drm_device *dev)
 	BUG_ON(dev_priv->overlay->active);
 
 	drm_gem_object_unreference_unlocked(&dev_priv->overlay->reg_bo->base);
-	free(dev_priv->overlay, DRM_I915_GEM);
+	kfree(dev_priv->overlay);
 }
 
 //#ifdef CONFIG_DEBUG_FS
@@ -1444,7 +1444,7 @@ intel_overlay_capture_error_state(struct drm_device *dev)
 	if (!overlay || !overlay->active)
 		return NULL;
 
-	error = malloc(sizeof(*error), DRM_I915_GEM, M_NOWAIT);
+	error = kmalloc(sizeof(*error), GFP_ATOMIC);
 	if (error == NULL)
 		return NULL;
 
@@ -1465,7 +1465,7 @@ intel_overlay_capture_error_state(struct drm_device *dev)
 	return error;
 
 err:
-	free(error, DRM_I915_GEM);
+	kfree(error);
 	return NULL;
 }
 

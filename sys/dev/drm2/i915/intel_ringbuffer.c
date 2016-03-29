@@ -322,6 +322,7 @@ gen7_render_ring_flush(struct intel_ring_buffer *ring,
 		 * TLB invalidate requires a post-sync write.
 		 */
 		flags |= PIPE_CONTROL_QW_WRITE;
+		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
 
 		/* Workaround: we must issue a pipe_control with CS-stall bit
 		 * set before a pipe_control command that has the state cache
@@ -335,7 +336,7 @@ gen7_render_ring_flush(struct intel_ring_buffer *ring,
 
 	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL(4));
 	intel_ring_emit(ring, flags);
-	intel_ring_emit(ring, scratch_addr | PIPE_CONTROL_GLOBAL_GTT);
+	intel_ring_emit(ring, scratch_addr);
 	intel_ring_emit(ring, 0);
 	intel_ring_advance(ring);
 
@@ -449,7 +450,7 @@ init_pipe_control(struct intel_ring_buffer *ring)
 	if (ring->private)
 		return 0;
 
-	pc = malloc(sizeof(*pc), DRM_I915_GEM, M_WAITOK);
+	pc = kmalloc(sizeof(*pc), GFP_KERNEL);
 	if (!pc)
 		return -ENOMEM;
 
@@ -483,7 +484,7 @@ err_unpin:
 err_unref:
 	drm_gem_object_unreference(&obj->base);
 err:
-	free(pc, DRM_I915_GEM);
+	kfree(pc);
 	return ret;
 }
 
@@ -503,7 +504,7 @@ cleanup_pipe_control(struct intel_ring_buffer *ring)
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 
-	free(pc, DRM_I915_GEM);
+	kfree(pc);
 	ring->private = NULL;
 }
 

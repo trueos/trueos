@@ -189,7 +189,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 	uint8_t vendor, device;
 	char *name;
 
-	ch7xxx = malloc(sizeof(struct ch7xxx_priv), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	ch7xxx = kzalloc(sizeof(struct ch7xxx_priv), GFP_KERNEL);
 	if (ch7xxx == NULL)
 		return false;
 
@@ -224,7 +224,7 @@ static bool ch7xxx_init(struct intel_dvo_device *dvo,
 		  name, vendor, device);
 	return true;
 out:
-	free(ch7xxx, DRM_MEM_KMS);
+	kfree(ch7xxx);
 	return false;
 }
 
@@ -335,7 +335,7 @@ static void ch7xxx_destroy(struct intel_dvo_device *dvo)
 	struct ch7xxx_priv *ch7xxx = dvo->dev_priv;
 
 	if (ch7xxx) {
-		free(ch7xxx, DRM_MEM_KMS);
+		kfree(ch7xxx);
 		dvo->dev_priv = NULL;
 	}
 }
