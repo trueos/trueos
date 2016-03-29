@@ -133,7 +133,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 			goto done;
 		}
 
-		pci_gart = gart_info->table_handle->vaddr;
+		pci_gart = (u32*)gart_info->table_handle->vaddr;
 		address = gart_info->table_handle->vaddr;
 		bus_address = gart_info->table_handle->busaddr;
 	} else {

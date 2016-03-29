@@ -100,7 +100,7 @@ drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size,
 		return NULL;
 	}
 
-	ret = bus_dmamem_alloc(dmah->tag, &dmah->vaddr,
+	ret = bus_dmamem_alloc(dmah->tag, (void **)&dmah->vaddr,
 	    BUS_DMA_WAITOK | BUS_DMA_ZERO | BUS_DMA_NOCACHE, &dmah->map);
 	if (ret != 0) {
 		bus_dma_tag_destroy(dmah->tag);
