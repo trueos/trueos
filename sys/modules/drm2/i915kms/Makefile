@@ -46,6 +46,7 @@ SRCS	= \
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 
+
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS	+= i915_ioc32.c
 .endif
@@ -71,7 +72,7 @@ CWARNFLAGS.intel_lvds.c=	-Wno-unused
 CWARNFLAGS.intel_tv.c=		-Wno-unused
 CWARNFLAGS.intel_display.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.intel_overlay.c=	-Wno-tautological-pointer-compare
-CWARNFLAGS.i915_gem.c=		-Wno-tautological-pointer-compare
+CWARNFLAGS.i915_gem.c=		-Wno-tautological-pointer-compare -Wno-pointer-arith
 CWARNFLAGS.i915_gem_gtt.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.i915_gem_tiling.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.i915_gem_execbuffer.c=	-Wno-tautological-pointer-compare
