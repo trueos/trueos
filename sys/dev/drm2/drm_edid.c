@@ -2291,6 +2291,7 @@ u8 drm_match_cea_mode(const struct drm_display_mode *to_match)
 }
 EXPORT_SYMBOL(drm_match_cea_mode);
 
+
 static int
 do_cea_modes (struct drm_connector *connector, u8 *db, u8 len)
 {

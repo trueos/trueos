@@ -976,7 +976,7 @@ EXPORT_SYMBOL(drm_kms_helper_hotplug_event);
 static void output_poll_execute(struct work_struct *work)
 {
 	struct delayed_work *delayed_work = to_delayed_work(work);
-	struct drm_device *dev = container_of(delayed_work, struct drm_device, mode_config.output_poll_work);	
+	struct drm_device *dev = container_of(delayed_work, struct drm_device, mode_config.output_poll_work);
 	struct drm_connector *connector;
 	enum drm_connector_status old_status;
 	bool repoll = false, changed = false;

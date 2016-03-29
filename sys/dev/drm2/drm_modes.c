@@ -1120,7 +1120,7 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 	}
 done:
 	if (i >= 0) {
-		DRM_WARNING(
+		printk(KERN_WARNING
 			"parse error at position %i in video mode '%s'\n",
 			i, name);
 		mode->specified = false;

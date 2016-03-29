@@ -573,7 +573,6 @@ static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 	kfree(helper->crtc_info);
 }
 
-
 /**
  * drm_fb_helper_init - initialize a drm_fb_helper structure
  * @dev: drm device
