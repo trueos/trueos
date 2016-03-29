@@ -94,7 +94,6 @@ enum port {
 	 I915_GEM_DOMAIN_INSTRUCTION | \
 	 I915_GEM_DOMAIN_VERTEX)
 
-
 #define for_each_pipe(p) for ((p) = 0; (p) < dev_priv->num_pipe; (p)++)
 
 #define for_each_encoder_on_crtc(dev, __crtc, intel_encoder) \
@@ -328,7 +327,7 @@ struct drm_i915_gt_funcs {
 	DEV_INFO_FLAG(has_llc)
 
 struct intel_device_info {
-	u32 display_mmio_offset;	
+	u32 display_mmio_offset;
 	u8 gen;
 	u8 is_mobile:1;
 	u8 is_i85x:1;
@@ -616,7 +615,7 @@ struct i915_suspend_saved_registers {
 };
 
 struct intel_gen6_power_mgmt {
-	struct task work;
+	struct work_struct work;
 	u32 pm_iir;
 	/* lock - irqsave spinlock that protectects the work_struct and
 	 * pm_iir. */
@@ -628,7 +627,7 @@ struct intel_gen6_power_mgmt {
 	u8 min_delay;
 	u8 max_delay;
 
-	struct timeout_task delayed_resume_work;
+	struct delayed_work delayed_resume_work;
 
 	/*
 	 * Protects RPS/RC6 register access and PCU communication.
@@ -674,9 +673,8 @@ struct i915_dri1_state {
 
 struct intel_l3_parity {
 	u32 *remap_info;
-	struct task error_work;
+	struct work_struct error_work;
 };
-
 
 struct i915_gem_mm {
 	/** Memory allocator for GTT stolen memory */
@@ -745,7 +743,7 @@ struct i915_gem_mm {
 	 * fire periodically while the ring is running. When it
 	 * fires, go retire requests.
 	 */
-	struct timeout_task retire_work;
+	struct delayed_work retire_work;
 
 	/**
 	 * Are we in a non-interruptible section of code like
@@ -838,7 +836,7 @@ struct i915_gpu_error {
 	 * Waitqueue to signal when the reset has completed. Used by clients
 	 * that wait for dev_priv->mm.wedged to settle.
 	 */
-	struct completion *reset_queue;
+	wait_queue_head_t reset_queue;
 
 	/* For gpu hang simulation. */
 	unsigned int stop_rings;
@@ -872,6 +870,7 @@ typedef struct drm_i915_private {
 
 	struct intel_gmbus gmbus[GMBUS_NUM_PORTS];
 
+
 	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
 	 * controller on different i2c buses. */
 	struct mutex gmbus_mutex;
@@ -904,7 +903,7 @@ typedef struct drm_i915_private {
 	u32 pch_irq_mask;
 
 	u32 hotplug_supported_mask;
-	struct task hotplug_work;
+	struct work_struct hotplug_work;
 
 	int num_pipe;
 	int num_pch_pll;
@@ -973,7 +972,7 @@ typedef struct drm_i915_private {
 	struct drm_i915_error_state *first_error;
 	struct task error_work;
 	struct completion error_completion;
-	struct taskqueue *wq;
+	struct workqueue_struct *wq;
 
 	/* Display functions */
 	struct drm_i915_display_funcs display;
@@ -984,15 +983,12 @@ typedef struct drm_i915_private {
 
 	unsigned long quirks;
 
-
 	enum modeset_restore modeset_restore;
 	struct mutex modeset_restore_lock;
 
 	struct i915_gtt gtt;
 
 	struct i915_gem_mm mm;
-	
-	/* Register state */
 
 	/* Kernel Modesetting */
 
@@ -1043,7 +1039,7 @@ typedef struct drm_i915_private {
 	 * The console may be contended at resume, but we don't
 	 * want it to block on it.
 	 */
-	struct task console_resume_work;
+	struct work_struct console_resume_work;
 
 	struct backlight_device *backlight;
 
@@ -1451,7 +1447,7 @@ extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
 extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
 extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 
-extern void intel_console_resume(void *context, int pending);
+extern void intel_console_resume(struct work_struct *work);
 
 /* i915_irq.c */
 void i915_hangcheck_elapsed(void *data);
@@ -1476,6 +1472,7 @@ extern void i915_destroy_error_state(struct drm_device *dev);
 //#else
 //#define i915_destroy_error_state(x)
 //#endif
+
 
 /* i915_gem.c */
 int i915_gem_init_ioctl(struct drm_device *dev, void *data,
@@ -1533,6 +1530,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
+
 int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				     uint32_t alignment,
 				     bool map_and_fenceable,
@@ -1550,7 +1548,6 @@ static inline void i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 	/* KASSERT(obj->pages != NULL, ("pin and NULL pages")); */
 	obj->pages_pin_count++;
 }
-
 static inline void i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 {
 	KASSERT(obj->pages_pin_count != 0, ("zero pages_pin_count"));
@@ -1714,6 +1711,7 @@ static inline void i915_gem_chipset_flush(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gtt_chipset_flush();
 }
+
 
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct drm_device *dev, int min_size,

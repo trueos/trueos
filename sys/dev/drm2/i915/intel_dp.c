@@ -1058,6 +1058,8 @@ static void ironlake_panel_vdd_off_sync(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 pp;
 
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+
 	if (!intel_dp->want_panel_vdd && ironlake_edp_have_panel_vdd(intel_dp)) {
 		pp = ironlake_get_pp_control(dev_priv);
 		pp &= ~EDP_FORCE_VDD;
@@ -1068,13 +1070,14 @@ static void ironlake_panel_vdd_off_sync(struct intel_dp *intel_dp)
 		DRM_DEBUG_KMS("PCH_PP_STATUS: 0x%08x PCH_PP_CONTROL: 0x%08x\n",
 			      I915_READ(PCH_PP_STATUS), I915_READ(PCH_PP_CONTROL));
 
-		DRM_MSLEEP(intel_dp->panel_power_down_delay);
+		msleep(intel_dp->panel_power_down_delay);
 	}
 }
 
-static void ironlake_panel_vdd_work(void *arg, int pending __unused)
+static void ironlake_panel_vdd_work(struct work_struct *__work)
 {
-	struct intel_dp *intel_dp = arg;
+	struct intel_dp *intel_dp = container_of(to_delayed_work(__work),
+						 struct intel_dp, panel_vdd_work);
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
 	mutex_lock(&dev->mode_config.mutex);
@@ -1100,12 +1103,8 @@ void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync)
 		 * time from now (relative to the power down delay)
 		 * to keep the panel power up across a sequence of operations
 		 */
-		struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-		struct drm_device *dev = intel_dig_port->base.base.dev;
-		struct drm_i915_private *dev_priv = dev->dev_private;
-		taskqueue_enqueue_timeout(dev_priv->wq,
-		    &intel_dp->panel_vdd_work,
-		    msecs_to_jiffies(intel_dp->panel_power_cycle_delay * 5));
+		schedule_delayed_work(&intel_dp->panel_vdd_work,
+				      msecs_to_jiffies(intel_dp->panel_power_cycle_delay * 5));
 	}
 }
 
@@ -2486,13 +2485,10 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	i2c_del_adapter(&intel_dp->adapter);
 	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
-		struct drm_i915_private *dev_priv = dev->dev_private;
-
-		taskqueue_cancel_timeout(dev_priv->wq,
-		    &intel_dp->panel_vdd_work, NULL);
-		taskqueue_drain_timeout(dev_priv->wq,
-		    &intel_dp->panel_vdd_work);
+		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
+		mutex_lock(&dev->mode_config.mutex);
 		ironlake_panel_vdd_off_sync(intel_dp);
+		mutex_unlock(&dev->mode_config.mutex);
 	}
 	kfree(intel_dig_port);
 }
@@ -2758,8 +2754,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
-	TIMEOUT_TASK_INIT(dev_priv->wq, &intel_dp->panel_vdd_work, 0,
-	    ironlake_panel_vdd_work, intel_dp);
+	INIT_DELAYED_WORK(&intel_dp->panel_vdd_work,
+			  ironlake_panel_vdd_work);
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
