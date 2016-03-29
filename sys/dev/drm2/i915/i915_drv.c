@@ -534,8 +534,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 			return error;
 		}
 
-		taskqueue_cancel_timeout(dev_priv->wq,
-		    &dev_priv->rps.delayed_resume_work, NULL);
+		cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work);
 
 		intel_modeset_disable(dev);
 
@@ -585,10 +584,11 @@ int i915_suspend(struct drm_device *dev, pm_message_t state)
 	return 0;
 }
 
-void intel_console_resume(void *arg, int pending)
+void intel_console_resume(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
-		arg;
+		container_of(work, struct drm_i915_private,
+			     console_resume_work);
 	struct drm_device *dev = dev_priv->dev;
 
 	console_lock();
@@ -630,8 +630,7 @@ static int __i915_drm_thaw(struct drm_device *dev)
 		intel_fbdev_set_suspend(dev, 0);
 		console_unlock();
 	} else {
-		taskqueue_enqueue(dev_priv->wq,
-		    &dev_priv->console_resume_work);
+		schedule_work(&dev_priv->console_resume_work);
 	}
 
 	return error;

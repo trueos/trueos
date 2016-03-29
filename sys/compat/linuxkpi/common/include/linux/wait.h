@@ -136,6 +136,8 @@ static inline void add_wait_queue(wait_queue_head_t *q, wait_queue_t *wait) {
 static inline void remove_wait_queue(wait_queue_head_t *q, wait_queue_t *wait) {
 	panic("XXX implement me!");
 }
-
+static inline int wait_event_interruptible_timeout(wait_queue_head_t wq, int condition, int timeout){
+	panic("XXX implement me");
+}
 
 #endif	/* _LINUX_WAIT_H_ */

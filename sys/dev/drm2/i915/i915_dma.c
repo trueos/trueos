@@ -1326,8 +1326,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_modeset_gem_init(dev);
 
-	TASK_INIT(&dev_priv->console_resume_work, 0, intel_console_resume,
-	    dev->dev_private);
+	INIT_WORK(&dev_priv->console_resume_work, intel_console_resume);
 
 	ret = drm_irq_install(dev);
 	if (ret)
@@ -1573,14 +1572,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * so there is no point in running more than one instance of the
 	 * workqueue at any time.  Use an ordered one.
 	 */
-	dev_priv->wq = taskqueue_create("915", M_WAITOK,
-	    taskqueue_thread_enqueue, &dev_priv->wq);
+	dev_priv->wq = alloc_ordered_workqueue("i915", 0);
 	if (dev_priv->wq == NULL) {
 		DRM_ERROR("Failed to create our workqueue.\n");
 		ret = -ENOMEM;
 		goto out_mtrrfree;
 	}
-	taskqueue_start_threads(&dev_priv->wq, 1, PWAIT, "i915 taskq");
 
 	/* This must be called before any calls to HAS_PCH_* */
 	intel_detect_pch(dev);
@@ -1677,10 +1674,7 @@ out_gem_unload:
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
-	if (dev_priv->wq != NULL) {
-		taskqueue_free(dev_priv->wq);
-		dev_priv->wq = NULL;
-	}
+	destroy_workqueue(dev_priv->wq);
 out_mtrrfree:
 	if (dev_priv->mm.gtt_mtrr >= 0) {
 		drm_mtrr_del(dev_priv->mm.gtt_mtrr,
@@ -1728,11 +1722,7 @@ int i915_driver_unload(struct drm_device *dev)
 	mutex_unlock(&dev->struct_mutex);
 
 	/* Cancel the retire work handler, which should be idle now. */
-	while (taskqueue_cancel_timeout(dev_priv->wq,
-	    &dev_priv->mm.retire_work, NULL) != 0)
-		taskqueue_drain_timeout(dev_priv->wq,
-		    &dev_priv->mm.retire_work);
-
+	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
 #ifdef __linux__
 	io_mapping_free(dev_priv->mm.gtt_mapping);
 #endif
@@ -1751,10 +1741,7 @@ int i915_driver_unload(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_fbdev_fini(dev);
 		intel_modeset_cleanup(dev);
-		while (taskqueue_cancel(dev_priv->wq,
-		    &dev_priv->console_resume_work, NULL) != 0)
-			taskqueue_drain(dev_priv->wq,
-			    &dev_priv->console_resume_work);
+		cancel_work_sync(&dev_priv->console_resume_work);
 
 		/*
 		 * free the memory space allocated for the child device
@@ -1775,8 +1762,6 @@ int i915_driver_unload(struct drm_device *dev)
 	/* Free error state after interrupts are fully disabled. */
 	callout_stop(&dev_priv->hangcheck_timer);
 	callout_drain(&dev_priv->hangcheck_timer);
-	while (taskqueue_cancel(dev_priv->wq, &dev_priv->error_work, NULL) != 0)
-		taskqueue_drain(dev_priv->wq, &dev_priv->error_work);
 	i915_destroy_error_state(dev);
 
 	if (dev->msi_enabled)
@@ -1786,7 +1771,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		/* Flush any outstanding unpin_work. */
-		taskqueue_drain_all(dev_priv->wq);
+		flush_workqueue(dev_priv->wq);
 
 		mutex_lock(&dev->struct_mutex);
 		i915_gem_free_all_phys_object(dev);
@@ -1820,8 +1805,7 @@ int i915_driver_unload(struct drm_device *dev)
 	 */
 	i915_gem_gtt_fini(dev);
 
-	if (dev_priv->wq != NULL)
-		taskqueue_free(dev_priv->wq);
+	destroy_workqueue(dev_priv->wq);
 
 	spin_lock_destroy(&dev_priv->irq_lock);
 	spin_lock_destroy(&dev_priv->error_lock);
