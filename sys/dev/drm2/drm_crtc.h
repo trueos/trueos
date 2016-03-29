@@ -796,6 +796,7 @@ struct drm_mode_config {
 	struct mutex fb_lock;
 	int num_fb;
 	struct list_head fb_list;
+
 	int num_connector;
 	struct list_head connector_list;
 	int num_encoder;
@@ -816,7 +817,7 @@ struct drm_mode_config {
 	/* output poll support */
 	bool poll_enabled;
 	bool poll_running;
-	struct timeout_task output_poll_work;
+	struct delayed_work output_poll_work;
 
 	/* pointers to standard properties */
 	struct list_head property_blob_list;

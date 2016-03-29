@@ -145,6 +145,11 @@ struct dma_buf_attachment {
 #define	DRM_DEBUGBITS_KMS		0x2
 #define	DRM_DEBUGBITS_FAILED_IOCTL	0x4
 
+#define DRM_UT_CORE			0x01
+#define DRM_UT_DRIVER			0x02
+#define DRM_UT_KMS			0x04
+#define DRM_UT_PRIME			0x08
+
 #undef DRM_LINUX
 #define DRM_LINUX 0
 
@@ -413,7 +418,7 @@ struct drm_pending_event {
 /* initial implementaton using a linked list - todo hashtab */
 struct drm_prime_file_private {
 	struct list_head head;
-	struct mtx lock;
+	struct mutex lock;
 };
 
 struct drm_file {
@@ -454,7 +459,7 @@ struct drm_lock_data {
 	struct drm_file *file_priv;
 	wait_queue_head_t lock_queue;	/**< Queue of blocked processes */
 	unsigned long lock_time;	/**< Time of last lock in jiffies */
-	struct mtx spinlock;
+	spinlock_t spinlock;
 	uint32_t kernel_waiters;
 	uint32_t user_waiters;
 	int idle_has_lock;
@@ -659,7 +664,7 @@ struct drm_gem_object {
 /* per-master structure */
 struct drm_master {
 
-	u_int refcount; /* refcount for this master */
+	struct kref  refcount; /* refcount for this master */
 
 	struct list_head head; /**< each minor contains a list of masters */
 	struct drm_minor *minor; /**< link back to minor we are a master for */
@@ -1812,7 +1817,7 @@ void	drm_driver_irq_uninstall(struct drm_device *dev);
 extern int		drm_sysctl_init(struct drm_device *dev);
 extern int		drm_sysctl_cleanup(struct drm_device *dev);
 
-int	drm_version(struct drm_device *dev, void *data,
+static int	drm_version(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv);
 
 /* consistent PCI memory functions (drm_pci.c) */

@@ -109,10 +109,9 @@ struct drm_master *drm_master_create(struct drm_minor *minor)
 	if (!master)
 		return NULL;
 
-	refcount_init(&master->refcount, 1);
-	mtx_init(&master->lock.spinlock, "drm_master__lock__spinlock",
-	    NULL, MTX_DEF);
-	DRM_INIT_WAITQUEUE(&master->lock.lock_queue);
+	kref_init(&master->refcount);
+	spin_lock_init(&master->lock.spinlock);
+	init_waitqueue_head(&master->lock.lock_queue);
 	drm_ht_create(&master->magiclist, DRM_MAGIC_HASH_ORDER);
 	INIT_LIST_HEAD(&master->magicfree);
 	master->minor = minor;
@@ -124,13 +123,14 @@ struct drm_master *drm_master_create(struct drm_minor *minor)
 
 struct drm_master *drm_master_get(struct drm_master *master)
 {
-	refcount_acquire(&master->refcount);
+	kref_get(&master->refcount);
 	return master;
 }
 EXPORT_SYMBOL(drm_master_get);
 
-static void drm_master_destroy(struct drm_master *master)
+static void drm_master_destroy(struct kref *kref)
 {
+	struct drm_master *master = container_of(kref, struct drm_master, refcount);
 	struct drm_magic_entry *pt, *next;
 	struct drm_device *dev = master->minor->dev;
 	struct drm_map_list *r_list, *list_temp;
@@ -166,8 +166,7 @@ static void drm_master_destroy(struct drm_master *master)
 
 void drm_master_put(struct drm_master **master)
 {
-	if (refcount_release(&(*master)->refcount))
-		drm_master_destroy(*master);
+	kref_put(&(*master)->refcount, drm_master_destroy);
 	*master = NULL;
 }
 EXPORT_SYMBOL(drm_master_put);

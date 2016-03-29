@@ -90,7 +90,6 @@ __FBSDID("$FreeBSD$");
 #define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFUL >> PAGE_SHIFT) * 16)
 #endif
 
-
 /**
  * Initialize the GEM device fields
  */
@@ -251,7 +250,9 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 	/* Release reference and decrement refcount. */
 	idr_remove(&filp->object_idr, handle);
 	spin_unlock(&filp->table_lock);
+
 	drm_gem_remove_prime_handles(obj, filp);
+
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, filp);
 	drm_gem_object_handle_unreference_unlocked(obj);

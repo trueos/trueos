@@ -6,7 +6,7 @@
  * \author Gareth Hughes <gareth@valinux.com>
  */
 
-/*-
+/*
  * Created: Fri Mar 19 14:30:16 1999 by faith@valinux.com
  *
  * Copyright 1999, 2000 Precision Insight, Inc., Cedar Park, Texas.

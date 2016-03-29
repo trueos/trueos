@@ -189,14 +189,13 @@ prune:
 	if (list_empty(&connector->modes))
 		return 0;
 
-	list_for_each_entry(mode, &connector->modes, head)
-		mode->vrefresh = drm_mode_vrefresh(mode);
-
 	drm_mode_sort(&connector->modes);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] probed modes :\n", connector->base.id,
 			drm_get_connector_name(connector));
 	list_for_each_entry(mode, &connector->modes, head) {
+		mode->vrefresh = drm_mode_vrefresh(mode);
+
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 		drm_mode_debug_printmodeline(mode);
 	}
@@ -322,8 +321,7 @@ static bool drm_encoder_crtc_ok(struct drm_encoder *encoder,
 	struct drm_crtc *tmp;
 	int crtc_mask = 1;
 
-	if (crtc == NULL)
-		printf("checking null crtc?\n");
+	WARN(!crtc, "checking null crtc?\n");
 
 	dev = crtc->dev;
 
@@ -975,9 +973,10 @@ void drm_kms_helper_hotplug_event(struct drm_device *dev)
 EXPORT_SYMBOL(drm_kms_helper_hotplug_event);
 
 #define DRM_OUTPUT_POLL_PERIOD (10*HZ)
-static void output_poll_execute(void *ctx, int pending)
+static void output_poll_execute(struct work_struct *work)
 {
-	struct drm_device *dev = ctx;
+	struct delayed_work *delayed_work = to_delayed_work(work);
+	struct drm_device *dev = container_of(delayed_work, struct drm_device, mode_config.output_poll_work);	
 	struct drm_connector *connector;
 	enum drm_connector_status old_status;
 	bool repoll = false, changed = false;
@@ -1021,17 +1020,14 @@ static void output_poll_execute(void *ctx, int pending)
 		drm_kms_helper_hotplug_event(dev);
 
 	if (repoll)
-		taskqueue_enqueue_timeout(taskqueue_thread,
-		    &dev->mode_config.output_poll_work,
-		    DRM_OUTPUT_POLL_PERIOD);
+		schedule_delayed_work(delayed_work, DRM_OUTPUT_POLL_PERIOD);
 }
 
 void drm_kms_helper_poll_disable(struct drm_device *dev)
 {
 	if (!dev->mode_config.poll_enabled)
 		return;
-	taskqueue_cancel_timeout(taskqueue_thread,
-	    &dev->mode_config.output_poll_work, NULL);
+	cancel_delayed_work_sync(&dev->mode_config.output_poll_work);
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_disable);
 
@@ -1050,15 +1046,13 @@ void drm_kms_helper_poll_enable(struct drm_device *dev)
 	}
 
 	if (poll)
-		taskqueue_enqueue_timeout(taskqueue_thread,
-		    &dev->mode_config.output_poll_work, DRM_OUTPUT_POLL_PERIOD);
+		schedule_delayed_work(&dev->mode_config.output_poll_work, DRM_OUTPUT_POLL_PERIOD);
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_enable);
 
 void drm_kms_helper_poll_init(struct drm_device *dev)
 {
-	TIMEOUT_TASK_INIT(taskqueue_thread, &dev->mode_config.output_poll_work,
-	    0, output_poll_execute, dev);
+	INIT_DELAYED_WORK(&dev->mode_config.output_poll_work, output_poll_execute);
 	dev->mode_config.poll_enabled = true;
 
 	drm_kms_helper_poll_enable(dev);

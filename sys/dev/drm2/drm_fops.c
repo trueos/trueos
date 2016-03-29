@@ -421,7 +421,7 @@ void drm_release(void *data)
 				dev->sigdata.lock = NULL;
 			master->lock.hw_lock = NULL;
 			master->lock.file_priv = NULL;
-			DRM_WAKEUP_INT(&master->lock.lock_queue);
+			wake_up_interruptible_all(&master->lock.lock_queue);
 		}
 
 		if (file_priv->minor->master == file_priv->master) {

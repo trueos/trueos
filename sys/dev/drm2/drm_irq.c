@@ -161,6 +161,7 @@ static void vblank_disable_and_save(struct drm_device *dev, int crtc)
 
 	/* Invalidate all timestamps while vblank irq's are off. */
 	clear_vblank_timestamps(dev, crtc);
+
 	spin_unlock_irqrestore(&dev->vblank_time_lock, irqflags);
 }
 
