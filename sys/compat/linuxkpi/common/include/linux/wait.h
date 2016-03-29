@@ -48,6 +48,10 @@ typedef struct {
 	unsigned int	wchan;
 } wait_queue_head_t;
 
+/* XXXTODO this is not yet checked! */
+#define DECLARE_WAITQUEUE(name, tsk)	\
+	wait_queue_t name
+
 #define	init_waitqueue_head(x) \
     do { } while (0)
 
@@ -124,5 +128,10 @@ static inline void
 finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 {
 }
+
+/* XXXTODO this requires implementation still*/
+extern void add_wait_queue(wait_queue_head_t *q, wait_queue_t *wait);
+extern void remove_wait_queue(wait_queue_head_t *q, wait_queue_t *wait);
+
 
 #endif	/* _LINUX_WAIT_H_ */

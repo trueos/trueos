@@ -74,8 +74,9 @@ spin_lock_destroy(spinlock_t *lock)
 	spinlock_t lock;						\
 	MTX_SYSINIT(lock, &(lock).m, "lnxspin", MTX_DEF)
 
-//XXX
+/* XXXTODO this requires implementation still*/
 #define assert_spin_locked(lock) 
-
+extern void spin_lock_bh(spinlock_t *lock);
+extern void spin_unlock_bh(spinlock_t *lock);
 
 #endif	/* _LINUX_SPINLOCK_H_ */
