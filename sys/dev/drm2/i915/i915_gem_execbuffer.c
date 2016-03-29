@@ -35,14 +35,17 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/intel_drv.h>
 
 #include <sys/limits.h>
-#include <sys/sf_buf.h>
 
 /* CEM: Make sure we got the Linux version */
 CTASSERT(PAGE_MASK != (PAGE_SIZE - 1));
 
 struct eb_objects {
+	struct list_head objects;
 	int and;
-	struct hlist_head buckets[0];
+	union {
+		struct drm_i915_gem_object *lut[0];
+		struct hlist_head buckets[0];
+	};
 };
 
 static struct eb_objects *
@@ -79,24 +82,39 @@ eb_add_object(struct eb_objects *eb, struct drm_i915_gem_object *obj)
 static struct drm_i915_gem_object *
 eb_get_object(struct eb_objects *eb, unsigned long handle)
 {
-	struct hlist_head *head;
-	struct hlist_node *node;
-	struct drm_i915_gem_object *obj;
+	if (eb->and < 0) {
+		if (handle >= -eb->and)
+			return NULL;
+		return eb->lut[handle];
+	} else {
+		struct hlist_head *head;
+		struct hlist_node *node;
 
-	head = &eb->buckets[handle & eb->and];
-	hlist_for_each(node, head) {
-		obj = hlist_entry(node, struct drm_i915_gem_object, exec_node);
-		if (obj->exec_handle == handle)
-			return obj;
+
+		head = &eb->buckets[handle & eb->and];
+		hlist_for_each(node, head) {
+			struct drm_i915_gem_object *obj;
+			obj = hlist_entry(node, struct drm_i915_gem_object, exec_node);
+			if (obj->exec_handle == handle)
+				return obj;
+		}
+		return NULL;
 	}
-
-	return NULL;
 }
 
 static void
 eb_destroy(struct eb_objects *eb)
 {
-	free(eb, DRM_I915_GEM);
+	while (!list_empty(&eb->objects)) {
+		struct drm_i915_gem_object *obj;
+
+		obj = list_first_entry(&eb->objects,
+				       struct drm_i915_gem_object,
+				       exec_list);
+		list_del_init(&obj->exec_list);
+		drm_gem_object_unreference(&obj->base);
+	}
+	kfree(eb);
 }
 
 static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
@@ -196,26 +214,23 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	}
 
 	/* We can't wait for rendering with pagefaults disabled */
-	if (obj->active && (curthread->td_pflags & TDP_NOFAULTING) != 0)
+	if (obj->active && in_atomic())
 		return -EFAULT;
 
 	reloc->delta += target_offset;
 	if (use_cpu_reloc(obj)) {
 		uint32_t page_offset = reloc->offset & ~PAGE_MASK;
 		char *vaddr;
-		struct sf_buf *sf;
 
 		ret = i915_gem_object_set_to_cpu_domain(obj, 1);
 		if (ret)
 			return ret;
 
-		sf = sf_buf_alloc(obj->pages[OFF_TO_IDX(reloc->offset)],
-		    SFB_NOWAIT);
-		if (sf == NULL)
-			return -ENOMEM;
-		vaddr = (void *)sf_buf_kva(sf);
+		vaddr = kmap_atomic(i915_gem_object_get_page(obj,
+					 reloc->offset >> PAGE_SHIFT));
+
 		*(uint32_t *)(vaddr + page_offset) = reloc->delta;
-		sf_buf_free(sf);
+		kunmap_atomic(vaddr);
 	} else {
 		struct drm_i915_private *dev_priv = dev->dev_private;
 		uint32_t __iomem *reloc_entry;
@@ -231,12 +246,12 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 		/* Map the page containing the relocation we're going to perform.  */
 		reloc->offset += obj->gtt_offset;
-		reloc_page = pmap_mapdev_attr(dev_priv->mm.gtt_base_addr + (reloc->offset &
-		    PAGE_MASK), PAGE_SIZE, PAT_WRITE_COMBINING);
+		reloc_page = io_mapping_map_atomic_wc(dev_priv->gtt.mappable,
+						      reloc->offset & PAGE_MASK);
 		reloc_entry = (uint32_t __iomem *)
 			(reloc_page + (reloc->offset & ~PAGE_MASK));
-		*(volatile uint32_t *)reloc_entry = reloc->delta;
-		pmap_unmapdev((vm_offset_t)reloc_page, PAGE_SIZE);
+		iowrite32(reloc->delta, reloc_entry);
+		io_mapping_unmap_atomic(reloc_page);
 	}
 
 	/* and update the user's relocation entry */

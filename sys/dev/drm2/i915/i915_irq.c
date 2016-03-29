@@ -531,6 +531,20 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 	taskqueue_enqueue(dev_priv->wq, &dev_priv->rps.work);
 }
 
+static void gmbus_irq_handler(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
+	wake_up_all(&dev_priv->gmbus_wait_queue);
+}
+
+static void dp_aux_irq_handler(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
+	wake_up_all(&dev_priv->gmbus_wait_queue);
+}
+
 static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -691,7 +705,7 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 de_iir, gt_iir, de_ier, pm_iir;
+	u32 de_iir, gt_iir, de_ier, pm_iir, sde_ier;
 	irqreturn_t ret = IRQ_NONE;
 	int i;
 
@@ -700,6 +714,15 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);
 	I915_WRITE(DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
+
+	/* Disable south interrupts. We'll only write to SDEIIR once, so further
+	 * interrupts will will be stored on its back queue, and then we'll be
+	 * able to process them after we restore SDEIER (as soon as we restore
+	 * it, we'll get an interrupt if SDEIIR still has something to process
+	 * due to its back queue). */
+	sde_ier = I915_READ(SDEIER);
+	I915_WRITE(SDEIER, 0);
+	POSTING_READ(SDEIER);
 
 	gt_iir = I915_READ(GTIIR);
 	if (gt_iir) {
@@ -710,6 +733,9 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 
 	de_iir = I915_READ(DEIIR);
 	if (de_iir) {
+		if (de_iir & DE_AUX_CHANNEL_A_IVB)
+			dp_aux_irq_handler(dev);
+
 		if (de_iir & DE_GSE_IVB)
 			intel_opregion_gse_intr(dev);
 
@@ -939,31 +965,31 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			 * captures what the GPU read.
 			 */
 
-			s = pmap_mapdev_attr(dev_priv->mm.gtt_base_addr +
-						     reloc_offset,
-						     PAGE_SIZE, PAT_WRITE_COMBINING);
+			s = io_mapping_map_atomic_wc(dev_priv->gtt.mappable,
+						     reloc_offset);
+
 			memcpy_fromio(d, s, PAGE_SIZE);
-			pmap_unmapdev((vm_offset_t)s, PAGE_SIZE);
+			io_mapping_unmap_atomic(s);
+		} else if (src->stolen) {
+			unsigned long offset;
+
+			offset = dev_priv->mm.stolen_base;
+			offset += src->stolen->start;
+			offset += i << PAGE_SHIFT;
+
+			memcpy_fromio(d, (void __iomem *) offset, PAGE_SIZE);
 		} else {
-			struct sf_buf *sf;
+			struct page *page;
 			void *s;
 
-			drm_clflush_pages(&src->pages[i], 1);
-
-			sched_pin();
-			sf = sf_buf_alloc(src->pages[i], SFB_CPUPRIVATE |
-			    SFB_NOWAIT);
-			if (sf != NULL) {
-				s = (void *)(uintptr_t)sf_buf_kva(sf);
-				memcpy(d, s, PAGE_SIZE);
-				sf_buf_free(sf);
-			} else {
-				bzero(d, PAGE_SIZE);
-				strcpy(d, "XXXKIB");
-			}
-			sched_unpin();
+			page = i915_gem_object_get_page(src, i);
 
 			drm_clflush_pages(&src->pages[i], 1);
+			s = kmap_atomic(page);
+			memcpy(d, s, PAGE_SIZE);
+			kunmap_atomic(s);
+
+			drm_clflush_pages(&page, 1);
 		}
 
 		dst->pages[i] = d;

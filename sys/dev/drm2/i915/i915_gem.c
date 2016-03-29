@@ -822,7 +822,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		mutex_lock(&dev->struct_mutex);
 
 next_page:
-		vm_page_dirty(page);
+		set_page_dirty(page);
 		mark_page_accessed(page);
 
 		if (ret)
@@ -1360,7 +1360,109 @@ out:
 	return (error);
 }
 
+#ifdef __linux__
+/**
+ * i915_gem_fault - fault a page into the GTT
+ * vma: VMA in question
+ * vmf: fault info
+ *
+ * The fault handler is set up by drm_gem_mmap() when a object is GTT mapped
+ * from userspace.  The fault handler takes care of binding the object to
+ * the GTT (if needed), allocating and programming a fence register (again,
+ * only if needed based on whether the old reg is still valid or the object
+ * is tiled) and inserting a new PTE into the faulting process.
+ *
+ * Note that the faulting process may involve evicting existing objects
+ * from the GTT and/or fence registers to make room.  So performance may
+ * suffer if the GTT working set is large or there are few fence registers
+ * left.
+ */
+int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	struct drm_i915_gem_object *obj = to_intel_bo(vma->vm_private_data);
+	struct drm_device *dev = obj->base.dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	pgoff_t page_offset;
+	unsigned long pfn;
+	int ret = 0;
+	bool write = !!(vmf->flags & FAULT_FLAG_WRITE);
 
+	/* We don't use vmf->pgoff since that has the fake offset */
+	page_offset = ((unsigned long)vmf->virtual_address - vma->vm_start) >>
+		PAGE_SHIFT;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		goto out;
+
+	trace_i915_gem_object_fault(obj, page_offset, true, write);
+
+	/* Access to snoopable pages through the GTT is incoherent. */
+	if (obj->cache_level != I915_CACHE_NONE && !HAS_LLC(dev)) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	/* Now bind it into the GTT if needed */
+	ret = i915_gem_object_pin(obj, 0, true, false);
+	if (ret)
+		goto unlock;
+
+	ret = i915_gem_object_set_to_gtt_domain(obj, write);
+	if (ret)
+		goto unpin;
+
+	ret = i915_gem_object_get_fence(obj);
+	if (ret)
+		goto unpin;
+
+	obj->fault_mappable = true;
+
+	pfn = ((dev_priv->gtt.mappable_base + obj->gtt_offset) >> PAGE_SHIFT) +
+		page_offset;
+
+	/* Finally, remap it using the new GTT offset */
+	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
+unpin:
+	i915_gem_object_unpin(obj);
+unlock:
+	mutex_unlock(&dev->struct_mutex);
+out:
+	switch (ret) {
+	case -EIO:
+		/* If this -EIO is due to a gpu hang, give the reset code a
+		 * chance to clean up the mess. Otherwise return the proper
+		 * SIGBUS. */
+		if (i915_terminally_wedged(&dev_priv->gpu_error))
+			return VM_FAULT_SIGBUS;
+	case -EAGAIN:
+		/* Give the error handler a chance to run and move the
+		 * objects off the GPU active list. Next time we service the
+		 * fault, we should be able to transition the page into the
+		 * GTT without touching the GPU (and so avoid further
+		 * EIO/EGAIN). If the GPU is wedged, then there is no issue
+		 * with coherency, just lost writes.
+		 */
+		set_need_resched();
+	case 0:
+	case -ERESTARTSYS:
+	case -EINTR:
+	case -EBUSY:
+		/*
+		 * EBUSY is ok: this just means that another thread
+		 * already did the job.
+		 */
+		return VM_FAULT_NOPAGE;
+	case -ENOMEM:
+		return VM_FAULT_OOM;
+	case -ENOSPC:
+		return VM_FAULT_SIGBUS;
+	default:
+		WARN_ONCE(ret, "unhandled error in i915_gem_fault: %i\n", ret);
+		return VM_FAULT_SIGBUS;
+	}
+}
+#endif
 
 /**
  * i915_gem_release_mmap - remove physical page mappings
@@ -1379,32 +1481,15 @@ out:
 void
 i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 {
-	vm_object_t devobj;
-	vm_page_t page;
-	int i, page_count;
-
 	if (!obj->fault_mappable)
 		return;
 
+	unmap_mapping_range(obj,
+		    (loff_t)obj->base.map_list.hash.key<<PAGE_SHIFT,
+		    obj->base.size, 1);
+
 	CTR3(KTR_DRM, "release_mmap %p %x %x", obj, obj->gtt_offset,
 	    OFF_TO_IDX(obj->base.size));
-	devobj = cdev_pager_lookup(obj);
-	if (devobj != NULL) {
-		page_count = OFF_TO_IDX(obj->base.size);
-
-		VM_OBJECT_WLOCK(devobj);
-retry:
-		for (i = 0; i < page_count; i++) {
-			page = vm_page_lookup(devobj, i);
-			if (page == NULL)
-				continue;
-			if (vm_page_sleep_if_busy(page, "915unm"))
-				goto retry;
-			cdev_pager_free_page(devobj, page);
-		}
-		VM_OBJECT_WUNLOCK(devobj);
-		vm_object_deallocate(devobj);
-	}
 
 	obj->fault_mappable = false;
 }
@@ -4022,9 +4107,9 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
 
-	if (atomic_read(&dev_priv->mm.wedged)) {
+	if (i915_reset_in_progress(&dev_priv->gpu_error)) {
 		DRM_ERROR("Reenabling wedged hardware, good luck\n");
-		atomic_set(&dev_priv->mm.wedged, 0);
+		atomic_set(&dev_priv->gpu_error.reset_counter, 0);
 	}
 
 	mutex_lock(&dev->struct_mutex);
@@ -4166,8 +4251,7 @@ static int i915_gem_init_phys_object(struct drm_device *dev,
 		goto kfree_obj;
 	}
 #ifdef CONFIG_X86
-	pmap_change_attr((vm_offset_t)phys_obj->handle->vaddr,
-	    size / PAGE_SIZE, PAT_WRITE_COMBINING);
+	set_memory_wc((unsigned long)phys_obj->handle->vaddr, phys_obj->handle->size / PAGE_SIZE);
 #endif
 
 	dev_priv->mm.phys_objs[id - 1] = phys_obj;
@@ -4191,12 +4275,9 @@ static void i915_gem_free_phys_object(struct drm_device *dev, int id)
 		i915_gem_detach_phys_object(dev, phys_obj->cur_obj);
 	}
 
-#ifdef FREEBSD_WIP
 #ifdef CONFIG_X86
 	set_memory_wb((unsigned long)phys_obj->handle->vaddr, phys_obj->handle->size / PAGE_SIZE);
 #endif
-#endif /* FREEBSD_WIP */
-
 	drm_pci_free(dev, phys_obj->handle);
 	kfree(phys_obj);
 	dev_priv->mm.phys_objs[id - 1] = NULL;

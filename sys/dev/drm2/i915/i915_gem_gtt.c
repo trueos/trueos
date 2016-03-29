@@ -163,9 +163,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 		goto err_ppgtt;
 
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
-		ppgtt->pt_pages[i] = vm_page_alloc(NULL, 0,
-		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
-		    VM_ALLOC_ZERO);
+		ppgtt->pt_pages[i] = alloc_page(GFP_KERNEL);
 		if (!ppgtt->pt_pages[i])
 			goto err_pt_alloc;
 	}
@@ -279,7 +277,7 @@ static void i915_ppgtt_insert_pages(struct i915_hw_ppgtt *ppgtt,
 		pt_vaddr = (uint32_t *)(uintptr_t)sf_buf_kva(sf);
 
 		for (j = first_pte; j < last_pte; j++) {
-			page_addr = VM_PAGE_TO_PHYS(*pages);
+			page_addr = page_to_phys(*pages);
 			pt_vaddr[j] = gen6_pte_encode(ppgtt->dev, page_addr,
 						 cache_level);
 
@@ -335,7 +333,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		if (dev_priv->mm.needs_dmar)
 			pt_addr = ppgtt->pt_dma_addr[i];
 		else
-			pt_addr = VM_PAGE_TO_PHYS(ppgtt->pt_pages[i]);
+			pt_addr = page_to_phys(ppgtt->pt_pages[i]);
 
 		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
 		pd_entry |= GEN6_PDE_VALID;
@@ -728,24 +726,12 @@ static int setup_scratch_page(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	vm_page_t page;
 	dma_addr_t dma_addr;
-	int tries = 0;
-	int req = VM_ALLOC_ZERO | VM_ALLOC_NOOBJ;
-
-retry:
-	page = vm_page_alloc_contig(NULL, 0, req, 1, 0, 0xffffffff,
-	    PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
-	if (page == NULL) {
-		if (tries < 1) {
-			if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
-			    PAGE_SIZE, 0))
-				VM_WAIT;
-			tries++;
-			goto retry;
-		}
+		
+	page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
+	if (page == NULL)
 		return -ENOMEM;
-	}
-	if ((page->flags & PG_ZERO) == 0)
-		pmap_zero_page(page);
+	get_page(page);
+	set_pages_uc(page, 1);
 
 #ifdef CONFIG_INTEL_IOMMU
 	dma_addr = pci_map_page(dev->pdev, page, 0, PAGE_SIZE,
@@ -753,7 +739,7 @@ retry:
 	if (pci_dma_mapping_error(dev->pdev, dma_addr))
 		return -EINVAL;
 #else
-	dma_addr = VM_PAGE_TO_PHYS(page);
+	dma_addr = page_to_phys(page);
 #endif
 	dev_priv->gtt.scratch_page = page;
 	dev_priv->gtt.scratch_page_dma = dma_addr;
@@ -1047,7 +1033,7 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 	vm_paddr_t addr;
 
 	for (i = 0; i < obj->base.size >> PAGE_SHIFT; ++i) {
-		addr = VM_PAGE_TO_PHYS(obj->pages[i]);
+		addr = page_to_phys(obj->pages[i]);
 		iowrite32(gen6_pte_encode(dev, addr, level), &gtt_entries[i]);
 	}
 

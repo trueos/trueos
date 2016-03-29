@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/kernel.h>
 #include <linux/completion.h>
 #include <linux/io.h>
+#include <linux/io-mapping.h>
 
 #include <dev/agp/agp_i810.h>
 #include <dev/drm2/drm_mm.h>
@@ -881,6 +882,8 @@ typedef struct drm_i915_private {
 	 */
 	uint32_t gpio_mmio_base;
 
+	wait_queue_head_t gmbus_wait_queue;
+
 	device_t bridge_dev;
 	struct intel_ring_buffer ring[I915_NUM_RINGS];
 	uint32_t last_seqno, next_seqno;
@@ -1544,6 +1547,10 @@ void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
+static inline struct page *i915_gem_object_get_page(struct drm_i915_gem_object *obj, int n)
+{
+	panic("XXX implement me!!!");
+}
 uint32_t i915_get_gem_seqno(struct drm_device *dev);
 static inline void i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {

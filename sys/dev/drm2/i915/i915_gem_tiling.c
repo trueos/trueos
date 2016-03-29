@@ -488,7 +488,7 @@ i915_gem_object_do_bit_17_swizzle_page(struct drm_i915_gem_object *obj,
 	if ((new_bit_17 & 0x1) !=
 	    (test_bit(m->pindex, obj->bit_17) != 0)) {
 		i915_gem_swizzle_page(m);
-		vm_page_dirty(m);
+		set_page_dirty(m);
 	}
 }
 
@@ -507,7 +507,7 @@ i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 		if ((new_bit_17 & 0x1) !=
 		    (test_bit(i, obj->bit_17) != 0)) {
 			i915_gem_swizzle_page(page);
-			vm_page_dirty(page);
+			set_page_dirty(page);
 		}
 	}
 }
