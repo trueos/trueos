@@ -116,8 +116,7 @@ static void i915_free_hws(struct drm_device *dev)
 
 	if (ring->status_page.gfx_addr) {
 		ring->status_page.gfx_addr = 0;
-		pmap_unmapdev((vm_offset_t)dev_priv->dri1.gfx_hws_cpu_addr,
-		    PAGE_SIZE);
+		iounmap(dev_priv->dri1.gfx_hws_cpu_addr);
 	}
 
 	/* Need to rewrite hardware status page */
@@ -611,7 +610,7 @@ static int i915_flush_ioctl(struct drm_device *dev, void *data,
 	return ret;
 }
 
-int i915_batchbuffer(struct drm_device *dev, void *data,
+static int i915_batchbuffer(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -804,7 +803,7 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 
 /* Needs the lock as it touches the ring.
  */
-int i915_irq_emit(struct drm_device *dev, void *data,
+static int i915_irq_emit(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -1084,8 +1083,8 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	ring->status_page.gfx_addr = hws->addr & (0x1ffff<<12);
 
 	dev_priv->dri1.gfx_hws_cpu_addr =
-		pmap_mapdev_attr(dev_priv->mm.gtt_base_addr + hws->addr, PAGE_SIZE,
-		    VM_MEMATTR_WRITE_COMBINING);
+		ioremap_wc(dev_priv->gtt.mappable_base + hws->addr, 4096);
+
 	if (dev_priv->dri1.gfx_hws_cpu_addr == NULL) {
 		i915_dma_cleanup(dev);
 		ring->status_page.gfx_addr = 0;
