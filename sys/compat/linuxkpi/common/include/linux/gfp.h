@@ -46,6 +46,7 @@
 #define	__GFP_NOWARN	0
 #define	__GFP_HIGHMEM	0
 #define	__GFP_ZERO	M_ZERO
+#define __GFP_NORETRY	0
 
 #define	GFP_NOWAIT	M_NOWAIT
 #define	GFP_ATOMIC	(M_NOWAIT | M_USE_RESERVE)
@@ -56,6 +57,7 @@
 #define	GFP_IOFS	M_NOWAIT
 #define	GFP_NOIO	M_NOWAIT
 #define GFP_DMA32	0
+#define GFP_TEMPORARY	0
 
 static inline void *
 page_address(struct page *page)
