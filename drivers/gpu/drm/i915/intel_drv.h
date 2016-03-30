@@ -801,6 +801,7 @@ struct intel_dp {
 	int link_rate;
 	uint8_t lane_count;
 	bool has_audio;
+	bool detect_done;
 	enum hdmi_force_audio force_audio;
 	bool limited_color_range;
 	bool color_range_auto;
