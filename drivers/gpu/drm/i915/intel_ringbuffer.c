@@ -2112,6 +2112,7 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 				     struct intel_ringbuffer *ringbuf)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_i915_gem_object *obj = ringbuf->obj;
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
 	unsigned flags = PIN_OFFSET_BIAS | 4096;
@@ -2148,7 +2149,7 @@ int intel_pin_and_map_ringbuffer_obj(struct drm_device *dev,
 		/* Access through the GTT requires the device to be awake. */
 		assert_rpm_wakelock_held(dev_priv);
 
-		ringbuf->virtual_start = ioremap_wc(dev_priv->ggtt.mappable_base +
+		ringbuf->virtual_start = ioremap_wc(ggtt->mappable_base +
 						    i915_gem_obj_ggtt_offset(obj), ringbuf->size);
 		if (ringbuf->virtual_start == NULL) {
 			i915_gem_object_ggtt_unpin(obj);

@@ -4648,7 +4648,8 @@ static void intel_print_rc6_info(struct drm_device *dev, u32 mode)
 
 static bool bxt_check_bios_rc6_setup(const struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	bool enable_rc6 = true;
 	unsigned long rc6_ctx_base;
 
@@ -4662,9 +4663,9 @@ static bool bxt_check_bios_rc6_setup(const struct drm_device *dev)
 	 * for this check.
 	 */
 	rc6_ctx_base = I915_READ(RC6_CTX_BASE) & RC6_CTX_BASE_MASK;
-	if (!((rc6_ctx_base >= dev_priv->ggtt.stolen_reserved_base) &&
-	      (rc6_ctx_base + PAGE_SIZE <= dev_priv->ggtt.stolen_reserved_base +
-					dev_priv->ggtt.stolen_reserved_size))) {
+	if (!((rc6_ctx_base >= ggtt->stolen_reserved_base) &&
+	      (rc6_ctx_base + PAGE_SIZE <= ggtt->stolen_reserved_base +
+					ggtt->stolen_reserved_size))) {
 		DRM_DEBUG_KMS("RC6 Base address not as expected.\n");
 		enable_rc6 = false;
 	}
@@ -5305,9 +5306,9 @@ static void cherryview_check_pctx(struct drm_i915_private *dev_priv)
 
 static void cherryview_setup_pctx(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long pctx_paddr, paddr;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	unsigned long pctx_paddr, paddr;
 	u32 pcbr;
 	int pctx_size = 32*1024;
 
