@@ -82,3 +82,13 @@ i2c_add_adapter(struct i2c_adapter *adapter)
 	panic("IMPLEMENT ME!!!");
 	return (EINVAL);
 }
+
+int
+i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num);
+{
+/*
+  return (-iicbus_transfer(dvo->i2c_bus, msgs, num));
+*/
+	panic("IMPLEMENT ME!!!");
+	return (EINVAL);
+}
