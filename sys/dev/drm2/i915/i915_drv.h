@@ -1751,6 +1751,10 @@ void i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
 extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);
 
+/* i915_ums.c */
+void i915_save_display_reg(struct drm_device *dev);
+void i915_restore_display_reg(struct drm_device *dev);
+
 /* intel_i2c.c */
 extern int intel_setup_gmbus(struct drm_device *dev);
 extern void intel_teardown_gmbus(struct drm_device *dev);
@@ -1799,6 +1803,7 @@ extern void intel_modeset_cleanup(struct drm_device *dev);
 extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
 extern void intel_modeset_setup_hw_state(struct drm_device *dev,
 					 bool force_restore);
+extern void i915_redisable_vga(struct drm_device *dev);
 extern bool intel_fbc_enabled(struct drm_device *dev);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
@@ -1878,6 +1883,21 @@ __i915_write(64, 64)
 #define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
 
+/* "Broadcast RGB" property */
+#define INTEL_BROADCAST_RGB_AUTO 0
+#define INTEL_BROADCAST_RGB_FULL 1
+#define INTEL_BROADCAST_RGB_LIMITED 2
+
+static inline uint32_t i915_vgacntrl_reg(struct drm_device *dev)
+{
+	if (HAS_PCH_SPLIT(dev))
+		return CPU_VGACNTRL;
+	else if (IS_VALLEYVIEW(dev))
+		return VLV_VGACNTRL;
+	else
+		return VGACNTRL;
+}
+
 u32 i915_gem_next_request_seqno(struct intel_ring_buffer *ring);
 vm_page_t i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex,
     bool *fresh);
@@ -1890,4 +1910,6 @@ void
 i915_gem_assert_pages_not_mapped(struct drm_device *dev, vm_page_t *ma,
     int page_count)
 #endif
+
+
 #endif
