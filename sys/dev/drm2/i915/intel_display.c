@@ -2228,18 +2228,9 @@ static int
 intel_finish_fb(struct drm_framebuffer *old_fb)
 {
 	struct drm_i915_gem_object *obj = to_intel_framebuffer(old_fb)->obj;
-	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 	bool was_interruptible = dev_priv->mm.interruptible;
 	int ret;
-
-	spin_lock(&dev->event_lock);
-	while (!(atomic_read(&dev_priv->mm.wedged) ||
-	         atomic_read(&obj->pending_flip) == 0)) {
-		bsd_msleep(&dev_priv->pending_flip_queue, &dev->event_lock.m,
-		    0, "915flp", 0);
-	}
-	spin_unlock(&dev->event_lock);
 
 	/* Big Hammer, we also need to ensure that any pending
 	 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
@@ -2924,9 +2915,12 @@ static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	bool pending;
 
-	if (atomic_read(&dev_priv->mm.wedged))
+
+	if (i915_reset_in_progress(&dev_priv->gpu_error) ||
+	    intel_crtc->reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
 		return false;
 
 	/*

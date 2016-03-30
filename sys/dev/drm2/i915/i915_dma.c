@@ -1674,7 +1674,7 @@ out_gem_unload:
 	EVENTHANDLER_DEREGISTER(vm_lowmem, dev_priv->mm.inactive_shrinker);
 
 	spin_lock_destroy(&dev_priv->irq_lock);
-	spin_lock_destroy(&dev_priv->error_lock);
+	spin_lock_destroy(&dev_priv->gpu_error.lock);
 	spin_lock_destroy(&dev_priv->rps.lock);
 	mutex_destroy(&dev_priv->dpio_lock);
 
@@ -1821,7 +1821,7 @@ int i915_driver_unload(struct drm_device *dev)
 	destroy_workqueue(dev_priv->wq);
 
 	spin_lock_destroy(&dev_priv->irq_lock);
-	spin_lock_destroy(&dev_priv->error_lock);
+	spin_lock_destroy(&dev_priv->gpu_error.lock);
 	spin_lock_destroy(&dev_priv->rps.lock);
 	mutex_destroy(&dev_priv->dpio_lock);
 

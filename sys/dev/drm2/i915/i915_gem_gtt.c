@@ -703,7 +703,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 		dev_priv->mm.gtt_space.color_adjust = i915_gtt_color_adjust;
 
 	dev_priv->mm.gtt_start = start;
-	dev_priv->mm.gtt_mappable_end = mappable_end;
+	dev_priv->gtt.mappable_end = mappable_end;
 	dev_priv->mm.gtt_end = end;
 	dev_priv->mm.gtt_total = end - start;
 	dev_priv->mm.mappable_gtt_total = min(end, mappable_end) - start;

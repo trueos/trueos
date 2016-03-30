@@ -695,14 +695,8 @@ struct i915_gem_mm {
 	struct list_head unbound_list;
 
 	/** Usable portion of the GTT for GEM */
-	unsigned long gtt_start;
-	unsigned long gtt_mappable_end;
-	unsigned long gtt_end;
 	unsigned long stolen_base; /* limited to low memory (32-bit) */
 
-#ifdef __linux__
-	struct io_mapping *gtt_mapping;
-#endif
 	int needs_dmar;
 	vm_paddr_t gtt_base_addr;
 	int gtt_mtrr;
@@ -764,15 +758,6 @@ struct i915_gem_mm {
 	 */
 	int suspended;
 
-	/**
-	 * Flag if the hardware appears to be wedged.
-	 *
-	 * This is set when attempts to idle the device timeout.
-	 * It prevents command submission from occurring and makes
-	 * every pending request fail
-	 */
-	atomic_t wedged;
-
 	/** Bit 6 swizzling required for X tiling */
 	uint32_t bit_6_swizzle_x;
 	/** Bit 6 swizzling required for Y tiling */
@@ -782,8 +767,6 @@ struct i915_gem_mm {
 	struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
 
 	/* accounting, useful for userland debugging */
-	size_t gtt_total;
-	size_t mappable_gtt_total;
 	size_t object_memory;
 	u32 object_count;
 };
@@ -919,7 +902,6 @@ typedef struct drm_i915_private {
 #define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
 #define DRM_I915_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD)
 	struct callout hangcheck_timer;
-	int hangcheck_count;
 	uint32_t last_acthd[I915_NUM_RINGS];
 	uint32_t prev_instdone[I915_NUM_INSTDONE_REG];
 
@@ -973,10 +955,7 @@ typedef struct drm_i915_private {
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 
-	spinlock_t error_lock;
 	/* Protected by dev->error_lock. */
-	struct drm_i915_error_state *first_error;
-	struct task error_work;
 	struct completion error_completion;
 	struct workqueue_struct *wq;
 

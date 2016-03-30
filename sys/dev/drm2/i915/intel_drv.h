@@ -232,6 +232,7 @@ struct intel_crtc {
 	 * some outputs connected to this crtc.
 	 */
 	bool active;
+	bool eld_vld;
 	bool primary_disabled; /* is the crtc obscured by a plane? */
 	bool lowfreq_avail;
 	struct intel_overlay *overlay;
@@ -255,6 +256,9 @@ struct intel_crtc {
 	/* We can share PLLs across outputs if the timings match */
 	struct intel_pch_pll *pch_pll;
 	uint32_t ddi_pll_sel;
+
+	/* reset counter value when the last flip was submitted */
+	unsigned int reset_counter;
 };
 
 struct intel_plane {

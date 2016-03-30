@@ -2972,7 +2972,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	 * before evicting everything in a vain attempt to find space.
 	 */
 	if (obj->base.size >
-	    (map_and_fenceable ? dev_priv->gtt.mappable_end : dev_priv->mm.gtt_total)) {
+	    (map_and_fenceable ? dev_priv->gtt.mappable_end : dev_priv->gtt.total)) {
 		DRM_ERROR("Attempting to bind an object larger than the aperture\n");
 		return -E2BIG;
 	}

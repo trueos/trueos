@@ -254,7 +254,8 @@ static int i915_gem_object_info(struct drm_device *dev, struct sbuf *m, void *da
 		   count, size);
 
 	seq_printf(m, "%zu [%zu] gtt total\n",
-		   dev_priv->mm.gtt_total, dev_priv->mm.mappable_gtt_total);
+		   dev_priv->gtt.total,
+		   dev_priv->gtt.mappable_end - dev_priv->gtt.start);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -659,11 +660,11 @@ static int i915_error_state(struct drm_device *dev, struct sbuf *m,
 	struct intel_ring_buffer *ring;
 	int i, j, page, offset, elt;
 
-	spin_lock(&dev_priv->error_lock);
-	error = dev_priv->first_error;
+	spin_lock(&dev_priv->gpu_error.lock);
+	error = dev_priv->gpu_error.first_error;
 	if (error != NULL)
 		kref_get(&error->ref);
-	spin_unlock(&dev_priv->error_lock);
+	spin_unlock(&dev_priv->gpu_error.lock);
 
 	if (!error) {
 		seq_printf(m, "no error state collected\n");
@@ -1623,7 +1624,7 @@ i915_wedged(SYSCTL_HANDLER_ARGS)
 	if (dev_priv == NULL)
 		return (EBUSY);
 
-	val = atomic_read(&dev_priv->mm.wedged);
+	val = atomic_read(&dev_priv->gpu_error.reset_counter);
 	ret = sysctl_handle_int(oidp, &val, 0, req);
 	if (ret != 0 || !req->newptr)
 		return (ret);
