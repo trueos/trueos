@@ -94,14 +94,9 @@ static void enable_dvo(struct intel_dvo_device *dvo)
 {
 	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
 	struct i2c_adapter *adapter = dvo->i2c_bus;
-	/*
-	 * FIXME Linux<->FreeBSD: device_get_softc() returns a struct
-	 * intel_iic_softc in reality, where struct intel_gmbus is
-	 * the first member. struct intel_iic_softc is defined in
-	 * intel_iic.c.
-	 */
-	struct intel_gmbus *bus =
-	    (struct intel_gmbus *)device_get_softc((device_t)adapter);
+	struct intel_gmbus *bus = container_of(adapter,
+					       struct intel_gmbus,
+					       adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
 	DRM_DEBUG_KMS("%s: Trying to re-enable the DVO\n", __FUNCTION__);
@@ -126,14 +121,9 @@ static void enable_dvo(struct intel_dvo_device *dvo)
 static void restore_dvo(struct intel_dvo_device *dvo)
 {
 	struct i2c_adapter *adapter = dvo->i2c_bus;
-	/*
-	 * FIXME Linux<->FreeBSD: device_get_softc() returns a struct
-	 * intel_iic_softc in reality, where struct intel_gmbus is
-	 * the first member. struct intel_iic_softc is defined in
-	 * intel_iic.c.
-	 */
-	struct intel_gmbus *bus =
-	    (struct intel_gmbus *)device_get_softc((device_t)adapter);
+	struct intel_gmbus *bus = container_of(adapter,
+					      struct intel_gmbus,
+					      adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 	struct ns2501_priv *ns = (struct ns2501_priv *)(dvo->dev_priv);
 
@@ -159,14 +149,12 @@ static bool ns2501_readb(struct intel_dvo_device *dvo, int addr, uint8_t * ch)
 	struct i2c_msg msgs[] = {
 		{
 		 .addr = dvo->slave_addr,
-		 //.slave = dvo->slave_addr << 1,
 		 .flags = 0,
 		 .len = 1,
 		 .buf = out_buf,
 		 },
 		{
 		 .addr = dvo->slave_addr,
-		 //.slave = dvo->slave_addr << 1,
 		 .flags = I2C_M_RD,
 		 .len = 1,
 		 .buf = in_buf,
@@ -177,7 +165,6 @@ static bool ns2501_readb(struct intel_dvo_device *dvo, int addr, uint8_t * ch)
 	out_buf[1] = 0;
 
 	if (i2c_transfer(adapter, msgs, 2) == 2) {
-//	if (-iicbus_transfer(adapter, msgs, 2) == 0) {
 		*ch = in_buf[0];
 		return true;
 	};
@@ -205,7 +192,6 @@ static bool ns2501_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 
 	struct i2c_msg msg = {
 		.addr = dvo->slave_addr,
-		//.slave = dvo->slave_addr << 1,
 		.flags = 0,
 		.len = 2,
 		.buf = out_buf,
@@ -215,7 +201,6 @@ static bool ns2501_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 	out_buf[1] = ch;
 
 	if (i2c_transfer(adapter, &msg, 1) == 1) {
-//	if (-iicbus_transfer(adapter, &msg, 1) == 0) {
 		return true;
 	}
 

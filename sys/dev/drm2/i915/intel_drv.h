@@ -622,6 +622,7 @@ extern int intel_framebuffer_init(struct drm_device *dev,
 				  struct drm_mode_fb_cmd2 *mode_cmd,
 				  struct drm_i915_gem_object *obj);
 extern int intel_fbdev_init(struct drm_device *dev);
+extern void intel_fbdev_initial_config(struct drm_device *dev);
 extern void intel_fbdev_fini(struct drm_device *dev);
 extern void intel_fbdev_set_suspend(struct drm_device *dev, int state);
 extern void intel_prepare_page_flip(struct drm_device *dev, int plane);
@@ -683,6 +684,7 @@ extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 extern void intel_gpu_ips_teardown(void);
 
 extern void intel_init_power_wells(struct drm_device *dev);
+extern void intel_set_power_well(struct drm_device *dev, bool enable);
 extern void intel_enable_gt_powersave(struct drm_device *dev);
 extern void intel_disable_gt_powersave(struct drm_device *dev);
 extern void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv);

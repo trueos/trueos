@@ -296,6 +296,7 @@ static const struct intel_device_info intel_valleyview_m_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.is_valleyview = 1,
+	.display_mmio_offset = VLV_DISPLAY_BASE,
 };
 
 static const struct intel_device_info intel_valleyview_d_info = {
@@ -305,6 +306,7 @@ static const struct intel_device_info intel_valleyview_d_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.is_valleyview = 1,
+	.display_mmio_offset = VLV_DISPLAY_BASE,
 };
 
 static const struct intel_device_info intel_haswell_d_info = {
@@ -519,6 +521,13 @@ static int i915_drm_freeze(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	/* ignore lid events during suspend */
+	mutex_lock(&dev_priv->modeset_restore_lock);
+	dev_priv->modeset_restore = MODESET_SUSPENDED;
+	mutex_unlock(&dev_priv->modeset_restore_lock);
+
+	intel_set_power_well(dev, true);
+
 	drm_kms_helper_poll_disable(dev);
 
 #ifdef __linux__
@@ -539,6 +548,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 		intel_modeset_disable(dev);
 
 		drm_irq_uninstall(dev);
+		dev_priv->enable_hotplug_processing = false;
 	}
 
 	i915_save_state(dev);
@@ -614,9 +624,20 @@ static int __i915_drm_thaw(struct drm_device *dev)
 		error = i915_gem_init_hw(dev);
 		mutex_unlock(&dev->struct_mutex);
 
+		/* We need working interrupts for modeset enabling ... */
+		drm_irq_install(dev);
+		
 		intel_modeset_init_hw(dev);
 		intel_modeset_setup_hw_state(dev, false);
-		drm_irq_install(dev);
+
+		/*
+		 * ... but also need to make sure that hotplug processing
+		 * doesn't cause havoc. Like in the driver load code we don't
+		 * bother with the tiny race here where we might loose hotplug
+		 * notifications.
+		 * */
+		intel_hpd_init(dev);
+		dev_priv->enable_hotplug_processing = true;
 	}
 
 	intel_opregion_init(dev);
@@ -633,6 +654,9 @@ static int __i915_drm_thaw(struct drm_device *dev)
 		schedule_work(&dev_priv->console_resume_work);
 	}
 
+	mutex_lock(&dev_priv->modeset_restore_lock);
+	dev_priv->modeset_restore = MODESET_DONE;
+	mutex_unlock(&dev_priv->modeset_restore_lock);
 	return error;
 }
 
@@ -840,9 +864,9 @@ int intel_gpu_reset(struct drm_device *dev)
 	}
 
 	/* Also reset the gpu hangman. */
-	if (dev_priv->stop_rings) {
+	if (dev_priv->gpu_error.stop_rings) {
 		DRM_DEBUG("Simulated gpu hang, resetting stop_rings\n");
-		dev_priv->stop_rings = 0;
+		dev_priv->gpu_error.stop_rings = 0;
 		if (ret == -ENODEV) {
 			DRM_ERROR("Reset not implemented, but ignoring "
 				  "error for simulated gpu hangs\n");
@@ -932,6 +956,7 @@ int i915_reset(struct drm_device *dev)
 
 		drm_irq_uninstall(dev);
 		drm_irq_install(dev);
+		intel_hpd_init(dev);
 	} else {
 		mutex_unlock(&dev->struct_mutex);
 	}

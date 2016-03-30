@@ -453,6 +453,7 @@ struct intel_fbdev;
 struct intel_fbc_work;
 
 struct intel_gmbus {
+	struct i2c_adapter adapter;
 	device_t gmbus_bridge;
 	device_t gmbus;
 	device_t bbbus_bridge;
@@ -460,6 +461,7 @@ struct intel_gmbus {
 	u32 force_bit;
 	u32 reg0;
 	u32 gpio_reg;
+	struct i2c_algo_bit_data bit_algo;
 	struct drm_i915_private *dev_priv;
 };
 
@@ -907,6 +909,8 @@ typedef struct drm_i915_private {
 
 	u32 hotplug_supported_mask;
 	struct work_struct hotplug_work;
+	bool enable_hotplug_processing;
+
 
 	int num_pipe;
 	int num_pch_pll;
@@ -919,7 +923,6 @@ typedef struct drm_i915_private {
 	uint32_t last_acthd[I915_NUM_RINGS];
 	uint32_t prev_instdone[I915_NUM_INSTDONE_REG];
 
-	unsigned int stop_rings;
 
 	unsigned long cfb_size;
 	unsigned int cfb_fb;
@@ -1457,6 +1460,7 @@ void i915_hangcheck_elapsed(void *data);
 void i915_handle_error(struct drm_device *dev, bool wedged);
 
 extern void intel_irq_init(struct drm_device *dev);
+extern void intel_hpd_init(struct drm_device *dev);
 extern void intel_gt_init(struct drm_device *dev);
 extern void intel_gt_reset(struct drm_device *dev);
 

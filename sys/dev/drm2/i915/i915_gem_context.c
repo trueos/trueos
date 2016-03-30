@@ -121,8 +121,7 @@ static int get_context_size(struct drm_device *dev)
 			ret = GEN7_CXT_TOTAL_SIZE(reg) * 64;
 		break;
 	default:
-		panic("i915_gem_context: Unsupported Intel GPU generation %d",
-		    INTEL_INFO(dev)->gen);
+		BUG();
 	}
 
 	return ret;
@@ -130,39 +129,31 @@ static int get_context_size(struct drm_device *dev)
 
 static void do_destroy(struct i915_hw_context *ctx)
 {
-#if defined(INVARIANTS)
-	struct drm_device *dev = ctx->obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-#endif
 
 	if (ctx->file_priv)
 		idr_remove(&ctx->file_priv->context_idr, ctx->id);
-	else
-		KASSERT(ctx == dev_priv->ring[RCS].default_context,
-		    ("i915_gem_context: ctx != default_context"));
 
 	drm_gem_object_unreference(&ctx->obj->base);
 	kfree(ctx);
 }
 
-static int
+static struct i915_hw_context *
 create_hw_context(struct drm_device *dev,
-		  struct drm_i915_file_private *file_priv,
-		  struct i915_hw_context **ret_ctx)
+		  struct drm_i915_file_private *file_priv)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_context *ctx;
-	int ret, id;
+	int ret;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (ctx == NULL)
-		return (-ENOMEM);
+		return ERR_PTR(-ENOMEM);
 
 	ctx->obj = i915_gem_alloc_object(dev, dev_priv->hw_context_size);
 	if (ctx->obj == NULL) {
 		kfree(ctx);
 		DRM_DEBUG_DRIVER("Context object allocated failed\n");
-		return (-ENOMEM);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	if (INTEL_INFO(dev)->gen >= 7) {
@@ -179,31 +170,22 @@ create_hw_context(struct drm_device *dev,
 	ctx->ring = &dev_priv->ring[RCS];
 
 	/* Default context will never have a file_priv */
-	if (file_priv == NULL) {
-		*ret_ctx = ctx;
-		return (0);
-	}
+	if (file_priv == NULL)
+		return ctx;
 
 	ctx->file_priv = file_priv;
 
-again:
-	id = 0;
 	ret = idr_alloc(&file_priv->context_idr, ctx, DEFAULT_CONTEXT_ID + 1, 0,
 			GFP_KERNEL);
 	if (ret < 0)
-		ctx->id = id;
-
-	if (ret == -EAGAIN)
-		goto again;
-	else if (ret)
 		goto err_out;
+	ctx->id = ret;
 
-	*ret_ctx = ctx;
-	return (0);
+	return ctx;
 
 err_out:
 	do_destroy(ctx);
-	return (ret);
+	return ERR_PTR(ret);
 }
 
 static inline bool is_default_context(struct i915_hw_context *ctx)
@@ -223,9 +205,9 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 
 	BUG_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
-	ret = create_hw_context(dev_priv->dev, NULL, &ctx);
-	if (ret != 0)
-		return (ret);
+	ctx = create_hw_context(dev_priv->dev, NULL);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	/* We may need to do things with the shrinker which require us to
 	 * immediately switch back to the default context. This can cause a
@@ -255,7 +237,6 @@ err_destroy:
 void i915_gem_context_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t ctx_size;
 
 	if (!HAS_HW_CONTEXTS(dev)) {
 		dev_priv->hw_contexts_disabled = true;
@@ -266,12 +247,9 @@ void i915_gem_context_init(struct drm_device *dev)
 	if (dev_priv->hw_contexts_disabled ||
 	    dev_priv->ring[RCS].default_context)
 		return;
+	dev_priv->hw_context_size = round_up(get_context_size(dev), 4096);
 
-	ctx_size = get_context_size(dev);
-	dev_priv->hw_context_size = get_context_size(dev);
-	dev_priv->hw_context_size = round_up(dev_priv->hw_context_size, 4096);
-
-	if (ctx_size <= 0 || ctx_size > (1<<20)) {
+	if (dev_priv->hw_context_size > (1<<20)) {
 		dev_priv->hw_contexts_disabled = true;
 		return;
 	}
@@ -513,10 +491,10 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		return ret;
 
-	ret = create_hw_context(dev, file_priv, &ctx);
+	ctx = create_hw_context(dev, file_priv);
 	mutex_unlock(&dev->struct_mutex);
-	if (ret != 0)
-		return (ret);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	args->ctx_id = ctx->id;
 	DRM_DEBUG_DRIVER("HW context %d created\n", args->ctx_id);

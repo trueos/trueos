@@ -386,7 +386,7 @@ struct drm_freelist {
 };
 
 typedef struct drm_dma_handle {
-	caddr_t vaddr;
+	void *vaddr;
 	bus_addr_t busaddr;
 	size_t size;
 	bus_dma_tag_t tag;
@@ -1699,20 +1699,6 @@ enum {
 #define DRM_GET_PRIV_SAREA(_dev, _ctx, _map) do {	\
 	(_map) = (_dev)->context_sareas[_ctx];		\
 } while(0)
-
-/* Returns -errno to shared code */
-#define DRM_WAIT_ON( ret, queue, timeout, condition )		\
-for ( ret = 0 ; !ret && !(condition) ; ) {			\
-	DRM_UNLOCK(dev);					\
-	mtx_lock(&dev->irq_lock);				\
-	if (!(condition))					\
-	    ret = -mtx_sleep(&(queue), &dev->irq_lock, 		\
-		PCATCH, "drmwtq", (timeout));			\
-	    if (ret == -ERESTART)				\
-	        ret = -ERESTARTSYS;				\
-	mtx_unlock(&dev->irq_lock);				\
-	DRM_LOCK(dev);						\
-}
 
 /*
  * CEM: linuxkpi macros expect a 'bsddev' device_t member; drm2 passes the

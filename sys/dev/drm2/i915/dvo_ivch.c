@@ -176,20 +176,17 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 	struct i2c_msg msgs[] = {
 		{
 			.addr = dvo->slave_addr,
-			//.slave = dvo->slave_addr << 1,
 			.flags = I2C_M_RD,
 			.len = 0,
 		},
 		{
 			.addr = 0,
-			//.slave = 0 << 1,
 			.flags = I2C_M_NOSTART,
 			.len = 1,
 			.buf = out_buf,
 		},
 		{
 			.addr = dvo->slave_addr,
-			//.slave = dvo->slave_addr << 1,
 			.flags = I2C_M_RD | I2C_M_NOSTART,
 			.len = 2,
 			.buf = in_buf,
@@ -199,7 +196,6 @@ static bool ivch_read(struct intel_dvo_device *dvo, int addr, uint16_t *data)
 	out_buf[0] = addr;
 
 	if (i2c_transfer(adapter, msgs, 3) == 3) {
-	//if (-iicbus_transfer(adapter, msgs, 3) == 0) {
 		*data = (in_buf[1] << 8) | in_buf[0];
 		return true;
 	};
@@ -220,7 +216,6 @@ static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 	u8 out_buf[3];
 	struct i2c_msg msg = {
 		.addr = dvo->slave_addr,
-//		.slave = dvo->slave_addr << 1,
 		.flags = 0,
 		.len = 3,
 		.buf = out_buf,
@@ -231,7 +226,6 @@ static bool ivch_write(struct intel_dvo_device *dvo, int addr, uint16_t data)
 	out_buf[2] = data >> 8;
 
 	if (i2c_transfer(adapter, &msg, 1) == 1)
-	//if (-iicbus_transfer(adapter, &msg, 1) == 0)
 		return true;
 
 	if (!priv->quiet) {

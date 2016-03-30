@@ -768,16 +768,135 @@ static int i915_error_state(struct drm_device *dev, struct sbuf *m,
 static int
 i915_error_state_write(struct drm_device *dev, const char *str, void *unused)
 {
+	int ret;
 
 	DRM_DEBUG_DRIVER("Resetting error state\n");
 
-	mutex_lock(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
 	i915_destroy_error_state(dev);
 	mutex_unlock(&dev->struct_mutex);
 
 	return (0);
 }
 
+#ifdef __linux__
+static int i915_error_state_open(struct inode *inode, struct file *file)
+{
+	struct drm_device *dev = inode->i_private;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct i915_error_state_file_priv *error_priv;
+	unsigned long flags;
+
+	error_priv = kzalloc(sizeof(*error_priv), GFP_KERNEL);
+	if (!error_priv)
+		return -ENOMEM;
+
+	error_priv->dev = dev;
+
+	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
+	error_priv->error = dev_priv->gpu_error.first_error;
+	if (error_priv->error)
+		kref_get(&error_priv->error->ref);
+	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
+
+	return single_open(file, i915_error_state, error_priv);
+}
+
+static int i915_error_state_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *m = file->private_data;
+	struct i915_error_state_file_priv *error_priv = m->private;
+
+	if (error_priv->error)
+		kref_put(&error_priv->error->ref, i915_error_state_free);
+	kfree(error_priv);
+
+	return single_release(inode, file);
+}
+
+static const struct file_operations i915_error_state_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_error_state_open,
+	.read = seq_read,
+	.write = i915_error_state_write,
+	.llseek = default_llseek,
+	.release = i915_error_state_release,
+};
+
+static ssize_t
+i915_next_seqno_read(struct file *filp,
+		 char __user *ubuf,
+		 size_t max,
+		 loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	char buf[80];
+	int len;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	len = snprintf(buf, sizeof(buf),
+		       "next_seqno :  0x%x\n",
+		       dev_priv->next_seqno);
+
+	mutex_unlock(&dev->struct_mutex);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
+}
+
+static ssize_t
+i915_next_seqno_write(struct file *filp,
+		      const char __user *ubuf,
+		      size_t cnt,
+		      loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	char buf[20];
+	u32 val = 1;
+	int ret;
+
+	if (cnt > 0) {
+		if (cnt > sizeof(buf) - 1)
+			return -EINVAL;
+
+		if (copy_from_user(buf, ubuf, cnt))
+			return -EFAULT;
+		buf[cnt] = 0;
+
+		ret = kstrtouint(buf, 0, &val);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_set_seqno(dev, val);
+
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret ?: cnt;
+}
+
+static const struct file_operations i915_next_seqno_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = i915_next_seqno_read,
+	.write = i915_next_seqno_write,
+	.llseek = default_llseek,
+};
+
+#endif
 static int i915_rstdby_delays(struct drm_device *dev, struct sbuf *m, void *unused)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -1305,7 +1424,8 @@ static int i915_gem_framebuffer_info(struct drm_device *dev, struct sbuf *m, voi
 static int i915_context_status(struct drm_device *dev, struct sbuf *m, void *data)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret;
+	struct intel_ring_buffer *ring;
+	int ret, i;
 
 	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
 	if (ret)
@@ -1321,6 +1441,14 @@ static int i915_context_status(struct drm_device *dev, struct sbuf *m, void *dat
 		seq_printf(m, "render context ");
 		describe_obj(m, dev_priv->ips.renderctx);
 		seq_printf(m, "\n");
+	}
+
+	for_each_ring(ring, dev_priv, i) {
+		if (ring->default_context) {
+			seq_printf(m, "HW default context %s ring ", ring->name);
+			describe_obj(m, ring->default_context->obj);
+			seq_printf(m, "\n");
+		}
 	}
 
 	mutex_unlock(&dev->mode_config.mutex);
@@ -1516,7 +1644,7 @@ i915_ring_stop(SYSCTL_HANDLER_ARGS)
 	if (dev_priv == NULL)
 		return (EBUSY);
 
-	val = dev_priv->stop_rings;
+	val = dev_priv->gpu_error.stop_rings;
 	ret = sysctl_handle_int(oidp, &val, 0, req);
 	if (ret != 0 || !req->newptr)
 		return (ret);
@@ -1524,11 +1652,207 @@ i915_ring_stop(SYSCTL_HANDLER_ARGS)
 	DRM_DEBUG_DRIVER("Stopping rings 0x%08x\n", val);
 
 	mutex_lock(&dev_priv->rps.hw_lock);
-	dev_priv->stop_rings = val;
+	dev_priv->gpu_error.stop_rings = val;
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return (0);
 }
+
+#ifdef __linux__
+static const struct file_operations i915_wedged_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = i915_wedged_read,
+	.write = i915_wedged_write,
+	.llseek = default_llseek,
+};
+
+static ssize_t
+i915_ring_stop_read(struct file *filp,
+		    char __user *ubuf,
+		    size_t max,
+		    loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	char buf[20];
+	int len;
+
+	len = snprintf(buf, sizeof(buf),
+		       "0x%08x\n", dev_priv->gpu_error.stop_rings);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
+}
+
+static ssize_t
+i915_ring_stop_write(struct file *filp,
+		     const char __user *ubuf,
+		     size_t cnt,
+		     loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	char buf[20];
+	int val = 0, ret;
+
+	if (cnt > 0) {
+		if (cnt > sizeof(buf) - 1)
+			return -EINVAL;
+
+		if (copy_from_user(buf, ubuf, cnt))
+			return -EFAULT;
+		buf[cnt] = 0;
+
+		val = simple_strtoul(buf, NULL, 0);
+	}
+
+	DRM_DEBUG_DRIVER("Stopping rings 0x%08x\n", val);
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	dev_priv->gpu_error.stop_rings = val;
+	mutex_unlock(&dev->struct_mutex);
+
+	return cnt;
+}
+
+static const struct file_operations i915_ring_stop_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = i915_ring_stop_read,
+	.write = i915_ring_stop_write,
+	.llseek = default_llseek,
+};
+
+#define DROP_UNBOUND 0x1
+#define DROP_BOUND 0x2
+#define DROP_RETIRE 0x4
+#define DROP_ACTIVE 0x8
+#define DROP_ALL (DROP_UNBOUND | \
+		  DROP_BOUND | \
+		  DROP_RETIRE | \
+		  DROP_ACTIVE)
+static ssize_t
+i915_drop_caches_read(struct file *filp,
+		      char __user *ubuf,
+		      size_t max,
+		      loff_t *ppos)
+{
+	char buf[20];
+	int len;
+
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", DROP_ALL);
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
+}
+
+static ssize_t
+i915_drop_caches_write(struct file *filp,
+		       const char __user *ubuf,
+		       size_t cnt,
+		       loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj, *next;
+	char buf[20];
+	int val = 0, ret;
+
+	if (cnt > 0) {
+		if (cnt > sizeof(buf) - 1)
+			return -EINVAL;
+
+		if (copy_from_user(buf, ubuf, cnt))
+			return -EFAULT;
+		buf[cnt] = 0;
+
+		val = simple_strtoul(buf, NULL, 0);
+	}
+
+	DRM_DEBUG_DRIVER("Dropping caches: 0x%08x\n", val);
+
+	/* No need to check and wait for gpu resets, only libdrm auto-restarts
+	 * on ioctls on -EAGAIN. */
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	if (val & DROP_ACTIVE) {
+		ret = i915_gpu_idle(dev);
+		if (ret)
+			goto unlock;
+	}
+
+	if (val & (DROP_RETIRE | DROP_ACTIVE))
+		i915_gem_retire_requests(dev);
+
+	if (val & DROP_BOUND) {
+		list_for_each_entry_safe(obj, next, &dev_priv->mm.inactive_list, mm_list)
+			if (obj->pin_count == 0) {
+				ret = i915_gem_object_unbind(obj);
+				if (ret)
+					goto unlock;
+			}
+	}
+
+	if (val & DROP_UNBOUND) {
+		list_for_each_entry_safe(obj, next, &dev_priv->mm.unbound_list, gtt_list)
+			if (obj->pages_pin_count == 0) {
+				ret = i915_gem_object_put_pages(obj);
+				if (ret)
+					goto unlock;
+			}
+	}
+
+unlock:
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret ?: cnt;
+}
+
+static const struct file_operations i915_drop_caches_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = i915_drop_caches_read,
+	.write = i915_drop_caches_write,
+	.llseek = default_llseek,
+};
+
+static ssize_t
+i915_max_freq_read(struct file *filp,
+		   char __user *ubuf,
+		   size_t max,
+		   loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	char buf[80];
+	int len, ret;
+
+	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
+		return -ENODEV;
+
+	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
+	if (ret)
+		return ret;
+
+	len = snprintf(buf, sizeof(buf),
+		       "max freq: %d\n", dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER);
+	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
+}
+#endif
 
 static int
 i915_max_freq(SYSCTL_HANDLER_ARGS)

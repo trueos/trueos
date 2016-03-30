@@ -51,7 +51,24 @@ __FBSDID("$FreeBSD$");
 	    tick_sbt * (timo), 0, C_HARDCLOCK)
 #define	drm_msleep(x, msg)	pause((msg), ((int64_t)(x)) * hz / 1000)
 #define	DRM_MSLEEP(msecs)	drm_msleep((msecs), "drm_msleep")
-
+#define DRM_WAIT_ON( ret, queue, timeout, condition )		\
+	do {							\
+	unsigned long end = ticks + (timeout);			\
+								\
+	for (;;) {						\
+		if (condition)						\
+			break;						\
+		if (ticks >= end) {					\
+			ret -EBUSY;					\
+			break;						\
+		}							\
+		pause("drm", (hz/100 > 1) ? hz/100 : 1);		\
+		if (SIGPENDING(curthread)) {				\
+			ret = -EINTR;					\
+			break;						\
+		}							\
+	}								\
+	} while (0)
 #define	DRM_READ8(map, offset)						\
 	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
 	    (vm_offset_t)(offset))

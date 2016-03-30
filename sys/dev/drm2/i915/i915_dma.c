@@ -781,14 +781,8 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 		master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
 
 	if (ring->irq_get(ring)) {
-		spin_lock(&dev_priv->irq_lock);
-		while (ret == 0 && READ_BREADCRUMB(dev_priv) < irq_nr) {
-			ret = -bsd_msleep(&ring->irq_queue, &dev_priv->irq_lock.m,
-			    PCATCH, "915wtq", 3 * DRM_HZ);
-			if (ret == -ERESTART)
-				ret = -ERESTARTSYS;
-		}
-		spin_unlock(&dev_priv->irq_lock);
+		DRM_WAIT_ON(ret, ring->irq_queue, 3 * DRM_HZ,
+			    READ_BREADCRUMB(dev_priv) >= irq_nr);
 		ring->irq_put(ring);
 	} else if (wait_for(READ_BREADCRUMB(dev_priv) >= irq_nr, 3000))
 		ret = -EBUSY;
@@ -997,14 +991,12 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_PINNED_BATCHES:
 		value = 1;
 		break;
-#ifdef notyet
 	case I915_PARAM_HAS_EXEC_NO_RELOC:
 		value = 1;
 		break;
 	case I915_PARAM_HAS_EXEC_HANDLE_LUT:
 		value = 1;
 		break;
-#endif		
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 				 param->param);
@@ -1318,19 +1310,21 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_vga_switcheroo;
 
+	ret = drm_irq_install(dev);
+	if (ret)
+		goto cleanup_gem_stolen;
+
+	/* Important: The output setup functions called by modeset_init need
+	 * working irqs for e.g. gmbus and dp aux transfers. */
 	intel_modeset_init(dev);
 
 	ret = i915_gem_init(dev);
 	if (ret)
-		goto cleanup_gem_stolen;
-
-	intel_modeset_gem_init(dev);
+		goto cleanup_irq;
 
 	INIT_WORK(&dev_priv->console_resume_work, intel_console_resume);
 
-	ret = drm_irq_install(dev);
-	if (ret)
-		goto cleanup_gem;
+	intel_modeset_gem_init(dev);
 
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
@@ -1338,7 +1332,25 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	ret = intel_fbdev_init(dev);
 	if (ret)
-		goto cleanup_irq;
+		goto cleanup_gem;
+
+	/* Only enable hotplug handling once the fbdev is fully set up. */
+	intel_hpd_init(dev);
+
+	/*
+	 * Some ports require correctly set-up hpd registers for detection to
+	 * work properly (leading to ghost connected connector status), e.g. VGA
+	 * on gm45.  Hence we can only set up the initial fbdev config after hpd
+	 * irqs are fully enabled. Now we should scan for the initial config
+	 * only once hotplug handling is enabled, but due to screwed-up locking
+	 * around kms/fbdev init we can't protect the fdbev initial config
+	 * scanning against hotplug events. Hence do this first and ignore the
+	 * tiny window where we will loose hotplug notifactions.
+	 */
+	intel_fbdev_initial_config(dev);
+
+	/* Only enable hotplug handling once the fbdev is fully set up. */
+	dev_priv->enable_hotplug_processing = true;
 
 	drm_kms_helper_poll_init(dev);
 
@@ -1347,13 +1359,13 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	return 0;
 
-cleanup_irq:
-	drm_irq_uninstall(dev);
 cleanup_gem:
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
 	mutex_unlock(&dev->struct_mutex);
 	i915_gem_cleanup_aliasing_ppgtt(dev);
+cleanup_irq:
+	drm_irq_uninstall(dev);
 cleanup_gem_stolen:
 	i915_gem_cleanup_stolen(dev);
 cleanup_vga_switcheroo:
@@ -1363,7 +1375,6 @@ cleanup_vga_client:
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 out:
 #endif
-	intel_free_parsed_bios_data(dev);
 	return ret;
 }
 
@@ -1556,7 +1567,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_rmmap;
 	}
 
-	i915_mtrr_setup(dev_priv, dev_priv->mm.gtt_base_addr,
+	i915_mtrr_setup(dev_priv, dev_priv->gtt.mappable_base,
 			aperture_size);
 
 	/* The i915 workqueue is primarily used for batched retirement of
@@ -1688,7 +1699,7 @@ out_rmmap:
 	if (dev_priv->mmio_map != NULL)
 		drm_rmmap(dev, dev_priv->mmio_map);
 put_gmch:
-	i915_gem_gtt_fini(dev);
+	dev_priv->gtt.gtt_remove(dev);
 put_bridge:
 #ifdef __linux__
 	pci_dev_put(dev_priv->bridge_dev);
@@ -1780,13 +1791,15 @@ int i915_driver_unload(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 		i915_gem_cleanup_aliasing_ppgtt(dev);
 		i915_gem_cleanup_stolen(dev);
-		drm_mm_takedown(&dev_priv->mm.stolen);
-
-		intel_cleanup_overlay(dev);
 
 		if (!I915_NEED_GFX_HWS(dev))
 			i915_free_hws(dev);
 	}
+
+#ifdef __linux__
+	if (dev_priv->regs != NULL)
+		pci_iounmap(dev->pdev, dev_priv->regs);
+#endif
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
