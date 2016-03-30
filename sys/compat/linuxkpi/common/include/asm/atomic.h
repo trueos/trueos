@@ -74,6 +74,14 @@ atomic_set(atomic_t *v, int i)
 	atomic_store_rel_int(&v->counter, i);
 }
 
+
+static inline void
+atomic_set_mask(int mask, atomic_t *v)
+{
+	atomic_set_int(&v->counter, mask);
+}
+
+
 static inline int
 atomic_read(atomic_t *v)
 {

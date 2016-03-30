@@ -83,4 +83,7 @@ static inline void spin_unlock_bh(spinlock_t *lock) {
 	panic("XXX implement me!");
 }
 
+#define local_irq_save(flags) (flags = 1)
+#define local_irq_restore(flags) (flags = 0)
+
 #endif	/* _LINUX_SPINLOCK_H_ */
