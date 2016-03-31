@@ -544,7 +544,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		int error = i915_gem_idle(dev);
 		if (error) {
-			dev_err(dev->dev,
+			dev_err(dev->pdev,
 				"GEM idle failed, resume might fail\n");
 			return error;
 		}
@@ -754,7 +754,7 @@ static int i8xx_do_reset(struct drm_device *dev)
 static int i965_reset_complete(struct drm_device *dev)
 {
 	u8 gdrst;
-	pci_read_config_byte(dev->dev, I965_GDRST, &gdrst);
+	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
 	return (gdrst & GRDOM_RESET_ENABLE) == 0;
 }
 
@@ -768,8 +768,8 @@ static int i965_do_reset(struct drm_device *dev)
 	 * well as the reset bit (GR/bit 0).  Setting the GR bit
 	 * triggers the reset; when done, the hardware will clear it.
 	 */
-	pci_read_config_byte(dev->dev, I965_GDRST, &gdrst);
-	pci_write_config_byte(dev->dev, I965_GDRST,
+	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
+	pci_write_config_byte(dev->pdev, I965_GDRST,
 			      gdrst | GRDOM_RENDER |
 			      GRDOM_RESET_ENABLE);
 	ret =  wait_for(i965_reset_complete(dev), 500);
@@ -777,8 +777,8 @@ static int i965_do_reset(struct drm_device *dev)
 		return ret;
 
 	/* We can't reset render&media without also resetting display ... */
-	pci_read_config_byte(dev->dev, I965_GDRST, &gdrst);
-	pci_write_config_byte(dev->dev, I965_GDRST,
+	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
+	pci_write_config_byte(dev->pdev, I965_GDRST,
 			      gdrst | GRDOM_MEDIA |
 			      GRDOM_RESET_ENABLE);
 

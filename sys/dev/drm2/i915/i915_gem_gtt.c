@@ -709,7 +709,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 	/* ... but ensure that we clear the entire range. */
 	i915_ggtt_clear_range(dev, start / PAGE_SIZE, (end-start) / PAGE_SIZE);
 
-	device_printf(dev->dev,
+	device_printf(dev->pdev,
 	    "taking over the fictitious range 0x%lx-0x%lx\n",
 	    dev_priv->mm.gtt_base_addr + start,
 	    dev_priv->mm.gtt_base_addr + start + dev_priv->mm.mappable_gtt_total);
@@ -949,7 +949,7 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	dev_priv->gtt.gma_bus_addr = drm_get_resource_start(dev, 2);
 
 	/* i9xx_setup */
-	pci_read_config_word(dev->dev, SNB_GMCH_CTRL, &snb_gmch_ctl);
+	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 	gtt_total_entries(dev_priv->gtt) =
 		gen6_get_total_gtt_size(snb_gmch_ctl) / sizeof(gtt_pte_t);
 	if (INTEL_INFO(dev)->gen < 7)

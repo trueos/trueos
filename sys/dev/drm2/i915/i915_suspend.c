@@ -326,7 +326,7 @@ int i915_save_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	pci_read_config_byte(dev->dev, LBB, &dev_priv->regfile.saveLBB);
+	pci_read_config_byte(dev->pdev, LBB, &dev_priv->regfile.saveLBB);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -376,7 +376,7 @@ int i915_restore_state(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	pci_write_config_byte(dev->dev, LBB, dev_priv->regfile.saveLBB);
+	pci_write_config_byte(dev->pdev, LBB, dev_priv->regfile.saveLBB);
 
 	mutex_lock(&dev->struct_mutex);
 

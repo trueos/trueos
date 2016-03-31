@@ -169,7 +169,7 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 	if (ifbdev->helper.fbdev) {
 		info = ifbdev->helper.fbdev;
 		if (info->fb_fbd_dev != NULL)
-			device_delete_child(dev->dev, info->fb_fbd_dev);
+			device_delete_child(dev->pdev, info->fb_fbd_dev);
 		framebuffer_release(info);
 	}
 

@@ -1108,7 +1108,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 		}
 
 		if (i == 4 && print_bad_edid) {
-			dev_warn(connector->dev->dev,
+			dev_warn(connector->dev->pdev,
 			 "%s: Ignoring invalid EDID block %d.\n",
 			 drm_get_connector_name(connector), j);
 
@@ -1129,7 +1129,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 
 carp:
 	if (print_bad_edid) {
-		dev_warn(connector->dev->dev, "%s: EDID block %d invalid.\n",
+		dev_warn(connector->dev->pdev, "%s: EDID block %d invalid.\n",
 			 drm_get_connector_name(connector), j);
 	}
 	connector->bad_edid_counter++;
@@ -2785,7 +2785,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 		return 0;
 	}
 	if (!drm_edid_is_valid(edid)) {
-		dev_warn(connector->dev->dev, "%s: EDID invalid.\n",
+		dev_warn(connector->dev->pdev, "%s: EDID invalid.\n",
 			 drm_get_connector_name(connector));
 		return 0;
 	}

@@ -1137,10 +1137,10 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 
 	/* Get some space for it */
 	device_t vga;
-	vga = device_get_parent(dev->dev);
+	vga = device_get_parent(dev->pdev);
 	dev_priv->mch_res_rid = 0x100;
 	dev_priv->mch_res = BUS_ALLOC_RESOURCE(device_get_parent(vga),
-	    dev->dev, SYS_RES_MEMORY, &dev_priv->mch_res_rid, 0, ~0UL,
+	    dev->pdev, SYS_RES_MEMORY, &dev_priv->mch_res_rid, 0, ~0UL,
 	    MCHBAR_SIZE, RF_ACTIVE | RF_SHAREABLE);
 	if (dev_priv->mch_res == NULL) {
 		DRM_DEBUG_DRIVER("failed bus alloc\n");
@@ -1215,10 +1215,10 @@ intel_teardown_mchbar(struct drm_device *dev)
 
 	if (dev_priv->mch_res != NULL) {
 		device_t vga;
-		vga = device_get_parent(dev->dev);
-		BUS_DEACTIVATE_RESOURCE(device_get_parent(vga), dev->dev,
+		vga = device_get_parent(dev->pdev);
+		BUS_DEACTIVATE_RESOURCE(device_get_parent(vga), dev->pdev,
 		    SYS_RES_MEMORY, dev_priv->mch_res_rid, dev_priv->mch_res);
-		BUS_RELEASE_RESOURCE(device_get_parent(vga), dev->dev,
+		BUS_RELEASE_RESOURCE(device_get_parent(vga), dev->pdev,
 		    SYS_RES_MEMORY, dev_priv->mch_res_rid, dev_priv->mch_res);
 		dev_priv->mch_res = NULL;
 	}
@@ -1649,7 +1649,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		}
 	}
 
-	pci_enable_busmaster(dev->dev);
+	pci_enable_busmaster(dev->pdev);
 
 #ifdef __linux__
 	i915_setup_sysfs(dev);

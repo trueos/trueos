@@ -555,8 +555,9 @@ int intel_setup_gmbus(struct drm_device *dev)
 			 sizeof(bus->adapter.name),
 			 "i915 gmbus %s",
 			 gmbus_ports[i].name);
-
-		bus->adapter.dev.parent = dev->dev;
+#ifdef notyet
+		bus->adapter.dev.parent = device_get_parent(dev->pdev);
+#endif
 		bus->dev_priv = dev_priv;
 
 		bus->adapter.algo = &gmbus_algorithm;

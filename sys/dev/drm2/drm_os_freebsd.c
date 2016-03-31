@@ -158,12 +158,12 @@ drm_generic_detach(device_t kdev)
 	for (i = 0; i < DRM_MAX_PCI_RESOURCE; i++) {
 		if (dev->pcir[i] == NULL)
 			continue;
-		bus_release_resource(dev->dev, SYS_RES_MEMORY,
+		bus_release_resource(dev->pdev, SYS_RES_MEMORY,
 		    dev->pcirid[i], dev->pcir[i]);
 		dev->pcir[i] = NULL;
 	}
 
-	if (pci_disable_busmaster(dev->dev))
+	if (pci_disable_busmaster(dev->pdev))
 		DRM_ERROR("Request to disable bus-master failed.\n");
 
 	return (0);
@@ -195,7 +195,7 @@ static int
 drm_device_find_capability(struct drm_device *dev, int cap)
 {
 
-	return (pci_find_cap(dev->dev, cap, NULL) == 0);
+	return (pci_find_cap(dev->pdev, cap, NULL) == 0);
 }
 
 int
@@ -424,7 +424,7 @@ static int drm_alloc_resource(struct drm_device *dev, int resource)
 	}
 
 	rid = PCIR_BAR(resource);
-	res = bus_alloc_resource_any(dev->dev, SYS_RES_MEMORY, &rid,
+	res = bus_alloc_resource_any(dev->pdev, SYS_RES_MEMORY, &rid,
 	    RF_SHAREABLE);
 	if (res == NULL) {
 		DRM_ERROR("Couldn't find resource 0x%x\n", resource);

@@ -3990,7 +3990,7 @@ intel_enable_blt(struct drm_device *dev)
 		return false;
 
 	/* The blitter was dysfunctional on early prototypes */
-	if (IS_GEN6(dev) && pci_get_revid(dev->dev) < 8) {
+	if (IS_GEN6(dev) && pci_get_revid(dev->pdev) < 8) {
 		DRM_INFO("BLT not supported on this pre-production hardware;"
 			 " graphics performance will be degraded.\n");
 		return false;

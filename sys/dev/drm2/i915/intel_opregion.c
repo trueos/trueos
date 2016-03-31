@@ -362,7 +362,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	u32 temp;
 	int i = 0;
 
-	handle = acpi_get_handle(dev->dev);
+	handle = acpi_get_handle(dev->pdev);
 	if (!handle)
 		return;
 
@@ -380,7 +380,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	}
 
 	if (!acpi_video_bus) {
-		device_printf(dev->dev, "No ACPI video bus found\n");
+		device_printf(dev->pdev, "No ACPI video bus found\n");
 		return;
 	}
 
@@ -388,7 +388,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	while (AcpiGetNextObject(ACPI_TYPE_DEVICE, acpi_video_bus, acpi_cdev,
 				&acpi_cdev) != AE_NOT_FOUND) {
 		if (i >= 8) {
-			device_printf(dev->dev, "More than 8 outputs detected\n");
+			device_printf(dev->pdev, "More than 8 outputs detected\n");
 			return;
 		}
 		status =
@@ -414,7 +414,7 @@ blind_set:
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		int output_type = ACPI_OTHER_OUTPUT;
 		if (i >= 8) {
-			device_printf(dev->dev,
+			device_printf(dev->pdev,
 				    "More than 8 outputs detected\n");
 			return;
 		}
@@ -533,7 +533,7 @@ int intel_opregion_setup(struct drm_device *dev)
 	char buf[sizeof(OPREGION_SIGNATURE)];
 	int err = 0;
 
-	pci_read_config_dword(dev->dev, PCI_ASLS, &asls);
+	pci_read_config_dword(dev->pdev, PCI_ASLS, &asls);
 	DRM_DEBUG_DRIVER("graphic opregion physical addr: 0x%x\n", asls);
 	if (asls == 0) {
 		DRM_DEBUG_DRIVER("ACPI OpRegion not supported!\n");

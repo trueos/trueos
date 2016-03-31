@@ -669,7 +669,7 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 	DRM_DEBUG_KMS("i2c_init %s\n", name);
 
 	ironlake_edp_panel_vdd_on(intel_dp);
-	ret = iic_dp_aux_add_bus(intel_connector->base.dev->dev, name,
+	ret = iic_dp_aux_add_bus(intel_connector->base.dev->pdev, name,
 	    intel_dp_i2c_aux_ch, intel_dp, (device_t*)&intel_dp->dp_iic_bus,
 	    (device_t*)&intel_dp->adapter);
 	ironlake_edp_panel_vdd_off(intel_dp, false);

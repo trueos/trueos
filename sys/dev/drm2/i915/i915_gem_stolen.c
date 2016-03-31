@@ -71,11 +71,11 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 		 * Note that there is also a MCHBAR miror at 0x1080c0 or
 		 * we could use device 2:0x5c instead.
 		*/
-		pci_read_config_dword(dev->dev, 0xB0, &base);
+		pci_read_config_dword(dev->pdev, 0xB0, &base);
 		base &= ~4095; /* lower bits used for locking register */
 	} else if (INTEL_INFO(dev)->gen > 3 || IS_G33(dev)) {
 		/* Read Graphics Base of Stolen Memory directly */
-		pci_read_config_dword(dev->dev, 0xA4, &base);
+		pci_read_config_dword(dev->pdev, 0xA4, &base);
 #if 0
 	} else if (IS_GEN3(dev)) {
 		u8 val;

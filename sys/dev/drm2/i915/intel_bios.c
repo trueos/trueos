@@ -693,7 +693,7 @@ int
 intel_parse_bios(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	device_t vga_dev = device_get_parent(dev->dev);;
+	device_t vga_dev = device_get_parent(dev->pdev);;
 	struct bdb_header *bdb = NULL;
 	u8 __iomem *bios = NULL;
 

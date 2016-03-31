@@ -3955,7 +3955,7 @@ static int i915gm_get_display_clock_speed(struct drm_device *dev)
 {
 	u16 gcfgc = 0;
 
-	pci_read_config_word(dev->dev, GCFGC, &gcfgc);
+	pci_read_config_word(dev->pdev, GCFGC, &gcfgc);
 
 	if (gcfgc & GC_LOW_FREQUENCY_ENABLE)
 		return 133000;
@@ -8819,10 +8819,10 @@ static void intel_init_quirks(struct drm_device *dev)
 	for (i = 0; i < ARRAY_SIZE(intel_quirks); i++) {
 		struct intel_quirk *q = &intel_quirks[i];
 
-		if (pci_get_device(dev->dev) == q->device &&
-		    (pci_get_subvendor(dev->dev) == q->subsystem_vendor ||
+		if (pci_get_device(dev->pdev) == q->device &&
+		    (pci_get_subvendor(dev->pdev) == q->subsystem_vendor ||
 		     q->subsystem_vendor == PCI_ANY_ID) &&
-		    (pci_get_subdevice(dev->dev) == q->subsystem_device ||
+		    (pci_get_subdevice(dev->pdev) == q->subsystem_device ||
 		     q->subsystem_device == PCI_ANY_ID))
 			q->hook(dev);
 	}

@@ -351,11 +351,11 @@ int drm_irq_install(struct drm_device *dev)
 		 */
 		sh_flags |= INTR_EXCL;
 
-	ret = -bus_setup_intr(dev->dev, dev->irqr, sh_flags, NULL,
+	ret = -bus_setup_intr(dev->pdev, dev->irqr, sh_flags, NULL,
 	    (driver_intr_t *)dev->driver->irq_handler, dev, &dev->irqh);
 
 	if (ret < 0) {
-		device_printf(dev->dev, "Error setting interrupt: %d\n", -ret);
+		device_printf(dev->pdev, "Error setting interrupt: %d\n", -ret);
 		mutex_lock(&dev->struct_mutex);
 		dev->irq_enabled = 0;
 		mutex_unlock(&dev->struct_mutex);
@@ -370,7 +370,7 @@ int drm_irq_install(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		dev->irq_enabled = 0;
 		mutex_unlock(&dev->struct_mutex);
-		bus_teardown_intr(dev->dev, dev->irqr, dev->irqh);
+		bus_teardown_intr(dev->pdev, dev->irqr, dev->irqh);
 		dev->driver->bus->free_irq(dev);
 	}
 
@@ -420,7 +420,7 @@ int drm_irq_uninstall(struct drm_device *dev)
 	if (dev->driver->irq_uninstall)
 		dev->driver->irq_uninstall(dev);
 
-	bus_teardown_intr(dev->dev, dev->irqr, dev->irqh);
+	bus_teardown_intr(dev->pdev, dev->irqr, dev->irqh);
 	dev->driver->bus->free_irq(dev);
 
 	return 0;

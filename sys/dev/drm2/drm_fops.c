@@ -158,7 +158,7 @@ int drm_open(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 
 err_undo:
 	mtx_lock(&Giant); /* FIXME: Giant required? */
-	device_unbusy(dev->dev);
+	device_unbusy(dev->pdev);
 	mtx_unlock(&Giant);
 	dev->open_count--;
 	mutex_unlock(&drm_global_mutex);
@@ -274,7 +274,7 @@ static int drm_open_helper(struct cdev *kdev, int flags, int fmt,
 	mutex_unlock(&dev->struct_mutex);
 
 	mtx_lock(&Giant); /* FIXME: Giant required? */
-	device_busy(dev->dev);
+	device_busy(dev->pdev);
 	mtx_unlock(&Giant);
 
 	ret = devfs_set_cdevpriv(priv, drm_release);
@@ -454,7 +454,7 @@ void drm_release(void *data)
 
 	atomic_inc(&dev->counts[_DRM_STAT_CLOSES]);
 	mtx_lock(&Giant);
-	device_unbusy(dev->dev);
+	device_unbusy(dev->pdev);
 	mtx_unlock(&Giant);
 	if (!--dev->open_count) {
 		if (atomic_read(&dev->ioctl_count)) {

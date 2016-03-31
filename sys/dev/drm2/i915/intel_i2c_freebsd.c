@@ -146,7 +146,7 @@ intel_setup_gmbus_freebsd(struct drm_device *dev)
 		 * gmbus may decide to force quirk transfer in the
 		 * attachment code.
 		 */
-		bus->bbbus_bridge = device_add_child(dev->dev,
+		bus->bbbus_bridge = device_add_child(dev->pdev,
 		    "intel_iicbb", i);
 		if (bus->bbbus_bridge == NULL) {
 			DRM_ERROR("bbbus bridge %d creation failed\n", i);
@@ -178,7 +178,7 @@ intel_setup_gmbus_freebsd(struct drm_device *dev)
 		bus->bbbus = iic_dev;
 
 		/* gmbus_bridge */
-		bus->gmbus_bridge = device_add_child(dev->dev,
+		bus->gmbus_bridge = device_add_child(dev->pdev,
 		    "intel_gmbus", i);
 		if (bus->gmbus_bridge == NULL) {
 			DRM_ERROR("gmbus bridge %d creation failed\n", i);
@@ -211,9 +211,9 @@ err:
 	while (--i) {
 		struct intel_gmbus *bus = &dev_priv->gmbus[i];
 		if (bus->gmbus_bridge != NULL)
-			device_delete_child(dev->dev, bus->gmbus_bridge);
+			device_delete_child(dev->pdev, bus->gmbus_bridge);
 		if (bus->bbbus_bridge != NULL)
-			device_delete_child(dev->dev, bus->bbbus_bridge);
+			device_delete_child(dev->pdev, bus->bbbus_bridge);
 	}
 	mtx_unlock(&Giant);
 	mutex_destroy(&dev_priv->gmbus_mutex);
@@ -225,13 +225,13 @@ void
 i2c_del_adapter(struct i2c_adapter *adapter)
 {	
 	mtx_lock(&Giant);
-	ret = device_delete_child(dev->dev, bus->gmbus_bridge);
+	ret = device_delete_child(dev->pdev, bus->gmbus_bridge);
 	mtx_unlock(&Giant);
 
 	KASSERT(ret == 0, ("unable to detach iic gmbus %s: %d",
 			   device_get_desc(bus->gmbus_bridge), ret));	
 	mtx_lock(&Giant);
-	ret = device_delete_child(dev->dev, bus->bbbus_bridge);
+	ret = device_delete_child(dev->pdev, bus->bbbus_bridge);
 	mtx_unlock(&Giant);
 
 	KASSERT(ret == 0, ("unable to detach iic bbbus %s: %d",

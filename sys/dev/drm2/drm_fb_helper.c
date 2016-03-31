@@ -1042,7 +1042,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 	info = fb_helper->fbdev;
 
-	kdev = fb_helper->dev->dev;
+	kdev = fb_helper->dev->pdev;
 	info->fb_video_dev = device_get_parent(kdev);
 
 	/* set the fb pointer */
@@ -1070,7 +1070,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		if (register_framebuffer(info) < 0)
 			return -EINVAL;
 
-		dev_info(fb_helper->dev->dev, "fb%d: %s frame buffer device\n",
+		dev_info(fb_helper->dev->pdev, "fb%d: %s frame buffer device\n",
 				info->node, info->fix.id);
 
 	} else {
@@ -1082,7 +1082,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	/* Switch back to kernel console on panic */
 	/* multi card linked list maybe */
 	if (list_empty(&kernel_fb_helper_list)) {
-		dev_info(fb_helper->dev->dev, "registered panic notifier\n");
+		dev_info(fb_helper->dev->pdev, "registered panic notifier\n");
 		atomic_notifier_chain_register(&panic_notifier_list,
 					       &paniced);
 		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
@@ -1136,7 +1136,7 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 	struct drm_framebuffer *fb = fb_helper->fb;
 	struct vt_kms_softc *sc;
 
-	info->fb_name = device_get_nameunit(fb_helper->dev->dev);
+	info->fb_name = device_get_nameunit(fb_helper->dev->pdev);
 	info->fb_width = fb->width;
 	info->fb_height = fb->height;
 	info->fb_depth = fb->bits_per_pixel;
@@ -1558,7 +1558,7 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 	 * we shouldn't end up with no modes here.
 	 */
 	if (count == 0)
-		dev_info(fb_helper->dev->dev, "No connectors reported connected with modes\n");
+		dev_info(fb_helper->dev->pdev, "No connectors reported connected with modes\n");
 
 	drm_setup_crtcs(fb_helper);
 

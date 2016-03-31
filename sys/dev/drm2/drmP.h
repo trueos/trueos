@@ -1090,7 +1090,7 @@ struct drm_device {
 
 	struct drm_agp_head *agp;	/**< AGP data */
 
-	device_t dev;			/* Device instance from newbus */
+	device_t pdev;			/* Device instance from newbus */
 	uint16_t pci_device;		/* PCI device id */
 	uint16_t pci_vendor;		/* PCI vendor id */
 	uint16_t pci_subdevice;		/* PCI subsystem device id */
