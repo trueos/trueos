@@ -839,7 +839,7 @@ bool intel_ddi_pll_mode_set(struct drm_crtc *crtc, int clock)
 	struct intel_ddi_plls *plls = &dev_priv->ddi_plls;
 	int type = intel_encoder->type;
 	enum pipe pipe = intel_crtc->pipe;
-	uint32_t reg, val;
+	uint32_t reg = 0, val;
 
 	/* TODO: reuse PLLs when possible (compare values) */
 

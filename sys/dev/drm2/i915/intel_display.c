@@ -700,7 +700,7 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			lvds_reg = PCH_LVDS;
 		else
 			lvds_reg = LVDS;
-		if (intel_is_dual_link_ldvs(dev))
+		if (intel_is_dual_link_lvds(dev))
 			clock.p2 = limit->p2.p2_fast;
 		else
 			clock.p2 = limit->p2.p2_slow;
@@ -1801,9 +1801,9 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 	u32 val;
 
 	if (HAS_PCH_LPT(dev_priv->dev))
-		pch_transcoder = TRANSCODER_A;
+		pch_transcoder = (enum pipe)TRANSCODER_A;
 	else
-		pch_transcoder = (enum transcoder)pipe;
+		pch_transcoder = pipe;
 
 	/*
 	 * A pipe without a PLL won't actually be able to drive bits from
@@ -2876,7 +2876,6 @@ static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	unsigned long flags;
 	bool pending;
 
 
