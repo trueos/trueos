@@ -223,7 +223,7 @@ err_pt_alloc:
 	}
 	kfree(ppgtt->pt_pages);
 err_ppgtt:
-	free(ppgtt, DRM_I915_GEM);
+	kfree(ppgtt);
 
 	return ret;
 }
@@ -245,12 +245,12 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 	}
 #endif
 
-	free(ppgtt->pt_dma_addr, DRM_I915_GEM);
+	kfree(ppgtt->pt_dma_addr);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		vm_page_unwire(ppgtt->pt_pages[i], PQ_INACTIVE);
 		vm_page_free(ppgtt->pt_pages[i]);
 	}
-	free(ppgtt->pt_pages, DRM_I915_GEM);
+	kfree(ppgtt->pt_pages);
 	kfree(ppgtt);
 }
 
