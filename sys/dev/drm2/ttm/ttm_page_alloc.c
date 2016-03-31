@@ -214,7 +214,7 @@ ttm_vm_page_alloc(int flags, enum ttm_caching_state cstate)
 static void ttm_pool_kobj_release(struct ttm_pool_manager *m)
 {
 
-	free(m, M_TTM_POOLMGR);
+	kfree(m);
 }
 
 #if 0
@@ -355,6 +355,7 @@ static void ttm_pool_update_free_locked(struct ttm_page_pool *pool,
  **/
 static int ttm_page_pool_free(struct ttm_page_pool *pool, unsigned nr_free)
 {
+	unsigned long irq_flags;
 	vm_page_t p, p1;
 	vm_page_t *pages_to_free;
 	unsigned freed_pages = 0,
@@ -364,11 +365,11 @@ static int ttm_page_pool_free(struct ttm_page_pool *pool, unsigned nr_free)
 	if (NUM_PAGES_TO_ALLOC < nr_free)
 		npages_to_free = NUM_PAGES_TO_ALLOC;
 
-	pages_to_free = malloc(npages_to_free * sizeof(vm_page_t),
-	    M_TEMP, M_WAITOK | M_ZERO);
+	pages_to_free = kmalloc(npages_to_free * sizeof(vm_page_t),
+			GFP_KERNEL);
 
 restart:
-	spin_lock(&pool->lock);
+	spin_lock_irqsave(&pool->lock, irq_flags);
 
 	TAILQ_FOREACH_REVERSE_SAFE(p, &pool->list, pglist, plinks.q, p1) {
 		if (freed_pages >= npages_to_free)
@@ -386,7 +387,7 @@ restart:
 			 * Because changing page caching is costly
 			 * we unlock the pool to prevent stalling.
 			 */
-			spin_unlock(&pool->lock);
+			spin_unlock_irqrestore(&pool->lock, irq_flags);
 
 			ttm_pages_put(pages_to_free, freed_pages);
 			if (likely(nr_free != FREE_ALL_PAGES))
@@ -421,12 +422,12 @@ restart:
 		nr_free -= freed_pages;
 	}
 
-	spin_unlock(&pool->lock);
+	spin_unlock_irqrestore(&pool->lock, irq_flags);
 
 	if (freed_pages)
 		ttm_pages_put(pages_to_free, freed_pages);
 out:
-	free(pages_to_free, M_TEMP);
+	kfree(pages_to_free);
 	return nr_free;
 }
 
@@ -487,12 +488,12 @@ static int ttm_set_pages_caching(vm_page_t *pages,
 	case tt_uncached:
 		r = set_pages_array_uc(pages, cpages);
 		if (r)
-			printf("[TTM] Failed to set %d pages to uc!\n", cpages);
+			pr_err("Failed to set %d pages to uc!\n", cpages);
 		break;
 	case tt_wc:
 		r = set_pages_array_wc(pages, cpages);
 		if (r)
-			printf("[TTM] Failed to set %d pages to wc!\n", cpages);
+			pr_err("Failed to set %d pages to wc!\n", cpages);
 		break;
 	default:
 		break;
@@ -534,13 +535,12 @@ static int ttm_alloc_new_pages(struct pglist *pages, int ttm_alloc_flags,
 			(unsigned)(PAGE_SIZE/sizeof(vm_page_t)));
 
 	/* allocate array for page caching change */
-	caching_array = malloc(max_cpages * sizeof(vm_page_t), M_TEMP,
-	    M_WAITOK | M_ZERO);
+	caching_array = kmalloc(max_cpages*sizeof(vm_page_t), GFP_KERNEL);
 
 	for (i = 0, cpages = 0; i < count; ++i) {
 		p = ttm_vm_page_alloc(ttm_alloc_flags, cstate);
 		if (!p) {
-			printf("[TTM] Unable to get page %u\n", i);
+			pr_err("Unable to get page %u\n", i);
 
 			/* store already allocated pages in the pool after
 			 * setting the caching state */
@@ -589,7 +589,7 @@ static int ttm_alloc_new_pages(struct pglist *pages, int ttm_alloc_flags,
 					caching_array, cpages);
 	}
 out:
-	free(caching_array, M_TEMP);
+	kfree(caching_array);
 
 	return r;
 }
@@ -599,7 +599,8 @@ out:
  * pages is small.
  */
 static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
-    int ttm_flags, enum ttm_caching_state cstate, unsigned count)
+		int ttm_flags, enum ttm_caching_state cstate, unsigned count,
+		unsigned long *irq_flags)
 {
 	vm_page_t p;
 	int r;
@@ -625,7 +626,7 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
 		 * Can't change page caching if in irqsave context. We have to
 		 * drop the pool->lock.
 		 */
-		spin_unlock(&pool->lock);
+		spin_unlock_irqrestore(&pool->lock, *irq_flags);
 
 		TAILQ_INIT(&new_pages);
 		r = ttm_alloc_new_pages(&new_pages, pool->ttm_page_alloc_flags,
@@ -666,7 +667,7 @@ static unsigned ttm_page_pool_get_pages(struct ttm_page_pool *pool,
 	unsigned i;
 
 	spin_lock_irqsave(&pool->lock, irq_flags);
-	ttm_page_pool_fill_locked(pool, ttm_flags, cstate, count);
+	ttm_page_pool_fill_locked(pool, ttm_flags, cstate, count, &irq_flags);
 
 	if (count >= pool->npages) {
 		/* take all pages from the pool */
@@ -907,6 +908,7 @@ void ttm_pool_unpopulate(struct ttm_tt *ttm)
 	}
 	ttm->state = tt_unpopulated;
 }
+EXPORT_SYMBOL(ttm_pool_unpopulate);
 
 #if 0
 /* XXXKIB sysctl */

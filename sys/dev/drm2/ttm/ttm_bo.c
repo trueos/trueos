@@ -129,7 +129,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	if (bo->destroy)
 		bo->destroy(bo);
 	else {
-		free(bo, M_TTM_BO);
+		kfree(bo);
 	}
 	ttm_mem_global_free(bdev->glob->mem_glob, acc_size);
 }

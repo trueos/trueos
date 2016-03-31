@@ -53,7 +53,7 @@ static void ttm_mem_zone_kobj_release(struct ttm_mem_zone *zone)
 
 	pr_info("Zone %7s: Used memory at exit: %llu kiB\n",
 		zone->name, (unsigned long long)zone->used_mem >> 10);
-	free(zone, M_TTM_ZONE);
+	kfree(zone);
 }
 
 #if 0
@@ -216,7 +216,9 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 {
 	struct ttm_mem_zone *zone;
 
-	zone = malloc(sizeof(*zone), M_TTM_ZONE, M_WAITOK | M_ZERO);
+	zone = kzalloc(sizeof(*zone), GFP_KERNEL);
+	if (unlikely(!zone))
+		return -ENOMEM;
 
 	/**
 	 * No special dma32 zone needed.
