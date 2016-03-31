@@ -22,6 +22,7 @@ SRCS	= \
 	i915_gem_tiling.c \
 	i915_irq.c \
 	i915_suspend.c \
+	i915_ums.c \
 	intel_acpi.c \
 	intel_bios.c \
 	intel_crt.c \
