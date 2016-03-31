@@ -596,7 +596,6 @@ struct drm_ati_pcigart_info {
  * GEM specific mm private for tracking GEM objects
  */
 struct drm_gem_mm {
-/*	struct unrhdr *idxunr; */
 	struct drm_mm offset_manager;	/**< Offset mgmt for buffer objects */
 	struct drm_open_hash offset_hash; /**< User token hash table for maps */
 };
@@ -1029,9 +1028,6 @@ struct drm_device {
 	struct list_head ctxlist;	/**< Linked list of context handles */
 	int ctx_count;			/**< Number of context handles */
 	struct mutex ctxlist_mutex;	/**< For ctxlist */
-	drm_local_map_t **context_sareas;
-	int max_context;
-	unsigned long *ctx_bitmap;
 
 	struct idr ctx_idr;
 
@@ -1208,6 +1204,24 @@ static inline int drm_mtrr_del(int handle, unsigned long offset,
 	return 0;
 }
 #endif
+
+static inline void drm_device_set_unplugged(struct drm_device *dev)
+{
+	smp_wmb();
+	atomic_set(&dev->unplugged, 1);
+}
+
+static inline int drm_device_is_unplugged(struct drm_device *dev)
+{
+	int ret = atomic_read(&dev->unplugged);
+	smp_rmb();
+	return ret;
+}
+
+static inline bool drm_modeset_is_locked(struct drm_device *dev)
+{
+	return mutex_is_locked(&dev->mode_config.mutex);
+}
 
 /******************************************************************/
 /** \name Internal function definitions */
@@ -1695,10 +1709,6 @@ enum {
 	copyout(arg2, arg1, arg3)
 #define DRM_GET_USER_UNCHECKED(val, uaddr)		\
 	((val) = fuword32(uaddr), 0)
-
-#define DRM_GET_PRIV_SAREA(_dev, _ctx, _map) do {	\
-	(_map) = (_dev)->context_sareas[_ctx];		\
-} while(0)
 
 /*
  * CEM: linuxkpi macros expect a 'bsddev' device_t member; drm2 passes the
