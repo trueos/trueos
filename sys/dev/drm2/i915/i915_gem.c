@@ -1717,7 +1717,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 	VM_OBJECT_WUNLOCK(obj->base.vm_obj);
 	obj->dirty = 0;
 
-	free(obj->pages, DRM_I915_GEM);
+	kfree(obj->pages);
 	obj->pages = NULL;
 }
 
@@ -2023,7 +2023,7 @@ i915_add_request(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	request = malloc(sizeof(*request), DRM_I915_GEM, M_NOWAIT);
+	request = kmalloc(sizeof(*request), GFP_KERNEL);
 	if (request == NULL)
 		return -ENOMEM;
 
@@ -2375,7 +2375,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	 * on this IOCTL with a 0 timeout (like busy ioctl)
 	 */
 	if (!args->timeout_ns) {
-		ret = -ETIMEDOUT;
+		ret = -ETIME;
 		goto out;
 	}
 
@@ -2895,13 +2895,13 @@ static void i915_gem_verify_gtt(struct drm_device *dev)
 
 	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
 		if (obj->gtt_space == NULL) {
-			DRM_ERROR("object found on GTT list with no space reserved\n");
+			printk(KERN_ERR "object found on GTT list with no space reserved\n");
 			err++;
 			continue;
 		}
 
 		if (obj->cache_level != obj->gtt_space->color) {
-			DRM_ERROR("object reserved space [%08lx, %08lx] with wrong color, cache_level=%x, color=%lx\n",
+			printk(KERN_ERR "object reserved space [%08lx, %08lx] with wrong color, cache_level=%x, color=%lx\n",
 			       obj->gtt_space->start,
 			       obj->gtt_space->start + obj->gtt_space->size,
 			       obj->cache_level,
@@ -2913,7 +2913,7 @@ static void i915_gem_verify_gtt(struct drm_device *dev)
 		if (!i915_gem_valid_gtt_space(dev,
 					      obj->gtt_space,
 					      obj->cache_level)) {
-			DRM_ERROR("invalid GTT space found at [%08lx, %08lx] - color=%x\n",
+			printk(KERN_ERR "invalid GTT space found at [%08lx, %08lx] - color=%x\n",
 			       obj->gtt_space->start,
 			       obj->gtt_space->start + obj->gtt_space->size,
 			       obj->cache_level);

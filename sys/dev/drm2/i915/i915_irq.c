@@ -1090,12 +1090,12 @@ i915_error_state_free(struct kref *error_ref)
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		i915_error_object_free(error->ring[i].batchbuffer);
 		i915_error_object_free(error->ring[i].ringbuffer);
-		free(error->ring[i].requests, DRM_I915_GEM);
+		kfree(error->ring[i].requests);
 	}
 
-	free(error->active_bo, DRM_I915_GEM);
-	free(error->overlay, DRM_I915_GEM);
-	free(error, DRM_I915_GEM);
+	kfree(error->active_bo);
+	kfree(error->overlay);
+	kfree(error);
 }
 static void capture_bo(struct drm_i915_error_buffer *err,
 		       struct drm_i915_gem_object *obj)
@@ -1296,8 +1296,8 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		error->ring[i].num_requests = count;
 		error->ring[i].requests =
-			malloc(count*sizeof(struct drm_i915_error_request),
-				DRM_I915_GEM, M_WAITOK);
+			kmalloc(count*sizeof(struct drm_i915_error_request),
+				GFP_ATOMIC);
 		if (error->ring[i].requests == NULL) {
 			error->ring[i].num_requests = 0;
 			continue;
@@ -1339,7 +1339,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		return;
 
 	/* Account for pipe specific data like PIPE*STAT */
-	error = malloc(sizeof(*error), DRM_I915_GEM, M_NOWAIT | M_ZERO);
+	error = kzalloc(sizeof(*error), GFP_ATOMIC);
 	if (!error) {
 		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
 		return;
@@ -1404,8 +1404,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 	error->active_bo = NULL;
 	error->pinned_bo = NULL;
 	if (i) {
-		error->active_bo = malloc(sizeof(*error->active_bo)*i,
-					   DRM_I915_GEM, M_NOWAIT);
+		error->active_bo = kmalloc(sizeof(*error->active_bo)*i,
+					   GFP_ATOMIC);
 		if (error->active_bo)
 			error->pinned_bo =
 				error->active_bo + error->active_bo_count;
@@ -2006,8 +2006,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	/* enable kind of interrupts always enabled */
 	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
-		DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
-		DE_AUX_CHANNEL_A;
+			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE |
+			   DE_AUX_CHANNEL_A;
 	u32 render_irqs;
 
 	dev_priv->irq_mask = ~display_mask;
@@ -2121,7 +2121,7 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	POSTING_READ(PORT_HOTPLUG_EN);
-	
+
 	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
 	I915_WRITE(VLV_IER, enable_mask);
 	I915_WRITE(VLV_IIR, 0xffffffff);
@@ -2160,7 +2160,6 @@ static void valleyview_hpd_irq_setup(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 
-	
 	/* Note HDMI and DP share bits */
 	if (dev_priv->hotplug_supported_mask & PORTB_HOTPLUG_INT_STATUS)
 		hotplug_en |= PORTB_HOTPLUG_INT_EN;
@@ -2430,7 +2429,6 @@ static void i915_hpd_irq_setup(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 hotplug_en;
 
-	
 	if (I915_HAS_HOTPLUG(dev)) {
 		hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 
@@ -2453,7 +2451,6 @@ static void i915_hpd_irq_setup(struct drm_device *dev)
 
 		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
 	}
-
 }
 
 static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
@@ -2634,7 +2631,7 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	dev_priv->pipestat[0] = 0;
 	dev_priv->pipestat[1] = 0;
 	i915_enable_pipestat(dev_priv, 0, PIPE_GMBUS_EVENT_ENABLE);
-	
+
 	/*
 	 * Enable some error detection, note the instruction error mask
 	 * bit is reserved, so we leave it masked.
@@ -2654,9 +2651,6 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(IER, enable_mask);
 	POSTING_READ(IER);
 
-
-
-	
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	POSTING_READ(PORT_HOTPLUG_EN);
 
@@ -2704,7 +2698,6 @@ static void i965_hpd_irq_setup(struct drm_device *dev)
 	/* Ignore TV since it's buggy */
 
 	I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
-
 }
 
 static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
@@ -2802,6 +2795,7 @@ static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
 
 		if (pipe_stats[0] & PIPE_GMBUS_INTERRUPT_STATUS)
 			gmbus_irq_handler(dev);
+
 		/* With MSI, interrupts are only generated when iir
 		 * transitions from zero to nonzero.  If another bit got
 		 * set while we were handling the existing iir bits, then

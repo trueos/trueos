@@ -8482,7 +8482,7 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 	drm_framebuffer_cleanup(fb);
 	drm_gem_object_unreference_unlocked(&intel_fb->obj->base);
 
-	free(intel_fb, DRM_MEM_KMS);
+	kfree(intel_fb);
 }
 
 static int intel_user_framebuffer_create_handle(struct drm_framebuffer *fb,
