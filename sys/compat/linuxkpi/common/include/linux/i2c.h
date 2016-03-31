@@ -1,7 +1,6 @@
 #ifndef _LINUX_I2C_H_
 #define _LINUX_I2C_H_
 
-
 struct i2c_adapter;
 struct i2c_msg;
 
@@ -62,6 +61,15 @@ struct i2c_msg {
 					 I2C_FUNC_SMBUS_PEC)
 
 
+
+/* i2c adapter classes (bitmask) */
+#define I2C_CLASS_HWMON		(1<<0)	/* lm_sensors, ... */
+#define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
+#define I2C_CLASS_SPD		(1<<7)	/* Memory modules */
+
+/* Internal numbers to terminate lists */
+#define I2C_CLIENT_END		0xfffeU
+
 /*
  * Data for SMBus Messages
  */
@@ -114,23 +122,6 @@ struct completion dev_released;
 #endif
 	struct mutex userspace_clients_lock;
 	struct list_head userspace_clients;
-};
-
-struct i2c_algo_bit_data {
-	void *data;		/* private data for lowlevel routines */
-	void (*setsda) (void *data, int state);
-	void (*setscl) (void *data, int state);
-	int  (*getsda) (void *data);
-	int  (*getscl) (void *data);
-	int  (*pre_xfer)  (struct i2c_adapter *);
-	void (*post_xfer) (struct i2c_adapter *);
-
-	/* local settings */
-	int udelay;		/* half clock cycle time in us,
-				   minimum 2 us for fast-mode I2C,
-				   minimum 5 us for standard-mode I2C and SMBus,
-				   maximum 50 us for SMBus */
-	int timeout;		/* ticks */
 };
 
 extern int i2c_add_adapter(struct i2c_adapter *adapter);

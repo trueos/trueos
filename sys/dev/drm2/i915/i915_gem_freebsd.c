@@ -266,7 +266,7 @@ retry:
 	obj->fault_mappable = true;
 
 	VM_OBJECT_WLOCK(vm_obj);
-	page = PHYS_TO_VM_PAGE(dev_priv->mm.gtt_base_addr + obj->gtt_offset + offset);
+	page = PHYS_TO_VM_PAGE(dev_priv->gtt.mappable_base + obj->gtt_offset + offset);
 	KASSERT((page->flags & PG_FICTITIOUS) != 0,
 	    ("physical address %#jx not fictitious",
 	    (uintmax_t)(dev_priv->mm.gtt_base_addr + obj->gtt_offset + offset)));

@@ -110,6 +110,15 @@ do {									\
 	-_error;							\
 })
 
+#define wait_event_timeout(wq, condition, timeout)			\
+({									\
+	long __ret = timeout;						\
+	if (!(condition)) 						\
+		__wait_event_timeout(wq, condition, __ret);		\
+	__ret;								\
+})
+
+
 static inline int
 waitqueue_active(wait_queue_head_t *q)
 {
@@ -137,6 +146,10 @@ static inline void remove_wait_queue(wait_queue_head_t *q, wait_queue_t *wait) {
 	panic("XXX implement me!");
 }
 static inline int wait_event_interruptible_timeout(wait_queue_head_t wq, int condition, int timeout){
+	panic("XXX implement me");
+}
+
+static inline int __wait_event_timeout(wait_queue_head_t wq, int condition, int timeout){
 	panic("XXX implement me");
 }
 
