@@ -1377,6 +1377,10 @@ struct drm_i915_file_private {
 
 #define GT_FREQUENCY_MULTIPLIER 50
 
+#ifdef __linux__
+#include "i915_trace.h"
+#endif
+
 /**
  * RC6 is a special power stage which allows the GPU to enter an very
  * low-voltage mode when idle, using down to 0V while at this stage.  This
