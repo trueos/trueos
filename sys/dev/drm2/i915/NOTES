@@ -1,10 +1,20 @@
 
 
 Files with no changes against uptstream:
+intel_crt.c
+intel_ddi.c
+intel_hdmi.c
+intel_dvo.c
 
 
 Files with very minor changes that could be remedied with further linuxkpi extensions:
 
+
+Files with minor unavoidable differences:
+intel_display.c - outb/inb on linux order the arguments in reverse, pci accessor differences, seq_file vs sbuf
+intel_dp.c - msleep() differs on linux so DRM_MSLEEP, slightly different args to DRM_KMS_DEBUG
+intel_i2c.c - need to destroy mutexes
+intel_fb.c - differences in framebuffer interface 
 
 
 Files that fundamentally differ due to VM/PCI etc
@@ -15,7 +25,7 @@ i915_dma.c - manipulates devices / rman, although there are many gratuitous API 
 
 
 Next file to update:
-intel_dp.c
+
 
 
 FreeBSD needs to destroy it's locks to make WITNESS unhappy - (either that or not register them with WITNESS)
