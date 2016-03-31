@@ -2248,7 +2248,7 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 }
 
 static struct edid *
-intel_dp_get_edid(struct drm_connector *connector, struct i2c_adapter adapter)
+intel_dp_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
@@ -2270,22 +2270,24 @@ intel_dp_get_edid(struct drm_connector *connector, struct i2c_adapter adapter)
 		return edid;
 	}
 
-	return drm_get_edid(connector, &adapter);
+	return drm_get_edid(connector, adapter);
 }
 
 static int
-intel_dp_get_edid_modes(struct drm_connector *connector, struct i2c_adapter adapter)
+intel_dp_get_edid_modes(struct drm_connector *connector, struct i2c_adapter *adapter)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
 	/* use cached edid if we have one */
 	if (intel_connector->edid) {
-
+		/* invalid edid */
+		if (IS_ERR(intel_connector->edid))
+			return 0;
 		return intel_connector_update_modes(connector,
 						    intel_connector->edid);
 	}
 
-	return intel_ddc_get_modes(connector, &adapter);
+	return intel_ddc_get_modes(connector, adapter);
 }
 
 
@@ -2325,7 +2327,7 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	if (intel_dp->force_audio != HDMI_AUDIO_AUTO) {
 		intel_dp->has_audio = (intel_dp->force_audio == HDMI_AUDIO_ON);
 	} else {
-		edid = intel_dp_get_edid(connector, intel_dp->adapter);
+		edid = intel_dp_get_edid(connector, &intel_dp->adapter);
 		if (edid) {
 			intel_dp->has_audio = drm_detect_monitor_audio(edid);
 			kfree(edid);
@@ -2347,7 +2349,7 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 	/* We should parse the EDID data and find out if it has an audio sink
 	 */
 
-	ret = intel_dp_get_edid_modes(connector, intel_dp->adapter);
+	ret = intel_dp_get_edid_modes(connector, &intel_dp->adapter);
 	if (ret)
 		return ret;
 
@@ -2371,7 +2373,7 @@ intel_dp_detect_audio(struct drm_connector *connector)
 	struct edid *edid;
 	bool has_audio = false;
 
-	edid = intel_dp_get_edid(connector, intel_dp->adapter);
+	edid = intel_dp_get_edid(connector, &intel_dp->adapter);
 	if (edid) {
 		has_audio = drm_detect_monitor_audio(edid);
 		kfree(edid);
@@ -2458,7 +2460,8 @@ intel_dp_destroy(struct drm_connector *connector)
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
-	kfree(intel_connector->edid);
+	if (!IS_ERR_OR_NULL(intel_connector->edid))
+		kfree(intel_connector->edid);
 
 	if (is_edp(intel_dp))
 		intel_panel_fini(&intel_connector->panel);
@@ -2749,7 +2752,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
-	if (IS_HASWELL(dev))
+	if (HAS_DDI(dev))
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
 	else
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
@@ -2787,7 +2790,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		bool ret;
 		struct drm_display_mode *scan;
 		struct edid *edid;
-		int edid_err = 0;
 
 		ironlake_edp_panel_vdd_on(intel_dp);
 		ret = intel_dp_get_dpcd(intel_dp);
@@ -2818,12 +2820,10 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 				drm_edid_to_eld(connector, edid);
 			} else {
 				kfree(edid);
-				edid = NULL;
-				edid_err = -EINVAL;
+				edid = ERR_PTR(-EINVAL);
 			}
 		} else {
-			edid = NULL;
-			edid_err = -ENOENT;
+			edid = ERR_PTR(-ENOENT);
 		}
 		intel_connector->edid = edid;
 
