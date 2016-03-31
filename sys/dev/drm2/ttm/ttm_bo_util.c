@@ -374,11 +374,9 @@ out:
 }
 EXPORT_SYMBOL(ttm_bo_move_memcpy);
 
-MALLOC_DEFINE(M_TTM_TRANSF_OBJ, "ttm_transf_obj", "TTM Transfer Objects");
-
 static void ttm_transfered_destroy(struct ttm_buffer_object *bo)
 {
-	free(bo, M_TTM_TRANSF_OBJ);
+	kfree(bo);
 }
 
 /**
@@ -403,7 +401,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_bo_driver *driver = bdev->driver;
 
-	fbo = malloc(sizeof(*fbo), M_TTM_TRANSF_OBJ, M_WAITOK);
+	fbo = kmalloc(sizeof(*fbo), GFP_KERNEL);
 	if (!fbo)
 		return -ENOMEM;
 
@@ -453,6 +451,7 @@ ttm_io_prot(uint32_t caching_flags)
 #error Port me
 #endif
 }
+EXPORT_SYMBOL(ttm_io_prot);
 
 static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 			  unsigned long offset,

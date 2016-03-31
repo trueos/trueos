@@ -51,16 +51,14 @@ MALLOC_DEFINE(M_TTM_PD, "ttm_pd", "TTM Page Directories");
  */
 static void ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	ttm->pages = malloc(ttm->num_pages * sizeof(void *),
-	    M_TTM_PD, M_WAITOK | M_ZERO);
+	ttm->pages = drm_calloc_large(ttm->num_pages, sizeof(void*));
 }
 
 static void ttm_dma_tt_alloc_page_directory(struct ttm_dma_tt *ttm)
 {
-	ttm->ttm.pages = malloc(ttm->ttm.num_pages * sizeof(void *),
-	    M_TTM_PD, M_WAITOK | M_ZERO);
-	ttm->dma_address = malloc(ttm->ttm.num_pages *
-	    sizeof(*ttm->dma_address), M_TTM_PD, M_WAITOK);
+	ttm->ttm.pages = drm_calloc_large(ttm->ttm.num_pages, sizeof(void*));
+	ttm->dma_address = drm_calloc_large(ttm->ttm.num_pages,
+					    sizeof(*ttm->dma_address));
 }
 
 #if defined(__i386__) || defined(__amd64__)
@@ -206,7 +204,7 @@ EXPORT_SYMBOL(ttm_tt_init);
 
 void ttm_tt_fini(struct ttm_tt *ttm)
 {
-	free(ttm->pages, M_TTM_PD);
+	drm_free_large(ttm->pages);
 	ttm->pages = NULL;
 }
 EXPORT_SYMBOL(ttm_tt_fini);
@@ -241,9 +239,9 @@ void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 
-	free(ttm->pages, M_TTM_PD);
+	drm_free_large(ttm->pages);
 	ttm->pages = NULL;
-	free(ttm_dma->dma_address, M_TTM_PD);
+	drm_free_large(ttm_dma->dma_address);
 	ttm_dma->dma_address = NULL;
 }
 EXPORT_SYMBOL(ttm_dma_tt_fini);
