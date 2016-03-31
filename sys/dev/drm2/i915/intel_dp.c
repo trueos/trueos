@@ -2827,7 +2827,7 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 				drm_mode_connector_update_edid_property(connector, edid);
 				drm_edid_to_eld(connector, edid);
 			} else {
-				free(edid, DRM_MEM_KMS);
+				kfree(edid);
 				edid = NULL;
 				edid_err = -EINVAL;
 			}

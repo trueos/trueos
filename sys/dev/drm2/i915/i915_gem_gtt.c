@@ -149,7 +149,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 	/* ppgtt PDEs reside in the global gtt pagetable, which has 512*1024
 	 * entries. For aliasing ppgtt support we just steal them at the end for
 	 * now. */
-	first_pd_entry_in_global_pt = gtt_total_entries(dev_priv->gtt);
+       first_pd_entry_in_global_pt = gtt_total_entries(dev_priv->gtt);
 
 	ppgtt = malloc(sizeof(*ppgtt), DRM_I915_GEM, M_WAITOK | M_ZERO);
 	if (!ppgtt)
@@ -157,8 +157,8 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 
 	ppgtt->dev = dev;
 	ppgtt->num_pd_entries = I915_PPGTT_PD_ENTRIES;
-	ppgtt->pt_pages = malloc(sizeof(struct page *)*ppgtt->num_pd_entries,
-				  DRM_I915_GEM, M_WAITOK | M_ZERO);
+	ppgtt->pt_pages = kzalloc(sizeof(struct page *)*ppgtt->num_pd_entries,
+				  GFP_KERNEL);
 	if (!ppgtt->pt_pages)
 		goto err_ppgtt;
 
@@ -197,7 +197,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 	ppgtt->scratch_page_dma_addr = dev_priv->gtt.scratch_page_dma;
 
 	i915_ppgtt_clear_range(ppgtt, 0,
-			       ppgtt->num_pd_entries*I915_PPGTT_PT_ENTRIES);
+			   ppgtt->num_pd_entries*I915_PPGTT_PT_ENTRIES);
 
 	ppgtt->pd_offset = (first_pd_entry_in_global_pt)*sizeof(gtt_pte_t);
 
@@ -214,14 +214,14 @@ err_pd_pin:
 	}
 #endif
 err_pt_alloc:
-	free(ppgtt->pt_dma_addr, DRM_I915_GEM);
+	kfree(ppgtt->pt_dma_addr);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		if (ppgtt->pt_pages[i]) {
 			vm_page_unwire(ppgtt->pt_pages[i], PQ_INACTIVE);
 			vm_page_free(ppgtt->pt_pages[i]);
 		}
 	}
-	free(ppgtt->pt_pages, DRM_I915_GEM);
+	kfree(ppgtt->pt_pages);
 err_ppgtt:
 	free(ppgtt, DRM_I915_GEM);
 
@@ -251,7 +251,7 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 		vm_page_free(ppgtt->pt_pages[i]);
 	}
 	free(ppgtt->pt_pages, DRM_I915_GEM);
-	free(ppgtt, DRM_I915_GEM);
+	kfree(ppgtt);
 }
 
 static void i915_ppgtt_insert_pages(struct i915_hw_ppgtt *ppgtt,
@@ -521,7 +521,6 @@ static void i915_ggtt_insert_entries(struct drm_device *dev,
 				     unsigned int pg_start,
 				     enum i915_cache_level cache_level)
 {
-
 #ifdef notyet
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
@@ -671,8 +670,7 @@ intel_enable_ppgtt(struct drm_device *dev)
 
 void i915_gem_init_global_gtt(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long gtt_size, mappable_size;
 
 	gtt_size = dev_priv->gtt.total;
@@ -726,7 +724,7 @@ static int setup_scratch_page(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	vm_page_t page;
 	dma_addr_t dma_addr;
-		
+
 	page = alloc_page(GFP_KERNEL | GFP_DMA32 | __GFP_ZERO);
 	if (page == NULL)
 		return -ENOMEM;
