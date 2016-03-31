@@ -1,0 +1,16 @@
+
+
+Files with no changes against uptstream:
+
+
+Files with very minor changes that could be remedied with further linuxkpi extensions:
+
+
+
+Files that fundamentally differ due to VM/PCI etc
+
+
+
+
+Next file to update:
+intel_dp.c
