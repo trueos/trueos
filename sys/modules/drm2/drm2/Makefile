@@ -42,6 +42,7 @@ SRCS	= \
 	ttm_bo_manager.c \
 	ttm_execbuf_util.c \
 	ttm_memory.c \
+	ttm_module.c \
 	ttm_page_alloc.c \
 	ttm_bo_vm.c \
 	ati_pcigart.c

@@ -48,6 +48,11 @@
 enum irqreturn	{ IRQ_NONE = 0, IRQ_HANDLED, IRQ_WAKE_THREAD, };
 typedef enum irqreturn	irqreturn_t;
 
+//XXXTODO not complete
+struct device_type {
+        const char *name;
+};
+
 struct class {
 	const char	*name;
 	struct module	*owner;
