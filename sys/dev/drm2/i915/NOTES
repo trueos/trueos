@@ -8,6 +8,8 @@ Files with very minor changes that could be remedied with further linuxkpi exten
 
 
 Files that fundamentally differ due to VM/PCI etc
+i915_dma.c - manipulates devices / rman, although there are many gratuitous API differences
+	   with drm_ prefixing many functions that are otherwise shim routines
 
 
 

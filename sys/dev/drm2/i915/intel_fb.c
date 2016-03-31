@@ -69,13 +69,13 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 
-	mode_cmd.pitches[0] = roundup2(mode_cmd.width * ((sizes->surface_bpp + 7) /
+	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * ((sizes->surface_bpp + 7) /
 						      8), 64);
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
-	size = roundup2(size, PAGE_SIZE);
+	size = ALIGN(size, PAGE_SIZE);
 	obj = i915_gem_alloc_object(dev, size);
 	if (!obj) {
 		DRM_ERROR("failed to allocate framebuffer\n");
@@ -100,7 +100,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	info->fb_size = size;
 	info->fb_bpp = sizes->surface_bpp;
-	info->fb_pbase = dev_priv->mm.gtt_base_addr + obj->gtt_offset;
+	info->fb_pbase = dev_priv->gtt.mappable_base + obj->gtt_offset;
 	info->fb_vbase = (vm_offset_t)pmap_mapdev_attr(info->fb_pbase, size,
 	    PAT_WRITE_COMBINING);
 

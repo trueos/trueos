@@ -1689,7 +1689,7 @@ out_gem_unload:
 out_mtrrfree:
 	if (dev_priv->mm.gtt_mtrr >= 0) {
 		drm_mtrr_del(dev_priv->mm.gtt_mtrr,
-			 dev_priv->mm.gtt_base_addr,
+			 dev_priv->gtt.mappable_base,
 			 aperture_size,
 			 DRM_MTRR_WC);
 		dev_priv->mm.gtt_mtrr = -1;

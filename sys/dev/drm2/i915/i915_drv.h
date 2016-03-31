@@ -711,7 +711,6 @@ struct i915_gem_mm {
 	unsigned long stolen_base; /* limited to low memory (32-bit) */
 
 	int needs_dmar;
-	vm_paddr_t gtt_base_addr;
 	int gtt_mtrr;
 
 	/** PPGTT used for aliasing the PPGTT with the GTT */
