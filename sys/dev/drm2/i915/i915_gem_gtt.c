@@ -103,7 +103,7 @@ static inline gtt_pte_t gen6_pte_encode(struct drm_device *dev,
 }
 
 /* PPGTT support for Sandybdrige/Gen6 and later */
-static void i915_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
+static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 				   unsigned first_entry,
 				   unsigned num_entries)
 {
@@ -138,7 +138,71 @@ static void i915_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 	}
 }
 
-int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
+#ifdef __linux__
+static void gen6_ppgtt_insert_entries(struct i915_hw_ppgtt *ppgtt,
+				      struct sg_table *pages,
+				      unsigned first_entry,
+				      enum i915_cache_level cache_level)
+{
+	gtt_pte_t *pt_vaddr;
+	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
+	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
+	unsigned i, j, m, segment_len;
+	dma_addr_t page_addr;
+	struct scatterlist *sg;
+
+	/* init sg walking */
+	sg = pages->sgl;
+	i = 0;
+	segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
+	m = 0;
+
+	while (i < pages->nents) {
+		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
+
+		for (j = first_pte; j < I915_PPGTT_PT_ENTRIES; j++) {
+			page_addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
+			pt_vaddr[j] = gen6_pte_encode(ppgtt->dev, page_addr,
+						      cache_level);
+
+			/* grab the next page */
+			if (++m == segment_len) {
+				if (++i == pages->nents)
+					break;
+
+				sg = sg_next(sg);
+				segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
+				m = 0;
+			}
+		}
+
+		kunmap_atomic(pt_vaddr);
+
+		first_pte = 0;
+		act_pd++;
+	}
+}
+
+static void gen6_ppgtt_cleanup(struct i915_hw_ppgtt *ppgtt)
+{
+	int i;
+
+	if (ppgtt->pt_dma_addr) {
+		for (i = 0; i < ppgtt->num_pd_entries; i++)
+			pci_unmap_page(ppgtt->dev->pdev,
+				       ppgtt->pt_dma_addr[i],
+				       4096, PCI_DMA_BIDIRECTIONAL);
+	}
+
+	kfree(ppgtt->pt_dma_addr);
+	for (i = 0; i < ppgtt->num_pd_entries; i++)
+		__free_page(ppgtt->pt_pages[i]);
+	kfree(ppgtt->pt_pages);
+	kfree(ppgtt);
+}
+#endif
+
+static int gen6_ppgtt_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_hw_ppgtt *ppgtt;
@@ -196,7 +260,7 @@ int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
 
 	ppgtt->scratch_page_dma_addr = dev_priv->gtt.scratch_page_dma;
 
-	i915_ppgtt_clear_range(ppgtt, 0,
+	gen6_ppgtt_clear_range(ppgtt, 0,
 			   ppgtt->num_pd_entries*I915_PPGTT_PT_ENTRIES);
 
 	ppgtt->pd_offset = (first_pd_entry_in_global_pt)*sizeof(gtt_pte_t);
@@ -307,7 +371,7 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
 			      struct drm_i915_gem_object *obj)
 {
-	i915_ppgtt_clear_range(ppgtt,
+	gen6_ppgtt_clear_range(ppgtt,
 			   obj->gtt_space->start >> PAGE_SHIFT,
 			   obj->base.size >> PAGE_SHIFT);
 }

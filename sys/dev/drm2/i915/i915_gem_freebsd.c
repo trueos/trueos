@@ -124,8 +124,10 @@ i915_gem_object_get_pages_range(struct drm_i915_gem_object *obj,
 		page = i915_gem_wire_page(vm_obj, i, &fresh);
 		if (page == NULL)
 			goto failed;
+#ifdef notyet
 		if (need_swizzle && fresh)
 			i915_gem_object_do_bit_17_swizzle_page(obj, page);
+#endif		
 	}
 	VM_OBJECT_WUNLOCK(vm_obj);
 	return (0);

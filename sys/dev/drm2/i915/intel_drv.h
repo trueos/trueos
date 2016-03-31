@@ -218,7 +218,6 @@ struct intel_connector {
 
 	/* Cached EDID for eDP and LVDS. May hold ERR_PTR for invalid EDID. */
 	struct edid *edid;
-	int edid_err;
 };
 
 struct intel_crtc {
@@ -398,8 +397,8 @@ struct intel_dp {
 	uint8_t lane_count;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
-	struct i2c_adapter dp_iic_bus;
 	struct i2c_adapter adapter;
+	struct i2c_algo_dp_aux_data algo;
 	bool is_pch_edp;
 	uint8_t train_set[4];
 	int panel_power_up_delay;
@@ -544,9 +543,9 @@ struct intel_set_config {
 extern int intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			   int x, int y, struct drm_framebuffer *old_fb);
 extern void intel_modeset_disable(struct drm_device *dev);
+extern void intel_crtc_restore_mode(struct drm_crtc *crtc);
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
 extern void intel_crtc_update_dpms(struct drm_crtc *crtc);
-extern void intel_encoder_noop(struct drm_encoder *encoder);
 extern void intel_encoder_destroy(struct drm_encoder *encoder);
 extern void intel_encoder_dpms(struct intel_encoder *encoder, int mode);
 extern bool intel_encoder_check_is_cloned(struct intel_encoder *encoder);

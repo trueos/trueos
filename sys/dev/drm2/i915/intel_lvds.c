@@ -603,7 +603,6 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 static const struct drm_encoder_helper_funcs intel_lvds_helper_funcs = {
 	.mode_fixup = intel_lvds_mode_fixup,
 	.mode_set = intel_lvds_mode_set,
-	.disable = intel_encoder_noop,
 };
 
 static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs = {
@@ -1046,7 +1045,6 @@ bool intel_lvds_init(struct drm_device *dev)
 		edid_err = -ENOENT;
 	}
 	lvds_connector->base.edid = edid;
-	lvds_connector->base.edid_err = edid_err;
 
 	if (edid_err) {
 		/* Didn't get an EDID, so

@@ -150,15 +150,6 @@ intel_dp_max_link_bw(struct intel_dp *intel_dp)
 	return max_link_bw;
 }
 
-static int
-intel_dp_link_clock(uint8_t link_bw)
-{
-	if (link_bw == DP_LINK_BW_2_7)
-		return 270000;
-	else
-		return 162000;
-}
-
 /*
  * The units on the numbers in the next two are... bizarre.  Examples will
  * make it clearer; this one parallels an example in the eDP spec.
@@ -193,7 +184,8 @@ intel_dp_adjust_dithering(struct intel_dp *intel_dp,
 			  struct drm_display_mode *mode,
 			  bool adjust_mode)
 {
-	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_dp));
+	int max_link_clock =
+		drm_dp_bw_code_to_link_rate(intel_dp_max_link_bw(intel_dp));
 	int max_lanes = drm_dp_max_lane_count(intel_dp->dpcd);
 	int max_rate, mode_rate;
 
@@ -669,9 +661,7 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 	DRM_DEBUG_KMS("i2c_init %s\n", name);
 
 	ironlake_edp_panel_vdd_on(intel_dp);
-	ret = iic_dp_aux_add_bus(intel_connector->base.dev->pdev, name,
-	    intel_dp_i2c_aux_ch, intel_dp, (device_t*)&intel_dp->dp_iic_bus,
-	    (device_t*)&intel_dp->adapter);
+	ret = i2c_dp_aux_add_bus(&intel_dp->adapter);
 	ironlake_edp_panel_vdd_off(intel_dp, false);
 	return ret;
 }
@@ -713,12 +703,15 @@ intel_dp_mode_fixup(struct drm_encoder *encoder,
 
 	for (clock = 0; clock <= max_clock; clock++) {
 		for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
-			int link_avail = intel_dp_max_data_rate(intel_dp_link_clock(bws[clock]), lane_count);
+			int link_bw_clock =
+				drm_dp_bw_code_to_link_rate(bws[clock]);
+			int link_avail = intel_dp_max_data_rate(link_bw_clock,
+								lane_count);
 
 			if (mode_rate <= link_avail) {
 				intel_dp->link_bw = bws[clock];
 				intel_dp->lane_count = lane_count;
-				adjusted_mode->clock = intel_dp_link_clock(intel_dp->link_bw);
+				adjusted_mode->clock = link_bw_clock;
 				DRM_DEBUG_KMS("DP link bw %02x lane "
 						"count %d clock %d bpp %d\n",
 				       intel_dp->link_bw, intel_dp->lane_count,
@@ -2231,17 +2224,18 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	uint32_t bit;
 
-	switch (intel_dp->output_reg) {
-	case DP_B:
-		bit = DPB_HOTPLUG_LIVE_STATUS;
+	switch (intel_dig_port->port) {
+	case PORT_B:
+		bit = PORTB_HOTPLUG_LIVE_STATUS;
 		break;
-	case DP_C:
-		bit = DPC_HOTPLUG_LIVE_STATUS;
+	case PORT_C:
+		bit = PORTC_HOTPLUG_LIVE_STATUS;
 		break;
-	case DP_D:
-		bit = DPD_HOTPLUG_LIVE_STATUS;
+	case PORT_D:
+		bit = PORTD_HOTPLUG_LIVE_STATUS;
 		break;
 	default:
 		return connector_status_unknown;
@@ -2286,9 +2280,6 @@ intel_dp_get_edid_modes(struct drm_connector *connector, struct i2c_adapter adap
 
 	/* use cached edid if we have one */
 	if (intel_connector->edid) {
-		/* invalid edid */
-		if (intel_connector->edid_err)
-			return 0;
 
 		return intel_connector_update_modes(connector,
 						    intel_connector->edid);
@@ -2496,7 +2487,6 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
 	.mode_fixup = intel_dp_mode_fixup,
 	.mode_set = intel_dp_mode_set,
-	.disable = intel_encoder_noop,
 };
 
 static const struct drm_connector_funcs intel_dp_connector_funcs = {
@@ -2771,15 +2761,15 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		name = "DPDDC-A";
 		break;
 	case PORT_B:
-		dev_priv->hotplug_supported_mask |= DPB_HOTPLUG_INT_STATUS;
+		dev_priv->hotplug_supported_mask |= PORTB_HOTPLUG_INT_STATUS;
 		name = "DPDDC-B";
 		break;
 	case PORT_C:
-		dev_priv->hotplug_supported_mask |= DPC_HOTPLUG_INT_STATUS;
+		dev_priv->hotplug_supported_mask |= PORTC_HOTPLUG_INT_STATUS;
 		name = "DPDDC-C";
 		break;
 	case PORT_D:
-		dev_priv->hotplug_supported_mask |= DPD_HOTPLUG_INT_STATUS;
+		dev_priv->hotplug_supported_mask |= PORTD_HOTPLUG_INT_STATUS;
 		name = "DPDDC-D";
 		break;
 	default:
@@ -2836,7 +2826,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			edid_err = -ENOENT;
 		}
 		intel_connector->edid = edid;
-		intel_connector->edid_err = edid_err;
 
 		/* prefer fixed mode from EDID if available */
 		list_for_each_entry(scan, &connector->probed_modes, head) {
