@@ -3315,22 +3315,6 @@ unlock:
 	return ret;
 }
 
-static bool is_pin_display(struct drm_i915_gem_object *obj)
-{
-	/* There are 3 sources that pin objects:
-	 *   1. The display engine (scanouts, sprites, cursors);
-	 *   2. Reservations for execbuffer;
-	 *   3. The user.
-	 *
-	 * We can ignore reservations as we hold the struct_mutex and
-	 * are only called outside of the reservation path.  The user
-	 * can only increment pin_count once, and so if after
-	 * subtracting the potential reference by the user, any pin_count
-	 * remains, it must be due to another use by the display engine.
-	 */
-	return obj->pin_count - !!obj->user_pin_count;
-}
-
 /*
  * Prepare buffer for display plane (scanout, cursors, etc).
  * Can be called from an uninterruptible phase (modesetting) and allows
