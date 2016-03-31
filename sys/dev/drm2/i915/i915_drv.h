@@ -38,6 +38,10 @@ __FBSDID("$FreeBSD$");
 #include <linux/io.h>
 #include <linux/io-mapping.h>
 
+#include <asm/types.h>
+#include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
+
 #include <dev/agp/agp_i810.h>
 #include <dev/drm2/drm_mm.h>
 #include <dev/drm2/i915/i915_reg.h>

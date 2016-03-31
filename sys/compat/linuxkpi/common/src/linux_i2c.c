@@ -73,8 +73,14 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
+#include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
 
-#include <dev/drm2/i2c_compat.h>
+
+const struct i2c_algorithm i2c_bit_algo = {
+	.master_xfer	= bit_xfer,
+	.functionality	= bit_func,
+};
 
 int
 i2c_add_adapter(struct i2c_adapter *adapter)

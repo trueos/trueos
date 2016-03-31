@@ -16,3 +16,6 @@ i915_dma.c - manipulates devices / rman, although there are many gratuitous API 
 
 Next file to update:
 intel_dp.c
+
+
+FreeBSD needs to destroy it's locks to make WITNESS unhappy - (either that or not register them with WITNESS) 
