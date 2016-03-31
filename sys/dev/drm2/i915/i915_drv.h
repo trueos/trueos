@@ -111,6 +111,19 @@ struct intel_pch_pll {
 };
 #define I915_NUM_PLLS 2
 
+/* Used by dp and fdi links */
+struct intel_link_m_n {
+	uint32_t	tu;
+	uint32_t	gmch_m;
+	uint32_t	gmch_n;
+	uint32_t	link_m;
+	uint32_t	link_n;
+};
+
+void intel_link_compute_m_n(int bpp, int nlanes,
+			    int pixel_clock, int link_clock,
+			    struct intel_link_m_n *m_n);
+
 struct intel_ddi_plls {
 	int spll_refcount;
 	int wrpll1_refcount;
@@ -1334,6 +1347,8 @@ struct drm_i915_file_private {
 
 #define HAS_PIPE_CONTROL(dev) (INTEL_INFO(dev)->gen >= 5)
 
+#define HAS_DDI(dev)		(IS_HASWELL(dev))
+
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
 #define INTEL_PCH_CPT_DEVICE_ID_TYPE		0x1c00
@@ -1389,6 +1404,8 @@ extern int i915_enable_fbc __read_mostly;
 extern int i915_enable_hangcheck __read_mostly;
 extern int i915_enable_ppgtt __read_mostly;
 extern unsigned int i915_preliminary_hw_support __read_mostly;
+extern int i915_disable_power_well __read_mostly;
+
 
 extern struct drm_driver i915_driver_info;
 extern struct cdev_pager_ops i915_gem_pager_ops;

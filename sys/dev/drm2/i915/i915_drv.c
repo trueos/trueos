@@ -146,6 +146,12 @@ MODULE_PARM_DESC(preliminary_hw_support,
 		"Enable Haswell and ValleyView Support. "
 		"(default: false)");
 
+int i915_disable_power_well __read_mostly = 0;
+TUNABLE_INT("drm.i915.disable_power_well", &i915_disable_power_well);
+module_param_named(disable_power_well, i915_disable_power_well, int, 0600);
+MODULE_PARM_DESC(disable_power_well,
+		 "Disable the power well when possible (default: false)");
+
 int intel_iommu_gfx_mapped = 0;
 TUNABLE_INT("drm.i915.intel_iommu_gfx_mapped", &intel_iommu_gfx_mapped);
 

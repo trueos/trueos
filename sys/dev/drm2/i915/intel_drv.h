@@ -179,6 +179,7 @@ struct intel_encoder {
 	bool cloneable;
 	bool connectors_active;
 	void (*hot_plug)(struct intel_encoder *);
+	void (*pre_pll_enable)(struct intel_encoder *);
 	void (*pre_enable)(struct intel_encoder *);
 	void (*enable)(struct intel_encoder *);
 	void (*disable)(struct intel_encoder *);
@@ -480,6 +481,7 @@ extern void intel_mark_busy(struct drm_device *dev);
 extern void intel_mark_fb_busy(struct drm_i915_gem_object *obj);
 extern void intel_mark_idle(struct drm_device *dev);
 extern bool intel_lvds_init(struct drm_device *dev);
+extern bool intel_is_dual_link_lvds(struct drm_device *dev);
 extern void intel_dp_init(struct drm_device *dev, int output_reg,
 			  enum port port);
 extern void intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
@@ -539,7 +541,7 @@ struct intel_set_config {
 	bool mode_changed;
 };
 
-extern bool intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
+extern int intel_set_mode(struct drm_crtc *crtc, struct drm_display_mode *mode,
 			   int x, int y, struct drm_framebuffer *old_fb);
 extern void intel_modeset_disable(struct drm_device *dev);
 extern void intel_crtc_load_lut(struct drm_crtc *crtc);
@@ -582,6 +584,9 @@ hdmi_to_dig_port(struct intel_hdmi *intel_hdmi)
 {
 	return container_of(intel_hdmi, struct intel_digital_port, hdmi);
 }
+
+bool ibx_digital_port_connected(struct drm_i915_private *dev_priv,
+				struct intel_digital_port *port);
 
 extern void intel_connector_attach_encoder(struct intel_connector *connector,
 					   struct intel_encoder *encoder);
@@ -687,7 +692,7 @@ extern void intel_update_fbc(struct drm_device *dev);
 extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 extern void intel_gpu_ips_teardown(void);
 
-extern void intel_init_power_wells(struct drm_device *dev);
+extern void intel_init_power_well(struct drm_device *dev);
 extern void intel_set_power_well(struct drm_device *dev, bool enable);
 extern void intel_enable_gt_powersave(struct drm_device *dev);
 extern void intel_disable_gt_powersave(struct drm_device *dev);
