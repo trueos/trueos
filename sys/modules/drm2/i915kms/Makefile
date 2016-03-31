@@ -67,6 +67,7 @@ SRCS	+=								\
 	vnode_if.h
 
 .include <bsd.kmod.mk>
+CWARNFLAGS += -Wno-pointer-arith
 
 CWARNFLAGS.i915_debugfs.c=	-Wno-unused-function
 CWARNFLAGS.intel_lvds.c=	-Wno-unused
