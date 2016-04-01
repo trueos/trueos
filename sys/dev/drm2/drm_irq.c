@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
 
+#include <linux/bug.h>
 #include <linux/math64.h>
 
 /* Access macro for slots in vblank timestamp ringbuffer. */
