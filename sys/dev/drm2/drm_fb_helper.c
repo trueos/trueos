@@ -83,7 +83,7 @@ vt_kms_postswitch(void *arg)
 }
 
 struct fb_info *
-framebuffer_alloc()
+framebuffer_alloc(size_t size, struct device *dev)
 {
 	struct fb_info *info;
 	struct vt_kms_softc *sc;
