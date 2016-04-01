@@ -93,7 +93,6 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 	return true;
 }
 
-
 /* The LVDS pin pair needs to be on before the DPLLs are enabled.
  * This is an exception to the general rule that mode_set doesn't turn
  * things on.
@@ -969,7 +968,6 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 
 	return false;
 }
-
 
 static int intel_dual_link_lvds_callback(const struct dmi_system_id *id)
 {
