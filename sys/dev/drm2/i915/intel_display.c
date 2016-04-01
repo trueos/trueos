@@ -7890,6 +7890,11 @@ int intel_set_mode(struct drm_crtc *crtc,
 	return ret;
 }
 
+void intel_crtc_restore_mode(struct drm_crtc *crtc)
+{
+	intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y, crtc->fb);
+}
+
 #undef for_each_intel_crtc_masked
 
 static void intel_set_config_free(struct intel_set_config *config)
@@ -8839,15 +8844,11 @@ static void i915_disable_vga(struct drm_device *dev)
 	u8 sr1;
 	u32 vga_reg = i915_vgacntrl_reg(dev);
 
-#ifdef FREEBSD_WIP
 	vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
-#endif /* FREEBSD_WIP */
 	outb(VGA_SR_INDEX, SR01);
 	sr1 = inb(VGA_SR_DATA);
 	outb(VGA_SR_DATA, sr1 | 1<<5);
-#ifdef FREEBSD_WIP
 	vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
-#endif /* FREEBSD_WIP */
 	udelay(300);
 
 	I915_WRITE(vga_reg, VGA_DISP_DISABLE);
@@ -9219,11 +9220,12 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 		 * checking (bogus) intermediate states.
 		 */
 		for_each_pipe(pipe) {
-			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
-			intel_set_mode(&crtc->base, &crtc->base.mode,
-				       crtc->base.x, crtc->base.y, crtc->base.fb);
-		}
+ 			struct drm_crtc *crtc =
+ 				dev_priv->pipe_to_crtc_mapping[pipe];
 
+			__intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y,
+					 crtc->fb);
+		}
 		i915_redisable_vga(dev);
 	} else {
 		intel_modeset_update_staged_output_state(dev);

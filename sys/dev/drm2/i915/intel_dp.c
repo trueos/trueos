@@ -388,9 +388,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	 * lowest possible wakeup latency and so prevent the cpu from going into
 	 * deep sleep states.
 	 */
-#ifdef __linux__
 	pm_qos_update_request(&dev_priv->pm_qos, 0);
-#endif
 
 	if (IS_HASWELL(dev)) {
 		switch (intel_dig_port->port) {
@@ -525,9 +523,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 			   recv + i, recv_bytes - i);
 	ret = recv_bytes;
 out:
-#ifdef __linux__
 	pm_qos_update_request(&dev_priv->pm_qos, PM_QOS_DEFAULT_VALUE);
-#endif
 	return ret;
 }
 
@@ -1047,7 +1043,7 @@ static void ironlake_wait_panel_status(struct intel_dp *intel_dp,
 		      I915_READ(PCH_PP_STATUS),
 		      I915_READ(PCH_PP_CONTROL));
 
-	if (_intel_wait_for(dev, (I915_READ(PCH_PP_STATUS) & mask) == value, 5000, 10, "915iwp")) {
+	if (_wait_for((I915_READ(PCH_PP_STATUS) & mask) == value, 5000, 10)) {
 		DRM_ERROR("Panel status timeout: status %08x control %08x\n",
 			  I915_READ(PCH_PP_STATUS),
 			  I915_READ(PCH_PP_CONTROL));
@@ -2555,6 +2551,7 @@ intel_dp_destroy(struct drm_connector *connector)
 	if (is_edp(intel_dp))
 		intel_panel_fini(&intel_connector->panel);
 
+	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -2841,9 +2838,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 			  ironlake_panel_vdd_work);
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
-#ifdef __linux__
 	drm_sysfs_connector_add(connector);
-#endif
+
 	if (HAS_DDI(dev))
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
 	else

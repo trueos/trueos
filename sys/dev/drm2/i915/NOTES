@@ -14,7 +14,8 @@ Files with minor unavoidable differences:
 intel_display.c - outb/inb on linux order the arguments in reverse, pci accessor differences, seq_file vs sbuf
 intel_dp.c - msleep() differs on linux so DRM_MSLEEP, slightly different args to DRM_KMS_DEBUG
 intel_i2c.c - need to destroy mutexes
-intel_fb.c - differences in framebuffer interface 
+intel_fb.c - differences in framebuffer interface / a MUCH better job needs to be done in reconciling XXX
+intel_lvds.c - linuxkpi needs a notifier block interface that maps to EVENTHANDLER - FREEBSD_WIP for now
 
 
 Files that fundamentally differ due to VM/PCI etc
@@ -32,3 +33,4 @@ FreeBSD needs to destroy it's locks to make WITNESS unhappy - (either that or no
 
 
 NOTE that MODULE_PARM_DESC should itself define sysctl/TUNABLE_INT
+All throughout need to s/CTR/trace/
