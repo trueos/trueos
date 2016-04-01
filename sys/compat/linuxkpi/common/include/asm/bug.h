@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015 Michael Neumann
+ * Copyright (c) 2016 François Tigeot
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,19 +24,24 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _LINUX_SEQ_FILE_H_
-#define _LINUX_SEQ_FILE_H_
+#ifndef _ASM_BUG_H_
+#define _ASM_BUG_H_
 
-#include <linux/types.h>
-#include <linux/bug.h>
+#define _WARN_STR(x)	#x
 
-struct seq_file {
-	struct sbuf	*buf;
-};
+#define        WARN_ON(cond)           WARN(cond, "WARN ON: " #cond)
 
-//seq_printf(m, fmt, ...) sbuf_printf((m)->buf, (fmt), ##__VA_ARGS__)
-#define seq_printf(m, args...) sbuf_printf((m)->buf, args)
+#define WARN_ON_ONCE(condition) ({					\
+	static int __warned;						\
+	int __ret = !!(condition);					\
+	if (__ret && !__warned) {					\
+		kprintf("WARNING %s failed at %s:%d\n",			\
+		    _WARN_STR(condition), __FILE__, __LINE__);		\
+		__warned = 1;						\
+	}								\
+	unlikely(__ret);						\
+})
 
-#define seq_puts(m, str)	sbuf_printf(m)->buf, str)
+#define WARN_ON_SMP(cond)	WARN_ON(cond)
 
-#endif	/* _LINUX_SEQ_FILE_H_ */
+#endif /* _ASM_BUG_H_ */

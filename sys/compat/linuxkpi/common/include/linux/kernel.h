@@ -62,12 +62,8 @@
 #define	KERN_INFO	"<6>"
 #define	KERN_DEBUG	"<7>"
 
-#define	BUILD_BUG_ON(x)		CTASSERT(!(x))
-
 #define BUG()			panic("BUG")
 #define	BUG_ON(cond)		KASSERT(!(cond), ("BUG ON: " #cond " -> 0x%jx", (uintmax_t)(cond)))
-#define	WARN_ON(cond)		WARN(cond, "WARN ON: " #cond)
-#define	WARN_ON_SMP(cond)	WARN_ON(cond)
 
 #undef	ALIGN
 #define	ALIGN(x, y)		roundup2((x), (y))

@@ -1340,7 +1340,6 @@ void intel_setup_overlay(struct drm_device *dev)
 
 	overlay->dev = dev;
 
-	
 	reg_bo = i915_gem_object_create_stolen(dev, PAGE_SIZE);
 	if (reg_bo == NULL)
 		reg_bo = i915_gem_alloc_object(dev, PAGE_SIZE);
@@ -1421,7 +1420,6 @@ void intel_cleanup_overlay(struct drm_device *dev)
 }
 
 //#ifdef CONFIG_DEBUG_FS
-#define	seq_printf(m, fmt, ...)	sbuf_printf((m), (fmt), ##__VA_ARGS__)
 
 struct intel_overlay_error_state {
 	struct overlay_registers regs;
@@ -1429,7 +1427,6 @@ struct intel_overlay_error_state {
 	u32 dovsta;
 	u32 isr;
 };
-
 
 static struct overlay_registers __iomem *
 intel_overlay_map_regs_atomic(struct intel_overlay *overlay)
@@ -1455,6 +1452,7 @@ static void intel_overlay_unmap_regs_atomic(struct intel_overlay *overlay,
 	if (!OVERLAY_NEEDS_PHYSICAL(overlay->dev))
 		io_mapping_unmap_atomic(regs);
 }
+
 
 struct intel_overlay_error_state *
 intel_overlay_capture_error_state(struct drm_device *dev)
@@ -1493,7 +1491,7 @@ err:
 }
 
 void
-intel_overlay_print_error_state(struct sbuf *m, struct intel_overlay_error_state *error)
+intel_overlay_print_error_state(struct seq_file *m, struct intel_overlay_error_state *error)
 {
 	seq_printf(m, "Overlay, status: 0x%08x, interrupt: 0x%08x\n",
 		   error->dovsta, error->isr);

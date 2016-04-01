@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #define	DRM_IRQ_ARGS		void *arg
 
-#define	BUILD_BUG_ON_NOT_POWER_OF_2(x)
-
 #define	KHZ2PICOS(a)	(1000000000UL/(a))
 
 #define	DRM_HZ			hz

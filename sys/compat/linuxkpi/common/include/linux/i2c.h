@@ -1,6 +1,9 @@
 #ifndef _LINUX_I2C_H_
 #define _LINUX_I2C_H_
 
+#include <linux/device.h>
+#include <linux/mutex.h>
+
 struct i2c_adapter;
 struct i2c_msg;
 
