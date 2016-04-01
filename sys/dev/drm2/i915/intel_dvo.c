@@ -339,6 +339,7 @@ static int intel_dvo_get_modes(struct drm_connector *connector)
 
 static void intel_dvo_destroy(struct drm_connector *connector)
 {
+	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -524,6 +525,7 @@ void intel_dvo_init(struct drm_device *dev)
 			intel_dvo->panel_wants_dither = true;
 		}
 
+		drm_sysfs_connector_add(connector);
 		return;
 	}
 

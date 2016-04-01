@@ -1224,7 +1224,6 @@ intel_teardown_mchbar(struct drm_device *dev)
 	}
 }
 
-#ifdef __linux__
 /* true = enable decode, false = disable decoder */
 static unsigned int i915_vga_set_decode(void *cookie, bool state)
 {
@@ -1238,9 +1237,9 @@ static unsigned int i915_vga_set_decode(void *cookie, bool state)
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
 
-static void i915_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
+static void i915_switcheroo_set_state(device_t pdev, enum vga_switcheroo_state state)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_device *dev = device_get_softc(pdev);
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 	if (state == VGA_SWITCHEROO_ON) {
 		pr_info("switched on\n");
@@ -1257,9 +1256,9 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_
 	}
 }
 
-static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
+static bool i915_switcheroo_can_switch(device_t pdev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct drm_device *dev = device_get_softc(pdev);
 	bool can_switch;
 
 	spin_lock(&dev->count_lock);
@@ -1273,7 +1272,6 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 	.reprobe = NULL,
 	.can_switch = i915_switcheroo_can_switch,
 };
-#endif
 
 static int i915_load_modeset_init(struct drm_device *dev)
 {
@@ -1284,7 +1282,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		DRM_INFO("failed to find VBIOS tables\n");
 
-#ifdef __linux__
 	/* If we have > 1 VGA cards, then we need to arbitrate access
 	 * to the common VGA resources.
 	 *
@@ -1301,7 +1298,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	ret = vga_switcheroo_register_client(dev->pdev, &i915_switcheroo_ops);
 	if (ret)
 		goto cleanup_vga_client;
-#endif
 
 	/* Initialise stolen first so that we may reserve preallocated
 	 * objects for the BIOS to KMS transition.
@@ -1369,12 +1365,10 @@ cleanup_irq:
 cleanup_gem_stolen:
 	i915_gem_cleanup_stolen(dev);
 cleanup_vga_switcheroo:
-#ifdef __linux__
 	vga_switcheroo_unregister_client(dev->pdev);
 cleanup_vga_client:
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 out:
-#endif
 	return ret;
 }
 
@@ -1764,10 +1758,8 @@ int i915_driver_unload(struct drm_device *dev)
 			dev_priv->child_dev_num = 0;
 		}
 
-#ifdef __linux__
 		vga_switcheroo_unregister_client(dev->pdev);
 		vga_client_register(dev->pdev, NULL, NULL, NULL);
-#endif
 	}
 
 	/* Free error state after interrupts are fully disabled. */
@@ -1878,9 +1870,7 @@ void i915_driver_lastclose(struct drm_device * dev)
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_fb_restore_mode(dev);
-#ifdef __linux__
 		vga_switcheroo_process_delayed_switch();
-#endif
 		return;
 	}
 

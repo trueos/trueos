@@ -35,10 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/intel_sdvo_regs.h>
-#include <dev/iicbus/iic.h>
-#include <dev/iicbus/iiconf.h>
 #include <linux/i2c.h>
-#include "iicbus_if.h"
+#include <asm-generic/bitops/const_hweight.h>
+
 
 #define SDVO_TMDS_MASK (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_TMDS1)
 #define SDVO_RGB_MASK  (SDVO_OUTPUT_RGB0 | SDVO_OUTPUT_RGB1)
@@ -106,6 +105,7 @@ struct intel_sdvo {
 	 * It is only valid when using TMDS encoding and 8 bit per color mode.
 	 */
 	uint32_t color_range;
+	bool color_range_auto;
 
 	/**
 	 * This is set if we're going to treat the device as TV-out.
@@ -128,6 +128,7 @@ struct intel_sdvo {
 	bool is_hdmi;
 	bool has_hdmi_monitor;
 	bool has_hdmi_audio;
+	bool rgb_quant_range_selectable;
 
 	/**
 	 * This is set if we detect output of sdvo device as LVDS and
@@ -271,14 +272,12 @@ static bool intel_sdvo_read_byte(struct intel_sdvo *intel_sdvo, u8 addr, u8 *ch)
 	struct i2c_msg msgs[] = {
 		{
 			.addr = intel_sdvo->slave_addr,
-			//.slave = intel_sdvo->slave_addr << 1,
 			.flags = 0,
 			.len = 1,
 			.buf = &addr,
 		},
 		{
 			.addr = intel_sdvo->slave_addr,
-			//.slave = intel_sdvo->slave_addr << 1,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = ch,
@@ -287,7 +286,6 @@ static bool intel_sdvo_read_byte(struct intel_sdvo *intel_sdvo, u8 addr, u8 *ch)
 	int ret;
 
 	if ((ret = i2c_transfer(intel_sdvo->i2c, msgs, 2)) == 2)
-	//if ((ret = -iicbus_transfer(intel_sdvo->i2c, msgs, 2)) == 0)
 		return true;
 
 	DRM_DEBUG_KMS("i2c transfer returned %d\n", ret);
@@ -468,7 +466,6 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 	intel_sdvo_debug_write(intel_sdvo, cmd, args, args_len);
 
 	for (i = 0; i < args_len; i++) {
-		//msgs[i].slave = intel_sdvo->slave_addr << 1;
 		msgs[i].addr = intel_sdvo->slave_addr;
 		msgs[i].flags = 0;
 		msgs[i].len = 2;
@@ -477,7 +474,6 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 		buf[2*i + 1] = ((const u8*)args)[i];
 	}
 	msgs[i].addr = intel_sdvo->slave_addr;
-	//msgs[i].slave = intel_sdvo->slave_addr << 1;
 	msgs[i].flags = 0;
 	msgs[i].len = 2;
 	msgs[i].buf = buf + 2*i;
@@ -487,19 +483,16 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 	/* the following two are to read the response */
 	status = SDVO_I2C_CMD_STATUS;
 	msgs[i+1].addr = intel_sdvo->slave_addr;
-	//msgs[i+1].slave = intel_sdvo->slave_addr << 1;
 	msgs[i+1].flags = 0;
 	msgs[i+1].len = 1;
 	msgs[i+1].buf = &status;
 
 	msgs[i+2].addr = intel_sdvo->slave_addr;
-	//msgs[i+2].slave = intel_sdvo->slave_addr << 1;
 	msgs[i+2].flags = I2C_M_RD;
 	msgs[i+2].len = 1;
 	msgs[i+2].buf = &status;
 
 	ret = i2c_transfer(intel_sdvo->i2c, msgs, i+3);
-	//ret = -iicbus_transfer(intel_sdvo->i2c, msgs, i+3);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("I2c transfer returned %d\n", ret);
 		ret = false;
@@ -957,7 +950,8 @@ static bool intel_sdvo_write_infoframe(struct intel_sdvo *intel_sdvo,
 				    &tx_rate, 1);
 }
 
-static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo)
+static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo,
+		      const struct drm_display_mode *adjusted_mode)
 {
 	struct dip_infoframe avi_if = {
 		.type = DIP_TYPE_AVI,
@@ -965,6 +959,13 @@ static bool intel_sdvo_set_avi_infoframe(struct intel_sdvo *intel_sdvo)
 		.len = DIP_LEN_AVI,
 	};
 	uint8_t sdvo_data[4 + sizeof(avi_if.body.avi)];
+
+	if (intel_sdvo->rgb_quant_range_selectable) {
+		if (adjusted_mode->private_flags & INTEL_MODE_LIMITED_COLOR_RANGE)
+			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_LIMITED;
+		else
+			avi_if.body.avi.ITC_EC_Q_SC |= DIP_AVI_RGB_QUANT_RANGE_FULL;
+	}
 
 	intel_dip_infoframe_csum(&avi_if);
 
@@ -1075,6 +1076,18 @@ static bool intel_sdvo_mode_fixup(struct drm_encoder *encoder,
 	multiplier = intel_sdvo_get_pixel_multiplier(adjusted_mode);
 	intel_mode_set_pixel_multiplier(adjusted_mode, multiplier);
 
+	if (intel_sdvo->color_range_auto) {
+		/* See CEA-861-E - 5.1 Default Encoding Parameters */
+		if (intel_sdvo->has_hdmi_monitor &&
+		    drm_match_cea_mode(adjusted_mode) > 1)
+			intel_sdvo->color_range = SDVO_COLOR_RANGE_16_235;
+		else
+			intel_sdvo->color_range = 0;
+	}
+
+	if (intel_sdvo->color_range)
+		adjusted_mode->private_flags |= INTEL_MODE_LIMITED_COLOR_RANGE;
+	
 	return true;
 }
 
@@ -1132,7 +1145,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_HDMI);
 		intel_sdvo_set_colorimetry(intel_sdvo,
 					   SDVO_COLORIMETRY_RGB256);
-		intel_sdvo_set_avi_infoframe(intel_sdvo);
+		intel_sdvo_set_avi_infoframe(intel_sdvo, adjusted_mode);
 	} else
 		intel_sdvo_set_encode(intel_sdvo, SDVO_ENCODE_DVI);
 
@@ -1164,7 +1177,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		/* The real mode polarity is set by the SDVO commands, using
 		 * struct intel_sdvo_dtd. */
 		sdvox = SDVO_VSYNC_ACTIVE_HIGH | SDVO_HSYNC_ACTIVE_HIGH;
-		if (intel_sdvo->is_hdmi)
+		if (!HAS_PCH_SPLIT(dev) && intel_sdvo->is_hdmi)
 			sdvox |= intel_sdvo->color_range;
 		if (INTEL_INFO(dev)->gen < 5)
 			sdvox |= SDVO_BORDER_ENABLE;
@@ -1460,7 +1473,7 @@ static bool
 intel_sdvo_multifunc_encoder(struct intel_sdvo *intel_sdvo)
 {
 	/* Is there more than one type of output? */
-	return bitcount16(intel_sdvo->caps.output_flags) > 1;
+	return hweight16(intel_sdvo->caps.output_flags) > 1;
 }
 
 static struct edid *
@@ -1526,6 +1539,8 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 			if (intel_sdvo->is_hdmi) {
 				intel_sdvo->has_hdmi_monitor = drm_detect_hdmi_monitor(edid);
 				intel_sdvo->has_hdmi_audio = drm_detect_monitor_audio(edid);
+				intel_sdvo->rgb_quant_range_selectable =
+					drm_rgb_quant_range_selectable(edid);
 			}
 		} else
 			status = connector_status_disconnected;
@@ -1577,7 +1592,8 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 
 	intel_sdvo->has_hdmi_monitor = false;
 	intel_sdvo->has_hdmi_audio = false;
-
+	intel_sdvo->rgb_quant_range_selectable = false;
+	
 	if ((intel_sdvo_connector->output_flag & response) == 0)
 		ret = connector_status_disconnected;
 	else if (IS_TMDS(intel_sdvo_connector))
@@ -1756,11 +1772,13 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 	 * Assume that the preferred modes are
 	 * arranged in priority order.
 	 */
-	intel_ddc_get_modes(connector, intel_sdvo->i2c);
-	if (list_empty(&connector->probed_modes) == false)
-		goto end;
-
-	/* Fetch modes from VBT */
+	intel_ddc_get_modes(connector, &intel_sdvo->ddc);
+	/*
+	 * Fetch modes from VBT. For SDVO prefer the VBT mode since some
+	 * SDVO->LVDS transcoders can't cope with the EDID mode. Since
+	 * drm_mode_probed_add adds the mode at the head of the list we add it
+	 * last.
+	 */
 	if (dev_priv->sdvo_lvds_vbt_mode != NULL) {
 		newmode = drm_mode_duplicate(connector->dev,
 					     dev_priv->sdvo_lvds_vbt_mode);
@@ -1772,7 +1790,6 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 		}
 	}
 
-end:
 	list_for_each_entry(newmode, &connector->probed_modes, head) {
 		if (newmode->type & DRM_MODE_TYPE_PREFERRED) {
 			intel_sdvo->sdvo_lvds_fixed_mode =
@@ -1850,6 +1867,7 @@ static void intel_sdvo_destroy(struct drm_connector *connector)
 				     intel_sdvo_connector->tv_format);
 
 	intel_sdvo_destroy_enhance_property(connector);
+	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 	kfree(intel_sdvo_connector);
 }
@@ -1909,10 +1927,21 @@ intel_sdvo_set_property(struct drm_connector *connector,
 	}
 
 	if (property == dev_priv->broadcast_rgb_property) {
-		if (val == !!intel_sdvo->color_range)
-			return 0;
-
-		intel_sdvo->color_range = val ? SDVO_COLOR_RANGE_16_235 : 0;
+		switch (val) {
+		case INTEL_BROADCAST_RGB_AUTO:
+			intel_sdvo->color_range_auto = true;
+			break;
+		case INTEL_BROADCAST_RGB_FULL:
+			intel_sdvo->color_range_auto = false;
+			intel_sdvo->color_range = 0;
+			break;
+		case INTEL_BROADCAST_RGB_LIMITED:
+			intel_sdvo->color_range_auto = false;
+			intel_sdvo->color_range = SDVO_COLOR_RANGE_16_235;
+			break;
+		default:
+			return -EINVAL;
+		}	
 		goto done;
 	}
 
@@ -2009,12 +2038,9 @@ set_value:
 
 
 done:
-	if (intel_sdvo->base.base.crtc) {
-		struct drm_crtc *crtc = intel_sdvo->base.base.crtc;
-		intel_set_mode(crtc, &crtc->mode,
-			       crtc->x, crtc->y, crtc->fb);
-	}
-
+	if (intel_sdvo->base.base.crtc)
+		intel_crtc_restore_mode(intel_sdvo->base.base.crtc);
+	
 	return 0;
 #undef CHECK_PROPERTY
 }
@@ -2047,8 +2073,6 @@ static void intel_sdvo_enc_destroy(struct drm_encoder *encoder)
 				 intel_sdvo->sdvo_lvds_fixed_mode);
 
 	i2c_del_adapter(&intel_sdvo->ddc);
-	//device_delete_child(intel_sdvo->base.base.dev->pdev,
-	//    intel_sdvo->ddc_iic_bus);
 	intel_encoder_destroy(encoder);
 }
 
@@ -2083,7 +2107,7 @@ intel_sdvo_guess_ddc_bus(struct intel_sdvo *sdvo)
 
 	/* Count bits to find what number we are in the priority list. */
 	mask &= sdvo->caps.output_flags;
-	num_bits = bitcount16(mask);
+	num_bits = hweight16(mask);
 	/* If more than 3 outputs, default to DDC bus 3 for now. */
 	if (num_bits > 3)
 		num_bits = 3;
@@ -2209,16 +2233,20 @@ intel_sdvo_connector_init(struct intel_sdvo_connector *connector,
 	connector->base.get_hw_state = intel_sdvo_connector_get_hw_state;
 
 	intel_connector_attach_encoder(&connector->base, &encoder->base);
+	drm_sysfs_connector_add(&connector->base.base);
 }
 
 static void
-intel_sdvo_add_hdmi_properties(struct intel_sdvo_connector *connector)
+intel_sdvo_add_hdmi_properties(struct intel_sdvo *intel_sdvo,
+			       struct intel_sdvo_connector *connector)
 {
 	struct drm_device *dev = connector->base.base.dev;
 
 	intel_attach_force_audio_property(&connector->base.base);
-	if (INTEL_INFO(dev)->gen >= 4 && IS_MOBILE(dev))
+	if (INTEL_INFO(dev)->gen >= 4 && IS_MOBILE(dev)) {
 		intel_attach_broadcast_rgb_property(&connector->base.base);
+		intel_sdvo->color_range_auto = true;
+	}
 }
 
 static bool
@@ -2266,7 +2294,7 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 
 	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
 	if (intel_sdvo->is_hdmi)
-		intel_sdvo_add_hdmi_properties(intel_sdvo_connector);
+		intel_sdvo_add_hdmi_properties(intel_sdvo, intel_sdvo_connector);
 
 	return true;
 }
@@ -2672,122 +2700,41 @@ static bool intel_sdvo_create_enhance_property(struct intel_sdvo *intel_sdvo,
 		return true;
 }
 
-struct intel_sdvo_ddc_proxy_sc {
-	struct intel_sdvo *intel_sdvo;
-	device_t port;
-};
-
-static int
-intel_sdvo_ddc_proxy_probe(device_t idev)
+static int intel_sdvo_ddc_proxy_xfer(struct i2c_adapter *adapter,
+				     struct i2c_msg *msgs,
+				     int num)
 {
-
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
-intel_sdvo_ddc_proxy_attach(device_t idev)
-{
-	struct intel_sdvo_ddc_proxy_sc *sc;
-
-	sc = device_get_softc(idev);
-	sc->port = device_add_child(idev, "iicbus", -1);
-	if (sc->port == NULL)
-		return (ENXIO);
-	device_quiet(sc->port);
-	bus_generic_attach(idev);
-	return (0);
-}
-
-static int
-intel_sdvo_ddc_proxy_detach(device_t idev)
-{
-
-	bus_generic_detach(idev);
-	device_delete_children(idev);
-
-	return (0);
-}
-
-static int
-intel_sdvo_ddc_proxy_reset(device_t idev, u_char speed, u_char addr,
-    u_char *oldaddr)
-{
-	struct intel_sdvo_ddc_proxy_sc *sc;
-	struct intel_sdvo *sdvo;
-
-	sc = device_get_softc(idev);
-	sdvo = sc->intel_sdvo;
-
-	return -42;
-	//XXXTODO
-	//return (IICBUS_RESET(device_get_parent(sdvo->i2c), speed, addr,
-	//    oldaddr));
-}
-
-static int intel_sdvo_ddc_proxy_xfer(device_t adapter,
-				     struct iic_msg *msgs,
-				     uint32_t num)
-{
-	struct intel_sdvo_ddc_proxy_sc *sc;
-	struct intel_sdvo *sdvo;
-
-	sc = device_get_softc(adapter);
-	sdvo = sc->intel_sdvo;
+	struct intel_sdvo *sdvo = adapter->algo_data;
 
 	if (!intel_sdvo_set_control_bus_switch(sdvo, sdvo->ddc_bus))
-		return EIO;
+		return -EIO;
 
-	//return (iicbus_transfer(sdvo->i2c, msgs, num));
-	return -42;
-	//XXXTODO
+	return sdvo->i2c->algo->master_xfer(sdvo->i2c, msgs, num);
 }
 
-static device_method_t intel_sdvo_ddc_proxy_methods[] = {
-	DEVMETHOD(device_probe,		intel_sdvo_ddc_proxy_probe),
-	DEVMETHOD(device_attach,	intel_sdvo_ddc_proxy_attach),
-	DEVMETHOD(device_detach,	intel_sdvo_ddc_proxy_detach),
-	DEVMETHOD(iicbus_reset,		intel_sdvo_ddc_proxy_reset),
-	DEVMETHOD(iicbus_transfer,	intel_sdvo_ddc_proxy_xfer),
-	DEVMETHOD_END
+static u32 intel_sdvo_ddc_proxy_func(struct i2c_adapter *adapter)
+{
+	struct intel_sdvo *sdvo = adapter->algo_data;
+	return sdvo->i2c->algo->functionality(sdvo->i2c);
+}
+
+static const struct i2c_algorithm intel_sdvo_ddc_proxy = {
+	.master_xfer	= intel_sdvo_ddc_proxy_xfer,
+	.functionality	= intel_sdvo_ddc_proxy_func
 };
-static driver_t intel_sdvo_ddc_proxy_driver = {
-	"intel_sdvo_ddc_proxy",
-	intel_sdvo_ddc_proxy_methods,
-	sizeof(struct intel_sdvo_ddc_proxy_sc)
-};
-static devclass_t intel_sdvo_devclass;
-DRIVER_MODULE_ORDERED(intel_sdvo_ddc_proxy, drmn, intel_sdvo_ddc_proxy_driver,
-    intel_sdvo_devclass, 0, 0, SI_ORDER_FIRST);
 
 static bool
 intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
 			  struct drm_device *dev)
 {
-	//struct intel_sdvo_ddc_proxy_sc *sc;
-	//int ret;
+	sdvo->ddc.owner = THIS_MODULE;
+	sdvo->ddc.class = I2C_CLASS_DDC;
+	snprintf(sdvo->ddc.name, I2C_NAME_SIZE, "SDVO DDC proxy");
+	sdvo->ddc.dev.parent = device_get_parent(dev->pdev);
+	sdvo->ddc.algo_data = sdvo;
+	sdvo->ddc.algo = &intel_sdvo_ddc_proxy;
 
-	//XXXTODO
-	//sdvo->ddc_iic_bus = device_add_child(dev->pdev,
-	//    "intel_sdvo_ddc_proxy", sdvo->sdvo_reg);
-	//if (sdvo->ddc_iic_bus == NULL) {
-	//	DRM_ERROR("cannot create ddc proxy bus %d\n", sdvo->sdvo_reg);
-	//	return (false);
-	//}
-	//XXXTODO
-	//device_quiet(sdvo->ddc_iic_bus);
-	//ret = device_probe_and_attach(sdvo->ddc_iic_bus);
-	//if (ret != 0) {
-	//	DRM_ERROR("cannot attach proxy bus %d error %d\n",
-	//	    sdvo->sdvo_reg, ret);
-	//	device_delete_child(dev->pdev, sdvo->ddc_iic_bus);
-	//	return (false);
-	//}
-	//sc = device_get_softc(sdvo->ddc_iic_bus);
-	//sc->intel_sdvo = sdvo;
-
-	//sdvo->ddc = sc->port;
-
-	return true;
+	return i2c_add_adapter(&sdvo->ddc) == 0;
 }
 
 bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
@@ -2911,3 +2858,123 @@ err_i2c_bus:
 
 	return false;
 }
+
+#ifdef old
+struct intel_sdvo_ddc_proxy_sc {
+	struct intel_sdvo *intel_sdvo;
+	device_t port;
+};
+
+static int
+intel_sdvo_ddc_proxy_probe(device_t idev)
+{
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+intel_sdvo_ddc_proxy_attach(device_t idev)
+{
+	struct intel_sdvo_ddc_proxy_sc *sc;
+
+	sc = device_get_softc(idev);
+	sc->port = device_add_child(idev, "iicbus", -1);
+	if (sc->port == NULL)
+		return (ENXIO);
+	device_quiet(sc->port);
+	bus_generic_attach(idev);
+	return (0);
+}
+
+static int
+intel_sdvo_ddc_proxy_detach(device_t idev)
+{
+
+	bus_generic_detach(idev);
+	device_delete_children(idev);
+
+	return (0);
+}
+
+static int
+intel_sdvo_ddc_proxy_reset(device_t idev, u_char speed, u_char addr,
+    u_char *oldaddr)
+{
+	struct intel_sdvo_ddc_proxy_sc *sc;
+	struct intel_sdvo *sdvo;
+
+	sc = device_get_softc(idev);
+	sdvo = sc->intel_sdvo;
+
+	return -42;
+	//XXXTODO
+	//return (IICBUS_RESET(device_get_parent(sdvo->i2c), speed, addr,
+	//    oldaddr));
+}
+
+static int intel_sdvo_ddc_proxy_xfer(device_t adapter,
+				     struct iic_msg *msgs,
+				     uint32_t num)
+{
+	struct intel_sdvo_ddc_proxy_sc *sc;
+	struct intel_sdvo *sdvo;
+
+	sc = device_get_softc(adapter);
+	sdvo = sc->intel_sdvo;
+
+	if (!intel_sdvo_set_control_bus_switch(sdvo, sdvo->ddc_bus))
+		return EIO;
+
+	//return (iicbus_transfer(sdvo->i2c, msgs, num));
+	return -42;
+	//XXXTODO
+}
+
+static device_method_t intel_sdvo_ddc_proxy_methods[] = {
+	DEVMETHOD(device_probe,		intel_sdvo_ddc_proxy_probe),
+	DEVMETHOD(device_attach,	intel_sdvo_ddc_proxy_attach),
+	DEVMETHOD(device_detach,	intel_sdvo_ddc_proxy_detach),
+	DEVMETHOD(iicbus_reset,		intel_sdvo_ddc_proxy_reset),
+	DEVMETHOD(iicbus_transfer,	intel_sdvo_ddc_proxy_xfer),
+	DEVMETHOD_END
+};
+static driver_t intel_sdvo_ddc_proxy_driver = {
+	"intel_sdvo_ddc_proxy",
+	intel_sdvo_ddc_proxy_methods,
+	sizeof(struct intel_sdvo_ddc_proxy_sc)
+};
+static devclass_t intel_sdvo_devclass;
+DRIVER_MODULE_ORDERED(intel_sdvo_ddc_proxy, drmn, intel_sdvo_ddc_proxy_driver,
+    intel_sdvo_devclass, 0, 0, SI_ORDER_FIRST);
+
+static bool
+intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
+			  struct drm_device *dev)
+{
+	//struct intel_sdvo_ddc_proxy_sc *sc;
+	//int ret;
+
+	//XXXTODO
+	//sdvo->ddc_iic_bus = device_add_child(dev->pdev,
+	//    "intel_sdvo_ddc_proxy", sdvo->sdvo_reg);
+	//if (sdvo->ddc_iic_bus == NULL) {
+	//	DRM_ERROR("cannot create ddc proxy bus %d\n", sdvo->sdvo_reg);
+	//	return (false);
+	//}
+	//XXXTODO
+	//device_quiet(sdvo->ddc_iic_bus);
+	//ret = device_probe_and_attach(sdvo->ddc_iic_bus);
+	//if (ret != 0) {
+	//	DRM_ERROR("cannot attach proxy bus %d error %d\n",
+	//	    sdvo->sdvo_reg, ret);
+	//	device_delete_child(dev->pdev, sdvo->ddc_iic_bus);
+	//	return (false);
+	//}
+	//sc = device_get_softc(sdvo->ddc_iic_bus);
+	//sc->intel_sdvo = sdvo;
+
+	//sdvo->ddc = sc->port;
+
+	return true;
+}
+#endif

@@ -16,6 +16,8 @@ __FBSDID("$FreeBSD$");
 #include <asm/uaccess.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/mod_devicetable.h>
+
 
 /*
  * Work around conflicting pci read/write wrappers in linuxkpi.  DRM doesn't
@@ -120,8 +122,6 @@ __FBSDID("$FreeBSD$");
 
 #define	DRM_AGP_KERN	struct agp_info
 #define	DRM_AGP_MEM	void
-
-#define	hweight32(i)		bitcount32(i)
 
 #define	IS_ALIGNED(x, y)	(((x) & ((y) - 1)) == 0)
 #define	get_unaligned(ptr)                                              \
@@ -326,7 +326,7 @@ extern const char *fb_mode_option;
 #define	I2C_M_NOSTART	IIC_M_NOSTART
 #endif
 
-struct fb_info *	framebuffer_alloc(void);
+struct fb_info *	framebuffer_alloc(size_t, struct device *);
 void			framebuffer_release(struct fb_info *info);
 
 #define	console_lock()
@@ -400,5 +400,74 @@ do {									\
 	if (drm_debug && drm_notyet)					\
 		printf("NOTYET: %s at %s:%d\n", __func__, __FILE__, __LINE__); \
 } while (0)
+
+#define drm_sysfs_connector_remove(connector)
+#define drm_sysfs_connector_add(connector)
+
+/* Legacy VGA regions */
+#define VGA_RSRC_NONE	       0x00
+#define VGA_RSRC_LEGACY_IO     0x01
+#define VGA_RSRC_LEGACY_MEM    0x02
+#define VGA_RSRC_LEGACY_MASK   (VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM)
+/* Non-legacy access */
+#define VGA_RSRC_NORMAL_IO     0x04
+#define VGA_RSRC_NORMAL_MEM    0x08
+
+
+enum vga_switcheroo_state {
+	VGA_SWITCHEROO_OFF,
+	VGA_SWITCHEROO_ON,
+	/* below are referred only from vga_switcheroo_get_client_state() */
+	VGA_SWITCHEROO_INIT,
+	VGA_SWITCHEROO_NOT_FOUND,
+};
+
+enum vga_switcheroo_client_id {
+	VGA_SWITCHEROO_IGD,
+	VGA_SWITCHEROO_DIS,
+	VGA_SWITCHEROO_MAX_CLIENTS,
+};
+
+struct vga_switcheroo_handler {
+	int (*switchto)(enum vga_switcheroo_client_id id);
+	int (*power_state)(enum vga_switcheroo_client_id id,
+			   enum vga_switcheroo_state state);
+	int (*init)(void);
+	int (*get_client_id)(device_t pdev);
+};
+
+struct vga_switcheroo_client_ops {
+	void (*set_gpu_state)(device_t dev, enum vga_switcheroo_state);
+	void (*reprobe)(device_t dev);
+	bool (*can_switch)(device_t dev);
+};
+
+static inline void vga_switcheroo_unregister_client(device_t dev) {}
+static inline int vga_switcheroo_register_client(device_t dev,
+		const struct vga_switcheroo_client_ops *ops) { return 0; }
+static inline void vga_switcheroo_client_fb_set(device_t dev, struct fb_info *info) {}
+static inline int vga_switcheroo_register_handler(struct vga_switcheroo_handler *handler) { return 0; }
+static inline int vga_switcheroo_register_audio_client(device_t pdev,
+	const struct vga_switcheroo_client_ops *ops,
+	int id, bool active) { return 0; }
+static inline void vga_switcheroo_unregister_handler(void) {}
+static inline int vga_switcheroo_process_delayed_switch(void) { return 0; }
+static inline int vga_switcheroo_get_client_state(device_t *dev) { return VGA_SWITCHEROO_ON; }
+
+
+#define vga_client_register(a, b, c, d) 0
+#define vga_get_interruptible(a, b)
+#define vga_get_uninterruptible(a, b)
+#define vga_put(a, b)
+
+#define pm_qos_update_request(a, b)
+
+#define PCI_D0	PCI_POWERSTATE_D0
+#define PCI_D1	PCI_POWERSTATE_D1
+#define PCI_D2	PCI_POWERSTATE_D2
+#define PCI_D3	PCI_POWERSTATE_D3
+#define PCI_POWER_ERROR	PCI_POWERSTATE_UNKNOWN
+
+#define pci_set_power_state pci_set_powerstate
 
 #endif /* _DRM_OS_FREEBSD_H_ */

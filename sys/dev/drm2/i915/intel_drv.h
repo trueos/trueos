@@ -55,7 +55,7 @@
 	ret;								\
 })
 
-#define _wait_for(COND, MS, W, WMSG) ({ \
+#define _wait_for(COND, MS, W) ({ \
 	int timeout__ = ticks + (MS) * hz / 1000;			\
 	int ret__ = 0;							\
 	while (!(COND)) {						\
@@ -64,7 +64,7 @@
 			break;						\
 		}							\
 		if (W) {						\
-			pause((WMSG), 1);				\
+			pause("i915", 1);				\
 		} else {						\
 			DELAY(1000);					\
 		}							\

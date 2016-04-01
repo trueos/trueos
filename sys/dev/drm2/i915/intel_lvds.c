@@ -72,15 +72,10 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 lvds_reg, tmp;
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	u32 tmp;
 
-	if (HAS_PCH_SPLIT(dev)) {
-		lvds_reg = PCH_LVDS;
-	} else {
-		lvds_reg = LVDS;
-	}
-
-	tmp = I915_READ(lvds_reg);
+	tmp = I915_READ(lvds_encoder->reg);
 
 	if (!(tmp & LVDS_PORT_EN))
 		return false;
@@ -187,21 +182,19 @@ static void intel_enable_lvds(struct intel_encoder *encoder)
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 ctl_reg, lvds_reg, stat_reg;
+	u32 ctl_reg, stat_reg;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
-		lvds_reg = PCH_LVDS;
 		stat_reg = PCH_PP_STATUS;
 	} else {
 		ctl_reg = PP_CONTROL;
-		lvds_reg = LVDS;
 		stat_reg = PP_STATUS;
 	}
 
-	I915_WRITE(lvds_reg, I915_READ(lvds_reg) | LVDS_PORT_EN);
+	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) | LVDS_PORT_EN);
 	I915_WRITE(ctl_reg, I915_READ(ctl_reg) | POWER_TARGET_ON);
-	POSTING_READ(lvds_reg);
+	POSTING_READ(lvds_encoder->reg);
 	if (wait_for((I915_READ(stat_reg) & PP_ON) != 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power on\n");
 
@@ -213,15 +206,13 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 	struct drm_device *dev = encoder->base.dev;
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 ctl_reg, lvds_reg, stat_reg;
+	u32 ctl_reg, stat_reg;
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ctl_reg = PCH_PP_CONTROL;
-		lvds_reg = PCH_LVDS;
 		stat_reg = PCH_PP_STATUS;
 	} else {
 		ctl_reg = PP_CONTROL;
-		lvds_reg = LVDS;
 		stat_reg = PP_STATUS;
 	}
 
@@ -231,12 +222,8 @@ static void intel_disable_lvds(struct intel_encoder *encoder)
 	if (wait_for((I915_READ(stat_reg) & PP_ON) == 0, 1000))
 		DRM_ERROR("timed out waiting for panel to power off\n");
 
-	if (lvds_encoder->pfit_control) {
-		I915_WRITE(PFIT_CONTROL, 0);
-	}
-
-	I915_WRITE(lvds_reg, I915_READ(lvds_reg) & ~LVDS_PORT_EN);
-	POSTING_READ(lvds_reg);
+	I915_WRITE(lvds_encoder->reg, I915_READ(lvds_encoder->reg) & ~LVDS_PORT_EN);
+	POSTING_READ(lvds_encoder->reg);
 }
 
 static int intel_lvds_mode_valid(struct drm_connector *connector,
@@ -527,7 +514,7 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	struct drm_display_mode *mode;
 
 	/* use cached edid if we have one */
-	if (lvds_connector->base.edid)
+	if (!IS_ERR_OR_NULL(lvds_connector->base.edid))
 		return drm_add_edid_modes(connector, lvds_connector->base.edid);
 
 	mode = drm_mode_duplicate(dev, lvds_connector->base.panel.fixed_mode);
@@ -560,14 +547,16 @@ static const struct dmi_system_id intel_no_modeset_on_lid[] = {
 
 #ifdef FREEBSD_WIP
 /*
- * Lid events. Note the use of 'modeset_on_lid':
- *  - we set it on lid close, and reset it on open
+ * Lid events. Note the use of 'modeset':
+ *  - we set it to MODESET_ON_LID_OPEN on lid close,
+ *    and set it to MODESET_DONE on open
  *  - we use it as a "only once" bit (ie we ignore
- *    duplicate events where it was already properly
- *    set/reset)
- *  - the suspend/resume paths will also set it to
- *    zero, since they restore the mode ("lid open").
+ *    duplicate events where it was already properly set)
+ *  - the suspend/resume paths will set it to
+ *    MODESET_SUSPENDED and ignore the lid open event,
+ *    because they restore the mode ("lid open").
  */
+
 static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 			    void *unused)
 {
@@ -580,6 +569,9 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	if (dev->switch_power_state != DRM_SWITCH_POWER_ON)
 		return NOTIFY_OK;
 
+	mutex_lock(&dev_priv->modeset_restore_lock);
+	if (dev_priv->modeset_restore == MODESET_SUSPENDED)
+		goto exit;
 	/*
 	 * check and update the status of LVDS connector after receiving
 	 * the LID nofication event.
@@ -588,23 +580,27 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 
 	/* Don't force modeset on machines where it causes a GPU lockup */
 	if (dmi_check_system(intel_no_modeset_on_lid))
-		return NOTIFY_OK;
+		goto exit;
 	if (!acpi_lid_open()) {
-		dev_priv->modeset_on_lid = 1;
-		return NOTIFY_OK;
+		/* do modeset on next lid open event */
+		dev_priv->modeset_restore = MODESET_ON_LID_OPEN;
+		goto exit;
 	}
 
-	if (!dev_priv->modeset_on_lid)
-		return NOTIFY_OK;
+	if (dev_priv->modeset_restore == MODESET_DONE)
+		goto exit;
 
-	dev_priv->modeset_on_lid = 0;
-
-	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock_all(dev);
 	intel_modeset_setup_hw_state(dev, true);
-	mutex_unlock(&dev->mode_config.mutex);
+	drm_modeset_unlock_all(dev);
 
+	dev_priv->modeset_restore = MODESET_DONE;
+
+exit:
+	mutex_unlock(&dev_priv->modeset_restore_lock);
 	return NOTIFY_OK;
 }
+
 #endif /* FREEBSD_WIP */
 
 /**
@@ -624,10 +620,12 @@ static void intel_lvds_destroy(struct drm_connector *connector)
 		acpi_lid_notifier_unregister(&lvds_connector->lid_notifier);
 #endif /* FREEBSD_WIP */
 
-	kfree(lvds_connector->base.edid);
+	if (!IS_ERR_OR_NULL(lvds_connector->base.edid))
+		kfree(lvds_connector->base.edid);
 
 	intel_panel_fini(&lvds_connector->base.panel);
 
+	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -810,10 +808,10 @@ static const struct dmi_system_id intel_no_lvds[] = {
 	},
 	{
 		.callback = intel_no_lvds_dmi_callback,
-		.ident = "Hewlett-Packard HP t5740e Thin Client",
+		.ident = "Hewlett-Packard HP t5740",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "HP t5740e Thin Client"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "t5740"),
 		},
 	},
 	{
@@ -1243,6 +1241,9 @@ bool intel_lvds_init(struct drm_device *dev)
 		goto failed;
 
 out:
+	lvds_encoder->is_dual_link = compute_is_dual_link_lvds(lvds_encoder);
+	DRM_DEBUG_KMS("detected %s-link lvds configuration\n",
+		      lvds_encoder->is_dual_link ? "dual" : "single");
 	/*
 	 * Unlock registers and just
 	 * leave them unlocked
@@ -1261,7 +1262,7 @@ out:
 		lvds_connector->lid_notifier.notifier_call = NULL;
 	}
 #endif /* FREEBSD_WIP */
-
+	drm_sysfs_connector_add(connector);
 	intel_panel_init(&intel_connector->panel, fixed_mode);
 	intel_panel_setup_backlight(connector);
 
