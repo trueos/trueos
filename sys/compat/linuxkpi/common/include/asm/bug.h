@@ -35,7 +35,7 @@
 	static int __warned;						\
 	int __ret = !!(condition);					\
 	if (__ret && !__warned) {					\
-		kprintf("WARNING %s failed at %s:%d\n",			\
+		printf("WARNING %s failed at %s:%d\n",			\
 		    _WARN_STR(condition), __FILE__, __LINE__);		\
 		__warned = 1;						\
 	}								\
