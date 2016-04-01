@@ -50,6 +50,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/compiler.h>
 #include <linux/errno.h>
+#include <linux/pci.h>
 #include <asm/atomic.h>
 #include <linux/device.h>
 
@@ -146,6 +147,14 @@ enum pcie_link_width {
 	PCIE_LNK_WIDTH_UNKNOWN = -1,
 };
 
+#define PCI_D0	PCI_POWERSTATE_D0
+#define PCI_D1	PCI_POWERSTATE_D1
+#define PCI_D2	PCI_POWERSTATE_D2
+#define PCI_D3hot	PCI_POWERSTATE_D3
+#define PCI_D3cold	4
+
+#define PCI_POWER_ERROR	PCI_POWERSTATE_UNKNOWN
+
 struct pci_dev;
 
 struct pci_driver {
@@ -168,15 +177,60 @@ extern spinlock_t pci_lock;
 
 #define	__devexit_p(x)	x
 
+#define PCI_BRIDGE_RESOURCE_NUM 4
+#if defined(__i386__) || defined(__amd64__)
+extern unsigned long pci_mem_start;
+#define PCIBIOS_MIN_IO		0x1000
+#define PCIBIOS_MIN_MEM		(pci_mem_start)
+#endif
+	
+struct pci_bus {
+	struct list_head node;		/* node in list of buses */
+	struct pci_bus	*parent;	/* parent bus this bridge is on */
+	struct list_head children;	/* list of child buses */
+	struct list_head devices;	/* list of devices on this bus */
+	struct pci_dev	*self;		/* bridge device as seen by parent */
+	struct list_head slots;		/* list of slots on this bus */
+	struct linux_resource *resource[PCI_BRIDGE_RESOURCE_NUM];
+	struct list_head resources;	/* address space routed to this bus */
+	struct resource busn_res;	/* bus numbers routed to this bus */
+
+	struct pci_ops	*ops;		/* configuration access functions */
+	void		*sysdata;	/* hook for sys-specific extension */
+
+	unsigned char	number;		/* bus number */
+
+};
+
+int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
+			struct linux_resource *res, resource_size_t size,
+			resource_size_t align, resource_size_t min,
+			unsigned int type_mask,
+			resource_size_t (*alignf)(void *,
+						  const struct linux_resource *,
+						  resource_size_t,
+						  resource_size_t),
+			void *alignf_data);
+
+
+extern resource_size_t pcibios_align_resource(void *data, const struct linux_resource *res,
+		       resource_size_t size, resource_size_t align);
+
+extern int release_resource(struct linux_resource *old);
+
 struct pci_dev {
+	struct list_head bus_list;	/* node in per-bus list */
+	struct pci_bus	*bus;		/* bus this device is on */
 	struct device		dev;
 	struct list_head	links;
 	struct pci_driver	*pdrv;
 	uint64_t		dma_mask;
-	uint16_t		device;
-	uint16_t		vendor;
-	unsigned int		irq;
 	unsigned int		devfn;
+	uint16_t		vendor;
+	uint16_t		device;
+	uint16_t		subsystem_vendor;
+	uint16_t		subsystem_device;
+	unsigned int		irq;
 	u8			revision;
 };
 
@@ -294,6 +348,13 @@ pci_set_master(struct pci_dev *pdev)
 
 	pci_enable_busmaster(pdev->dev.bsddev);
 	return (0);
+}
+
+static inline void
+pci_set_power_state(struct pci_dev *pdev, int state)
+{
+
+	pci_set_powerstate(pdev->dev.bsddev, state);
 }
 
 static inline int
@@ -429,6 +490,14 @@ pci_write_config_dword(struct pci_dev *pdev, int where, u32 val)
 	pci_write_config(pdev->dev.bsddev, where, val, 4);
 	return (0);
 }
+
+static inline struct pci_dev *pci_get_bus_and_slot(unsigned int bus, unsigned int devfn)
+{
+	/* translate get_dbsf to pci dev? */
+	panic("implement me!!!");
+	return (NULL);
+}
+
 
 extern int pci_register_driver(struct pci_driver *pdrv);
 extern void pci_unregister_driver(struct pci_driver *pdrv);
