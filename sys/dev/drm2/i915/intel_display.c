@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/intel_drv.h>
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
+#include <dev/drm2/i915/i915_trace.h>
 #include <dev/drm2/drm_dp_helper.h>
 #include <dev/drm2/drm_crtc_helper.h>
 
@@ -6984,8 +6985,7 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 	queue_work(dev_priv->wq, &work->work);
 
-	CTR2(KTR_DRM, "i915_flip_complete %d %p", intel_crtc->plane,
-	    work->pending_flip_obj);
+	trace_i915_flip_complete(intel_crtc->plane, work->pending_flip_obj);
 }
 
 void intel_finish_page_flip(struct drm_device *dev, int pipe)
@@ -7351,7 +7351,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	intel_mark_fb_busy(obj);
 	mutex_unlock(&dev->struct_mutex);
 
-	CTR2(KTR_DRM, "i915_flip_request %d %p", intel_crtc->plane, obj);
+	trace_i915_flip_request(intel_crtc->plane, obj);
 
 	return 0;
 
@@ -9212,6 +9212,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 			__intel_set_mode(crtc, &crtc->mode, crtc->x, crtc->y,
 					 crtc->fb);
 		}
+
 		i915_redisable_vga(dev);
 	} else {
 		intel_modeset_update_staged_output_state(dev);

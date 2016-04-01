@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
+#include <dev/drm2/i915/i915_trace.h>
 #include <dev/drm2/i915/intel_drv.h>
 
 #include <sys/sched.h>
@@ -356,7 +357,7 @@ static void notify_ring(struct drm_device *dev,
 	if (ring->obj == NULL)
 		return;
 
-	CTR2(KTR_DRM, "request_complete %s %d", ring->name, ring->get_seqno(ring, false));
+	trace_i915_gem_request_complete(ring, ring->get_seqno(ring, false));
 
 	wake_up_all(&ring->irq_queue);
 	if (i915_enable_hangcheck) {
@@ -780,9 +781,7 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 	POSTING_READ(DEIER);
 	I915_WRITE(SDEIER, sde_ier);
 	POSTING_READ(SDEIER);
-	
-	CTR3(KTR_DRM, "ivybridge_irq de %x gt %x pm %x", de_iir,
-	    gt_iir, pm_iir);
+
 	return ret;
 }
 
@@ -809,6 +808,7 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 	de_ier = I915_READ(DEIER);
 	I915_WRITE(DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
 	POSTING_READ(DEIER);
+
 	/* Disable south interrupts. We'll only write to SDEIIR once, so further
 	 * interrupts will will be stored on its back queue, and then we'll be
 	 * able to process them after we restore SDEIER (as soon as we restore
@@ -821,9 +821,6 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 	de_iir = I915_READ(DEIIR);
 	gt_iir = I915_READ(GTIIR);
 	pm_iir = I915_READ(GEN6_PMIIR);
-
-	CTR4(KTR_DRM, "ironlake_irq de %x gt %x sde %x pm %x", de_iir,
-	    gt_iir, sde_ier, pm_iir);
 
 	if (de_iir == 0 && gt_iir == 0 && (!IS_GEN6(dev) || pm_iir == 0))
 		goto done;
@@ -860,7 +857,7 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 	/* check event from PCH */
 	if (de_iir & DE_PCH_EVENT) {
 		u32 pch_iir = I915_READ(SDEIIR);
-		
+
 		if (HAS_PCH_CPT(dev))
 			cpt_irq_handler(dev, pch_iir);
 		else
@@ -929,6 +926,7 @@ static void i915_error_work_func(struct work_struct *work)
 		kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
 #endif
 		ret = i915_reset(dev);
+
 		if (ret == 0) {
 			/*
 			 * After all the gem state is reset, increment the reset
@@ -941,7 +939,7 @@ static void i915_error_work_func(struct work_struct *work)
 			 * the counter increment.
 			 */
 			smp_mb__before_atomic_inc();
-			atomic_inc(&dev_priv->gpu_error.reset_counter);	
+			atomic_inc(&dev_priv->gpu_error.reset_counter);
 #ifdef __linux__
 			kobject_uevent_env(&dev->primary->kdev.kobj,
 					   KOBJ_CHANGE, reset_done_event);
@@ -949,7 +947,7 @@ static void i915_error_work_func(struct work_struct *work)
 		} else {
 			atomic_set(&error->reset_counter, I915_WEDGED);
 		}
-		
+
 		for_each_ring(ring, dev_priv, i)
 			wake_up_all(&ring->irq_queue);
 
@@ -1025,7 +1023,6 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 			s = io_mapping_map_atomic_wc(dev_priv->gtt.mappable,
 						     reloc_offset);
-
 			memcpy_fromio(d, s, PAGE_SIZE);
 			io_mapping_unmap_atomic(s);
 		} else if (src->stolen) {
@@ -1043,6 +1040,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			page = i915_gem_object_get_page(src, i);
 
 			drm_clflush_pages(&page, 1);
+
 			s = kmap_atomic(page);
 			memcpy(d, s, PAGE_SIZE);
 			kunmap_atomic(s);
@@ -1667,7 +1665,6 @@ static int ironlake_enable_vblank(struct drm_device *dev, int pipe)
 	ironlake_enable_display_irq(dev_priv, (pipe == 0) ?
 				    DE_PIPEA_VBLANK : DE_PIPEB_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-	CTR1(KTR_DRM, "ironlake_enable_vblank %d", pipe);
 
 	return 0;
 }
@@ -1684,7 +1681,6 @@ static int ivybridge_enable_vblank(struct drm_device *dev, int pipe)
 	ironlake_enable_display_irq(dev_priv,
 				    DE_PIPEA_VBLANK_IVB << (5 * pipe));
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-	CTR1(KTR_DRM, "ivybridge_enable_vblank %d", pipe);
 
 	return 0;
 }
@@ -1728,7 +1724,6 @@ static void i915_disable_vblank(struct drm_device *dev, int pipe)
 			      PIPE_VBLANK_INTERRUPT_ENABLE |
 			      PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-	CTR1(KTR_DRM, "i915_disable_vblank %d", pipe);
 }
 
 static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
@@ -1740,7 +1735,6 @@ static void ironlake_disable_vblank(struct drm_device *dev, int pipe)
 	ironlake_disable_display_irq(dev_priv, (pipe == 0) ?
 				     DE_PIPEA_VBLANK : DE_PIPEB_VBLANK);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-	CTR1(KTR_DRM, "ironlake_disable_vblank %d", pipe);
 }
 
 static void ivybridge_disable_vblank(struct drm_device *dev, int pipe)
@@ -1752,7 +1746,6 @@ static void ivybridge_disable_vblank(struct drm_device *dev, int pipe)
 	ironlake_disable_display_irq(dev_priv,
 				     DE_PIPEA_VBLANK_IVB << (pipe * 5));
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-	CTR1(KTR_DRM, "ivybridge_disable_vblank %d", pipe);
 }
 
 static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
@@ -1771,7 +1764,6 @@ static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
 		imr |= I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
 	I915_WRITE(VLV_IMR, imr);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
-	CTR2(KTR_DRM, "%s %d", __func__, pipe);
 }
 
 static u32

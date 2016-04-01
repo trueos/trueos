@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
+#include <dev/drm2/i915/i915_trace.h>
 #include <dev/drm2/i915/intel_drv.h>
 
 #include <sys/limits.h>
@@ -146,6 +147,7 @@ eb_get_object(struct eb_objects *eb, unsigned long handle)
 		head = &eb->buckets[handle & eb->and];
 		hlist_for_each(node, head) {
 			struct drm_i915_gem_object *obj;
+
 			obj = hlist_entry(node, struct drm_i915_gem_object, exec_node);
 			if (obj->exec_handle == handle)
 				return obj;
@@ -279,7 +281,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 			return ret;
 
 		vaddr = kmap_atomic(i915_gem_object_get_page(obj,
-					 reloc->offset >> PAGE_SHIFT));
+							     reloc->offset >> PAGE_SHIFT));
 		*(uint32_t *)(vaddr + page_offset) = reloc->delta;
 		kunmap_atomic(vaddr);
 	} else {
@@ -810,6 +812,9 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 #if defined(KTR)
 		u32 old_read = obj->base.read_domains;
 		u32 old_write = obj->base.write_domain;
+#else
+		u32 old_read = 0;
+		u32 old_write = 0;
 #endif
 
 		obj->base.write_domain = obj->base.pending_write_domain;
@@ -826,8 +831,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 				intel_mark_fb_busy(obj);
 		}
 
-		CTR3(KTR_DRM, "object_change_domain move_to_active %p %x %x",
-		    obj, old_read, old_write);
+		trace_i915_gem_object_change_domain(obj, old_read, old_write);
 	}
 }
 
@@ -1128,8 +1132,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			goto err;
 	}
 
-	CTR3(KTR_DRM, "ring_dispatch ring=%s seqno=%d flags=%u", ring->name,
-	    intel_ring_get_seqno(ring), flags);
+	trace_i915_gem_ring_dispatch(ring, intel_ring_get_seqno(ring), flags);
 
 	i915_gem_execbuffer_move_to_active(&eb->objects, ring);
 	i915_gem_execbuffer_retire_commands(dev, file, ring);

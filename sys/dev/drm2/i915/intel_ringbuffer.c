@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/i915_drm.h>
+#include <dev/drm2/i915/i915_trace.h>
 #include <dev/drm2/i915/intel_drv.h>
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
@@ -658,6 +659,7 @@ gen6_ring_sync(struct intel_ring_buffer *waiter,
 	ret = intel_ring_begin(waiter, 4);
 	if (ret)
 		return ret;
+
 	/* If seqno wrap happened, omit the wait with no-ops */
 	if (likely(!i915_gem_has_seqno_wrapped(waiter->dev, seqno))) {
 		intel_ring_emit(waiter,
@@ -1206,6 +1208,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 		if (ret)
 			return ret;
 	}
+
 	obj = NULL;
 	if (!HAS_LLC(dev))
 		obj = i915_gem_object_create_stolen(dev, ring->size);
@@ -1370,7 +1373,7 @@ static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 	if (ret != -ENOSPC)
 		return ret;
 
-	CTR1(KTR_DRM, "ring_wait_begin %s", ring->name);
+	trace_i915_ring_wait_begin(ring);
 	/* With GEM the hangcheck timer should kick us out of the loop,
 	 * leaving it early runs the risk of corrupting GEM state (due
 	 * to running on almost untested codepaths). But on resume
@@ -1382,7 +1385,7 @@ static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 		ring->head = I915_READ_HEAD(ring);
 		ring->space = ring_space(ring);
 		if (ring->space >= n) {
-			CTR1(KTR_DRM, "ring_wait_end %s", ring->name);
+			trace_i915_ring_wait_end(ring);
 			return 0;
 		}
 
@@ -1395,13 +1398,11 @@ static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 		DRM_MSLEEP(1);
 
 		ret = i915_gem_check_wedge(&dev_priv->gpu_error,
-				dev_priv->mm.interruptible);
-		if (ret) {
-			CTR1(KTR_DRM, "ring_wait_end %s wedged", ring->name);
+					   dev_priv->mm.interruptible);
+		if (ret)
 			return ret;
-		}
 	} while (!time_after(jiffies, end));
-	CTR1(KTR_DRM, "ring_wait_end %s busy", ring->name);
+	trace_i915_ring_wait_end(ring);
 	return -EBUSY;
 }
 
@@ -1487,7 +1488,7 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	int ret;
 
 	ret = i915_gem_check_wedge(&dev_priv->gpu_error,
-		       dev_priv->mm.interruptible);
+				   dev_priv->mm.interruptible);
 	if (ret)
 		return ret;
 
@@ -1498,7 +1499,6 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 
 	return __intel_ring_begin(ring, num_dwords * sizeof(uint32_t));
 }
-
 
 void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno)
 {
@@ -1512,7 +1512,6 @@ void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno)
 	}
 
 	ring->set_seqno(ring, seqno);
-
 }
 
 void intel_ring_advance(struct intel_ring_buffer *ring)
@@ -1520,7 +1519,7 @@ void intel_ring_advance(struct intel_ring_buffer *ring)
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 
 	ring->tail &= ring->size - 1;
-	if (dev_priv->gpu_error.stop_rings & intel_ring_flag(ring)) 
+	if (dev_priv->gpu_error.stop_rings & intel_ring_flag(ring))
 		return;
 	ring->write_tail(ring, ring->tail);
 }
@@ -1906,6 +1905,8 @@ intel_ring_flush_all_caches(struct intel_ring_buffer *ring)
 	if (ret)
 		return ret;
 
+	trace_i915_gem_ring_flush(ring, 0, I915_GEM_GPU_DOMAINS);
+
 	ring->gpu_caches_dirty = false;
 	return 0;
 }
@@ -1923,6 +1924,8 @@ intel_ring_invalidate_all_caches(struct intel_ring_buffer *ring)
 	ret = ring->flush(ring, I915_GEM_GPU_DOMAINS, flush_domains);
 	if (ret)
 		return ret;
+
+	trace_i915_gem_ring_flush(ring, I915_GEM_GPU_DOMAINS, flush_domains);
 
 	ring->gpu_caches_dirty = false;
 	return 0;
