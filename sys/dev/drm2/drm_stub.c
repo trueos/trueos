@@ -87,7 +87,7 @@ static int drm_minor_get_id(struct drm_device *dev, int type)
 {
 	int new_id;
 
-	new_id = device_get_unit(dev->pdev);
+	new_id = device_get_unit(dev->dev->bsddev);
 
 	if (new_id >= 64)
 		return -EINVAL;

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm_crtc_helper.h>
 
 #include "fb_if.h"
+#include <linux/pci.h>
 
 static int i915_modeset __read_mostly = 1;
 TUNABLE_INT("drm.i915.modeset", &i915_modeset);
@@ -536,13 +537,13 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	drm_kms_helper_poll_disable(dev);
 
-	pci_save_state(dev->pdev);
+	pci_save_state(dev->pdev->dev.bsddev);
 
 	/* If KMS is active, we do the leavevt stuff here */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		int error = i915_gem_idle(dev);
 		if (error) {
-			dev_err(dev->pdev,
+			dev_err(&dev->pdev->dev,
 				"GEM idle failed, resume might fail\n");
 			return error;
 		}
@@ -662,7 +663,6 @@ static int __i915_drm_thaw(struct drm_device *dev)
 	return error;
 }
 
-#ifdef __linux__
 static int i915_drm_thaw(struct drm_device *dev)
 {
 	int error = 0;
@@ -679,7 +679,6 @@ static int i915_drm_thaw(struct drm_device *dev)
 
 	return error;
 }
-#endif
 
 int i915_resume(struct drm_device *dev)
 {
@@ -689,12 +688,10 @@ int i915_resume(struct drm_device *dev)
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
-#ifdef __linux__
 	if (pci_enable_device(dev->pdev))
 		return -EIO;
 
 	pci_set_master(dev->pdev);
-#endif
 
 	intel_gt_reset(dev);
 

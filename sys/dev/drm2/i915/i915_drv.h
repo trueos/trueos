@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <asm/types.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/ioport.h>
 
 #include <dev/agp/agp_i810.h>
 #include <dev/drm2/drm_mm.h>
@@ -896,13 +897,13 @@ typedef struct drm_i915_private {
 
 	wait_queue_head_t gmbus_wait_queue;
 
-	device_t bridge_dev;
+	struct pci_dev *bridge_dev;
 	struct intel_ring_buffer ring[I915_NUM_RINGS];
 	uint32_t last_seqno, next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;
 	int mch_res_rid;
-	struct resource *mch_res;
+	struct linux_resource mch_res;
 
 	atomic_t irq_received;
 

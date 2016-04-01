@@ -32,6 +32,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/pciio.h>
 
+#include <linux/pci.h>
+
+#undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <dev/drm2/drmP.h>
@@ -1099,7 +1102,8 @@ static int i915_get_bridge_dev(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	dev_priv->bridge_dev = pci_find_dbsf(0, 0, 0, 0);
+	dev_priv->bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
+
 	if (!dev_priv->bridge_dev) {
 		DRM_ERROR("bridge device not found\n");
 		return -1;
@@ -1122,6 +1126,7 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 	int reg = INTEL_INFO(dev)->gen >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
 	u64 mchbar_addr;
+	int ret;
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		pci_read_config_dword(dev_priv->bridge_dev, reg + 4, &temp_hi);
@@ -1136,23 +1141,26 @@ intel_alloc_mchbar_resource(struct drm_device *dev)
 #endif
 
 	/* Get some space for it */
-	device_t vga;
-	vga = device_get_parent(dev->pdev);
-	dev_priv->mch_res_rid = 0x100;
-	dev_priv->mch_res = BUS_ALLOC_RESOURCE(device_get_parent(vga),
-	    dev->pdev, SYS_RES_MEMORY, &dev_priv->mch_res_rid, 0, ~0UL,
-	    MCHBAR_SIZE, RF_ACTIVE | RF_SHAREABLE);
-	if (dev_priv->mch_res == NULL) {
-		DRM_DEBUG_DRIVER("failed bus alloc\n");
-		return -ENOMEM;
+	dev_priv->mch_res.name = "i915 MCHBAR";
+	dev_priv->mch_res.flags = IORESOURCE_MEM;
+	ret = pci_bus_alloc_resource(dev_priv->bridge_dev->bus,
+				     &dev_priv->mch_res,
+				     MCHBAR_SIZE, MCHBAR_SIZE,
+				     PCIBIOS_MIN_MEM,
+				     0, pcibios_align_resource,
+				     dev_priv->bridge_dev);
+	if (ret) {
+		DRM_DEBUG_DRIVER("failed bus alloc: %d\n", ret);
+		dev_priv->mch_res.start = 0;
+		return ret;
 	}
-
+	
 	if (INTEL_INFO(dev)->gen >= 4)
 		pci_write_config_dword(dev_priv->bridge_dev, reg + 4,
-				       upper_32_bits(rman_get_start(dev_priv->mch_res)));
+				       upper_32_bits(dev_priv->mch_res.start));
 
 	pci_write_config_dword(dev_priv->bridge_dev, reg,
-			       lower_32_bits(rman_get_start(dev_priv->mch_res)));
+			       lower_32_bits(dev_priv->mch_res.start));
 	return 0;
 }
 
@@ -1213,15 +1221,9 @@ intel_teardown_mchbar(struct drm_device *dev)
 		}
 	}
 
-	if (dev_priv->mch_res != NULL) {
-		device_t vga;
-		vga = device_get_parent(dev->pdev);
-		BUS_DEACTIVATE_RESOURCE(device_get_parent(vga), dev->pdev,
-		    SYS_RES_MEMORY, dev_priv->mch_res_rid, dev_priv->mch_res);
-		BUS_RELEASE_RESOURCE(device_get_parent(vga), dev->pdev,
-		    SYS_RES_MEMORY, dev_priv->mch_res_rid, dev_priv->mch_res);
-		dev_priv->mch_res = NULL;
-	}
+	if (dev_priv->mch_res.start)
+		release_resource(&dev_priv->mch_res);
+	
 }
 
 /* true = enable decode, false = disable decoder */
@@ -1237,9 +1239,9 @@ static unsigned int i915_vga_set_decode(void *cookie, bool state)
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
 
-static void i915_switcheroo_set_state(device_t pdev, enum vga_switcheroo_state state)
+static void i915_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
 {
-	struct drm_device *dev = device_get_softc(pdev);
+	struct drm_device *dev = pci_get_drvdata(pdev);
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 	if (state == VGA_SWITCHEROO_ON) {
 		pr_info("switched on\n");
@@ -1256,9 +1258,9 @@ static void i915_switcheroo_set_state(device_t pdev, enum vga_switcheroo_state s
 	}
 }
 
-static bool i915_switcheroo_can_switch(device_t pdev)
+static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 {
-	struct drm_device *dev = device_get_softc(pdev);
+	struct drm_device *dev = pci_get_drvdata(pdev);
 	bool can_switch;
 
 	spin_lock(&dev->count_lock);
@@ -1643,7 +1645,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		}
 	}
 
-	pci_enable_busmaster(dev->pdev);
+	pci_set_master(dev->pdev);
 
 #ifdef __linux__
 	i915_setup_sysfs(dev);

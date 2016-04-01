@@ -17,25 +17,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/mod_devicetable.h>
-
-
-/*
- * Work around conflicting pci read/write wrappers in linuxkpi.  DRM doesn't
- * use Linux pci_dev at this time.
- */
-#define	pci_read_config_byte	linux_pci_read_config_byte
-#define	pci_read_config_word	linux_pci_read_config_word
-#define	pci_read_config_dword	linux_pci_read_config_dword
-#define	pci_write_config_byte	linux_pci_write_config_byte
-#define	pci_write_config_word	linux_pci_write_config_word
-#define	pci_write_config_dword	linux_pci_write_config_dword
 #include <linux/pci.h>
-#undef	pci_read_config_byte
-#undef	pci_read_config_word
-#undef	pci_read_config_dword
-#undef	pci_write_config_byte
-#undef	pci_write_config_word
-#undef	pci_write_config_dword
 
 #define	DRM_IRQ_ARGS		void *arg
 
@@ -337,53 +319,6 @@ void			framebuffer_release(struct fb_info *info);
 #define	PM_EVENT_QUIESCE	0x0008
 #define	PM_EVENT_PRETHAW	PM_EVENT_QUIESCE
 
-static inline int
-pci_read_config_byte(device_t kdev, int where, u8 *val)
-{
-
-	*val = (u8)pci_read_config(kdev, where, 1);
-	return (0);
-}
-
-static inline int
-pci_write_config_byte(device_t kdev, int where, u8 val)
-{
-
-	pci_write_config(kdev, where, val, 1);
-	return (0);
-}
-
-static inline int
-pci_read_config_word(device_t kdev, int where, uint16_t *val)
-{
-
-	*val = (uint16_t)pci_read_config(kdev, where, 2);
-	return (0);
-}
-
-static inline int
-pci_write_config_word(device_t kdev, int where, uint16_t val)
-{
-
-	pci_write_config(kdev, where, val, 2);
-	return (0);
-}
-
-static inline int
-pci_read_config_dword(device_t kdev, int where, uint32_t *val)
-{
-
-	*val = (uint32_t)pci_read_config(kdev, where, 4);
-	return (0);
-}
-
-static inline int
-pci_write_config_dword(device_t kdev, int where, uint32_t val)
-{
-
-	pci_write_config(kdev, where, val, 4);
-	return (0);
-}
 
 static inline void
 on_each_cpu(void callback(void *data), void *data, int wait)
@@ -433,26 +368,26 @@ struct vga_switcheroo_handler {
 	int (*power_state)(enum vga_switcheroo_client_id id,
 			   enum vga_switcheroo_state state);
 	int (*init)(void);
-	int (*get_client_id)(device_t pdev);
+	int (*get_client_id)(struct pci_dev *dev);
 };
 
 struct vga_switcheroo_client_ops {
-	void (*set_gpu_state)(device_t dev, enum vga_switcheroo_state);
-	void (*reprobe)(device_t dev);
-	bool (*can_switch)(device_t dev);
+	void (*set_gpu_state)(struct pci_dev *pdev, enum vga_switcheroo_state);
+	void (*reprobe)(struct pci_dev *pdev);
+	bool (*can_switch)(struct pci_dev *pdev);
 };
 
-static inline void vga_switcheroo_unregister_client(device_t dev) {}
-static inline int vga_switcheroo_register_client(device_t dev,
+static inline void vga_switcheroo_unregister_client(struct pci_dev *pdev) {}
+static inline int vga_switcheroo_register_client(struct pci_dev *pdev,
 		const struct vga_switcheroo_client_ops *ops) { return 0; }
-static inline void vga_switcheroo_client_fb_set(device_t dev, struct fb_info *info) {}
+static inline void vga_switcheroo_client_fb_set(struct pci_dev *pdev, struct fb_info *info) {}
 static inline int vga_switcheroo_register_handler(struct vga_switcheroo_handler *handler) { return 0; }
-static inline int vga_switcheroo_register_audio_client(device_t pdev,
+static inline int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 	const struct vga_switcheroo_client_ops *ops,
 	int id, bool active) { return 0; }
 static inline void vga_switcheroo_unregister_handler(void) {}
 static inline int vga_switcheroo_process_delayed_switch(void) { return 0; }
-static inline int vga_switcheroo_get_client_state(device_t *dev) { return VGA_SWITCHEROO_ON; }
+static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return VGA_SWITCHEROO_ON; }
 
 
 #define vga_client_register(a, b, c, d) 0
@@ -462,17 +397,14 @@ static inline int vga_switcheroo_get_client_state(device_t *dev) { return VGA_SW
 
 #define pm_qos_update_request(a, b)
 
-#define PCI_D0	PCI_POWERSTATE_D0
-#define PCI_D1	PCI_POWERSTATE_D1
-#define PCI_D2	PCI_POWERSTATE_D2
-#define PCI_D3	PCI_POWERSTATE_D3
-#define PCI_POWER_ERROR	PCI_POWERSTATE_UNKNOWN
-
-#define pci_set_power_state pci_set_powerstate
+#define pci_get_power_state pci_get_powerstate
+/* XXX ?? */
+#define pci_disable_device(dev)
 
 #define register_acpi_notifier(x)
 #define unregister_acpi_notifier(x)
 
 #define in_dbg_master() (kdb_active)
-
+#define do_gettimeofday microtime
+	
 #endif /* _DRM_OS_FREEBSD_H_ */

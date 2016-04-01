@@ -88,7 +88,7 @@ drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size,
 	    DRM_ERROR("called while holding dma_lock\n");
 
 	ret = bus_dma_tag_create(
-	    bus_get_dma_tag(dev->pdev), /* parent */
+	    bus_get_dma_tag(dev->dev->bsddev), /* parent */
 	    align, 0, /* align, boundary */
 	    maxaddr, BUS_SPACE_MAXADDR, /* lowaddr, highaddr */
 	    NULL, NULL, /* filtfunc, filtfuncargs */
@@ -159,10 +159,10 @@ static int drm_pci_get_irq(struct drm_device *dev)
 	if (dev->irqr)
 		return (dev->irq);
 
-	dev->irqr = bus_alloc_resource_any(dev->pdev, SYS_RES_IRQ,
+	dev->irqr = bus_alloc_resource_any(dev->dev->bsddev, SYS_RES_IRQ,
 	    &dev->irqrid, RF_SHAREABLE);
 	if (!dev->irqr) {
-		dev_err(dev->pdev, "Failed to allocate IRQ\n");
+		dev_err(dev->dev->bsddev, "Failed to allocate IRQ\n");
 		return (0);
 	}
 
@@ -176,7 +176,7 @@ static void drm_pci_free_irq(struct drm_device *dev)
 	if (dev->irqr == NULL)
 		return;
 
-	bus_release_resource(dev->pdev, SYS_RES_IRQ,
+	bus_release_resource(dev->dev->bsddev, SYS_RES_IRQ,
 	    dev->irqrid, dev->irqr);
 
 	dev->irqr = NULL;
@@ -331,17 +331,17 @@ int drm_get_pci_dev(device_t kdev, struct drm_device *dev,
 
 	driver->bus = &drm_pci_bus;
 
-	dev->pdev = kdev;
+	dev->dev->bsddev = kdev;
 
-	dev->pci_domain = pci_get_domain(dev->pdev);
-	dev->pci_bus = pci_get_bus(dev->pdev);
-	dev->pci_slot = pci_get_slot(dev->pdev);
-	dev->pci_func = pci_get_function(dev->pdev);
+	dev->pci_domain = pci_get_domain(dev->dev->bsddev);
+	dev->pci_bus = pci_get_bus(dev->dev->bsddev);
+	dev->pci_slot = pci_get_slot(dev->dev->bsddev);
+	dev->pci_func = pci_get_function(dev->dev->bsddev);
 
-	dev->pci_vendor = pci_get_vendor(dev->pdev);
-	dev->pci_device = pci_get_device(dev->pdev);
-	dev->pci_subvendor = pci_get_subvendor(dev->pdev);
-	dev->pci_subdevice = pci_get_subdevice(dev->pdev);
+	dev->pci_vendor = pci_get_vendor(dev->dev->bsddev);
+	dev->pci_device = pci_get_device(dev->dev->bsddev);
+	dev->pci_subvendor = pci_get_subvendor(dev->dev->bsddev);
+	dev->pci_subdevice = pci_get_subdevice(dev->dev->bsddev);
 
 	mutex_lock(&drm_global_mutex);
 
@@ -380,7 +380,7 @@ int drm_get_pci_dev(device_t kdev, struct drm_device *dev,
 
 	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
-		 driver->date, device_get_nameunit(dev->pdev), dev->primary->index);
+		 driver->date, device_get_nameunit(dev->dev->bsddev), dev->primary->index);
 
 	mutex_unlock(&drm_global_mutex);
 	return 0;
@@ -409,12 +409,12 @@ drm_pci_enable_msi(struct drm_device *dev)
 	if (!drm_msi)
 		return (-ENOENT);
 
-	msicount = pci_msi_count(dev->pdev);
+	msicount = pci_msi_count(dev->dev->bsddev);
 	DRM_DEBUG("MSI count = %d\n", msicount);
 	if (msicount > 1)
 		msicount = 1;
 
-	ret = pci_alloc_msi(dev->pdev, &msicount);
+	ret = pci_alloc_msi(dev->dev->bsddev, &msicount);
 	if (ret == 0) {
 		DRM_INFO("MSI enabled %d message(s)\n", msicount);
 		dev->msi_enabled = 1;
@@ -431,7 +431,7 @@ drm_pci_disable_msi(struct drm_device *dev)
 	if (!dev->msi_enabled)
 		return;
 
-	pci_release_msi(dev->pdev);
+	pci_release_msi(dev->dev->bsddev);
 	dev->msi_enabled = 0;
 	dev->irqrid = 0;
 }
@@ -450,7 +450,7 @@ int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *mask)
 	    device_get_parent( /* pcib             */
 	    device_get_parent( /* `-- pci          */
 	    device_get_parent( /*     `-- vgapci   */
-	    dev->pdev)));       /*         `-- drmn */
+	    dev->dev->bsddev)));       /*         `-- drmn */
 
 	pos = 0;
 	pci_find_cap(root, PCIY_EXPRESS, &pos);

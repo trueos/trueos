@@ -8805,18 +8805,20 @@ static struct intel_quirk intel_quirks[] = {
 
 static void intel_init_quirks(struct drm_device *dev)
 {
+	struct pci_dev *d = dev->pdev;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(intel_quirks); i++) {
 		struct intel_quirk *q = &intel_quirks[i];
 
-		if (pci_get_device(dev->pdev) == q->device &&
-		    (pci_get_subvendor(dev->pdev) == q->subsystem_vendor ||
+		if (d->device == q->device &&
+		    (d->subsystem_vendor == q->subsystem_vendor ||
 		     q->subsystem_vendor == PCI_ANY_ID) &&
-		    (pci_get_subdevice(dev->pdev) == q->subsystem_device ||
+		    (d->subsystem_device == q->subsystem_device ||
 		     q->subsystem_device == PCI_ANY_ID))
 			q->hook(dev);
 	}
+
 	for (i = 0; i < ARRAY_SIZE(intel_dmi_quirks); i++) {
 		if (dmi_check_system(*intel_dmi_quirks[i].dmi_id_list) != 0)
 			intel_dmi_quirks[i].hook(dev);

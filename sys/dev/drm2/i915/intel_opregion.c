@@ -362,7 +362,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	u32 temp;
 	int i = 0;
 
-	handle = acpi_get_handle(dev->pdev);
+	handle = acpi_get_handle(dev->pdev->dev.bsddev);
 	if (!handle)
 		return;
 
@@ -380,7 +380,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	}
 
 	if (!acpi_video_bus) {
-		device_printf(dev->pdev, "No ACPI video bus found\n");
+		pr_warn("No ACPI video bus found\n");
 		return;
 	}
 
@@ -388,7 +388,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	while (AcpiGetNextObject(ACPI_TYPE_DEVICE, acpi_video_bus, acpi_cdev,
 				&acpi_cdev) != AE_NOT_FOUND) {
 		if (i >= 8) {
-			device_printf(dev->pdev, "More than 8 outputs detected\n");
+			dev_printk(KERN_ERR, &dev->pdev->dev, "More than 8 outputs detected\n");
 			return;
 		}
 		status =
@@ -414,7 +414,7 @@ blind_set:
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		int output_type = ACPI_OTHER_OUTPUT;
 		if (i >= 8) {
-			device_printf(dev->pdev,
+			dev_printk(KERN_ERR, &dev->pdev->dev,
 				    "More than 8 outputs detected\n");
 			return;
 		}

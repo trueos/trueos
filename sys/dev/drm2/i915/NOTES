@@ -25,7 +25,7 @@ intel_acpi.c		(C)
 intel_bios.c		(C)
 intel_crt.c		(A)
 intel_ddi.c		(A)
-intel_display.c		(C)
+intel_display.c		(B)
 intel_dp.c		(C)
 intel_dvo.c		(A)
 intel_fb.c		(C)
@@ -38,7 +38,7 @@ intel_overlay.c		(B/C)
 intel_panel.c		(B)
 intel_pm.c		(C)
 intel_ringbuffer.c	(C)
-intel_sdvo.c		(B/C)
+intel_sdvo.c		(B)
 intel_sprite.c		(A)
 intel_tv.c		(A/B)
 
@@ -102,7 +102,6 @@ intel_ringbuffer.c
 	- msleep
 
 intel_sdvo.c
-	- device parent not directly accessible
 	- linux is much sloppier about constness with its casting
 	- original bits kept for use in building i2c kpi
 intel_tv.c - one instance of const sloppiness
