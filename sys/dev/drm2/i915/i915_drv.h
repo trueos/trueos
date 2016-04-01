@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/completion.h>
 #include <linux/io.h>
 #include <linux/io-mapping.h>
+#include <linux/seq_file.h>
 
 #include <asm/types.h>
 #include <linux/i2c.h>
@@ -662,7 +663,6 @@ struct intel_gen6_power_mgmt {
 	struct mutex hw_lock;
 };
 
-
 /* defined intel_pm.c */
 extern spinlock_t mchdev_lock;
 
@@ -918,7 +918,6 @@ typedef struct drm_i915_private {
 	u32 hotplug_supported_mask;
 	struct work_struct hotplug_work;
 	bool enable_hotplug_processing;
-
 
 	int num_pipe;
 	int num_pch_pll;
@@ -1853,10 +1852,10 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 /* overlay */
 //#ifdef CONFIG_DEBUG_FS
 extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);
-extern void intel_overlay_print_error_state(struct sbuf *m, struct intel_overlay_error_state *error);
+extern void intel_overlay_print_error_state(struct seq_file *m, struct intel_overlay_error_state *error);
 
 extern struct intel_display_error_state *intel_display_capture_error_state(struct drm_device *dev);
-extern void intel_display_print_error_state(struct sbuf *m,
+extern void intel_display_print_error_state(struct seq_file *m,
 					    struct drm_device *dev,
 					    struct intel_display_error_state *error);
 //#endif
