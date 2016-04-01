@@ -488,9 +488,7 @@ void intel_opregion_init(struct drm_device *dev)
 		iowrite32(1, &opregion->acpi->drdy);
 
 		system_opregion = opregion;
-#ifdef FREEBSD_WIP
 		register_acpi_notifier(&intel_opregion_notifier);
-#endif /* FREEBSD_WIP */
 	}
 
 	if (opregion->asle)
@@ -509,9 +507,7 @@ void intel_opregion_fini(struct drm_device *dev)
 		iowrite32(0, &opregion->acpi->drdy);
 
 		system_opregion = NULL;
-#ifdef FREEBSD_WIP
 		unregister_acpi_notifier(&intel_opregion_notifier);
-#endif /* FREEBSD_WIP */
 	}
 
 	/* just clear all opregion memory pointers now */
@@ -537,7 +533,7 @@ int intel_opregion_setup(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("graphic opregion physical addr: 0x%x\n", asls);
 	if (asls == 0) {
 		DRM_DEBUG_DRIVER("ACPI OpRegion not supported!\n");
-		return -ENOTSUP;
+		return -ENOTSUPP;
 	}
 
 	base = acpi_os_ioremap(asls, OPREGION_SIZE);
@@ -551,27 +547,24 @@ int intel_opregion_setup(struct drm_device *dev)
 		err = -EINVAL;
 		goto err_out;
 	}
-	opregion->header = (struct opregion_header *)base;
-	opregion->vbt = (char *)base + OPREGION_VBT_OFFSET;
+	opregion->header = base;
+	opregion->vbt = base + OPREGION_VBT_OFFSET;
 
-	opregion->lid_state = (u32 *)((char *)base + ACPI_CLID);
+	opregion->lid_state = base + ACPI_CLID;
 
-	mboxes = opregion->header->mboxes;
+	mboxes = ioread32(&opregion->header->mboxes);
 	if (mboxes & MBOX_ACPI) {
 		DRM_DEBUG_DRIVER("Public ACPI methods supported\n");
-		opregion->acpi = (struct opregion_acpi *)((char *)base +
-		    OPREGION_ACPI_OFFSET);
+		opregion->acpi = base + OPREGION_ACPI_OFFSET;
 	}
 
 	if (mboxes & MBOX_SWSCI) {
 		DRM_DEBUG_DRIVER("SWSCI supported\n");
-		opregion->swsci = (struct opregion_swsci *)((char *)base +
-		    OPREGION_SWSCI_OFFSET);
+		opregion->swsci = base + OPREGION_SWSCI_OFFSET;
 	}
 	if (mboxes & MBOX_ASLE) {
 		DRM_DEBUG_DRIVER("ASLE supported\n");
-		opregion->asle = (struct opregion_asle *)((char *)base +
-		    OPREGION_ASLE_OFFSET);
+		opregion->asle = base + OPREGION_ASLE_OFFSET;
 	}
 
 	return 0;
