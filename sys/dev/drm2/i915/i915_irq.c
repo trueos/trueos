@@ -291,6 +291,10 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
 
+	/* HPD irq before everything is fully set up. */
+	if (!dev_priv->enable_hotplug_processing)
+		return;
+
 	mutex_lock(&mode_config->mutex);
 	DRM_DEBUG_KMS("running encoder hotplug functions\n");
 
@@ -303,9 +307,6 @@ static void i915_hotplug_work_func(struct work_struct *work)
 	/* Just fire off a uevent and let userspace tell us what to do */
 	drm_helper_hpd_irq_event(dev);
 }
-
-/* defined intel_pm.c */
-extern spinlock_t mchdev_lock;
 
 static void ironlake_handle_rps_change(struct drm_device *dev)
 {
@@ -1041,7 +1042,7 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 			page = i915_gem_object_get_page(src, i);
 
-			drm_clflush_pages(&src->pages[i], 1);
+			drm_clflush_pages(&page, 1);
 			s = kmap_atomic(page);
 			memcpy(d, s, PAGE_SIZE);
 			kunmap_atomic(s);
@@ -1259,9 +1260,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 		error->instdone[ring->id] = I915_READ(INSTDONE);
 	}
 
-	sleepq_lock(&ring->irq_queue);
-	error->waiting[ring->id] = sleepq_sleepcnt(&ring->irq_queue, 0) != 0;
-	sleepq_release(&ring->irq_queue);
+	error->waiting[ring->id] = waitqueue_active(&ring->irq_queue);
 	error->instpm[ring->id] = I915_READ(RING_INSTPM(ring->mmio_base));
 	error->seqno[ring->id] = ring->get_seqno(ring, false);
 	error->acthd[ring->id] = intel_ring_get_active_head(ring);
@@ -1423,7 +1422,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 					  error->pinned_bo_count,
 					  &dev_priv->mm.bound_list);
 
-	microtime(&error->time);
+	do_gettimeofday(&error->time);
 
 	error->overlay = intel_overlay_capture_error_state(dev);
 	error->display = intel_display_capture_error_state(dev);
@@ -1788,15 +1787,12 @@ static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring, bool *err)
 	    i915_seqno_passed(ring->get_seqno(ring, false),
 			      ring_last_seqno(ring))) {
 		/* Issue a wake-up to catch stuck h/w. */
-		sleepq_lock(&ring->irq_queue);
-		if (sleepq_sleepcnt(&ring->irq_queue, 0) != 0) {
-			sleepq_release(&ring->irq_queue);
+		if (waitqueue_active(&ring->irq_queue)) {
 			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
 				  ring->name);
 			wake_up_all(&ring->irq_queue);
 			*err = true;
-		} else
-			sleepq_release(&ring->irq_queue);
+		}
 		return true;
 	}
 	return false;

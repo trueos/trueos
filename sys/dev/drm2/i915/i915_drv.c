@@ -536,9 +536,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	drm_kms_helper_poll_disable(dev);
 
-#ifdef __linux__
 	pci_save_state(dev->pdev);
-#endif
 
 	/* If KMS is active, we do the leavevt stuff here */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -590,11 +588,9 @@ int i915_suspend(struct drm_device *dev, pm_message_t state)
 		return error;
 
 	if (state.event == PM_EVENT_SUSPEND) {
-#ifdef __linux__
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
 		pci_set_power_state(dev->pdev, PCI_D3hot);
-#endif
 	}
 
 	return 0;
@@ -1402,14 +1398,12 @@ u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 		spin_lock_irqsave(&dev_priv->gt_lock, irqflags); \
 		if (dev_priv->forcewake_count == 0) \
 			dev_priv->gt.force_wake_get(dev_priv); \
-		val = DRM_READ##x(dev_priv->mmio_map, reg); \
+		val = read##y(dev_priv->regs + reg); \
 		if (dev_priv->forcewake_count == 0) \
 			dev_priv->gt.force_wake_put(dev_priv); \
-		spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags); \
-	} else if (IS_VALLEYVIEW(dev_priv->dev) && IS_DISPLAYREG(reg)) { \
-		val = DRM_READ##x(dev_priv->mmio_map, reg + 0x180000);		\
+		spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);	\
 	} else { \
-		val = DRM_READ##x(dev_priv->mmio_map, reg); \
+		val = read##y(dev_priv->regs + reg); \
 	} \
 	trace_i915_reg_rw(false, reg, val, sizeof(val)); \
 	return val; \
@@ -1434,17 +1428,13 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 		DRM_ERROR("Unknown unclaimed register before writing to %x\n", reg); \
 		I915_WRITE_NOTRACE(GEN7_ERR_INT, ERR_INT_MMIO_UNCLAIMED); \
 	} \
-	if (IS_VALLEYVIEW(dev_priv->dev) && IS_DISPLAYREG(reg)) { \
-		DRM_WRITE##x(dev_priv->mmio_map, reg + 0x180000, val);		\
-	} else {							\
-		DRM_WRITE##x(dev_priv->mmio_map, reg, val);			\
-	}								\
+	write##y(val, dev_priv->regs + reg);	\
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
 	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
 		DRM_ERROR("Unclaimed write to %x\n", reg); \
-		DRM_WRITE32(dev_priv->mmio_map, GEN7_ERR_INT, ERR_INT_MMIO_UNCLAIMED);	\
+		writel(ERR_INT_MMIO_UNCLAIMED, dev_priv->regs + GEN7_ERR_INT);	\
 	} \
 }
 __i915_write(8, b)

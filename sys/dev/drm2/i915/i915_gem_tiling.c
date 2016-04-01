@@ -457,7 +457,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
  * by the GPU.
  */
 static void
-i915_gem_swizzle_page(vm_page_t page)
+i915_gem_swizzle_page(struct page *page)
 {
 	char temp[64];
 	char *vaddr;
@@ -502,8 +502,8 @@ i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
 	int i;
 
 	if (obj->bit_17 == NULL) {
-		obj->bit_17 = malloc(BITS_TO_LONGS(page_count) *
-					   sizeof(long), DRM_I915_GEM, M_WAITOK);
+		obj->bit_17 = kmalloc(BITS_TO_LONGS(page_count) *
+				      sizeof(long), GFP_KERNEL);
 		if (obj->bit_17 == NULL) {
 			DRM_ERROR("Failed to allocate memory for bit 17 "
 				  "record\n");

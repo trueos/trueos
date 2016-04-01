@@ -868,6 +868,8 @@ typedef struct drm_i915_private {
 
 	int relative_constants_mode;
 
+	void __iomem *regs;
+
 	/* FIXME Linux<->FreeBSD: "void *regs" on Linux. */
 	drm_local_map_t *mmio_map;
 

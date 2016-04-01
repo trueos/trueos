@@ -1,6 +1,49 @@
+dvo_ch7xxx.c		(A)
+dvo_ch7017.c		(A)
+dvo_ivch.c		(A)
+dvo_ns2501.c		(A)
+dvo_sil1164.c		(A)
+dvo_tfp410.c   		(A)
+i915_debugfs.c		(D)
+i915_dma.c		(D)
+i915_drv.c		(D)
+i915_gem.c		(D)
+i915_gem_context.c 	(B/C)
+i915_gem_debug.c 	(E)
+i915_gem_dmabuf.c     	(E)
+i915_gem_evict.c      	(B)
+i915_gem_execbuffer.c 	(D)
+i915_gem_freebsd.c	(local)
+i915_gem_gtt.c		(D)
+i915_gem_stolen.c	(D)
+i915_gem_tiling.c	(B/C)
+i915_ioc32.c		(D)
+i915_irq.c		(C)
+i915_suspend.c		(A)
+i915_ums.c		(A)
+intel_acpi.c		(C)
+intel_bios.c		(C)
+intel_crt.c		(A)
+intel_ddi.c		(A)
+intel_display.c		(C)
+intel_dp.c		(C)
+intel_dvo.c		(A)
+intel_fb.c		(C)
+intel_hdmi.c		(A)
+intel_i2c.c		(B/C)
+intel_lvds.c		(B)
+intel_modes.c		(A)
+intel_opregion.c	(C)
+intel_overlay.c		(B/C)
+intel_panel.c		(B)
+intel_pm.c		(C)
+intel_ringbuffer.c	(C)
+intel_sdvo.c		(B/C)
+intel_sprite.c		(A)
+intel_tv.c		(A/B)
 
 
-Files with no changes against uptstream:
+Files with no changes against uptstream (A):
 dvo_ch7xxx.c
 dvo_ch7017.c
 dvo_ivch.c
@@ -8,25 +51,45 @@ dvo_ns2501.c
 dvo_sil1164.c
 dvo_tfp410.c
 
+i915_suspend.c
+i915_ums.c
+
 intel_crt.c
 intel_ddi.c
-intel_hdmi.c
+
 intel_dvo.c
+intel_hdmi.c
 intel_modes.c
 intel_sprite.c
 
-Files with very minor changes that could be remedied with further linuxkpi extensions:
 
 
-Files with minor unavoidable differences:
+
+Files with very minor changes that could be remedied with further linuxkpi extensions (B):
+i915_gem_evict.c - KTR
+i915_gem_context.c - single difference in reference counting
+intel_lvds.c - linuxkpi needs a notifier block interface that maps to EVENTHANDLER - FREEBSD_WIP for now
+intel_panel.c - TUNABLE_INT needs to be rolled in to MODULE_PARM_DESC
+
+
+
+Files with minor unavoidable differences (C):
+i915_gem_tiling.c - vm_page_t vs sgl
+i915_irq.c
+	- irq handler API difference, KTR usage, lack of kobject_uevent_env on FreeBSD,
+	- callout API difference
+	- no direct access to device_t
+
+intel_acpi.c - FreeBSD maintains Intel's camel case naming convention in ACPI, Linux does not
+intel_bios.c - Linux const sloppiness, different name for mapping bios, freebsd actually frees parsed bios data
 intel_display.c - outb/inb on linux order the arguments in reverse, pci accessor differences, seq_file vs sbuf
 intel_dp.c - msleep() differs on linux so DRM_MSLEEP, slightly different args to DRM_KMS_DEBUG
 intel_i2c.c - need to destroy mutexes
 intel_fb.c - differences in framebuffer interface / a MUCH better job needs to be done in reconciling XXX
-intel_lvds.c - linuxkpi needs a notifier block interface that maps to EVENTHANDLER - FREEBSD_WIP for now
-intel_opregion.c - differencs in ACPI interface - lack of acpi notifier
+intel_opregion.c - differences in ACPI interface - lack of acpi notifier
 intel_overlay.c - unused variables except with INVARIANTS, sbuf vs seq_file
-intel_panel.c - TUNABLE_INT needs to be rolled in to MODULE_PARM_DESC
+
+
 intel_pm.c
 	- difference in frequency handling - need cpufreq_quick_get_max(),
 	- TR1 register conflicts with KTR defines
@@ -44,12 +107,31 @@ intel_sdvo.c
 	- original bits kept for use in building i2c kpi
 intel_tv.c - one instance of const sloppiness
 
-Files that fundamentally differ due to VM/PCI etc
+
+
+
+
+
+Files that fundamentally differ due to VM/PCI etc (D):
 i915_dma.c - manipulates devices / rman, although there are many gratuitous API differences
 	   with drm_ prefixing many functions that are otherwise shim routines
+i915_drv.c
+	- pci accessors
+	- missing suspend / resume functionality in freebsd
+	- wait for usage to avoid LOR
+	- probe semantics
+	- prime unsupported
+	- pager operations
+	- module dependencies
+i915_gem_execbuffer.c - KTR, VM
+i915_gem_gtt.c - large delta due to VM differences
+i915_gem_stolen.c - vm_page_t vs sgl - unlikely to be fully functional
+i915_ioc32.c - completely different ioctl interface from Linux
 
 
-
+Unused (E):
+i915_gem_debug.c
+i915_gem_dmabuf.c
 
 Next file to update:
 
@@ -58,5 +140,8 @@ Next file to update:
 FreeBSD needs to destroy it's locks to make WITNESS unhappy - (either that or not register them with WITNESS)
 
 
-NOTE that MODULE_PARM_DESC should itself define sysctl/TUNABLE_INT
-All throughout need to s/CTR/trace/
+NB:
+	- MODULE_PARM_DESC should itself define sysctl/TUNABLE_INT
+	- All throughout need to s/CTR/trace/
+	- Need to convert mmio usage to regs
+	- kunmap takes a page not a virtual address (kunmap_atomic takes a vaddr)
