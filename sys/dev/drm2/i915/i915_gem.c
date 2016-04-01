@@ -3757,12 +3757,12 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 {
 	struct drm_i915_gem_object *obj;
 
-	obj = malloc(sizeof(*obj), DRM_I915_GEM, M_WAITOK | M_ZERO);
+	obj = i915_gem_object_alloc(dev);
 	if (obj == NULL)
 		return NULL;
 
 	if (drm_gem_object_init(dev, &obj->base, size) != 0) {
-		kfree(obj);
+		i915_gem_object_free(obj);
 		return NULL;
 	}
 
@@ -3958,7 +3958,7 @@ intel_enable_blt(struct drm_device *dev)
 		return false;
 
 	/* The blitter was dysfunctional on early prototypes */
-	if (IS_GEN6(dev) && pci_get_revid(dev->pdev) < 8) {
+	if (IS_GEN6(dev) && dev->pdev->revision < 8) {
 		DRM_INFO("BLT not supported on this pre-production hardware;"
 			 " graphics performance will be degraded.\n");
 		return false;

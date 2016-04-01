@@ -34,6 +34,8 @@
 #include <dev/drm2/drm_fb_helper.h>
 #include <dev/drm2/drm_dp_helper.h>
 
+#include <linux/device.h>
+
 #define _intel_wait_for(DEV, COND, MS, W, WMSG)				\
 ({									\
 	int end, ret;							\

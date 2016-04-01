@@ -204,7 +204,7 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 			fb_dealloc_cmap(&info->cmap);
 #endif		
 		if (info->fb_fbd_dev != NULL)
-			device_delete_child(dev->pdev, info->fb_fbd_dev);
+			device_delete_child(dev->pdev->dev.bsddev, info->fb_fbd_dev);
 		framebuffer_release(info);
 	}
 

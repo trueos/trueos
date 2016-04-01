@@ -991,6 +991,8 @@ struct drm_pending_vblank_event {
  * may contain multiple heads.
  */
 struct drm_device {
+	struct list_head driver_item;	/**< list of devices per driver */
+	char *devname;			/**< For /proc/interrupts */
 	int if_version;			/**< Highest interface version set */
 
 	/** \name Locks */
@@ -1050,6 +1052,7 @@ struct drm_device {
 	unsigned long last_switch;	/**< jiffies at last context switch */
 	/*@} */
 
+	struct work_struct work;
 	/** \name VBLANK IRQ support */
 	/*@{ */
 
@@ -1061,6 +1064,7 @@ struct drm_device {
 	 */
 	int vblank_disable_allowed;
 
+	wait_queue_head_t *vbl_queue;   /**< VBLANK wait queue */
 	atomic_t *_vblank_count;        /**< number of VBLANK interrupts (driver must alloc the right number of counters) */
 	struct timeval *_vblank_time;   /**< timestamp of current vblank_count (drivers must alloc right number of fields) */
 	spinlock_t vblank_time_lock;    /**< Protects vblank count and time updates during vblank enable/disable */
@@ -1083,14 +1087,24 @@ struct drm_device {
 	spinlock_t event_lock;
 
 	/*@} */
+#ifdef __linux__	
+	cycles_t ctx_start;
+	cycles_t lck_start;
+#endif	
 
+	struct fasync_struct *buf_async;/**< Processes waiting for SIGIO */
+	wait_queue_head_t buf_readers;	/**< Processes waiting to read */
+	wait_queue_head_t buf_writers;	/**< Processes waiting to ctx switch */
+
+	
 	struct drm_agp_head *agp;	/**< AGP data */
 
-	device_t pdev;			/* Device instance from newbus */
-	uint16_t pci_device;		/* PCI device id */
-	uint16_t pci_vendor;		/* PCI vendor id */
-	uint16_t pci_subdevice;		/* PCI subsystem device id */
-	uint16_t pci_subvendor;		/* PCI subsystem vendor id */
+	struct device *dev;             /**< Device structure */
+	struct pci_dev *pdev;		/**< PCI device structure */	
+	int pci_vendor;		/**< PCI vendor id */
+	int pci_device;		/**< PCI device id */
+	int pci_subdevice;		/* PCI subsystem device id */
+	int pci_subvendor;		/* PCI subsystem vendor id */
 
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	unsigned int num_crtcs;                  /**< Number of CRTCs on this device */
