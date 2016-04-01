@@ -479,4 +479,8 @@ void inline list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 	free(ar, M_TEMP);
 }
 
+#define hlist_add_head_rcu(n, h)        hlist_add_head(n, h)
+
+#define hlist_del_init_rcu(n)           hlist_del_init(n)
+
 #endif /* _LINUX_LIST_H_ */

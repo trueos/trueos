@@ -39,18 +39,18 @@ __FBSDID("$FreeBSD$");
 #ifndef DRM_HASHTAB_H
 #define DRM_HASHTAB_H
 
+#include <linux/list.h>
+
 #define drm_hash_entry(_ptr, _type, _member) container_of(_ptr, _type, _member)
 
 struct drm_hash_item {
-	LIST_ENTRY(drm_hash_item) head;
+	struct hlist_node head;
 	unsigned long key;
 };
 
 struct drm_open_hash {
-	LIST_HEAD(drm_hash_item_list, drm_hash_item) *table;
-	unsigned int size;
-	unsigned int order;
-	unsigned long mask;
+	struct hlist_head *table;
+	u8 order;
 };
 
 extern int drm_ht_create(struct drm_open_hash *ht, unsigned int order);

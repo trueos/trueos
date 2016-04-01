@@ -1,11 +1,9 @@
 #if !defined(_I915_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
 #define _I915_TRACE_H_
 
-#include <linux/stringify.h>
 #include <linux/types.h>
-#include <linux/tracepoint.h>
 
-#include <drm/drmP.h>
+#include <dev/drm2/drmP.h>
 #include "i915_drv.h"
 #include "intel_ringbuffer.h"
 
@@ -448,8 +446,3 @@ TRACE_EVENT(intel_gpu_freq_change,
 );
 
 #endif /* _I915_TRACE_H_ */
-
-/* This part must be outside protection */
-#undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
-#include <trace/define_trace.h>
