@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #define TTM_MEMORY_ALLOC_RETRIES 4
 
 struct ttm_mem_zone {
-	u_int kobj_ref;
+	struct kobject kobj;
 	struct ttm_mem_global *glob;
 	const char *name;
 	uint64_t zone_mem;
@@ -46,10 +46,10 @@ struct ttm_mem_zone {
 	uint64_t used_mem;
 };
 
-MALLOC_DEFINE(M_TTM_ZONE, "ttm_zone", "TTM Zone");
-
-static void ttm_mem_zone_kobj_release(struct ttm_mem_zone *zone)
+static void ttm_mem_zone_kobj_release(struct kobject *kobj)
 {
+	struct ttm_mem_zone *zone =
+		container_of(kobj, struct ttm_mem_zone, kobj);
 
 	pr_info("Zone %7s: Used memory at exit: %llu kiB\n",
 		zone->name, (unsigned long long)zone->used_mem >> 10);
@@ -123,9 +123,30 @@ static ssize_t ttm_mem_zone_store(struct ttm_mem_zone *zone,
 }
 #endif
 
-static void ttm_mem_global_kobj_release(struct ttm_mem_global *glob)
+static struct attribute *ttm_mem_zone_attrs[] = {
+        NULL
+};
+
+static const struct sysfs_ops ttm_mem_zone_ops = {
+};
+
+static struct kobj_type ttm_mem_zone_kobj_type = {
+        .release = &ttm_mem_zone_kobj_release,
+        .sysfs_ops = &ttm_mem_zone_ops,
+        .default_attrs = ttm_mem_zone_attrs,
+};
+
+static void ttm_mem_global_kobj_release(struct kobject *kobj)
 {
+	struct ttm_mem_global *glob =
+                container_of(kobj, struct ttm_mem_global, kobj);
+
+        kfree(glob);
 }
+
+static struct kobj_type ttm_mem_glob_kobj_type = {
+        .release = &ttm_mem_global_kobj_release,
+};
 
 static bool ttm_zones_above_swap_target(struct ttm_mem_global *glob,
 					bool from_wq, uint64_t extra)
@@ -194,9 +215,12 @@ static void ttm_shrink_work(struct work_struct *work)
 static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
     uint64_t mem)
 {
-	struct ttm_mem_zone *zone;
+	struct ttm_mem_zone *zone = kzalloc(sizeof(*zone), GFP_KERNEL);
+	int ret;
 
-	zone = malloc(sizeof(*zone), M_TTM_ZONE, M_WAITOK | M_ZERO);
+	if (unlikely(!zone))
+		return -ENOMEM;
+
 
 	zone->name = "kernel";
 	zone->zone_mem = mem;
@@ -206,7 +230,12 @@ static int ttm_mem_init_kernel_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_kernel = zone;
-	refcount_init(&zone->kobj_ref, 1);
+	ret = kobject_init_and_add(
+		&zone->kobj, &ttm_mem_zone_kobj_type, &glob->kobj, zone->name);
+	if (unlikely(ret != 0)) {
+		kobject_put(&zone->kobj);
+		return ret;
+	}
 	glob->zones[glob->num_zones++] = zone;
 	return 0;
 }
@@ -215,6 +244,7 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
     uint64_t mem)
 {
 	struct ttm_mem_zone *zone;
+	int ret;
 
 	zone = kzalloc(sizeof(*zone), GFP_KERNEL);
 	if (unlikely(!zone))
@@ -244,7 +274,12 @@ static int ttm_mem_init_dma32_zone(struct ttm_mem_global *glob,
 	zone->used_mem = 0;
 	zone->glob = glob;
 	glob->zone_dma32 = zone;
-	refcount_init(&zone->kobj_ref, 1);
+	ret = kobject_init_and_add(
+		&zone->kobj, &ttm_mem_zone_kobj_type, &glob->kobj, zone->name);
+	if (unlikely(ret != 0)) {
+		kobject_put(&zone->kobj);
+		return ret;
+	}
 	glob->zones[glob->num_zones++] = zone;
 	return 0;
 }
@@ -259,8 +294,12 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 	spin_lock_init(&glob->lock);
 	glob->swap_queue = create_singlethread_workqueue("ttm_swap");
 	INIT_WORK(&glob->work, ttm_shrink_work);
-
-	refcount_init(&glob->kobj_ref, 1);
+	ret = kobject_init_and_add(
+		&glob->kobj, &ttm_mem_glob_kobj_type, ttm_get_kobj(), "memory_accounting");
+	if (unlikely(ret != 0)) {
+		kobject_put(&glob->kobj);
+		return ret;
+	}
 
 	mem = physmem * PAGE_SIZE;
 
@@ -298,11 +337,11 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 	glob->swap_queue = NULL;
 	for (i = 0; i < glob->num_zones; ++i) {
 		zone = glob->zones[i];
-		if (refcount_release(&zone->kobj_ref))
-			ttm_mem_zone_kobj_release(zone);
-	}
-	if (refcount_release(&glob->kobj_ref))
-		ttm_mem_global_kobj_release(glob);
+		kobject_del(&zone->kobj);
+		kobject_put(&zone->kobj);
+			}
+	kobject_del(&glob->kobj);
+	kobject_put(&glob->kobj);
 }
 EXPORT_SYMBOL(ttm_mem_global_release);
 

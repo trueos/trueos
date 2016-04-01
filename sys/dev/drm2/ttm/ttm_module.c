@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright 2008-2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,15 +26,30 @@
  **************************************************************************/
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
+ * 	    Jerome Glisse
  */
+#include <linux/module.h>
+#include <linux/device.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
+#include <dev/drm2/ttm/ttm_module.h>
 
-#ifndef _TTM_MODULE_H_
-#define _TTM_MODULE_H_
+static DECLARE_WAIT_QUEUE_HEAD(exit_q);
+atomic_t device_released;
 
-#include <linux/kernel.h>
-struct kobject;
+static void ttm_drm_class_device_release(struct device *dev)
+{
+        atomic_set(&device_released, 1);
+        wake_up_all(&exit_q);
+}
 
-#define TTM_PFX "[TTM] "
-extern struct kobject *ttm_get_kobj(void);
+static struct device ttm_drm_class_device = {
+        .release = &ttm_drm_class_device_release
+};
 
-#endif /* _TTM_MODULE_H_ */
+struct kobject *ttm_get_kobj(void)
+{
+	struct kobject *kobj = &ttm_drm_class_device.kobj;
+	BUG_ON(kobj == NULL);
+	return kobj;
+}

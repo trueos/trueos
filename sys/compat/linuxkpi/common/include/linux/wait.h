@@ -51,6 +51,8 @@ typedef struct {
 /* XXXTODO this is not yet checked! */
 #define DECLARE_WAITQUEUE(name, tsk)	\
 	wait_queue_t name
+#define DECLARE_WAIT_QUEUE_HEAD(name)    \
+        wait_queue_head_t name
 
 #define	init_waitqueue_head(x) \
     do { } while (0)

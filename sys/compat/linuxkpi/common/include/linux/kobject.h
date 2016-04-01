@@ -145,4 +145,10 @@ int	kobject_set_name(struct kobject *kobj, const char *fmt, ...);
 int	kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 	    struct kobject *parent, const char *fmt, ...);
 
+static inline void
+kobject_del(struct kobject *kobj)
+{
+	panic("XXX implement me.");
+}
+
 #endif /* _LINUX_KOBJECT_H_ */
