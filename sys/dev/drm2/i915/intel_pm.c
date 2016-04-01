@@ -482,12 +482,14 @@ void intel_update_fbc(struct drm_device *dev)
 	}
 
 	/* If the kernel debugger is active, always disable compression */
-	if (kdb_active)
+	if (in_dbg_master())
 		goto out_disable;
 
 	if (i915_gem_stolen_setup_compression(dev, intel_fb->obj->base.size)) {
-		DRM_DEBUG_KMS("framebuffer too large, disabling "
-			      "compression\n");
+		DRM_INFO("not enough stolen space for compressed buffer (need %zd bytes), disabling\n", intel_fb->obj->base.size);
+		DRM_INFO("hint: you may be able to increase stolen memory size in the BIOS to avoid this\n");
+		DRM_DEBUG_KMS("framebuffer too large, disabling compression\n");
+
 		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		goto out_disable;
 	}
@@ -539,6 +541,7 @@ out_disable:
 		DRM_DEBUG_KMS("unsupported config, disabling FBC\n");
 		intel_disable_fbc(dev);
 	}
+	i915_gem_stolen_cleanup_compression(dev);
 }
 
 static void i915_pineview_get_mem_freq(struct drm_device *dev)
@@ -1291,7 +1294,7 @@ static void vlv_update_drain_latency(struct drm_device *dev)
 	}
 }
 
-#define single_plane_enabled(mask) ((mask) != 0 && powerof2(mask))
+#define single_plane_enabled(mask) is_power_of_2(mask)
 
 static void valleyview_update_wm(struct drm_device *dev)
 {
@@ -2298,8 +2301,7 @@ err_unref:
 /**
  * Lock protecting IPS related data structures
  */
-spinlock_t mchdev_lock;
-MTX_SYSINIT(mchdev, &mchdev_lock.m, "mchdev", MTX_DEF);
+DEFINE_SPINLOCK(mchdev_lock);
 
 /* Global for IPS driver to get at the current i915 device. Protected by
  * mchdev_lock. */
@@ -3354,6 +3356,8 @@ ips_ping_for_i915_load(void)
 		symbol_put(ips_link_to_i915_driver);
 	}
 }
+#else
+#define ips_ping_for_i915_load()
 #endif /* FREEBSD_WIP */
 
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv)
@@ -3364,9 +3368,7 @@ void intel_gpu_ips_init(struct drm_i915_private *dev_priv)
 	i915_mch_dev = dev_priv;
 	spin_unlock_irq(&mchdev_lock);
 
-#ifdef FREEBSD_WIP
 	ips_ping_for_i915_load();
-#endif /* FREEBSD_WIP */
 }
 
 void intel_gpu_ips_teardown(void)

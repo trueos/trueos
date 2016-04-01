@@ -1432,6 +1432,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 static void
 intel_tv_destroy(struct drm_connector *connector)
 {
+	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);
 }
@@ -1483,8 +1484,7 @@ intel_tv_set_property(struct drm_connector *connector, struct drm_property *prop
 	}
 
 	if (changed && crtc)
-		intel_set_mode(crtc, &crtc->mode,
-			       crtc->x, crtc->y, crtc->fb);
+		intel_crtc_restore_mode(crtc);
 out:
 	return ret;
 }
@@ -1672,4 +1672,5 @@ intel_tv_init(struct drm_device *dev)
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.tv_bottom_margin_property,
 				   intel_tv->margin[TV_MARGIN_BOTTOM]);
+	drm_sysfs_connector_add(connector);
 }

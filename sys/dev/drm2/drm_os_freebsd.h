@@ -470,4 +470,9 @@ static inline int vga_switcheroo_get_client_state(device_t *dev) { return VGA_SW
 
 #define pci_set_power_state pci_set_powerstate
 
+#define register_acpi_notifier(x)
+#define unregister_acpi_notifier(x)
+
+#define in_dbg_master() (kdb_active)
+
 #endif /* _DRM_OS_FREEBSD_H_ */

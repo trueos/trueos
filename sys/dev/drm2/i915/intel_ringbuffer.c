@@ -1175,7 +1175,7 @@ static int init_phys_hws_pga(struct intel_ring_buffer *ring)
 		addr |= (dev_priv->status_page_dmah->busaddr >> 28) & 0xf0;
 	I915_WRITE(HWS_PGA, addr);
 
-	ring->status_page.page_addr = (u32*)dev_priv->status_page_dmah->vaddr;
+	ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
 	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
 
 	return 0;
@@ -1194,9 +1194,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	ring->size = 32 * PAGE_SIZE;
 	memset(ring->sync_seqno, 0, sizeof(ring->sync_seqno));
 
-#ifdef __linux__
 	init_waitqueue_head(&ring->irq_queue);
-#endif
 
 	if (I915_NEED_GFX_HWS(dev)) {
 		ret = init_status_page(ring);
@@ -1418,7 +1416,7 @@ static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
 			return ret;
 	}
 
-	virt = (uint32_t *)((char *)ring->virtual_start + ring->tail);
+	virt = ring->virtual_start + ring->tail;
 	rem /= 4;
 	while (rem--)
 		iowrite32(MI_NOOP, virt++);
