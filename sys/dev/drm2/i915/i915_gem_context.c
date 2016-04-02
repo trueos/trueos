@@ -129,7 +129,6 @@ static int get_context_size(struct drm_device *dev)
 
 static void do_destroy(struct i915_hw_context *ctx)
 {
-
 	if (ctx->file_priv)
 		idr_remove(&ctx->file_priv->context_idr, ctx->id);
 
@@ -247,6 +246,7 @@ void i915_gem_context_init(struct drm_device *dev)
 	if (dev_priv->hw_contexts_disabled ||
 	    dev_priv->ring[RCS].default_context)
 		return;
+
 	dev_priv->hw_context_size = round_up(get_context_size(dev), 4096);
 
 	if (dev_priv->hw_context_size > (1<<20)) {

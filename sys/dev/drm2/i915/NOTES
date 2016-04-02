@@ -11,7 +11,7 @@ i915_gem.c		(D)
 i915_gem_context.c 	(B/C)
 i915_gem_debug.c 	(E)
 i915_gem_dmabuf.c     	(E)
-i915_gem_evict.c      	(B)
+i915_gem_evict.c      	(A)
 i915_gem_execbuffer.c 	(D)
 i915_gem_freebsd.c	(local)
 i915_gem_gtt.c		(D)
@@ -20,6 +20,7 @@ i915_gem_tiling.c	(B/C)
 i915_ioc32.c		(D)
 i915_irq.c		(C)
 i915_suspend.c		(A)
+i915_trace_points.c	(A)
 i915_ums.c		(A)
 intel_acpi.c		(C)
 intel_bios.c		(C)
@@ -52,6 +53,7 @@ dvo_sil1164.c
 dvo_tfp410.c
 
 i915_suspend.c
+i915_trace_points.c
 i915_ums.c
 
 intel_crt.c
@@ -66,7 +68,6 @@ intel_sprite.c
 
 
 Files with very minor changes that could be remedied with further linuxkpi extensions (B):
-i915_gem_evict.c - KTR
 i915_gem_context.c - single difference in reference counting
 intel_lvds.c - linuxkpi needs a notifier block interface that maps to EVENTHANDLER - FREEBSD_WIP for now
 intel_panel.c - TUNABLE_INT needs to be rolled in to MODULE_PARM_DESC
@@ -87,7 +88,7 @@ intel_dp.c - msleep() differs on linux so DRM_MSLEEP, slightly different args to
 intel_i2c.c - need to destroy mutexes
 intel_fb.c - differences in framebuffer interface / a MUCH better job needs to be done in reconciling XXX
 intel_opregion.c - differences in ACPI interface - lack of acpi notifier
-intel_overlay.c - unused variables except with INVARIANTS, sbuf vs seq_file
+intel_overlay.c - unused variables except with INVARIANTS
 
 
 intel_pm.c
@@ -98,7 +99,6 @@ intel_pm.c
 intel_ringbuffer.c
 	- use of kva_alloc instead of pages in an sgl attached to the obj -> pmap
 	- drm_pci_alloc interface difference
-	- KTR usage
 	- msleep
 
 intel_sdvo.c

@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/i915_drm.h>
+#include <dev/drm2/i915/i915_trace.h>
 
 static bool
 mark_free(struct drm_i915_gem_object *obj, struct list_head *unwind)
@@ -53,8 +54,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
 
-	CTR4(KTR_DRM, "evict_something %p %d %u %d", dev, min_size,
-	    alignment, mappable);
+	trace_i915_gem_evict(dev, min_size, alignment, mappable);
 
 	/*
 	 * The goal is to evict objects and amalgamate space in LRU order.
@@ -166,7 +166,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 	if (lists_empty)
 		return -ENOSPC;
 
-	CTR1(KTR_DRM, "evict_everything %p", dev);
+	trace_i915_gem_evict_everything(dev);
 
 	/* The gpu_idle will flush everything in the write domain to the
 	 * active list. Then we must move everything off the active list
