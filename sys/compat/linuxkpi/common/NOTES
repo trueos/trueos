@@ -1,0 +1,21 @@
+### Stubbed implementations:
+
+spinglock.h:
+* void spin_lock_bh(spinlock_t *lock)
+* void spin_unlock_bh(spinlock_t *lock)
+
+device.h:
+* struct device_type
+
+wait.h:
+* int waitqueue_active(wait_queue_head_t *q)
+* void add_wait_queue(wait_queue_head_t *q, wait_queue_t *wait)
+* void remove_wait_queue(wait_queue_head_t *q, wait_queue_t *wait)
+* int wait_event_interruptible_timeout(wait_queue_head_t wq, int condition, int timeout)
+* int __wait_event_timeout(wait_queue_head_t wq, int condition, int timeout)
+
+### Implementations to review (and fix):
+
+wait.h:
+* DECLARE_WAITQUEUE(name, tsk)
+* DECLARE_WAIT_QUEUE_HEAD(name)
