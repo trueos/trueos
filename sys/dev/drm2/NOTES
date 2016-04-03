@@ -1,0 +1,39 @@
+ati_pcigart.c		(B)
+drm_dma.c		(A)
+drm_agpsupport.c	(B/C)
+drm_auth.c		(B)
+drm_buffer.c		(A)
+drm_bufs.c		(B->A)
+drm_context.c		(A)
+drm_crtc.c		(B->A)
+drm_crtc_helper.c	(B->A)
+drm_dma.c		(A)
+drm_dp_helper.c		(A)
+drm_drv.c		(D)
+drm_edid.c		(B)
+drm_fb_helper.c		(C/B)
+drm_fops.c		(D/C)
+drm_gem.c		(C/B)
+drm_global.c		(B)
+drm_hashtab.c		(B->A)
+drm_ioc32.c		(D)
+drm_ioctl.c		(B/A)
+drm_irq.c		(C/B->A)
+drm_lock.c		(B->A)
+drm_memory.c		(B/C ->?)
+drm_mm.c		(A)
+drm_modes.c		(A)
+drm_pci.c		(D/C -> A/B)
+drm_scatter.c		(D/C -> ?)
+drm_stub.c		(C/B -> B/C) 
+
+
+Files that need porting:
+drm_info.c
+
+
+Files that need converging:
+drm_bufs.c
+
+Files in need of further revision:
+- drm_fb_helper.c
