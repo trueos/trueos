@@ -14,6 +14,70 @@ wait.h:
 * int wait_event_interruptible_timeout(wait_queue_head_t wq, int condition, int timeout)
 * int __wait_event_timeout(wait_queue_head_t wq, int condition, int timeout)
 
+idr:
+idr_for_each
+
+ic2:
+
+bit_xfer
+bit_func
+
+i2c_bit_add_bus
+i2c_bit_add_numbered_bus
+i2c_bit_algo (i2c_algorithm)
+
+i2c_add_adapter
+i2c_del_adapter
+i2c_transfer
+__i2c_transfer
+
+kobject:
+kobject_del
+
+kthread:
+in_atomic
+
+
+io_mapping:
+kunmap
+io_mapping_free
+iomap_free
+iomap_atomic_prot_pfn
+iounmap_atomic
+io_mapping_map_atomic_wc
+io_mapping_map_wc
+set_memory_wc
+set_memory_wb
+
+
+set_pages_uc
+set_memory_uc
+
+acpi_os_ioremap
+
+unmap_mapping_range
+
+
+pci:
+pci_bus initialization
+pci_bus_alloc_resource
+pcibios_align_resource
+release_resource
+pci_get_bus_and_slot
+
+
+spinlock:
+spin_lock_bh
+spin_unlock_bh
+
+wait:
+__wait_event_timeout
+add_wait_queue
+remove_wait_queue
+wait_event_interruptible_timeout
+
+
+
 ### Implementations to review (and fix):
 
 wait.h:
