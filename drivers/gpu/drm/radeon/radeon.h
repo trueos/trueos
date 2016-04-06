@@ -1681,6 +1681,7 @@ int radeon_pm_get_type_index(struct radeon_device *rdev,
 #define RADEON_UVD_HEAP_SIZE	(1024*1024)
 
 struct radeon_uvd {
+	bool			fw_header_present;
 	struct radeon_bo	*vcpu_bo;
 	void			*cpu_addr;
 	uint64_t		gpu_addr;
