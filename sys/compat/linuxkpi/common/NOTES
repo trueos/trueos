@@ -66,18 +66,6 @@ release_resource
 pci_get_bus_and_slot
 
 
-spinlock:
-spin_lock_bh
-spin_unlock_bh
-
-wait:
-__wait_event_timeout
-add_wait_queue
-remove_wait_queue
-wait_event_interruptible_timeout
-
-
-
 ### Implementations to review (and fix):
 
 wait.h:
