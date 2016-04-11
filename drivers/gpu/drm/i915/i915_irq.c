@@ -3333,7 +3333,8 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	vlv_display_irq_reset(dev_priv);
+	if (dev_priv->display_irqs_enabled)
+		vlv_display_irq_reset(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
@@ -3410,7 +3411,8 @@ static void cherryview_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK_CHV);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	vlv_display_irq_reset(dev_priv);
+	if (dev_priv->display_irqs_enabled)
+		vlv_display_irq_reset(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
@@ -3732,7 +3734,8 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 #endif
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	vlv_display_irq_postinstall(dev_priv);
+	if (dev_priv->display_irqs_enabled)
+		vlv_display_irq_postinstall(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	I915_WRITE(VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
@@ -3838,7 +3841,8 @@ static int cherryview_irq_postinstall(struct drm_device *dev)
 	gen8_gt_irq_postinstall(dev_priv);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	vlv_display_irq_postinstall(dev_priv);
+	if (dev_priv->display_irqs_enabled)
+		vlv_display_irq_postinstall(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	I915_WRITE(GEN8_MASTER_IRQ, MASTER_INTERRUPT_ENABLE);
@@ -3871,7 +3875,8 @@ static void valleyview_irq_uninstall(struct drm_device *dev)
 	I915_WRITE(HWSTAM, 0xffffffff);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	vlv_display_irq_reset(dev_priv);
+	if (dev_priv->display_irqs_enabled)
+		vlv_display_irq_reset(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
@@ -3890,7 +3895,8 @@ static void cherryview_irq_uninstall(struct drm_device *dev)
 	GEN5_IRQ_RESET(GEN8_PCU_);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	vlv_display_irq_reset(dev_priv);
+	if (dev_priv->display_irqs_enabled)
+		vlv_display_irq_reset(dev_priv);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 
