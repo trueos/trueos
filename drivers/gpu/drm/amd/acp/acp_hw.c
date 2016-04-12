@@ -19,24 +19,32 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: AMD
- *
  */
 
-#ifndef __AMDGPU_ACP_H__
-#define __AMDGPU_ACP_H__
+#include <linux/mm.h>
+#include <linux/slab.h>
+#include <linux/device.h>
+#include <linux/delay.h>
+#include <linux/errno.h>
 
-#include <linux/mfd/core.h>
+#include "acp_gfx_if.h"
 
-struct amdgpu_acp {
-	struct device *parent;
-	struct cgs_device *cgs_device;
-	struct amd_acp_private *private;
-	struct mfd_cell *acp_cell;
-	struct resource *acp_res;
-	struct acp_pm_domain *acp_genpd;
-};
+#define ACP_MODE_I2S	0
+#define ACP_MODE_AZ	1
 
-extern const struct amd_ip_funcs acp_ip_funcs;
+#define mmACP_AZALIA_I2S_SELECT 0x51d4
 
-#endif /* __AMDGPU_ACP_H__ */
+int amd_acp_hw_init(struct cgs_device *cgs_device,
+		    unsigned acp_version_major, unsigned acp_version_minor)
+{
+	unsigned int acp_mode = ACP_MODE_I2S;
+
+	if ((acp_version_major == 2) && (acp_version_minor == 2))
+		acp_mode = cgs_read_register(cgs_device,
+					mmACP_AZALIA_I2S_SELECT);
+
+	if (acp_mode != ACP_MODE_I2S)
+		return -ENODEV;
+
+	return 0;
+}
