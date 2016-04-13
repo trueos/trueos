@@ -307,6 +307,7 @@ pci_resource_flags(struct pci_dev *pdev, int bar)
 	return rle->type;
 }
 
+
 static inline const char *
 pci_name(struct pci_dev *d)
 {
@@ -416,6 +417,20 @@ pci_request_regions(struct pci_dev *pdev, const char *res_name)
 	return (0);
 }
 
+
+static inline void
+linux_pci_enable_msi(struct pci_dev *pdev)
+{
+	/*  not clear what address to use - ignore for now*/
+}
+
+static inline void
+linux_pci_disable_msi(struct pci_dev *pdev)
+{
+	/* disable until clear how to do enable */
+	/* pci_disable_msi(pdev->dev.bsddev); */
+}
+
 static inline void
 pci_disable_msix(struct pci_dev *pdev)
 {
@@ -501,6 +516,8 @@ static inline struct pci_dev *pci_get_bus_and_slot(unsigned int bus, unsigned in
 
 extern int pci_register_driver(struct pci_driver *pdrv);
 extern void pci_unregister_driver(struct pci_driver *pdrv);
+extern void *pci_iomap(struct pci_dev *pdev, int bar, unsigned long max);
+extern void pci_iounmap(struct pci_dev *pdev, void *regs);
 
 struct msix_entry {
 	int entry;
@@ -806,5 +823,7 @@ pci_num_vf(struct pci_dev *dev)
 {
 	return (0);
 }
+
+
 
 #endif	/* _LINUX_PCI_H_ */

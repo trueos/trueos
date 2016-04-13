@@ -38,6 +38,7 @@
 #include <machine/atomic.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
+#include <vm/pmap.h>
 
 #define page	vm_page
 
@@ -73,11 +74,8 @@ void kunmap(caddr_t vaddr);
 void kunmap_atomic(caddr_t vaddr);
 void page_cache_release(vm_page_t page);
 
-static inline struct
-io_mapping *io_mapping_create_wc(vm_paddr_t base, unsigned long size)
-{
-	return (NULL);
-}
+struct io_mapping *io_mapping_create_wc(vm_paddr_t base, unsigned long size);
+
 
 void iomap_free(resource_size_t base, unsigned long size);
 
@@ -117,4 +115,13 @@ void *acpi_os_ioremap(vm_paddr_t pa, vm_size_t size);
 
 void unmap_mapping_range(void *obj,
 			 loff_t const holebegin, loff_t const holelen, int even_cows);
+
+#define cpu_has_pat pat_works
+
+static inline void
+unregister_shrinker(eventhandler_tag shrinker)
+{
+	EVENTHANDLER_DEREGISTER(vm_lowmem, shrinker);	
+}
+
 #endif	/* _LINUX_PAGE_H_ */

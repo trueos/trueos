@@ -112,6 +112,56 @@ do {									\
 	-_error;							\
 })
 
+/* jiffies2ticks XXX ? */
+#define	wait_event_interruptible_timeout(q, cond, timeout)		\
+({									\
+	void *c = &(q).wchan;						\
+	int _error;							\
+									\
+	_error = 0;							\
+	if (!(cond)) {							\
+		for (; _error == 0;) {					\
+			sleepq_lock(c);					\
+			if (cond) {					\
+				sleepq_release(c);			\
+				break;					\
+			}						\
+			sleepq_add(c, NULL, "completion",		\
+				   SLEEPQ_SLEEP | SLEEPQ_INTERRUPTIBLE, 0); \
+			sleepq_set_timeout(c, timeout);			\
+			if (sleepq_timedwait_sig(c, 0))			\
+				_error = -ERESTARTSYS;			\
+		}							\
+	}								\
+	-_error;							\
+})
+
+
+#define	__wait_event_timeout(q, cond, timeout)				\
+({									\
+	void *c = &(q).wchan;						\
+	int _error;							\
+									\
+	_error = 0;							\
+	if (!(cond)) {							\
+		for (; _error == 0;) {					\
+			sleepq_lock(c);					\
+			if (cond) {					\
+				sleepq_release(c);			\
+				break;					\
+			}						\
+			sleepq_add(c, NULL, "completion",		\
+				   SLEEPQ_SLEEP, 0); \
+			sleepq_set_timeout(c, timeout);			\
+			if (sleepq_timedwait(c, 0))			\
+				_error = -ERESTARTSYS;			\
+		}							\
+	}								\
+	-_error;							\
+})
+
+
+
 #define wait_event_timeout(wq, condition, timeout)			\
 ({									\
 	long __ret = timeout;						\
@@ -124,7 +174,13 @@ do {									\
 static inline int
 waitqueue_active(wait_queue_head_t *q)
 {
-	return 0;	/* XXX: not really implemented */
+	void *c = &(q)->wchan;
+	void *sq;
+
+	sleepq_lock(c);
+	sq = sleepq_lookup(c);
+	sleepq_release(c);
+	return (sq != NULL);
 }
 
 #define DEFINE_WAIT(name)	\
@@ -140,19 +196,4 @@ finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 {
 }
 
-/* XXXTODO this requires implementation still*/
-static inline void add_wait_queue(wait_queue_head_t *q, wait_queue_t *wait) {
-	panic("XXX implement me!");
-}
-static inline void remove_wait_queue(wait_queue_head_t *q, wait_queue_t *wait) {
-	panic("XXX implement me!");
-}
-static inline int wait_event_interruptible_timeout(wait_queue_head_t wq, int condition, int timeout){
-	panic("XXX implement me");
-}
-
-static inline int __wait_event_timeout(wait_queue_head_t wq, int condition, int timeout){
-	panic("XXX implement me");
-}
-
-#endif	/* _LINUX_WAIT_H_ */
+#endif

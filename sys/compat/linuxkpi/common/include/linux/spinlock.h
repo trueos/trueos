@@ -77,10 +77,12 @@ spin_lock_destroy(spinlock_t *lock)
 /* XXXTODO this requires implementation still*/
 #define assert_spin_locked(lock) panic("XXX implement me!")
 static inline void spin_lock_bh(spinlock_t *lock) {
-	panic("XXX implement me!");
+	critical_enter();
+	spin_lock(lock);
 }
 static inline void spin_unlock_bh(spinlock_t *lock) {
-	panic("XXX implement me!");
+	spin_unlock(lock);
+	critical_exit();
 }
 
 #define local_irq_save(flags) (flags = 1)

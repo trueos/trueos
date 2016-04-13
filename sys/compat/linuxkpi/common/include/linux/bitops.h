@@ -314,19 +314,19 @@ bitmap_empty(unsigned long *addr, int size)
 }
 
 #define	__set_bit(i, a)							\
-    atomic_set_long(&((volatile long *)(a))[BIT_WORD(i)], BIT_MASK(i))
+    atomic_set_long(&((volatile unsigned long *)(a))[BIT_WORD(i)], BIT_MASK(i))
 
 #define	set_bit(i, a)							\
-    atomic_set_long(&((volatile long *)(a))[BIT_WORD(i)], BIT_MASK(i))
+    atomic_set_long(&((volatile unsigned long *)(a))[BIT_WORD(i)], BIT_MASK(i))
 
 #define	__clear_bit(i, a)						\
-    atomic_clear_long(&((volatile long *)(a))[BIT_WORD(i)], BIT_MASK(i))
+    atomic_clear_long(&((volatile unsigned long *)(a))[BIT_WORD(i)], BIT_MASK(i))
 
 #define	clear_bit(i, a)							\
-    atomic_clear_long(&((volatile long *)(a))[BIT_WORD(i)], BIT_MASK(i))
+    atomic_clear_long(&((volatile unsigned long *)(a))[BIT_WORD(i)], BIT_MASK(i))
 
 #define	test_bit(i, a)							\
-    !!(atomic_load_acq_long(&((volatile long *)(a))[BIT_WORD(i)]) &	\
+    !!(atomic_load_acq_long(&((volatile unsigned long *)(a))[BIT_WORD(i)]) &	\
     BIT_MASK(i))
 
 static inline int

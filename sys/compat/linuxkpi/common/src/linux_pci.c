@@ -254,3 +254,53 @@ pci_unregister_driver(struct pci_driver *pdrv)
 	mtx_unlock(&Giant);
 }
 
+void *
+pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
+{
+	struct resource *res;
+	int rid;
+	unsigned long start, len;
+	void *regs;
+
+	if (dev->pcir[bar] == NULL) {
+		rid = PCIR_BAR(bar);
+		if ((res = bus_alloc_resource_any(dev->bsddev, SYS_RES_MEMORY,
+						  &rid, RF_SHAREABLE)) == NULL)
+			return (NULL);
+		dev->pcir[bar] = res;
+		dev->pcirid[bar] = rid;
+		dev->tags[bar] = rman_get_bustag(res);
+		regs = dev->handle[bar] = rman_get_bushandle(res);
+	} else {
+		regs = dev->handl[bar];
+	}
+	start = rman_get_start(dev->pcir[bar]);
+	len = rman_get_size(dev->pcir[bar]);
+	regs = pmap_mapdev_attr(start, len, PAT_UNCACHED);
+	/* XXX if NULL ? */
+	dev->pci_map[bar] = regs;
+	return (regs);
+}
+
+
+void
+pci_iounmap(struct pci_dev *pdev, void *regs)
+{
+	int i, bar, rid, len;
+	struct resource *res;
+
+	res = NULL;
+	for (i = 0; i <= DRM_MAX_PCI_RESOURCE) {
+		if (dev->pci_map[bar] != regs)
+			continue;
+		res = dev->pcir[bar];
+		rid = dev->pcirid[bar];
+	}
+
+	if (res == NULL)
+		return;
+
+	len = rman_get_size(res);
+	pmap_unmapdev(regs, len);
+	bus_release_resource(pdev->dev->bsddev, SYS_RES_MEMORY, rid, res);
+}

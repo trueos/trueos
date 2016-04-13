@@ -38,16 +38,56 @@ __FBSDID("$FreeBSD$");
 
 #include <linux/page.h>
 
-struct sf_buf *
+#if defined(__LP64__)
+void *
+kmap(vm_page_t page)
+{
+
+	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
+}
+
+void *
+kmap_atomic(vm_page_t page)
+{
+
+	sched_pin();
+	return kmap(page);
+}
+	
+void
+kunmap(vm_page_t page)
+{
+	/* no work to be done here */
+}
+
+void
+kunmap_atomic(caddr_t vaddr)
+{
+	/* no VM work to be done here */
+	sched_unpin();
+}
+
+#else
+
+static struct sf_buf *
 vtosf(caddr_t vaddr)
 {
 	panic("IMPLEMENT ME!!!");
 	return (NULL);
 }
 
-caddr_t
+static struct sf_buf *
+pagetosf(vm_page_t page)
+{
+	panic("IMPLEMENT ME!!!");
+	return (NULL);
+}
+
+void *
 kmap(vm_page_t page)
 {
+	struct sf_buf *sf;
+
 	sf = sf_buf_alloc(page, SFB_NOWAIT | SFB_CPUPRIVATE);
 	if (sf == NULL) {
 		sched_unpin();
@@ -56,7 +96,7 @@ kmap(vm_page_t page)
 	return (char *)sf_buf_kva(sf);
 }
 
-caddr_t
+void *
 kmap_atomic(vm_page_t page)
 {
 	caddr_t vaddr;
@@ -68,21 +108,25 @@ kmap_atomic(vm_page_t page)
 }
 	
 void
-kunmap(caddr_t vaddr)
+kunmap(vm_page_t page)
 {
+	struct sf_buf *sf;
+
+	sf = pagetosf(page);
+	sf_buf_free(sf);
+}
+
+void
+kunmap_atomic(caddr_t vaddr)
+{
+
 	struct sf_buf *sf;
 
 	sf = vtosf(vaddr);
 	sf_buf_free(sf);
 	sched_unpin();
 }
-
-void
-kunmap_atomic(caddr_t vaddr)
-{
-	kunmap(vaddr);
-	sched_unpin();
-}
+#endif
 
 void
 mark_page_accessed(vm_page_t page)
@@ -112,6 +156,26 @@ iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
 					PAGE_SIZE, prot);
 }
 
+struct io_mapping *
+io_mapping_create_wc(vm_paddr_t base, unsigned long size)
+{
+	struct io_mapping *iomap;
+	pgrot_t prot;
+
+	if ((iomap = kmalloc(sizeof(*iomap), GFP_KERNEL)) == NULL)
+		return (NULL);
+
+	if (iomap_create_wc(base, size, &prot))
+		goto err;
+
+	iomap->base = base;
+	iomap->size = size;
+	iomap->prot = prot;
+	return (iomap);
+err:
+	kfree(iomap);
+	return (NULL);
+}
 
 void
 iounmap_atomic(void *vaddr)
@@ -134,6 +198,20 @@ io_mapping_map_atomic_wc(struct io_mapping *mapping,
 	return iomap_atomic_prot_pfn(pfn, mapping->prot);
 }
 
+int
+set_memory_uc(unsigned long addr, int numpages)
+{
+
+	return (pmap_change_attr(addr, numpages, PAT_UNCACHED));
+}
+
+int
+set_pages_uc(vm_page_t page, int numpages)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+
+	return set_memory_uc(addr, numpages);
+}
 
 int
 set_memory_wc(unsigned long addr, int numpages)

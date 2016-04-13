@@ -38,7 +38,7 @@
 #define	ATOMIC_INIT(x)	{ .counter = (x) }
 
 typedef struct {
-	volatile int counter;
+	volatile u_int counter;
 } atomic_t;
 
 /*------------------------------------------------------------------------*
