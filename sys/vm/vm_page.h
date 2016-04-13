@@ -248,7 +248,7 @@ vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 	vm_pagequeue_assert_locked(pq);
 #endif
 	pq->pq_cnt += addend;
-	atomic_add_int(pq->pq_vcnt, addend);
+	atomic_add_int((volatile u_int *)pq->pq_vcnt, addend);
 }
 #define	vm_pagequeue_cnt_inc(pq)	vm_pagequeue_cnt_add((pq), 1)
 #define	vm_pagequeue_cnt_dec(pq)	vm_pagequeue_cnt_add((pq), -1)
