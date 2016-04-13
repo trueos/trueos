@@ -1779,7 +1779,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 	disable_rpm_wakeref_asserts(dev_priv);
 
 	while (true) {
-		/* Find, clear, then process each source of interrupt */
+		u32 ier = 0;
 
 		gt_iir = I915_READ(GTIIR);
 		pm_iir = I915_READ(GEN6_PMIIR);
@@ -1790,7 +1790,22 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 
 		ret = IRQ_HANDLED;
 
+		/*
+		 * Theory on interrupt generation, based on empirical evidence:
+		 *
+		 * x = ((VLV_IIR & VLV_IER) ||
+		 *      (((GT_IIR & GT_IER) || (GEN6_PMIIR & GEN6_PMIER)) &&
+		 *       (VLV_MASTER_IER & MASTER_INTERRUPT_ENABLE)));
+		 *
+		 * A CPU interrupt will only be raised when 'x' has a 0->1 edge.
+		 * Hence we clear MASTER_INTERRUPT_ENABLE and VLV_IER to
+		 * guarantee the CPU interrupt will be raised again even if we
+		 * don't end up clearing all the VLV_IIR, GT_IIR, GEN6_PMIIR
+		 * bits this time around.
+		 */
 		I915_WRITE(VLV_MASTER_IER, 0);
+		ier = I915_READ(VLV_IER);
+		I915_WRITE(VLV_IER, 0);
 
 		if (gt_iir)
 			I915_WRITE(GTIIR, gt_iir);
@@ -1816,6 +1831,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		if (iir)
 			I915_WRITE(VLV_IIR, iir);
 
+		I915_WRITE(VLV_IER, ier);
 		I915_WRITE(VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
 		POSTING_READ(VLV_MASTER_IER);
 	}
@@ -1840,6 +1856,8 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 	disable_rpm_wakeref_asserts(dev_priv);
 
 	do {
+		u32 ier = 0;
+
 		master_ctl = I915_READ(GEN8_MASTER_IRQ) & ~GEN8_MASTER_IRQ_CONTROL;
 		iir = I915_READ(VLV_IIR);
 
@@ -1848,7 +1866,22 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 		ret = IRQ_HANDLED;
 
+		/*
+		 * Theory on interrupt generation, based on empirical evidence:
+		 *
+		 * x = ((VLV_IIR & VLV_IER) ||
+		 *      ((GEN8_MASTER_IRQ & ~GEN8_MASTER_IRQ_CONTROL) &&
+		 *       (GEN8_MASTER_IRQ & GEN8_MASTER_IRQ_CONTROL)));
+		 *
+		 * A CPU interrupt will only be raised when 'x' has a 0->1 edge.
+		 * Hence we clear GEN8_MASTER_IRQ_CONTROL and VLV_IER to
+		 * guarantee the CPU interrupt will be raised again even if we
+		 * don't end up clearing all the VLV_IIR and GEN8_MASTER_IRQ_CONTROL
+		 * bits this time around.
+		 */
 		I915_WRITE(GEN8_MASTER_IRQ, 0);
+		ier = I915_READ(VLV_IER);
+		I915_WRITE(VLV_IER, 0);
 
 		gen8_gt_irq_handler(dev_priv, master_ctl);
 
@@ -1866,6 +1899,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		if (iir)
 			I915_WRITE(VLV_IIR, iir);
 
+		I915_WRITE(VLV_IER, ier);
 		I915_WRITE(GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 		POSTING_READ(GEN8_MASTER_IRQ);
 	} while (0);
