@@ -192,6 +192,7 @@ typedef uint32_t pt_entry_t;
  * Address of current address space page table maps and directories.
  */
 #ifdef _KERNEL
+extern int pat_works;
 extern pt_entry_t PTmap[];
 extern pd_entry_t PTD[];
 extern pd_entry_t PTDpde[];
