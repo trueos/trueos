@@ -226,7 +226,7 @@ iic_dp_aux_add_bus(device_t dev, const char *name,
 	device_t ibus;
 	struct iic_dp_aux_data *data;
 	int idx, error;
-	static int dp_bus_counter;
+	static unsigned int dp_bus_counter;
 
 	mtx_lock(&Giant);
 

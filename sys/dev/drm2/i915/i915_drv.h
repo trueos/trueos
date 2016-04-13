@@ -928,7 +928,6 @@ typedef struct drm_i915_private {
 	/* For hangcheck timer */
 #define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
 #define DRM_I915_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD)
-	struct callout hangcheck_timer;
 	uint32_t last_acthd[I915_NUM_RINGS];
 	uint32_t prev_instdone[I915_NUM_INSTDONE_REG];
 
@@ -1938,6 +1937,9 @@ vm_page_t i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex,
     bool *fresh);
 int i915_gem_object_get_pages_range(struct drm_i915_gem_object *obj,
     off_t start, off_t end);
+
+#define i915_setup_sysfs(x)
+#define i915_teardown_sysfs(x)
 
 #define	GEM_PARANOID_CHECK_GTT 0
 #if GEM_PARANOID_CHECK_GTT

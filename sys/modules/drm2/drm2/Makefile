@@ -62,5 +62,7 @@ SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.
 .if ${MACHINE_CPUARCH} == "powerpc"
 CWARNFLAGS+=-Wno-cast-qual
 .endif
+CWARNFLAGS += -Wno-pointer-arith
+CWARNFLAGS += -Wno-pointer-sign
 
 .include <bsd.kmod.mk>

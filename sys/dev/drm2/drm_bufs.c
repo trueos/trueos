@@ -218,9 +218,8 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		if (drm_core_has_MTRR(dev)) {
 			if (map->type == _DRM_FRAME_BUFFER ||
 			    (map->flags & _DRM_WRITE_COMBINING)) {
-				if (drm_mtrr_add(
-				    map->offset, map->size,
-				    DRM_MTRR_WC) == 0)
+				if (mtrr_add(map->offset, map->size,
+				    MTRR_TYPE_WRCOMB, 1) == 0)
 					map->mtrr = 1;
 			}
 		}
@@ -468,8 +467,7 @@ int drm_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 	case _DRM_FRAME_BUFFER:
 		if (drm_core_has_MTRR(dev) && map->mtrr >= 0) {
 			int retcode;
-			retcode = drm_mtrr_del(map->mtrr, map->offset,
-			    map->size, DRM_MTRR_WC);
+			retcode = mtrr_del(map->mtrr, map->offset, map->size);
 			DRM_DEBUG("mtrr_del=%d\n", retcode);
 		}
 		break;

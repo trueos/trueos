@@ -70,25 +70,22 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 			  DRM_CURRENTPID, lock->context);
 		return -EINVAL;
 	}
-
+#if defined(__linux__)
 	DRM_DEBUG("%d (pid %d) requests lock (0x%08x), flags = 0x%08x\n",
 		  lock->context, DRM_CURRENTPID,
 		  master->lock.hw_lock->lock, lock->flags);
-
 	add_wait_queue(&master->lock.lock_queue, &entry);
 	spin_lock_bh(&master->lock.spinlock);
 	master->lock.user_waiters++;
 	spin_unlock_bh(&master->lock.spinlock);
 
 	for (;;) {
-#if defined(__linux__)
 		if (!master->lock.hw_lock) {
 			/* Device has been unregistered */
 			send_sig(SIGTERM, current, 0);
 			ret = -EINTR;
 			break;
 		}
-#endif
 		if (drm_lock_take(&master->lock, lock->context)) {
 			master->lock.file_priv = file_priv;
 			master->lock.lock_time = jiffies;
@@ -115,7 +112,6 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		  ret ? "interrupted" : "has lock");
 	if (ret) return ret;
 
-#if defined(__linux__)
 	/* don't set the block all signals on the master process for now 
 	 * really probably not the correct answer but lets us debug xkb
  	 * xserver for now */
@@ -129,6 +125,28 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		dev->sigdata.lock = master->lock.hw_lock;
 		block_all_signals(drm_notifier, &dev->sigdata, &dev->sigmask);
 	}
+#else
+	spin_lock_bh(&master->lock.spinlock);
+	master->lock.user_waiters++;
+	spin_unlock_bh(&master->lock.spinlock);
+	for (;;) {
+		if (drm_lock_take(&master->lock, lock->context)) {
+			master->lock.file_priv = file_priv;
+			master->lock.lock_time = jiffies;
+			atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
+			break;	/* Got lock */
+		}
+		ret = -sx_sleep(&master->lock.lock_queue, &drm_global_mutex.sx,
+		    PCATCH, "drmlk2", 0);
+		if (ret == -ERESTART)
+			ret = -ERESTARTSYS;
+		if (ret != 0)
+			break;
+	}
+
+	spin_lock_bh(&master->lock.spinlock);
+	master->lock.user_waiters--;
+	spin_unlock_bh(&master->lock.spinlock);
 #endif
 
 	if (dev->driver->dma_quiescent && (lock->flags & _DRM_LOCK_QUIESCENT))

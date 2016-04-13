@@ -308,10 +308,9 @@ void drm_cancel_fill_in_dev(struct drm_device *dev)
 	if (drm_core_has_MTRR(dev) && drm_core_has_AGP(dev) &&
 	    dev->agp && dev->agp->agp_mtrr >= 0) {
 		int retval;
-		retval = drm_mtrr_del(dev->agp->agp_mtrr,
+		retval = mtrr_del(dev->agp->agp_mtrr,
 				  dev->agp->agp_info.ai_aperture_base,
-				  dev->agp->agp_info.ai_aperture_size,
-				  DRM_MTRR_WC);
+				  dev->agp->agp_info.ai_aperture_size);
 		DRM_DEBUG("mtrr_del=%d\n", retval);
 	}
 	free(dev->agp, DRM_MEM_AGPLISTS);
@@ -449,10 +448,9 @@ void drm_put_dev(struct drm_device *dev)
 	if (drm_core_has_MTRR(dev) && drm_core_has_AGP(dev) &&
 	    dev->agp && dev->agp->agp_mtrr >= 0) {
 		int retval;
-		retval = drm_mtrr_del(dev->agp->agp_mtrr,
+		retval = mtrr_del(dev->agp->agp_mtrr,
 				  dev->agp->agp_info.ai_aperture_base,
-				  dev->agp->agp_info.ai_aperture_size,
-				  DRM_MTRR_WC);
+				  dev->agp->agp_info.ai_aperture_size);
 		DRM_DEBUG("mtrr_del=%d\n", retval);
 	}
 

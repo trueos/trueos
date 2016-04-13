@@ -1198,8 +1198,7 @@ static inline int drm_core_has_MTRR(struct drm_device *dev)
 
 #define DRM_MTRR_WC		MDF_WRITECOMBINE
 
-int drm_mtrr_add(unsigned long offset, unsigned long size, unsigned int flags);
-int drm_mtrr_del(int handle, unsigned long offset, unsigned long size, unsigned int flags);
+#include <asm/mtrr.h>
 
 #else
 #define drm_core_has_MTRR(dev) (0)

@@ -289,8 +289,8 @@ int drm_pci_agp_init(struct drm_device *dev)
 		}
 		if (drm_core_has_MTRR(dev)) {
 			if (dev->agp && dev->agp->agp_info.ai_aperture_base != 0) {
-				if (drm_mtrr_add(dev->agp->agp_info.ai_aperture_base,
-				    dev->agp->agp_info.ai_aperture_size, DRM_MTRR_WC) == 0)
+				if (mtrr_add(dev->agp->agp_info.ai_aperture_base,
+					     dev->agp->agp_info.ai_aperture_size, MTRR_TYPE_WRCOMB, 1) == 0)
 					dev->agp->agp_mtrr = 1;
 				else
 					dev->agp->agp_mtrr = -1;

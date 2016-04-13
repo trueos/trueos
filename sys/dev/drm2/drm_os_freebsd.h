@@ -396,6 +396,7 @@ static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return
 #define vga_put(a, b)
 
 #define pm_qos_update_request(a, b)
+#define pm_qos_remove_request(a)
 
 #define pci_get_power_state pci_get_powerstate
 /* XXX ?? */
@@ -406,5 +407,10 @@ static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return
 
 #define in_dbg_master() (kdb_active)
 #define do_gettimeofday microtime
-	
+#define acpi_video_register()
+#define acpi_video_unregister()
+#define unregister_shrinker(x)
+
+#define CONFIG_X86_PAT
+
 #endif /* _DRM_OS_FREEBSD_H_ */
