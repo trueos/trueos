@@ -44,6 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 
+/* use linux versions */
+#define pci_disable_msi linux_pci_disable_msi
+#define pci_enable_msi linux_pci_ensable_msi
+
 #define LP_RING(d) (&((struct drm_i915_private *)(d))->ring[RCS])
 
 #define BEGIN_LP_RING(n) \
@@ -923,7 +927,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 
 	switch (param->param) {
 	case I915_PARAM_IRQ_ACTIVE:
-		value = dev->irq_enabled ? 1 : 0;
+		value = dev->pdev->irq ? 1 : 0;
 		break;
 	case I915_PARAM_ALLOW_BATCHBUFFER:
 		value = dev_priv->dri1.allow_batchbuffer ? 1 : 0;
@@ -1414,7 +1418,7 @@ i915_mtrr_setup(struct drm_i915_private *dev_priv, unsigned long base,
 	 * generation Core chips because WC PAT gets overridden by a UC
 	 * MTRR if present.  Even if a UC MTRR isn't present.
 	 */
-	dev_priv->mm.gtt_mtrr = drm_mtrr_add(base, size, DRM_MTRR_WC);
+	dev_priv->mm.gtt_mtrr = mtrr_add(base, size, MTRR_TYPE_WRCOMB, 1);
 	if (dev_priv->mm.gtt_mtrr < 0) {
 		DRM_INFO("MTRR allocation failed.  Graphics "
 			 "performance may suffer.\n");
@@ -1432,9 +1436,9 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 	if (!ap)
 		return;
 
-	ap->ranges[0].base = dev_priv->mm.gtt->gma_bus_addr;
-	ap->ranges[0].size =
-		dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	ap->ranges[0].base = dev_priv->gtt.mappable_base;
+	ap->ranges[0].size = dev_priv->gtt.mappable_end - dev_priv->gtt.start;
+
 	primary =
 		pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 
@@ -1509,7 +1513,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto put_bridge;
 
-#ifdef __linux__
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		i915_kick_out_firmware_fb(dev_priv);
 
@@ -1529,7 +1532,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 */
 	if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
 		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(32));
-#endif
 
 	mmio_bar = IS_GEN2(dev) ? 1 : 0;
 	/* Before gen4, the registers and the GTT are behind different BARs.
@@ -1544,10 +1546,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	else
 		mmio_size = 2*1024*1024;
 
-	ret = drm_addmap(dev,
-	    drm_get_resource_start(dev, mmio_bar), mmio_size,
-	    _DRM_REGISTERS, _DRM_KERNEL | _DRM_DRIVER, &dev_priv->mmio_map);
-	if (ret != 0) {
+	dev_priv->regs = pci_iomap(dev->pdev, mmio_bar, mmio_size);
+	if (!dev_priv->regs) {
 		DRM_ERROR("failed to map registers\n");
 		ret = -EIO;
 		goto put_gmch;
@@ -1613,7 +1613,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 * stuck interrupts on some machines.
 	 */
 	if (!IS_I945G(dev) && !IS_I945GM(dev))
-		drm_pci_enable_msi(dev);
+		pci_enable_msi(dev->pdev);
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
@@ -1645,21 +1645,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		}
 	}
 
-	pci_set_master(dev->pdev);
-
-#ifdef __linux__
 	i915_setup_sysfs(dev);
-#endif
 
 	/* Must be done after probing outputs */
 	intel_opregion_init(dev);
-#ifdef __linux__
 	acpi_video_register();
-#endif
-
-	callout_init(&dev_priv->hangcheck_timer, 1);
-	callout_reset(&dev_priv->hangcheck_timer, DRM_I915_HANGCHECK_PERIOD,
-	    i915_hangcheck_elapsed, dev);
 
 	if (IS_GEN5(dev))
 		intel_gpu_ips_init(dev_priv);
@@ -1667,7 +1657,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	return 0;
 
 out_gem_unload:
-	EVENTHANDLER_DEREGISTER(vm_lowmem, dev_priv->mm.inactive_shrinker);
+	if (dev_priv->mm.inactive_shrinker.shrink)
+		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
 
 	spin_lock_destroy(&dev_priv->irq_lock);
 	spin_lock_destroy(&dev_priv->gpu_error.lock);
@@ -1676,30 +1667,26 @@ out_gem_unload:
 
 	mutex_destroy(&dev_priv->rps.hw_lock);
 
-	if (dev->msi_enabled)
-		drm_pci_disable_msi(dev);
+	if (dev->pdev->msi_enabled)
+		pci_disable_msi(dev->pdev);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
 	destroy_workqueue(dev_priv->wq);
 out_mtrrfree:
 	if (dev_priv->mm.gtt_mtrr >= 0) {
-		drm_mtrr_del(dev_priv->mm.gtt_mtrr,
+		mtrr_del(dev_priv->mm.gtt_mtrr,
 			 dev_priv->gtt.mappable_base,
-			 aperture_size,
-			 DRM_MTRR_WC);
+			 aperture_size);
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 	io_mapping_free(dev_priv->gtt.mappable);
 out_rmmap:
-	if (dev_priv->mmio_map != NULL)
-		drm_rmmap(dev, dev_priv->mmio_map);
+	pci_iounmap(dev->pdev, dev_priv->regs);
 put_gmch:
 	dev_priv->gtt.gtt_remove(dev);
 put_bridge:
-#ifdef __linux__
 	pci_dev_put(dev_priv->bridge_dev);
-#endif
 free_priv:
 	kfree(dev_priv);
 	return ret;
@@ -1712,12 +1699,10 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_gpu_ips_teardown();
 
-#ifdef __linux__
 	i915_teardown_sysfs(dev);
 
 	if (dev_priv->mm.inactive_shrinker.shrink)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
-#endif
 
 	intel_free_parsed_bios_data(dev);
 
@@ -1730,20 +1715,15 @@ int i915_driver_unload(struct drm_device *dev)
 
 	/* Cancel the retire work handler, which should be idle now. */
 	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
-#ifdef __linux__
-	io_mapping_free(dev_priv->mm.gtt_mapping);
-#endif
+	io_mapping_free(dev_priv->gtt.mappable);
 	if (dev_priv->mm.gtt_mtrr >= 0) {
-		drm_mtrr_del(dev_priv->mm.gtt_mtrr,
+		mtrr_del(dev_priv->mm.gtt_mtrr,
 			 dev_priv->gtt.mappable_base,
-			 dev_priv->gtt.mappable_end,
-			 DRM_MTRR_WC);
+			 dev_priv->gtt.mappable_end);
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 
-#ifdef __linux__
 	acpi_video_unregister();
-#endif
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_fbdev_fini(dev);
@@ -1765,12 +1745,12 @@ int i915_driver_unload(struct drm_device *dev)
 	}
 
 	/* Free error state after interrupts are fully disabled. */
-	callout_stop(&dev_priv->hangcheck_timer);
-	callout_drain(&dev_priv->hangcheck_timer);
+	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
+	cancel_work_sync(&dev_priv->gpu_error.work);
 	i915_destroy_error_state(dev);
 
-	if (dev->msi_enabled)
-		drm_pci_disable_msi(dev);
+	if (dev->pdev->msi_enabled)
+		pci_disable_msi(dev->pdev);
 
 	intel_opregion_fini(dev);
 
@@ -1790,21 +1770,11 @@ int i915_driver_unload(struct drm_device *dev)
 			i915_free_hws(dev);
 	}
 
-#ifdef __linux__
 	if (dev_priv->regs != NULL)
 		pci_iounmap(dev->pdev, dev_priv->regs);
-#endif
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
-
-	/*
-	 * NOTE Linux<->FreeBSD: Free mmio_map after
-	 * intel_teardown_gmbus(), because, on FreeBSD,
-	 * intel_i2c_reset() is called during iicbus_detach().
-	 */
-	if (dev_priv->mmio_map != NULL)
-		drm_rmmap(dev, dev_priv->mmio_map);
 
 	/*
 	 * NOTE Linux<->FreeBSD: Linux forgots to call
@@ -1813,6 +1783,10 @@ int i915_driver_unload(struct drm_device *dev)
 	i915_gem_gtt_fini(dev);
 
 	destroy_workqueue(dev_priv->wq);
+	pm_qos_remove_request(&dev_priv->pm_qos);
+
+	if (dev_priv->slab)
+		kmem_cache_destroy(dev_priv->slab);
 
 	spin_lock_destroy(&dev_priv->irq_lock);
 	spin_lock_destroy(&dev_priv->gpu_error.lock);
@@ -1821,9 +1795,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	mutex_destroy(&dev_priv->rps.hw_lock);
 
-#ifdef __linux__
 	pci_dev_put(dev_priv->bridge_dev);
-#endif
 	kfree(dev->dev_private);
 
 	return 0;
