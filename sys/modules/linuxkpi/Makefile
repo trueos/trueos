@@ -2,11 +2,14 @@
 .PATH:	${.CURDIR}/../../compat/linuxkpi/common/src
 
 KMOD=	linuxkpi
-SRCS=	linux_kmod.c \
-	linux_compat.c \
+SRCS=	linux_compat.c \
+	linux_i2c.c \
+	linux_idr.c \
+	linux_kmod.c \
+	linux_mtrr.c \
 	linux_pci.c \
 	linux_radix.c \
-	linux_idr.c \
+	linux_string.c \
 	linux_usb.c
 
 SRCS+=	bus_if.h \
@@ -19,3 +22,5 @@ SRCS+=	bus_if.h \
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
 
 .include <bsd.kmod.mk>
+CWARNFLAGS += -Wno-pointer-arith
+CWARNFLAGS.linux_string.c=	-Wno-cast-qual

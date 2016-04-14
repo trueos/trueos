@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/memrange.h>
 
-#include <linux/asm/mtrr.h>
+#include <asm/mtrr.h>
 
 int
 mtrr_add(unsigned long offset, unsigned long size, unsigned int flags, bool increment __unused)
@@ -48,7 +48,7 @@ mtrr_add(unsigned long offset, unsigned long size, unsigned int flags, bool incr
 	MPASS((flags & ~MTRR_TYPE_WRCOMB) == 0);
 
 	if (flags & MTRR_TYPE_WRCOMB)
-		bsdflags |= DRM_MTRR_WC;
+		bsdflags |= MDF_WRITECOMBINE;
 	
 	mrdesc.mr_base = offset;
 	mrdesc.mr_len = size;

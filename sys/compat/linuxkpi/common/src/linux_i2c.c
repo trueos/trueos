@@ -53,7 +53,7 @@
 #include <sys/selinfo.h>
 #include <sys/bus.h>
 
-#include <compat/linuxkpi/common/include/linux/idr.h>
+#include <linux/idr.h>
 
 /*
  * CEM: drm.h brings in drm_os_freebsd.h, which brings in linuxkpi list.h.
@@ -77,6 +77,20 @@
 #include <linux/i2c-algo-bit.h>
 
 
+static int bit_xfer(struct i2c_adapter *i2c_adap,
+		    struct i2c_msg msgs[], int num) 
+{
+	panic("IMPLEMENT ME!!!");
+	return (EINVAL);
+}
+
+static u32 bit_func(struct i2c_adapter *adap)
+{
+	panic("IMPLEMENT ME!!!");
+	return (EINVAL);
+}
+
+
 const struct i2c_algorithm i2c_bit_algo = {
 	.master_xfer	= bit_xfer,
 	.functionality	= bit_func,
@@ -90,11 +104,10 @@ i2c_add_adapter(struct i2c_adapter *adapter)
 }
 
 int
-i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num);
+i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
-/*
-  return (-iicbus_transfer(dvo->i2c_bus, msgs, num));
-*/
+
+/* return (-iicbus_transfer(dvo->i2c_bus, msgs, num)); */
 	panic("IMPLEMENT ME!!!");
 	return (EINVAL);
 }

@@ -262,23 +262,19 @@ pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 	unsigned long start, len;
 	void *regs;
 
-	if (dev->pcir[bar] == NULL) {
+	if (pdev->pcir.r[bar] == NULL) {
 		rid = PCIR_BAR(bar);
-		if ((res = bus_alloc_resource_any(dev->bsddev, SYS_RES_MEMORY,
+		if ((res = bus_alloc_resource_any(pdev->dev.bsddev, SYS_RES_MEMORY,
 						  &rid, RF_SHAREABLE)) == NULL)
 			return (NULL);
-		dev->pcir[bar] = res;
-		dev->pcirid[bar] = rid;
-		dev->tags[bar] = rman_get_bustag(res);
-		regs = dev->handle[bar] = rman_get_bushandle(res);
-	} else {
-		regs = dev->handl[bar];
-	}
-	start = rman_get_start(dev->pcir[bar]);
-	len = rman_get_size(dev->pcir[bar]);
+		pdev->pcir.r[bar] = res;
+		pdev->pcir.rid[bar] = rid;
+	} 
+	start = rman_get_start(pdev->pcir.r[bar]);
+	len = rman_get_size(pdev->pcir.r[bar]);
 	regs = pmap_mapdev_attr(start, len, PAT_UNCACHED);
 	/* XXX if NULL ? */
-	dev->pci_map[bar] = regs;
+	pdev->pcir.map[bar] = regs;
 	return (regs);
 }
 
@@ -286,21 +282,21 @@ pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 void
 pci_iounmap(struct pci_dev *pdev, void *regs)
 {
-	int i, bar, rid, len;
+	int bar, rid, len;
 	struct resource *res;
 
 	res = NULL;
-	for (i = 0; i <= DRM_MAX_PCI_RESOURCE) {
-		if (dev->pci_map[bar] != regs)
+	for (bar = 0; bar <= LINUXKPI_MAX_PCI_RESOURCE; bar++) {
+		if (pdev->pcir.map[bar] != regs)
 			continue;
-		res = dev->pcir[bar];
-		rid = dev->pcirid[bar];
+		res = pdev->pcir.r[bar];
+		rid = pdev->pcir.rid[bar];
 	}
 
 	if (res == NULL)
 		return;
 
 	len = rman_get_size(res);
-	pmap_unmapdev(regs, len);
-	bus_release_resource(pdev->dev->bsddev, SYS_RES_MEMORY, rid, res);
+	pmap_unmapdev((vm_offset_t)regs, len);
+	bus_release_resource(pdev->dev.bsddev, SYS_RES_MEMORY, rid, res);
 }
