@@ -11,14 +11,10 @@ ic2:
 bit_xfer
 bit_func
 
-i2c_bit_add_bus
-i2c_bit_add_numbered_bus
-i2c_bit_algo (i2c_algorithm)
-
 i2c_add_adapter
 i2c_del_adapter
 i2c_transfer
-__i2c_transfer
+
 
 kobject:
 kobject_del
