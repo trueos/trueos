@@ -391,6 +391,23 @@ struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_mode_object_find);
 
+static void drm_framebuffer_free(struct kref *kref)
+{
+	struct drm_framebuffer *fb =
+			container_of(kref, struct drm_framebuffer, refcount);
+	struct drm_device *dev = fb->dev;
+
+	/*
+	 * The lookup idr holds a weak reference, which has not necessarily been
+	 * removed at this point. Check for that.
+	 */
+	mutex_lock(&dev->mode_config.fb_lock);
+	drm_mode_object_unregister(dev, &fb->base);
+	mutex_unlock(&dev->mode_config.fb_lock);
+
+	fb->funcs->destroy(fb);
+}
+
 /**
  * drm_framebuffer_init - initialize a framebuffer
  * @dev: DRM device
@@ -551,7 +568,7 @@ void drm_framebuffer_unregister_private(struct drm_framebuffer *fb)
 
 	mutex_lock(&dev->mode_config.fb_lock);
 	/* Mark fb as reaped and drop idr ref. */
-	__drm_framebuffer_unregister(dev, fb);
+	drm_mode_object_unregister(dev, &fb->base);
 	mutex_unlock(&dev->mode_config.fb_lock);
 }
 EXPORT_SYMBOL(drm_framebuffer_unregister_private);
