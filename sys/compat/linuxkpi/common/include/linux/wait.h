@@ -48,7 +48,6 @@ typedef struct {
 	unsigned int	wchan;
 } wait_queue_head_t;
 
-/* XXXTODO this is not yet checked! */
 #define DECLARE_WAITQUEUE(name, tsk)	\
 	wait_queue_t name
 #define DECLARE_WAIT_QUEUE_HEAD(name)    \
