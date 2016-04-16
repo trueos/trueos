@@ -148,7 +148,11 @@ int	kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 static inline void
 kobject_del(struct kobject *kobj)
 {
-	panic("XXX implement me.");
+	if (!kobj)
+		return;
+	/* list removal? */
+	kobject_put(kobj->parent);
+	kobj->parent = NULL;
 }
 
 #endif /* _LINUX_KOBJECT_H_ */
