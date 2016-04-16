@@ -540,24 +540,40 @@ idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
 	return (retval);
 }
 
-int
-idr_for_each(struct idr *idp, int (*fn)(int id, void *p, void *data),
-	     void *data)
+static int
+idr_for_each_layer(struct idr_layer *il, int layer,
+		   int (*f)(int id, void *p, void *data), void *data)
 {
-#ifdef dfly	
-	int i, error = 0;
-	struct idr_node *nodes;
+	int i, err;
 
-	nodes = idp->idr_nodes;
-	for (i = 0; i < idp->idr_count; i++) {
-		if (nodes[i].data != NULL && nodes[i].allocated > 0) {
-			error = fn(i, nodes[i].data, data);
-			if (error != 0)
-				break;
+	if (il == NULL)
+		return (0);
+	if (layer == 0) {
+		for (i = 0; i < IDR_SIZE; i++) {
+			if (il->ary[i]) {
+				err = f(i, il->ary[i],  data);
+				if (err)
+					return (err);
+			}
 		}
+		return (0);
 	}
-	return error;
-#endif
-	panic("implement me!!!!");
+	for (i = 0; i < IDR_SIZE; i++)
+		if (il->ary[i]) {
+			err = idr_for_each_layer(il->ary[i], layer - 1, f, data);
+			if (err)
+				return (err);
+		}
 	return (0);
+}
+
+int
+idr_for_each(struct idr *idp, int (*f)(int id, void *p, void *data), void *data)
+{
+	int err;
+
+	mtx_lock(&idp->lock);
+	err = idr_for_each_layer(idp->top, idp->layers - 1, f, data);
+	mtx_unlock(&idp->lock);
+	return (err);
 }
