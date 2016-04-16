@@ -6,16 +6,6 @@ device.h:
 idr:
 idr_for_each
 
-ic2:
-
-bit_xfer
-bit_func
-
-i2c_add_adapter
-i2c_del_adapter
-i2c_transfer
-
-
 kobject:
 kobject_del
 

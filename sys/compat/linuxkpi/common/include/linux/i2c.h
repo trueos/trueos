@@ -3,6 +3,7 @@
 
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <linux/completion.h>
 
 struct i2c_adapter;
 struct i2c_msg;
@@ -120,11 +121,7 @@ struct i2c_adapter {
 
 	int nr;
 	char name[48];
-#if 0
-struct completion dev_released;
-#endif
-	struct mutex userspace_clients_lock;
-	struct list_head userspace_clients;
+	struct completion dev_released;
 };
 
 extern int i2c_add_adapter(struct i2c_adapter *adapter);
@@ -133,8 +130,4 @@ extern int i2c_del_adapter(struct i2c_adapter *);
 
 extern int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
                         int num);
-
-extern int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
-                          int num);
-
 #endif
