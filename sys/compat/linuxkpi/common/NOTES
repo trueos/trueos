@@ -3,12 +3,6 @@
 device.h:
 * struct device_type
 
-idr:
-idr_for_each
-
-kobject:
-kobject_del
-
 kthread:
 in_atomic
 
@@ -32,9 +26,3 @@ pcibios_align_resource
 release_resource
 pci_get_bus_and_slot
 
-
-### Implementations to review (and fix):
-
-wait.h:
-* DECLARE_WAITQUEUE(name, tsk)
-* DECLARE_WAIT_QUEUE_HEAD(name)
