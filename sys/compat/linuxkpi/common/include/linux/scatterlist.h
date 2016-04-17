@@ -39,6 +39,7 @@ struct scatterlist {
 	union {
 		struct page *page;
 		struct scatterlist *sg;
+		unsigned long page_link;
 	}	sl_un;
 	dma_addr_t address;
 	unsigned long offset;
@@ -59,6 +60,12 @@ struct sg_page_iter {
 };
 
 #define	SG_MAX_SINGLE_ALLOC	(PAGE_SIZE / sizeof(struct scatterlist))
+
+
+#define sg_is_chain(sg)		((sg)->sl_un.page_link & 0x01)
+#define sg_is_last(sg)		((sg)->sl_un.page_link & 0x02)
+#define sg_chain_ptr(sg)	\
+	((struct scatterlist *) ((sg)->sl_un.page_link & ~0x03))
 
 #define	sg_dma_address(sg)	(sg)->address
 #define	sg_dma_len(sg)		(sg)->length
