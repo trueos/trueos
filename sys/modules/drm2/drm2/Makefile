@@ -12,7 +12,6 @@ SRCS	= \
 	drm_crtc_helper.c \
 	drm_dma.c \
 	drm_dp_helper.c \
-	drm_dp_iic_helper.c \
 	drm_drv.c \
 	drm_edid.c \
 	drm_fb_helper.c \
@@ -33,6 +32,7 @@ SRCS	= \
 	drm_sysctl.c \
 	drm_vm_freebsd.c \
 	drm_os_freebsd.c \
+	linux_hdmi.c \
 	ttm_agp_backend.c \
 	ttm_lock.c \
 	ttm_object.c \
