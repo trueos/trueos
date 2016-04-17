@@ -48,6 +48,12 @@
 #define	__GFP_ZERO	M_ZERO
 #define __GFP_NORETRY	0
 
+
+#define	__GFP_IO	0
+#define	__GFP_NO_KSWAPD	0
+#define	__GFP_WAIT	M_WAITOK
+
+
 #define	GFP_NOWAIT	M_NOWAIT
 #define	GFP_ATOMIC	(M_NOWAIT | M_USE_RESERVE)
 #define	GFP_KERNEL	M_WAITOK
