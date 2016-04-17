@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <linux/pci.h>
 #include <linux/ioport.h>
 
+/* assumes !e820 */
+unsigned long pci_mem_start;
+
 static device_probe_t linux_pci_probe;
 static device_attach_t linux_pci_attach;
 static device_detach_t linux_pci_detach;
