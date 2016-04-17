@@ -239,6 +239,8 @@ struct pci_dev {
 	uint16_t		device;
 	uint16_t		subsystem_vendor;
 	uint16_t		subsystem_device;
+	unsigned int		msi_enabled:1;
+	unsigned int		msix_enabled:1;
 	unsigned int		irq;
 	u8			revision;
 };
