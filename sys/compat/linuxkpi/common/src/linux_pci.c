@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/io.h>
 #include <linux/vmalloc.h>
 #include <linux/pci.h>
+#include <linux/ioport.h>
 
 static device_probe_t linux_pci_probe;
 static device_attach_t linux_pci_attach;
@@ -299,4 +300,83 @@ pci_iounmap(struct pci_dev *pdev, void *regs)
 	len = rman_get_size(res);
 	pmap_unmapdev((vm_offset_t)regs, len);
 	bus_release_resource(pdev->dev.bsddev, SYS_RES_MEMORY, rid, res);
+}
+
+
+resource_size_t
+pcibios_align_resource(void *data, const struct linux_resource *res,
+		       resource_size_t size __unused, resource_size_t align __unused)
+{
+	resource_size_t start = res->start;
+	/* ignore IO resources */
+
+	return (start);
+}
+
+int __must_check
+pci_bus_alloc_resource(struct pci_bus *bus,
+			struct linux_resource *res, resource_size_t size,
+			resource_size_t align, resource_size_t min,
+			unsigned int type_mask,
+			resource_size_t (*alignf)(void *,
+						  const struct linux_resource *,
+						  resource_size_t,
+						  resource_size_t),
+					void *alignf_data)
+{
+	struct pci_devinfo *dinfo;
+	struct resource_list *rl;
+	device_t dev;
+	struct resource *r;
+	struct resource_list_entry *rle;
+	int type, flags;
+
+	/* XXX initialize bus */
+	dev = bus->self->dev.bsddev;
+	dinfo = device_get_ivars(bus->self->dev.bsddev);
+	rl = &dinfo->resources;
+
+	/* transform flags to BSD XXX */
+	flags = res->flags;
+	/*assuming memory not I/O or intr*/
+	type = SYS_RES_MEMORY;
+
+	res->bsddev = dev;
+	STAILQ_FOREACH(rle, rl, link) {
+		if (rle->type != type)
+			continue;
+		if ((flags ^ rle->flags) & type_mask)
+			continue;
+		if (rle->start < min)
+			continue;
+		if (rle->end - rle->start < size)
+			continue;
+		/* XXX check against PREFETCH */
+		res->rid = rle->rid;
+		res->start = rle->start;
+		res->end = rle->end;
+		r = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &res->rid, RF_SHAREABLE);
+		if (r)
+			break;
+	}
+	if (r == NULL)
+		return (-ENOMEM);
+
+	res->r = r;
+	return (0);
+}
+
+int
+release_resource(struct linux_resource *lr)
+{
+	int rc;
+
+	rc = bus_release_resource(lr->bsddev, SYS_RES_MEMORY, lr->rid, lr->r);
+	lr->bsddev = NULL;
+	lr->r = NULL;
+	lr->rid = -1;
+	if (rc)
+		return (-EINVAL);
+
+	return (0);
 }

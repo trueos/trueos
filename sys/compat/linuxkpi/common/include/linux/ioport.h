@@ -8,6 +8,8 @@ struct linux_resource {
 	unsigned long flags;
 	struct linux_resource *parent, *sibling, *child;
 	struct resource *r;
+	int rid;
+	device_t bsddev;
 };
 
 

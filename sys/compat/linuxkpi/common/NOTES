@@ -7,9 +7,7 @@ kthread:
 in_atomic
 
 pci:
-pci_bus initialization
-pci_bus_alloc_resource
-pcibios_align_resource
-release_resource
+pci_bus initialization general
+
 pci_get_bus_and_slot
 
