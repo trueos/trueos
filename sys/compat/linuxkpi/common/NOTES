@@ -5,9 +5,3 @@ device.h:
 
 kthread:
 in_atomic
-
-pci:
-pci_bus initialization general
-
-pci_get_bus_and_slot
-

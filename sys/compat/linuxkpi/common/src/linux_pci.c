@@ -303,6 +303,35 @@ pci_iounmap(struct pci_dev *pdev, void *regs)
 }
 
 
+struct pci_dev *
+pci_get_bus_and_slot(unsigned int bus, unsigned int devfn)
+{
+	device_t dev;
+	struct pci_dev *pdev;
+	struct pci_bus *pbus;
+
+	dev = pci_find_bsf(bus, devfn >> 16, devfn & 0xffff);
+	if (dev == NULL)
+		return (NULL);
+
+	pdev = malloc(sizeof(*pdev), M_DEVBUF, M_WAITOK|M_ZERO);
+	pdev->devfn = devfn;
+	pdev->dev.bsddev = dev;
+	pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK|M_ZERO);
+	pbus->self = pdev;
+	pdev->bus = pbus;
+	return (pdev);
+}
+
+void
+pci_dev_put(struct pci_dev *pdev)
+{
+	MPASS(pdev->bus);
+	MPASS(pdev->bus->self == pdev);
+	free(pdev->bus, M_DEVBUF);
+	free(pdev, M_DEVBUF);
+}
+
 resource_size_t
 pcibios_align_resource(void *data, const struct linux_resource *res,
 		       resource_size_t size __unused, resource_size_t align __unused)

@@ -515,14 +515,12 @@ pci_write_config_dword(struct pci_dev *pdev, int where, u32 val)
 	return (0);
 }
 
-static inline struct pci_dev *pci_get_bus_and_slot(unsigned int bus, unsigned int devfn)
-{
-	/* translate get_dbsf to pci dev? */
-	panic("implement me!!!");
-	return (NULL);
-}
 
 
+
+extern struct pci_dev *pci_get_bus_and_slot(unsigned int bus, unsigned int devfn);
+
+void pci_dev_put(struct pci_dev *pdev);
 extern int pci_register_driver(struct pci_driver *pdrv);
 extern void pci_unregister_driver(struct pci_driver *pdrv);
 extern void *pci_iomap(struct pci_dev *pdev, int bar, unsigned long max);
