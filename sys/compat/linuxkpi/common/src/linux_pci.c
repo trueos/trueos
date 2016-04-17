@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2015-2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2016 Matthew Macy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -131,6 +132,9 @@ linux_pci_attach(device_t dev)
 	pdev->device = id->device;
 	pdev->vendor = id->vendor;
 	pdev->dev.dma_mask = &pdev->dma_mask;
+	/* XXX how do we check this ? assume true */
+	pdev->msix_enabled = 1;
+	pdev->msi_enabled = 1;
 	pdev->pdrv = pdrv;
 	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
 	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
