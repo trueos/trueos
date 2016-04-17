@@ -1137,7 +1137,7 @@ static int gen6_drpc_info(struct drm_device *dev, struct seq_file *m)
 		seq_printf(m, "RC information accurate: %s\n", yesno(count < 51));
 	}
 
-	gt_core_status = DRM_READ32(dev_priv->mmio_map, GEN6_GT_CORE_STATUS);
+	gt_core_status = readl(dev_priv->regs + GEN6_GT_CORE_STATUS);
 	trace_i915_reg_rw(false, GEN6_GT_CORE_STATUS, gt_core_status, 4);
 
 	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);

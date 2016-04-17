@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/intel_drv.h>
 #include <sys/sched.h>
-#include <sys/sf_buf.h>
 #include <vm/vm_pageout.h>
 
 static void i915_ggtt_clear_range(struct drm_device *dev,
@@ -112,25 +111,21 @@ static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
 	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	unsigned last_pte, i;
-	struct sf_buf *sf;
 
-	scratch_pte = gen6_pte_encode(ppgtt->dev, ppgtt->scratch_page_dma_addr,
-				 I915_CACHE_LLC);
-
+	scratch_pte = gen6_pte_encode(ppgtt->dev,
+				      ppgtt->scratch_page_dma_addr,
+				      I915_CACHE_LLC);
 	while (num_entries) {
 		last_pte = first_pte + num_entries;
 		if (last_pte > I915_PPGTT_PT_ENTRIES)
 			last_pte = I915_PPGTT_PT_ENTRIES;
 
-		sched_pin();
-		sf = sf_buf_alloc(ppgtt->pt_pages[act_pd], SFB_CPUPRIVATE);
-		pt_vaddr = (uint32_t *)(uintptr_t)sf_buf_kva(sf);
+		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
 
 		for (i = first_pte; i < last_pte; i++)
 			pt_vaddr[i] = scratch_pte;
 
-		sf_buf_free(sf);
-		sched_unpin();
+		kunmap_atomic(pt_vaddr);
 
 		num_entries -= last_pte - first_pte;
 		first_pte = 0;
@@ -138,7 +133,7 @@ static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 	}
 }
 
-#ifdef __linux__
+
 static void gen6_ppgtt_insert_entries(struct i915_hw_ppgtt *ppgtt,
 				      struct sg_table *pages,
 				      unsigned first_entry,
@@ -200,7 +195,6 @@ static void gen6_ppgtt_cleanup(struct i915_hw_ppgtt *ppgtt)
 	kfree(ppgtt->pt_pages);
 	kfree(ppgtt);
 }
-#endif
 
 static int gen6_ppgtt_init(struct drm_device *dev)
 {
@@ -319,17 +313,16 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 }
 
 static void i915_ppgtt_insert_pages(struct i915_hw_ppgtt *ppgtt,
-					 vm_page_t *pages,
 					 unsigned first_entry,
 					 unsigned num_entries,
 					 enum i915_cache_level cache_level)
 {
+#ifdef notyet
 	uint32_t *pt_vaddr;
 	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
 	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
 	unsigned j, last_pte;
 	vm_paddr_t page_addr;
-	struct sf_buf *sf;
 
 	while (num_entries) {
 		last_pte = first_pte + num_entries;
@@ -355,17 +348,16 @@ static void i915_ppgtt_insert_pages(struct i915_hw_ppgtt *ppgtt,
 		first_pte = 0;
 		act_pd++;
 	}
+#endif	
 }
 
 void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 			    struct drm_i915_gem_object *obj,
 			    enum i915_cache_level cache_level)
 {
-	i915_ppgtt_insert_pages(ppgtt,
-				     obj->pages,
-				     obj->gtt_space->start >> PAGE_SHIFT,
-				     obj->base.size >> PAGE_SHIFT,
-				     cache_level);
+		ppgtt->insert_entries(ppgtt, obj->pages,
+			      obj->gtt_space->start >> PAGE_SHIFT,
+			      cache_level);
 }
 
 void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
@@ -515,7 +507,7 @@ int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
  * mapped BAR (dev_priv->mm.gtt->gtt).
  */
 static void gen6_ggtt_insert_entries(struct drm_device *dev,
-				     vm_page_t *st,
+				     struct sg_table *pages,
 				     unsigned int first_entry,
 				     enum i915_cache_level level)
 {
@@ -581,17 +573,17 @@ static void gen6_ggtt_clear_range(struct drm_device *dev,
 
 
 static void i915_ggtt_insert_entries(struct drm_device *dev,
-				     vm_page_t *st,
+				     struct sg_table *st,
 				     unsigned int pg_start,
 				     enum i915_cache_level cache_level)
 {
+	/* XXX convert to native sglist */
 #ifdef notyet
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
 	intel_gtt_insert_sg_entries(st, pg_start, flags);
-#endif	
-
+#endif
 }
 
 static void i915_ggtt_clear_range(struct drm_device *dev,

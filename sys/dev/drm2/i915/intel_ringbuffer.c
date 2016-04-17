@@ -469,12 +469,12 @@ init_pipe_control(struct intel_ring_buffer *ring)
 		goto err_unref;
 
 	pc->gtt_offset = obj->gtt_offset;
-	pc->cpu_page = (uint32_t *)kva_alloc(PAGE_SIZE);
+	pc->cpu_page =  kmap(sg_page(obj->pages->sgl));
 	if (pc->cpu_page == NULL)
 		goto err_unpin;
-	pmap_qenter((uintptr_t)pc->cpu_page, &obj->pages[0], 1);
-	pmap_invalidate_cache_range((vm_offset_t)pc->cpu_page,
-	    (vm_offset_t)pc->cpu_page + PAGE_SIZE, FALSE);
+
+	DRM_DEBUG_DRIVER("%s pipe control offset: 0x%08x\n",
+			 ring->name, pc->gtt_offset);
 
 	pc->obj = obj;
 	ring->private = pc;
@@ -500,8 +500,7 @@ cleanup_pipe_control(struct intel_ring_buffer *ring)
 
 	obj = pc->obj;
 
-	pmap_qremove((vm_offset_t)pc->cpu_page, 1);
-	kva_free((uintptr_t)pc->cpu_page, PAGE_SIZE);
+	kunmap(sg_page(obj->pages->sgl));
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 
@@ -1105,9 +1104,7 @@ static void cleanup_status_page(struct intel_ring_buffer *ring)
 	if (obj == NULL)
 		return;
 
-	pmap_qremove((vm_offset_t)ring->status_page.page_addr, 1);
-	kva_free((vm_offset_t)ring->status_page.page_addr,
-	    PAGE_SIZE);
+	kunmap(sg_page(obj->pages->sgl));
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 	ring->status_page.obj = NULL;
@@ -1134,15 +1131,11 @@ static int init_status_page(struct intel_ring_buffer *ring)
 	}
 
 	ring->status_page.gfx_addr = obj->gtt_offset;
-	ring->status_page.page_addr = (void *)kva_alloc(PAGE_SIZE);
+	ring->status_page.page_addr =  kmap(sg_page(obj->pages->sgl));
 	if (ring->status_page.page_addr == NULL) {
 		ret = -ENOMEM;
 		goto err_unpin;
 	}
-	pmap_qenter((vm_offset_t)ring->status_page.page_addr, &obj->pages[0],
-	    1);
-	pmap_invalidate_cache_range((vm_offset_t)ring->status_page.page_addr,
-	    (vm_offset_t)ring->status_page.page_addr + PAGE_SIZE, FALSE);
 	ring->status_page.obj = obj;
 	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
 

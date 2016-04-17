@@ -463,7 +463,6 @@ i915_gem_swizzle_page(struct page *page)
 	char *vaddr;
 	int i;
 
-	/* XXXKIB sleep */
 	vaddr = kmap(page);
 
 	for (i = 0; i < PAGE_SIZE; i += 128) {
@@ -478,14 +477,15 @@ i915_gem_swizzle_page(struct page *page)
 void
 i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {
+	struct scatterlist *sg;
 	int page_count = obj->base.size >> PAGE_SHIFT;
 	int i;
 
 	if (obj->bit_17 == NULL)
 		return;
 
-	for (i = 0; i < page_count; i++) {
-		vm_page_t page = obj->pages[i];
+	for_each_sg(obj->pages->sgl, sg, page_count, i) {
+		struct page *page = sg_page(sg);
 		char new_bit_17 = page_to_phys(page) >> 17;
 		if ((new_bit_17 & 0x1) !=
 		    (test_bit(i, obj->bit_17) != 0)) {
@@ -498,6 +498,7 @@ i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj)
 void
 i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
 {
+	struct scatterlist *sg;
 	int page_count = obj->base.size >> PAGE_SHIFT;
 	int i;
 
@@ -511,9 +512,9 @@ i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj)
 		}
 	}
 
-	/* XXXKIB: review locking, atomics might be not needed there */
-	for (i = 0; i < page_count; i++) {
-		vm_page_t page = obj->pages[i];
+	for_each_sg(obj->pages->sgl, sg, page_count, i) {
+		struct page *page = sg_page(sg);
+
 		if (page_to_phys(page) & (1 << 17))
 			__set_bit(i, obj->bit_17);
 		else

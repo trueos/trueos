@@ -161,6 +161,7 @@ struct intel_ddi_plls {
 
 struct drm_i915_gem_phys_object {
 	int id;
+	struct page **page_list;
 	drm_dma_handle_t *handle;
 	struct drm_i915_gem_object *cur_obj;
 };
@@ -413,7 +414,7 @@ struct i915_gtt {
 				unsigned int first_entry,
 				unsigned int num_entries);
 	void (*gtt_insert_entries)(struct drm_device *dev,
-				   vm_page_t *st,
+				   struct sg_table *st,
 				   unsigned int pg_start,
 				   enum i915_cache_level cache_level);
 };
@@ -871,9 +872,6 @@ typedef struct drm_i915_private {
 
 	void __iomem *regs;
 
-	/* FIXME Linux<->FreeBSD: "void *regs" on Linux. */
-	drm_local_map_t *mmio_map;
-
 	struct drm_i915_gt_funcs gt;
 	/** gt_fifo_count and the subsequent register write are synchronized
 	 * with dev->struct_mutex. */
@@ -902,7 +900,6 @@ typedef struct drm_i915_private {
 	uint32_t last_seqno, next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;
-	int mch_res_rid;
 	struct linux_resource mch_res;
 
 	atomic_t irq_received;
@@ -1191,7 +1188,7 @@ struct drm_i915_gem_object {
 	unsigned int has_global_gtt_mapping:1;
 	unsigned int has_dma_mapping:1;
 
-	vm_page_t *pages;
+	struct sg_table *pages;
 	int pages_pin_count;
 
 	/* prime dma-buf support */
@@ -1564,7 +1561,17 @@ void i915_gem_lastclose(struct drm_device *dev);
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
 static inline struct page *i915_gem_object_get_page(struct drm_i915_gem_object *obj, int n)
 {
-	panic("XXX implement me!!!");
+	struct scatterlist *sg = obj->pages->sgl;
+	int nents = obj->pages->nents;
+	while (nents > SG_MAX_SINGLE_ALLOC) {
+		if (n < SG_MAX_SINGLE_ALLOC - 1)
+			break;
+
+		sg = sg_chain_ptr(sg + SG_MAX_SINGLE_ALLOC - 1);
+		n -= SG_MAX_SINGLE_ALLOC - 1;
+		nents -= SG_MAX_SINGLE_ALLOC - 1;
+	}
+	return sg_page(sg+n);
 }
 static inline void i915_gem_object_pin_pages(struct drm_i915_gem_object *obj)
 {
@@ -1903,13 +1910,14 @@ __i915_write(64, q)
 
 #define I915_READ16(reg)	i915_read16(dev_priv, (reg))
 #define I915_WRITE16(reg, val)	i915_write16(dev_priv, (reg), (val))
-#define I915_READ16_NOTRACE(reg)	DRM_READ16(dev_priv->mmio_map, (reg))
-#define I915_WRITE16_NOTRACE(reg, val)	DRM_WRITE16(dev_priv->mmio_map, (reg), (val))
+#define I915_READ16_NOTRACE(reg)	readw(dev_priv->regs + (reg))
+#define I915_WRITE16_NOTRACE(reg, val)	writew(val, dev_priv->regs + (reg))
+
 
 #define I915_READ(reg)		i915_read32(dev_priv, (reg))
 #define I915_WRITE(reg, val)	i915_write32(dev_priv, (reg), (val))
-#define I915_READ_NOTRACE(reg)		DRM_READ32(dev_priv->mmio_map, (reg))
-#define I915_WRITE_NOTRACE(reg, val)	DRM_WRITE32(dev_priv->mmio_map, (reg), (val))
+#define I915_READ_NOTRACE(reg)	readl(dev_priv->regs + (reg))
+#define I915_WRITE_NOTRACE(reg, val)	writel(val, dev_priv->regs + (reg))
 
 #define I915_WRITE64(reg, val)	i915_write64(dev_priv, (reg), (val))
 #define I915_READ64(reg)	i915_read64(dev_priv, (reg))
