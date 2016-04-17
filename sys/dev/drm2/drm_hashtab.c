@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/rculist.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/rcupdate.h>
+
 
 int drm_ht_create(struct drm_open_hash *ht, unsigned int order)
 {
