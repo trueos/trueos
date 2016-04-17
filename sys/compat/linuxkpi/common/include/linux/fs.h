@@ -68,6 +68,11 @@ struct dentry {
 
 struct file_operations;
 
+struct address_space {
+	struct vm_object *vm_obj;
+};
+
+
 struct linux_file {
 	struct file	*_file;
 	const struct file_operations	*f_op;
@@ -210,6 +215,14 @@ static inline loff_t
 no_llseek(struct file *file, loff_t offset, int whence)
 {
         return -ESPIPE;
+}
+
+struct page *shmem_read_mapping_page_gfp(struct address_space *as, int idx, gfp_t gfp);
+
+static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask) {}
+static inline gfp_t mapping_gfp_mask(struct address_space *m)
+{
+	return (0);
 }
 
 #endif /* _LINUX_FS_H_ */
