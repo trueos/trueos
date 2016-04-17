@@ -498,5 +498,4 @@ MODULE_VERSION(drmn, 1);
 MODULE_DEPEND(drmn, agp, 1, 1, 1);
 MODULE_DEPEND(drmn, pci, 1, 1, 1);
 MODULE_DEPEND(drmn, mem, 1, 1, 1);
-MODULE_DEPEND(drmn, iicbus, 1, 1, 1);
 MODULE_DEPEND(drmn, linuxkpi, 1, 1, 1);

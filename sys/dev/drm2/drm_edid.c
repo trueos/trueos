@@ -33,11 +33,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_edid.h>
-#include <dev/iicbus/iic.h>
-#include <dev/iicbus/iiconf.h>
 #include <dev/drm2/drm_edid.h>
 #include <dev/drm2/hdmi.h>
-#include "iicbus_if.h"
 
 #define version_greater(edid, maj, min) \
 	(((edid)->version > (maj)) || \

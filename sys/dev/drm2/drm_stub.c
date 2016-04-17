@@ -454,8 +454,10 @@ void drm_put_dev(struct drm_device *dev)
 		DRM_DEBUG("mtrr_del=%d\n", retval);
 	}
 
+#ifdef notyet	
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_mode_group_free(&dev->primary->mode_group);
+#endif	
 
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
