@@ -1,7 +1,4 @@
 ### Stubbed implementations:
 
-device.h:
-* struct device_type
-
 kthread:
 in_atomic
