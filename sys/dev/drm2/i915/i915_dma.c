@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 /* use linux versions */
 #define pci_disable_msi linux_pci_disable_msi
-#define pci_enable_msi linux_pci_ensable_msi
+#define pci_enable_msi linux_pci_enable_msi
 
 #define LP_RING(d) (&((struct drm_i915_private *)(d))->ring[RCS])
 
@@ -1446,6 +1446,11 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 
 	kfree(ap);
 }
+#else
+static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
+{
+	;
+}
 #endif
 
 static void i915_dump_device_info(struct drm_i915_private *dev_priv)
@@ -1657,7 +1662,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	return 0;
 
 out_gem_unload:
-	if (dev_priv->mm.inactive_shrinker.shrink)
+	if (dev_priv->mm.inactive_shrinker)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
 
 	spin_lock_destroy(&dev_priv->irq_lock);
@@ -1701,7 +1706,7 @@ int i915_driver_unload(struct drm_device *dev)
 
 	i915_teardown_sysfs(dev);
 
-	if (dev_priv->mm.inactive_shrinker.shrink)
+	if (dev_priv->mm.inactive_shrinker)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
 
 	intel_free_parsed_bios_data(dev);

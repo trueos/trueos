@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
-
 struct gmbus_port {
 	const char *name;
 	int reg;
@@ -555,7 +554,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 			 sizeof(bus->adapter.name),
 			 "i915 gmbus %s",
 			 gmbus_ports[i].name);
-		bus->adapter.dev.parent = dev->pdev->dev;
+		bus->adapter.dev.parent = &dev->pdev->dev;
 		bus->dev_priv = dev_priv;
 
 		bus->adapter.algo = &gmbus_algorithm;

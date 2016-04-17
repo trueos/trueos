@@ -399,7 +399,7 @@ shmem_pread_slow(vm_page_t page, int shmem_page_offset, int page_length,
 		ret = __copy_to_user(user_data,
 				     vaddr + shmem_page_offset,
 				     page_length);
-	kunmap(vaddr);
+	kunmap(page);
 
 	return ret ? - EFAULT : 0;
 }
@@ -724,7 +724,7 @@ shmem_pwrite_slow(vm_page_t page, int shmem_page_offset, int page_length,
 		shmem_clflush_swizzled_range(vaddr + shmem_page_offset,
 					     page_length,
 					     page_do_bit17_swizzling);
-	kunmap(vaddr);
+	kunmap(page);
 
 	return ret ? -EFAULT : 0;
 }
@@ -1486,7 +1486,8 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 	if (!obj->fault_mappable)
 		return;
 
-	unmap_mapping_range(obj,
+	if (obj)
+		unmap_mapping_range(obj,
 		    (loff_t)obj->base.map_list.hash.key<<PAGE_SHIFT,
 		    obj->base.size, 1);
 
@@ -2062,8 +2063,8 @@ i915_add_request(struct intel_ring_buffer *ring,
 
 	if (!dev_priv->mm.suspended) {
 		if (i915_enable_hangcheck) {
-			callout_schedule(&dev_priv->hangcheck_timer,
-			    DRM_I915_HANGCHECK_PERIOD);
+			mod_timer(&dev_priv->gpu_error.hangcheck_timer,
+				  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 		}
 		if (was_empty) {
 			queue_delayed_work(dev_priv->wq,
@@ -3883,7 +3884,7 @@ i915_gem_idle(struct drm_device *dev)
 	 * And not confound mm.suspended!
 	 */
 	dev_priv->mm.suspended = 1;
-	callout_stop(&dev_priv->hangcheck_timer);
+	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
 
 	i915_kernel_lost_context(dev);
 	i915_gem_cleanup_ringbuffer(dev);

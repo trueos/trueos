@@ -362,8 +362,8 @@ static void notify_ring(struct drm_device *dev,
 	wake_up_all(&ring->irq_queue);
 	if (i915_enable_hangcheck) {
 		dev_priv->gpu_error.hangcheck_count = 0;
-		callout_schedule(&dev_priv->hangcheck_timer,
-			  DRM_I915_HANGCHECK_PERIOD);
+		mod_timer(&dev_priv->gpu_error.hangcheck_timer,
+			  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 	}
 }
 
@@ -1885,7 +1885,8 @@ void i915_hangcheck_elapsed(void *data)
 
 repeat:
 	/* Reset timer case chip hangs without another request being added */
-	callout_schedule(&dev_priv->hangcheck_timer, DRM_I915_HANGCHECK_PERIOD);
+	mod_timer(&dev_priv->gpu_error.hangcheck_timer,
+		  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 }
 
 /* drm_dma.h hooks
