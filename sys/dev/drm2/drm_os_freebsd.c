@@ -323,6 +323,26 @@ drm_clflush_pages(vm_page_t *pages, unsigned long num_pages)
 #endif
 }
 
+
+void
+drm_clflush_sg(struct sg_table *st)
+{
+#if defined(__i386__) || defined(__amd64__)
+		struct scatterlist *sg;
+		int i;
+
+		mb();
+		for_each_sg(st->sgl, sg, st->nents, i)
+			drm_clflush_pages(&sg_page(sg), 1);
+		mb();
+
+		return;
+#else
+	printk(KERN_ERR "Architecture has no drm_cache.c support\n");
+	WARN_ON_ONCE(1);
+#endif
+}
+
 void
 drm_clflush_virt_range(char *addr, unsigned long length)
 {
