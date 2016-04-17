@@ -1631,8 +1631,9 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	drm_modeset_lock_all(dev);
 	drm_setup_crtcs(fb_helper);
 	drm_modeset_unlock_all(dev);
+#ifdef notyet	
 	drm_fb_helper_set_par(fb_helper->fbdev);
-
+#endif
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_hotplug_event);
