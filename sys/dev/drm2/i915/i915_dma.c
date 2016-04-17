@@ -1781,12 +1781,13 @@ int i915_driver_unload(struct drm_device *dev)
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
 
+#ifdef notyet	
 	/*
 	 * NOTE Linux<->FreeBSD: Linux forgots to call
 	 * i915_gem_gtt_fini(), causing memory leaks.
 	 */
 	i915_gem_gtt_fini(dev);
-
+#endif
 	destroy_workqueue(dev_priv->wq);
 	pm_qos_remove_request(&dev_priv->pm_qos);
 

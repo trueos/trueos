@@ -44,6 +44,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 
+
+MALLOC_DEFINE(DRM_I915_GEM, "i915", "i915 DRM GEM");
+
 extern long i915_gem_wired_pages_cnt;
 int i915_intr_pf;
 

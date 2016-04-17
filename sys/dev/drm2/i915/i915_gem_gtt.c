@@ -1009,9 +1009,10 @@ int i915_gem_gtt_init(struct drm_device *dev)
 #endif
 
 	/* For GEN6+ the PTEs for the ggtt live at 2MB + BAR0 */
-	gtt_bus_addr = drm_get_resource_start(dev, 0) + (2<<20);
+	gtt_bus_addr = pci_resource_start(dev->pdev, 0) + (2<<20);
+#ifdef notyet
 	dev_priv->gtt.gma_bus_addr = drm_get_resource_start(dev, 2);
-
+#endif
 	/* i9xx_setup */
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 	gtt_total_entries(dev_priv->gtt) =
