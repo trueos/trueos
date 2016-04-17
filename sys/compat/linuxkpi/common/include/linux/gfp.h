@@ -77,7 +77,6 @@ linux_get_page(gfp_t mask)
 }
 
 #define	get_zeroed_page(mask)	linux_get_page((mask) | M_ZERO)
-#define	alloc_page(mask)	virt_to_page(linux_get_page((mask)))
 #define	__get_free_page(mask)	linux_get_page((mask))
 
 static inline void

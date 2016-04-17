@@ -33,10 +33,31 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
+#include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
 
 #include <linux/page.h>
+#include <linux/io.h>
+#include <linux/slab.h>
+#include <linux/kernel.h>
+
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_param.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
+#include <vm/vm_pager.h>
+#include <vm/vm_phys.h>
+#include <vm/vm_radix.h>
+#include <vm/vm_reserv.h>
+#include <vm/vm_extern.h>
+
+
 
 #if defined(__LP64__)
 void *
@@ -61,7 +82,7 @@ kunmap(vm_page_t page)
 }
 
 void
-kunmap_atomic(caddr_t vaddr)
+kunmap_atomic(void *vaddr)
 {
 	/* no VM work to be done here */
 	sched_unpin();
@@ -129,18 +150,6 @@ kunmap_atomic(caddr_t vaddr)
 #endif
 
 void
-mark_page_accessed(vm_page_t page)
-{
-	vm_page_reference(page);
-}
-
-void
-set_page_dirty(vm_page_t page)
-{
-	vm_page_dirty(page);
-}
-
-void
 page_cache_release(vm_page_t page)
 {
 	vm_page_lock(page);
@@ -149,7 +158,7 @@ page_cache_release(vm_page_t page)
 }
 
 void *
-iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
+iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot)
 {
 	sched_pin();
 	return (void *)pmap_mapdev_attr(pfn << PAGE_SHIFT,
@@ -160,21 +169,14 @@ struct io_mapping *
 io_mapping_create_wc(vm_paddr_t base, unsigned long size)
 {
 	struct io_mapping *iomap;
-	pgrot_t prot;
 
 	if ((iomap = kmalloc(sizeof(*iomap), GFP_KERNEL)) == NULL)
 		return (NULL);
 
-	if (iomap_create_wc(base, size, &prot))
-		goto err;
-
+	/* resource allocation happens when we look up the address on FreeBSD */
 	iomap->base = base;
 	iomap->size = size;
-	iomap->prot = prot;
 	return (iomap);
-err:
-	kfree(iomap);
-	return (NULL);
 }
 
 void
@@ -183,6 +185,18 @@ iounmap_atomic(void *vaddr)
 	pmap_unmapdev((vm_offset_t)vaddr, PAGE_SIZE);
 	sched_unpin();
 }
+
+void *
+io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
+{
+	resource_size_t phys_addr;
+
+	BUG_ON(offset >= mapping->size);
+	phys_addr = mapping->base + offset;
+
+	return ioremap_wc(phys_addr, PAGE_SIZE);
+}
+
 
 void *
 io_mapping_map_atomic_wc(struct io_mapping *mapping,
@@ -196,6 +210,13 @@ io_mapping_map_atomic_wc(struct io_mapping *mapping,
 	pfn = (unsigned long) (phys_addr >> PAGE_SHIFT);
 	mapping->prot = PAT_WRITE_COMBINING;
 	return iomap_atomic_prot_pfn(pfn, mapping->prot);
+}
+
+void
+io_mapping_free(struct io_mapping *mapping)
+{
+	/* assuming the resource is released elsewhere */
+	kfree(mapping);
 }
 
 int
@@ -252,6 +273,7 @@ retry:
 	}
 	if ((flags & __GFP_ZERO) && ((page->flags & PG_ZERO) == 0))
 		pmap_zero_page(page);
+	return (page);
 }
 
 vm_paddr_t
@@ -267,8 +289,7 @@ acpi_os_ioremap(vm_paddr_t pa, vm_size_t size)
 }
 
 void
-unmap_mapping_range(void *obj,
-		    loff_t const holebegin, loff_t const holelen, int even_cows)
+unmap_mapping_range(void *obj, loff_t const holebegin, loff_t const holelen, int even_cows)
 {
 	vm_object_t devobj;
 	vm_page_t page;
@@ -276,7 +297,7 @@ unmap_mapping_range(void *obj,
 
 	devobj = cdev_pager_lookup(obj);
 	if (devobj != NULL) {
-		page_count = OFF_TO_IDX(obj->base.size);
+		page_count = OFF_TO_IDX(holelen);
 
 		VM_OBJECT_WLOCK(devobj);
 retry:
@@ -284,12 +305,11 @@ retry:
 			page = vm_page_lookup(devobj, i);
 			if (page == NULL)
 				continue;
-			if (vm_page_sleep_if_busy(page, "915unm"))
+			if (vm_page_sleep_if_busy(page, "linuxkpi"))
 				goto retry;
 			cdev_pager_free_page(devobj, page);
 		}
 		VM_OBJECT_WUNLOCK(devobj);
 		vm_object_deallocate(devobj);
 	}
-
 }

@@ -6,19 +6,6 @@ device.h:
 kthread:
 in_atomic
 
-
-io_mapping:
-io_mapping_free
-iomap_free
-iomap_atomic_prot_pfn
-iounmap_atomic
-io_mapping_map_atomic_wc
-io_mapping_map_wc
-
-acpi_os_ioremap
-
-unmap_mapping_range
-
 pci:
 pci_bus initialization
 pci_bus_alloc_resource

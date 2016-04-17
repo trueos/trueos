@@ -67,29 +67,23 @@ struct io_mapping {
 	vm_paddr_t base;
 	unsigned long size;
 	vm_prot_t prot;
+	struct resource *r;
 };
 /* XXX note that this is incomplete */
-caddr_t kmap(vm_page_t page);
-caddr_t kmap_atomic(vm_page_t page);
-void kunmap(caddr_t vaddr);
-void kunmap_atomic(caddr_t vaddr);
+void *kmap(vm_page_t page);
+void *kmap_atomic(vm_page_t page);
+void kunmap(vm_page_t page);
+void kunmap_atomic(void *vaddr);
 void page_cache_release(vm_page_t page);
 
-struct io_mapping *io_mapping_create_wc(vm_paddr_t base, unsigned long size);
+void *acpi_os_ioremap(vm_paddr_t pa, vm_size_t size);
 
 
-void iomap_free(resource_size_t base, unsigned long size);
-
-static inline void
-io_mapping_free(struct io_mapping *mapping)
-{
-#ifdef notyet	
-	iomap_free(mapping->base, mapping->size);
-	kfree(mapping);
-#endif	
-}
-
-void * iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
+extern struct io_mapping *io_mapping_create_wc(vm_paddr_t base, unsigned long size);
+extern void unmap_mapping_range(void *obj,
+				loff_t const holebegin, loff_t const holelen, int even_cows);
+extern void io_mapping_free(struct io_mapping *mapping);
+extern void * iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
 
 void iounmap_atomic(void *vaddr);
 
