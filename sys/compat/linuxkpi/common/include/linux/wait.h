@@ -34,6 +34,7 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/list.h>
+#include <linux/jiffies.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -166,7 +167,7 @@ do {									\
 	long __ret = timeout;						\
 	if (!(condition)) 						\
 		__wait_event_timeout(wq, condition, __ret);		\
-	__ret;								\
+ 	__ret;								\
 })
 
 

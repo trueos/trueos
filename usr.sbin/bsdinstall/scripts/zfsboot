@@ -302,7 +302,7 @@ msg_swap_mirror_help="Mirror swap partitions for redundancy, breaks crash dumps"
 msg_swap_size="Swap Size"
 msg_swap_size_help="Customize how much swap space is allocated to each selected disk"
 msg_swap_toosmall="The selected swap size (%s) is to small. Please enter a value greater than 100MB or enter 0 for no swap"
-msg_these_disks_are_too_small="These disks are too small given the amount of requested\nswap (%s) and/or geli(8) (%s) partitions, which would\ntake 50%% or more of each of the following selected disk\ndevices (not recommended):\n\n  %s\n\nRecommend changing partition size(s) and/or selecting a\ndifferent set of devices."
+msg_these_disks_are_too_small="These disks are smaller than the amount of requested\nswap (%s) and/or geli(8) (%s) partitions, which would\ntake 100%% or more of each of the following selected disks:\n\n  %s\n\nRecommend changing partition size(s) and/or selecting a\ndifferent set of disks."
 msg_unable_to_get_disk_capacity="Unable to get disk capacity of \`%s'"
 msg_unsupported_partition_scheme="%s is an unsupported partition scheme"
 msg_user_cancelled="User Cancelled."
@@ -964,6 +964,8 @@ zfs_create_diskpart()
 	f_expand_number "$ZFSBOOT_SWAP_SIZE" swapsize
 	if [ "$isswapmirror" ]; then
 		# This is not the first disk in the mirror, do nothing
+	elif [ ${swapsize:-0} -eq 0 ]; then
+		# If swap is 0 sized, don't add it to fstab
 	elif [ "$ZFSBOOT_SWAP_ENCRYPTION" -a "$ZFSBOOT_SWAP_MIRROR" ]; then
 		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 		             /dev/mirror/swap.eli none swap sw 0 0 \
@@ -981,8 +983,6 @@ zfs_create_diskpart()
 		             /dev/$disk${swappart}.eli none swap sw 0 0 \
 		             $BSDINSTALL_TMPETC/fstab ||
 		             return $FAILURE
-	elif [ ${swapsize:-0} -eq 0 ]; then
-		# If swap is 0 sized, don't add it to fstab
 	else
 		f_eval_catch $funcname printf "$PRINTF_FSTAB" \
 		             /dev/$disk$swappart none swap sw 0 0 \
@@ -1256,6 +1256,8 @@ zfs_create_boot()
 	f_dprintf "$funcname: Modifying directory permissions..."
 	local dir
 	for dir in /tmp /var/tmp; do
+		f_eval_catch $funcname mkdir "$MKDIR_P" \
+		             $BSDINSTALL_CHROOT$dir || return $FAILURE
 		f_eval_catch $funcname chmod "$CHMOD_MODE" 1777 \
 		             $BSDINSTALL_CHROOT$dir || return $FAILURE
 	done
@@ -1483,11 +1485,12 @@ while :; do
 		# NB: dialog_menu_layout supports running non-interactively
 		dialog_menu_layout || continue
 
-		# Make sure each disk will be at least 50% ZFS
+		# Make sure each disk will have room for ZFS
 		if f_expand_number "$ZFSBOOT_SWAP_SIZE" swapsize &&
-		   f_expand_number "$ZFSBOOT_BOOT_POOL_SIZE" bootsize
+		   f_expand_number "$ZFSBOOT_BOOT_POOL_SIZE" bootsize &&
+		   f_expand_number "1g" zpoolmin
 		then
-			minsize=$swapsize teeny_disks=
+			minsize=$(( $swapsize + $zpoolmin )) teeny_disks=
 			[ "$ZFSBOOT_BOOT_POOL" ] &&
 				minsize=$(( $minsize + $bootsize ))
 			for disk in $ZFSBOOT_DISKS; do
@@ -1495,7 +1498,6 @@ while :; do
 					$disk $DEVICE_TYPE_DISK device
 				$device get capacity disksize || continue
 				[ ${disksize:-0} -ge 0 ] || disksize=0
-				disksize=$(( $disksize - $minsize ))
 				[ $disksize -lt $minsize ] &&
 					teeny_disks="$teeny_disks $disk"
 			done

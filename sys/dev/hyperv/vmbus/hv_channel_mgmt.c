@@ -219,10 +219,14 @@ vmbus_channel_process_offer(hv_vmbus_channel *new_channel)
 			    sc_list_entry);
 			mtx_unlock(&channel->sc_lock);
 
+			if (bootverbose) {
+				printf("VMBUS get multi-channel offer, "
+				    "rel=%u, sub=%u\n",
+				    new_channel->offer_msg.child_rel_id,
+				    new_channel->offer_msg.offer.sub_channel_index);	
+			}
+
 			/* Insert new channel into channel_anchor. */
-			printf("VMBUS get multi-channel offer, rel=%u,sub=%u\n",
-			    new_channel->offer_msg.child_rel_id,
-			    new_channel->offer_msg.offer.sub_channel_index);	
 			mtx_lock(&hv_vmbus_g_connection.channel_lock);
 			TAILQ_INSERT_TAIL(&hv_vmbus_g_connection.channel_anchor,
 			    new_channel, list_entry);				
@@ -492,7 +496,7 @@ vmbus_channel_on_open_result(hv_vmbus_channel_msg_header* hdr)
 	/*
 	 * Find the open msg, copy the result and signal/unblock the wait event
 	 */
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
 	    msg_list_entry) {
@@ -510,7 +514,7 @@ vmbus_channel_on_open_result(hv_vmbus_channel_msg_header* hdr)
 		}
 	    }
 	}
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 }
 
@@ -534,7 +538,7 @@ vmbus_channel_on_gpadl_created(hv_vmbus_channel_msg_header* hdr)
 	/* Find the establish msg, copy the result and signal/unblock
 	 * the wait event
 	 */
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
 		msg_list_entry) {
 	    request_header = (hv_vmbus_channel_msg_header*) msg_info->msg;
@@ -553,7 +557,7 @@ vmbus_channel_on_gpadl_created(hv_vmbus_channel_msg_header* hdr)
 		}
 	    }
 	}
-	mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 }
 
 /**
@@ -578,7 +582,7 @@ vmbus_channel_on_gpadl_torndown(hv_vmbus_channel_msg_header* hdr)
 	 * wait event.
 	 */
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 
 	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
 		msg_list_entry) {
@@ -598,7 +602,7 @@ vmbus_channel_on_gpadl_torndown(hv_vmbus_channel_msg_header* hdr)
 		}
 	    }
 	}
-    mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+    mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 }
 
 /**
@@ -618,7 +622,7 @@ vmbus_channel_on_version_response(hv_vmbus_channel_msg_header* hdr)
 
 	versionResponse = (hv_vmbus_channel_version_response*)hdr;
 
-	mtx_lock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+	mtx_lock(&hv_vmbus_g_connection.channel_msg_lock);
 	TAILQ_FOREACH(msg_info, &hv_vmbus_g_connection.channel_msg_anchor,
 	    msg_list_entry) {
 	    requestHeader = (hv_vmbus_channel_msg_header*) msg_info->msg;
@@ -632,7 +636,7 @@ vmbus_channel_on_version_response(hv_vmbus_channel_msg_header* hdr)
 		sema_post(&msg_info->wait_sema);
 	    }
 	}
-    mtx_unlock_spin(&hv_vmbus_g_connection.channel_msg_lock);
+    mtx_unlock(&hv_vmbus_g_connection.channel_msg_lock);
 
 }
 

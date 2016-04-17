@@ -136,6 +136,8 @@ __FBSDID("$FreeBSD$");
 
 #define HN_LROENT_CNT_DEF		128
 
+#define HN_RING_CNT_DEF_MAX		8
+
 #define HN_RNDIS_MSG_LEN		\
     (sizeof(rndis_msg) +		\
      RNDIS_HASH_PPI_SIZE +		\
@@ -181,6 +183,7 @@ struct hn_txdesc {
 #define HN_CSUM_ASSIST_WIN8	(CSUM_IP | CSUM_TCP)
 #define HN_CSUM_ASSIST		(CSUM_IP | CSUM_UDP | CSUM_TCP)
 
+#define HN_LRO_LENLIM_MULTIRX_DEF	(12 * ETHERMTU)
 #define HN_LRO_LENLIM_DEF		(25 * ETHERMTU)
 /* YYY 2*MTU is a bit rough, but should be good enough. */
 #define HN_LRO_LENLIM_MIN(ifp)		(2 * (ifp)->if_mtu)
@@ -279,12 +282,12 @@ static int hn_use_if_start = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, use_if_start, CTLFLAG_RDTUN,
     &hn_use_if_start, 0, "Use if_start TX method");
 
-static int hn_chan_cnt = 1;
+static int hn_chan_cnt = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, chan_cnt, CTLFLAG_RDTUN,
     &hn_chan_cnt, 0,
     "# of channels to use; each channel has one RX ring and one TX ring");
 
-static int hn_tx_ring_cnt = 1;
+static int hn_tx_ring_cnt = 0;
 SYSCTL_INT(_hw_hn, OID_AUTO, tx_ring_cnt, CTLFLAG_RDTUN,
     &hn_tx_ring_cnt, 0, "# of TX rings to use");
 
@@ -332,6 +335,17 @@ static int hn_xmit(struct hn_tx_ring *, int);
 static void hn_xmit_txeof(struct hn_tx_ring *);
 static void hn_xmit_taskfunc(void *, int);
 static void hn_xmit_txeof_taskfunc(void *, int);
+
+#if __FreeBSD_version >= 1100099
+static void
+hn_set_lro_lenlim(struct hn_softc *sc, int lenlim)
+{
+	int i;
+
+	for (i = 0; i < sc->hn_rx_ring_inuse; ++i)
+		sc->hn_rx_ring[i].hn_lro.lro_length_lim = lenlim;
+}
+#endif
 
 static int
 hn_ifmedia_upd(struct ifnet *ifp __unused)
@@ -404,11 +418,7 @@ netvsc_attach(device_t dev)
 #endif
 
 	sc = device_get_softc(dev);
-	if (sc == NULL) {
-		return (ENOMEM);
-	}
 
-	bzero(sc, sizeof(hn_softc_t));
 	sc->hn_unit = unit;
 	sc->hn_dev = dev;
 
@@ -448,8 +458,14 @@ netvsc_attach(device_t dev)
 	 * The # of RX rings to use is same as the # of channels to use.
 	 */
 	ring_cnt = hn_chan_cnt;
-	if (ring_cnt <= 0 || ring_cnt > mp_ncpus)
+	if (ring_cnt <= 0) {
+		/* Default */
 		ring_cnt = mp_ncpus;
+		if (ring_cnt > HN_RING_CNT_DEF_MAX)
+			ring_cnt = HN_RING_CNT_DEF_MAX;
+	} else if (ring_cnt > mp_ncpus) {
+		ring_cnt = mp_ncpus;
+	}
 
 	tx_ring_cnt = hn_tx_ring_cnt;
 	if (tx_ring_cnt <= 0 || tx_ring_cnt > ring_cnt)
@@ -529,6 +545,16 @@ netvsc_attach(device_t dev)
 	sc->hn_rx_ring_inuse = sc->net_dev->num_channel;
 	device_printf(dev, "%d TX ring, %d RX ring\n",
 	    sc->hn_tx_ring_inuse, sc->hn_rx_ring_inuse);
+
+#if __FreeBSD_version >= 1100099
+	if (sc->hn_rx_ring_inuse > 1) {
+		/*
+		 * Reduce TCP segment aggregation limit for multiple
+		 * RX rings to increase ACK timeliness.
+		 */
+		hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MULTIRX_DEF);
+	}
+#endif
 
 	if (device_info.link_state == 0) {
 		sc->hn_carrier = 1;
@@ -756,13 +782,8 @@ netvsc_channel_rollup(struct hv_vmbus_channel *chan)
 	struct hn_tx_ring *txr = chan->hv_chan_txr;
 #if defined(INET) || defined(INET6)
 	struct hn_rx_ring *rxr = chan->hv_chan_rxr;
-	struct lro_ctrl *lro = &rxr->hn_lro;
-	struct lro_entry *queued;
 
-	while ((queued = SLIST_FIRST(&lro->lro_active)) != NULL) {
-		SLIST_REMOVE_HEAD(&lro->lro_active, next);
-		tcp_lro_flush(lro, queued);
-	}
+	tcp_lro_flush_all(&rxr->hn_lro);
 #endif
 
 	/*
@@ -1144,10 +1165,6 @@ netvsc_linkstatus_callback(struct hv_device *device_obj, uint32_t status)
 {
 	hn_softc_t *sc = device_get_softc(device_obj->device);
 
-	if (sc == NULL) {
-		return;
-	}
-
 	if (status == 1) {
 		sc->hn_carrier = 1;
 	} else {
@@ -1238,8 +1255,10 @@ netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
 		return (0);
 	} else if (packet->tot_data_buf_len <= MHLEN) {
 		m_new = m_gethdr(M_NOWAIT, MT_DATA);
-		if (m_new == NULL)
+		if (m_new == NULL) {
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
+		}
 		memcpy(mtod(m_new, void *), packet->data,
 		    packet->tot_data_buf_len);
 		m_new->m_pkthdr.len = m_new->m_len = packet->tot_data_buf_len;
@@ -1259,7 +1278,7 @@ netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
 
 		m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
 		if (m_new == NULL) {
-			if_printf(ifp, "alloc mbuf failed.\n");
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			return (0);
 		}
 
@@ -1449,14 +1468,8 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 */
 		NV_LOCK(sc);
 		if (sc->hn_rx_ring[0].hn_lro.lro_length_lim <
-		    HN_LRO_LENLIM_MIN(ifp)) {
-			int i;
-
-			for (i = 0; i < sc->hn_rx_ring_inuse; ++i) {
-				sc->hn_rx_ring[i].hn_lro.lro_length_lim =
-				    HN_LRO_LENLIM_MIN(ifp);
-			}
-		}
+		    HN_LRO_LENLIM_MIN(ifp))
+			hn_set_lro_lenlim(sc, HN_LRO_LENLIM_MIN(ifp));
 		NV_UNLOCK(sc);
 #endif
 
@@ -1789,7 +1802,7 @@ hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct hn_softc *sc = arg1;
 	unsigned int lenlim;
-	int error, i;
+	int error;
 
 	lenlim = sc->hn_rx_ring[0].hn_lro.lro_length_lim;
 	error = sysctl_handle_int(oidp, &lenlim, 0, req);
@@ -1801,8 +1814,7 @@ hn_lro_lenlim_sysctl(SYSCTL_HANDLER_ARGS)
 		return EINVAL;
 
 	NV_LOCK(sc);
-	for (i = 0; i < sc->hn_rx_ring_inuse; ++i)
-		sc->hn_rx_ring[i].hn_lro.lro_length_lim = lenlim;
+	hn_set_lro_lenlim(sc, lenlim);
 	NV_UNLOCK(sc);
 	return 0;
 }
@@ -2796,8 +2808,10 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 	rxr->hn_rx_flags |= HN_RX_FLAG_ATTACHED;
 
 	chan->hv_chan_rxr = rxr;
-	if_printf(sc->hn_ifp, "link RX ring %d to channel%u\n",
-	    idx, chan->offer_msg.child_rel_id);
+	if (bootverbose) {
+		if_printf(sc->hn_ifp, "link RX ring %d to channel%u\n",
+		    idx, chan->offer_msg.child_rel_id);
+	}
 
 	if (idx < sc->hn_tx_ring_inuse) {
 		struct hn_tx_ring *txr = &sc->hn_tx_ring[idx];
@@ -2808,8 +2822,10 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 
 		chan->hv_chan_txr = txr;
 		txr->hn_chan = chan;
-		if_printf(sc->hn_ifp, "link TX ring %d to channel%u\n",
-		    idx, chan->offer_msg.child_rel_id);
+		if (bootverbose) {
+			if_printf(sc->hn_ifp, "link TX ring %d to channel%u\n",
+			    idx, chan->offer_msg.child_rel_id);
+		}
 	}
 
 	/* Bind channel to a proper CPU */

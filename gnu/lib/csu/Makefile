@@ -22,7 +22,6 @@ CFLAGS+=	-fno-inline-functions -fno-exceptions \
 CFLAGS+=	-I${GCCLIB}/include -I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${CCDIR}/cc_tools
 CRTS_CFLAGS=	-DCRTSTUFFS_O -DSHARED ${PICFLAG}
-MKDEP=		-DCRT_BEGIN
 
 .if ${TARGET_CPUARCH} == "arm"
 CFLAGS+=	-DTARGET_ARM_EABI
@@ -72,7 +71,7 @@ crtendS.o:	${ENDSRC}
 		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
 CLEANFILES+=	tm.h tconfig.h options.h optionlist cs-tconfig.h cs-tm.h
-tm.h tconfig.h options.h: ${CCDIR}/cc_tools/Makefile
+tm.h tconfig.h options.h: ${CCDIR}/cc_tools/Makefile .PHONY
 	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 .include <bsd.lib.mk>

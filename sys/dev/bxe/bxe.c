@@ -487,7 +487,9 @@ static const struct {
     { STATS_OFFSET32(mbuf_alloc_sge),
                 4, STATS_FLAGS_FUNC, "mbuf_alloc_sge"},
     { STATS_OFFSET32(mbuf_alloc_tpa),
-                4, STATS_FLAGS_FUNC, "mbuf_alloc_tpa"}
+                4, STATS_FLAGS_FUNC, "mbuf_alloc_tpa"},
+    { STATS_OFFSET32(tx_queue_full_return),
+                4, STATS_FLAGS_FUNC, "tx_queue_full_return"}
 };
 
 static const struct {
@@ -598,7 +600,9 @@ static const struct {
     { Q_STATS_OFFSET32(mbuf_alloc_sge),
                 4, "mbuf_alloc_sge"},
     { Q_STATS_OFFSET32(mbuf_alloc_tpa),
-                4, "mbuf_alloc_tpa"}
+                4, "mbuf_alloc_tpa"},
+    { Q_STATS_OFFSET32(tx_queue_full_return),
+                4, "tx_queue_full_return"}
 };
 
 #define BXE_NUM_ETH_STATS   ARRAY_SIZE(bxe_eth_stats_arr)
@@ -1620,7 +1624,7 @@ bxe_read_dmae(struct bxe_softc *sc,
     /* issue the command and wait for completion */
     if ((rc = bxe_issue_dmae_with_comp(sc, &dmae)) != 0) {
         bxe_panic(sc, ("DMAE failed (%d)\n", rc));
-    };
+    }
 }
 
 void
@@ -3063,7 +3067,7 @@ bxe_tpa_stop(struct bxe_softc          *sc,
 #if __FreeBSD_version >= 800000
         /* specify what RSS queue was used for this flow */
         m->m_pkthdr.flowid = fp->index;
-        M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+        BXE_SET_FLOWID(m);
 #endif
 
         if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
@@ -3352,7 +3356,7 @@ bxe_rxeof(struct bxe_softc    *sc,
 #if __FreeBSD_version >= 800000
         /* specify what RSS queue was used for this flow */
         m->m_pkthdr.flowid = fp->index;
-        M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
+        BXE_SET_FLOWID(m);
 #endif
 
 next_rx:
@@ -4619,7 +4623,7 @@ bxe_ioctl(if_t ifp,
             if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
                 /* set the receive mode flags */
                 bxe_set_rx_mode(sc);
-            } else {
+            } else if(sc->state != BXE_STATE_DISABLED) {
 		bxe_init_locked(sc);
             }
         } else {
@@ -4829,6 +4833,8 @@ bxe_dump_mbuf(struct bxe_softc *sc,
     }
 
     while (m) {
+
+#if __FreeBSD_version >= 1000000
         BLOGD(sc, DBG_MBUF,
               "%02d: mbuf=%p m_len=%d m_flags=0x%b m_data=%p\n",
               i, m, m->m_len, m->m_flags, M_FLAG_BITS, m->m_data);
@@ -4839,6 +4845,26 @@ bxe_dump_mbuf(struct bxe_softc *sc,
                    i, m->m_pkthdr.len, m->m_flags, M_FLAG_BITS,
                    (int)m->m_pkthdr.csum_flags, CSUM_BITS);
         }
+#else
+        BLOGD(sc, DBG_MBUF,
+              "%02d: mbuf=%p m_len=%d m_flags=0x%b m_data=%p\n",
+              i, m, m->m_len, m->m_flags,
+              "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY", m->m_data);
+
+        if (m->m_flags & M_PKTHDR) {
+             BLOGD(sc, DBG_MBUF,
+                   "%02d: - m_pkthdr: tot_len=%d flags=0x%b csum_flags=%b\n",
+                   i, m->m_pkthdr.len, m->m_flags,
+                   "\20\12M_BCAST\13M_MCAST\14M_FRAG"
+                   "\15M_FIRSTFRAG\16M_LASTFRAG\21M_VLANTAG"
+                   "\22M_PROMISC\23M_NOFREE",
+                   (int)m->m_pkthdr.csum_flags,
+                   "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP\4CSUM_IP_FRAGS"
+                   "\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"
+                   "\12CSUM_IP_VALID\13CSUM_DATA_VALID"
+                   "\14CSUM_PSEUDO_HDR");
+        }
+#endif /* #if __FreeBSD_version >= 1000000 */
 
         if (m->m_flags & M_EXT) {
             switch (m->m_ext.ext_type) {
@@ -5222,7 +5248,9 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
 
     sc = fp->sc;
 
+#if __FreeBSD_version >= 800000
     M_ASSERTPKTHDR(*m_head);
+#endif /* #if __FreeBSD_version >= 800000 */
 
     m0 = *m_head;
     rc = defragged = nbds = ovlan = vlan_off = total_pkt_size = 0;
@@ -5699,17 +5727,17 @@ bxe_tx_start(if_t ifp)
         return;
     }
 
-    if (if_getdrvflags(ifp) & IFF_DRV_OACTIVE) {
-        BLOGW(sc, "Interface TX queue is full, ignoring transmit request\n");
-        return;
-    }
-
     if (!sc->link_vars.link_up) {
         BLOGW(sc, "Interface link is down, ignoring transmit request\n");
         return;
     }
 
     fp = &sc->fp[0];
+
+    if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+        fp->eth_q_stats.tx_queue_full_return++;
+        return;
+    }
 
     BXE_FP_TX_LOCK(fp);
     bxe_tx_start_locked(sc, ifp, fp);
@@ -5741,7 +5769,7 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
     if (!sc->link_vars.link_up ||
         (if_getdrvflags(ifp) &
         (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING) {
-        rc = drbr_enqueue_drv(ifp, tx_br, m);
+        rc = drbr_enqueue(ifp, tx_br, m);
         goto bxe_tx_mq_start_locked_exit;
     }
 
@@ -5756,7 +5784,7 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
         next = drbr_dequeue_drv(ifp, tx_br);
     } else if (drbr_needs_enqueue_drv(ifp, tx_br)) {
         /* have both new and pending work, maintain packet order */
-        rc = drbr_enqueue_drv(ifp, tx_br, m);
+        rc = drbr_enqueue(ifp, tx_br, m);
         if (rc != 0) {
             fp->eth_q_stats.tx_soft_errors++;
             goto bxe_tx_mq_start_locked_exit;
@@ -5785,7 +5813,7 @@ bxe_tx_mq_start_locked(struct bxe_softc    *sc,
                 /* mark the TX queue as full and save the frame */
                 if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
                 /* XXX this may reorder the frame */
-                rc = drbr_enqueue_drv(ifp, tx_br, next);
+                rc = drbr_enqueue(ifp, tx_br, next);
                 fp->eth_q_stats.mbuf_alloc_tx--;
                 fp->eth_q_stats.tx_frames_deferred++;
             }
@@ -5837,7 +5865,8 @@ bxe_tx_mq_start(struct ifnet *ifp,
     fp_index = 0; /* default is the first queue */
 
     /* check if flowid is set */
-    if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
+
+    if (BXE_VALID_FLOWID(m))
         fp_index = (m->m_pkthdr.flowid % sc->num_queues);
 
     fp = &sc->fp[fp_index];
@@ -5846,7 +5875,7 @@ bxe_tx_mq_start(struct ifnet *ifp,
         rc = bxe_tx_mq_start_locked(sc, ifp, fp, m);
         BXE_FP_TX_UNLOCK(fp);
     } else
-        rc = drbr_enqueue_drv(ifp, fp->tx_br, m);
+        rc = drbr_enqueue(ifp, fp->tx_br, m);
 
     return (rc);
 }
@@ -9911,21 +9940,6 @@ bxe_init_internal_common(struct bxe_softc *sc)
 {
     int i;
 
-    if (IS_MF_SI(sc)) {
-        /*
-         * In switch independent mode, the TSTORM needs to accept
-         * packets that failed classification, since approximate match
-         * mac addresses aren't written to NIG LLH.
-         */
-        REG_WR8(sc,
-                (BAR_TSTRORM_INTMEM + TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET),
-                2);
-    } else if (!CHIP_IS_E1(sc)) { /* 57710 doesn't support MF */
-        REG_WR8(sc,
-                (BAR_TSTRORM_INTMEM + TSTORM_ACCEPT_CLASSIFY_FAILED_OFFSET),
-                0);
-    }
-
     /*
      * Zero this manually as its initialization is currently missing
      * in the initTool.
@@ -12244,6 +12258,8 @@ static void
 bxe_periodic_callout_func(void *xsc)
 {
     struct bxe_softc *sc = (struct bxe_softc *)xsc;
+    struct bxe_fastpath *fp;
+    uint16_t tx_bd_avail;
     int i;
 
     if (!BXE_CORE_TRYLOCK(sc)) {
@@ -12265,6 +12281,48 @@ bxe_periodic_callout_func(void *xsc)
         BXE_CORE_UNLOCK(sc);
         return;
     }
+
+#if __FreeBSD_version >= 800000
+
+    FOR_EACH_QUEUE(sc, i) {
+        fp = &sc->fp[i];
+
+        if (BXE_FP_TX_TRYLOCK(fp)) {
+            if_t ifp = sc->ifp;
+            /*
+             * If interface was stopped due to unavailable
+             * bds, try to process some tx completions
+             */
+            (void) bxe_txeof(sc, fp);
+           
+            tx_bd_avail = bxe_tx_avail(sc, fp);
+            if (tx_bd_avail >= BXE_TX_CLEANUP_THRESHOLD) {
+                bxe_tx_mq_start_locked(sc, ifp, fp, NULL);
+            }
+            BXE_FP_TX_UNLOCK(fp);
+        }
+    }
+
+#else
+
+    fp = &sc->fp[0];
+    if (BXE_FP_TX_TRYLOCK(fp)) {
+        struct ifnet *ifp = sc->ifnet;
+        /*
+         * If interface was stopped due to unavailable
+         * bds, try to process some tx completions
+         */
+        (void) bxe_txeof(sc, fp);
+           
+        tx_bd_avail = bxe_tx_avail(sc, fp);
+        if (tx_bd_avail >= BXE_TX_CLEANUP_THRESHOLD) {
+            bxe_tx_start_locked(sc, ifp, fp);
+        }
+ 
+        BXE_FP_TX_UNLOCK(fp);
+    }
+
+#endif /* #if __FreeBSD_version >= 800000 */
 
     /* Check for TX timeouts on any fastpath. */
     FOR_EACH_QUEUE(sc, i) {
@@ -12845,7 +12903,7 @@ bxe_allocate_bars(struct bxe_softc *sc)
         sc->bar[i].handle = rman_get_bushandle(sc->bar[i].resource);
         sc->bar[i].kva    = (vm_offset_t)rman_get_virtual(sc->bar[i].resource);
 
-        BLOGI(sc, "PCI BAR%d [%02x] memory allocated: %p-%p (%ld) -> %p\n",
+        BLOGI(sc, "PCI BAR%d [%02x] memory allocated: %p-%p (%jd) -> %p\n",
               i, PCIR_BAR(i),
               (void *)rman_get_start(sc->bar[i].resource),
               (void *)rman_get_end(sc->bar[i].resource),
@@ -13595,49 +13653,60 @@ bxe_get_tunable_params(struct bxe_softc *sc)
           sc->udp_rss);
 }
 
-static void
+static int
 bxe_media_detect(struct bxe_softc *sc)
 {
+    int port_type;
     uint32_t phy_idx = bxe_get_cur_phy_idx(sc);
+
     switch (sc->link_params.phy[phy_idx].media_type) {
     case ELINK_ETH_PHY_SFPP_10G_FIBER:
     case ELINK_ETH_PHY_XFP_FIBER:
         BLOGI(sc, "Found 10Gb Fiber media.\n");
         sc->media = IFM_10G_SR;
+        port_type = PORT_FIBRE;
         break;
     case ELINK_ETH_PHY_SFP_1G_FIBER:
         BLOGI(sc, "Found 1Gb Fiber media.\n");
         sc->media = IFM_1000_SX;
+        port_type = PORT_FIBRE;
         break;
     case ELINK_ETH_PHY_KR:
     case ELINK_ETH_PHY_CX4:
         BLOGI(sc, "Found 10GBase-CX4 media.\n");
         sc->media = IFM_10G_CX4;
+        port_type = PORT_FIBRE;
         break;
     case ELINK_ETH_PHY_DA_TWINAX:
         BLOGI(sc, "Found 10Gb Twinax media.\n");
         sc->media = IFM_10G_TWINAX;
+        port_type = PORT_DA;
         break;
     case ELINK_ETH_PHY_BASE_T:
         if (sc->link_params.speed_cap_mask[0] &
             PORT_HW_CFG_SPEED_CAPABILITY_D0_10G) {
             BLOGI(sc, "Found 10GBase-T media.\n");
             sc->media = IFM_10G_T;
+            port_type = PORT_TP;
         } else {
             BLOGI(sc, "Found 1000Base-T media.\n");
             sc->media = IFM_1000_T;
+            port_type = PORT_TP;
         }
         break;
     case ELINK_ETH_PHY_NOT_PRESENT:
         BLOGI(sc, "Media not present.\n");
         sc->media = 0;
+        port_type = PORT_OTHER;
         break;
     case ELINK_ETH_PHY_UNSPECIFIED:
     default:
         BLOGI(sc, "Unknown media!\n");
         sc->media = 0;
+        port_type = PORT_OTHER;
         break;
     }
+    return port_type;
 }
 
 #define GET_FIELD(value, fname)                     \
@@ -15677,18 +15746,11 @@ bxe_add_sysctls(struct bxe_softc *sc)
                       CTLFLAG_RD, BXE_DRIVER_VERSION, 0,
                       "version");
 
-    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "bc_version",
-                      CTLFLAG_RD, sc->devinfo.bc_ver_str, 0,
-                      "bootcode version");
-
     snprintf(sc->fw_ver_str, sizeof(sc->fw_ver_str), "%d.%d.%d.%d",
              BCM_5710_FW_MAJOR_VERSION,
              BCM_5710_FW_MINOR_VERSION,
              BCM_5710_FW_REVISION_VERSION,
              BCM_5710_FW_ENGINEERING_VERSION);
-    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "fw_version",
-                      CTLFLAG_RD, sc->fw_ver_str, 0,
-                      "firmware version");
 
     snprintf(sc->mf_mode_str, sizeof(sc->mf_mode_str), "%s",
         ((sc->devinfo.mf_info.mf_mode == SINGLE_FUNCTION)     ? "Single"  :
@@ -15696,17 +15758,9 @@ bxe_add_sysctls(struct bxe_softc *sc)
          (sc->devinfo.mf_info.mf_mode == MULTI_FUNCTION_SI)   ? "MF-SI"   :
          (sc->devinfo.mf_info.mf_mode == MULTI_FUNCTION_AFEX) ? "MF-AFEX" :
                                                                 "Unknown"));
-    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mf_mode",
-                      CTLFLAG_RD, sc->mf_mode_str, 0,
-                      "multifunction mode");
-
     SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "mf_vnics",
                     CTLFLAG_RD, &sc->devinfo.mf_info.vnics_per_port, 0,
                     "multifunction vnics per port");
-
-    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mac_addr",
-                      CTLFLAG_RD, sc->mac_addr_str, 0,
-                      "mac address");
 
     snprintf(sc->pci_link_str, sizeof(sc->pci_link_str), "%s x%d",
         ((sc->devinfo.pcie_link_speed == 1) ? "2.5GT/s" :
@@ -15714,14 +15768,48 @@ bxe_add_sysctls(struct bxe_softc *sc)
          (sc->devinfo.pcie_link_speed == 4) ? "8.0GT/s" :
                                               "???GT/s"),
         sc->devinfo.pcie_link_width);
+
+    sc->debug = bxe_debug;
+
+#if __FreeBSD_version >= 900000
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "bc_version",
+                      CTLFLAG_RD, sc->devinfo.bc_ver_str, 0,
+                      "bootcode version");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "fw_version",
+                      CTLFLAG_RD, sc->fw_ver_str, 0,
+                      "firmware version");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mf_mode",
+                      CTLFLAG_RD, sc->mf_mode_str, 0,
+                      "multifunction mode");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mac_addr",
+                      CTLFLAG_RD, sc->mac_addr_str, 0,
+                      "mac address");
     SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "pci_link",
                       CTLFLAG_RD, sc->pci_link_str, 0,
                       "pci link status");
-
-    sc->debug = bxe_debug;
     SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "debug",
                     CTLFLAG_RW, &sc->debug,
                     "debug logging mode");
+#else
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "bc_version",
+                      CTLFLAG_RD, &sc->devinfo.bc_ver_str, 0,
+                      "bootcode version");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "fw_version",
+                      CTLFLAG_RD, &sc->fw_ver_str, 0,
+                      "firmware version");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mf_mode",
+                      CTLFLAG_RD, &sc->mf_mode_str, 0,
+                      "multifunction mode");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mac_addr",
+                      CTLFLAG_RD, &sc->mac_addr_str, 0,
+                      "mac address");
+    SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "pci_link",
+                      CTLFLAG_RD, &sc->pci_link_str, 0,
+                      "pci link status");
+    SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "debug",
+                    CTLFLAG_RW, &sc->debug, 0,
+                    "debug logging mode");
+#endif /* #if __FreeBSD_version >= 900000 */
 
     SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "trigger_grcdump",
                     CTLTYPE_UINT | CTLFLAG_RW, sc, 0,
@@ -16093,6 +16181,7 @@ bxe_detach(device_t dev)
     if (sc->state != BXE_STATE_CLOSED) {
         BXE_CORE_LOCK(sc);
         bxe_nic_unload(sc, UNLOAD_CLOSE, TRUE);
+        sc->state = BXE_STATE_DISABLED;
         BXE_CORE_UNLOCK(sc);
     }
 
@@ -18636,6 +18725,14 @@ bxe_add_cdev(struct bxe_softc *sc)
     if (sc->grc_dump == NULL)
         return (-1);
 
+    sc->eeprom = malloc(BXE_EEPROM_MAX_DATA_LEN, M_DEVBUF, M_NOWAIT);
+
+    if (sc->eeprom == NULL) {
+        BLOGW(sc, "Unable to alloc for eeprom size buffer\n");
+        free(sc->grc_dump, M_DEVBUF); sc->grc_dump = NULL;
+        return (-1);
+    }
+
     sc->ioctl_dev = make_dev(&bxe_cdevsw,
                             sc->ifp->if_dunit,
                             UID_ROOT,
@@ -18647,6 +18744,8 @@ bxe_add_cdev(struct bxe_softc *sc)
     if (sc->ioctl_dev == NULL) {
 
         free(sc->grc_dump, M_DEVBUF);
+        free(sc->eeprom, M_DEVBUF);
+        sc->eeprom = NULL;
 
         return (-1);
     }
@@ -18662,10 +18761,150 @@ bxe_del_cdev(struct bxe_softc *sc)
     if (sc->ioctl_dev != NULL)
         destroy_dev(sc->ioctl_dev);
 
-    if (sc->grc_dump == NULL)
+    if (sc->grc_dump != NULL)
         free(sc->grc_dump, M_DEVBUF);
 
+    if (sc->eeprom != NULL) {
+        free(sc->eeprom, M_DEVBUF);
+        sc->eeprom = NULL;
+    }
+
     return;
+}
+
+static bool bxe_is_nvram_accessible(struct bxe_softc *sc)
+{
+
+    if ((if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) == 0)
+        return FALSE;
+
+    return TRUE;
+}
+
+
+static int
+bxe_wr_eeprom(struct bxe_softc *sc, void *data, uint32_t offset, uint32_t len)
+{
+    int rval = 0;
+
+    if(!bxe_is_nvram_accessible(sc)) {
+        BLOGW(sc, "Cannot access eeprom when interface is down\n");
+        return (-EAGAIN);
+    }
+    rval = bxe_nvram_write(sc, offset, (uint8_t *)data, len);
+
+
+   return (rval);
+}
+
+static int
+bxe_rd_eeprom(struct bxe_softc *sc, void *data, uint32_t offset, uint32_t len)
+{
+    int rval = 0;
+
+    if(!bxe_is_nvram_accessible(sc)) {
+        BLOGW(sc, "Cannot access eeprom when interface is down\n");
+        return (-EAGAIN);
+    }
+    rval = bxe_nvram_read(sc, offset, (uint8_t *)data, len);
+
+   return (rval);
+}
+
+static int
+bxe_eeprom_rd_wr(struct bxe_softc *sc, bxe_eeprom_t *eeprom)
+{
+    int rval = 0;
+
+    switch (eeprom->eeprom_cmd) {
+
+    case BXE_EEPROM_CMD_SET_EEPROM:
+
+        rval = copyin(eeprom->eeprom_data, sc->eeprom,
+                       eeprom->eeprom_data_len);
+
+        if (rval)
+            break;
+
+        rval = bxe_wr_eeprom(sc, sc->eeprom, eeprom->eeprom_offset,
+                       eeprom->eeprom_data_len);
+        break;
+
+    case BXE_EEPROM_CMD_GET_EEPROM:
+
+        rval = bxe_rd_eeprom(sc, sc->eeprom, eeprom->eeprom_offset,
+                       eeprom->eeprom_data_len);
+
+        if (rval) {
+            break;
+        }
+
+        rval = copyout(sc->eeprom, eeprom->eeprom_data,
+                       eeprom->eeprom_data_len);
+        break;
+
+    default:
+            rval = EINVAL;
+            break;
+    }
+
+    if (rval) {
+        BLOGW(sc, "ioctl cmd %d  failed rval %d\n", eeprom->eeprom_cmd, rval);
+    }
+
+    return (rval);
+}
+
+static int
+bxe_get_settings(struct bxe_softc *sc, bxe_dev_setting_t *dev_p)
+{
+    uint32_t ext_phy_config;
+    int port = SC_PORT(sc);
+    int cfg_idx = bxe_get_link_cfg_idx(sc);
+
+    dev_p->supported = sc->port.supported[cfg_idx] |
+            (sc->port.supported[cfg_idx ^ 1] &
+            (ELINK_SUPPORTED_TP | ELINK_SUPPORTED_FIBRE));
+    dev_p->advertising = sc->port.advertising[cfg_idx];
+    if(sc->link_params.phy[bxe_get_cur_phy_idx(sc)].media_type ==
+        ELINK_ETH_PHY_SFP_1G_FIBER) {
+        dev_p->supported = ~(ELINK_SUPPORTED_10000baseT_Full);
+        dev_p->advertising &= ~(ADVERTISED_10000baseT_Full);
+    }
+    if ((sc->state == BXE_STATE_OPEN) && sc->link_vars.link_up &&
+        !(sc->flags & BXE_MF_FUNC_DIS)) {
+        dev_p->duplex = sc->link_vars.duplex;
+        if (IS_MF(sc) && !BXE_NOMCP(sc))
+            dev_p->speed = bxe_get_mf_speed(sc);
+        else
+            dev_p->speed = sc->link_vars.line_speed;
+    } else {
+        dev_p->duplex = DUPLEX_UNKNOWN;
+        dev_p->speed = SPEED_UNKNOWN;
+    }
+
+    dev_p->port = bxe_media_detect(sc);
+
+    ext_phy_config = SHMEM_RD(sc,
+                         dev_info.port_hw_config[port].external_phy_config);
+    if((ext_phy_config & PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK) ==
+        PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT)
+        dev_p->phy_address =  sc->port.phy_addr;
+    else if(((ext_phy_config & PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK) !=
+            PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE) &&
+        ((ext_phy_config & PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK) !=
+            PORT_HW_CFG_XGXS_EXT_PHY_TYPE_NOT_CONN))
+        dev_p->phy_address = ELINK_XGXS_EXT_PHY_ADDR(ext_phy_config);
+    else
+        dev_p->phy_address = 0;
+
+    if(sc->link_params.req_line_speed[cfg_idx] == ELINK_SPEED_AUTO_NEG)
+        dev_p->autoneg = AUTONEG_ENABLE;
+    else
+       dev_p->autoneg = AUTONEG_DISABLE;
+
+
+    return 0;
 }
 
 static int
@@ -18677,6 +18916,14 @@ bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     device_t            pci_dev;
     bxe_grcdump_t       *dump = NULL;
     int grc_dump_size;
+    bxe_drvinfo_t   *drv_infop = NULL;
+    bxe_dev_setting_t  *dev_p;
+    bxe_dev_setting_t  dev_set;
+    bxe_get_regs_t  *reg_p;
+    bxe_reg_rdw_t *reg_rdw_p;
+    bxe_pcicfg_rdw_t *cfg_rdw_p;
+    bxe_perm_mac_addr_t *mac_addr_p;
+
 
     if ((sc = (struct bxe_softc *)dev->si_drv1) == NULL)
         return ENXIO;
@@ -18689,14 +18936,15 @@ bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
         case BXE_GRC_DUMP_SIZE:
             dump->pci_func = sc->pcie_func;
-            dump->grcdump_size = (bxe_get_total_regs_len32(sc) * sizeof(uint32_t)) +
-					sizeof(struct  dump_header);
+            dump->grcdump_size =
+                (bxe_get_total_regs_len32(sc) * sizeof(uint32_t)) +
+                     sizeof(struct  dump_header);
             break;
 
         case BXE_GRC_DUMP:
             
             grc_dump_size = (bxe_get_total_regs_len32(sc) * sizeof(uint32_t)) +
-				sizeof(struct  dump_header);
+                                sizeof(struct  dump_header);
 
             if ((sc->grc_dump == NULL) || (dump->grcdump == NULL) ||
                 (dump->grcdump_size < grc_dump_size) || (!sc->grcdump_done)) {
@@ -18708,6 +18956,92 @@ bxe_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
             sc->grcdump_done = 0;
 
             break;
+
+        case BXE_DRV_INFO:
+            drv_infop = (bxe_drvinfo_t *)data;
+            snprintf(drv_infop->drv_name, BXE_DRV_NAME_LENGTH, "%s", "bxe");
+            snprintf(drv_infop->drv_version, BXE_DRV_VERSION_LENGTH, "v:%s",
+                BXE_DRIVER_VERSION);
+            snprintf(drv_infop->mfw_version, BXE_MFW_VERSION_LENGTH, "%s",
+                sc->devinfo.bc_ver_str);
+            snprintf(drv_infop->stormfw_version, BXE_STORMFW_VERSION_LENGTH,
+                "%s", sc->fw_ver_str);
+            drv_infop->eeprom_dump_len = sc->devinfo.flash_size;
+            drv_infop->reg_dump_len =
+                (bxe_get_total_regs_len32(sc) * sizeof(uint32_t))
+                    + sizeof(struct  dump_header);
+            snprintf(drv_infop->bus_info, BXE_BUS_INFO_LENGTH, "%d:%d:%d",
+                sc->pcie_bus, sc->pcie_device, sc->pcie_func);
+            break;
+        case BXE_DEV_SETTING:
+            dev_p = (bxe_dev_setting_t *)data;
+            bxe_get_settings(sc, &dev_set);
+            dev_p->supported = dev_set.supported;
+            dev_p->advertising = dev_set.advertising;
+            dev_p->speed = dev_set.speed;
+            dev_p->duplex = dev_set.duplex;
+            dev_p->port = dev_set.port;
+            dev_p->phy_address = dev_set.phy_address;
+            dev_p->autoneg = dev_set.autoneg;
+
+            break;
+
+        case BXE_GET_REGS:
+
+            reg_p = (bxe_get_regs_t *)data;
+            grc_dump_size = reg_p->reg_buf_len;
+
+            if (sc->grc_dump == NULL) { 
+                rval = EINVAL;
+                break;
+            }
+
+            if(!sc->grcdump_done) {
+                bxe_grc_dump(sc);
+            }
+            if(sc->grcdump_done) {
+                rval = copyout(sc->grc_dump, reg_p->reg_buf, grc_dump_size);
+                sc->grcdump_done = 0;
+            }
+
+            break;
+        case BXE_RDW_REG:
+            reg_rdw_p = (bxe_reg_rdw_t *)data;
+            if((reg_rdw_p->reg_cmd == BXE_READ_REG_CMD) &&
+                (reg_rdw_p->reg_access_type == BXE_REG_ACCESS_DIRECT))
+                reg_rdw_p->reg_val = REG_RD(sc, reg_rdw_p->reg_id);
+
+            if((reg_rdw_p->reg_cmd == BXE_WRITE_REG_CMD) &&
+                (reg_rdw_p->reg_access_type == BXE_REG_ACCESS_DIRECT))
+                REG_WR(sc, reg_rdw_p->reg_id, reg_rdw_p->reg_val);
+
+            break;
+
+        case BXE_RDW_PCICFG:
+            cfg_rdw_p = (bxe_pcicfg_rdw_t *)data;
+            if(cfg_rdw_p->cfg_cmd == BXE_READ_PCICFG) {
+
+                cfg_rdw_p->cfg_val = pci_read_config(sc->dev, cfg_rdw_p->cfg_id,
+                                         cfg_rdw_p->cfg_width);
+
+            } else if(cfg_rdw_p->cfg_cmd == BXE_WRITE_PCICFG) {
+                pci_write_config(sc->dev, cfg_rdw_p->cfg_id, cfg_rdw_p->cfg_val,
+                            cfg_rdw_p->cfg_width);
+            } else {
+                BLOGW(sc, "BXE_RDW_PCICFG ioctl wrong cmd passed\n");
+            }
+            break;
+
+        case BXE_MAC_ADDR:
+            mac_addr_p = (bxe_perm_mac_addr_t *)data;
+            snprintf(mac_addr_p->mac_addr_str, sizeof(sc->mac_addr_str), "%s",
+                sc->mac_addr_str);
+            break;
+
+        case BXE_EEPROM:
+            rval = bxe_eeprom_rd_wr(sc, (bxe_eeprom_t *)data);
+            break;
+
 
         default:
             break;

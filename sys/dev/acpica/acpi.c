@@ -31,6 +31,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+#include "opt_device_numa.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
@@ -795,10 +797,10 @@ acpi_print_child(device_t bus, device_t child)
     int retval = 0;
 
     retval += bus_print_child_header(bus, child);
-    retval += resource_list_print_type(rl, "port",  SYS_RES_IOPORT, "%#lx");
-    retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#lx");
-    retval += resource_list_print_type(rl, "irq",   SYS_RES_IRQ,    "%ld");
-    retval += resource_list_print_type(rl, "drq",   SYS_RES_DRQ,    "%ld");
+    retval += resource_list_print_type(rl, "port",  SYS_RES_IOPORT, "%#jx");
+    retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#jx");
+    retval += resource_list_print_type(rl, "irq",   SYS_RES_IRQ,    "%jd");
+    retval += resource_list_print_type(rl, "drq",   SYS_RES_DRQ,    "%jd");
     if (device_get_flags(child))
 	retval += printf(" flags %#x", device_get_flags(child));
     retval += bus_print_child_domain(bus, child);
@@ -1083,7 +1085,7 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 int
 acpi_parse_pxm(device_t dev, int *domain)
 {
-#if MAXMEMDOM > 1
+#ifdef DEVICE_NUMA
 	ACPI_HANDLE h;
 	int d, pxm;
 
@@ -1156,7 +1158,7 @@ acpi_sysres_alloc(device_t dev)
     rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
     STAILQ_FOREACH(rle, rl, link) {
 	if (rle->res != NULL) {
-	    device_printf(dev, "duplicate resource for %lx\n", rle->start);
+	    device_printf(dev, "duplicate resource for %jx\n", rle->start);
 	    continue;
 	}
 
@@ -1179,7 +1181,7 @@ acpi_sysres_alloc(device_t dev)
 	    rman_manage_region(rm, rman_get_start(res), rman_get_end(res));
 	    rle->res = res;
 	} else if (bootverbose)
-	    device_printf(dev, "reservation of %lx, %lx (%d) failed\n",
+	    device_printf(dev, "reservation of %jx, %jx (%d) failed\n",
 		rle->start, rle->count, rle->type);
     }
     return (0);

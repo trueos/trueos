@@ -1,6 +1,7 @@
 # $FreeBSD$
 # Copyright (c) David E. O'Brien, 2000-2004, 2006, 2009
 
+PACKAGE=lib${LIB}
 CONTRDIR=	${.CURDIR}/../../contrib/file
 .PATH: ${CONTRDIR}/src
 .PATH: ${CONTRDIR}/doc
@@ -39,7 +40,7 @@ magic.mgc: mkmagic magic
 
 CLEANFILES+=	mkmagic
 build-tools: mkmagic
-mkmagic: apprentice.c cdf_time.c encoding.c funcs.c magic.c print.c
+mkmagic: apprentice.c cdf_time.c encoding.c funcs.c magic.c print.c ${BUILD_TOOLS_META}
 	${CC} ${CFLAGS} -DCOMPILE_ONLY ${LDFLAGS} -o ${.TARGET} ${.ALLSRC} \
 	    ${LDADD}
 
