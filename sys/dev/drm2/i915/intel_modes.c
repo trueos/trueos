@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm_edid.h>
 #include <dev/drm2/i915/intel_drv.h>
 #include <dev/drm2/i915/i915_drv.h>
-#include <dev/iicbus/iiconf.h>
 
 /**
  * intel_connector_update_modes - update connector from edid
