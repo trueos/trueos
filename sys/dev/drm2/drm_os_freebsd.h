@@ -410,6 +410,7 @@ static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return
 #define acpi_video_register()
 #define acpi_video_unregister()
 #define unregister_shrinker(x)
+#define drm_prime_gem_destroy(x, y)
 
 #define CONFIG_X86_PAT
 
