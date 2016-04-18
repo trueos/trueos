@@ -1943,9 +1943,6 @@ static inline uint32_t i915_vgacntrl_reg(struct drm_device *dev)
 u32 i915_gem_next_request_seqno(struct intel_ring_buffer *ring);
 vm_page_t i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex,
     bool *fresh);
-int i915_gem_object_get_pages_range(struct drm_i915_gem_object *obj,
-    off_t start, off_t end);
-
 #define i915_setup_sysfs(x)
 #define i915_teardown_sysfs(x)
 
