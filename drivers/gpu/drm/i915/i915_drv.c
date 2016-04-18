@@ -805,7 +805,7 @@ static int i915_drm_resume(struct drm_device *dev)
 static int i915_drm_resume_early(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret = 0;
+	int ret;
 
 	/*
 	 * We have a resume ordering issue with the snd-hda driver also
