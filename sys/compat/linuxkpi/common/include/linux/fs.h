@@ -218,6 +218,12 @@ no_llseek(struct file *file, loff_t offset, int whence)
 }
 
 struct page *shmem_read_mapping_page_gfp(struct address_space *as, int idx, gfp_t gfp);
+static inline struct page *
+shmem_read_mapping_page(struct address_space *as, int idx)
+{
+
+	return (shmem_read_mapping_page_gfp(as, idx, 0));
+}
 
 static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask) {}
 static inline gfp_t mapping_gfp_mask(struct address_space *m)
