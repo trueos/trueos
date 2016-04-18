@@ -48,7 +48,7 @@ extern unsigned long linux_timer_hz_mask;
 
 #define	setup_timer(timer, func, dat)					\
 do {									\
-	(timer)->function = (func);					\
+	(timer)->function = (typeof((timer)->function))(func);		\
 	(timer)->data = (dat);						\
 	callout_init(&(timer)->timer_callout, 1);			\
 } while (0)
