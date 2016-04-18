@@ -417,9 +417,7 @@ static void ivybridge_parity_work(struct work_struct *work)
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
 						    l3_parity.error_work);
 	u32 error_status, row, bank, subbank;
-#ifdef __linux__
 	char *parity_event[5];
-#endif
 	uint32_t misccpctl;
 	unsigned long flags;
 
@@ -451,7 +449,6 @@ static void ivybridge_parity_work(struct work_struct *work)
 
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 
-#ifdef __linux__
 	parity_event[0] = "L3_PARITY_ERROR=1";
 	parity_event[1] = kasprintf(GFP_KERNEL, "ROW=%d", row);
 	parity_event[2] = kasprintf(GFP_KERNEL, "BANK=%d", bank);
@@ -460,16 +457,13 @@ static void ivybridge_parity_work(struct work_struct *work)
 
 	kobject_uevent_env(&dev_priv->dev->primary->kdev.kobj,
 			   KOBJ_CHANGE, parity_event);
-#endif
 
 	DRM_DEBUG("Parity error: Row = %d, Bank = %d, Sub bank = %d.\n",
 		  row, bank, subbank);
 
-#ifdef __linux__
 	kfree(parity_event[3]);
 	kfree(parity_event[2]);
 	kfree(parity_event[1]);
-#endif
 }
 
 static void ivybridge_handle_parity_error(struct drm_device *dev)
@@ -901,14 +895,12 @@ static void i915_error_work_func(struct work_struct *work)
 						    gpu_error);
 	struct drm_device *dev = dev_priv->dev;
 	struct intel_ring_buffer *ring;
-#ifdef __linux__
 	char *error_event[] = { "ERROR=1", NULL };
 	char *reset_event[] = { "RESET=1", NULL };
 	char *reset_done_event[] = { "ERROR=0", NULL };
+	int i, ret;
 
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
-#endif
-	int i, ret;
 	/*
 	 * Note that there's only one work item which does gpu resets, so we
 	 * need not worry about concurrent gpu resets potentially incrementing
@@ -921,10 +913,9 @@ static void i915_error_work_func(struct work_struct *work)
 	 */
 	if (i915_reset_in_progress(error) && !i915_terminally_wedged(error)) {
 		DRM_DEBUG_DRIVER("resetting chip\n");
+		kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE,
+				   reset_event);
 
-#ifdef __linux__
-		kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
-#endif
 		ret = i915_reset(dev);
 
 		if (ret == 0) {
@@ -940,10 +931,8 @@ static void i915_error_work_func(struct work_struct *work)
 			 */
 			smp_mb__before_atomic_inc();
 			atomic_inc(&dev_priv->gpu_error.reset_counter);
-#ifdef __linux__
 			kobject_uevent_env(&dev->primary->kdev.kobj,
 					   KOBJ_CHANGE, reset_done_event);
-#endif
 		} else {
 			atomic_set(&error->reset_counter, I915_WEDGED);
 		}
@@ -2102,11 +2091,11 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	dev_priv->pipestat[1] = 0;
 
 	/* Hack for broken MSIs on VLV */
-	pci_write_config_dword(dev->pdev, 0x94, 0xfee00000);
+	pci_write_config_dword(dev_priv->dev->pdev, 0x94, 0xfee00000);
 	pci_read_config_word(dev->pdev, 0x98, &msid);
 	msid &= 0xff; /* mask out delivery bits */
 	msid |= (1<<14);
-	pci_write_config_word(dev->pdev, 0x98, msid);
+	pci_write_config_word(dev_priv->dev->pdev, 0x98, msid);
 
 	I915_WRITE(PORT_HOTPLUG_EN, 0);
 	POSTING_READ(PORT_HOTPLUG_EN);
@@ -2839,13 +2828,11 @@ void intel_irq_init(struct drm_device *dev)
 	INIT_WORK(&dev_priv->gpu_error.work, i915_error_work_func);
 	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
-#ifdef __linux__	
 	setup_timer(&dev_priv->gpu_error.hangcheck_timer,
 		    i915_hangcheck_elapsed,
 		    (unsigned long) dev);
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
-#endif	
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
