@@ -53,6 +53,8 @@
 #include <linux/pci.h>
 #include <asm/atomic.h>
 #include <linux/device.h>
+#include <linux/ioport.h>
+
 
 struct pci_device_id {
 	uint32_t	vendor;
@@ -136,6 +138,12 @@ struct pci_device_id {
 #define	IORESOURCE_IO	SYS_RES_IOPORT
 #define	IORESOURCE_IRQ	SYS_RES_IRQ
 
+/* PCI ROM control bits (IORESOURCE_BITS) */
+#define IORESOURCE_ROM_ENABLE		(1<<0)	/* ROM is enabled, same as PCI_ROM_ADDRESS_ENABLE */
+#define IORESOURCE_ROM_SHADOW		(1<<1)	/* ROM is copy at C000:0 */
+#define IORESOURCE_ROM_COPY		(1<<2)	/* ROM is alloc'd copy, resource field overlaid */
+#define IORESOURCE_ROM_BIOS_COPY	(1<<3)	/* ROM is BIOS copy, resource field overlaid */
+
 enum pci_bus_speed {
 	PCI_SPEED_UNKNOWN = -1,
 	PCIE_SPEED_2_5GT,
@@ -145,6 +153,38 @@ enum pci_bus_speed {
 
 enum pcie_link_width {
 	PCIE_LNK_WIDTH_UNKNOWN = -1,
+};
+
+
+/*
+ *  For PCI devices, the region numbers are assigned this way:
+ */
+enum {
+	/* #0-5: standard PCI resources */
+	PCI_STD_RESOURCES,
+	PCI_STD_RESOURCE_END = 5,
+
+	/* #6: expansion ROM resource */
+	PCI_ROM_RESOURCE,
+
+	/* device specific resources */
+#ifdef CONFIG_PCI_IOV
+	PCI_IOV_RESOURCES,
+	PCI_IOV_RESOURCE_END = PCI_IOV_RESOURCES + PCI_SRIOV_NUM_BARS - 1,
+#endif
+
+	/* resources assigned to buses behind the bridge */
+#define PCI_BRIDGE_RESOURCE_NUM 4
+
+	PCI_BRIDGE_RESOURCES,
+	PCI_BRIDGE_RESOURCE_END = PCI_BRIDGE_RESOURCES +
+				  PCI_BRIDGE_RESOURCE_NUM - 1,
+
+	/* total resources associated with a PCI device */
+	PCI_NUM_RESOURCES,
+
+	/* preserve this for compatibility */
+	DEVICE_COUNT_RESOURCE = PCI_NUM_RESOURCES,
 };
 
 #define PCI_D0	PCI_POWERSTATE_D0
@@ -243,6 +283,7 @@ struct pci_dev {
 	unsigned int		msix_enabled:1;
 	unsigned int		irq;
 	u8			revision;
+	struct linux_resource resource[DEVICE_COUNT_RESOURCE]; /* I/O and memory regions + expansion ROMs */
 };
 
 static inline struct resource_list_entry *

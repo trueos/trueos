@@ -1,6 +1,9 @@
 #ifndef _LINUX_IOPORT_H
 #define _LINUX_IOPORT_H
 
+
+
+
 struct linux_resource {
 	resource_size_t start;
 	resource_size_t end;
@@ -11,6 +14,7 @@ struct linux_resource {
 	int rid;
 	device_t bsddev;
 };
+
 
 
 #endif
