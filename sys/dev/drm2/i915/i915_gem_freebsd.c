@@ -95,7 +95,7 @@ i915_gem_object_put_pages_range_locked(struct drm_i915_gem_object *obj,
 	vm_page_t page;
 	vm_pindex_t i;
 
-	vm_obj = obj->base.vm_obj;
+	vm_obj = obj->base.i_mapping.vm_obj;
 	VM_OBJECT_ASSERT_LOCKED(vm_obj);
 	for (i = si,  page = vm_page_lookup(vm_obj, i); i < ei;
 	    page = vm_page_next(page), i++) {

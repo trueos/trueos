@@ -1339,12 +1339,12 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	PROC_UNLOCK(p);
 
 	addr = 0;
-	vm_object_reference(obj->vm_obj);
-	rv = vm_map_find(map, obj->vm_obj, args->offset, &addr, args->size, 0,
+	vm_object_reference(obj->i_mapping.vm_obj);
+	rv = vm_map_find(map, obj->i_mapping.vm_obj, args->offset, &addr, args->size, 0,
 	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 	    VM_PROT_READ | VM_PROT_WRITE, MAP_INHERIT_SHARE);
 	if (rv != KERN_SUCCESS) {
-		vm_object_deallocate(obj->vm_obj);
+		vm_object_deallocate(obj->i_mapping.vm_obj);
 		error = -vm_mmap_to_errno(rv);
 	} else {
 		args->addr_ptr = (uint64_t)addr;
@@ -1651,7 +1651,7 @@ i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 {
 	vm_object_t vm_obj;
 
-	vm_obj = obj->base.vm_obj;
+	vm_obj = obj->base.i_mapping.vm_obj;
 	VM_OBJECT_WLOCK(vm_obj);
 	vm_object_page_remove(vm_obj, 0, 0, false);
 	VM_OBJECT_WUNLOCK(vm_obj);

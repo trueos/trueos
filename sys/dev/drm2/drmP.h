@@ -619,8 +619,6 @@ struct drm_gem_object {
 	struct drm_device *dev;
 
 	/** File representing the shmem storage: filp in Linux parlance */
-	vm_object_t vm_obj;
-
 	struct address_space i_mapping;
 
 	/* Mapping info for this object */

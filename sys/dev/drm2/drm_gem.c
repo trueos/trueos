@@ -146,7 +146,7 @@ int drm_gem_object_init(struct drm_device *dev,
 	BUG_ON((size & (PAGE_SIZE - 1)) != 0);
 
 	obj->dev = dev;
-	obj->vm_obj = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
+	obj->i_mapping.vm_obj = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
 	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
 
 	kref_init(&obj->refcount);
@@ -168,7 +168,7 @@ int drm_gem_private_object_init(struct drm_device *dev,
 	BUG_ON((size & (PAGE_SIZE - 1)) != 0);
 
 	obj->dev = dev;
-	obj->vm_obj = NULL;
+	obj->i_mapping.vm_obj = NULL;
 
 	kref_init(&obj->refcount);
 	atomic_set(&obj->handle_count, 0);
@@ -199,7 +199,7 @@ drm_gem_object_alloc(struct drm_device *dev, size_t size)
 	}
 	return obj;
 dealloc:
-	vm_object_deallocate(obj->vm_obj);
+	vm_object_deallocate(obj->i_mapping.vm_obj);
 free:
 	kfree(obj);
 	return NULL;
@@ -570,7 +570,7 @@ drm_gem_object_release(struct drm_gem_object *obj)
 	/*
 	 * obj->vm_obj can be NULL for private gem objects.
 	 */
-	vm_object_deallocate(obj->vm_obj);
+	vm_object_deallocate(obj->i_mapping.vm_obj);
 }
 EXPORT_SYMBOL(drm_gem_object_release);
 
