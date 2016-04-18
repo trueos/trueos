@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "fb_if.h"
 #include <linux/pci.h>
 
+
 static int i915_modeset __read_mostly = 1;
 TUNABLE_INT("drm.i915.modeset", &i915_modeset);
 module_param_named(modeset, i915_modeset, int, 0400);
@@ -1236,7 +1237,7 @@ i915_fb_helper_getinfo(device_t kdev)
 	if (ifbdev == NULL)
 		return (NULL);
 
-	info = ifbdev->helper.fbdev;
+	info = &ifbdev->helper.fbdev->fbio;
 
 	return (info);
 }

@@ -35,7 +35,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 
-#if defined(__linux__)
+#define fb_info linux_fb_info
+#define framebuffer_alloc linux_framebuffer_alloc
+#define framebuffer_release linux_framebuffer_release
+#define register_framebuffer linux_register_framebuffer
+#define unregister_framebuffer linux_unregister_framebuffer
+
 static struct fb_ops intelfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = drm_fb_helper_check_var,
@@ -49,7 +54,6 @@ static struct fb_ops intelfb_ops = {
 	.fb_debug_enter = drm_fb_helper_debug_enter,
 	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
-#endif
 
 static int intelfb_create(struct drm_fb_helper *helper,
 			  struct drm_fb_helper_surface_size *sizes)
@@ -61,6 +65,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd = {};
 	struct drm_i915_gem_object *obj;
+	struct device *device = &dev->pdev->dev;
 	int size, ret;
 
 	/* we don't do packed 24bpp */
@@ -95,17 +100,12 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		goto out_unref;
 	}
 
-	info = framebuffer_alloc(0, NULL);
+	info = framebuffer_alloc(0, device);
 	if (!info) {
 		ret = -ENOMEM;
 		goto out_unpin;
 	}
-
-	info->fb_size = size;
-	info->fb_bpp = sizes->surface_bpp;
-	info->fb_pbase = dev_priv->gtt.mappable_base + obj->gtt_offset;
-	info->fb_vbase = (vm_offset_t)pmap_mapdev_attr(info->fb_pbase, size,
-	    PAT_WRITE_COMBINING);
+	info->par = ifbdev;
 
 	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, obj);
 	if (ret)
@@ -115,7 +115,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	ifbdev->helper.fb = fb;
 	ifbdev->helper.fbdev = info;
-#ifdef notyet
 	strcpy(info->fix.id, "inteldrmfb");
 
 	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
@@ -147,7 +146,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		goto out_unpin;
 	}
 	info->screen_size = size;
-#endif
 //	memset(info->screen_base, 0, size);
 
 
@@ -159,10 +157,8 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * If the object is stolen however, it will be full of whatever
 	 * garbage was left in there.
 	 */
-#if 0	
 	if (ifbdev->ifb.obj->stolen)
 		memset_io(info->screen_base, 0, info->screen_size);
-#endif
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
@@ -198,13 +194,9 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 	if (ifbdev->helper.fbdev) {
 		info = ifbdev->helper.fbdev;
 		unregister_framebuffer(info);
-#ifdef notyet
 		iounmap(info->screen_base);
 		if (info->cmap.len)
 			fb_dealloc_cmap(&info->cmap);
-#endif		
-		if (info->fb_fbd_dev != NULL)
-			device_delete_child(dev->pdev->dev.bsddev, info->fb_fbd_dev);
 		framebuffer_release(info);
 	}
 
@@ -243,7 +235,6 @@ int intel_fbdev_init(struct drm_device *dev)
 	}
 
 	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
-	drm_fb_helper_initial_config(&ifbdev->helper, 32);
 #ifdef DEV_SC
 	sc_txtmouse_no_retrace_wait = 1;
 #endif
@@ -284,12 +275,10 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state)
 	 * been restored from swap. If the object is stolen however, it will be
 	 * full of whatever garbage was left in there.
 	 */
-#ifdef notyet
 	if (!state && ifbdev->ifb.obj->stolen)
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	fb_set_suspend(info, state);
-#endif
 
 }
 

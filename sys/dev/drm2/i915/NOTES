@@ -29,7 +29,7 @@ intel_ddi.c		(A)
 intel_display.c		(B)
 intel_dp.c		(C)
 intel_dvo.c		(A)
-intel_fb.c		(C)
+intel_fb.c		(A)
 intel_hdmi.c		(A)
 intel_i2c.c		(B/C)
 intel_lvds.c		(B)
@@ -41,7 +41,7 @@ intel_pm.c		(C)
 intel_ringbuffer.c	(A)
 intel_sdvo.c		(A)
 intel_sprite.c		(A)
-intel_tv.c		(A/B)
+intel_tv.c		(A)
 
 
 Files with no changes against uptstream (A):
@@ -85,7 +85,6 @@ intel_bios.c - Linux const sloppiness, different name for mapping bios, freebsd 
 intel_display.c - outb/inb on linux order the arguments in reverse, pci accessor differences, seq_file vs sbuf
 intel_dp.c - msleep() differs on linux so DRM_MSLEEP, slightly different args to DRM_KMS_DEBUG
 intel_i2c.c - need to destroy mutexes
-intel_fb.c - differences in framebuffer interface / a MUCH better job needs to be done in reconciling XXX
 intel_opregion.c - differences in ACPI interface - lack of acpi notifier
 intel_overlay.c - unused variables except with INVARIANTS
 

@@ -48,94 +48,10 @@ static LIST_HEAD(kernel_fb_helper_list);
 #include <sys/param.h>
 #include <sys/systm.h>
 
-struct vt_kms_softc {
-	struct drm_fb_helper	*fb_helper;
-	struct task		 fb_mode_task;
-};
+#include <linux/sysrq.h>
+#define fb_info linux_fb_info
+#define register_framebuffer linux_register_framebuffer
 
-/* Call restore out of vt(9) locks. */
-static void
-vt_restore_fbdev_mode(void *arg, int pending)
-{
-	struct drm_fb_helper *fb_helper;
-	struct vt_kms_softc *sc;
-
-	sc = (struct vt_kms_softc *)arg;
-	fb_helper = sc->fb_helper;
-	mutex_lock(&fb_helper->dev->mode_config.mutex);
-	drm_fb_helper_restore_fbdev_mode(fb_helper);
-	mutex_unlock(&fb_helper->dev->mode_config.mutex);
-}
-
-static int
-vt_kms_postswitch(void *arg)
-{
-	struct vt_kms_softc *sc;
-
-	sc = (struct vt_kms_softc *)arg;
-
-	if (!kdb_active && panicstr == NULL)
-		taskqueue_enqueue(taskqueue_thread, &sc->fb_mode_task);
-	else
-		drm_fb_helper_restore_fbdev_mode(sc->fb_helper);
-
-	return (0);
-}
-
-struct fb_info *
-framebuffer_alloc(size_t size, struct device *dev)
-{
-	struct fb_info *info;
-	struct vt_kms_softc *sc;
-
-	info = malloc(sizeof(*info), DRM_MEM_KMS, M_WAITOK | M_ZERO);
-
-	sc = malloc(sizeof(*sc), DRM_MEM_KMS, M_WAITOK | M_ZERO);
-	TASK_INIT(&sc->fb_mode_task, 0, vt_restore_fbdev_mode, sc);
-
-	info->fb_priv = sc;
-	info->enter = &vt_kms_postswitch;
-
-	return (info);
-}
-
-void
-framebuffer_release(struct fb_info *info)
-{
-
-	free(info->fb_priv, DRM_MEM_KMS);
-	free(info, DRM_MEM_KMS);
-}
-
-static int
-fb_get_options(const char *connector_name, char **option)
-{
-	char tunable[64];
-
-	/*
-	 * A user may use loader tunables to set a specific mode for the
-	 * console. Tunables are read in the following order:
-	 *     1. kern.vt.fb.modes.$connector_name
-	 *     2. kern.vt.fb.default_mode
-	 *
-	 * Example of a mode specific to the LVDS connector:
-	 *     kern.vt.fb.modes.LVDS="1024x768"
-	 *
-	 * Example of a mode applied to all connectors not having a
-	 * connector-specific mode:
-	 *     kern.vt.fb.default_mode="640x480"
-	 */
-	snprintf(tunable, sizeof(tunable), "kern.vt.fb.modes.%s",
-	    connector_name);
-	DRM_INFO("Connector %s: get mode from tunables:\n", connector_name);
-	DRM_INFO("  - %s\n", tunable);
-	DRM_INFO("  - kern.vt.fb.default_mode\n");
-	*option = kern_getenv(tunable);
-	if (*option == NULL)
-		*option = kern_getenv("kern.vt.fb.default_mode");
-
-	return (*option != NULL ? 0 : -ENOENT);
-}
 
 /**
  * DOC: fbdev helpers
@@ -256,7 +172,6 @@ static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
 	return 0;
 }
 
-#if 0 && defined(FREEBSD_NOTYET)
 static void drm_fb_helper_save_lut_atomic(struct drm_crtc *crtc, struct drm_fb_helper *helper)
 {
 	uint16_t *r_base, *g_base, *b_base;
@@ -367,7 +282,6 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_debug_leave);
-#endif /* FREEBSD_NOTYET */
 
 /**
  * drm_fb_helper_restore_fbdev_mode - restore fbdev configuration
@@ -381,6 +295,9 @@ bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 {
 	bool error = false;
 	int i, ret;
+
+	drm_warn_on_modeset_not_all_locked(fb_helper->dev);
+
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
 		ret = drm_mode_set_config_internal(mode_set);
@@ -414,7 +331,7 @@ static bool drm_fb_helper_force_kernel_mode(void)
 	return error;
 }
 
-#if 0 && defined(FREEBSD_NOTYET)
+#if defined(FREEBSD_NOTYET)
 static int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
 			void *panic_str)
 {
@@ -434,20 +351,6 @@ static struct notifier_block paniced = {
 };
 #endif /* FREEBSD_NOTYET */
 
-/**
- * drm_fb_helper_restore - restore the framebuffer console (kernel) config
- *
- * Restore's the kernel's fbcon mode, used for lastclose & panic paths.
- */
-void drm_fb_helper_restore(void)
-{
-	bool ret;
-	ret = drm_fb_helper_force_kernel_mode();
-	if (ret == true)
-		DRM_ERROR("Failed to restore crtc configuration\n");
-}
-EXPORT_SYMBOL(drm_fb_helper_restore);
-
 static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
@@ -466,11 +369,14 @@ static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 	return true;
 }
 
-#ifdef __linux__
 #ifdef CONFIG_MAGIC_SYSRQ
 static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
 {
-	drm_fb_helper_restore();
+
+	bool ret;
+	ret = drm_fb_helper_force_kernel_mode();
+	if (ret == true)
+		DRM_ERROR("Failed to restore crtc configuration\n");
 }
 static DECLARE_WORK(drm_fb_helper_restore_work, drm_fb_helper_restore_work_fn);
 
@@ -487,9 +393,7 @@ static struct sysrq_key_op sysrq_drm_fb_helper_restore_op = {
 #else
 static struct sysrq_key_op sysrq_drm_fb_helper_restore_op = { };
 #endif
-#endif
 
-#if 0 && defined(FREEBSD_NOTYET)
 static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 {
 	struct drm_fb_helper *fb_helper = info->par;
@@ -563,7 +467,6 @@ int drm_fb_helper_blank(int blank, struct fb_info *info)
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_blank);
-#endif /* FREEBSD_NOTYET */
 
 static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 {
@@ -649,7 +552,7 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 {
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
 		list_del(&fb_helper->kernel_fb_list);
-#if 0 && defined(FREEBSD_NOTYET)
+#if defined(FREEBSD_NOTYET)
 		if (list_empty(&kernel_fb_helper_list)) {
 			pr_info("drm: unregistered panic notifier\n");
 			atomic_notifier_chain_unregister(&panic_notifier_list,
@@ -664,7 +567,6 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_fini);
 
-#if 0 && defined(FREEBSD_NOTYET)
 static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		     u16 blue, u16 regno, struct fb_info *info)
 {
@@ -950,7 +852,6 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_pan_display);
-#endif /* FREEBSD_NOTYET */
 
 /*
  * Allocates the backing storage and sets up the fbdev info structure through
@@ -966,9 +867,6 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	struct fb_info *info;
 	struct drm_fb_helper_surface_size sizes;
 	int gamma_size = 0;
-#if defined(__FreeBSD__)
-	device_t kdev;
-#endif
 
 	memset(&sizes, 0, sizeof(struct drm_fb_helper_surface_size));
 	sizes.surface_depth = 24;
@@ -1047,21 +945,27 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 	info = fb_helper->fbdev;
 
-	kdev = fb_helper->dev->dev->bsddev;
-	info->fb_video_dev = device_get_parent(kdev);
-
-	/* set the fb pointer */
+	info->fbio.fb_video_dev = device_get_parent(fb_helper->dev->dev->bsddev);
+/*
+	 * Set the fb pointer - usually drm_setup_crtcs does this for hotplug
+	 * events, but at init time drm_setup_crtcs needs to be called before
+	 * the fb is allocated (since we need to figure out the desired size of
+	 * the fb before we can allocate it ...). Hence we need to fix things up
+	 * here again.
+	 */
 	for (i = 0; i < fb_helper->crtc_count; i++)
-		fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
+		if (fb_helper->crtc_info[i].mode_set.num_connectors)
+			fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
 
 #if defined(__FreeBSD__)
 	if (ret) {
 		int ret2;
 
-		info->fb_fbd_dev = device_add_child(kdev, "fbd",
-		    device_get_unit(kdev));
-		if (info->fb_fbd_dev != NULL)
-			ret2 = device_probe_and_attach(info->fb_fbd_dev);
+		info->fbio.fb_fbd_dev = device_add_child(fb_helper->dev->dev->bsddev, "fbd",
+			   	    device_get_unit(fb_helper->dev->dev->bsddev));
+
+		if (info->fbio.fb_fbd_dev != NULL)
+			ret2 = device_probe_and_attach(info->fbio.fb_fbd_dev);
 		else
 			ret2 = ENODEV;
 #ifdef DEV_VT
@@ -1069,32 +973,27 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 			DRM_ERROR("Failed to attach fbd device: %d\n", ret);
 #endif
 	}
-#else
-	if (ret) {
-		info->var.pixclock = 0;
-		if (register_framebuffer(info) < 0)
-			return -EINVAL;
-
-		dev_info(fb_helper->dev->pdev, "fb%d: %s frame buffer device\n",
-				info->node, info->fix.id);
-
-	} else {
-		drm_fb_helper_set_par(info);
-	}
 #endif
 
-#if 0 && defined(FREEBSD_NOTYET)
+	info->var.pixclock = 0;
+	if (register_framebuffer(info) < 0)
+		return -EINVAL;
+
+	dev_info(fb_helper->dev->dev, "fb%d: %s frame buffer device\n",
+		 info->node, info->fix.id);
+
+
+#if defined(FREEBSD_NOTYET)
 	/* Switch back to kernel console on panic */
 	/* multi card linked list maybe */
 	if (list_empty(&kernel_fb_helper_list)) {
-		dev_info(fb_helper->dev->pdev, "registered panic notifier\n");
+		dev_info(fb_helper->dev->dev, "registered panic notifier\n");
 		atomic_notifier_chain_register(&panic_notifier_list,
 					       &paniced);
 		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
 	}
 #endif /* FREEBSD_NOTYET */
-	if (ret)
-		list_add(&fb_helper->kernel_fb_list, &kernel_fb_helper_list);
+	list_add(&fb_helper->kernel_fb_list, &kernel_fb_helper_list);
 
 	return 0;
 }
@@ -1115,8 +1014,19 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 			    uint32_t depth)
 {
-	info->fb_stride = pitch;
+	info->fix.type = FB_TYPE_PACKED_PIXELS;
+	info->fix.visual = depth == 8 ? FB_VISUAL_PSEUDOCOLOR :
+		FB_VISUAL_TRUECOLOR;
+	info->fix.mmio_start = 0;
+	info->fix.mmio_len = 0;
+	info->fix.type_aux = 0;
+	info->fix.xpanstep = 1; /* doing it in hw */
+	info->fix.ypanstep = 1; /* doing it in hw */
+	info->fix.ywrapstep = 0;
+	info->fix.accel = FB_ACCEL_NONE;
+	info->fix.type_aux = 0;
 
+	info->fix.line_length = pitch;
 	return;
 }
 EXPORT_SYMBOL(drm_fb_helper_fill_fix);
@@ -1138,16 +1048,75 @@ EXPORT_SYMBOL(drm_fb_helper_fill_fix);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height)
 {
-	struct drm_framebuffer *fb = fb_helper->fb;
-	struct vt_kms_softc *sc;
 
-	info->fb_name = device_get_nameunit(fb_helper->dev->dev->bsddev);
-	info->fb_width = fb->width;
-	info->fb_height = fb->height;
-	info->fb_depth = fb->bits_per_pixel;
+		struct drm_framebuffer *fb = fb_helper->fb;
+	info->pseudo_palette = fb_helper->pseudo_palette;
+	info->var.xres_virtual = fb->width;
+	info->var.yres_virtual = fb->height;
+	info->var.bits_per_pixel = fb->bits_per_pixel;
+	info->var.accel_flags = FB_ACCELF_TEXT;
+	info->var.xoffset = 0;
+	info->var.yoffset = 0;
+	info->var.activate = FB_ACTIVATE_NOW;
+	info->var.height = -1;
+	info->var.width = -1;
 
-	sc = (struct vt_kms_softc *)info->fb_priv;
-	sc->fb_helper = fb_helper;
+	switch (fb->depth) {
+	case 8:
+		info->var.red.offset = 0;
+		info->var.green.offset = 0;
+		info->var.blue.offset = 0;
+		info->var.red.length = 8; /* 8bit DAC */
+		info->var.green.length = 8;
+		info->var.blue.length = 8;
+		info->var.transp.offset = 0;
+		info->var.transp.length = 0;
+		break;
+	case 15:
+		info->var.red.offset = 10;
+		info->var.green.offset = 5;
+		info->var.blue.offset = 0;
+		info->var.red.length = 5;
+		info->var.green.length = 5;
+		info->var.blue.length = 5;
+		info->var.transp.offset = 15;
+		info->var.transp.length = 1;
+		break;
+	case 16:
+		info->var.red.offset = 11;
+		info->var.green.offset = 5;
+		info->var.blue.offset = 0;
+		info->var.red.length = 5;
+		info->var.green.length = 6;
+		info->var.blue.length = 5;
+		info->var.transp.offset = 0;
+		break;
+	case 24:
+		info->var.red.offset = 16;
+		info->var.green.offset = 8;
+		info->var.blue.offset = 0;
+		info->var.red.length = 8;
+		info->var.green.length = 8;
+		info->var.blue.length = 8;
+		info->var.transp.offset = 0;
+		info->var.transp.length = 0;
+		break;
+	case 32:
+		info->var.red.offset = 16;
+		info->var.green.offset = 8;
+		info->var.blue.offset = 0;
+		info->var.red.length = 8;
+		info->var.green.length = 8;
+		info->var.blue.length = 8;
+		info->var.transp.offset = 24;
+		info->var.transp.length = 8;
+		break;
+	default:
+		break;
+	}
+
+	info->var.xres = fb_width;
+	info->var.yres = fb_height;
 }
 EXPORT_SYMBOL(drm_fb_helper_fill_var);
 
@@ -1631,9 +1600,7 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	drm_modeset_lock_all(dev);
 	drm_setup_crtcs(fb_helper);
 	drm_modeset_unlock_all(dev);
-#ifdef notyet	
 	drm_fb_helper_set_par(fb_helper->fbdev);
-#endif
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_hotplug_event);

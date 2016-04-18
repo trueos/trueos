@@ -11,7 +11,7 @@ drm_dma.c		(A)
 drm_dp_helper.c		(A)
 drm_drv.c		(D)
 drm_edid.c		(B)
-drm_fb_helper.c		(C/B)
+drm_fb_helper.c		(B)
 drm_fops.c		(D/C)
 drm_gem.c		(C/B)
 drm_global.c		(B)
@@ -35,5 +35,5 @@ drm_info.c
 Files that need converging:
 drm_bufs.c
 
-Files in need of further revision:
-- drm_fb_helper.c
+unimplemented:
+linux_register_framebuffer

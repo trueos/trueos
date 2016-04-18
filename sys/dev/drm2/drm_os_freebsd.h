@@ -377,10 +377,12 @@ struct vga_switcheroo_client_ops {
 	bool (*can_switch)(struct pci_dev *pdev);
 };
 
+struct linux_fb_info;
+
 static inline void vga_switcheroo_unregister_client(struct pci_dev *pdev) {}
 static inline int vga_switcheroo_register_client(struct pci_dev *pdev,
 		const struct vga_switcheroo_client_ops *ops) { return 0; }
-static inline void vga_switcheroo_client_fb_set(struct pci_dev *pdev, struct fb_info *info) {}
+static inline void vga_switcheroo_client_fb_set(struct pci_dev *pdev, struct linux_fb_info *info) {}
 static inline int vga_switcheroo_register_handler(struct vga_switcheroo_handler *handler) { return 0; }
 static inline int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 	const struct vga_switcheroo_client_ops *ops,
