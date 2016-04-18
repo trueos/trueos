@@ -331,7 +331,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		align = map->size;
 		if ((align & (align - 1)) != 0)
 			align = PAGE_SIZE;
-		dmah = drm_pci_alloc(dev, map->size, align, BUS_SPACE_MAXADDR);
+		dmah = drm_pci_alloc(dev, map->size, align);
 		if (!dmah) {
 			kfree(map);
 			return -ENOMEM;
@@ -876,7 +876,7 @@ int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 
 	while (entry->buf_count < count) {
 
-		dmah = drm_pci_alloc(dev, PAGE_SIZE << page_order, 0x1000, BUS_SPACE_MAXADDR);
+		dmah = drm_pci_alloc(dev, PAGE_SIZE << page_order, 0x1000);
 
 		if (!dmah) {
 			/* Set count correctly so we free the proper amount. */
@@ -1558,12 +1558,12 @@ int drm_mapbufs(struct drm_device *dev, void *data,
 			retcode = vm_mmap(&vms->vm_map, &virtual, map->size,
 			    VM_PROT_READ | VM_PROT_WRITE, VM_PROT_ALL,
 			    MAP_SHARED | MAP_NOSYNC, OBJT_DEVICE,
-			    file_priv->minor->device, token);
+			    file_priv->minor->bsd_device, token);
 		} else {
 			retcode = vm_mmap(&vms->vm_map, &virtual, dma->byte_count,
 			    VM_PROT_READ | VM_PROT_WRITE, VM_PROT_ALL,
 			    MAP_SHARED | MAP_NOSYNC, OBJT_DEVICE,
-			    file_priv->minor->device, 0);
+			    file_priv->minor->bsd_device, 0);
 		}
 		if (retcode) {
 			/* Real error */

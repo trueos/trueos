@@ -375,14 +375,14 @@ int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type)
 		break;
 	}
 
-	ret = make_dev_p(MAKEDEV_WAITOK | MAKEDEV_CHECKNAME, &new_minor->device,
+	ret = make_dev_p(MAKEDEV_WAITOK | MAKEDEV_CHECKNAME, &new_minor->bsd_device,
 	    &drm_cdevsw, 0, DRM_DEV_UID, DRM_DEV_GID,
 	    DRM_DEV_MODE, minor_devname, minor_id);
 	if (ret) {
 		DRM_ERROR("Failed to create cdev: %d\n", ret);
 		goto err_mem;
 	}
-	new_minor->device->si_drv1 = new_minor;
+	new_minor->bsd_device->si_drv1 = new_minor;
 	*minor = new_minor;
 
 	DRM_DEBUG("new minor assigned %d\n", minor_id);
@@ -415,7 +415,7 @@ int drm_put_minor(struct drm_minor **minor_p)
 
 	funsetown(&minor->buf_sigio);
 
-	destroy_dev(minor->device);
+	destroy_dev(minor->bsd_device);
 
 	kfree(minor);
 	*minor_p = NULL;

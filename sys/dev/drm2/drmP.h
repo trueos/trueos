@@ -958,8 +958,10 @@ struct drm_driver {
 struct drm_minor {
 	int index;			/**< Minor device number */
 	int type;                       /**< Control or render */
-	struct cdev *device;		/**< Device number for mknod */
-	device_t kdev;			/**< OS device */
+	dev_t device;			/**< Linux's Device number for mknod */
+	struct cdev *bsd_device;		/**< Device number for mknod */
+	struct device kdev;			/**< Linux device */
+	device_t bsd_kdev;			/**< OS device */
 	struct drm_device *dev;
 
 	struct drm_master *master; /* currently active master for this node */

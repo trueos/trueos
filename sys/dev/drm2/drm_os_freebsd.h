@@ -395,6 +395,7 @@ static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return
 #define vga_get_uninterruptible(a, b)
 #define vga_put(a, b)
 
+#define pm_qos_add_request(a, b, c)
 #define pm_qos_update_request(a, b)
 #define pm_qos_remove_request(a)
 

@@ -172,7 +172,7 @@ static int drm_name_info DRM_SYSCTL_HANDLER_ARGS
 	/* FIXME: This still uses primary minor. */
 	minor = dev->primary;
 	DRM_SYSCTL_PRINT("%s 0x%jx", dev->driver->name,
-	    (uintmax_t)dev2udev(minor->device));
+	    (uintmax_t)dev2udev(minor->bsd_device));
 
 	mutex_lock(&dev->struct_mutex);
 	master = minor->master;
@@ -363,7 +363,7 @@ static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
 		priv = &tempprivs[i];
 		DRM_SYSCTL_PRINT("%c %-12s %5d %5d %10u %10lu\n",
 			       priv->authenticated ? 'y' : 'n',
-			       devtoname(priv->minor->device),
+			       devtoname(priv->minor->bsd_device),
 			       priv->pid,
 			       priv->uid,
 			       priv->magic,
