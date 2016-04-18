@@ -82,7 +82,7 @@ void agp_intel_gtt_insert_sg_entries(device_t dev, struct sglist *sg_list,
 void agp_intel_gtt_insert_pages(device_t dev, u_int first_entry,
     u_int num_entries, vm_page_t *pages, u_int flags);
 void intel_gtt_get(size_t *gtt_total, size_t *stolen_size,
-		   phys_addr_t *mappable_base, unsigned long *mappable_end);
+		   bus_addr_t *mappable_base, unsigned long *mappable_end);
 int intel_gtt_chipset_flush(void);
 void intel_gtt_unmap_memory(struct sglist *sg_list);
 void intel_gtt_clear_range(u_int first_entry, u_int num_entries);
