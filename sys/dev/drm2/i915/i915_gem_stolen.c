@@ -267,9 +267,7 @@ static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj)
 {
 	/* Should only be called during free */
-#ifdef notyet	
 	sg_free_table(obj->pages);
-#endif	
 	kfree(obj->pages);
 }
 
@@ -292,10 +290,8 @@ _i915_gem_object_create_stolen(struct drm_device *dev,
 		goto cleanup;
 
 	i915_gem_object_init(obj, &i915_gem_object_stolen_ops);
-#ifdef notyet
 	obj->pages = i915_pages_create_for_stolen(dev,
 						  stolen->start, stolen->size);
-#endif
 	if (obj->pages == NULL)
 		goto cleanup;
 
