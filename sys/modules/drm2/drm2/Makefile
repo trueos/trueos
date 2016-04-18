@@ -34,6 +34,7 @@ SRCS	= \
 	drm_vm_freebsd.c \
 	drm_os_freebsd.c \
 	linux_fb.c \
+	tainted_linux_fb.c \
 	linux_hdmi.c \
 	ttm_agp_backend.c \
 	ttm_lock.c \
@@ -67,4 +68,5 @@ CWARNFLAGS+=-Wno-cast-qual
 CWARNFLAGS += -Wno-pointer-arith
 CWARNFLAGS += -Wno-pointer-sign
 
+CWARNFLAGS.drm_scatter.c+=	-Wno-int-conversion
 .include <bsd.kmod.mk>
