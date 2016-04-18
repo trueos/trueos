@@ -28,13 +28,14 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/drm2/drmP.h>
+#include <linux/mutex.h>
+#include <linux/slab.h>
+#include <linux/module.h>
 #include <dev/drm2/drm_global.h>
-
-MALLOC_DEFINE(M_DRM_GLOBAL, "drm_global", "DRM Global Items");
 
 struct drm_global_item {
 	struct mutex mutex;
@@ -71,7 +72,6 @@ int drm_global_item_ref(struct drm_global_reference *ref)
 {
 	int ret;
 	struct drm_global_item *item = &glob[ref->global_type];
-	void *object;
 
 	mutex_lock(&item->mutex);
 	if (item->refcount == 0) {
@@ -89,7 +89,6 @@ int drm_global_item_ref(struct drm_global_reference *ref)
 	}
 	++item->refcount;
 	ref->object = item->object;
-	object = item->object;
 	mutex_unlock(&item->mutex);
 	return 0;
 out_err:
@@ -108,8 +107,6 @@ void drm_global_item_unref(struct drm_global_reference *ref)
 	BUG_ON(ref->object != item->object);
 	if (--item->refcount == 0) {
 		ref->release(ref);
-		/* XXX on linux ref->release does the free -- check that we want this */
-		kfree(item->object);
 		item->object = NULL;
 	}
 	mutex_unlock(&item->mutex);

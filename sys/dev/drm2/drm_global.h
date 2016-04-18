@@ -27,7 +27,6 @@
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
-/* $FreeBSD$ */
 
 #ifndef _DRM_GLOBAL_H_
 #define _DRM_GLOBAL_H_
@@ -50,7 +49,5 @@ extern void drm_global_init(void);
 extern void drm_global_release(void);
 extern int drm_global_item_ref(struct drm_global_reference *ref);
 extern void drm_global_item_unref(struct drm_global_reference *ref);
-
-MALLOC_DECLARE(M_DRM_GLOBAL);
 
 #endif

@@ -32,18 +32,15 @@
  * Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_hashtab.h>
 #include <linux/hash.h>
-#include <linux/list.h>
-#include <linux/rculist.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <linux/rcupdate.h>
-
 
 int drm_ht_create(struct drm_open_hash *ht, unsigned int order)
 {
@@ -54,7 +51,7 @@ int drm_ht_create(struct drm_open_hash *ht, unsigned int order)
 	if (size <= PAGE_SIZE / sizeof(*ht->table))
 		ht->table = kcalloc(size, sizeof(*ht->table), GFP_KERNEL);
 	else
-		ht->table = kcalloc(size, sizeof(*ht->table), GFP_KERNEL);
+		ht->table = vzalloc(size*sizeof(*ht->table));
 	if (!ht->table) {
 		DRM_ERROR("Out of memory for hash table\n");
 		return -ENOMEM;
@@ -205,10 +202,7 @@ EXPORT_SYMBOL(drm_ht_remove_item);
 void drm_ht_remove(struct drm_open_hash *ht)
 {
 	if (ht->table) {
-		if ((PAGE_SIZE / sizeof(*ht->table)) >> ht->order)
-			kfree(ht->table);
-		else
-			kfree(ht->table);
+		kvfree(ht->table);
 		ht->table = NULL;
 	}
 }

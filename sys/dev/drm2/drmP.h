@@ -113,7 +113,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drm_hashtab.h>
 
 #include <dev/drm2/drm.h>
-#include <dev/drm2/drm_sarea.h>
 
 #include <linux/device.h>
 #include <linux/module.h>
