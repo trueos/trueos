@@ -109,37 +109,6 @@ i915_gem_object_put_pages_range_locked(struct drm_i915_gem_object *obj,
 	}
 }
 
-int
-i915_gem_object_get_pages_range(struct drm_i915_gem_object *obj,
-    off_t start, off_t end)
-{
-	vm_object_t vm_obj;
-	vm_page_t page;
-	vm_pindex_t si, ei, i;
-	bool need_swizzle, fresh;
-
-	need_swizzle = i915_gem_object_needs_bit17_swizzle(obj) != 0;
-	vm_obj = obj->base.vm_obj;
-	si = OFF_TO_IDX(trunc_page(start));
-	ei = OFF_TO_IDX(round_page(end));
-	VM_OBJECT_WLOCK(vm_obj);
-	for (i = si; i < ei; i++) {
-		page = i915_gem_wire_page(vm_obj, i, &fresh);
-		if (page == NULL)
-			goto failed;
-#ifdef notyet
-		if (need_swizzle && fresh)
-			i915_gem_object_do_bit_17_swizzle_page(obj, page);
-#endif		
-	}
-	VM_OBJECT_WUNLOCK(vm_obj);
-	return (0);
-failed:
-	i915_gem_object_put_pages_range_locked(obj, si, i);
-	VM_OBJECT_WUNLOCK(vm_obj);
-	return (-EIO);
-}
-
 #if GEM_PARANOID_CHECK_GTT
 static void
 i915_gem_assert_pages_not_mapped(struct drm_device *dev, vm_page_t *ma,
