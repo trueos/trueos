@@ -241,16 +241,9 @@ set_memory_wc(unsigned long addr, int numpages)
 	return (pmap_change_attr(addr, numpages, PAT_WRITE_COMBINING));
 }
 
-int
-set_memory_wb(unsigned long addr, int numpages)
-{
-
-	return (pmap_change_attr(addr, numpages, PAT_WRITE_BACK));
-}
-
 /* look at actual flags e.g. GFP_KERNEL | GFP_DMA32 | __GFP_ZERO */
 vm_page_t
-alloc_page(int flags)
+alloc_page(gfp_t flags)
 {
 	vm_page_t page;
 	int tries;
