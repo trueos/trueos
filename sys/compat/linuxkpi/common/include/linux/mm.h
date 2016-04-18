@@ -114,4 +114,8 @@ get_page(struct vm_page *page)
 	vm_page_hold(page);
 }
 
+
+
+#define put_page(page) __free_hot_cold_page(page);
+
 #endif	/* _LINUX_MM_H_ */

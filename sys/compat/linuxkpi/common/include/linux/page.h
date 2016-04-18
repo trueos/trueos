@@ -97,10 +97,27 @@ io_mapping_unmap_atomic(void *vaddr)
 extern void *io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset);
 extern void *io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset);
 extern int set_memory_wc(unsigned long addr, int numpages);
-extern int set_memory_wb(unsigned long addr, int numpages);
+
+static inline int
+set_memory_wb(unsigned long addr, int numpages)
+{
+
+	return (pmap_change_attr(addr, numpages, PAT_WRITE_BACK));
+}
+
+static inline int
+set_pages_wb(vm_page_t page, int numpages)
+{
+	unsigned long addr = (unsigned long)VM_PAGE_TO_PHYS(page);
+
+	return set_memory_wb(addr, numpages);
+}
+
 
 #define iowrite32(v, addr)	writel((v), (addr))
-vm_page_t alloc_page(int);
+vm_page_t alloc_page(gfp_t gfp);
+void __free_page(vm_page_t page);
+
 /* bump refcount */
 int set_pages_uc(vm_page_t page, int numpages);
 int set_memory_uc(unsigned long addr, int numpages);

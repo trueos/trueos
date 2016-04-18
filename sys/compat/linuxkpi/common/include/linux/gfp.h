@@ -86,26 +86,16 @@ linux_get_page(gfp_t mask)
 #define	__get_free_page(mask)	linux_get_page((mask))
 
 static inline void
-free_page(unsigned long page)
+__free_hot_cold_page(vm_page_t page)
 {
+	MPASS(page->wire_count == 1);
 
-	if (page == 0)
-		return;
-	kmem_free(kmem_arena, page, PAGE_SIZE);
+	vm_page_unwire(page, PQ_INACTIVE);
+	vm_page_free(page);
 }
 
 static inline void
-__free_page(struct page *m)
-{
-
-	if (m->object != kmem_object)
-		panic("__free_page:  Freed page %p not allocated via wrappers.",
-		    m);
-	kmem_free(kmem_arena, (vm_offset_t)page_address(m), PAGE_SIZE);
-}
-
-static inline void
-__free_pages(struct page *m, unsigned int order)
+__free_pages_ok(struct page *m, unsigned int order)
 {
 	size_t size;
 
@@ -115,12 +105,26 @@ __free_pages(struct page *m, unsigned int order)
 	kmem_free(kmem_arena, (vm_offset_t)page_address(m), size);
 }
 
-static inline void free_pages(uintptr_t addr, unsigned int order)
+static inline void
+__free_pages(struct page *page, unsigned int order)
+{
+	if (order == 0)
+		__free_hot_cold_page(page);
+	else
+		__free_pages_ok(page, order);
+}
+
+static inline void
+free_pages(uintptr_t addr, unsigned int order)
 {
 	if (addr == 0)
 		return;
 	__free_pages(virt_to_page((void *)addr), order);
 }
+
+
+#define __free_page(page) __free_pages((page), 0)
+#define free_page(addr) free_pages((addr), 0)
 
 /*
  * Alloc pages allocates directly from the buddy allocator on linux so
