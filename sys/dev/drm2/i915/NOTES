@@ -15,10 +15,10 @@ i915_gem_evict.c      	(A)
 i915_gem_execbuffer.c 	(D)
 i915_gem_freebsd.c	(local)
 i915_gem_gtt.c		(A)
-i915_gem_stolen.c	(D)
+i915_gem_stolen.c	(C)
 i915_gem_tiling.c	(A)
 i915_ioc32.c		(D)
-i915_irq.c		(C)
+i915_irq.c		(B/C)
 i915_suspend.c		(A)
 i915_trace_points.c	(A)
 i915_ums.c		(A)
@@ -38,8 +38,8 @@ intel_opregion.c	(C)
 intel_overlay.c		(B/C)
 intel_panel.c		(B)
 intel_pm.c		(C)
-intel_ringbuffer.c	(B)
-intel_sdvo.c		(B)
+intel_ringbuffer.c	(A)
+intel_sdvo.c		(A)
 intel_sprite.c		(A)
 intel_tv.c		(A/B)
 
@@ -77,9 +77,8 @@ intel_panel.c - TUNABLE_INT needs to be rolled in to MODULE_PARM_DESC
 Files with minor unavoidable differences (C):
 i915_gem_tiling.c - vm_page_t vs sgl
 i915_irq.c
-	- irq handler API difference, KTR usage, lack of kobject_uevent_env on FreeBSD,
-	- callout API difference
-	- no direct access to device_t
+	- irq handler API difference
+
 
 intel_acpi.c - FreeBSD maintains Intel's camel case naming convention in ACPI, Linux does not
 intel_bios.c - Linux const sloppiness, different name for mapping bios, freebsd actually frees parsed bios data
@@ -97,8 +96,6 @@ intel_pm.c
 	- nanotime difference
 	- linker difference (symbol_get)
 intel_ringbuffer.c
-	- use of kva_alloc instead of pages in an sgl attached to the obj -> pmap
-	- drm_pci_alloc interface difference
 	- msleep
 
 intel_sdvo.c
