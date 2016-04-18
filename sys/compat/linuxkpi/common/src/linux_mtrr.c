@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 int
 mtrr_add(unsigned long offset, unsigned long size, unsigned int flags, bool increment __unused)
 {
-	int act, bsdflags;
+	int act, bsdflags, rc;
 	struct mem_range_desc mrdesc;
 	
 	bsdflags = 0;
@@ -55,7 +55,10 @@ mtrr_add(unsigned long offset, unsigned long size, unsigned int flags, bool incr
 	mrdesc.mr_flags = bsdflags;
 	act = MEMRANGE_SET_UPDATE;
 	strlcpy(mrdesc.mr_owner, "drm", sizeof(mrdesc.mr_owner));
-	return (-mem_range_attr_set(&mrdesc, &act));
+	rc = mem_range_attr_set(&mrdesc, &act);
+
+	/* there's no way to get the actual register without churning the interface */
+	return (rc ? -rc : (int)offset)
 }
 
 int

@@ -34,6 +34,8 @@
 #include <sys/time.h>
 #include <sys/stdint.h>
 
+typedef unsigned long cycles_t;
+
 static inline struct timeval
 ns_to_timeval(const int64_t nsec)
 {

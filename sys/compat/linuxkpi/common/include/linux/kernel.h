@@ -53,6 +53,8 @@
 #include <linux/log2.h> 
 #include <asm/byteorder.h>
 
+#include <machine/stdarg.h>
+
 #define KERN_CONT       ""
 #define	KERN_EMERG	"<0>"
 #define	KERN_ALERT	"<1>"
@@ -75,6 +77,14 @@
 #define	FIELD_SIZEOF(t, f)	sizeof(((t *)0)->f)
 
 #define	printk(X...)		printf(X)
+#define	vprintk(f, a)		vprintf(f, a)
+
+
+struct va_format {
+	const char *fmt;
+	va_list *va;
+};
+
 
 /*
  * The "pr_debug()" and "pr_devel()" macros should produce zero code
