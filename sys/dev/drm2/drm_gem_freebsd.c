@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm.h>
-#include <dev/drm2/drm_sarea.h>
 
 /*
  * We make up offsets for buffer objects so we can recognize them at
