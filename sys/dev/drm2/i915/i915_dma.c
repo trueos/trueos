@@ -1425,7 +1425,6 @@ i915_mtrr_setup(struct drm_i915_private *dev_priv, unsigned long base,
 	}
 }
 
-#ifdef __linux__
 static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 {
 	struct apertures_struct *ap;
@@ -1446,12 +1445,6 @@ static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
 
 	kfree(ap);
 }
-#else
-static void i915_kick_out_firmware_fb(struct drm_i915_private *dev_priv)
-{
-	;
-}
-#endif
 
 static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 {
