@@ -1449,6 +1449,14 @@ extern void i915_driver_preclose(struct drm_device *dev,
 extern void i915_driver_postclose(struct drm_device *dev,
 				  struct drm_file *file_priv);
 extern int i915_driver_device_is_agp(struct drm_device * dev);
+extern int i915_batchbuffer(struct drm_device *dev, void *data,
+			    struct drm_file *file_priv);
+extern int i915_cmdbuffer(struct drm_device *dev, void *data,
+			  struct drm_file *file_priv);
+extern int i915_getparam(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+extern int i915_irq_emit(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
 #ifdef CONFIG_COMPAT
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
