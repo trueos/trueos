@@ -79,6 +79,14 @@ linux_framebuffer_release(struct linux_fb_info *info)
 	panic("XXX");
 }
 
+
+void
+remove_conflicting_framebuffers(struct apertures_struct *a,
+				const char *name, bool primary)
+{
+	panic("XXX");
+}
+
 int
 linux_register_framebuffer(struct linux_fb_info *fb_info)
 {
