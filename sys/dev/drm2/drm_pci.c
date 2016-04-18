@@ -66,7 +66,7 @@ drm_pci_busdma_callback(void *arg, bus_dma_segment_t *segs, int nsegs, int error
  * \brief Allocate a PCI consistent memory block, for DMA.
  */
 drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size,
-    size_t align, dma_addr_t maxaddr)
+    size_t align)
 {
 	drm_dma_handle_t *dmah;
 	int ret;
@@ -90,7 +90,7 @@ drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size,
 	ret = bus_dma_tag_create(
 	    bus_get_dma_tag(dev->dev->bsddev), /* parent */
 	    align, 0, /* align, boundary */
-	    maxaddr, BUS_SPACE_MAXADDR, /* lowaddr, highaddr */
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, /* lowaddr, highaddr */
 	    NULL, NULL, /* filtfunc, filtfuncargs */
 	    size, 1, size, /* maxsize, nsegs, maxsegsize */
 	    0, NULL, NULL, /* flags, lockfunc, lockfuncargs */
