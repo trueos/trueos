@@ -67,6 +67,8 @@ intel_sprite.c
 
 
 
+XXX Need to assign to address space's vm_obj - not the base vm_obj XXX
+
 Files with very minor changes that could be remedied with further linuxkpi extensions (B):
 i915_gem_context.c - single difference in reference counting
 intel_lvds.c - linuxkpi needs a notifier block interface that maps to EVENTHANDLER - FREEBSD_WIP for now
@@ -102,14 +104,10 @@ intel_sdvo.c
 	- original bits kept for use in building i2c kpi
 intel_tv.c - one instance of const sloppiness
 
-
-
-
-
+i915_dma.c - need to destroy locks
 
 Files that fundamentally differ due to VM/PCI etc (D):
-i915_dma.c - manipulates devices / rman, although there are many gratuitous API differences
-	   with drm_ prefixing many functions that are otherwise shim routines
+
 i915_drv.c
 	- pci accessors
 	- missing suspend / resume functionality in freebsd
@@ -119,8 +117,6 @@ i915_drv.c
 	- pager operations
 	- module dependencies
 i915_gem_execbuffer.c - KTR, VM
-i915_gem_gtt.c - large delta due to VM differences
-i915_gem_stolen.c - vm_page_t vs sgl - unlikely to be fully functional
 i915_ioc32.c - completely different ioctl interface from Linux
 
 
