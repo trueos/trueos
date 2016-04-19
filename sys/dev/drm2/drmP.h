@@ -522,9 +522,11 @@ struct drm_agp_head {
  * Scatter-gather memory.
  */
 struct drm_sg_mem {
-	vm_offset_t vaddr;
-	vm_paddr_t *busaddr;
+	unsigned long handle;
+	void *virtual;
 	vm_pindex_t pages;
+	struct page **pagelist;
+	vm_paddr_t *busaddr;
 };
 
 struct drm_sigdata {
@@ -1094,10 +1096,8 @@ struct drm_device {
 	spinlock_t event_lock;
 
 	/*@} */
-#ifdef __linux__	
 	cycles_t ctx_start;
 	cycles_t lck_start;
-#endif	
 
 	struct fasync_struct *buf_async;/**< Processes waiting for SIGIO */
 	wait_queue_head_t buf_readers;	/**< Processes waiting to read */
@@ -1661,6 +1661,7 @@ static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 #include <dev/drm2/drm_mem_util.h>
 
 extern int drm_fill_in_dev(struct drm_device *dev,
+			   const struct pci_device_id *ent,
 			   struct drm_driver *driver);
 extern void drm_cancel_fill_in_dev(struct drm_device *dev);
 int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type);

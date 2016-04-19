@@ -66,14 +66,8 @@ static int drm_setup(struct drm_device * dev)
 			return i;
 	}
 
-	/*
-	 * FIXME Linux<->FreeBSD: counter incremented in drm_open() and
-	 * reset to 0 here.
-	 */
-#if 0
 	for (i = 0; i < ARRAY_SIZE(dev->counts); i++)
 		atomic_set(&dev->counts[i], 0);
-#endif
 
 	dev->sigdata.lock = NULL;
 
@@ -86,14 +80,12 @@ static int drm_setup(struct drm_device * dev)
 	DRM_INIT_WAITQUEUE(&dev->context_wait);
 	dev->if_version = 0;
 
-#ifdef FREEBSD_NOTYET
 	dev->ctx_start = 0;
 	dev->lck_start = 0;
 
 	dev->buf_async = NULL;
 	DRM_INIT_WAITQUEUE(&dev->buf_readers);
 	DRM_INIT_WAITQUEUE(&dev->buf_writers);
-#endif /* FREEBSD_NOTYET */
 
 	DRM_DEBUG("\n");
 
@@ -377,7 +369,6 @@ void drm_release(void *data)
 	if (dev->driver->driver_features & DRIVER_GEM)
 		drm_gem_release(dev, file_priv);
 
-#ifdef FREEBSD_NOTYET
 	mutex_lock(&dev->ctxlist_mutex);
 	if (!list_empty(&dev->ctxlist)) {
 		struct drm_ctx_list *pos, *n;
@@ -398,7 +389,6 @@ void drm_release(void *data)
 		}
 	}
 	mutex_unlock(&dev->ctxlist_mutex);
-#endif /* FREEBSD_NOTYET */
 
 	mutex_lock(&dev->struct_mutex);
 

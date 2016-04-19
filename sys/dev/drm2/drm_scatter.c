@@ -46,12 +46,19 @@ void drm_sg_cleanup(struct drm_sg_mem * entry)
 	if (entry == NULL)
 		return;
 
-	if (entry->vaddr != 0)
-		kmem_free(kernel_arena, entry->vaddr, IDX_TO_OFF(entry->pages));
+	if (entry->virtual != 0)
+		kmem_free(kernel_arena, (vm_offset_t)entry->virtual, IDX_TO_OFF(entry->pages));
 
 	kfree(entry->busaddr);
 	kfree(entry);
 }
+
+#ifdef _LP64
+# define ScatterHandle(x) (unsigned int)((x >> 32) + (x & ((1L << 32) - 1)))
+#else
+# define ScatterHandle(x) (unsigned int)(x)
+#endif
+
 
 int drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
 {
@@ -81,24 +88,25 @@ int drm_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
 		return -ENOMEM;
 	}
 
-	entry->vaddr = drm_vmalloc_dma(size);
-	if (entry->vaddr == 0) {
+	entry->virtual = drm_vmalloc_dma(size);
+	if (entry->virtual == 0) {
 		kfree(entry->busaddr);
 		kfree(entry);
 		return -ENOMEM;
 	}
 
+	entry->handle = ScatterHandle((unsigned long)entry->virtual);
 	for (pindex = 0; pindex < entry->pages; pindex++) {
 		entry->busaddr[pindex] =
-		    vtophys(entry->vaddr + IDX_TO_OFF(pindex));
+		    vtophys(entry->virtual + IDX_TO_OFF(pindex));
 	}
 
-	request->handle = entry->vaddr;
+	request->handle = entry->handle;
 
 	dev->sg = entry;
 
-	DRM_DEBUG("allocated %ju pages @ 0x%08zx, contents=%08lx\n",
-	    entry->pages, entry->vaddr, *(unsigned long *)entry->vaddr);
+	DRM_DEBUG("allocated %ju pages @ %p, contents=%08lx\n",
+	    entry->pages, entry->virtual, *(unsigned long *)entry->virtual);
 
 	return 0;
 }
@@ -124,10 +132,10 @@ int drm_sg_free(struct drm_device *dev, void *data,
 	entry = dev->sg;
 	dev->sg = NULL;
 
-	if (!entry || entry->vaddr != request->handle)
+	if (!entry || entry->handle != request->handle)
 		return -EINVAL;
 
-	DRM_DEBUG("free 0x%zx\n", entry->vaddr);
+	DRM_DEBUG("free %p\n", entry->virtual);
 
 	drm_sg_cleanup(entry);
 

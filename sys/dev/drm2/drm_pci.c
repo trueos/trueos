@@ -345,7 +345,7 @@ int drm_get_pci_dev(device_t kdev, struct drm_device *dev,
 
 	mutex_lock(&drm_global_mutex);
 
-	if ((ret = drm_fill_in_dev(dev, driver))) {
+	if ((ret = drm_fill_in_dev(dev, NULL, driver))) {
 		DRM_ERROR("Failed to fill in dev: %d\n", ret);
 		goto err_g1;
 	}

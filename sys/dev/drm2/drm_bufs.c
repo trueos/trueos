@@ -148,7 +148,6 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 	drm_dma_handle_t *dmah;
 	unsigned long user_token;
 	int ret;
-	int align;
 
 	map = kmalloc(sizeof(*map), GFP_KERNEL);
 	if (!map)
@@ -187,14 +186,12 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 	switch (map->type) {
 	case _DRM_REGISTERS:
 	case _DRM_FRAME_BUFFER:
-#ifdef __linux__
-#if !defined(__sparc__) && !defined(__alpha__) && !defined(__ia64__) && !defined(__powerpc64__) && !defined(__x86_64__) && !defined(__arm__)
+#if defined(__linux__) && !defined(__sparc__) && !defined(__alpha__) && !defined(__ia64__) && !defined(__powerpc64__) && !defined(__x86_64__) && !defined(__arm__)
 		if (map->offset + (map->size-1) < map->offset ||
 		    map->offset < virt_to_phys(high_memory)) {
 			kfree(map);
 			return -EINVAL;
 		}
-#endif
 #endif
 		/* Some drivers preinitialize some maps, without the X Server
 		 * needing to be aware of it.  Therefore, we just return success
@@ -218,13 +215,12 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		if (drm_core_has_MTRR(dev)) {
 			if (map->type == _DRM_FRAME_BUFFER ||
 			    (map->flags & _DRM_WRITE_COMBINING)) {
-				if (mtrr_add(map->offset, map->size,
-				    MTRR_TYPE_WRCOMB, 1) == 0)
-					map->mtrr = 1;
+				map->mtrr = mtrr_add(map->offset, map->size,
+						     MTRR_TYPE_WRCOMB, 1);
 			}
 		}
 		if (map->type == _DRM_REGISTERS) {
-			drm_core_ioremap(map, dev);
+			map->handle = ioremap(map->offset, map->size);
 			if (!map->handle) {
 				kfree(map);
 				return -ENOMEM;
@@ -272,10 +268,8 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 			kfree(map);
 			return -EINVAL;
 		}
-#ifdef __linux__
 #ifdef __alpha__
 		map->offset += dev->hose->mem_space->start;
-#endif
 #endif
 		/* In some cases (i810 driver), user space may have already
 		 * added the AGP base itself, because dev->agp->base previously
@@ -320,25 +314,21 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 			kfree(map);
 			return -EINVAL;
 		}
-		map->handle = (void *)(dev->sg->vaddr + offset);
-		map->offset += dev->sg->vaddr;
+		map->offset += (unsigned long)dev->sg->virtual;
 		break;
 	case _DRM_CONSISTENT:
 		/* dma_addr_t is 64bit on i386 with CONFIG_HIGHMEM64G,
 		 * As we're limiting the address to 2^32-1 (or less),
 		 * casting it down to 32 bits is no problem, but we
 		 * need to point to a 64bit variable first. */
-		align = map->size;
-		if ((align & (align - 1)) != 0)
-			align = PAGE_SIZE;
-		dmah = drm_pci_alloc(dev, map->size, align);
+		dmah = drm_pci_alloc(dev, map->size, map->size);
 		if (!dmah) {
 			kfree(map);
 			return -ENOMEM;
 		}
 		map->handle = dmah->vaddr;
-		map->offset = dmah->busaddr;
-		map->dmah = dmah;
+		map->offset = (unsigned long)dmah->busaddr;
+		kfree(dmah);
 		break;
 	default:
 		kfree(map);
@@ -348,7 +338,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 	list = kzalloc(sizeof(*list), GFP_KERNEL);
 	if (!list) {
 		if (map->type == _DRM_REGISTERS)
-			drm_core_ioremapfree(map, dev);
+			iounmap(map->handle);
 		kfree(map);
 		return -EINVAL;
 	}
@@ -365,7 +355,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 			     (map->type == _DRM_SHM));
 	if (ret) {
 		if (map->type == _DRM_REGISTERS)
-			drm_core_ioremapfree(map, dev);
+			iounmap(map->handle);
 		kfree(map);
 		kfree(list);
 		mutex_unlock(&dev->struct_mutex);
@@ -441,6 +431,7 @@ int drm_addmap_ioctl(struct drm_device *dev, void *data,
 int drm_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 {
 	struct drm_map_list *r_list = NULL, *list_t;
+	drm_dma_handle_t dmah;
 	int found = 0;
 	struct drm_master *master;
 
@@ -462,7 +453,7 @@ int drm_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 
 	switch (map->type) {
 	case _DRM_REGISTERS:
-		drm_core_ioremapfree(map, dev);
+		iounmap(map->handle);
 		/* FALLTHROUGH */
 	case _DRM_FRAME_BUFFER:
 		if (drm_core_has_MTRR(dev) && map->mtrr >= 0) {
@@ -478,14 +469,17 @@ int drm_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 				dev->sigdata.lock = NULL;
 			master->lock.hw_lock = NULL;   /* SHM removed */
 			master->lock.file_priv = NULL;
-			DRM_WAKEUP_INT((void *)&master->lock.lock_queue);
+			wake_up_interruptible_all(&master->lock.lock_queue);
 		}
 		break;
 	case _DRM_AGP:
 	case _DRM_SCATTER_GATHER:
 		break;
 	case _DRM_CONSISTENT:
-		drm_pci_free(dev, map->dmah);
+		dmah.vaddr = map->handle;
+		dmah.busaddr = map->offset;
+		dmah.size = map->size;
+		__drm_pci_free(dev, &dmah);
 		break;
 	case _DRM_GEM:
 		DRM_ERROR("tried to rmmap GEM object\n");
@@ -905,7 +899,7 @@ int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 			buf->order = order;
 			buf->used = 0;
 			buf->offset = (dma->byte_count + byte_count + offset);
-			buf->address = (void *)((char *)dmah->vaddr + offset);
+			buf->address = (void *)(dmah->vaddr + offset);
 			buf->bus_address = dmah->busaddr + offset;
 			buf->next = NULL;
 			buf->waiting = 0;
@@ -1070,7 +1064,7 @@ static int drm_addbufs_sg(struct drm_device * dev, struct drm_buf_desc * request
 		buf->offset = (dma->byte_count + offset);
 		buf->bus_address = agp_offset + offset;
 		buf->address = (void *)(agp_offset + offset
-					+ (unsigned long)dev->sg->vaddr);
+					+ (unsigned long)dev->sg->virtual);
 		buf->next = NULL;
 		buf->waiting = 0;
 		buf->pending = 0;
@@ -1520,8 +1514,8 @@ int drm_mapbufs(struct drm_device *dev, void *data,
 	struct drm_device_dma *dma = dev->dma;
 	int retcode = 0;
 	const int zero = 0;
-	vm_offset_t virtual;
-	vm_offset_t address;
+	unsigned long virtual;
+	unsigned long address;
 	struct vmspace *vms;
 	struct drm_buf_map *request = data;
 	int i;
@@ -1549,7 +1543,7 @@ int drm_mapbufs(struct drm_device *dev, void *data,
 		    || (drm_core_check_feature(dev, DRIVER_FB_DMA)
 			&& (dma->flags & _DRM_DMA_USE_FB))) {
 			struct drm_local_map *map = dev->agp_buffer_map;
-			vm_ooffset_t token = dev->agp_buffer_token;
+			unsigned long token = dev->agp_buffer_token;
 
 			if (!map) {
 				retcode = -EINVAL;

@@ -338,6 +338,10 @@ do {									\
 
 #define drm_sysfs_connector_remove(connector)
 #define drm_sysfs_connector_add(connector)
+#define drm_sysfs_device_add(x) (0)
+#define drm_sysfs_device_remove(x)
+#define drm_proc_cleanup(a, b)
+
 
 /* Legacy VGA regions */
 #define VGA_RSRC_NONE	       0x00
