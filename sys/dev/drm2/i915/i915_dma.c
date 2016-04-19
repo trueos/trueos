@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 /* use linux versions */
 #define pci_disable_msi linux_pci_disable_msi
 #define pci_enable_msi linux_pci_enable_msi
+#define remove_conflicting_framebuffers linux_remove_conflicting_framebuffers
 
 #define LP_RING(d) (&((struct drm_i915_private *)(d))->ring[RCS])
 
