@@ -7186,7 +7186,8 @@ sctp_move_to_outqueue(struct sctp_tcb *stcb,
 	struct sctp_tmit_chunk *chk;
 	struct sctp_data_chunk *dchkh = NULL;
 	struct sctp_idata_chunk *ndchkh = NULL;
-	uint32_t to_move, length, leading;
+	uint32_t to_move, length;
+	int leading;
 	uint8_t rcv_flags = 0;
 	uint8_t some_taken;
 	uint8_t send_lock_up = 0;
@@ -7491,9 +7492,9 @@ dont_do_it:
 		atomic_subtract_int(&sp->length, to_move);
 	}
 	if (stcb->asoc.idata_supported == 0) {
-		leading = (int)sizeof(struct sctp_data_chunk);
+		leading = sizeof(struct sctp_data_chunk);
 	} else {
-		leading = (int)sizeof(struct sctp_idata_chunk);
+		leading = sizeof(struct sctp_idata_chunk);
 	}
 	if (M_LEADINGSPACE(chk->data) < leading) {
 		/* Not enough room for a chunk header, get some */
@@ -7641,9 +7642,9 @@ dont_do_it:
 		ndchkh->dp.reserved = htons(0);
 		ndchkh->dp.msg_id = htonl(sp->msg_id);
 		if (sp->fsn == 0)
-			ndchkh->dp.protocol_id = chk->rec.data.payloadtype;
+			ndchkh->dp.ppid_fsn.protocol_id = chk->rec.data.payloadtype;
 		else
-			ndchkh->dp.fsn = htonl(sp->fsn);
+			ndchkh->dp.ppid_fsn.fsn = htonl(sp->fsn);
 		sp->fsn++;
 		ndchkh->ch.chunk_length = htons(chk->send_size);
 	}
