@@ -2955,7 +2955,7 @@ enum skl_disp_power_wells {
  * EI/thresholds are "bad", leading to a very sluggish or even
  * frozen machine.
  */
-#define INTERVAL_1_28_US(us)   roundup(((us) * 100) >> 7, 25)
+#define INTERVAL_1_28_US(us)	roundup(((us) * 100) >> 7, 25)
 #define INTERVAL_1_33_US(us)	(((us) * 3)   >> 2)
 #define INTERVAL_0_833_US(us)	(((us) * 6) / 5)
 #define GT_INTERVAL_FROM_US(dev_priv, us) (IS_GEN9(dev_priv) ? \
