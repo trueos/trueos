@@ -457,7 +457,7 @@ le_cmp(void *priv, const void *d1, const void *d2)
 
 
 
-void inline list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
+static void inline list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
     struct list_head *a, struct list_head *b))
 {
 	struct list_sort_thunk thunk;
