@@ -87,28 +87,6 @@ i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex, bool *fresh)
 	return (page);
 }
 
-static void
-i915_gem_object_put_pages_range_locked(struct drm_i915_gem_object *obj,
-    vm_pindex_t si, vm_pindex_t ei)
-{
-	vm_object_t vm_obj;
-	vm_page_t page;
-	vm_pindex_t i;
-
-	vm_obj = obj->base.i_mapping.vm_obj;
-	VM_OBJECT_ASSERT_LOCKED(vm_obj);
-	for (i = si,  page = vm_page_lookup(vm_obj, i); i < ei;
-	    page = vm_page_next(page), i++) {
-		KASSERT(page->pindex == i, ("pindex %jx %jx",
-		    (uintmax_t)page->pindex, (uintmax_t)i));
-		vm_page_lock(page);
-		vm_page_unwire(page, PQ_INACTIVE);
-		if (page->wire_count == 0)
-			atomic_add_long(&i915_gem_wired_pages_cnt, -1);
-		vm_page_unlock(page);
-	}
-}
-
 #if GEM_PARANOID_CHECK_GTT
 static void
 i915_gem_assert_pages_not_mapped(struct drm_device *dev, vm_page_t *ma,
@@ -243,7 +221,7 @@ retry:
 	page = PHYS_TO_VM_PAGE(dev_priv->gtt.mappable_base + obj->gtt_offset + offset);
 	KASSERT((page->flags & PG_FICTITIOUS) != 0,
 	    ("physical address %#jx not fictitious",
-	    (uintmax_t)(dev_priv->mm.gtt_base_addr + obj->gtt_offset + offset)));
+	    (uintmax_t)(dev_priv->gtt.mappable_base + obj->gtt_offset + offset)));
 	if (page == NULL) {
 		VM_OBJECT_WUNLOCK(vm_obj);
 		ret = -EFAULT;
