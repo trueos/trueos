@@ -58,6 +58,32 @@ struct class {
 	char *		(*devnode)(struct device *dev, umode_t *mode);
 };
 
+struct device_driver {
+	const char		*name;
+	struct bus_type		*bus;
+#ifdef notyet
+	struct module		*owner;
+	const char		*mod_name;	/* used for built-in modules */
+
+	bool suppress_bind_attrs;	/* disables bind/unbind via sysfs */
+
+	const struct of_device_id	*of_match_table;
+	const struct acpi_device_id	*acpi_match_table;
+#endif
+	int (*probe) (struct device *dev);
+	int (*remove) (struct device *dev);
+	void (*shutdown) (struct device *dev);
+	int (*suspend) (struct device *dev, pm_message_t state);
+	int (*resume) (struct device *dev);
+	const struct attribute_group **groups;
+
+	const struct dev_pm_ops *pm;
+#ifdef notyet
+	struct driver_private *p;
+#endif	
+};
+
+
 struct device {
 	struct device	*parent;
 	struct list_head irqents;
