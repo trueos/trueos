@@ -538,7 +538,7 @@ drm_event_wakeup(struct drm_pending_event *e)
 
 	file_priv = e->file_priv;
 	dev = file_priv->minor->dev;
-	mtx_assert(&dev->event_lock, MA_OWNED);
+	assert_spin_locked(&dev->event_lock);
 
 	wakeup(&file_priv->event_space);
 	selwakeup(&file_priv->event_poll);

@@ -100,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linuxkpi/common/include/linux/compat.h>
 #include <compat/linuxkpi/common/include/linux/fs.h>
 #include <compat/linuxkpi/common/include/linux/gfp.h>
+#include <compat/linuxkpi/common/include/linux/pm.h>
 
 /*
  * CEM: drm.h brings in drm_os_freebsd.h, which brings in linuxkpi list.h.
@@ -938,6 +939,14 @@ struct drm_driver {
 	int dev_priv_size;
 	struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
+	union {
+
+		struct pci_driver *pci;
+#ifdef __linux__
+		struct platform_device *platform_device;
+		struct usb_driver *usb;
+#endif		
+	} kdriver;
 	struct drm_bus *bus;
 #ifdef COMPAT_FREEBSD32
 	struct drm_ioctl_desc *compat_ioctls;
@@ -945,6 +954,9 @@ struct drm_driver {
 #endif
 
 	int	buf_priv_size;
+
+	/* List of devices hanging off this driver */
+	struct list_head device_list;
 };
 
 #define DRM_MINOR_UNASSIGNED 0
@@ -1550,7 +1562,7 @@ static inline void
 drm_gem_object_reference(struct drm_gem_object *obj)
 {
 
-	KASSERT((int32_t)obj->refcount > 0, ("Dangling obj %p", obj));
+	KASSERT((int32_t)obj->refcount.refcount.counter > 0, ("Dangling obj %p", obj));
 	kref_get(&obj->refcount);
 }
 
@@ -1669,8 +1681,12 @@ int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type);
 int drm_pci_device_is_agp(struct drm_device *dev);
 int drm_pci_device_is_pcie(struct drm_device *dev);
 
-extern int drm_get_pci_dev(device_t kdev, struct drm_device *dev,
+extern int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
+extern void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
+extern int drm_get_pci_dev(struct pci_dev *pdev,
+			   const struct pci_device_id *ent,
 			   struct drm_driver *driver);
+
 
 #define DRM_PCIE_SPEED_25 1
 #define DRM_PCIE_SPEED_50 2

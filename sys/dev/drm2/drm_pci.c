@@ -143,7 +143,7 @@ void __drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 void drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 {
 	__drm_pci_free(dev, dmah);
-	free(dmah, DRM_MEM_DMA);
+	kfree(dmah);
 }
 
 EXPORT_SYMBOL(drm_pci_free);
@@ -156,31 +156,7 @@ static int drm_get_pci_domain(struct drm_device *dev)
 static int drm_pci_get_irq(struct drm_device *dev)
 {
 
-	if (dev->irqr)
-		return (dev->irq);
-
-	dev->irqr = bus_alloc_resource_any(dev->dev->bsddev, SYS_RES_IRQ,
-	    &dev->irqrid, RF_SHAREABLE);
-	if (!dev->irqr) {
-		dev_err(dev->dev->bsddev, "Failed to allocate IRQ\n");
-		return (0);
-	}
-
-	dev->irq = (int) rman_get_start(dev->irqr);
-
-	return (dev->irq);
-}
-
-static void drm_pci_free_irq(struct drm_device *dev)
-{
-	if (dev->irqr == NULL)
-		return;
-
-	bus_release_resource(dev->dev->bsddev, SYS_RES_IRQ,
-	    dev->irqrid, dev->irqr);
-
-	dev->irqr = NULL;
-	dev->irq = 0;
+	return (dev->pdev->irq);
 }
 
 static const char *drm_pci_get_name(struct drm_device *dev)
@@ -303,7 +279,6 @@ int drm_pci_agp_init(struct drm_device *dev)
 static struct drm_bus drm_pci_bus = {
 	.bus_type = DRIVER_BUS_PCI,
 	.get_irq = drm_pci_get_irq,
-	.free_irq = drm_pci_free_irq,
 	.get_name = drm_pci_get_name,
 	.set_busid = drm_pci_set_busid,
 	.set_unique = drm_pci_set_unique,
@@ -322,35 +297,41 @@ static struct drm_bus drm_pci_bus = {
  * then register the character device and inter module information.
  * Try and register, if we fail to register, backout previous work.
  */
-int drm_get_pci_dev(device_t kdev, struct drm_device *dev,
+int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 		    struct drm_driver *driver)
 {
+	struct drm_device *dev;
 	int ret;
 
 	DRM_DEBUG("\n");
 
-	driver->bus = &drm_pci_bus;
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
 
-	dev->dev->bsddev = kdev;
+	ret = pci_enable_device(pdev);
+	if (ret)
+		goto err_g1;
 
-	dev->pci_domain = pci_get_domain(dev->dev->bsddev);
-	dev->pci_bus = pci_get_bus(dev->dev->bsddev);
-	dev->pci_slot = pci_get_slot(dev->dev->bsddev);
-	dev->pci_func = pci_get_function(dev->dev->bsddev);
+	dev->pdev = pdev;
+	dev->dev = &pdev->dev;
 
-	dev->pci_vendor = pci_get_vendor(dev->dev->bsddev);
-	dev->pci_device = pci_get_device(dev->dev->bsddev);
-	dev->pci_subvendor = pci_get_subvendor(dev->dev->bsddev);
-	dev->pci_subdevice = pci_get_subdevice(dev->dev->bsddev);
+	dev->pci_device = pdev->device;
+	dev->pci_vendor = pdev->vendor;
+
+#ifdef __alpha__
+	dev->hose = pdev->sysdata;
+#endif
 
 	mutex_lock(&drm_global_mutex);
 
-	if ((ret = drm_fill_in_dev(dev, NULL, driver))) {
-		DRM_ERROR("Failed to fill in dev: %d\n", ret);
-		goto err_g1;
+	if ((ret = drm_fill_in_dev(dev, ent, driver))) {
+		printk(KERN_ERR "DRM: Fill_in_dev failed.\n");
+		goto err_g2;
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		pci_set_drvdata(pdev, dev);
 		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
 		if (ret)
 			goto err_g2;
@@ -360,8 +341,7 @@ int drm_get_pci_dev(device_t kdev, struct drm_device *dev,
 		goto err_g3;
 
 	if (dev->driver->load) {
-		ret = dev->driver->load(dev,
-		    dev->id_entry->driver_private);
+		ret = dev->driver->load(dev, ent->driver_data);
 		if (ret)
 			goto err_g4;
 	}
@@ -371,31 +351,27 @@ int drm_get_pci_dev(device_t kdev, struct drm_device *dev,
 		ret = drm_mode_group_init_legacy_group(dev,
 						&dev->primary->mode_group);
 		if (ret)
-			goto err_g5;
+			goto err_g4;
 	}
 
-#ifdef FREEBSD_NOTYET
 	list_add_tail(&dev->driver_item, &driver->device_list);
-#endif /* FREEBSD_NOTYET */
 
 	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
 		 driver->name, driver->major, driver->minor, driver->patchlevel,
-		 driver->date, device_get_nameunit(dev->dev->bsddev), dev->primary->index);
+		 driver->date, pci_name(pdev), dev->primary->index);
 
 	mutex_unlock(&drm_global_mutex);
 	return 0;
 
-err_g5:
-	if (dev->driver->unload)
-		dev->driver->unload(dev);
 err_g4:
 	drm_put_minor(&dev->primary);
 err_g3:
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_put_minor(&dev->control);
 err_g2:
-	drm_cancel_fill_in_dev(dev);
+	pci_disable_device(pdev);
 err_g1:
+	kfree(dev);
 	mutex_unlock(&drm_global_mutex);
 	return ret;
 }
@@ -424,6 +400,64 @@ drm_pci_enable_msi(struct drm_device *dev)
 	return (-ret);
 }
 
+extern devclass_t drm_devclass;
+/**
+ * PCI device initialization. Called direct from modules at load time.
+ *
+ * \return zero on success or a negative number on failure.
+ *
+ * Initializes a drm_device structures,registering the
+ * stubs and initializing the AGP device.
+ *
+ * Expands the \c DRIVER_PREINIT and \c DRIVER_POST_INIT macros before and
+ * after the initialization for driver customization.
+ */
+int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
+{
+	struct pci_dev *pdev = NULL;
+	const struct pci_device_id *pid;
+	int i;
+
+	DRM_DEBUG("\n");
+
+	INIT_LIST_HEAD(&driver->device_list);
+	driver->kdriver.pci = pdriver;
+	driver->bus = &drm_pci_bus;
+	pdriver->busname = "vgapci";
+	pdriver->bsdclass = &drm_devclass;
+	pdriver->name = "drmn";
+	
+	if (driver->driver_features & DRIVER_MODESET)
+		return pci_register_driver(pdriver);
+
+	printf("not driver modeset!!!");
+	return (-ENOTSUP);
+#ifdef __linux__	
+	/* If not using KMS, fall back to stealth mode manual scanning. */
+	for (i = 0; pdriver->id_table[i].vendor != 0; i++) {
+		pid = &pdriver->id_table[i];
+
+		/* Loop around setting up a DRM device for each PCI device
+		 * matching our ID and device class.  If we had the internal
+		 * function that pci_get_subsys and pci_get_class used, we'd
+		 * be able to just pass pid in instead of doing a two-stage
+		 * thing.
+		 */
+		pdev = NULL;
+		while ((pdev =
+			pci_get_subsys(pid->vendor, pid->device, pid->subvendor,
+				       pid->subdevice, pdev)) != NULL) {
+			if ((pdev->class & pid->class_mask) != pid->class)
+				continue;
+
+			/* stealth mode requires a manual probe */
+			pci_dev_get(pdev);
+			drm_get_pci_dev(pdev, pid, driver);
+		}
+	}
+#endif	
+	return 0;
+}
 void
 drm_pci_disable_msi(struct drm_device *dev)
 {
@@ -490,3 +524,52 @@ int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *mask)
 	return 0;
 }
 EXPORT_SYMBOL(drm_pcie_get_speed_cap_mask);
+
+
+/*@}*/
+void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
+{
+	struct drm_device *dev, *tmp;
+	DRM_DEBUG("\n");
+
+	if (driver->driver_features & DRIVER_MODESET) {
+		pci_unregister_driver(pdriver);
+	} else {
+		list_for_each_entry_safe(dev, tmp, &driver->device_list, driver_item)
+			drm_put_dev(dev);
+	}
+	DRM_INFO("Module unloaded\n");
+}
+EXPORT_SYMBOL(drm_pci_exit);
+
+
+#if 0
+static int drm_pci_get_irq(struct drm_device *dev)
+{
+	if (dev->irqr)
+		return (dev->irq);
+
+	dev->irqr = bus_alloc_resource_any(dev->dev->bsddev, SYS_RES_IRQ,
+	    &dev->irqrid, RF_SHAREABLE);
+	if (!dev->irqr) {
+		dev_err(dev->dev->bsddev, "Failed to allocate IRQ\n");
+		return (0);
+	}
+
+	dev->irq = (int) rman_get_start(dev->irqr);
+
+	return (dev->irq);
+}
+
+static void drm_pci_free_irq(struct drm_device *dev)
+{
+	if (dev->irqr == NULL)
+		return;
+
+	bus_release_resource(dev->dev->bsddev, SYS_RES_IRQ,
+	    dev->irqrid, dev->irqr);
+
+	dev->irqr = NULL;
+	dev->irq = 0;
+}
+#endif

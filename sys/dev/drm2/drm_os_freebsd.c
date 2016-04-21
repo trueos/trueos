@@ -68,6 +68,7 @@ drm_probe_helper(device_t kdev, const drm_pci_id_list_t *idlist)
 	return (-ENXIO);
 }
 
+#if 0
 /*
  * drm_attach_helper: called by a driver at the end of its attach
  * method.
@@ -90,6 +91,8 @@ drm_attach_helper(device_t kdev, const drm_pci_id_list_t *idlist,
 
 	return (ret);
 }
+
+#endif
 
 int
 drm_generic_suspend(device_t kdev)

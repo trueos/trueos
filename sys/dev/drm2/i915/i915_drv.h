@@ -1422,8 +1422,6 @@ extern struct drm_driver i915_driver_info;
 extern struct cdev_pager_ops i915_gem_pager_ops;
 extern int intel_iommu_gfx_mapped;
 
-const struct intel_device_info *i915_get_device_id(int device);
-
 /* i915_debugfs.c */
 int i915_sysctl_init(struct drm_device *dev, struct sysctl_ctx_list *ctx,
     struct sysctl_oid *top);

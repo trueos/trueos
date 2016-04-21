@@ -1481,7 +1481,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	int ret = 0, mmio_bar, mmio_size;
 	uint32_t aperture_size;
 
-	info = i915_get_device_id(dev->pci_device);
+	info = (struct intel_device_info *) flags;
 
 	/* Refuse to load on gen6+ without kms enabled. */
 	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET))
