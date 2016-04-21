@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 #include <sys/bus.h>
 
+#include <compat/linuxkpi/common/include/linux/pci.h>
 #include <compat/linuxkpi/common/include/linux/idr.h>
 #include <compat/linuxkpi/common/include/linux/string.h>
 #include <compat/linuxkpi/common/include/linux/compat.h>
@@ -1746,19 +1747,6 @@ enum {
 #define DRM_GET_USER_UNCHECKED(val, uaddr)		\
 	((val) = fuword32(uaddr), 0)
 
-/*
- * CEM: linuxkpi macros expect a 'bsddev' device_t member; drm2 passes the
- * device_t already.  Use our custom macros for now.
- */
-#undef	dev_err
-#define	dev_err(dev, fmt, ...)						\
-	device_printf((dev), "error: " fmt, ## __VA_ARGS__)
-#undef	dev_warn
-#define	dev_warn(dev, fmt, ...)						\
-	device_printf((dev), "warning: " fmt, ## __VA_ARGS__)
-#undef	dev_info
-#define	dev_info(dev, fmt, ...)						\
-	device_printf((dev), "info: " fmt, ## __VA_ARGS__)
 #undef	dev_dbg
 #define	dev_dbg(dev, fmt, ...) do {					\
 	if ((drm_debug& DRM_DEBUGBITS_KMS) != 0) {			\

@@ -495,7 +495,7 @@ SLIST_HEAD(ixl_ftl_head, ixl_mac_filter);
 struct ixl_vsi {
 	void 			*back;
 	struct ifnet		*ifp;
-	struct device		*dev;
+	device_t		dev;
 	struct i40e_hw		*hw;
 	struct ifmedia		media;
 	u64			que_mask;
