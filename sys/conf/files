@@ -47,6 +47,10 @@ pccarddevs.h			standard				   \
 	compile-with	"${AWK} -f $S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"pccarddevs.h"
+kbdmuxmap.h			optional	kbdmux_dflt_keymap 	   \
+	compile-with	"kbdcontrol -P ${S:S/sys$/share/}/vt/keymaps -P ${S:S/sys$/share/}/syscons/keymaps -L ${KBDMUX_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > kbdmuxmap.h" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"kbdmuxmap.h"
 teken_state.h		optional sc | vt				   \
 	dependency	"$S/teken/gensequences $S/teken/sequences" \
 	compile-with	"${AWK} -f $S/teken/gensequences $S/teken/sequences > teken_state.h" \
@@ -64,6 +68,7 @@ usbdevs_data.h			optional usb				   \
 	clean		"usbdevs_data.h"
 cam/cam.c			optional scbus
 cam/cam_compat.c		optional scbus
+cam/cam_iosched.c		optional scbus
 cam/cam_periph.c		optional scbus
 cam/cam_queue.c			optional scbus
 cam/cam_sim.c			optional scbus
@@ -1438,7 +1443,7 @@ dev/fdt/fdt_pinctrl.c		optional fdt fdt_pinctrl
 dev/fdt/fdt_pinctrl_if.m	optional fdt fdt_pinctrl
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand | fdt mx25l
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
-	dependency	"$S/boot/fdt/dts/${MACHINE}/${FDT_DTS_FILE}"
+	dependency	"fdt_dtb_file"
 dev/fdt/simplebus.c		optional fdt
 dev/fe/if_fe.c			optional fe
 dev/fe/if_fe_pccard.c		optional fe pccard
@@ -2555,11 +2560,12 @@ dev/uart/uart_bus_puc.c		optional uart puc
 dev/uart/uart_bus_scc.c		optional uart scc
 dev/uart/uart_core.c		optional uart
 dev/uart/uart_dbg.c		optional uart gdb
-dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250
+dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250 | uart uart_snps
 dev/uart/uart_dev_pl011.c	optional uart pl011
 dev/uart/uart_dev_quicc.c	optional uart quicc
 dev/uart/uart_dev_sab82532.c	optional uart uart_sab82532
 dev/uart/uart_dev_sab82532.c	optional uart scc
+dev/uart/uart_dev_snps.c	optional uart uart_snps
 dev/uart/uart_dev_z8530.c	optional uart uart_z8530
 dev/uart/uart_dev_z8530.c	optional uart scc
 dev/uart/uart_if.m		optional uart
@@ -3743,6 +3749,7 @@ netpfil/ipfw/ip_dn_io.c		optional inet dummynet
 netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
 netpfil/ipfw/ip_fw2.c		optional inet ipfirewall
 netpfil/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_eaction.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_log.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_pfil.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_sockopt.c	optional inet ipfirewall

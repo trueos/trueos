@@ -170,8 +170,11 @@ vm_paddr_t lapic_paddr;
 int x2apic_mode;
 int lapic_eoi_suppression;
 static int lapic_timer_tsc_deadline;
-static u_long lapic_timer_divisor;
+static u_long lapic_timer_divisor, count_freq;
 static struct eventtimer lapic_et;
+#ifdef SMP
+static uint64_t lapic_ipi_wait_mult;
+#endif
 
 SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD, 0, "APIC options");
 SYSCTL_INT(_hw_apic, OID_AUTO, x2apic_mode, CTLFLAG_RD, &x2apic_mode, 0, "");
@@ -318,9 +321,9 @@ static int 	native_lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 static void 	native_lapic_ipi_raw(register_t icrlo, u_int dest);
 static void 	native_lapic_ipi_vectored(u_int vector, int dest);
 static int 	native_lapic_ipi_wait(int delay);
+#endif /* SMP */
 static int	native_lapic_ipi_alloc(inthand_t *ipifunc);
 static void	native_lapic_ipi_free(int vector);
-#endif /* SMP */
 
 struct apic_ops apic_ops = {
 	.create			= native_lapic_create,
@@ -347,9 +350,9 @@ struct apic_ops apic_ops = {
 	.ipi_raw		= native_lapic_ipi_raw,
 	.ipi_vectored		= native_lapic_ipi_vectored,
 	.ipi_wait		= native_lapic_ipi_wait,
+#endif
 	.ipi_alloc		= native_lapic_ipi_alloc,
 	.ipi_free		= native_lapic_ipi_free,
-#endif
 	.set_lvt_mask		= native_lapic_set_lvt_mask,
 	.set_lvt_mode		= native_lapic_set_lvt_mode,
 	.set_lvt_polarity	= native_lapic_set_lvt_polarity,
@@ -403,6 +406,9 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 static void
 native_lapic_init(vm_paddr_t addr)
 {
+#ifdef SMP
+	uint64_t r, r1, r2, rx;
+#endif
 	uint32_t ver;
 	u_int regs[4];
 	int i, arat;
@@ -503,6 +509,38 @@ native_lapic_init(vm_paddr_t addr)
 		TUNABLE_INT_FETCH("hw.lapic_eoi_suppression",
 		    &lapic_eoi_suppression);
 	}
+
+#ifdef SMP
+#define	LOOPS	1000000
+	/*
+	 * Calibrate the busy loop waiting for IPI ack in xAPIC mode.
+	 * lapic_ipi_wait_mult contains the number of iterations which
+	 * approximately delay execution for 1 microsecond (the
+	 * argument to native_lapic_ipi_wait() is in microseconds).
+	 *
+	 * We assume that TSC is present and already measured.
+	 * Possible TSC frequency jumps are irrelevant to the
+	 * calibration loop below, the CPU clock management code is
+	 * not yet started, and we do not enter sleep states.
+	 */
+	KASSERT((cpu_feature & CPUID_TSC) != 0 && tsc_freq != 0,
+	    ("TSC not initialized"));
+	r = rdtsc();
+	for (rx = 0; rx < LOOPS; rx++) {
+		(void)lapic_read_icr_lo();
+		ia32_pause();
+	}
+	r = rdtsc() - r;
+	r1 = tsc_freq * LOOPS;
+	r2 = r * 1000000;
+	lapic_ipi_wait_mult = r1 >= r2 ? r1 / r2 : 1;
+	if (bootverbose) {
+		printf("LAPIC: ipi_wait() us multiplier %ju (r %ju tsc %ju)\n",
+		    (uintmax_t)lapic_ipi_wait_mult, (uintmax_t)r,
+		    (uintmax_t)tsc_freq);
+	}
+#undef LOOPS
+#endif /* SMP */
 }
 
 /*
@@ -776,18 +814,44 @@ lapic_calibrate_initcount(struct eventtimer *et, struct lapic *la)
 		printf("lapic: Divisor %lu, Frequency %lu Hz\n",
 		    lapic_timer_divisor, value);
 	}
-	et->et_frequency = value;
+	count_freq = value;
 }
 
 static void
 lapic_calibrate_deadline(struct eventtimer *et, struct lapic *la __unused)
 {
 
-	et->et_frequency = tsc_freq;
 	if (bootverbose) {
 		printf("lapic: deadline tsc mode, Frequency %ju Hz\n",
-		    (uintmax_t)et->et_frequency);
+		    (uintmax_t)tsc_freq);
 	}
+}
+
+static void
+lapic_change_mode(struct eventtimer *et, struct lapic *la,
+    enum lat_timer_mode newmode)
+{
+
+	if (la->la_timer_mode == newmode)
+		return;
+	switch (newmode) {
+	case LAT_MODE_PERIODIC:
+		lapic_timer_set_divisor(lapic_timer_divisor);
+		et->et_frequency = count_freq;
+		break;
+	case LAT_MODE_DEADLINE:
+		et->et_frequency = tsc_freq;
+		break;
+	case LAT_MODE_ONESHOT:
+		lapic_timer_set_divisor(lapic_timer_divisor);
+		et->et_frequency = count_freq;
+		break;
+	default:
+		panic("lapic_change_mode %d", newmode);
+	}
+	la->la_timer_mode = newmode;
+	et->et_min_period = (0x00000002LLU << 32) / et->et_frequency;
+	et->et_max_period = (0xfffffffeLLU << 32) / et->et_frequency;
 }
 
 static int
@@ -797,28 +861,21 @@ lapic_et_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 
 	la = &lapics[PCPU_GET(apic_id)];
 	if (et->et_frequency == 0) {
+		lapic_calibrate_initcount(et, la);
 		if (lapic_timer_tsc_deadline)
 			lapic_calibrate_deadline(et, la);
-		else
-			lapic_calibrate_initcount(et, la);
-		et->et_min_period = (0x00000002LLU << 32) / et->et_frequency;
-		et->et_max_period = (0xfffffffeLLU << 32) / et->et_frequency;
 	}
 	if (period != 0) {
-		if (la->la_timer_mode == LAT_MODE_UNDEF)
-			lapic_timer_set_divisor(lapic_timer_divisor);
-		la->la_timer_mode = LAT_MODE_PERIODIC;
+		lapic_change_mode(et, la, LAT_MODE_PERIODIC);
 		la->la_timer_period = ((uint32_t)et->et_frequency * period) >>
 		    32;
 		lapic_timer_periodic(la);
 	} else if (lapic_timer_tsc_deadline) {
-		la->la_timer_mode = LAT_MODE_DEADLINE;
+		lapic_change_mode(et, la, LAT_MODE_DEADLINE);
 		la->la_timer_period = (et->et_frequency * first) >> 32;
 		lapic_timer_deadline(la);
 	} else {
-		if (la->la_timer_mode == LAT_MODE_UNDEF)
-			lapic_timer_set_divisor(lapic_timer_divisor);
-		la->la_timer_mode = LAT_MODE_ONESHOT;
+		lapic_change_mode(et, la, LAT_MODE_ONESHOT);
 		la->la_timer_period = ((uint32_t)et->et_frequency * first) >>
 		    32;
 		lapic_timer_oneshot(la);
@@ -1126,8 +1183,8 @@ lapic_timer_set_divisor(u_int divisor)
 {
 
 	KASSERT(powerof2(divisor), ("lapic: invalid divisor %u", divisor));
-	KASSERT(ffs(divisor) <= sizeof(lapic_timer_divisors) /
-	    sizeof(u_int32_t), ("lapic: invalid divisor %u", divisor));
+	KASSERT(ffs(divisor) <= nitems(lapic_timer_divisors),
+		("lapic: invalid divisor %u", divisor));
 	lapic_write32(LAPIC_DCR_TIMER, lapic_timer_divisors[ffs(divisor) - 1]);
 }
 
@@ -1716,31 +1773,25 @@ SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_THIRD, apic_setup_io, NULL);
  * private to the MD code.  The public interface for the rest of the
  * kernel is defined in mp_machdep.c.
  */
+
+/*
+ * Wait delay microseconds for IPI to be sent.  If delay is -1, we
+ * wait forever.
+ */
 static int
 native_lapic_ipi_wait(int delay)
 {
-	int x;
+	uint64_t rx;
 
 	/* LAPIC_ICR.APIC_DELSTAT_MASK is undefined in x2APIC mode */
 	if (x2apic_mode)
 		return (1);
 
-	/*
-	 * Wait delay microseconds for IPI to be sent.  If delay is
-	 * -1, we wait forever.
-	 */
-	if (delay == -1) {
-		while ((lapic_read_icr_lo() & APIC_DELSTAT_MASK) !=
-		    APIC_DELSTAT_IDLE)
-			ia32_pause();
-		return (1);
-	}
-
-	for (x = 0; x < delay; x++) {
+	for (rx = 0; delay == -1 || rx < lapic_ipi_wait_mult * delay; rx++) {
 		if ((lapic_read_icr_lo() & APIC_DELSTAT_MASK) ==
 		    APIC_DELSTAT_IDLE)
 			return (1);
-		DELAY(1);
+		ia32_pause();
 	}
 	return (0);
 }
@@ -1872,6 +1923,8 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 #endif /* DETECT_DEADLOCK */
 }
 
+#endif /* SMP */
+
 /*
  * Since the IDT is shared by all CPUs the IPI slot update needs to be globally
  * visible.
@@ -1926,5 +1979,3 @@ native_lapic_ipi_free(int vector)
 	setidt(vector, &IDTVEC(rsvd), SDT_APICT, SEL_KPL, GSEL_APIC);
 	mtx_unlock_spin(&icu_lock);
 }
-
-#endif /* SMP */

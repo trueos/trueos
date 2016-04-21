@@ -275,8 +275,6 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 
 	/* XXX */
 	rp = malloc(sizeof *rp, M_PCB, M_WAITOK | M_ZERO);
-	if (rp == NULL)
-		return ENOBUFS;
 
 	so->so_pcb = (caddr_t)rp;
 	so->so_fibnum = td->td_proc->p_fibnum;
@@ -1921,7 +1919,7 @@ static struct domain routedomain = {
 	.dom_family =		PF_ROUTE,
 	.dom_name =		 "route",
 	.dom_protosw =		routesw,
-	.dom_protoswNPROTOSW =	&routesw[sizeof(routesw)/sizeof(routesw[0])]
+	.dom_protoswNPROTOSW =	&routesw[nitems(routesw)]
 };
 
 VNET_DOMAIN_SET(route);

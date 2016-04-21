@@ -281,6 +281,12 @@ syncache_destroy(void)
 	struct syncache *sc, *nsc;
 	int i;
 
+	/*
+	 * Stop the re-seed timer before freeing resources.  No need to
+	 * possibly schedule it another time.
+	 */
+	callout_drain(&V_tcp_syncache.secret.reseed);
+
 	/* Cleanup hash buckets: stop timers, free entries, destroy locks. */
 	for (i = 0; i < V_tcp_syncache.hashsize; i++) {
 
@@ -304,8 +310,6 @@ syncache_destroy(void)
 	/* Free the allocated global resources. */
 	uma_zdestroy(V_tcp_syncache.zone);
 	free(V_tcp_syncache.hashbase, M_SYNCACHE);
-
-	callout_drain(&V_tcp_syncache.secret.reseed);
 }
 #endif
 
@@ -1892,8 +1896,7 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc)
 
 	/* Map our computed MSS into the 3-bit index. */
 	mss = min(tcp_mssopt(&sc->sc_inc), max(sc->sc_peer_mss, V_tcp_minmss));
-	for (i = sizeof(tcp_sc_msstab) / sizeof(*tcp_sc_msstab) - 1;
-	     tcp_sc_msstab[i] > mss && i > 0;
+	for (i = nitems(tcp_sc_msstab) - 1; tcp_sc_msstab[i] > mss && i > 0;
 	     i--)
 		;
 	cookie.flags.mss_idx = i;
@@ -1904,8 +1907,8 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc)
 	 */
 	if (sc->sc_flags & SCF_WINSCALE) {
 		wscale = sc->sc_requested_s_scale;
-		for (i = sizeof(tcp_sc_wstab) / sizeof(*tcp_sc_wstab) - 1;
-		     tcp_sc_wstab[i] > wscale && i > 0;
+		for (i = nitems(tcp_sc_wstab) - 1;
+		    tcp_sc_wstab[i] > wscale && i > 0;
 		     i--)
 			;
 		cookie.flags.wscale_idx = i;

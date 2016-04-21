@@ -600,14 +600,12 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 	device_t bus, dev, vf;
 	struct pcicfg_iov *iov;
 	struct pci_devinfo *vfinfo;
-	size_t size;
 	int i, error;
 	uint16_t vid, did, next_rid;
 
 	iov = dinfo->cfg.iov;
 	dev = dinfo->cfg.dev;
 	bus = device_get_parent(dev);
-	size = dinfo->cfg.devinfo_size;
 	next_rid = first_rid;
 	vid = pci_get_vendor(dev);
 	did = IOV_READ(dinfo, PCIR_SRIOV_VF_DID, 2);
@@ -640,7 +638,7 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 		error = PCI_IOV_ADD_VF(dev, i, driver_config);
 		if (error != 0) {
 			device_printf(dev, "Failed to add VF %d\n", i);
-			pci_delete_child(bus, vf);
+			device_delete_child(bus, vf);
 		}
 	}
 
@@ -833,7 +831,7 @@ pci_iov_delete(struct cdev *cdev)
 		vf = devlist[i];
 
 		if (pci_iov_is_child_vf(iov, vf))
-			pci_delete_child(bus, vf);
+			device_delete_child(bus, vf);
 	}
 	PCI_IOV_UNINIT(dev);
 

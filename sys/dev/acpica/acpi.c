@@ -31,6 +31,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+#include "opt_device_numa.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
@@ -1083,7 +1085,7 @@ acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
 int
 acpi_parse_pxm(device_t dev, int *domain)
 {
-#if MAXMEMDOM > 1
+#ifdef DEVICE_NUMA
 	ACPI_HANDLE h;
 	int d, pxm;
 
@@ -2476,6 +2478,28 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
     rp->Length = ACPI_RS_SIZE_MIN;
 
     return (AE_OK);
+}
+
+ACPI_STATUS
+acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid, int revision, int count,
+    uint32_t *caps)
+{
+	ACPI_OBJECT arg[4];
+	ACPI_OBJECT_LIST arglist;
+
+	arglist.Pointer = arg;
+	arglist.Count = 4;
+	arg[0].Type = ACPI_TYPE_BUFFER;
+	arg[0].Buffer.Length = ACPI_UUID_LENGTH;
+	arg[0].Buffer.Pointer = uuid;
+	arg[1].Type = ACPI_TYPE_INTEGER;
+	arg[1].Integer.Value = revision;
+	arg[2].Type = ACPI_TYPE_INTEGER;
+	arg[2].Integer.Value = count;
+	arg[3].Type = ACPI_TYPE_BUFFER;
+	arg[3].Buffer.Length = count * sizeof(*caps);
+	arg[3].Buffer.Pointer = (uint8_t *)caps;
+	return (AcpiEvaluateObject(handle, "_OSC", &arglist, NULL));
 }
 
 /*

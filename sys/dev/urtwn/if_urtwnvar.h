@@ -17,12 +17,14 @@
  * $FreeBSD$
  */
 
-#define URTWN_RX_LIST_COUNT		1
+#define URTWN_RX_LIST_COUNT		64
 #define URTWN_TX_LIST_COUNT		8
 #define URTWN_HOST_CMD_RING_COUNT	32
 
-#define URTWN_RXBUFSZ	(16 * 1024)
-#define URTWN_TXBUFSZ	(sizeof(struct r92c_tx_desc) + IEEE80211_MAX_LEN)
+#define URTWN_RXBUFSZ	(8 * 1024)
+//#define URTWN_TXBUFSZ	(sizeof(struct r92c_tx_desc) + IEEE80211_MAX_LEN)
+/* Leave enough space for an A-MSDU frame */
+#define URTWN_TXBUFSZ	(16 * 1024)
 #define	URTWN_RX_DESC_SIZE	(sizeof(struct r92c_rx_stat))
 #define	URTWN_TX_DESC_SIZE	(sizeof(struct r92c_tx_desc))
 
@@ -94,6 +96,7 @@ struct urtwn_fw_info {
 struct urtwn_node {
 	struct ieee80211_node	ni;	/* must be the first */
 	uint8_t			id;
+	int			last_rssi;
 };
 #define URTWN_NODE(ni)	((struct urtwn_node *)(ni))
 
@@ -189,12 +192,15 @@ struct urtwn_softc {
 	int				ledlink;
 	int				sc_txtimer;
 
+	int				last_rssi;
+
 	int				fwcur;
 	struct urtwn_data		sc_rx[URTWN_RX_LIST_COUNT];
 	urtwn_datahead			sc_rx_active;
 	urtwn_datahead			sc_rx_inactive;
 	struct urtwn_data		sc_tx[URTWN_TX_LIST_COUNT];
 	urtwn_datahead			sc_tx_active;
+	int				sc_tx_n_active;
 	urtwn_datahead			sc_tx_inactive;
 	urtwn_datahead			sc_tx_pending;
 

@@ -3365,7 +3365,7 @@ key_setdumpsa(struct secasvar *sav, u_int8_t type, u_int8_t satype,
 		goto fail;
 	result = m;
 
-	for (i = sizeof(dumporder)/sizeof(dumporder[0]) - 1; i >= 0; i--) {
+	for (i = nitems(dumporder) - 1; i >= 0; i--) {
 		m = NULL;
 		switch (dumporder[i]) {
 		case SADB_EXT_SA:
@@ -4923,8 +4923,8 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		dport = (struct sadb_x_nat_t_port *)
 		    mhp->ext[SADB_X_EXT_NAT_T_DPORT];
 	} else {
-		type = 0;
-		sport = dport = 0;
+		type = NULL;
+		sport = dport = NULL;
 	}
 	if (mhp->ext[SADB_X_EXT_NAT_T_OAI] != NULL &&
 	    mhp->ext[SADB_X_EXT_NAT_T_OAR] != NULL) {
@@ -4949,7 +4949,7 @@ key_update(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		frag = (struct sadb_x_nat_t_frag *)
 		    mhp->ext[SADB_X_EXT_NAT_T_FRAG];
 	} else {
-		frag = 0;
+		frag = NULL;
 	}
 #endif
 
@@ -5215,7 +5215,7 @@ key_add(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 			KEY_PORTTOSADDR(&saidx.dst,
 			    dport->sadb_x_nat_t_port_port);
 	} else {
-		type = 0;
+		type = NULL;
 	}
 	if (mhp->ext[SADB_X_EXT_NAT_T_OAI] != NULL &&
 	    mhp->ext[SADB_X_EXT_NAT_T_OAR] != NULL) {
@@ -5240,7 +5240,7 @@ key_add(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 		frag = (struct sadb_x_nat_t_frag *)
 		    mhp->ext[SADB_X_EXT_NAT_T_FRAG];
 	} else {
-		frag = 0;
+		frag = NULL;
 	}
 #endif
 
@@ -6599,7 +6599,7 @@ key_acquire2(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 static int
 key_register(struct socket *so, struct mbuf *m, const struct sadb_msghdr *mhp)
 {
-	struct secreg *reg, *newreg = 0;
+	struct secreg *reg, *newreg = NULL;
 
 	IPSEC_ASSERT(so != NULL, ("null socket"));
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
@@ -7410,7 +7410,7 @@ key_parse(struct mbuf *m, struct socket *so)
 		 */
 	}
 
-	if (msg->sadb_msg_type >= sizeof(key_typesw)/sizeof(key_typesw[0]) ||
+	if (msg->sadb_msg_type >= nitems(key_typesw) ||
 	    key_typesw[msg->sadb_msg_type] == NULL) {
 		PFKEYSTAT_INC(out_invmsgtype);
 		error = EINVAL;
@@ -7562,8 +7562,8 @@ key_validate_ext(const struct sadb_ext *ext, int len)
 		return EINVAL;
 
 	/* if it does not match minimum/maximum length, bail */
-	if (ext->sadb_ext_type >= sizeof(minsize) / sizeof(minsize[0]) ||
-	    ext->sadb_ext_type >= sizeof(maxsize) / sizeof(maxsize[0]))
+	if (ext->sadb_ext_type >= nitems(minsize) ||
+	    ext->sadb_ext_type >= nitems(maxsize))
 		return EINVAL;
 	if (!minsize[ext->sadb_ext_type] || len < minsize[ext->sadb_ext_type])
 		return EINVAL;
