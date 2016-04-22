@@ -366,10 +366,9 @@ static struct drm_mode_object *_object_find(struct drm_device *dev,
  * @id: id of the mode object
  * @type: type of the mode object
  *
- * Note that framebuffers cannot be looked up with this functions - since those
- * are reference counted, they need special treatment.  Even with
- * DRM_MODE_OBJECT_ANY (although that will simply return NULL
- * rather than WARN_ON()).
+ * This function is used to look up a modeset object. It will acquire a
+ * reference for reference counted objects. This reference must be dropped again
+ * by callind drm_mode_object_unreference().
  */
 struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 		uint32_t id, uint32_t type)
