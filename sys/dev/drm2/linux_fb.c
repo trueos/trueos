@@ -15,14 +15,25 @@ __FBSDID("$FreeBSD$");
 #define FBPIXMAPSIZE	(1024 * 8)
 
 
-static struct mtx linux_fb_mtx;
-MTX_SYSINIT(linux_fb_mtx, &linux_fb_mtx, "linux fb", MTX_DEF);
+static struct sx linux_fb_mtx;
+SX_SYSINIT(linux_fb_mtx, &linux_fb_mtx, "linux fb");
 
 static struct linux_fb_info *registered_fb[FB_MAX];
 static int num_registered_fb;
 static struct class *fb_class;
 
 static int __unregister_framebuffer(struct linux_fb_info *fb_info);
+
+static int
+fb_init(void)
+{
+
+	fb_class = class_create(THIS_MODULE, "graphics");
+
+	return (fb_class == NULL ? ENOMEM : 0);
+}
+SYSINIT(fb_init, SI_SUB_KLD, SI_ORDER_MIDDLE, fb_init, NULL);
+
 
 struct linux_fb_info *
 linux_framebuffer_alloc(size_t size, struct device *dev)
@@ -129,9 +140,9 @@ void
 linux_remove_conflicting_framebuffers(struct apertures_struct *a,
 				const char *name, bool primary)
 {
-	mtx_lock(&linux_fb_mtx);
+	sx_xlock(&linux_fb_mtx);
 	__remove_conflicting(a, name, primary);
-	mtx_unlock(&linux_fb_mtx);
+	sx_xunlock(&linux_fb_mtx);
 }
 
 static int
@@ -320,9 +331,9 @@ linux_register_framebuffer(struct linux_fb_info *fb_info)
 {
 	int rc;
 
-	mtx_lock(&linux_fb_mtx);
+	sx_xlock(&linux_fb_mtx);
 	rc = __register_framebuffer(fb_info);
-	mtx_unlock(&linux_fb_mtx);
+	sx_xunlock(&linux_fb_mtx);
 	return (rc);
 }
 
@@ -388,9 +399,9 @@ linux_unregister_framebuffer(struct linux_fb_info *fb_info)
 {
 	int rc;
 
-	mtx_lock(&linux_fb_mtx);
+	sx_xlock(&linux_fb_mtx);
 	rc = __unregister_framebuffer(fb_info);
-	mtx_unlock(&linux_fb_mtx);
+	sx_xunlock(&linux_fb_mtx);
 	return (rc);
 }
 
