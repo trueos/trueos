@@ -999,7 +999,7 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 		case PIPE_A:
 			/* Can only use the always-on power well for eDP when
 			 * not using the panel fitter, and when not using motion
-			 * blur mitigation (which we don't support). */
+			  * blur mitigation (which we don't support). */
 			if (dev_priv->pch_pf_size)
 				temp |= TRANS_DDI_EDP_INPUT_A_ONOFF;
 			else
@@ -1332,7 +1332,7 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder)
 		tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
 		tmp |= ((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) << (pipe * 4));
 		I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);
-	}	
+	}
 }
 
 static void intel_disable_ddi(struct intel_encoder *intel_encoder)
@@ -1351,7 +1351,7 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 
 		ironlake_edp_backlight_off(intel_dp);
 	}
-	
+
 	tmp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
 	tmp &= ~((AUDIO_OUTPUT_ENABLE_A | AUDIO_ELD_VALID_A) << (pipe * 4));
 	I915_WRITE(HSW_AUD_PIN_ELD_CP_VLD, tmp);

@@ -22,6 +22,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -143,15 +145,16 @@ __FBSDID("$FreeBSD$");
 #define VGA_MSR_READ 0x3cc
 #define   VGA_MSR_MEM_EN (1<<1)
 #define   VGA_MSR_CGA_MODE (1<<0)
+
 /*
  * SR01 is the only VGA register touched on non-UMS setups.
  * VLV doesn't do UMS, so the sequencer index/data registers
  * are the only VGA registers which need to include
  * display_mmio_offset.
  */
-#define VGA_SR_INDEX 0x3c4
-#define SR01 1
-#define VGA_SR_DATA 0x3c5
+#define VGA_SR_INDEX (dev_priv->info->display_mmio_offset + 0x3c4)
+#define SR01			1
+#define VGA_SR_DATA (dev_priv->info->display_mmio_offset + 0x3c5)
 
 #define VGA_AR_INDEX 0x3c0
 #define   VGA_AR_VID_EN (1<<5)
@@ -348,16 +351,16 @@ __FBSDID("$FreeBSD$");
  *
  * DPIO is VLV only.
  */
-#define DPIO_PKT			0x2100
+#define DPIO_PKT			(VLV_DISPLAY_BASE + 0x2100)
 #define  DPIO_RID			(0<<24)
 #define  DPIO_OP_WRITE			(1<<16)
 #define  DPIO_OP_READ			(0<<16)
 #define  DPIO_PORTID			(0x12<<8)
 #define  DPIO_BYTE			(0xf<<4)
 #define  DPIO_BUSY			(1<<0) /* status only */
-#define DPIO_DATA			0x2104
-#define DPIO_REG			0x2108
-#define DPIO_CTL			0x2110
+#define DPIO_DATA			(VLV_DISPLAY_BASE + 0x2104)
+#define DPIO_REG			(VLV_DISPLAY_BASE + 0x2108)
+#define DPIO_CTL			(VLV_DISPLAY_BASE + 0x2110)
 #define  DPIO_MODSEL1			(1<<3) /* if ref clk b == 27 */
 #define  DPIO_MODSEL0			(1<<2) /* if ref clk a == 27 */
 #define  DPIO_SFR_BYPASS		(1<<1)
@@ -568,13 +571,13 @@ __FBSDID("$FreeBSD$");
 #define IIR		0x020a4
 #define IMR		0x020a8
 #define ISR		0x020ac
-#define VLV_GUNIT_CLOCK_GATE	0x182060
+#define VLV_GUNIT_CLOCK_GATE	(VLV_DISPLAY_BASE + 0x2060)
 #define   GCFG_DIS		(1<<8)
-#define VLV_IIR_RW	0x182084
-#define VLV_IER		0x1820a0
-#define VLV_IIR		0x1820a4
-#define VLV_IMR		0x1820a8
-#define VLV_ISR		0x1820ac
+#define VLV_IIR_RW	(VLV_DISPLAY_BASE + 0x2084)
+#define VLV_IER		(VLV_DISPLAY_BASE + 0x20a0)
+#define VLV_IIR		(VLV_DISPLAY_BASE + 0x20a4)
+#define VLV_IMR		(VLV_DISPLAY_BASE + 0x20a8)
+#define VLV_ISR		(VLV_DISPLAY_BASE + 0x20ac)
 #define   I915_PIPE_CONTROL_NOTIFY_INTERRUPT		(1<<18)
 #define   I915_DISPLAY_PORT_INTERRUPT			(1<<17)
 #define   I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT	(1<<15)
@@ -934,8 +937,8 @@ __FBSDID("$FreeBSD$");
 #define   VGA1_PD_P1_DIV_2	(1 << 13)
 #define   VGA1_PD_P1_SHIFT	8
 #define   VGA1_PD_P1_MASK	(0x1f << 8)
-#define _DPLL_A	0x06014
-#define _DPLL_B	0x06018
+#define _DPLL_A	(dev_priv->info->display_mmio_offset + 0x6014)
+#define _DPLL_B	(dev_priv->info->display_mmio_offset + 0x6018)
 #define DPLL(pipe) _PIPE(pipe, _DPLL_A, _DPLL_B)
 #define   DPLL_VCO_ENABLE		(1 << 31)
 #define   DPLL_DVO_HIGH_SPEED		(1 << 30)
@@ -994,7 +997,7 @@ __FBSDID("$FreeBSD$");
 #define   SDVO_MULTIPLIER_MASK			0x000000ff
 #define   SDVO_MULTIPLIER_SHIFT_HIRES		4
 #define   SDVO_MULTIPLIER_SHIFT_VGA		0
-#define _DPLL_A_MD 0x0601c /* 965+ only */
+#define _DPLL_A_MD (dev_priv->info->display_mmio_offset + 0x601c) /* 965+ only */
 /*
  * UDI pixel divider, controlling how many pixels are stuffed into a packet.
  *
@@ -1031,7 +1034,7 @@ __FBSDID("$FreeBSD$");
  */
 #define   DPLL_MD_VGA_UDI_MULTIPLIER_MASK	0x0000003f
 #define   DPLL_MD_VGA_UDI_MULTIPLIER_SHIFT	0
-#define _DPLL_B_MD 0x06020 /* 965+ only */
+#define _DPLL_B_MD (dev_priv->info->display_mmio_offset + 0x6020) /* 965+ only */
 #define DPLL_MD(pipe) _PIPE(pipe, _DPLL_A_MD, _DPLL_B_MD)
 
 #define _FPA0	0x06040
@@ -1174,15 +1177,15 @@ __FBSDID("$FreeBSD$");
 #define RAMCLK_GATE_D		0x6210		/* CRL only */
 #define DEUC			0x6214          /* CRL only */
 
-#define FW_BLC_SELF_VLV		0x6500
+#define FW_BLC_SELF_VLV		(VLV_DISPLAY_BASE + 0x6500)
 #define  FW_CSPWRDWNEN		(1<<15)
 
 /*
  * Palette regs
  */
 
-#define _PALETTE_A		0x0a000
-#define _PALETTE_B		0x0a800
+#define _PALETTE_A		(dev_priv->info->display_mmio_offset + 0xa000)
+#define _PALETTE_B		(dev_priv->info->display_mmio_offset + 0xa800)
 #define PALETTE(pipe) _PIPE(pipe, _PALETTE_A, _PALETTE_B)
 
 /* MCH MMIO space */
@@ -1262,7 +1265,7 @@ __FBSDID("$FreeBSD$");
 
 #define TSC1			0x11001
 #define   TSE			(1<<0)
-#define I915_TR1		0x11006
+#define I915_TR1			0x11006
 #define TSFS			0x11020
 #define   TSFS_SLOPE_MASK	0x0000ff00
 #define   TSFS_SLOPE_SHIFT	8
@@ -1551,26 +1554,26 @@ __FBSDID("$FreeBSD$");
  */
 
 /* Pipe A timing regs */
-#define _HTOTAL_A	0x60000
-#define _HBLANK_A	0x60004
-#define _HSYNC_A		0x60008
-#define _VTOTAL_A	0x6000c
-#define _VBLANK_A	0x60010
-#define _VSYNC_A		0x60014
-#define _PIPEASRC	0x6001c
-#define _BCLRPAT_A	0x60020
-#define _VSYNCSHIFT_A	0x60028
+#define _HTOTAL_A	(dev_priv->info->display_mmio_offset + 0x60000)
+#define _HBLANK_A	(dev_priv->info->display_mmio_offset + 0x60004)
+#define _HSYNC_A	(dev_priv->info->display_mmio_offset + 0x60008)
+#define _VTOTAL_A	(dev_priv->info->display_mmio_offset + 0x6000c)
+#define _VBLANK_A	(dev_priv->info->display_mmio_offset + 0x60010)
+#define _VSYNC_A	(dev_priv->info->display_mmio_offset + 0x60014)
+#define _PIPEASRC	(dev_priv->info->display_mmio_offset + 0x6001c)
+#define _BCLRPAT_A	(dev_priv->info->display_mmio_offset + 0x60020)
+#define _VSYNCSHIFT_A	(dev_priv->info->display_mmio_offset + 0x60028)
 
 /* Pipe B timing regs */
-#define _HTOTAL_B	0x61000
-#define _HBLANK_B	0x61004
-#define _HSYNC_B		0x61008
-#define _VTOTAL_B	0x6100c
-#define _VBLANK_B	0x61010
-#define _VSYNC_B		0x61014
-#define _PIPEBSRC	0x6101c
-#define _BCLRPAT_B	0x61020
-#define _VSYNCSHIFT_B	0x61028
+#define _HTOTAL_B	(dev_priv->info->display_mmio_offset + 0x61000)
+#define _HBLANK_B	(dev_priv->info->display_mmio_offset + 0x61004)
+#define _HSYNC_B	(dev_priv->info->display_mmio_offset + 0x61008)
+#define _VTOTAL_B	(dev_priv->info->display_mmio_offset + 0x6100c)
+#define _VBLANK_B	(dev_priv->info->display_mmio_offset + 0x61010)
+#define _VSYNC_B	(dev_priv->info->display_mmio_offset + 0x61014)
+#define _PIPEBSRC	(dev_priv->info->display_mmio_offset + 0x6101c)
+#define _BCLRPAT_B	(dev_priv->info->display_mmio_offset + 0x61020)
+#define _VSYNCSHIFT_B	(dev_priv->info->display_mmio_offset + 0x61028)
 
 
 #define HTOTAL(trans) _TRANSCODER(trans, _HTOTAL_A, _HTOTAL_B)
@@ -1631,7 +1634,7 @@ __FBSDID("$FreeBSD$");
 
 
 /* Hotplug control (945+ only) */
-#define PORT_HOTPLUG_EN		0x61110
+#define PORT_HOTPLUG_EN		(dev_priv->info->display_mmio_offset + 0x61110)
 #define   PORTB_HOTPLUG_INT_EN			(1 << 29)
 #define   PORTC_HOTPLUG_INT_EN			(1 << 28)
 #define   PORTD_HOTPLUG_INT_EN			(1 << 27)
@@ -1655,11 +1658,11 @@ __FBSDID("$FreeBSD$");
 #define CRT_HOTPLUG_DETECT_VOLTAGE_325MV	(0 << 2)
 #define CRT_HOTPLUG_DETECT_VOLTAGE_475MV	(1 << 2)
 
-#define PORT_HOTPLUG_STAT	0x61114
+#define PORT_HOTPLUG_STAT	(dev_priv->info->display_mmio_offset + 0x61114)
 /* HDMI/DP bits are gen4+ */
-#define   PORTB_HOTPLUG_LIVE_STATUS             (1 << 29)
-#define   PORTC_HOTPLUG_LIVE_STATUS             (1 << 28)
-#define   PORTD_HOTPLUG_LIVE_STATUS             (1 << 27)
+#define   PORTB_HOTPLUG_LIVE_STATUS               (1 << 29)
+#define   PORTC_HOTPLUG_LIVE_STATUS               (1 << 28)
+#define   PORTD_HOTPLUG_LIVE_STATUS               (1 << 27)
 #define   PORTD_HOTPLUG_INT_STATUS		(3 << 21)
 #define   PORTC_HOTPLUG_INT_STATUS		(3 << 19)
 #define   PORTB_HOTPLUG_INT_STATUS		(3 << 17)
@@ -1867,7 +1870,7 @@ __FBSDID("$FreeBSD$");
 #define PP_DIVISOR	0x61210
 
 /* Panel fitting */
-#define PFIT_CONTROL	0x61230
+#define PFIT_CONTROL	(dev_priv->info->display_mmio_offset + 0x61230)
 #define   PFIT_ENABLE		(1 << 31)
 #define   PFIT_PIPE_MASK	(3 << 29)
 #define   PFIT_PIPE_SHIFT	29
@@ -1885,7 +1888,7 @@ __FBSDID("$FreeBSD$");
 #define   PFIT_SCALING_PROGRAMMED (1 << 26)
 #define   PFIT_SCALING_PILLAR	(2 << 26)
 #define   PFIT_SCALING_LETTER	(3 << 26)
-#define PFIT_PGM_RATIOS	0x61234
+#define PFIT_PGM_RATIOS	(dev_priv->info->display_mmio_offset + 0x61234)
 /* Pre-965 */
 #define		PFIT_VERT_SCALE_SHIFT		20
 #define		PFIT_VERT_SCALE_MASK		0xfff00000
@@ -1897,7 +1900,7 @@ __FBSDID("$FreeBSD$");
 #define		PFIT_HORIZ_SCALE_SHIFT_965	0
 #define		PFIT_HORIZ_SCALE_MASK_965	0x00001fff
 
-#define PFIT_AUTO_RATIOS 0x61238
+#define PFIT_AUTO_RATIOS (dev_priv->info->display_mmio_offset + 0x61238)
 
 /* Backlight control */
 #define BLC_PWM_CTL2		0x61250 /* 965+ only */
@@ -2627,10 +2630,10 @@ __FBSDID("$FreeBSD$");
 /* Display & cursor control */
 
 /* Pipe A */
-#define _PIPEADSL		0x70000
+#define _PIPEADSL		(dev_priv->info->display_mmio_offset + 0x70000)
 #define   DSL_LINEMASK_GEN2	0x00000fff
 #define   DSL_LINEMASK_GEN3	0x00001fff
-#define _PIPEACONF		0x70008
+#define _PIPEACONF		(dev_priv->info->display_mmio_offset + 0x70008)
 #define   PIPECONF_ENABLE	(1<<31)
 #define   PIPECONF_DISABLE	0
 #define   PIPECONF_DOUBLE_WIDE	(1<<30)
@@ -2671,7 +2674,7 @@ __FBSDID("$FreeBSD$");
 #define   PIPECONF_DITHER_TYPE_ST1 (1<<2)
 #define   PIPECONF_DITHER_TYPE_ST2 (2<<2)
 #define   PIPECONF_DITHER_TYPE_TEMP (3<<2)
-#define _PIPEASTAT		0x70024
+#define _PIPEASTAT		(dev_priv->info->display_mmio_offset + 0x70024)
 #define   PIPE_FIFO_UNDERRUN_STATUS		(1UL<<31)
 #define   SPRITE1_FLIPDONE_INT_EN_VLV		(1UL<<30)
 #define   PIPE_CRC_ERROR_ENABLE			(1UL<<29)
@@ -2716,7 +2719,7 @@ __FBSDID("$FreeBSD$");
 #define PIPEFRAMEPIXEL(pipe)  _PIPE(pipe, _PIPEAFRAMEPIXEL, _PIPEBFRAMEPIXEL)
 #define PIPESTAT(pipe) _PIPE(pipe, _PIPEASTAT, _PIPEBSTAT)
 
-#define VLV_DPFLIPSTAT				0x70028
+#define VLV_DPFLIPSTAT				(VLV_DISPLAY_BASE + 0x70028)
 #define   PIPEB_LINE_COMPARE_INT_EN		(1<<29)
 #define   PIPEB_HLINE_INT_EN			(1<<28)
 #define   PIPEB_VBLANK_INT_EN			(1<<27)
@@ -2730,7 +2733,7 @@ __FBSDID("$FreeBSD$");
 #define   SPRITEA_FLIPDONE_INT_EN		(1<<17)
 #define   PLANEA_FLIPDONE_INT_EN		(1<<16)
 
-#define DPINVGTT				0x7002c /* VLV only */
+#define DPINVGTT				(VLV_DISPLAY_BASE + 0x7002c) /* VLV only */
 #define   CURSORB_INVALID_GTT_INT_EN		(1<<23)
 #define   CURSORA_INVALID_GTT_INT_EN		(1<<22)
 #define   SPRITED_INVALID_GTT_INT_EN		(1<<21)
@@ -2758,7 +2761,7 @@ __FBSDID("$FreeBSD$");
 #define   DSPARB_BEND_SHIFT	9 /* on 855 */
 #define   DSPARB_AEND_SHIFT	0
 
-#define DSPFW1			0x70034
+#define DSPFW1			(dev_priv->info->display_mmio_offset + 0x70034)
 #define   DSPFW_SR_SHIFT	23
 #define   DSPFW_SR_MASK		(0x1ff<<23)
 #define   DSPFW_CURSORB_SHIFT	16
@@ -2766,11 +2769,11 @@ __FBSDID("$FreeBSD$");
 #define   DSPFW_PLANEB_SHIFT	8
 #define   DSPFW_PLANEB_MASK	(0x7f<<8)
 #define   DSPFW_PLANEA_MASK	(0x7f)
-#define DSPFW2			0x70038
+#define DSPFW2			(dev_priv->info->display_mmio_offset + 0x70038)
 #define   DSPFW_CURSORA_MASK	0x00003f00
 #define   DSPFW_CURSORA_SHIFT	8
 #define   DSPFW_PLANEC_MASK	(0x7f)
-#define DSPFW3			0x7003c
+#define DSPFW3			(dev_priv->info->display_mmio_offset + 0x7003c)
 #define   DSPFW_HPLL_SR_EN	(1<<31)
 #define   DSPFW_CURSOR_SR_SHIFT	24
 #define   PINEVIEW_SELF_REFRESH_EN	(1<<30)
@@ -2782,13 +2785,13 @@ __FBSDID("$FreeBSD$");
 /* drain latency register values*/
 #define DRAIN_LATENCY_PRECISION_32	32
 #define DRAIN_LATENCY_PRECISION_16	16
-#define VLV_DDL1			0x70050
+#define VLV_DDL1			(VLV_DISPLAY_BASE + 0x70050)
 #define DDL_CURSORA_PRECISION_32	(1<<31)
 #define DDL_CURSORA_PRECISION_16	(0<<31)
 #define DDL_CURSORA_SHIFT		24
 #define DDL_PLANEA_PRECISION_32		(1<<7)
 #define DDL_PLANEA_PRECISION_16		(0<<7)
-#define VLV_DDL2			0x70054
+#define VLV_DDL2			(VLV_DISPLAY_BASE + 0x70054)
 #define DDL_CURSORB_PRECISION_32	(1<<31)
 #define DDL_CURSORB_PRECISION_16	(0<<31)
 #define DDL_CURSORB_SHIFT		24
@@ -2932,10 +2935,10 @@ __FBSDID("$FreeBSD$");
  *  } while (high1 != high2);
  *  frame = (high1 << 8) | low1;
  */
-#define _PIPEAFRAMEHIGH          0x70040
+#define _PIPEAFRAMEHIGH          (dev_priv->info->display_mmio_offset + 0x70040)
 #define   PIPE_FRAME_HIGH_MASK    0x0000ffff
 #define   PIPE_FRAME_HIGH_SHIFT   0
-#define _PIPEAFRAMEPIXEL         0x70044
+#define _PIPEAFRAMEPIXEL         (dev_priv->info->display_mmio_offset + 0x70044)
 #define   PIPE_FRAME_LOW_MASK     0xff000000
 #define   PIPE_FRAME_LOW_SHIFT    24
 #define   PIPE_PIXEL_MASK         0x00ffffff
@@ -2946,7 +2949,7 @@ __FBSDID("$FreeBSD$");
 #define PIPE_FRMCOUNT_GM45(pipe) _PIPE(pipe, _PIPEA_FRMCOUNT_GM45, _PIPEB_FRMCOUNT_GM45)
 
 /* Cursor A & B regs */
-#define _CURACNTR		0x70080
+#define _CURACNTR		(dev_priv->info->display_mmio_offset + 0x70080)
 /* Old style CUR*CNTR flags (desktop 8xx) */
 #define   CURSOR_ENABLE		0x80000000
 #define   CURSOR_GAMMA_ENABLE	0x40000000
@@ -2968,16 +2971,16 @@ __FBSDID("$FreeBSD$");
 #define   MCURSOR_PIPE_A	0x00
 #define   MCURSOR_PIPE_B	(1 << 28)
 #define   MCURSOR_GAMMA_ENABLE  (1 << 26)
-#define _CURABASE		0x70084
-#define _CURAPOS			0x70088
+#define _CURABASE		(dev_priv->info->display_mmio_offset + 0x70084)
+#define _CURAPOS		(dev_priv->info->display_mmio_offset + 0x70088)
 #define   CURSOR_POS_MASK       0x007FF
 #define   CURSOR_POS_SIGN       0x8000
 #define   CURSOR_X_SHIFT        0
 #define   CURSOR_Y_SHIFT        16
 #define CURSIZE			0x700a0
-#define _CURBCNTR		0x700c0
-#define _CURBBASE		0x700c4
-#define _CURBPOS			0x700c8
+#define _CURBCNTR		(dev_priv->info->display_mmio_offset + 0x700c0)
+#define _CURBBASE		(dev_priv->info->display_mmio_offset + 0x700c4)
+#define _CURBPOS		(dev_priv->info->display_mmio_offset + 0x700c8)
 
 #define _CURBCNTR_IVB		0x71080
 #define _CURBBASE_IVB		0x71084
@@ -2992,7 +2995,7 @@ __FBSDID("$FreeBSD$");
 #define CURPOS_IVB(pipe) _PIPE(pipe, _CURAPOS, _CURBPOS_IVB)
 
 /* Display A control */
-#define _DSPACNTR                0x70180
+#define _DSPACNTR                (dev_priv->info->display_mmio_offset + 0x70180)
 #define   DISPLAY_PLANE_ENABLE			(1<<31)
 #define   DISPLAY_PLANE_DISABLE			0
 #define   DISPPLANE_GAMMA_ENABLE		(1<<30)
@@ -3026,14 +3029,14 @@ __FBSDID("$FreeBSD$");
 #define   DISPPLANE_STEREO_POLARITY_SECOND	(1<<18)
 #define   DISPPLANE_TRICKLE_FEED_DISABLE	(1<<14) /* Ironlake */
 #define   DISPPLANE_TILED			(1<<10)
-#define _DSPAADDR		0x70184
-#define _DSPASTRIDE		0x70188
-#define _DSPAPOS			0x7018C /* reserved */
-#define _DSPASIZE		0x70190
-#define _DSPASURF		0x7019C /* 965+ only */
-#define _DSPATILEOFF		0x701A4 /* 965+ only */
-#define _DSPAOFFSET		0x701A4 /* HSW */
-#define _DSPASURFLIVE		0x701AC
+#define _DSPAADDR		(dev_priv->info->display_mmio_offset + 0x70184)
+#define _DSPASTRIDE		(dev_priv->info->display_mmio_offset + 0x70188)
+#define _DSPAPOS		(dev_priv->info->display_mmio_offset + 0x7018C) /* reserved */
+#define _DSPASIZE		(dev_priv->info->display_mmio_offset + 0x70190)
+#define _DSPASURF		(dev_priv->info->display_mmio_offset + 0x7019C) /* 965+ only */
+#define _DSPATILEOFF		(dev_priv->info->display_mmio_offset + 0x701A4) /* 965+ only */
+#define _DSPAOFFSET		(dev_priv->info->display_mmio_offset + 0x701A4) /* HSW */
+#define _DSPASURFLIVE		(dev_priv->info->display_mmio_offset + 0x701AC)
 
 #define DSPCNTR(plane) _PIPE(plane, _DSPACNTR, _DSPBCNTR)
 #define DSPADDR(plane) _PIPE(plane, _DSPAADDR, _DSPBADDR)
@@ -3054,44 +3057,44 @@ __FBSDID("$FreeBSD$");
 		(I915_WRITE((reg), (gfx_addr) | I915_LO_DISPBASE(I915_READ(reg))))
 
 /* VBIOS flags */
-#define SWF00			0x71410
-#define SWF01			0x71414
-#define SWF02			0x71418
-#define SWF03			0x7141c
-#define SWF04			0x71420
-#define SWF05			0x71424
-#define SWF06			0x71428
-#define SWF10			0x70410
-#define SWF11			0x70414
-#define SWF14			0x71420
-#define SWF30			0x72414
-#define SWF31			0x72418
-#define SWF32			0x7241c
+#define SWF00			(dev_priv->info->display_mmio_offset + 0x71410)
+#define SWF01			(dev_priv->info->display_mmio_offset + 0x71414)
+#define SWF02			(dev_priv->info->display_mmio_offset + 0x71418)
+#define SWF03			(dev_priv->info->display_mmio_offset + 0x7141c)
+#define SWF04			(dev_priv->info->display_mmio_offset + 0x71420)
+#define SWF05			(dev_priv->info->display_mmio_offset + 0x71424)
+#define SWF06			(dev_priv->info->display_mmio_offset + 0x71428)
+#define SWF10			(dev_priv->info->display_mmio_offset + 0x70410)
+#define SWF11			(dev_priv->info->display_mmio_offset + 0x70414)
+#define SWF14			(dev_priv->info->display_mmio_offset + 0x71420)
+#define SWF30			(dev_priv->info->display_mmio_offset + 0x72414)
+#define SWF31			(dev_priv->info->display_mmio_offset + 0x72418)
+#define SWF32			(dev_priv->info->display_mmio_offset + 0x7241c)
 
 /* Pipe B */
-#define _PIPEBDSL		0x71000
-#define _PIPEBCONF		0x71008
-#define _PIPEBSTAT		0x71024
-#define _PIPEBFRAMEHIGH		0x71040
-#define _PIPEBFRAMEPIXEL		0x71044
+#define _PIPEBDSL		(dev_priv->info->display_mmio_offset + 0x71000)
+#define _PIPEBCONF		(dev_priv->info->display_mmio_offset + 0x71008)
+#define _PIPEBSTAT		(dev_priv->info->display_mmio_offset + 0x71024)
+#define _PIPEBFRAMEHIGH		(dev_priv->info->display_mmio_offset + 0x71040)
+#define _PIPEBFRAMEPIXEL	(dev_priv->info->display_mmio_offset + 0x71044)
 #define _PIPEB_FRMCOUNT_GM45	0x71040
 #define _PIPEB_FLIPCOUNT_GM45	0x71044
 
 
 /* Display B control */
-#define _DSPBCNTR		0x71180
+#define _DSPBCNTR		(dev_priv->info->display_mmio_offset + 0x71180)
 #define   DISPPLANE_ALPHA_TRANS_ENABLE		(1<<15)
 #define   DISPPLANE_ALPHA_TRANS_DISABLE		0
 #define   DISPPLANE_SPRITE_ABOVE_DISPLAY	0
 #define   DISPPLANE_SPRITE_ABOVE_OVERLAY	(1)
-#define _DSPBADDR		0x71184
-#define _DSPBSTRIDE		0x71188
-#define _DSPBPOS			0x7118C
-#define _DSPBSIZE		0x71190
-#define _DSPBSURF		0x7119C
-#define _DSPBTILEOFF		0x711A4
-#define _DSPBOFFSET		0x711A4
-#define _DSPBSURFLIVE		0x711AC
+#define _DSPBADDR		(dev_priv->info->display_mmio_offset + 0x71184)
+#define _DSPBSTRIDE		(dev_priv->info->display_mmio_offset + 0x71188)
+#define _DSPBPOS		(dev_priv->info->display_mmio_offset + 0x7118C)
+#define _DSPBSIZE		(dev_priv->info->display_mmio_offset + 0x71190)
+#define _DSPBSURF		(dev_priv->info->display_mmio_offset + 0x7119C)
+#define _DSPBTILEOFF		(dev_priv->info->display_mmio_offset + 0x711A4)
+#define _DSPBOFFSET		(dev_priv->info->display_mmio_offset + 0x711A4)
+#define _DSPBSURFLIVE		(dev_priv->info->display_mmio_offset + 0x711AC)
 
 /* Sprite A control */
 #define _DVSACNTR		0x72180
@@ -3283,41 +3286,41 @@ __FBSDID("$FreeBSD$");
 #define  FDI_PLL_FREQ_DISABLE_COUNT_LIMIT_MASK  0xff
 
 
-#define _PIPEA_DATA_M1           0x60030
+#define _PIPEA_DATA_M1           (dev_priv->info->display_mmio_offset + 0x60030)
 #define  TU_SIZE(x)             (((x)-1) << 25) /* default size 64 */
 #define  TU_SIZE_MASK           0x7e000000
 #define  PIPE_DATA_M1_OFFSET    0
-#define _PIPEA_DATA_N1           0x60034
+#define _PIPEA_DATA_N1           (dev_priv->info->display_mmio_offset + 0x60034)
 #define  PIPE_DATA_N1_OFFSET    0
 
-#define _PIPEA_DATA_M2           0x60038
+#define _PIPEA_DATA_M2           (dev_priv->info->display_mmio_offset + 0x60038)
 #define  PIPE_DATA_M2_OFFSET    0
-#define _PIPEA_DATA_N2           0x6003c
+#define _PIPEA_DATA_N2           (dev_priv->info->display_mmio_offset + 0x6003c)
 #define  PIPE_DATA_N2_OFFSET    0
 
-#define _PIPEA_LINK_M1           0x60040
+#define _PIPEA_LINK_M1           (dev_priv->info->display_mmio_offset + 0x60040)
 #define  PIPE_LINK_M1_OFFSET    0
-#define _PIPEA_LINK_N1           0x60044
+#define _PIPEA_LINK_N1           (dev_priv->info->display_mmio_offset + 0x60044)
 #define  PIPE_LINK_N1_OFFSET    0
 
-#define _PIPEA_LINK_M2           0x60048
+#define _PIPEA_LINK_M2           (dev_priv->info->display_mmio_offset + 0x60048)
 #define  PIPE_LINK_M2_OFFSET    0
-#define _PIPEA_LINK_N2           0x6004c
+#define _PIPEA_LINK_N2           (dev_priv->info->display_mmio_offset + 0x6004c)
 #define  PIPE_LINK_N2_OFFSET    0
 
 /* PIPEB timing regs are same start from 0x61000 */
 
-#define _PIPEB_DATA_M1           0x61030
-#define _PIPEB_DATA_N1           0x61034
+#define _PIPEB_DATA_M1           (dev_priv->info->display_mmio_offset + 0x61030)
+#define _PIPEB_DATA_N1           (dev_priv->info->display_mmio_offset + 0x61034)
 
-#define _PIPEB_DATA_M2           0x61038
-#define _PIPEB_DATA_N2           0x6103c
+#define _PIPEB_DATA_M2           (dev_priv->info->display_mmio_offset + 0x61038)
+#define _PIPEB_DATA_N2           (dev_priv->info->display_mmio_offset + 0x6103c)
 
-#define _PIPEB_LINK_M1           0x61040
-#define _PIPEB_LINK_N1           0x61044
+#define _PIPEB_LINK_M1           (dev_priv->info->display_mmio_offset + 0x61040)
+#define _PIPEB_LINK_N1           (dev_priv->info->display_mmio_offset + 0x61044)
 
-#define _PIPEB_LINK_M2           0x61048
-#define _PIPEB_LINK_N2           0x6104c
+#define _PIPEB_LINK_M2           (dev_priv->info->display_mmio_offset + 0x61048)
+#define _PIPEB_LINK_N2           (dev_priv->info->display_mmio_offset + 0x6104c)
 
 #define PIPE_DATA_M1(tran) _TRANSCODER(tran, _PIPEA_DATA_M1, _PIPEB_DATA_M1)
 #define PIPE_DATA_N1(tran) _TRANSCODER(tran, _PIPEA_DATA_N1, _PIPEB_DATA_N1)
@@ -3571,9 +3574,9 @@ __FBSDID("$FreeBSD$");
 #define PORTD_PULSE_DURATION_100ms      (3 << 18)
 #define PORTD_PULSE_DURATION_MASK	(3 << 18)
 #define PORTD_HOTPLUG_STATUS_MASK	(0x3 << 16)
-#define PORTD_HOTPLUG_NO_DETECT         (0 << 16)
-#define PORTD_HOTPLUG_SHORT_DETECT      (1 << 16)
-#define PORTD_HOTPLUG_LONG_DETECT       (2 << 16)
+#define  PORTD_HOTPLUG_NO_DETECT	(0 << 16)
+#define  PORTD_HOTPLUG_SHORT_DETECT	(1 << 16)
+#define  PORTD_HOTPLUG_LONG_DETECT	(2 << 16)
 #define PORTC_HOTPLUG_ENABLE            (1 << 12)
 #define PORTC_PULSE_DURATION_2ms        (0)
 #define PORTC_PULSE_DURATION_4_5ms      (1 << 10)
@@ -3581,9 +3584,9 @@ __FBSDID("$FreeBSD$");
 #define PORTC_PULSE_DURATION_100ms      (3 << 10)
 #define PORTC_PULSE_DURATION_MASK	(3 << 10)
 #define PORTC_HOTPLUG_STATUS_MASK	(0x3 << 8)
-#define PORTC_HOTPLUG_NO_DETECT         (0 << 8)
-#define PORTC_HOTPLUG_SHORT_DETECT      (1 << 8)
-#define PORTC_HOTPLUG_LONG_DETECT       (2 << 8)
+#define  PORTC_HOTPLUG_NO_DETECT	(0 << 8)
+#define  PORTC_HOTPLUG_SHORT_DETECT	(1 << 8)
+#define  PORTC_HOTPLUG_LONG_DETECT	(2 << 8)
 #define PORTB_HOTPLUG_ENABLE            (1 << 4)
 #define PORTB_PULSE_DURATION_2ms        (0)
 #define PORTB_PULSE_DURATION_4_5ms      (1 << 2)
@@ -3591,9 +3594,9 @@ __FBSDID("$FreeBSD$");
 #define PORTB_PULSE_DURATION_100ms      (3 << 2)
 #define PORTB_PULSE_DURATION_MASK	(3 << 2)
 #define PORTB_HOTPLUG_STATUS_MASK	(0x3 << 0)
-#define PORTB_HOTPLUG_NO_DETECT         (0 << 0)
-#define PORTB_HOTPLUG_SHORT_DETECT      (1 << 0)
-#define PORTB_HOTPLUG_LONG_DETECT       (2 << 0)
+#define  PORTB_HOTPLUG_NO_DETECT	(0 << 0)
+#define  PORTB_HOTPLUG_SHORT_DETECT	(1 << 0)
+#define  PORTB_HOTPLUG_LONG_DETECT	(2 << 0)
 
 #define PCH_GPIOA               0xc5010
 #define PCH_GPIOB               0xc5014
@@ -3714,13 +3717,13 @@ __FBSDID("$FreeBSD$");
 #define TVIDEO_DIP_DATA(pipe) _PIPE(pipe, _VIDEO_DIP_DATA_A, _VIDEO_DIP_DATA_B)
 #define TVIDEO_DIP_GCP(pipe) _PIPE(pipe, _VIDEO_DIP_GCP_A, _VIDEO_DIP_GCP_B)
 
-#define VLV_VIDEO_DIP_CTL_A		0x60200
-#define VLV_VIDEO_DIP_DATA_A		0x60208
-#define VLV_VIDEO_DIP_GDCP_PAYLOAD_A	0x60210
+#define VLV_VIDEO_DIP_CTL_A		(VLV_DISPLAY_BASE + 0x60200)
+#define VLV_VIDEO_DIP_DATA_A		(VLV_DISPLAY_BASE + 0x60208)
+#define VLV_VIDEO_DIP_GDCP_PAYLOAD_A	(VLV_DISPLAY_BASE + 0x60210)
 
-#define VLV_VIDEO_DIP_CTL_B		0x61170
-#define VLV_VIDEO_DIP_DATA_B		0x61174
-#define VLV_VIDEO_DIP_GDCP_PAYLOAD_B	0x61178
+#define VLV_VIDEO_DIP_CTL_B		(VLV_DISPLAY_BASE + 0x61170)
+#define VLV_VIDEO_DIP_DATA_B		(VLV_DISPLAY_BASE + 0x61174)
+#define VLV_VIDEO_DIP_GDCP_PAYLOAD_B	(VLV_DISPLAY_BASE + 0x61178)
 
 #define VLV_TVIDEO_DIP_CTL(pipe) \
 	 _PIPE(pipe, VLV_VIDEO_DIP_CTL_A, VLV_VIDEO_DIP_CTL_B)
@@ -4010,17 +4013,17 @@ __FBSDID("$FreeBSD$");
 #define  LVDS_DETECTED	(1 << 1)
 
 /* vlv has 2 sets of panel control regs. */
-#define PIPEA_PP_STATUS         0x61200
-#define PIPEA_PP_CONTROL        0x61204
-#define PIPEA_PP_ON_DELAYS      0x61208
-#define PIPEA_PP_OFF_DELAYS     0x6120c
-#define PIPEA_PP_DIVISOR        0x61210
+#define PIPEA_PP_STATUS         (VLV_DISPLAY_BASE + 0x61200)
+#define PIPEA_PP_CONTROL        (VLV_DISPLAY_BASE + 0x61204)
+#define PIPEA_PP_ON_DELAYS      (VLV_DISPLAY_BASE + 0x61208)
+#define PIPEA_PP_OFF_DELAYS     (VLV_DISPLAY_BASE + 0x6120c)
+#define PIPEA_PP_DIVISOR        (VLV_DISPLAY_BASE + 0x61210)
 
-#define PIPEB_PP_STATUS         0x61300
-#define PIPEB_PP_CONTROL        0x61304
-#define PIPEB_PP_ON_DELAYS      0x61308
-#define PIPEB_PP_OFF_DELAYS     0x6130c
-#define PIPEB_PP_DIVISOR        0x61310
+#define PIPEB_PP_STATUS         (VLV_DISPLAY_BASE + 0x61300)
+#define PIPEB_PP_CONTROL        (VLV_DISPLAY_BASE + 0x61304)
+#define PIPEB_PP_ON_DELAYS      (VLV_DISPLAY_BASE + 0x61308)
+#define PIPEB_PP_OFF_DELAYS     (VLV_DISPLAY_BASE + 0x6130c)
+#define PIPEB_PP_DIVISOR        (VLV_DISPLAY_BASE + 0x61310)
 
 #define PCH_PP_STATUS		0xc7200
 #define PCH_PP_CONTROL		0xc7204
@@ -4314,7 +4317,7 @@ __FBSDID("$FreeBSD$");
 #define GEN7_ROW_CHICKEN2_GT2		0xf4f4
 #define   DOP_CLOCK_GATING_DISABLE	(1<<0)
 
-#define G4X_AUD_VID_DID			0x62020
+#define G4X_AUD_VID_DID			(dev_priv->info->display_mmio_offset + 0x62020)
 #define INTEL_AUDIO_DEVCL		0x808629FB
 #define INTEL_AUDIO_DEVBLC		0x80862801
 #define INTEL_AUDIO_DEVCTG		0x80862802
@@ -4696,4 +4699,5 @@ __FBSDID("$FreeBSD$");
 #define PIPE_CSC_POSTOFF_HI(pipe) _PIPE(pipe, _PIPE_A_CSC_POSTOFF_HI, _PIPE_B_CSC_POSTOFF_HI)
 #define PIPE_CSC_POSTOFF_ME(pipe) _PIPE(pipe, _PIPE_A_CSC_POSTOFF_ME, _PIPE_B_CSC_POSTOFF_ME)
 #define PIPE_CSC_POSTOFF_LO(pipe) _PIPE(pipe, _PIPE_A_CSC_POSTOFF_LO, _PIPE_B_CSC_POSTOFF_LO)
+
 #endif /* _I915_REG_H_ */
