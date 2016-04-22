@@ -51,14 +51,15 @@ typedef struct mutex {
 
 #define DEFINE_MUTEX(lock)						\
 	mutex_t lock;							\
-	SX_SYSINIT_FLAGS(lock, &(lock).sx, "lnxmtx", SX_NOWITNESS)
+	SX_SYSINIT_FLAGS(lock, &(lock).sx, #lock, SX_DUPOK)
 
 static inline void
-linux_mutex_init(mutex_t *m)
+linux_mutex_init(mutex_t *m, char *name)
 {
 
 	memset(&m->sx, 0, sizeof(m->sx));
-	sx_init_flags(&m->sx, "lnxmtx",  SX_NOWITNESS);
+	sx_init_flags(&m->sx, name,  SX_DUPOK);
+	MPASS(m->sx.sx_lock == SX_LOCK_UNLOCKED);
 }
 
 static inline void
@@ -67,7 +68,7 @@ linux_mutex_destroy(mutex_t *m)
 	sx_destroy(&m->sx);
 }
 
-#define	mutex_init(m)	linux_mutex_init(m)
+#define	mutex_init(m)	linux_mutex_init(m, #m)
 
 #define mutex_destroy(m) linux_mutex_destroy(m);
 
