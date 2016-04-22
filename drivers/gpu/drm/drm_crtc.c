@@ -375,9 +375,7 @@ struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 {
 	struct drm_mode_object *obj = NULL;
 
-	/* Framebuffers are reference counted and need their own lookup
-	 * function.*/
-	WARN_ON(type == DRM_MODE_OBJECT_FB || type == DRM_MODE_OBJECT_BLOB);
+	WARN_ON(type == DRM_MODE_OBJECT_BLOB);
 	obj = _object_find(dev, id, type);
 	return obj;
 }
@@ -4990,7 +4988,7 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 	}
 	if (!obj->properties) {
 		ret = -EINVAL;
-		goto out;
+		goto out_unref;
 	}
 
 	ret = get_properties(obj, file_priv->atomic,
@@ -4998,6 +4996,8 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 			(uint64_t __user *)(unsigned long)(arg->prop_values_ptr),
 			&arg->count_props);
 
+out_unref:
+	drm_mode_object_unreference(obj);
 out:
 	drm_modeset_unlock_all(dev);
 	return ret;
@@ -5040,20 +5040,20 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 	if (!arg_obj->properties)
-		goto out;
+		goto out_unref;
 
 	for (i = 0; i < arg_obj->properties->count; i++)
 		if (arg_obj->properties->properties[i]->base.id == arg->prop_id)
 			break;
 
 	if (i == arg_obj->properties->count)
-		goto out;
+		goto out_unref;
 
 	prop_obj = drm_mode_object_find(dev, arg->prop_id,
 					DRM_MODE_OBJECT_PROPERTY);
 	if (!prop_obj) {
 		ret = -ENOENT;
-		goto out;
+		goto out_unref;
 	}
 	property = obj_to_property(prop_obj);
 
@@ -5076,6 +5076,8 @@ int drm_mode_obj_set_property_ioctl(struct drm_device *dev, void *data,
 
 	drm_property_change_valid_put(property, ref);
 
+out_unref:
+	drm_mode_object_unreference(arg_obj);
 out:
 	drm_modeset_unlock_all(dev);
 	return ret;
