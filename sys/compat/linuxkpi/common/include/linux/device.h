@@ -85,6 +85,28 @@ struct device_driver {
 #endif	
 };
 
+/*
+ * The type of device, "struct device" is embedded in. A class
+ * or bus can contain devices of different types
+ * like "partitions" and "disks", "mouse" and "event".
+ * This identifies the device type and carries type-specific
+ * information, equivalent to the kobj_type of a kobject.
+ * If "name" is specified, the uevent will contain it in
+ * the DEVTYPE variable.
+ */
+
+struct kobj_uevent_env;
+
+struct device_type {
+	const char *name;
+	const struct attribute_group **groups;
+	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
+	char *(*devnode)(struct device *dev, umode_t *mode);
+	void (*release)(struct device *dev);
+
+	const struct dev_pm_ops *pm;
+};
+
 
 struct device {
 	struct device	*parent;
@@ -99,6 +121,7 @@ struct device {
 	unsigned int	irq;
 	unsigned int	msix;
 	unsigned int	msix_max;
+	struct device_type *type;
 };
 
 extern struct device linux_root_device;
