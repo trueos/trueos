@@ -258,8 +258,10 @@ drm_encoder_disable(struct drm_encoder *encoder)
 
 	if (encoder_funcs->disable)
 		(*encoder_funcs->disable)(encoder);
-	else
+	else {
+		MPASS(encoder_funcs->dpms != NULL);
 		(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
+	}
 }
 
 /**
@@ -297,10 +299,13 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 		crtc->enabled = drm_helper_crtc_in_use(crtc);
 		if (!crtc->enabled) {
+			MPASS(crtc_funcs != NULL);
 			if (crtc_funcs->disable)
 				(*crtc_funcs->disable)(crtc);
-			else
+			else {
+				MPASS(crtc_funcs->dpms != NULL);
 				(*crtc_funcs->dpms)(crtc, DRM_MODE_DPMS_OFF);
+			}
 			crtc->fb = NULL;
 		}
 	}
@@ -964,9 +969,7 @@ EXPORT_SYMBOL(drm_helper_resume_force_mode);
 void drm_kms_helper_hotplug_event(struct drm_device *dev)
 {
 	/* send a uevent + call fbdev */
-#ifdef FREEBSD_NOTYET
 	drm_sysfs_hotplug_event(dev);
-#endif /* FREEBSD_NOTYET */
 	if (dev->mode_config.funcs->output_poll_changed)
 		dev->mode_config.funcs->output_poll_changed(dev);
 }

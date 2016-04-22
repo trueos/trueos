@@ -764,13 +764,11 @@ EXPORT_SYMBOL(drm_connector_cleanup);
 
 void drm_connector_unplug_all(struct drm_device *dev)
 {
-#ifdef FREEBSD_NOTYET
 	struct drm_connector *connector;
 
 	/* taking the mode config mutex ends up in a clash with sysfs */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
 		drm_sysfs_connector_remove(connector);
-#endif /* FREEBSD_NOTYET */
 
 }
 EXPORT_SYMBOL(drm_connector_unplug_all);

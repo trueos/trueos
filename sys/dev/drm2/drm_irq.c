@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/drm2/drmP.h>
 
+#include <linux/interrupt.h>	/* For task queue support */
 #include <linux/bug.h>
 #include <linux/math64.h>
 
@@ -311,6 +312,7 @@ int drm_irq_install(struct drm_device *dev)
 {
 	int ret;
 	unsigned long sh_flags = 0;
+	char *irqname;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EINVAL;
@@ -340,28 +342,26 @@ int drm_irq_install(struct drm_device *dev)
 		dev->driver->irq_preinstall(dev);
 
 	/* Install handler */
-	sh_flags = INTR_TYPE_TTY | INTR_MPSAFE;
-	if (!drm_core_check_feature(dev, DRIVER_IRQ_SHARED))
-		/*
-		 * FIXME Linux<->FreeBSD: This seems to make
-		 * bus_setup_intr() unhappy: it was reported to return
-		 * EINVAL on an i915 board (8086:2592 in a Thinkpad
-		 * X41).
-		 *
-		 * For now, no driver we have use that.
-		 */
-		sh_flags |= INTR_EXCL;
+	if (drm_core_check_feature(dev, DRIVER_IRQ_SHARED))
+		sh_flags = IRQF_SHARED;
 
-	ret = -bus_setup_intr(dev->dev->bsddev, dev->irqr, sh_flags, NULL,
-	    (driver_intr_t *)dev->driver->irq_handler, dev, &dev->irqh);
+	if (dev->devname)
+		irqname = dev->devname;
+	else
+		irqname = dev->driver->name;
+
+	ret = request_irq(drm_dev_to_irq(dev), dev->driver->irq_handler,
+			  sh_flags, irqname, dev);
 
 	if (ret < 0) {
-		device_printf(dev->dev->bsddev, "Error setting interrupt: %d\n", -ret);
 		mutex_lock(&dev->struct_mutex);
 		dev->irq_enabled = 0;
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		vga_client_register(dev->pdev, (void *)dev, drm_irq_vgaarb_nokms, NULL);
 
 	/* After installing handler */
 	if (dev->driver->irq_postinstall)
@@ -371,8 +371,11 @@ int drm_irq_install(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		dev->irq_enabled = 0;
 		mutex_unlock(&dev->struct_mutex);
-		bus_teardown_intr(dev->dev->bsddev, dev->irqr, dev->irqh);
-		dev->driver->bus->free_irq(dev);
+#ifdef __linux__
+		if (!drm_core_check_feature(dev, DRIVER_MODESET))
+			vga_client_register(dev->pdev, NULL, NULL, NULL);
+#endif
+		free_irq(drm_dev_to_irq(dev), dev);
 	}
 
 	return ret;

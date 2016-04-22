@@ -1480,6 +1480,10 @@ extern unsigned int drm_vblank_offdelay;
 extern unsigned int drm_timestamp_precision;
 extern unsigned int drm_timestamp_monotonic;
 
+extern struct class *drm_class;
+
+extern struct idr drm_minors_idr;
+
 extern struct drm_local_map *drm_getsarea(struct drm_device *dev);
 
 
@@ -1540,6 +1544,15 @@ extern drm_dma_handle_t *drm_pci_alloc(struct drm_device *dev, size_t size,
 				       size_t align);
 extern void __drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 extern void drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
+
+
+struct drm_sysfs_class;
+extern struct class *drm_sysfs_create(struct module *owner, char *name);
+extern void drm_sysfs_destroy(void);
+extern int drm_sysfs_device_add(struct drm_minor *minor);
+extern void drm_sysfs_device_remove(struct drm_minor *minor);
+extern int drm_sysfs_connector_add(struct drm_connector *connector);
+extern void drm_sysfs_connector_remove(struct drm_connector *connector);
 
 /* Graphics Execution Manager library functions (drm_gem.c) */
 int drm_gem_init(struct drm_device *dev);
