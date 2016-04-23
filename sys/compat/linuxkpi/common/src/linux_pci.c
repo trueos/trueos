@@ -90,7 +90,6 @@ linux_pci_find(device_t dev, const struct pci_device_id **idp)
 	vendor = pci_get_vendor(dev);
 	device = pci_get_device(dev);
 
-	printf("vendor=%x device=%x\n", vendor, device);
 	spin_lock(&pci_lock);
 	list_for_each_entry(pdrv, &pci_drivers, links) {
 		for (id = pdrv->id_table; id->vendor != 0; id++) {
@@ -111,7 +110,6 @@ linux_pci_probe(device_t dev)
 	const struct pci_device_id *id;
 	struct pci_driver *pdrv;
 
-	printf("linux_pci_probe called!\n");
 	if ((pdrv = linux_pci_find(dev, &id)) == NULL) {
 		printf("linux_pci_find failed!\n");
 		return (ENXIO);
@@ -121,7 +119,6 @@ linux_pci_probe(device_t dev)
 		return (ENXIO);
 	}
 	device_set_desc(dev, pdrv->name);
-	printf("linux_pci_probe success!\n");
 	return (0);
 }
 
@@ -135,8 +132,6 @@ linux_pci_attach(device_t dev)
 	devclass_t dc;
 	device_t parent;
 	int error;
-
-	printf("linux_pci_attach called!");
 
 	parent = device_get_parent(dev);
 	dc = device_get_devclass(parent);
@@ -175,9 +170,9 @@ linux_pci_attach(device_t dev)
 		list_del(&pdev->links);
 		spin_unlock(&pci_lock);
 		put_device(&pdev->dev);
+		printf("linux_pci_attach failed! %d", error);
 		return (-error);
 	}
-	printf("linux_pci_attach success!");
 	return (0);
 }
 

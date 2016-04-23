@@ -113,8 +113,6 @@ set_pages_wb(vm_page_t page, int numpages)
 	return set_memory_wb(addr, numpages);
 }
 
-
-#define iowrite32(v, addr)	writel((v), (addr))
 vm_page_t alloc_page(gfp_t gfp);
 void __free_page(vm_page_t page);
 
