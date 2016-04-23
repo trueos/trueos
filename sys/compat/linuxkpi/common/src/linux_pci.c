@@ -281,20 +281,17 @@ pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 {
 	struct resource *res;
 	int rid;
-	unsigned long start, len;
 	void *regs;
 
 	if (pdev->pcir.r[bar] == NULL) {
 		rid = PCIR_BAR(bar);
 		if ((res = bus_alloc_resource_any(pdev->dev.bsddev, SYS_RES_MEMORY,
-						  &rid, RF_SHAREABLE)) == NULL)
+						  &rid, RF_ACTIVE)) == NULL)
 			return (NULL);
 		pdev->pcir.r[bar] = res;
 		pdev->pcir.rid[bar] = rid;
 	} 
-	start = rman_get_start(pdev->pcir.r[bar]);
-	len = rman_get_size(pdev->pcir.r[bar]);
-	regs = pmap_mapdev_attr(start, len, PAT_UNCACHED);
+	regs = (void *)rman_get_bushandle(pdev->pcir.r[bar]);
 	/* XXX if NULL ? */
 	pdev->pcir.map[bar] = regs;
 	return (regs);
@@ -304,7 +301,7 @@ pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 void
 pci_iounmap(struct pci_dev *pdev, void *regs)
 {
-	int bar, rid, len;
+	int bar, rid;
 	struct resource *res;
 
 	res = NULL;
@@ -318,8 +315,6 @@ pci_iounmap(struct pci_dev *pdev, void *regs)
 	if (res == NULL)
 		return;
 
-	len = rman_get_size(res);
-	pmap_unmapdev((vm_offset_t)regs, len);
 	bus_release_resource(pdev->dev.bsddev, SYS_RES_MEMORY, rid, res);
 }
 
