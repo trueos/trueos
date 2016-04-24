@@ -372,7 +372,6 @@ static bool drm_fb_helper_is_bound(struct drm_fb_helper *fb_helper)
 #ifdef CONFIG_MAGIC_SYSRQ
 static void drm_fb_helper_restore_work_fn(struct work_struct *ignored)
 {
-
 	bool ret;
 	ret = drm_fb_helper_force_kernel_mode();
 	if (ret == true)
@@ -408,7 +407,8 @@ static void drm_fb_helper_dpms(struct fb_info *info, int dpms_mode)
 	 * restore the fbdev console mode completely, just bail out early.
 	 */
 	if (oops_in_progress)
-		return;	
+		return;
+
 	/*
 	 * For each CRTC in this fb, turn the connectors on/off.
 	 */
@@ -628,6 +628,7 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 
 	if (fb->depth != 16)
 		fb_helper->funcs->gamma_set(crtc, red, green, blue, pindex);
+	drm_legacy_fb_init(info);
 	return 0;
 }
 
@@ -671,6 +672,7 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 		}
 		crtc_funcs->load_lut(crtc);
 	}
+	drm_legacy_fb_init(info);
 	return rc;
 }
 EXPORT_SYMBOL(drm_fb_helper_setcmap);
@@ -768,6 +770,7 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	default:
 		return -EINVAL;
 	}
+	drm_legacy_fb_init(info);
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_check_var);
@@ -849,6 +852,7 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 		}
 	}
 	drm_modeset_unlock_all(dev);
+	drm_legacy_fb_init(info);
 	return ret;
 }
 EXPORT_SYMBOL(drm_fb_helper_pan_display);
@@ -859,7 +863,7 @@ EXPORT_SYMBOL(drm_fb_helper_pan_display);
  * notifier.
  */
 static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
-				  int preferred_bpp)
+					 int preferred_bpp)
 {
 	int ret = 0;
 	int crtc_count = 0;
@@ -946,7 +950,9 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	info = fb_helper->fbdev;
 
 	info->fbio.fb_video_dev = device_get_parent(fb_helper->dev->dev->bsddev);
-/*
+	info->fb_bsddev = fb_helper->dev->dev->bsddev;
+
+	/*
 	 * Set the fb pointer - usually drm_setup_crtcs does this for hotplug
 	 * events, but at init time drm_setup_crtcs needs to be called before
 	 * the fb is allocated (since we need to figure out the desired size of
@@ -957,23 +963,6 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 		if (fb_helper->crtc_info[i].mode_set.num_connectors)
 			fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
 
-#if defined(__FreeBSD__)
-	if (ret) {
-		int ret2;
-
-		info->fbio.fb_fbd_dev = device_add_child(fb_helper->dev->dev->bsddev, "fbd",
-			   	    device_get_unit(fb_helper->dev->dev->bsddev));
-
-		if (info->fbio.fb_fbd_dev != NULL)
-			ret2 = device_probe_and_attach(info->fbio.fb_fbd_dev);
-		else
-			ret2 = ENODEV;
-#ifdef DEV_VT
-		if (ret2 != 0)
-			DRM_ERROR("Failed to attach fbd device: %d\n", ret);
-#endif
-	}
-#endif
 
 	info->var.pixclock = 0;
 	if (register_framebuffer(info) < 0)
@@ -1027,6 +1016,7 @@ void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
 	info->fix.type_aux = 0;
 
 	info->fix.line_length = pitch;
+	info->fbio.fb_stride = pitch;
 	return;
 }
 EXPORT_SYMBOL(drm_fb_helper_fill_fix);
@@ -1048,8 +1038,9 @@ EXPORT_SYMBOL(drm_fb_helper_fill_fix);
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height)
 {
+	struct drm_framebuffer *fb = fb_helper->fb;
+	struct vt_kms_softc *sc;
 
-		struct drm_framebuffer *fb = fb_helper->fb;
 	info->pseudo_palette = fb_helper->pseudo_palette;
 	info->var.xres_virtual = fb->width;
 	info->var.yres_virtual = fb->height;
@@ -1114,9 +1105,16 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 	default:
 		break;
 	}
-
 	info->var.xres = fb_width;
 	info->var.yres = fb_height;
+
+	info->fbio.fb_name = device_get_nameunit(fb_helper->dev->dev->bsddev);
+	info->fbio.fb_width = fb->width;
+	info->fbio.fb_height = fb->height;
+	info->fbio.fb_depth = fb->bits_per_pixel;
+
+	sc = (struct vt_kms_softc *)info->fbio.fb_priv;
+	sc->fb_helper = fb_helper;
 }
 EXPORT_SYMBOL(drm_fb_helper_fill_var);
 
