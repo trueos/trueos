@@ -884,7 +884,7 @@ static void ironlake_wait_for_vblank(struct drm_device *dev, int pipe)
 
 	frame = I915_READ(frame_reg);
 
-	if (wait_for(I915_READ_NOTRACE(frame_reg) != frame, 50))
+	if (wait_for(I915_READ_NOTRACE(frame_reg) != frame, 500))
 		DRM_DEBUG_KMS("vblank wait timed out\n");
 }
 
@@ -1821,9 +1821,10 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 
 	reg = PIPECONF(cpu_transcoder);
 	val = I915_READ(reg);
-	if (val & PIPECONF_ENABLE)
+	if (val & PIPECONF_ENABLE) {
+		DRM_ERROR("pipe enabled\n");
 		return;
-
+	}
 	I915_WRITE(reg, val | PIPECONF_ENABLE);
 	intel_wait_for_vblank(dev_priv->dev, pipe);
 }
@@ -3367,6 +3368,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	if (intel_crtc->active)
 		return;
 
+	printf("haswell_crtc_enable\n");
 	intel_crtc->active = true;
 	intel_update_watermarks(dev);
 
@@ -8818,7 +8820,6 @@ static void intel_init_quirks(struct drm_device *dev)
 		     q->subsystem_device == PCI_ANY_ID))
 			q->hook(dev);
 	}
-
 	for (i = 0; i < ARRAY_SIZE(intel_dmi_quirks); i++) {
 		if (dmi_check_system(*intel_dmi_quirks[i].dmi_id_list) != 0)
 			intel_dmi_quirks[i].hook(dev);
