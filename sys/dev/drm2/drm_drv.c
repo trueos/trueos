@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_core.h>
 #include <dev/drm2/drm_global.h>
+#include <dev/drm2/linux_fb.h>
+
 
 
 struct mutex drm_global_mutex;
@@ -297,6 +299,7 @@ static void __exit drm_core_exit(void)
 
 	mutex_destroy(&drm_global_mutex);
 	idr_destroy(&drm_minors_idr);
+	linux_fb_destroy();
 }
 
 SYSINIT(drm_register, SI_SUB_KLD, SI_ORDER_MIDDLE,
