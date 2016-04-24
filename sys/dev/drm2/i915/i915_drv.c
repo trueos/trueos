@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include "fb_if.h"
 #include <linux/pci.h>
+#include <linux/io.h>
 
 
 #define pci_get_class linux_pci_get_class
@@ -1260,7 +1261,10 @@ __i915_read(32, l)
 __i915_read(64, q)
 #undef __i915_read
 
-#define __i915_write(x, y) \
+extern void db_trace_self_depth(int count);
+#define kdb_backtrace() db_trace_self_depth(3);
+
+#define __i915_write(x, y)						\
 void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 	u32 __fifo_ret = 0; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val)); \
@@ -1271,6 +1275,7 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 		ilk_dummy_write(dev_priv); \
 	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
 		DRM_ERROR("Unknown unclaimed register before writing to %x\n", reg); \
+		kdb_backtrace();					\
 		I915_WRITE_NOTRACE(GEN7_ERR_INT, ERR_INT_MMIO_UNCLAIMED); \
 	} \
 	write##y(val, dev_priv->regs + reg); \
@@ -1278,9 +1283,10 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
 	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
-		DRM_ERROR("Unclaimed write to %x\n", reg); \
+		DRM_ERROR("Unclaimed write to %x\n", reg);		\
+		kdb_backtrace();					\
 		writel(ERR_INT_MMIO_UNCLAIMED, dev_priv->regs + GEN7_ERR_INT);	\
-	} \
+	}								\
 }
 __i915_write(8, b)
 __i915_write(16, w)
