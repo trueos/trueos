@@ -809,13 +809,8 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 	struct drm_i915_gem_object *obj;
 
 	list_for_each_entry(obj, objects, exec_list) {
-#if defined(KTR)
 		u32 old_read = obj->base.read_domains;
 		u32 old_write = obj->base.write_domain;
-#else
-		u32 old_read = 0;
-		u32 old_write = 0;
-#endif
 
 		obj->base.write_domain = obj->base.pending_write_domain;
 		if (obj->base.write_domain == 0)
