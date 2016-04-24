@@ -588,6 +588,8 @@ struct linux_fb_info {
 		} ranges[0];
 	} *apertures;
 	struct fb_info fbio;
+	struct cdev *fb_cdev;
+	device_t fb_bsddev;
 };
 
 
@@ -647,6 +649,10 @@ extern int fb_new_modelist(struct linux_fb_info *info);
 
 extern int fb_alloc_cmap(struct fb_cmap *cmap, int len, int transp);
 extern void fb_dealloc_cmap(struct fb_cmap *cmap);
+
+/* updated FreeBSD fb_info */
+void drm_legacy_fb_init(struct linux_fb_info *fb_info);
+void linux_fb_destroy(void);
 
 /*
  * GPL licensed routines that need to be replaced:

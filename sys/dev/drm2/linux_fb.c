@@ -24,6 +24,167 @@ static struct class *fb_class;
 
 static int __unregister_framebuffer(struct linux_fb_info *fb_info);
 
+extern int vt_fb_attach(struct fb_info *info);
+extern void vt_fb_detach(struct fb_info *info);
+
+/* Call restore out of vt(9) locks. */
+static void
+vt_restore_fbdev_mode(void *arg, int pending)
+{
+	struct drm_fb_helper *fb_helper;
+	struct vt_kms_softc *sc;
+
+	sc = (struct vt_kms_softc *)arg;
+	fb_helper = sc->fb_helper;
+	mutex_lock(&fb_helper->dev->mode_config.mutex);
+	drm_fb_helper_restore_fbdev_mode(fb_helper);
+	mutex_unlock(&fb_helper->dev->mode_config.mutex);
+}
+
+static int
+vt_kms_postswitch(void *arg)
+{
+	struct vt_kms_softc *sc;
+
+	sc = (struct vt_kms_softc *)arg;
+
+	if (!kdb_active && panicstr == NULL)
+		taskqueue_enqueue(taskqueue_thread, &sc->fb_mode_task);
+	else
+		drm_fb_helper_restore_fbdev_mode(sc->fb_helper);
+
+	return (0);
+}
+
+static d_open_t		fb_open;
+static d_close_t	fb_close;
+static d_read_t		fb_read;
+static d_write_t	fb_write;
+static d_ioctl_t	fb_ioctl;
+static d_mmap_t		fb_mmap;
+
+static struct cdevsw fb_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
+	.d_open =	fb_open,
+	.d_close =	fb_close,
+	.d_read =	fb_read,
+	.d_write =	fb_write,
+	.d_ioctl =	fb_ioctl,
+	.d_mmap =	fb_mmap,
+	.d_name =	"fb",
+};
+
+static int framebuffer_dev_unit = 0;
+
+static int
+fb_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+{
+
+	return (0);
+}
+
+static int
+fb_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
+{
+
+	return (0);
+}
+
+static int
+fb_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
+    struct thread *td)
+{
+	struct linux_fb_info *info;
+	struct fbtype *t;
+	int error;
+
+	error = 0;
+	info = dev->si_drv1;
+
+	switch (cmd) {
+	case FBIOGTYPE:
+		t = (struct fbtype *)data;
+		t->fb_type = FBTYPE_PCIMISC;
+		t->fb_height = info->var.yres;
+		t->fb_width = info->var.xres;
+		t->fb_depth = info->var.bits_per_pixel;
+		t->fb_cmsize = info->cmap.len;
+		t->fb_size = info->screen_size;
+		break;
+
+	case FBIO_GETWINORG:	/* get frame buffer window origin */
+		*(u_int *)data = 0;
+		break;
+
+	case FBIO_GETDISPSTART:	/* get display start address */
+		((video_display_start_t *)data)->x = 0;
+		((video_display_start_t *)data)->y = 0;
+		break;
+
+	case FBIO_GETLINEWIDTH:	/* get scan line width in bytes */
+		*(u_int *)data = info->fix.line_length;;
+		break;
+
+	case FBIO_BLANK:	/* blank display */
+		if (info->fbops->fb_blank != NULL)
+			error = info->fbops->fb_blank((int)data, info);
+		break;
+
+	default:
+		error = ENOIOCTL;
+		break;
+	}
+	return (error);
+}
+
+static int
+fb_read(struct cdev *dev, struct uio *uio, int ioflag)
+{
+
+	return (0); /* XXX nothing to read, yet */
+}
+
+static int
+fb_write(struct cdev *dev, struct uio *uio, int ioflag)
+{
+
+	return (0); /* XXX nothing written */
+}
+
+static int
+fb_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr, int nprot,
+    vm_memattr_t *memattr)
+{
+	struct linux_fb_info *info;
+
+	info = dev->si_drv1;
+#ifdef notyet
+	if (info->fb_flags & FB_FLAG_NOMMAP)
+		return (ENODEV);
+#endif
+	if (offset >= 0 && offset < info->screen_size) {
+		if (info->fix.smem_start == 0)
+			*paddr = vtophys((uint8_t *)info->screen_base + offset);
+		else
+			*paddr = info->fix.smem_start + offset;
+		return (0);
+	}
+	return (EINVAL);
+}
+
+
+
+static int
+fbd_init(struct linux_fb_info *fb_info, int unit)
+{
+	fb_info->fb_cdev = make_dev(&fb_cdevsw, unit, UID_ROOT, GID_WHEEL, 0600, "fb%d", unit);
+	fb_info->fb_cdev->si_drv1 = fb_info;
+
+	return (0);
+}
+
+
 static int
 fb_init(void)
 {
@@ -34,6 +195,12 @@ fb_init(void)
 }
 SYSINIT(fb_init, SI_SUB_KLD, SI_ORDER_MIDDLE, fb_init, NULL);
 
+void
+linux_fb_destroy(void)
+{
+	class_destroy(fb_class);
+}
+
 
 struct linux_fb_info *
 linux_framebuffer_alloc(size_t size, struct device *dev)
@@ -42,17 +209,19 @@ linux_framebuffer_alloc(size_t size, struct device *dev)
 #define PADDING (BYTES_PER_LONG - (sizeof(struct linux_fb_info) % BYTES_PER_LONG))
 	int fb_info_size = sizeof(struct linux_fb_info);
 	struct linux_fb_info *info;
+	struct vt_kms_softc *sc;
 	char *p;
 
 	if (size)
 		fb_info_size += PADDING;
 
-	p = kzalloc(fb_info_size + size, GFP_KERNEL);
+	p = malloc(sizeof(*info), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	info = (struct linux_fb_info *)p;
+	sc = malloc(sizeof(*sc), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	TASK_INIT(&sc->fb_mode_task, 0, vt_restore_fbdev_mode, sc);
 
-	if (!p)
-		return NULL;
-
-	info = (struct linux_fb_info *) p;
+	info->fbio.fb_priv = sc;
+	info->fbio.enter = &vt_kms_postswitch;
 
 	if (size)
 		info->par = p + fb_info_size;
@@ -64,14 +233,16 @@ linux_framebuffer_alloc(size_t size, struct device *dev)
 #undef BYTES_PER_LONG
 }
 
-
 void
 linux_framebuffer_release(struct linux_fb_info *info)
 {
 	if (info == NULL)
 		return;
+	if (info->fbio.fb_fbd_dev != NULL)
+		device_delete_child(info->fb_bsddev, info->fbio.fb_fbd_dev);
 	kfree(info->apertures);
-	kfree(info);
+	free(info, DRM_MEM_KMS);
+	free(info->fbio.fb_priv, DRM_MEM_KMS);
 }
 
 static void
@@ -79,6 +250,9 @@ put_fb_info(struct linux_fb_info *fb_info)
 {
 	if (!atomic_dec_and_test(&fb_info->count))
 		return;
+
+	mutex_destroy(&fb_info->lock);
+	mutex_destroy(&fb_info->mm_lock);
 	if (fb_info->fbops->fb_destroy)
 		fb_info->fbops->fb_destroy(fb_info);
 }
@@ -259,10 +433,28 @@ fb_var_to_videomode(struct fb_videomode *mode,
 	mode->refresh = hfreq/vtotal;
 }
 
+void
+drm_legacy_fb_init(struct linux_fb_info *info)
+{
+	struct fb_info *t;
+
+	t = &info->fbio;
+	t->fb_type = FBTYPE_PCIMISC;
+	t->fb_height = info->var.yres;
+	t->fb_width = info->var.xres;
+	t->fb_depth = info->var.bits_per_pixel;
+	t->fb_cmsize = info->cmap.len;
+	t->fb_stride = info->fix.line_length;
+	t->fb_pbase = info->fix.smem_start;
+	t->fb_size = info->fix.smem_len;
+	t->fb_vbase = (uintptr_t)info->screen_base;
+}
+
 static int
 __register_framebuffer(struct linux_fb_info *fb_info)
 {
-	int i;
+	int i, err;
+	static int unit_no;
 	struct fb_event event;
 	struct fb_videomode mode;
 
@@ -315,6 +507,21 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 	registered_fb[i] = fb_info;
 
 	event.info = fb_info;
+	drm_legacy_fb_init(fb_info);
+
+	fb_info->fbio.fb_fbd_dev = device_add_child(fb_info->fb_bsddev, "fbd",
+				device_get_unit(fb_info->fb_bsddev));
+
+	/*
+	 * XXX we're deliberately not attaching because we already
+	 * do the equivalent albeit with less fanfare in fbd_init
+	 */
+	fbd_init(fb_info, unit_no++);
+	if (num_registered_fb == 1) {
+		if ((err = vt_fb_attach(&fb_info->fbio)) != 0)
+			return (err);
+	}
+
 #if 0	
 	if (!lock_fb_info(fb_info))
 		return -ENODEV;
@@ -363,6 +570,13 @@ __unregister_framebuffer(struct linux_fb_info *fb_info)
 	if (i < 0 || i >= FB_MAX || registered_fb[i] != fb_info)
 		return -EINVAL;
 
+
+	if (fb_info->fbio.fb_fbd_dev)
+		device_delete_child(fb_info->fb_bsddev, fb_info->fbio.fb_fbd_dev);
+
+	if (num_registered_fb == 1)
+		vt_fb_detach(&fb_info->fbio);
+
 #if 0	
 	if (!lock_fb_info(fb_info))
 		return -ENODEV;
@@ -384,6 +598,7 @@ __unregister_framebuffer(struct linux_fb_info *fb_info)
 	registered_fb[i] = NULL;
 	num_registered_fb--;
 	event.info = fb_info;
+
 #if 0	
 	console_lock();
 	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
