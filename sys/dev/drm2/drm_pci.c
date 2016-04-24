@@ -316,6 +316,12 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	dev->pdev = pdev;
 	dev->dev = &pdev->dev;
 
+	/* FreeBSD needs this to populate master->unique correctly */
+	dev->pci_domain = pci_get_domain(dev->dev->bsddev);
+	dev->pci_bus = pci_get_bus(dev->dev->bsddev);
+	dev->pci_slot = pci_get_slot(dev->dev->bsddev);
+	dev->pci_func = pci_get_function(dev->dev->bsddev);
+
 	dev->pci_device = pdev->device;
 	dev->pci_vendor = pdev->vendor;
 
