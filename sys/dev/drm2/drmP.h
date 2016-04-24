@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 #include <sys/bus.h>
 
+#include <linux/io.h>
 #include <compat/linuxkpi/common/include/linux/pci.h>
 #include <compat/linuxkpi/common/include/linux/idr.h>
 #include <compat/linuxkpi/common/include/linux/string.h>
