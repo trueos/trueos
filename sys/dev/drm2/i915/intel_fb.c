@@ -144,7 +144,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		ret = -ENOSPC;
 		goto out_unpin;
 	}
-
+	info->fbio.fb_bpp = sizes->surface_bpp;
 //	memset(info->screen_base, 0, size);
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
