@@ -34,9 +34,10 @@
 
 #include <dev/drm2/linux_fb.h>
 
-#define fb_info linux_fb_info
 struct linux_fb_info;
 struct drm_fb_helper;
+
+#define fb_info linux_fb_info
 
 struct drm_fb_helper_crtc {
 	struct drm_mode_set mode_set;

@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/intel_drv.h>
 #include <sys/sched.h>
 #include <vm/vm_pageout.h>
+#include <linux/io.h>
 
 static void intel_gmch_remove(void);
 struct agp_bridge_data;
@@ -100,6 +101,7 @@ static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 	scratch_pte = gen6_pte_encode(ppgtt->dev,
 				      ppgtt->scratch_page_dma_addr,
 				      I915_CACHE_LLC);
+
 	while (num_entries) {
 		last_pte = first_pte + num_entries;
 		if (last_pte > I915_PPGTT_PT_ENTRIES)
@@ -117,7 +119,6 @@ static void gen6_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 		act_pd++;
 	}
 }
-
 
 static void gen6_ppgtt_insert_entries(struct i915_hw_ppgtt *ppgtt,
 				      struct sg_table *pages,
@@ -192,7 +193,7 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 	/* ppgtt PDEs reside in the global gtt pagetable, which has 512*1024
 	 * entries. For aliasing ppgtt support we just steal them at the end for
 	 * now. */
-	first_pd_entry_in_global_pt = gtt_total_entries(dev_priv->gtt);
+       first_pd_entry_in_global_pt = gtt_total_entries(dev_priv->gtt);
 
 	ppgtt->num_pd_entries = I915_PPGTT_PD_ENTRIES;
 	ppgtt->clear_range = gen6_ppgtt_clear_range;
@@ -211,7 +212,6 @@ static int gen6_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 
 	ppgtt->pt_dma_addr = kzalloc(sizeof(dma_addr_t) *ppgtt->num_pd_entries,
 				     GFP_KERNEL);
-
 	if (!ppgtt->pt_dma_addr)
 		goto err_pt_alloc;
 
@@ -291,7 +291,7 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 			    struct drm_i915_gem_object *obj,
 			    enum i915_cache_level cache_level)
 {
-		ppgtt->insert_entries(ppgtt, obj->pages,
+	ppgtt->insert_entries(ppgtt, obj->pages,
 			      obj->gtt_space->start >> PAGE_SHIFT,
 			      cache_level);
 }
@@ -318,12 +318,11 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		return;
 
 
-	pd_addr =  (gtt_pte_t __iomem*)dev_priv->gtt.gsm + ppgtt->pd_offset/sizeof(gtt_pte_t);
+	pd_addr = (gtt_pte_t __iomem*)dev_priv->gtt.gsm + ppgtt->pd_offset/sizeof(gtt_pte_t);
 	for (i = 0; i < ppgtt->num_pd_entries; i++) {
 		dma_addr_t pt_addr;
 
 		pt_addr = ppgtt->pt_dma_addr[i];
-
 		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
 		pd_entry |= GEN6_PDE_VALID;
 
@@ -512,6 +511,8 @@ static void i915_ggtt_insert_entries(struct drm_device *dev,
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
 	intel_gtt_insert_sg_entries(st, pg_start, flags);
+#else
+	panic("XXX fix");
 #endif
 }
 
@@ -580,7 +581,6 @@ static void i915_gtt_color_adjust(struct drm_mm_node *node,
 			*end -= 4096;
 	}
 }
-
 void i915_gem_setup_global_gtt(struct drm_device *dev,
 			       unsigned long start,
 			       unsigned long mappable_end,
@@ -658,6 +658,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev)
 
 	gtt_size = dev_priv->gtt.total;
 	mappable_size = dev_priv->gtt.mappable_end;
+
 	if (intel_enable_ppgtt(dev) && HAS_ALIASING_PPGTT(dev)) {
 		int ret;
 		/* PPGTT pdes are stolen from global gtt ptes, so shrink the
@@ -706,7 +707,6 @@ static int setup_scratch_page(struct drm_device *dev)
 static void teardown_scratch_page(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	set_pages_wb(dev_priv->gtt.scratch_page, 1);
 	pci_unmap_page(dev->pdev, dev_priv->gtt.scratch_page_dma,
 		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
@@ -751,6 +751,7 @@ static int gen6_gmch_probe(struct drm_device *dev,
 
 	*mappable_base = pci_resource_start(dev->pdev, 2);
 	*mappable_end = pci_resource_len(dev->pdev, 2);
+
 	/* 64/512MB is the current min/max we actually know of, but this is just
 	 * a coarse sanity check.
 	 */
@@ -759,6 +760,7 @@ static int gen6_gmch_probe(struct drm_device *dev,
 			  dev_priv->gtt.mappable_end);
 		return -ENXIO;
 	}
+
 	if (!pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(40)))
 		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(40));
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
@@ -810,6 +812,7 @@ static int i915_gmch_probe(struct drm_device *dev,
 		DRM_ERROR("failed to set up gmch\n");
 		return -EIO;
 	}
+
 	intel_gtt_get(gtt_total, stolen, mappable_base, mappable_end);
 
 	dev_priv->gtt.do_idle_maps = needs_idle_maps(dev_priv->dev);
@@ -831,7 +834,6 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	unsigned long gtt_size;
 	int ret;
 
-	
 	if (INTEL_INFO(dev)->gen <= 5) {
 		dev_priv->gtt.gtt_probe = i915_gmch_probe;
 		dev_priv->gtt.gtt_remove = i915_gmch_remove;
@@ -852,6 +854,8 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	/* GMADR is the PCI mmio aperture into the global GTT. */
 	DRM_INFO("Memory usable by graphics device = %zdM\n",
 		 dev_priv->gtt.total >> 20);
+	DRM_INFO("Mappable base 0x%lx mappable end %lx\n",
+		 gtt->mappable_base, gtt->mappable_end);
 	DRM_DEBUG_DRIVER("GMADR size = %ldM\n",
 			 dev_priv->gtt.mappable_end >> 20);
 	DRM_DEBUG_DRIVER("GTT stolen size = %zdM\n",
@@ -986,13 +990,14 @@ intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 	else
 		pci_set_consistent_dma_mask(intel_private.pcidev,
 					    DMA_BIT_MASK(mask));
-#ifdef notyet
+
 	if (intel_gtt_init() != 0) {
 		intel_gmch_remove();
 
 		return 0;
 	}
-#endif	
+#else
+	panic(" XXX implement me ");
 #endif
 	return 1;
 }

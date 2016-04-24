@@ -475,6 +475,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 			   DP_AUX_CH_CTL_RECEIVE_ERROR);
 
 		status = intel_dp_aux_wait_done(intel_dp, has_aux_irq);
+
 		/* Clear done status and any errors */
 		I915_WRITE(ch_ctl,
 			   status |
@@ -521,9 +522,11 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	for (i = 0; i < recv_bytes; i += 4)
 		unpack_aux(I915_READ(ch_data + i),
 			   recv + i, recv_bytes - i);
+
 	ret = recv_bytes;
 out:
 	pm_qos_update_request(&dev_priv->pm_qos, PM_QOS_DEFAULT_VALUE);
+
 	return ret;
 }
 
@@ -723,7 +726,8 @@ intel_dp_i2c_init(struct intel_dp *intel_dp,
 	intel_dp->adapter.name[sizeof(intel_dp->adapter.name) - 1] = '\0';
 	intel_dp->adapter.algo_data = &intel_dp->algo;
 	intel_dp->adapter.dev.parent = &intel_connector->base.kdev;
-
+	/* linuxkpi needs class to be set */
+	intel_dp->adapter.dev.class = drm_class;
 	ironlake_edp_panel_vdd_on(intel_dp);
 	ret = i2c_dp_aux_add_bus(&intel_dp->adapter);
 	ironlake_edp_panel_vdd_off(intel_dp, false);
@@ -1018,6 +1022,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	} else {
 		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
 	}
+
 	if (is_cpu_edp(intel_dp))
 		ironlake_set_pll_edp(crtc, adjusted_mode->clock);
 }
@@ -2098,11 +2103,6 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 			/* We should never try to disable a port without a crtc
 			 * attached. For paranoia keep the code around for a
 			 * bit. */
-
-
-
-
-
 			POSTING_READ(intel_dp->output_reg);
 			msleep(50);
 		} else
@@ -2299,6 +2299,7 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 			status = connector_status_connected;
 		return status;
 	}
+
 	if (!ibx_digital_port_connected(dev_priv, intel_dig_port))
 		return connector_status_disconnected;
 
@@ -2369,13 +2370,13 @@ intel_dp_get_edid_modes(struct drm_connector *connector, struct i2c_adapter *ada
 		/* invalid edid */
 		if (IS_ERR(intel_connector->edid))
 			return 0;
+
 		return intel_connector_update_modes(connector,
 						    intel_connector->edid);
 	}
 
 	return intel_ddc_get_modes(connector, adapter);
 }
-
 
 static enum drm_connector_status
 intel_dp_detect(struct drm_connector *connector, bool force)
@@ -2512,7 +2513,6 @@ intel_dp_set_property(struct drm_connector *connector,
 		goto done;
 	}
 
-
 	if (is_edp(intel_dp) &&
 	    property == connector->dev->mode_config.scaling_mode_property) {
 		if (val == DRM_MODE_SCALE_NONE) {
@@ -2532,7 +2532,6 @@ intel_dp_set_property(struct drm_connector *connector,
 	return -EINVAL;
 
 done:
-
 	if (intel_encoder->base.crtc)
 		intel_crtc_restore_mode(intel_encoder->base.crtc);
 

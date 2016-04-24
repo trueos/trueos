@@ -43,7 +43,10 @@ __FBSDID("$FreeBSD$");
 
 #include "fb_if.h"
 #include <linux/pci.h>
+#include <linux/io.h>
 
+
+#define pci_get_class linux_pci_get_class
 
 static int i915_modeset __read_mostly = 1;
 TUNABLE_INT("drm.i915.modeset", &i915_modeset);
@@ -160,10 +163,15 @@ TUNABLE_INT("drm.i915.intel_iommu_gfx_mapped", &intel_iommu_gfx_mapped);
 static struct drm_driver driver;
 int intel_agp_enabled = 1; /* On FreeBSD, agp is a required dependency. */
 
-#define INTEL_VGA_DEVICE(id, info_) {		\
+
+#define INTEL_VGA_DEVICE(id, info) {		\
+	.class = PCI_BASE_CLASS_DISPLAY << 16,	\
+	.class_mask = 0xff0000,			\
+	.vendor = 0x8086,			\
 	.device = id,				\
-	.info = info_,				\
-}
+	.subvendor = PCI_ANY_ID,		\
+	.subdevice = PCI_ANY_ID,		\
+	.driver_data = (unsigned long) info }
 
 static const struct intel_device_info intel_i830_info = {
 	.gen = 2, .is_mobile = 1, .cursor_needs_physical = 1,
@@ -335,15 +343,7 @@ static const struct intel_device_info intel_haswell_m_info = {
 	.has_force_wake = 1,
 };
 
-/* drv_PCI_IDs comes from drm_pciids.h, generated from drm_pciids.txt. */
-static const drm_pci_id_list_t pciidlist[] = {
-	i915_PCI_IDS
-};
-
-static const struct intel_gfx_device_id {
-	int device;
-	const struct intel_device_info *info;
-} i915_infolist[] = {		/* aka */
+static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_VGA_DEVICE(0x3577, &intel_i830_info),		/* I830_M */
 	INTEL_VGA_DEVICE(0x2562, &intel_845g_info),		/* 845_G */
 	INTEL_VGA_DEVICE(0x3582, &intel_i85x_info),		/* I855_GM */
@@ -461,7 +461,7 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 void intel_detect_pch(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	device_t pch;
+	struct pci_dev *pch;
 
 	/*
 	 * The reason to probe ISA bridge instead of Dev31:Fun0 is to
@@ -469,11 +469,11 @@ void intel_detect_pch(struct drm_device *dev)
 	 * need to expose ISA bridge to let driver know the real hardware
 	 * underneath. This is a requirement from virtualization team.
 	 */
-	pch = pci_find_class(PCIC_BRIDGE, PCIS_BRIDGE_ISA);
+	pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, NULL);
 	if (pch) {
-		if (pci_get_vendor(pch) == PCI_VENDOR_ID_INTEL) {
+		if (pch->vendor == PCI_VENDOR_ID_INTEL) {
 			unsigned short id;
-			id = pci_get_device(pch) & INTEL_PCH_DEVICE_ID_MASK;
+			id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
 			dev_priv->pch_id = id;
 
 			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
@@ -505,6 +505,7 @@ void intel_detect_pch(struct drm_device *dev)
 			}
 			BUG_ON(dev_priv->num_pch_pll > I915_NUM_PLLS);
 		}
+		pci_dev_put(pch);
 	}
 }
 
@@ -630,7 +631,7 @@ static int __i915_drm_thaw(struct drm_device *dev)
 
 		/* We need working interrupts for modeset enabling ... */
 		drm_irq_install(dev);
-		
+
 		intel_modeset_init_hw(dev);
 		intel_modeset_setup_hw_state(dev, false);
 
@@ -964,26 +965,12 @@ int i915_reset(struct drm_device *dev)
 	return 0;
 }
 
-const struct intel_device_info *
-i915_get_device_id(int device)
+static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	const struct intel_gfx_device_id *did;
+	struct intel_device_info *intel_info =
+		(struct intel_device_info *) ent->driver_data;
 
-	for (did = &i915_infolist[0]; did->device != 0; did++) {
-		if (did->device != device)
-			continue;
-		return (did->info);
-	}
-	return (NULL);
-}
-
-static int i915_probe(device_t kdev)
-{
-	const struct intel_device_info *intel_info =
-		i915_get_device_id(pci_get_device(kdev));
-
-	if (intel_info == NULL)
-		return (ENXIO);
+	printf("pci_probe called"); 
 	if (intel_info->is_valleyview)
 		if(!i915_preliminary_hw_support) {
 			DRM_ERROR("Preliminary hardware support disabled\n");
@@ -995,7 +982,7 @@ static int i915_probe(device_t kdev)
 	 * us confusion instead, especially on the systems where both
 	 * functions have the same PCI-ID!
 	 */
-	if (pci_get_function(kdev))
+	if (PCI_FUNC(pdev->devfn))
 		return -ENODEV;
 
 	/* We've managed to ship a kms-enabled ddx that shipped with an XvMC
@@ -1010,10 +997,9 @@ static int i915_probe(device_t kdev)
 		return -ENODEV;
 	}
 
-	return -drm_probe_helper(kdev, pciidlist);
+	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
-#ifdef __linux__
 static void
 i915_pci_remove(struct pci_dev *pdev)
 {
@@ -1092,6 +1078,7 @@ static const struct dev_pm_ops i915_pm_ops = {
 	.restore = i915_pm_resume,
 };
 
+#ifdef __linux__
 static const struct vm_operations_struct i915_gem_vm_ops = {
 	.fault = i915_gem_fault,
 	.open = drm_gem_vm_open,
@@ -1112,7 +1099,7 @@ static const struct file_operations i915_driver_fops = {
 #endif
 	.llseek = noop_llseek,
 };
-#endif /* __linux__ */
+#endif
 
 #ifdef COMPAT_FREEBSD32
 extern struct drm_ioctl_desc i915_compat_ioctls[];
@@ -1182,17 +1169,15 @@ static struct drm_driver driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
-#ifdef __linux__
 static struct pci_driver i915_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pciidlist,
 	.probe = i915_pci_probe,
 	.remove = i915_pci_remove,
-	.driver.pm = &i915_pm_ops,
+	.linux_driver.pm = &i915_pm_ops,
 };
-#endif
 
-static int __init i915_attach(device_t kdev)
+static int __init i915_init(void)
 {
 	driver.num_ioctls = i915_max_ioctl;
 
@@ -1220,160 +1205,26 @@ static int __init i915_attach(device_t kdev)
 	if (!(driver.driver_features & DRIVER_MODESET))
 		driver.get_vblank_timestamp = NULL;
 
-	return (-drm_attach_helper(kdev, pciidlist, &driver));
+	return drm_pci_init(&driver, &i915_pci_driver);
 }
 
-static struct fb_info *
-i915_fb_helper_getinfo(device_t kdev)
+static void __exit i915_exit(void)
 {
-	struct intel_fbdev *ifbdev;
-	drm_i915_private_t *dev_priv;
-	struct drm_device *dev;
-	struct fb_info *info;
-
-	dev = device_get_softc(kdev);
-	dev_priv = dev->dev_private;
-	ifbdev = dev_priv->fbdev;
-	if (ifbdev == NULL)
-		return (NULL);
-
-	info = &ifbdev->helper.fbdev->fbio;
-
-	return (info);
+	drm_pci_exit(&driver, &i915_pci_driver);
 }
 
-static device_method_t i915_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		i915_probe),
-	DEVMETHOD(device_attach,	i915_attach),
-	DEVMETHOD(device_suspend,	drm_generic_suspend),
-	DEVMETHOD(device_resume,	drm_generic_resume),
-	DEVMETHOD(device_detach,	drm_generic_detach),
-
-	/* Framebuffer service methods */
-	DEVMETHOD(fb_getinfo,		i915_fb_helper_getinfo),
-
-	DEVMETHOD_END
-};
-
-static driver_t i915_driver = {
-	"drmn",
-	i915_methods,
-	sizeof(struct drm_device)
-};
+module_init(i915_init);
+module_exit(i915_exit);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");
-
-extern devclass_t drm_devclass;
-DRIVER_MODULE_ORDERED(i915kms, vgapci, i915_driver, drm_devclass, 0, 0,
-    SI_ORDER_ANY);
-MODULE_DEPEND(i915kms, drmn, 1, 1, 1);
-MODULE_DEPEND(i915kms, agp, 1, 1, 1);
-MODULE_DEPEND(i915kms, linuxkpi, 1, 1, 1);
 
 /* We give fast paths for the really cool registers */
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \
 	((HAS_FORCE_WAKE((dev_priv)->dev)) && \
 	 ((reg) < 0x40000) &&            \
 	 ((reg) != FORCEWAKE))
-
-static bool IS_DISPLAYREG(u32 reg)
-{
-	/*
-	 * This should make it easier to transition modules over to the
-	 * new register block scheme, since we can do it incrementally.
-	 */
-	if (reg >= VLV_DISPLAY_BASE)
-		return false;
-
-	if (reg >= RENDER_RING_BASE &&
-	    reg < RENDER_RING_BASE + 0xff)
-		return false;
-	if (reg >= GEN6_BSD_RING_BASE &&
-	    reg < GEN6_BSD_RING_BASE + 0xff)
-		return false;
-	if (reg >= BLT_RING_BASE &&
-	    reg < BLT_RING_BASE + 0xff)
-		return false;
-
-	if (reg == PGTBL_ER)
-		return false;
-
-	if (reg >= IPEIR_I965 &&
-	    reg < HWSTAM)
-		return false;
-
-	if (reg == MI_MODE)
-		return false;
-
-	if (reg == GFX_MODE_GEN7)
-		return false;
-
-	if (reg == RENDER_HWS_PGA_GEN7 ||
-	    reg == BSD_HWS_PGA_GEN7 ||
-	    reg == BLT_HWS_PGA_GEN7)
-		return false;
-
-	if (reg == GEN6_BSD_SLEEP_PSMI_CONTROL ||
-	    reg == GEN6_BSD_RNCID)
-		return false;
-
-	if (reg == GEN6_BLITTER_ECOSKPD)
-		return false;
-
-	if (reg >= 0x4000c &&
-	    reg <= 0x4002c)
-		return false;
-
-	if (reg >= 0x4f000 &&
-	    reg <= 0x4f08f)
-		return false;
-
-	if (reg >= 0x4f100 &&
-	    reg <= 0x4f11f)
-		return false;
-
-	if (reg >= VLV_MASTER_IER &&
-	    reg <= GEN6_PMIER)
-		return false;
-
-	if (reg >= FENCE_REG_SANDYBRIDGE_0 &&
-	    reg < (FENCE_REG_SANDYBRIDGE_0 + (16*8)))
-		return false;
-
-	if (reg >= VLV_IIR_RW &&
-	    reg <= VLV_ISR)
-		return false;
-
-	if (reg == FORCEWAKE_VLV ||
-	    reg == FORCEWAKE_ACK_VLV)
-		return false;
-
-	if (reg == GEN6_GDRST)
-		return false;
-
-	switch (reg) {
-	case _3D_CHICKEN3:
-	case IVB_CHICKEN3:
-	case GEN7_COMMON_SLICE_CHICKEN1:
-	case GEN7_L3CNTLREG1:
-	case GEN7_L3_CHICKEN_MODE_REGISTER:
-	case GEN7_ROW_CHICKEN2:
-	case GEN7_L3SQCREG4:
-	case GEN7_SQ_CHICKEN_MBCUNIT_CONFIG:
-	case GEN7_HALF_SLICE_CHICKEN1:
-	case GEN6_MBCTL:
-	case GEN6_UCGCTL2:
-		return false;
-	default:
-		break;
-	}
-
-	return true;
-}
-
 static void
 ilk_dummy_write(struct drm_i915_private *dev_priv)
 {
@@ -1396,7 +1247,7 @@ u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 		val = read##y(dev_priv->regs + reg); \
 		if (dev_priv->forcewake_count == 0) \
 			dev_priv->gt.force_wake_put(dev_priv); \
-		spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);	\
+		spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags); \
 	} else { \
 		val = read##y(dev_priv->regs + reg); \
 	} \
@@ -1410,7 +1261,10 @@ __i915_read(32, l)
 __i915_read(64, q)
 #undef __i915_read
 
-#define __i915_write(x, y) \
+extern void db_trace_self_depth(int count);
+#define kdb_backtrace() db_trace_self_depth(3);
+
+#define __i915_write(x, y)						\
 void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 	u32 __fifo_ret = 0; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val)); \
@@ -1421,16 +1275,18 @@ void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
 		ilk_dummy_write(dev_priv); \
 	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
 		DRM_ERROR("Unknown unclaimed register before writing to %x\n", reg); \
+		kdb_backtrace();					\
 		I915_WRITE_NOTRACE(GEN7_ERR_INT, ERR_INT_MMIO_UNCLAIMED); \
 	} \
-	write##y(val, dev_priv->regs + reg);	\
+	write##y(val, dev_priv->regs + reg); \
 	if (unlikely(__fifo_ret)) { \
 		gen6_gt_check_fifodbg(dev_priv); \
 	} \
 	if (IS_HASWELL(dev_priv->dev) && (I915_READ_NOTRACE(GEN7_ERR_INT) & ERR_INT_MMIO_UNCLAIMED)) { \
-		DRM_ERROR("Unclaimed write to %x\n", reg); \
+		DRM_ERROR("Unclaimed write to %x\n", reg);		\
+		kdb_backtrace();					\
 		writel(ERR_INT_MMIO_UNCLAIMED, dev_priv->regs + GEN7_ERR_INT);	\
-	} \
+	}								\
 }
 __i915_write(8, b)
 __i915_write(16, w)
@@ -1483,3 +1339,36 @@ int i915_reg_read_ioctl(struct drm_device *dev,
 
 	return 0;
 }
+
+#ifdef old
+static device_method_t i915_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		i915_probe),
+	DEVMETHOD(device_attach,	i915_attach),
+	DEVMETHOD(device_suspend,	drm_generic_suspend),
+	DEVMETHOD(device_resume,	drm_generic_resume),
+	DEVMETHOD(device_detach,	drm_generic_detach),
+
+	/* Framebuffer service methods */
+	DEVMETHOD(fb_getinfo,		i915_fb_helper_getinfo),
+
+	DEVMETHOD_END
+};
+
+static driver_t i915_driver = {
+	"drmn",
+	i915_methods,
+	sizeof(struct drm_device)
+};
+
+
+extern devclass_t drm_devclass;
+DRIVER_MODULE_ORDERED(i915kms, vgapci, i915_driver, drm_devclass, 0, 0,
+    SI_ORDER_ANY);
+#endif
+
+
+MODULE_DEPEND(i915kms, drmn, 1, 1, 1);
+MODULE_DEPEND(i915kms, agp, 1, 1, 1);
+MODULE_DEPEND(i915kms, linuxkpi, 1, 1, 1);
+

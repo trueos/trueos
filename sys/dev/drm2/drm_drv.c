@@ -54,8 +54,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_core.h>
 #include <dev/drm2/drm_global.h>
+#include <dev/drm2/linux_fb.h>
+
+
 
 struct mutex drm_global_mutex;
+
 
 /** Ioctl table */
 static struct drm_ioctl_desc drm_ioctls[] = {
@@ -256,10 +260,20 @@ static const struct file_operations drm_stub_fops = {
 
 static int __init drm_core_init(void)
 {
+	int ret;
 
 	mutex_init(&drm_global_mutex);
 
 	drm_global_init();
+	idr_init(&drm_minors_idr);
+
+	drm_class = drm_sysfs_create(THIS_MODULE, "drm");
+	if (IS_ERR(drm_class)) {
+		printk(KERN_ERR "DRM: Error creating drm class.\n");
+		ret = PTR_ERR(drm_class);
+		goto err_p2;
+	}
+
 
 #if DRM_LINUX
 	linux_ioctl_register_handler(&drm_handler);
@@ -268,6 +282,10 @@ static int __init drm_core_init(void)
 	DRM_INFO("Initialized %s %d.%d.%d %s\n",
 		 CORE_NAME, CORE_MAJOR, CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
 	return 0;
+err_p2:
+	idr_destroy(&drm_minors_idr);
+
+	return ret;
 }
 
 static void __exit drm_core_exit(void)
@@ -280,6 +298,8 @@ static void __exit drm_core_exit(void)
 	drm_global_release();
 
 	mutex_destroy(&drm_global_mutex);
+	idr_destroy(&drm_minors_idr);
+	linux_fb_destroy();
 }
 
 SYSINIT(drm_register, SI_SUB_KLD, SI_ORDER_MIDDLE,

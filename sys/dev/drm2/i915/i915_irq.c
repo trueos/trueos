@@ -129,7 +129,6 @@ i915_pipe_enabled(struct drm_device *dev, int pipe)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
 								      pipe);
-
 	return I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_ENABLE;
 }
 
@@ -901,6 +900,7 @@ static void i915_error_work_func(struct work_struct *work)
 	int i, ret;
 
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
+
 	/*
 	 * Note that there's only one work item which does gpu resets, so we
 	 * need not worry about concurrent gpu resets potentially incrementing
@@ -931,6 +931,7 @@ static void i915_error_work_func(struct work_struct *work)
 			 */
 			smp_mb__before_atomic_inc();
 			atomic_inc(&dev_priv->gpu_error.reset_counter);
+
 			kobject_uevent_env(&dev->primary->kdev.kobj,
 					   KOBJ_CHANGE, reset_done_event);
 		} else {

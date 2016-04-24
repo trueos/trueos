@@ -915,6 +915,25 @@ static int i915_flip_bufs(struct drm_device *dev, void *data,
 	return ret;
 }
 
+
+#define I915_PARAM_HAS_VEBOX		 22
+#define I915_PARAM_HAS_SECURE_BATCHES	 23
+#define I915_PARAM_HAS_PINNED_BATCHES	 24
+#define I915_PARAM_HAS_EXEC_NO_RELOC	 25
+#define I915_PARAM_HAS_EXEC_HANDLE_LUT   26
+#define I915_PARAM_HAS_WT     	 	 27
+#define I915_PARAM_CMD_PARSER_VERSION	 28
+#define I915_PARAM_HAS_COHERENT_PHYS_GTT 29
+#define I915_PARAM_MMAP_VERSION          30
+#define I915_PARAM_HAS_BSD2		 31
+#define I915_PARAM_REVISION              32
+#define I915_PARAM_SUBSLICE_TOTAL	 33
+#define I915_PARAM_EU_TOTAL		 34
+#define I915_PARAM_HAS_GPU_RESET	 35
+#define I915_PARAM_HAS_RESOURCE_STREAMER 36
+#define I915_PARAM_HAS_EXEC_SOFTPIN	 37
+
+
 int i915_getparam(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
@@ -1005,6 +1024,11 @@ int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_EXEC_HANDLE_LUT:
 		value = 1;
+		break;
+	case I915_PARAM_HAS_VEBOX:
+	case I915_PARAM_HAS_RESOURCE_STREAMER:
+	case I915_PARAM_HAS_EXEC_SOFTPIN:
+		value = 0;
 		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
@@ -1281,6 +1305,7 @@ static const struct vga_switcheroo_client_ops i915_switcheroo_ops = {
 	.can_switch = i915_switcheroo_can_switch,
 };
 
+
 static int i915_load_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1481,7 +1506,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	int ret = 0, mmio_bar, mmio_size;
 	uint32_t aperture_size;
 
-	info = i915_get_device_id(dev->pci_device);
+	info = (struct intel_device_info *) flags;
 
 	/* Refuse to load on gen6+ without kms enabled. */
 	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET))

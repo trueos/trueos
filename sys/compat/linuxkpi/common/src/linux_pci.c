@@ -110,10 +110,14 @@ linux_pci_probe(device_t dev)
 	const struct pci_device_id *id;
 	struct pci_driver *pdrv;
 
-	if ((pdrv = linux_pci_find(dev, &id)) == NULL)
+	if ((pdrv = linux_pci_find(dev, &id)) == NULL) {
+		printf("linux_pci_find failed!\n");
 		return (ENXIO);
-	if (device_get_driver(dev) != &pdrv->driver)
+	}
+	if (device_get_driver(dev) != &pdrv->driver) {
+		printf("device_get_driver failed!\n");
 		return (ENXIO);
+	}
 	device_set_desc(dev, pdrv->name);
 	return (0);
 }
@@ -125,8 +129,14 @@ linux_pci_attach(device_t dev)
 	struct pci_dev *pdev;
 	struct pci_driver *pdrv;
 	const struct pci_device_id *id;
+	devclass_t dc;
+	device_t parent;
 	int error;
 
+	parent = device_get_parent(dev);
+	dc = device_get_devclass(parent);
+	if (strcmp(devclass_get_name(dc), "pci") != 0)
+		device_set_ivars(dev, device_get_ivars(parent));
 	pdrv = linux_pci_find(dev, &id);
 	pdev = device_get_softc(dev);
 	pdev->dev.parent = &linux_root_device;
@@ -160,6 +170,7 @@ linux_pci_attach(device_t dev)
 		list_del(&pdev->links);
 		spin_unlock(&pci_lock);
 		put_device(&pdev->dev);
+		printf("linux_pci_attach failed! %d", error);
 		return (-error);
 	}
 	return (0);
@@ -231,7 +242,10 @@ pci_register_driver(struct pci_driver *pdrv)
 	devclass_t bus;
 	int error = 0;
 
-	bus = devclass_find("pci");
+	if (pdrv->busname != NULL)
+		bus = devclass_create(pdrv->busname);
+	else
+		bus = devclass_find("pci");
 
 	spin_lock(&pci_lock);
 	list_add(&pdrv->links, &pci_drivers);
@@ -242,7 +256,7 @@ pci_register_driver(struct pci_driver *pdrv)
 	mtx_lock(&Giant);
 	if (bus != NULL) {
 		error = devclass_add_driver(bus, &pdrv->driver, BUS_PASS_DEFAULT,
-		    &pdrv->bsdclass);
+		    pdrv->bsdclass);
 	}
 	mtx_unlock(&Giant);
 	return (-error);
@@ -266,22 +280,21 @@ void *
 pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 {
 	struct resource *res;
-	int rid;
-	unsigned long start, len;
+	int rid, len;
 	void *regs;
 
 	if (pdev->pcir.r[bar] == NULL) {
 		rid = PCIR_BAR(bar);
 		if ((res = bus_alloc_resource_any(pdev->dev.bsddev, SYS_RES_MEMORY,
-						  &rid, RF_SHAREABLE)) == NULL)
+						  &rid, RF_ACTIVE)) == NULL)
 			return (NULL);
 		pdev->pcir.r[bar] = res;
 		pdev->pcir.rid[bar] = rid;
 	} 
-	start = rman_get_start(pdev->pcir.r[bar]);
-	len = rman_get_size(pdev->pcir.r[bar]);
-	regs = pmap_mapdev_attr(start, len, PAT_UNCACHED);
+	regs = (void *)rman_get_bushandle(pdev->pcir.r[bar]);
+	len = rman_get_end(pdev->pcir.r[bar])  - rman_get_start(pdev->pcir.r[bar]);
 	/* XXX if NULL ? */
+	pmap_change_attr((vm_offset_t)regs, len >> PAGE_SHIFT, PAT_UNCACHED);
 	pdev->pcir.map[bar] = regs;
 	return (regs);
 }
@@ -290,7 +303,7 @@ pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 void
 pci_iounmap(struct pci_dev *pdev, void *regs)
 {
-	int bar, rid, len;
+	int bar, rid;
 	struct resource *res;
 
 	res = NULL;
@@ -304,8 +317,6 @@ pci_iounmap(struct pci_dev *pdev, void *regs)
 	if (res == NULL)
 		return;
 
-	len = rman_get_size(res);
-	pmap_unmapdev((vm_offset_t)regs, len);
 	bus_release_resource(pdev->dev.bsddev, SYS_RES_MEMORY, rid, res);
 }
 

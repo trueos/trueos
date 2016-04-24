@@ -489,7 +489,6 @@ void intel_update_fbc(struct drm_device *dev)
 		DRM_INFO("not enough stolen space for compressed buffer (need %zd bytes), disabling\n", intel_fb->obj->base.size);
 		DRM_INFO("hint: you may be able to increase stolen memory size in the BIOS to avoid this\n");
 		DRM_DEBUG_KMS("framebuffer too large, disabling compression\n");
-
 		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		goto out_disable;
 	}
@@ -3719,11 +3718,11 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	 * This workaround should be removed after updating to a future Linux
 	 * i915 version and verifying normal power consumption on Sandy Bridge.
 	 */
+#endif /* FREEBSD_WIP */
 
-	/* WaMbcDriverBootEnable */
+	/* WaMbcDriverBootEnable - XXX should this be commented out?*/
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
 		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
-#endif /* FREEBSD_WIP */
 
 	for_each_pipe(pipe) {
 		I915_WRITE(DSPCNTR(pipe),
@@ -3751,11 +3750,9 @@ static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
 	reg |= GEN7_FF_VS_SCHED_HW;
 	reg |= GEN7_FF_DS_SCHED_HW;
 
-	
 	/* WaVSRefCountFullforceMissDisable */
 	if (IS_HASWELL(dev_priv->dev))
 		reg &= ~GEN7_FF_VS_REF_CNT_FFME;
-
 
 	I915_WRITE(GEN7_FF_THREAD_MODE, reg);
 }
@@ -4128,10 +4125,6 @@ void intel_set_power_well(struct drm_device *dev, bool enable)
 	bool is_enabled, enable_requested;
 	uint32_t tmp;
 
-
-
-
-
 	if (!IS_HASWELL(dev))
 		return;
 
@@ -4180,7 +4173,6 @@ void intel_init_power_well(struct drm_device *dev)
 	 * the driver is in charge now. */
 	if (I915_READ(HSW_PWR_WELL_BIOS) & HSW_PWR_WELL_ENABLE)
 		I915_WRITE(HSW_PWR_WELL_BIOS, 0);
-
 }
 
 /* Set up chip specific power management-related functions */

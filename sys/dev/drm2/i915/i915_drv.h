@@ -50,6 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/intel_ringbuffer.h>
 #include <dev/drm2/i915/intel_bios.h>
 #include <dev/drm2/i915/i915_drm.h>
+#include <linux/io.h>
+
+
 /* General customization:
  */
 
@@ -1422,8 +1425,6 @@ extern struct drm_driver i915_driver_info;
 extern struct cdev_pager_ops i915_gem_pager_ops;
 extern int intel_iommu_gfx_mapped;
 
-const struct intel_device_info *i915_get_device_id(int device);
-
 /* i915_debugfs.c */
 int i915_sysctl_init(struct drm_device *dev, struct sysctl_ctx_list *ctx,
     struct sysctl_oid *top);
@@ -1912,6 +1913,8 @@ __i915_write(16, w)
 __i915_write(32, l)
 __i915_write(64, q)
 #undef __i915_write
+
+
 
 #define I915_READ8(reg)		i915_read8(dev_priv, (reg))
 #define I915_WRITE8(reg, val)	i915_write8(dev_priv, (reg), (val))

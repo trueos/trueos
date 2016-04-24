@@ -95,11 +95,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 #include <sys/bus.h>
 
+#include <linux/io.h>
+#include <compat/linuxkpi/common/include/linux/pci.h>
 #include <compat/linuxkpi/common/include/linux/idr.h>
 #include <compat/linuxkpi/common/include/linux/string.h>
 #include <compat/linuxkpi/common/include/linux/compat.h>
 #include <compat/linuxkpi/common/include/linux/fs.h>
 #include <compat/linuxkpi/common/include/linux/gfp.h>
+#include <compat/linuxkpi/common/include/linux/pm.h>
 
 /*
  * CEM: drm.h brings in drm_os_freebsd.h, which brings in linuxkpi list.h.
@@ -937,6 +940,14 @@ struct drm_driver {
 	int dev_priv_size;
 	struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
+	union {
+
+		struct pci_driver *pci;
+#ifdef __linux__
+		struct platform_device *platform_device;
+		struct usb_driver *usb;
+#endif		
+	} kdriver;
 	struct drm_bus *bus;
 #ifdef COMPAT_FREEBSD32
 	struct drm_ioctl_desc *compat_ioctls;
@@ -944,6 +955,9 @@ struct drm_driver {
 #endif
 
 	int	buf_priv_size;
+
+	/* List of devices hanging off this driver */
+	struct list_head device_list;
 };
 
 #define DRM_MINOR_UNASSIGNED 0
@@ -1466,6 +1480,10 @@ extern unsigned int drm_vblank_offdelay;
 extern unsigned int drm_timestamp_precision;
 extern unsigned int drm_timestamp_monotonic;
 
+extern struct class *drm_class;
+
+extern struct idr drm_minors_idr;
+
 extern struct drm_local_map *drm_getsarea(struct drm_device *dev);
 
 
@@ -1527,6 +1545,15 @@ extern drm_dma_handle_t *drm_pci_alloc(struct drm_device *dev, size_t size,
 extern void __drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 extern void drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 
+
+struct drm_sysfs_class;
+extern struct class *drm_sysfs_create(struct module *owner, char *name);
+extern void drm_sysfs_destroy(void);
+extern int drm_sysfs_device_add(struct drm_minor *minor);
+extern void drm_sysfs_device_remove(struct drm_minor *minor);
+extern int drm_sysfs_connector_add(struct drm_connector *connector);
+extern void drm_sysfs_connector_remove(struct drm_connector *connector);
+
 /* Graphics Execution Manager library functions (drm_gem.c) */
 int drm_gem_init(struct drm_device *dev);
 void drm_gem_destroy(struct drm_device *dev);
@@ -1549,7 +1576,7 @@ static inline void
 drm_gem_object_reference(struct drm_gem_object *obj)
 {
 
-	KASSERT((int32_t)obj->refcount > 0, ("Dangling obj %p", obj));
+	KASSERT((int32_t)obj->refcount.refcount.counter > 0, ("Dangling obj %p", obj));
 	kref_get(&obj->refcount);
 }
 
@@ -1668,8 +1695,12 @@ int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type);
 int drm_pci_device_is_agp(struct drm_device *dev);
 int drm_pci_device_is_pcie(struct drm_device *dev);
 
-extern int drm_get_pci_dev(device_t kdev, struct drm_device *dev,
+extern int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
+extern void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
+extern int drm_get_pci_dev(struct pci_dev *pdev,
+			   const struct pci_device_id *ent,
 			   struct drm_driver *driver);
+
 
 #define DRM_PCIE_SPEED_25 1
 #define DRM_PCIE_SPEED_50 2
@@ -1729,19 +1760,6 @@ enum {
 #define DRM_GET_USER_UNCHECKED(val, uaddr)		\
 	((val) = fuword32(uaddr), 0)
 
-/*
- * CEM: linuxkpi macros expect a 'bsddev' device_t member; drm2 passes the
- * device_t already.  Use our custom macros for now.
- */
-#undef	dev_err
-#define	dev_err(dev, fmt, ...)						\
-	device_printf((dev), "error: " fmt, ## __VA_ARGS__)
-#undef	dev_warn
-#define	dev_warn(dev, fmt, ...)						\
-	device_printf((dev), "warning: " fmt, ## __VA_ARGS__)
-#undef	dev_info
-#define	dev_info(dev, fmt, ...)						\
-	device_printf((dev), "info: " fmt, ## __VA_ARGS__)
 #undef	dev_dbg
 #define	dev_dbg(dev, fmt, ...) do {					\
 	if ((drm_debug& DRM_DEBUGBITS_KMS) != 0) {			\

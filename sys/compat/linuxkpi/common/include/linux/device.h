@@ -48,6 +48,8 @@
 enum irqreturn	{ IRQ_NONE = 0, IRQ_HANDLED, IRQ_WAKE_THREAD, };
 typedef enum irqreturn	irqreturn_t;
 
+struct device;
+
 struct class {
 	const char	*name;
 	struct module	*owner;
@@ -57,6 +59,54 @@ struct class {
 	void		(*dev_release)(struct device *dev);
 	char *		(*devnode)(struct device *dev, umode_t *mode);
 };
+
+struct device_driver {
+	const char		*name;
+	struct bus_type		*bus;
+#ifdef notyet
+	struct module		*owner;
+	const char		*mod_name;	/* used for built-in modules */
+
+	bool suppress_bind_attrs;	/* disables bind/unbind via sysfs */
+
+	const struct of_device_id	*of_match_table;
+	const struct acpi_device_id	*acpi_match_table;
+#endif
+	int (*probe) (struct device *dev);
+	int (*remove) (struct device *dev);
+	void (*shutdown) (struct device *dev);
+	int (*suspend) (struct device *dev, pm_message_t state);
+	int (*resume) (struct device *dev);
+	const struct attribute_group **groups;
+
+	const struct dev_pm_ops *pm;
+#ifdef notyet
+	struct driver_private *p;
+#endif	
+};
+
+/*
+ * The type of device, "struct device" is embedded in. A class
+ * or bus can contain devices of different types
+ * like "partitions" and "disks", "mouse" and "event".
+ * This identifies the device type and carries type-specific
+ * information, equivalent to the kobj_type of a kobject.
+ * If "name" is specified, the uevent will contain it in
+ * the DEVTYPE variable.
+ */
+
+struct kobj_uevent_env;
+
+struct device_type {
+	const char *name;
+	const struct attribute_group **groups;
+	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
+	char *(*devnode)(struct device *dev, umode_t *mode);
+	void (*release)(struct device *dev);
+
+	const struct dev_pm_ops *pm;
+};
+
 
 struct device {
 	struct device	*parent;
@@ -71,6 +121,7 @@ struct device {
 	unsigned int	irq;
 	unsigned int	msix;
 	unsigned int	msix_max;
+	struct device_type *type;
 };
 
 extern struct device linux_root_device;

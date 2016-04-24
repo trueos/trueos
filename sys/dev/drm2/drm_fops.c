@@ -196,7 +196,9 @@ static int drm_open_helper(struct cdev *kdev, int flags, int fmt,
 
 	INIT_LIST_HEAD(&priv->lhead);
 	INIT_LIST_HEAD(&priv->fbs);
+	mutex_init(&priv->fbs_lock);
 	INIT_LIST_HEAD(&priv->event_list);
+	init_waitqueue_head(&priv->event_wait);
 	priv->event_space = 4096; /* set aside 4k for event buffer */
 
 	if (dev->driver->driver_features & DRIVER_GEM)
@@ -538,7 +540,7 @@ drm_event_wakeup(struct drm_pending_event *e)
 
 	file_priv = e->file_priv;
 	dev = file_priv->minor->dev;
-	mtx_assert(&dev->event_lock, MA_OWNED);
+	assert_spin_locked(&dev->event_lock);
 
 	wakeup(&file_priv->event_space);
 	selwakeup(&file_priv->event_poll);

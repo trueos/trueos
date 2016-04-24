@@ -56,11 +56,31 @@
 #include <linux/ioport.h>
 
 
+#define PCI_BASE_CLASS_DISPLAY		0x03
+#define PCI_CLASS_DISPLAY_VGA		0x0300
+#define PCI_CLASS_DISPLAY_XGA		0x0301
+#define PCI_CLASS_DISPLAY_3D		0x0302
+#define PCI_CLASS_DISPLAY_OTHER		0x0380
+
+#define PCI_BASE_CLASS_BRIDGE		0x06
+#define PCI_CLASS_BRIDGE_HOST		0x0600
+#define PCI_CLASS_BRIDGE_ISA		0x0601
+#define PCI_CLASS_BRIDGE_EISA		0x0602
+#define PCI_CLASS_BRIDGE_MC		0x0603
+#define PCI_CLASS_BRIDGE_PCI		0x0604
+#define PCI_CLASS_BRIDGE_PCMCIA		0x0605
+#define PCI_CLASS_BRIDGE_NUBUS		0x0606
+#define PCI_CLASS_BRIDGE_CARDBUS	0x0607
+#define PCI_CLASS_BRIDGE_RACEWAY	0x0608
+#define PCI_CLASS_BRIDGE_OTHER		0x0680
+
+
 struct pci_device_id {
 	uint32_t	vendor;
 	uint32_t	device;
         uint32_t	subvendor;
 	uint32_t	subdevice;
+	uint32_t	class;
 	uint32_t	class_mask;
 	uintptr_t	driver_data;
 };
@@ -207,7 +227,9 @@ struct pci_driver {
 	int  (*resume) (struct pci_dev *dev);		/* Device woken up */
 	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
 	driver_t			driver;
-	devclass_t			bsdclass;
+	devclass_t			*bsdclass;
+	char				*busname;
+	struct device_driver	linux_driver;
         const struct pci_error_handlers       *err_handler;
 };
 
@@ -367,6 +389,7 @@ pci_name(struct pci_dev *d)
 	return device_get_desc(d->dev.bsddev);
 }
 
+
 static inline void *
 pci_get_drvdata(struct pci_dev *pdev)
 {
@@ -482,6 +505,33 @@ linux_pci_disable_msi(struct pci_dev *pdev)
 	/* disable until clear how to do enable */
 	/* pci_disable_msi(pdev->dev.bsddev); */
 }
+
+static inline struct pci_dev *
+linux_pci_get_class(unsigned int class, struct pci_dev *from)
+{
+	device_t dev;
+	struct pci_dev *pdev;
+	struct pci_bus *pbus;
+
+	if (class != (PCI_CLASS_BRIDGE_ISA << 8))
+		return (NULL);
+
+	dev = pci_find_class(PCIC_BRIDGE, PCIS_BRIDGE_ISA);
+	if (dev == NULL)
+		return (NULL);
+
+	pdev = malloc(sizeof(*pdev), M_DEVBUF, M_WAITOK|M_ZERO);
+	/* XXX do we need to initialize pdev more here ? */
+	pdev->vendor = pci_get_vendor(dev);
+	pdev->device = pci_get_device(dev);
+	pdev->dev.bsddev = dev;
+	pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK|M_ZERO);
+	pbus->self = pdev;
+	pdev->bus = pbus;
+	return (pdev);
+}
+
+
 
 static inline void
 pci_disable_msix(struct pci_dev *pdev)

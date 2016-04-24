@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_core.h>
 
-#ifdef DRM_DEBUG_DEFAULT_ON
+#ifdef DRM_DEBUG
 unsigned int drm_debug = (DRM_DEBUGBITS_DEBUG | DRM_DEBUGBITS_KMS |
     DRM_DEBUGBITS_FAILED_IOCTL);
 #else

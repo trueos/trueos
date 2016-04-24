@@ -73,6 +73,9 @@ static DEFINE_IDR(i2c_adapter_idr);
 
 #define I2C_ERR printf
 
+static DEFINE_MUTEX(i2c_core);
+
+
 static int
 i2c_register_adapter(struct i2c_adapter *adap)
 {
@@ -98,9 +101,9 @@ i2c_register_adapter(struct i2c_adapter *adap)
 		goto err;
 	return (0);
 err:
-	mtx_lock(&Giant);
+	mutex_lock(&i2c_core);
 	idr_remove(&i2c_adapter_idr, adap->nr);
-	mtx_unlock(&Giant);
+	mutex_unlock(&i2c_core);
 	return (rc);
 }
 
@@ -421,9 +424,9 @@ i2c_add_adapter(struct i2c_adapter *adapter)
 	int id;
 	static int __i2c_first_dynamic_bus_num;
 
-	mtx_lock(&Giant);
+	mutex_lock(&i2c_core);
 	id = idr_alloc(&i2c_adapter_idr, adapter, __i2c_first_dynamic_bus_num, 0, GFP_KERNEL);
-	mtx_unlock(&Giant);
+	mutex_unlock(&i2c_core);
 
 	if (id < 0)
 		return id;
@@ -437,17 +440,17 @@ i2c_del_adapter(struct i2c_adapter *adap)
 {
 	struct i2c_adapter *found;
 
-	mtx_lock(&Giant);
+	mutex_lock(&i2c_core);
 	found = idr_find(&i2c_adapter_idr, adap->nr);
-	mtx_unlock(&Giant);
+	mutex_unlock(&i2c_core);
 	if (found != adap)
 		return (-EINVAL);
 
 	device_unregister(&adap->dev);
 
-	mtx_lock(&Giant);
+	mutex_lock(&i2c_core);
 	idr_remove(&i2c_adapter_idr, adap->nr);
-	mtx_unlock(&Giant);
+	mutex_unlock(&i2c_core);
 	return (0);
 }
 
@@ -477,8 +480,8 @@ i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	if (adap->algo->master_xfer == NULL)
 		return (-EOPNOTSUPP);
 
-	mtx_lock(&Giant);
+	mutex_lock(&i2c_core);
 	rc = __i2c_transfer(adap, msgs, num);
-	mtx_unlock(&Giant);
+	mutex_unlock(&i2c_core);
 	return (rc);
 }

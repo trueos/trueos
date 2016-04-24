@@ -19,7 +19,11 @@ __FBSDID("$FreeBSD$");
 #include <linux/mod_devicetable.h>
 #include <linux/pci.h>
 
-#define	DRM_IRQ_ARGS		void *arg
+struct vt_kms_softc {
+	struct drm_fb_helper    *fb_helper;
+	struct task              fb_mode_task;
+};
+#define	DRM_IRQ_ARGS		int irq, void *arg
 
 #define	KHZ2PICOS(a)	(1000000000UL/(a))
 
@@ -308,9 +312,6 @@ extern const char *fb_mode_option;
 #define	I2C_M_NOSTART	IIC_M_NOSTART
 #endif
 
-struct fb_info *	framebuffer_alloc(size_t, struct device *);
-void			framebuffer_release(struct fb_info *info);
-
 #define	console_lock()
 #define	console_unlock()
 #define	console_trylock()	true
@@ -336,10 +337,6 @@ do {									\
 		printf("NOTYET: %s at %s:%d\n", __func__, __FILE__, __LINE__); \
 } while (0)
 
-#define drm_sysfs_connector_remove(connector)
-#define drm_sysfs_connector_add(connector)
-#define drm_sysfs_device_add(x) (0)
-#define drm_sysfs_device_remove(x)
 #define drm_proc_cleanup(a, b)
 
 
@@ -418,6 +415,10 @@ static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return
 #define acpi_video_unregister()
 #define unregister_shrinker(x)
 #define drm_prime_gem_destroy(x, y)
+#define class_create_file(a, b)
+#define class_destroy_file(a, b)
+#define drm_sysfs_hotplug_event(a)
+
 
 #define CONFIG_X86_PAT
 

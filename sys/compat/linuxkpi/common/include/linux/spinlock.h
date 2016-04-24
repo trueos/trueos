@@ -74,8 +74,13 @@ spin_lock_destroy(spinlock_t *lock)
 	spinlock_t lock;						\
 	MTX_SYSINIT(lock, &(lock).m, "lnxspin", MTX_DEF)
 
-/* XXXTODO this requires implementation still*/
-#define assert_spin_locked(lock) panic("XXX implement me!")
+
+static inline void
+assert_spin_locked(spinlock_t *lock)
+{
+	mtx_assert(&lock->m, MA_OWNED);
+}
+
 static inline void spin_lock_bh(spinlock_t *lock) {
 	critical_enter();
 	spin_lock(lock);

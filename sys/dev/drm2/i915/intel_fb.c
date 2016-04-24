@@ -125,7 +125,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		ret = -ENOMEM;
 		goto out_unpin;
 	}
-
 	/* setup aperture base/size for vesafb takeover */
 	info->apertures = alloc_apertures(1);
 	if (!info->apertures) {
@@ -145,11 +144,9 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		ret = -ENOSPC;
 		goto out_unpin;
 	}
-	info->screen_size = size;
+	info->fbio.fb_bpp = sizes->surface_bpp;
 //	memset(info->screen_base, 0, size);
 
-
-	
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
 
@@ -165,7 +162,8 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x, bo %p\n",
 		      fb->width, fb->height,
 		      obj->gtt_offset, obj);
-	
+
+
 	mutex_unlock(&dev->struct_mutex);
 	vga_switcheroo_client_fb_set(dev->pdev, info);
 	return 0;
@@ -201,6 +199,7 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 	}
 
 	drm_fb_helper_fini(&ifbdev->helper);
+
 	drm_framebuffer_unregister_private(&ifb->base);
 	drm_framebuffer_cleanup(&ifb->base);
 	if (ifb->obj) {
@@ -279,7 +278,6 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state)
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	fb_set_suspend(info, state);
-
 }
 
 MODULE_LICENSE("GPL and additional rights");

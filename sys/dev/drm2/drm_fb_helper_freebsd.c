@@ -12,40 +12,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#if 0
+
 struct vt_kms_softc {
 	struct drm_fb_helper	*fb_helper;
 	struct task		 fb_mode_task;
 };
-
-
-/* Call restore out of vt(9) locks. */
-static void
-vt_restore_fbdev_mode(void *arg, int pending)
-{
-	struct drm_fb_helper *fb_helper;
-	struct vt_kms_softc *sc;
-
-	sc = (struct vt_kms_softc *)arg;
-	fb_helper = sc->fb_helper;
-	mutex_lock(&fb_helper->dev->mode_config.mutex);
-	drm_fb_helper_restore_fbdev_mode(fb_helper);
-	mutex_unlock(&fb_helper->dev->mode_config.mutex);
-}
-
-static int
-vt_kms_postswitch(void *arg)
-{
-	struct vt_kms_softc *sc;
-
-	sc = (struct vt_kms_softc *)arg;
-
-	if (!kdb_active && panicstr == NULL)
-		taskqueue_enqueue(taskqueue_thread, &sc->fb_mode_task);
-	else
-		drm_fb_helper_restore_fbdev_mode(sc->fb_helper);
-
-	return (0);
-}
 
 struct fb_info *
 framebuffer_alloc(size_t size, struct device *dev)
@@ -59,7 +31,7 @@ framebuffer_alloc(size_t size, struct device *dev)
 	TASK_INIT(&sc->fb_mode_task, 0, vt_restore_fbdev_mode, sc);
 
 	info->fb_priv = sc;
-	info->enter = &vt_kms_postswitch;
+	info->debug_enter = &vt_kms_postswitch;
 
 	return (info);
 }
@@ -71,6 +43,7 @@ framebuffer_release(struct fb_info *info)
 	free(info->fb_priv, DRM_MEM_KMS);
 	free(info, DRM_MEM_KMS);
 }
+#endif
 
 int
 fb_get_options(const char *connector_name, char **option)
