@@ -1,8 +1,8 @@
-ati_pcigart.c		(B)
+ati_pcigart.c		(B)	UNCHANGED between 3.8/3.9/4.6
 drm_dma.c		(A)	UPDATED
-drm_agpsupport.c	(B/C)
+drm_agpsupport.c	(B/C)	UPDATED
 drm_auth.c		(B)	UPDATED
-drm_bufs.c		(B)
+drm_bufs.c		(B)	UPDATED
 drm_context.c		(A)	UPDATED
 drm_crtc.c		(B->A)	UPDATED
 drm_crtc_helper.c	(B->A)	UPDATED
@@ -19,13 +19,13 @@ drm_info.c		(A)	NEW
 drm_ioc32.c		(D)
 drm_ioctl.c		(B/A)
 drm_irq.c		(B)
-drm_lock.c		(B->A)
-drm_memory.c		(B/C ->?)
+drm_lock.c		(B->A)	UPDATED
+drm_memory.c		(B/C)	UPDATED
 drm_mm.c		(A)	UPDATED
 drm_modes.c		(A)	UPDATED
 drm_pci.c		(D/C -> A/B)
-drm_scatter.c		(D/C -> ?)
-drm_stub.c		(C/B) 
+drm_scatter.c		(D/C)	UPDATED
+drm_stub.c		(C/B) 	(REMOVED upstream)
 
 
 Files that need porting:
@@ -33,4 +33,3 @@ drm_info.c
 
 
 unimplemented:
-linux_register_framebuffer

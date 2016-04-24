@@ -209,10 +209,8 @@ int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 
 	if (!dev->agp || !dev->agp->acquired)
 		return -EINVAL;
-	if (!(entry = kmalloc(sizeof(*entry), GFP_KERNEL)))
+	if (!(entry = kzalloc(sizeof(*entry), GFP_KERNEL)))
 		return -ENOMEM;
-
-	memset(entry, 0, sizeof(*entry));
 
 	pages = (request->size + PAGE_SIZE - 1) / PAGE_SIZE;
 	type = (u32) request->type;
@@ -405,9 +403,9 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 {
 	struct drm_agp_head *head = NULL;
 
-	if (!(head = kmalloc(sizeof(*head), GFP_KERNEL)))
+	if (!(head = kzalloc(sizeof(*head), GFP_KERNEL)))
 		return NULL;
-	memset((void *)head, 0, sizeof(*head));
+
 	head->bridge = agp_find_device();
 	if (!head->bridge) {
 		kfree(head);
@@ -419,6 +417,42 @@ struct drm_agp_head *drm_agp_init(struct drm_device *dev)
 	head->cant_use_aperture = 0;
 	head->base = head->agp_info.ai_aperture_base;
 	return head;
+}
+
+/**
+ * drm_agp_clear - Clear AGP resource list
+ * @dev: DRM device
+ *
+ * Iterate over all AGP resources and remove them. But keep the AGP head
+ * intact so it can still be used. It is safe to call this if AGP is disabled or
+ * was already removed.
+ *
+ * If DRIVER_MODESET is active, nothing is done to protect the modesetting
+ * resources from getting destroyed. Drivers are responsible of cleaning them up
+ * during device shutdown.
+ */
+void drm_agp_clear(struct drm_device *dev)
+{
+	struct drm_agp_mem *entry, *tempe;
+
+	if (!dev->agp)
+		return;
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
+	list_for_each_entry_safe(entry, tempe, &dev->agp->memory, head) {
+		if (entry->bound)
+			drm_unbind_agp(entry->memory);
+		drm_free_agp(entry->memory, entry->pages);
+		kfree(entry);
+	}
+	INIT_LIST_HEAD(&dev->agp->memory);
+
+	if (dev->agp->acquired)
+		drm_agp_release(dev);
+
+	dev->agp->acquired = 0;
+	dev->agp->enabled = 0;
 }
 
 #ifdef FREEBSD_NOTYET
