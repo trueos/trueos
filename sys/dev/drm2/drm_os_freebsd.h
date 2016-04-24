@@ -19,6 +19,10 @@ __FBSDID("$FreeBSD$");
 #include <linux/mod_devicetable.h>
 #include <linux/pci.h>
 
+struct vt_kms_softc {
+	struct drm_fb_helper    *fb_helper;
+	struct task              fb_mode_task;
+};
 #define	DRM_IRQ_ARGS		int irq, void *arg
 
 #define	KHZ2PICOS(a)	(1000000000UL/(a))
