@@ -1,7 +1,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_crtc.h>
 #include <dev/drm2/drm_fb_helper.h>
@@ -26,6 +25,23 @@ static int __unregister_framebuffer(struct linux_fb_info *fb_info);
 
 extern int vt_fb_attach(struct fb_info *info);
 extern void vt_fb_detach(struct fb_info *info);
+
+static void
+fb_info_print(struct fb_info *t)
+{
+	printf("start FB_INFO:\n");
+	printf("type=%d height=%d width=%d depth=%d\n",
+	       t->fb_type, t->fb_height, t->fb_width, t->fb_depth);
+	printf("cmsize=%d size=%d\n",
+	       t->fb_cmsize, t->fb_size);
+	printf("pbase=0x%lx vbase=0x%lx\n",
+	       t->fb_pbase, t->fb_vbase);
+	printf("name=%s flags=0x%x stride=%d bpp=%d\n",
+	       t->fb_name, t->fb_flags, t->fb_stride, t->fb_bpp);
+	printf("cmap[0]=%x cmap[1]=%x cmap[2]=%x cmap[3]=%x\n",
+	       t->fb_cmap[0], t->fb_cmap[1], t->fb_cmap[2], t->fb_cmap[3]);
+	printf("end FB_INFO\n");
+}
 
 /* Call restore out of vt(9) locks. */
 static void
@@ -518,9 +534,12 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 	 */
 	fbd_init(fb_info, unit_no++);
 	if (num_registered_fb == 1) {
+		/* tell vt_fb to initialize color map */
+		fb_info->fbio.fb_cmsize = 0;
 		if ((err = vt_fb_attach(&fb_info->fbio)) != 0)
 			return (err);
 	}
+	fb_info_print(&fb_info->fbio);
 
 #if 0	
 	if (!lock_fb_info(fb_info))
