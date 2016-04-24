@@ -50,6 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/intel_ringbuffer.h>
 #include <dev/drm2/i915/intel_bios.h>
 #include <dev/drm2/i915/i915_drm.h>
+#include <linux/io.h>
+
+
 /* General customization:
  */
 
@@ -1910,6 +1913,8 @@ __i915_write(16, w)
 __i915_write(32, l)
 __i915_write(64, q)
 #undef __i915_write
+
+
 
 #define I915_READ8(reg)		i915_read8(dev_priv, (reg))
 #define I915_WRITE8(reg, val)	i915_write8(dev_priv, (reg), (val))
