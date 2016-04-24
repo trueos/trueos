@@ -513,7 +513,7 @@ linux_pci_get_class(unsigned int class, struct pci_dev *from)
 	struct pci_dev *pdev;
 	struct pci_bus *pbus;
 
-	if (class != (PCI_CLASS_BRIDGE_ISA >> 8))
+	if (class != (PCI_CLASS_BRIDGE_ISA << 8))
 		return (NULL);
 
 	dev = pci_find_class(PCIC_BRIDGE, PCIS_BRIDGE_ISA);
