@@ -1034,10 +1034,9 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 	getrawmonotonic(&before);
 
 #define EXIT_COND \
-	(i915_seqno_passed(ring->get_seqno(ring, false), seqno) ||	\
-	 i915_reset_in_progress(&dev_priv->gpu_error) ||		\
+	(i915_seqno_passed(ring->get_seqno(ring, false), seqno) || \
+	 i915_reset_in_progress(&dev_priv->gpu_error) || \
 	 reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
-
 	do {
 		if (interruptible)
 			end = wait_event_interruptible_timeout(ring->irq_queue,
@@ -1046,6 +1045,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 		else
 			end = wait_event_timeout(ring->irq_queue, EXIT_COND,
 						 timeout_jiffies);
+
 		/* We need to check whether any gpu reset happened in between
 		 * the caller grabbing the seqno and now ... */
 		if (reset_counter != atomic_read(&dev_priv->gpu_error.reset_counter))
@@ -1053,7 +1053,6 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 
 		/* ... but upgrade the -EGAIN to an -EIO if the gpu is truely
 		 * gone. */
-
 		ret = i915_gem_check_wedge(&dev_priv->gpu_error, interruptible);
 		if (ret)
 			end = ret;
@@ -1077,7 +1076,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 		return (int)end;
 	case 0: /* Timeout */
 		if (timeout)
-		set_normalized_timespec(timeout, 0, 0);
+			set_normalized_timespec(timeout, 0, 0);
 		return -ETIME;
 	default: /* Completed */
 		WARN_ON(end < 0); /* We're not aware of other errors */
@@ -1691,7 +1690,6 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 	if (obj->madv == I915_MADV_DONTNEED)
 		obj->dirty = 0;
 
-
 	for_each_sg(obj->pages->sgl, sg, page_count, i) {
 		struct page *page = sg_page(sg);
 
@@ -1702,7 +1700,6 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 			mark_page_accessed(page);
 
 		page_cache_release(page);
-
 		atomic_add_long(&i915_gem_wired_pages_cnt, -1);
 	}
 	obj->dirty = 0;
@@ -4292,9 +4289,6 @@ void i915_gem_free_all_phys_object(struct drm_device *dev)
 		i915_gem_free_phys_object(dev, i);
 }
 
-
-
-
 void i915_gem_detach_phys_object(struct drm_device *dev,
 				 struct drm_i915_gem_object *obj)
 {
@@ -4306,12 +4300,11 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 	if (!obj->phys_obj)
 		return;
 	vaddr = obj->phys_obj->handle->vaddr;
-	page_count = obj->base.size / PAGE_SIZE;
 
+	page_count = obj->base.size / PAGE_SIZE;
 	for (i = 0; i < page_count; i++) {
 		struct page *page = shmem_read_mapping_page(mapping, i);
 		if (!IS_ERR(page)) {
-
 			char *dst = kmap_atomic(page);
 			memcpy(dst, vaddr + i*PAGE_SIZE, PAGE_SIZE);
 			kunmap_atomic(dst);
@@ -4328,7 +4321,6 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 	obj->phys_obj->cur_obj = NULL;
 	obj->phys_obj = NULL;
 }
-
 
 int
 i915_gem_attach_phys_object(struct drm_device *dev,
