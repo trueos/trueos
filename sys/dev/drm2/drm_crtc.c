@@ -33,12 +33,12 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/export.h>
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/drm_crtc.h>
-#include <dev/drm2/drm_edid.h>
-#include <dev/drm2/drm_fourcc.h>
-#include <dev/drm2/drm_modeset_lock.h>
-#include <dev/drm2/drm_atomic.h>
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_modeset_lock.h>
+#include <drm/drm_atomic.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"

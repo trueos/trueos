@@ -31,9 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/i2c.h>
-#include <dev/drm2/drm_dp_helper.h>
-#include <dev/drm2/drm_dp_aux_dev.h>
-#include <dev/drm2/drmP.h>
+#include <drm/drm_dp_helper.h>
+#include <drm/drm_dp_aux_dev.h>
+#include <drm/drmP.h>
 
 /**
  * DOC: dp helpers

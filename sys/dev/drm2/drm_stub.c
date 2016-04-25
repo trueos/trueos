@@ -34,8 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/drm_core.h>
+#include <drm/drmP.h>
+#include <drm/drm_core.h>
 
 #ifdef DRM_DEBUG
 unsigned int drm_debug = (DRM_DEBUGBITS_DEBUG | DRM_DEBUGBITS_KMS |

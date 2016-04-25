@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <dev/drm2/drm_global.h>
+#include <drm/drm_global.h>
 
 struct drm_global_item {
 	struct mutex mutex;

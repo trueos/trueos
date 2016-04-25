@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef COMPAT_FREEBSD32
 
-#include <dev/drm2/drmP.h>
+#include <drm/drmP.h>
 #include <dev/drm2/drm.h>
 
 #define DRM_IOCTL_VERSION32		DRM_IOWR(0x00, drm_version32_t)

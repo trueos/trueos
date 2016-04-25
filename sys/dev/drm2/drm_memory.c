@@ -36,7 +36,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/drm2/drmP.h>
+#include <drm/drmP.h>
 #include "drm_legacy.h"
 
 #if IS_ENABLED(CONFIG_AGP)

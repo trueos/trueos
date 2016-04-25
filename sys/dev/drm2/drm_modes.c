@@ -36,11 +36,11 @@ __FBSDID("$FreeBSD$");
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/export.h>
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/drm_crtc.h>
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
-#include <dev/drm2/drm_modes.h>
+#include <drm/drm_modes.h>
 
 #include "drm_crtc_internal.h"
 

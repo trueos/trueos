@@ -29,8 +29,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/iicbus/iic.h>
 #include "iicbus_if.h"
 #include <dev/iicbus/iiconf.h>
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/drm_dp_helper.h>
+#include <drm/drmP.h>
+#include <drm/drm_dp_helper.h>
 
 static int
 iic_dp_aux_transaction(device_t idev, int mode, uint8_t write_byte,

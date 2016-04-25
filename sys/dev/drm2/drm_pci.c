@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
-#include <dev/drm2/drmP.h>
+#include <drm/drmP.h>
 #include "drm_internal.h"
 #include "drm_legacy.h"
 

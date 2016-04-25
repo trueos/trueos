@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/drm2/drmP.h>
+#include <drm/drmP.h>
 
 # define ATI_PCIGART_PAGE_SIZE		4096	/**< PCI GART page size */
 

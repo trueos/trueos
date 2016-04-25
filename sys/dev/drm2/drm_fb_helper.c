@@ -37,12 +37,12 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/module.h>
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/drm_crtc.h>
-#include <dev/drm2/drm_fb_helper.h>
-#include <dev/drm2/drm_crtc_helper.h>
-#include <dev/drm2/drm_atomic.h>
-#include <dev/drm2/drm_atomic_helper.h>
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 
 define fb_info linux_fb_info
 #define register_framebuffer linux_register_framebuffer

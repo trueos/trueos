@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <linux/log2.h>
-#include <dev/drm2/drmP.h>
+#include <drm/drmP.h>
 
 #include <linux/mm.h>
 #include "drm_legacy.h"

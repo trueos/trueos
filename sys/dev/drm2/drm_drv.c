@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/moduleparam.h>
 #include <linux/mount.h>
 #include <linux/slab.h>
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/drm_core.h>
+#include <drm/drmP.h>
+#include <drm/drm_core.h>
 #include "drm_legacy.h"
 #include "drm_internal.h"
 

@@ -37,15 +37,15 @@ __FBSDID("$FreeBSD$");
 #include <linux/export.h>
 #include <linux/moduleparam.h>
 
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/drm_atomic.h>
-#include <dev/drm2/drm_crtc.h>
-#include <dev/drm2/drm_fourcc.h>
-#include <dev/drm2/drm_crtc_helper.h>
-#include <dev/drm2/drm_fb_helper.h>
-#include <dev/drm2/drm_plane_helper.h>
-#include <dev/drm2/drm_atomic_helper.h>
-#include <dev/drm2/drm_edid.h>
+#include <drm/drmP.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
 
 /**
  * DOC: overview

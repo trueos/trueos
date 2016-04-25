@@ -37,9 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/vga_switcheroo.h>
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/drm_edid.h>
-#include <dev/drm2/drm_displayid.h>
+#include <drm/drmP.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_displayid.h>
 
 #define version_greater(edid, maj, min) \
 	(((edid)->version > (maj)) || \
