@@ -7,6 +7,7 @@ SYSDIR?=${.CURDIR}/../..
 _i915kms=	i915kms
 _radeonkms=	radeonkms
 . if ${MK_SOURCELESS_UCODE} != "no"
+_amdgpukmsfw=	amdgpukmsfw
 _radeonkmsfw=	radeonkmsfw
 . endif
 .endif
@@ -16,6 +17,7 @@ _radeonkmsfw=	radeonkmsfw
 _i915kms=	i915kms
 _radeonkms=	radeonkms
 .  if ${MK_SOURCELESS_UCODE} != "no"
+_amdgpukmsfw=	amdgpukmsfw
 _radeonkmsfw=	radeonkmsfw
 .  endif
 . endif
