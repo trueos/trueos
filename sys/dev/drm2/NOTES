@@ -23,7 +23,7 @@ drm_lock.c		(B->A)	UPDATED
 drm_memory.c		(B/C)	UPDATED
 drm_mm.c		(A)	UPDATED
 drm_modes.c		(A)	UPDATED
-drm_pci.c		(D/C -> A/B)
+drm_pci.c		(B/C)	UPDATED
 drm_scatter.c		(D/C)	UPDATED
 drm_stub.c		(C/B) 	(REMOVED upstream)
 
@@ -33,3 +33,4 @@ drm_info.c
 
 
 unimplemented:
+Full Linux pci_dev bus initialization - see drm_pci.c for details
