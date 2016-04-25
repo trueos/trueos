@@ -764,6 +764,46 @@ static int compat_drm_wait_vblank(struct drm_device *dev, void *data,
 	return 0;
 }
 
+typedef struct drm_mode_fb_cmd232 {
+	u32 fb_id;
+	u32 width;
+	u32 height;
+	u32 pixel_format;
+	u32 flags;
+	u32 handles[4];
+	u32 pitches[4];
+	u32 offsets[4];
+	u64 modifier[4];
+} __attribute__((packed)) drm_mode_fb_cmd232_t;
+
+static int compat_drm_mode_addfb2(struct drm_device *dev, void *data,
+    struct drm_file *file_priv)
+{
+	struct drm_mode_fb_cmd232 *req32 = data;
+	struct drm_mode_fb_cmd2 __user req64;
+	int i;
+	int err;
+
+	req64.width = req32->width;
+	req64.height = req32->height;
+	req64.pixel_format = req32->pixel_format;
+	req64.flags = req32->flags;
+
+	for (i = 0; i < 4; i++) {
+		req64.handles[i] = req32->handles[i];
+		req64.pitches[i] = req32->pitches[i];
+		req64.offsets[i] = req32->offsets[i];
+		req64.modifier[i] = req32->modifier[i];
+	}
+
+	err = drm_ioctl(file, DRM_IOCTL_MODE_ADDFB2, (unsigned long)&req64);
+	if (err)
+		return err;
+	req32->fb_id = req64.fb_id;
+
+	return 0;
+}
+
 struct drm_ioctl_desc drm_compat_ioctls[256] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_VERSION32, compat_drm_version, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_UNIQUE32, compat_drm_getunique, 0),
@@ -796,6 +836,7 @@ struct drm_ioctl_desc drm_compat_ioctls[256] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_UPDATE_DRAW32, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 #endif
 	DRM_IOCTL_DEF(DRM_IOCTL_WAIT_VBLANK32, compat_drm_wait_vblank, DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ADDFB232)] = compat_drm_mode_addfb2,
 };
 
 #endif
