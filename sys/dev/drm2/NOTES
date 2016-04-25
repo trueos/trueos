@@ -10,7 +10,7 @@ drm_dma.c		(A)	UPDATED
 drm_dp_helper.c		(A)	UPDATED
 drm_drv.c		(D)
 drm_edid.c		(B)	UPDATED
-drm_fb_helper.c		(B)
+drm_fb_helper.c		(A/B)	UPDATED
 drm_fops.c		(D/C)
 drm_gem.c		(B/C)
 drm_global.c		(B)	UPDATED
