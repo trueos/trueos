@@ -11,7 +11,7 @@ drm_dp_helper.c		(A)	UPDATED
 drm_drv.c		(D)
 drm_edid.c		(B)	UPDATED
 drm_fb_helper.c		(A/B)	UPDATED
-drm_fops.c		(D/C)
+drm_fops.c		(A/B)	UPDATED
 drm_gem.c		(B/C)	UPDATED
 drm_global.c		(B)	UPDATED
 drm_hashtab.c		(B->A)	UPDATED
@@ -34,3 +34,4 @@ drm_info.c
 
 unimplemented:
 Full Linux pci_dev bus initialization - see drm_pci.c for details
+Sanity check linux device support - see drm_fops.c
