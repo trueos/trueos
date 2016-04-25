@@ -18,7 +18,7 @@ drm_hashtab.c		(B->A)	UPDATED
 drm_info.c		(A)	NEW
 drm_ioc32.c		(D)
 drm_ioctl.c		(B/A)	UPDATED
-drm_irq.c		(B)
+drm_irq.c		(A)	UPDATED
 drm_lock.c		(B->A)	UPDATED
 drm_memory.c		(B/C)	UPDATED
 drm_mm.c		(A)	UPDATED
