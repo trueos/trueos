@@ -68,7 +68,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20160411"
+#define DRIVER_DATE		"20160425"
 
 MALLOC_DECLARE(DRM_I915_GEM);
 
