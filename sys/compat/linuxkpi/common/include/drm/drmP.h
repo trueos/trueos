@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/fs.h>
 #include <linux/gfp.h>
 #include <linux/pm.h>
+#include <linux/ktime.h>
 
 /*
  * CEM: drm.h brings in drm_os_freebsd.h, which brings in linuxkpi list.h.
@@ -113,9 +114,11 @@ __FBSDID("$FreeBSD$");
  * drm_hashtab.c to use the Linux list implementation.
  */
 
-#include <dev/drm2/drm_hashtab.h>
+#include <drm/drm_hashtab.h>
 
-#include <dev/drm2/drm.h>
+#include <uapi/drm/drm.h>
+
+
 
 #include <linux/device.h>
 #include <linux/module.h>
@@ -123,7 +126,10 @@ __FBSDID("$FreeBSD$");
 #include <linux/mutex.h>
 #include <linux/i2c.h>
 
-#include <dev/drm2/drm_mm.h>
+#include <drm/drm_agpsupport.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_global.h>
+#include <drm/drm_mm.h>
 
 #include "opt_compat.h"
 #include "opt_drm.h"
