@@ -23,20 +23,17 @@
 #ifndef _INTEL_DVO_H
 #define _INTEL_DVO_H
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/types.h>
-#include <sys/bus.h>
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/drm_crtc.h>
+#include <linux/i2c.h>
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
 #include "intel_drv.h"
 
 struct intel_dvo_device {
 	const char *name;
 	int type;
 	/* DVOA/B/C output register */
-	u32 dvo_reg;
+	i915_reg_t dvo_reg;
+	i915_reg_t dvo_srcdim_reg;
 	/* GPIO register used for i2c bus to control this device */
 	u32 gpio;
 	int slave_addr;
@@ -81,17 +78,6 @@ struct intel_dvo_dev_ops {
 			  struct drm_display_mode *mode);
 
 	/*
-	 * Callback to adjust the mode to be set in the CRTC.
-	 *
-	 * This allows an output to adjust the clock or even the entire set of
-	 * timings, which is used for panels with fixed timings or for
-	 * buses with clock limitations.
-	 */
-	bool (*mode_fixup)(struct intel_dvo_device *dvo,
-			   const struct drm_display_mode *mode,
-			   struct drm_display_mode *adjusted_mode);
-
-	/*
 	 * Callback for preparing mode changes on an output
 	 */
 	void (*prepare)(struct intel_dvo_device *dvo);
@@ -109,8 +95,8 @@ struct intel_dvo_dev_ops {
 	 * after this function is called.
 	 */
 	void (*mode_set)(struct intel_dvo_device *dvo,
-			 struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode);
+			 const struct drm_display_mode *mode,
+			 const struct drm_display_mode *adjusted_mode);
 
 	/*
 	 * Probe for a connected output, and return detect_status.
@@ -143,11 +129,11 @@ struct intel_dvo_dev_ops {
 	void (*dump_regs)(struct intel_dvo_device *dvo);
 };
 
-extern struct intel_dvo_dev_ops sil164_ops;
-extern struct intel_dvo_dev_ops ch7xxx_ops;
-extern struct intel_dvo_dev_ops ivch_ops;
-extern struct intel_dvo_dev_ops tfp410_ops;
-extern struct intel_dvo_dev_ops ch7017_ops;
-extern struct intel_dvo_dev_ops ns2501_ops;
+extern const struct intel_dvo_dev_ops sil164_ops;
+extern const struct intel_dvo_dev_ops ch7xxx_ops;
+extern const struct intel_dvo_dev_ops ivch_ops;
+extern const struct intel_dvo_dev_ops tfp410_ops;
+extern const struct intel_dvo_dev_ops ch7017_ops;
+extern const struct intel_dvo_dev_ops ns2501_ops;
 
 #endif /* _INTEL_DVO_H */

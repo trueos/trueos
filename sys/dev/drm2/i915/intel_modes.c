@@ -23,13 +23,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/drm_edid.h>
-#include <dev/drm2/i915/intel_drv.h>
-#include <dev/drm2/i915/i915_drv.h>
+#include <linux/slab.h>
+#include <linux/i2c.h>
+#include <linux/fb.h>
+#include <drm/drm_edid.h>
+#include <drm/drmP.h>
+#include "intel_drv.h"
+#include "i915_drv.h"
 
 /**
  * intel_connector_update_modes - update connector from edid
@@ -125,4 +125,13 @@ intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 	}
 
 	drm_object_attach_property(&connector->base, prop, 0);
+}
+
+void
+intel_attach_aspect_ratio_property(struct drm_connector *connector)
+{
+	if (!drm_mode_create_aspect_ratio_property(connector->dev))
+		drm_object_attach_property(&connector->base,
+			connector->dev->mode_config.aspect_ratio_property,
+			DRM_MODE_PICTURE_ASPECT_NONE);
 }
