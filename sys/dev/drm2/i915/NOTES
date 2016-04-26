@@ -6,44 +6,44 @@ dvo_sil1164.c		(A) UPDATED
 dvo_tfp410.c   		(A) UPDATED
 
 i915_debugfs.c		(D)
-i915_dma.c		(B)
-i915_drv.c		(C/D)
-i915_gem.c		(B/C)
-i915_gem_context.c 	(A/B)
+i915_dma.c		(B) UPDATED
+i915_drv.c		(C/D) UPDATED
+i915_gem.c		(B/C) UPDATED
+i915_gem_context.c 	(A/B) UPDATED
 i915_gem_debug.c 	(E)
 i915_gem_dmabuf.c     	(E)
 
 i915_gem_evict.c      	(A) UPDATED
 
-i915_gem_execbuffer.c 	(C/D)
+i915_gem_execbuffer.c 	(C/D) UPDATED
 i915_gem_freebsd.c	(local)
 
 i915_gem_gtt.c		(A) UPDATED
-i915_gem_stolen.c	(C)
+i915_gem_stolen.c	(C) UPDATED
 i915_gem_tiling.c	(A) UPDATED
 i915_ioc32.c		(D)
-i915_irq.c		(B/C)
+i915_irq.c		(B/C) UPDATED
 
 i915_suspend.c		(A) UPDATED
 i915_trace_points.c	(A) UPDATED
 i915_ums.c		(A) GONE
 
 intel_acpi.c		(C)
-intel_bios.c		(C)
+intel_bios.c		(C) UPDATED
 intel_crt.c		(A) UPDATED
 intel_ddi.c		(A) UPDATED
-intel_display.c		(A/B)
+intel_display.c		(A/B) UPDATED
 intel_dp.c		(A) UPDATED
 intel_dvo.c		(A) UPDATED
 intel_fb.c		(A) UPDATED
 intel_hdmi.c		(A) UPDATED
 intel_i2c.c		(A/B) UPDATED
-intel_lvds.c		(B)
+intel_lvds.c		(B) UPDATED
 intel_modes.c		(A) UPDATED
-intel_opregion.c	(B/C)
-intel_overlay.c		(A/B)
-intel_panel.c		(A/B)
-intel_pm.c		(B/C)
+intel_opregion.c	(B/C) UPDATED
+intel_overlay.c		(A/B) UPDATED
+intel_panel.c		(A/B) UPDATED
+intel_pm.c		(B/C) UPDATED
 intel_ringbuffer.c	(A) UPDATED
 intel_sdvo.c		(A) UPDATED
 intel_sprite.c		(A) UPDATED
