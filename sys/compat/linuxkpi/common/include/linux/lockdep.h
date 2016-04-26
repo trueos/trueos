@@ -42,7 +42,7 @@ struct lock_class_key {
 #define might_lock(lock) do { } while (0)
 #define might_lock_read(lock) do { } while (0)
 
-#define lockdep_assert_held_once(m) sx_assert(&m->sx, SA_XLOCKED | SA_NOTRECURSED)
+#define lockdep_assert_held_once(m) sx_assert(&(m)->sx, SA_XLOCKED | SA_NOTRECURSED)
 #define lockdep_assert_held(m)
 
 /* XXX */

@@ -66,7 +66,7 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 	vm_object_t object;
 	int rv;
 
-	object = as->vm_obj;
+	object = as;
 	VM_OBJECT_WLOCK(object);
 	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (page->valid != VM_PAGE_BITS_ALL) {

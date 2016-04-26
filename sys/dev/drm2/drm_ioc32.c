@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 
 #include <drm/drmP.h>
 #include <uapi/drm/drm.h>
+#include "drm_legacy.h"
+
 
 #define DRM_IOCTL_VERSION32		DRM_IOWR(0x00, drm_version32_t)
 #define DRM_IOCTL_GET_UNIQUE32		DRM_IOWR(0x01, drm_unique32_t)
@@ -193,7 +195,7 @@ static int compat_drm_addmap(struct drm_device *dev, void *data,
 	map.type = m32->type;
 	map.flags = m32->flags;
 
-	err = drm_addmap_ioctl(dev, (void *)&map, file_priv);
+	err = drm_legacy_addmap_ioctl(dev, (void *)&map, file_priv);
 	if (err)
 		return err;
 
@@ -218,7 +220,7 @@ static int compat_drm_rmmap(struct drm_device *dev, void *data,
 
 	map.handle = (void *)(unsigned long)m32->handle;
 
-	return drm_rmmap_ioctl(dev, (void *)&map, file_priv);
+	return drm_legacy_rmmap_ioctl(dev, (void *)&map, file_priv);
 }
 
 typedef struct drm_client32 {
@@ -304,7 +306,7 @@ static int compat_drm_addbufs(struct drm_device *dev, void *data,
 	buf.flags = b32->flags;
 	buf.agp_start = (unsigned long)b32->agp_start;
 
-	err = drm_addbufs(dev, (void *)&buf, file_priv);
+	err = drm_legacy_addbufs(dev, (void *)&buf, file_priv);
 	if (err)
 		return err;
 
@@ -328,7 +330,7 @@ static int compat_drm_markbufs(struct drm_device *dev, void *data,
 	buf.low_mark = b32->low_mark;
 	buf.high_mark = b32->high_mark;
 
-	return drm_markbufs(dev, (void *)&buf, file_priv);
+	return drm_legacy_markbufs(dev, (void *)&buf, file_priv);
 }
 
 typedef struct drm_buf_info32 {
@@ -361,7 +363,7 @@ static int compat_drm_infobufs(struct drm_device *dev, void *data,
 	request->count = count;
 	request->list = list;
 
-	err = drm_infobufs(dev, (void *)request, file_priv);
+	err = drm_legacy_infobufs(dev, (void *)request, file_priv);
 	if (err)
 		return err;
 
@@ -418,7 +420,7 @@ static int compat_drm_mapbufs(struct drm_device *dev, void *data,
 	request->count = count;
 	request->list = list;
 
-	err = drm_mapbufs(dev, (void *)request, file_priv);
+	err = drm_legacy_mapbufs(dev, (void *)request, file_priv);
 	if (err)
 		return err;
 
@@ -451,7 +453,7 @@ static int compat_drm_freebufs(struct drm_device *dev, void *data,
 	request.count = req32->count;
 	request.list = (int *)(unsigned long)req32->list;
 
-	return drm_freebufs(dev, (void *)&request, file_priv);
+	return drm_legacy_freebufs(dev, (void *)&request, file_priv);
 }
 
 typedef struct drm_ctx_priv_map32 {
@@ -468,7 +470,7 @@ static int compat_drm_setsareactx(struct drm_device *dev, void *data,
 	request.ctx_id = req32->ctx_id;
 	request.handle = (void *)(unsigned long)req32->handle;
 
-	return drm_setsareactx(dev, (void *)&request, file_priv);
+	return drm_legacy_setsareactx(dev, (void *)&request, file_priv);
 }
 
 static int compat_drm_getsareactx(struct drm_device *dev, void *data,
@@ -480,7 +482,7 @@ static int compat_drm_getsareactx(struct drm_device *dev, void *data,
 
 	request.ctx_id = req32->ctx_id;
 
-	err = drm_getsareactx(dev, (void *)&request, file_priv);
+	err = drm_legacy_getsareactx(dev, (void *)&request, file_priv);
 	if (err)
 		return err;
 
@@ -504,7 +506,7 @@ static int compat_drm_resctx(struct drm_device *dev, void *data,
 	res.count = res32->count;
 	res.contexts = (struct drm_ctx __user *)(unsigned long)res32->contexts;
 
-	err = drm_resctx(dev, (void *)&res, file_priv);
+	err = drm_legacy_resctx(dev, (void *)&res, file_priv);
 	if (err)
 		return err;
 
@@ -692,7 +694,7 @@ static int compat_drm_sg_alloc(struct drm_device *dev, void *data,
 
 	request.size = (unsigned long)req32->size;
 
-	err = drm_sg_alloc_ioctl(dev, (void *)&request, file_priv);
+	err = drm_legacy_sg_alloc(dev, (void *)&request, file_priv);
 	if (err)
 		return err;
 
@@ -710,7 +712,7 @@ static int compat_drm_sg_free(struct drm_device *dev, void *data,
 
 	request.handle = (unsigned long)req32->handle << PAGE_SHIFT;
 
-	return drm_sg_free(dev, (void *)&request, file_priv);
+	return drm_legacy_sg_free(dev, (void *)&request, file_priv);
 }
 
 #if defined(CONFIG_X86) || defined(CONFIG_IA64)
@@ -796,13 +798,17 @@ static int compat_drm_mode_addfb2(struct drm_device *dev, void *data,
 		req64.modifier[i] = req32->modifier[i];
 	}
 
-	err = drm_ioctl(file, DRM_IOCTL_MODE_ADDFB2, (unsigned long)&req64);
+	err = drm_mode_addfb2(dev, &req64, file_priv);
 	if (err)
 		return err;
 	req32->fb_id = req64.fb_id;
 
 	return 0;
 }
+
+
+#define DRM_IOCTL_DEF(ioctl, _func, _flags) \
+	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
 
 struct drm_ioctl_desc drm_compat_ioctls[256] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_VERSION32, compat_drm_version, DRM_UNLOCKED),
@@ -836,7 +842,7 @@ struct drm_ioctl_desc drm_compat_ioctls[256] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_UPDATE_DRAW32, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 #endif
 	DRM_IOCTL_DEF(DRM_IOCTL_WAIT_VBLANK32, compat_drm_wait_vblank, DRM_UNLOCKED),
-	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ADDFB232)] = compat_drm_mode_addfb2,
+	DRM_IOCTL_DEF(DRM_IOCTL_MODE_ADDFB2,  compat_drm_mode_addfb2, DRM_CONTROL_ALLOW|DRM_UNLOCKED),
 };
 
 #endif

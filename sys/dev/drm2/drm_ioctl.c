@@ -40,9 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/pci.h>
 #include <linux/export.h>
 
-static int drm_version(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv);
-
 /*
  * Get the bus id.
  *
@@ -54,7 +51,7 @@ static int drm_version(struct drm_device *dev, void *data,
  *
  * Copies the bus id from drm_device::unique into user space.
  */
-static int drm_getunique(struct drm_device *dev, void *data,
+int drm_getunique(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	struct drm_unique *u = data;
@@ -93,7 +90,7 @@ drm_unset_busid(struct drm_device *dev,
  * version 1.1 or greater. Also note that KMS is all version 1.1 and later and
  * UMS was only ever supported on pci devices.
  */
-static int drm_setunique(struct drm_device *dev, void *data,
+int drm_setunique(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	struct drm_unique *u = data;
@@ -165,7 +162,7 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
  * Searches for the mapping with the specified offset and copies its information
  * into userspace
  */
-static int drm_getmap(struct drm_device *dev, void *data,
+int drm_getmap(struct drm_device *dev, void *data,
 	       struct drm_file *file_priv)
 {
 	struct drm_map *map = data;
@@ -217,7 +214,7 @@ static int drm_getmap(struct drm_device *dev, void *data,
  * Searches for the client with the specified index and copies its information
  * into userspace
  */
-static int drm_getclient(struct drm_device *dev, void *data,
+int drm_getclient(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	struct drm_client *client = data;
@@ -256,7 +253,7 @@ static int drm_getclient(struct drm_device *dev, void *data,
  *
  * \return zero on success or a negative number on failure.
  */
-static int drm_getstats(struct drm_device *dev, void *data,
+int drm_getstats(struct drm_device *dev, void *data,
 		 struct drm_file *file_priv)
 {
 	struct drm_stats *stats = data;
@@ -488,7 +485,7 @@ static int drm_copy_field(char __user *buf, size_t *buf_len, const char *value)
  *
  * Fills in the version information in \p arg.
  */
-static int drm_version(struct drm_device *dev, void *data,
+int drm_version(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
 	struct drm_version *version = data;
