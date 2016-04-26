@@ -926,6 +926,11 @@ pci_num_vf(struct pci_dev *dev)
 	return (0);
 }
 
+void
+pci_unmap_rom(struct pci_dev *pdev, u8 *bios)
+{
+	vga_pci_unmap_bios(pdev->dev.bsddev, bios);
+}
 
 
 #endif	/* _LINUX_PCI_H_ */

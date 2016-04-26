@@ -268,5 +268,13 @@ static inline gfp_t mapping_gfp_mask(struct address_space *m)
 {
 	return (0);
 }
+void shmem_truncate_range(struct vnode *, int, loff_t);
+/*
+  void shmem_truncate_range(struct vnode *, int, loff_t) =>
+  	vm_obj = obj->base.i_mapping.vm_obj;
+	VM_OBJECT_WLOCK(vm_obj);
+	vm_object_page_remove(vm_obj, 0, 0, false);
+	VM_OBJECT_WUNLOCK(vm_obj);
+ */
 
 #endif /* _LINUX_FS_H_ */
