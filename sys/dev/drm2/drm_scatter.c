@@ -69,8 +69,10 @@ void drm_legacy_sg_cleanup(struct drm_device *dev)
 #endif
 
 
-int drm_legacy_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * request)
+int drm_legacy_sg_alloc(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
 {
+	struct drm_scatter_gather *request;
 	struct drm_sg_mem *entry;
 	vm_size_t size;
 	vm_pindex_t pindex;
@@ -90,6 +92,7 @@ int drm_legacy_sg_alloc(struct drm_device *dev, struct drm_scatter_gather * requ
 	if (!entry)
 		return -ENOMEM;
 
+	request = data;
 	DRM_DEBUG("request size=%ld\n", request->size);
 
 	size = round_page(request->size);

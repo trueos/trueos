@@ -28,7 +28,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
-#include <drm/drm_mode.h>
+#include <uapi/drm/drm_mode.h>
 #include <drm/drm_plane_helper.h>
 
 /**

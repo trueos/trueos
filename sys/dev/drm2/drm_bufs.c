@@ -34,6 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/shm.h>
 
+#include <linux/vmalloc.h>
+#include <linux/slab.h>
+#include <linux/log2.h>
+#include <linux/export.h>
 #include <dev/pci/pcireg.h>
 #include <linux/log2.h>
 #include <drm/drmP.h>
@@ -208,12 +212,9 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 			return 0;
 		}
 
-		if (drm_core_has_MTRR(dev)) {
-			if (map->type == _DRM_FRAME_BUFFER ||
-			    (map->flags & _DRM_WRITE_COMBINING)) {
-				map->mtrr = mtrr_add(map->offset, map->size,
-						     MTRR_TYPE_WRCOMB, 1);
-			}
+		if (map->type == _DRM_FRAME_BUFFER ||
+		    (map->flags & _DRM_WRITE_COMBINING)) {
+			map->mtrr = arch_phys_wc_add(map->offset, map->size);
 		}
 		if (map->type == _DRM_REGISTERS) {
 			if (map->flags & _DRM_WRITE_COMBINING)
@@ -264,7 +265,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		struct drm_agp_mem *entry;
 		int valid = 0;
 
-		if (!drm_core_has_AGP(dev)) {
+		if (!dev->agp) {
 			kfree(map);
 			return -EINVAL;
 		}
@@ -461,11 +462,7 @@ int drm_legacy_rmmap_locked(struct drm_device *dev, struct drm_local_map *map)
 		iounmap(map->handle);
 		/* FALLTHROUGH */
 	case _DRM_FRAME_BUFFER:
-		if (drm_core_has_MTRR(dev) && map->mtrr >= 0) {
-			int retcode;
-			retcode = mtrr_del(map->mtrr, map->offset, map->size);
-			DRM_DEBUG("mtrr_del=%d\n", retcode);
-		}
+		arch_phys_wc_del(map->mtrr, map->offset, map->size);
 		break;
 	case _DRM_SHM:
 		vfree(map->handle);
@@ -1401,11 +1398,9 @@ int drm_legacy_mapbufs(struct drm_device *dev, void *data,
 	vms = DRM_CURPROC->td_proc->p_vmspace;
 
 	if (request->count >= dma->buf_count) {
-		if ((drm_core_has_AGP(dev) && (dma->flags & _DRM_DMA_USE_AGP))
+		if ((dma->flags & _DRM_DMA_USE_AGP)
 		    || (drm_core_check_feature(dev, DRIVER_SG)
-			&& (dma->flags & _DRM_DMA_USE_SG))
-		    || (drm_core_check_feature(dev, DRIVER_FB_DMA)
-			&& (dma->flags & _DRM_DMA_USE_FB))) {
+			&& (dma->flags & _DRM_DMA_USE_SG))) {
 			struct drm_local_map *map = dev->agp_buffer_map;
 			unsigned long token = dev->agp_buffer_token;
 

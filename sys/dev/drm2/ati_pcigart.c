@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 
 #include <drm/drmP.h>
 
+#include <drm/ati_pcigart.h>
+
 # define ATI_PCIGART_PAGE_SIZE		4096	/**< PCI GART page size */
 
 static int drm_ati_alloc_pcigart_table(struct drm_device *dev,

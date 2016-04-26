@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <drm/drmP.h>
-#include <dev/drm2/drm.h>
+#include <uapi/drm/drm.h>
 
 #include <sys/sysctl.h>
 

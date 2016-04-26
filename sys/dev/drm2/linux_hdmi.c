@@ -30,7 +30,7 @@
 #include <linux/export.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
-#include "hdmi.h"
+#include <linux/hdmi.h>
 
 #define hdmi_log(fmt, ...) dev_printk(level, dev, fmt, ##__VA_ARGS__)
 

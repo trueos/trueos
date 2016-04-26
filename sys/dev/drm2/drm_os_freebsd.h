@@ -28,6 +28,7 @@ struct vt_kms_softc {
 #define	KHZ2PICOS(a)	(1000000000UL/(a))
 
 #define	DRM_HZ			hz
+#define DRM_CURPROC		curthread
 #define	DRM_CURRENTPID		curthread->td_proc->p_pid
 #define	DRM_SUSER(p)		(priv_check(p, PRIV_DRIVER) == 0)
 #define	DRM_UDELAY(udelay)	DELAY(udelay)
@@ -350,36 +351,9 @@ do {									\
 #define VGA_RSRC_NORMAL_MEM    0x08
 
 
-enum vga_switcheroo_state {
-	VGA_SWITCHEROO_OFF,
-	VGA_SWITCHEROO_ON,
-	/* below are referred only from vga_switcheroo_get_client_state() */
-	VGA_SWITCHEROO_INIT,
-	VGA_SWITCHEROO_NOT_FOUND,
-};
-
-enum vga_switcheroo_client_id {
-	VGA_SWITCHEROO_IGD,
-	VGA_SWITCHEROO_DIS,
-	VGA_SWITCHEROO_MAX_CLIENTS,
-};
-
-struct vga_switcheroo_handler {
-	int (*switchto)(enum vga_switcheroo_client_id id);
-	int (*power_state)(enum vga_switcheroo_client_id id,
-			   enum vga_switcheroo_state state);
-	int (*init)(void);
-	int (*get_client_id)(struct pci_dev *dev);
-};
-
-struct vga_switcheroo_client_ops {
-	void (*set_gpu_state)(struct pci_dev *pdev, enum vga_switcheroo_state);
-	void (*reprobe)(struct pci_dev *pdev);
-	bool (*can_switch)(struct pci_dev *pdev);
-};
 
 struct linux_fb_info;
-
+#if 0
 static inline void vga_switcheroo_unregister_client(struct pci_dev *pdev) {}
 static inline int vga_switcheroo_register_client(struct pci_dev *pdev,
 		const struct vga_switcheroo_client_ops *ops) { return 0; }
@@ -391,7 +365,7 @@ static inline int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 static inline void vga_switcheroo_unregister_handler(void) {}
 static inline int vga_switcheroo_process_delayed_switch(void) { return 0; }
 static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return VGA_SWITCHEROO_ON; }
-
+#endif
 
 #define vga_client_register(a, b, c, d) 0
 #define vga_get_interruptible(a, b)
@@ -417,10 +391,18 @@ static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return
 #define drm_prime_gem_destroy(x, y)
 #define class_create_file(a, b)
 #define class_destroy_file(a, b)
-#define drm_sysfs_hotplug_event(a)
 #define register_chrdev(a, b, c)
 #define unregister_chrdev(a, b)
 
 #define CONFIG_X86_PAT
+
+
+#define	DRM_GEM_MAPPING_MASK	(3ULL << 62)
+#define	DRM_GEM_MAPPING_KEY	(2ULL << 62) /* Non-canonical address form */
+#define	DRM_GEM_MAX_IDX		0x3fffff
+#define	DRM_GEM_MAPPING_IDX(o)	(((o) >> 40) & DRM_GEM_MAX_IDX)
+#define	DRM_GEM_MAPPING_OFF(i)	(((uint64_t)(i)) << 40)
+#define	DRM_GEM_MAPPING_MAPOFF(o) \
+    ((o) & ~(DRM_GEM_MAPPING_OFF(DRM_GEM_MAX_IDX) | DRM_GEM_MAPPING_KEY))
 
 #endif /* _DRM_OS_FREEBSD_H_ */

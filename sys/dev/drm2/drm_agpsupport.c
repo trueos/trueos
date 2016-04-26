@@ -35,6 +35,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <drm/drmP.h>
+#include "drm_legacy.h"
+
 
 
 #if __OS_HAS_AGP

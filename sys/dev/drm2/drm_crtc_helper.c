@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_fourcc.h>
+#include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_plane_helper.h>
@@ -181,9 +181,8 @@ drm_encoder_disable(struct drm_encoder *encoder)
 	else {
 		MPASS(encoder_funcs->dpms != NULL);
 		(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
-
-		drm_bridge_post_disable(encoder->bridge);
 	}
+	drm_bridge_post_disable(encoder->bridge);
 }
 
 static void __drm_helper_disable_unused_functions(struct drm_device *dev)
@@ -211,6 +210,7 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 			else {
 				MPASS(crtc_funcs->dpms != NULL);
 				(*crtc_funcs->dpms)(crtc, DRM_MODE_DPMS_OFF);
+			}
 			crtc->primary->fb = NULL;
 		}
 	}

@@ -72,11 +72,6 @@ drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size,
 	if (dmah == NULL)
 		return NULL;
 
-	/* Make sure we aren't holding mutexes here */
-	mtx_assert(&dev->dma_lock, MA_NOTOWNED);
-	if (mtx_owned(&dev->dma_lock))
-	    DRM_ERROR("called while holding dma_lock\n");
-
 	ret = bus_dma_tag_create(
 	    bus_get_dma_tag(dev->dev->bsddev), /* parent */
 	    align, 0, /* align, boundary */

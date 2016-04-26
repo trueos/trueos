@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 
-define fb_info linux_fb_info
+#define fb_info linux_fb_info
 #define register_framebuffer linux_register_framebuffer
 
 static bool drm_fbdev_emulation = true;

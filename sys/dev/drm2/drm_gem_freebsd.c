@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 
 #include <drm/drmP.h>
-#include <drm/drm.h>
+#include <uapi/drm/drm.h>
 
 /*
  * We make up offsets for buffer objects so we can recognize them at

@@ -111,8 +111,7 @@ static inline void *agp_remap(unsigned long offset, unsigned long size,
 
 void drm_legacy_ioremap(struct drm_local_map *map, struct drm_device *dev)
 {
-	if (drm_core_has_AGP(dev) &&
-	    dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
+	if (dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
 		map->handle = agp_remap(map->offset, map->size, dev);
 	else
 		map->handle = ioremap(map->offset, map->size);
@@ -121,8 +120,7 @@ EXPORT_SYMBOL(drm_legacy_ioremap);
 
 void drm_legacy_ioremap_wc(struct drm_local_map *map, struct drm_device *dev)
 {
-	if (drm_core_has_AGP(dev) &&
-	    dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
+	if (dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
 		map->handle = agp_remap(map->offset, map->size, dev);
 	else
 		map->handle = ioremap_wc(map->offset, map->size);
@@ -134,8 +132,7 @@ void drm_legacy_ioremapfree(struct drm_local_map *map, struct drm_device *dev)
 	if (!map->handle || !map->size)
 		return;
 
-	if (drm_core_has_AGP(dev) &&
-	    dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
+	if (dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
 		vunmap(map->handle);
 	else
 		iounmap(map->handle);
