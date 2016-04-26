@@ -293,6 +293,12 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
   
 #define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
+#define u64_to_user_ptr(x) (		\
+{					\
+	(void __user *)(uintptr_t)x;	\
+}					\
+)
+
 #define	simple_strtoul(...) strtoul(__VA_ARGS__)
 #define	simple_strtol(...) strtol(__VA_ARGS__)
 #define	kstrtol(a,b,c) ({*(c) = strtol(a,0,b); 0;})
