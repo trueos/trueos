@@ -37,6 +37,9 @@
 #include <sys/kernel.h>
 #include <sys/callout.h>
 
+#include <linux/list.h>
+#include <linux/ktime.h>
+
 struct timer_list {
 	struct callout timer_callout;
 	void    (*function) (unsigned long);

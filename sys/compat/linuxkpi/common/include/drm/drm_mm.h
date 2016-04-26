@@ -36,6 +36,11 @@ __FBSDID("$FreeBSD$");
 #ifndef _DRM_MM_H_
 #define _DRM_MM_H_
 
+#include <linux/bug.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/spinlock.h>
+
 /*
  * Generic range manager structs
  */

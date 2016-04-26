@@ -72,6 +72,7 @@ struct idr {
 #define	idr_preload_end() do { } while (0)
 
 void	*idr_find(struct idr *idp, int id);
+void *idr_get_next(struct idr *idp, int *nextid);
 int	idr_pre_get(struct idr *idp, gfp_t gfp_mask);
 int	idr_get_new(struct idr *idp, void *ptr, int *id);
 int	idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id);
@@ -83,6 +84,67 @@ void	idr_init(struct idr *idp);
 int	idr_alloc(struct idr *idp, void *ptr, int start, int end, gfp_t);
 int	idr_alloc_cyclic(struct idr *idp, void *ptr, int start, int end, gfp_t);
 int	idr_for_each(struct idr *idp, int (*fn)(int id, void *p, void *data), void *data);
+
+
+/**
+ * idr_for_each_entry - iterate over an idr's elements of a given type
+ * @idp:     idr handle
+ * @entry:   the type * to use as cursor
+ * @id:      id entry's key
+ *
+ * @entry and @id do not need to be initialized before the loop, and
+ * after normal terminatinon @entry is left with the value NULL.  This
+ * is convenient for a "not found" value.
+ */
+#define idr_for_each_entry(idp, entry, id)			\
+	for (id = 0; ((entry) = idr_get_next(idp, &(id))) != NULL; ++id)
+
+
+/*
+ * IDA - IDR based id allocator, use when translation from id to
+ * pointer isn't necessary.
+ *
+ * IDA_BITMAP_LONGS is calculated to be one less to accommodate
+ * ida_bitmap->nr_busy so that the whole struct fits in 128 bytes.
+ */
+#define IDA_CHUNK_SIZE		128	/* 128 bytes per chunk */
+#define IDA_BITMAP_LONGS	(IDA_CHUNK_SIZE / sizeof(long) - 1)
+#define IDA_BITMAP_BITS 	(IDA_BITMAP_LONGS * sizeof(long) * 8)
+
+struct ida_bitmap {
+	long			nr_busy;
+	unsigned long		bitmap[IDA_BITMAP_LONGS];
+};
+
+struct ida {
+	struct idr		idr;
+	struct ida_bitmap	*free_bitmap;
+};
+
+#define IDA_INIT(name)		{ .idr = IDR_INIT((name).idr), .free_bitmap = NULL, }
+#define DEFINE_IDA(name)	struct ida name = IDA_INIT(name)
+
+int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
+int ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
+void ida_remove(struct ida *ida, int id);
+void ida_destroy(struct ida *ida);
+void ida_init(struct ida *ida);
+
+int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
+		   gfp_t gfp_mask);
+void ida_simple_remove(struct ida *ida, unsigned int id);
+
+/**
+ * ida_get_new - allocate new ID
+ * @ida:	idr handle
+ * @p_id:	pointer to the allocated handle
+ *
+ * Simple wrapper around ida_get_new_above() w/ @starting_id of zero.
+ */
+static inline int ida_get_new(struct ida *ida, int *p_id)
+{
+	return ida_get_new_above(ida, 0, p_id);
+}
 
 
 #endif	/* _LINUX_IDR_H_ */

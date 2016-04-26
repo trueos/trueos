@@ -50,9 +50,9 @@
 #ifndef _TTM_LOCK_H_
 #define _TTM_LOCK_H_
 
-#include <drm/drmP.h>
-#include <uapi/drm/drm.h>
-#include <dev/drm2/ttm/ttm_object.h>
+#include <drm/ttm/ttm_object.h>
+#include <linux/wait.h>
+#include <linux/atomic.h>
 
 /**
  * struct ttm_lock
@@ -124,6 +124,27 @@ extern int ttm_read_lock(struct ttm_lock *lock, bool interruptible);
  * -ERESTARTSYS If interrupted by a signal and interruptible is true.
  */
 extern int ttm_read_trylock(struct ttm_lock *lock, bool interruptible);
+
+/**
+ * ttm_write_unlock
+ *
+ * @lock: Pointer to a struct ttm_lock
+ *
+ * Releases a write lock.
+ */
+extern void ttm_write_unlock(struct ttm_lock *lock);
+
+/**
+ * ttm_write_lock
+ *
+ * @lock: Pointer to a struct ttm_lock
+ * @interruptible: Interruptible sleeping while waiting for a lock.
+ *
+ * Takes the lock in write mode.
+ * Returns:
+ * -ERESTARTSYS If interrupted by a signal and interruptible is true.
+ */
+extern int ttm_write_lock(struct ttm_lock *lock, bool interruptible);
 
 /**
  * ttm_lock_downgrade
@@ -198,8 +219,6 @@ extern void ttm_write_unlock(struct ttm_lock *lock);
  * -ERESTARTSYS If interrupted by a signal and interruptible is true.
  */
 extern int ttm_write_lock(struct ttm_lock *lock, bool interruptible);
-
-void ttm_write_lock_downgrade(struct ttm_lock *lock);
 
 /**
  * ttm_lock_set_kill

@@ -130,6 +130,9 @@ __FBSDID("$FreeBSD$");
 #include <drm/drm_crtc.h>
 #include <drm/drm_global.h>
 #include <drm/drm_mm.h>
+#include <asm/mtrr.h>
+#include <dev/drm2/drm_os_freebsd.h>
+
 
 #include "opt_compat.h"
 #include "opt_drm.h"
@@ -164,6 +167,8 @@ struct drm_gem_object;
 struct device_node;
 struct videomode;
 struct reservation_object;
+struct seq_file;
+
 
 /*
  * 4 debug categories are defined:
@@ -459,6 +464,7 @@ struct drm_master {
 	struct drm_minor *minor; /**< link back to minor we are a master for */
 	char *unique;			/**< Unique identifier: e.g., busid */
 	int unique_len;			/**< Length of unique field */
+	struct idr magic_map;
 	struct drm_lock_data lock;
 	void *driver_priv;
 
@@ -786,12 +792,14 @@ struct drm_minor {
 	struct drm_device *dev;
 
 	struct drm_master *master; /* currently active master for this node */
+#if 0
 	struct list_head master_list;
 	struct drm_mode_group mode_group;
-
+#endif
 	struct sigio *buf_sigio;	/* Processes waiting for SIGIO     */
 };
 
+#if 0
 /* mode specified on the command line */
 struct drm_cmdline_mode {
 	bool specified;
@@ -806,7 +814,7 @@ struct drm_cmdline_mode {
 	bool margins;
 	enum drm_connector_force force;
 };
-
+#endif
 
 struct drm_pending_vblank_event {
 	struct drm_pending_event base;

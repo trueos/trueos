@@ -36,6 +36,7 @@
 #include <sys/sx.h>
 
 #include <linux/spinlock.h>
+#include <linux/lockdep.h>
 
 typedef struct mutex {
 	struct sx sx;
@@ -53,6 +54,9 @@ typedef struct mutex {
 	mutex_t lock;							\
 	SX_SYSINIT_FLAGS(lock, &(lock).sx, #lock, SX_DUPOK)
 
+
+
+
 static inline void
 linux_mutex_init(mutex_t *m, char *name)
 {
@@ -69,7 +73,6 @@ linux_mutex_destroy(mutex_t *m)
 }
 
 #define	mutex_init(m)	linux_mutex_init(m, #m)
-
 #define mutex_destroy(m) linux_mutex_destroy(m);
 
 #endif	/* _LINUX_MUTEX_H_ */

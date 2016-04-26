@@ -54,6 +54,7 @@
 #define	__devinit
 #define	__devexit
 #define __exit
+#define __rcu
 #define	__stringify(x)			#x
 #define	__attribute_const__		__attribute__((__const__))
 #undef __always_inline
@@ -87,5 +88,11 @@
 	barrier();			\
 	__var;				\
 })
-  
+
+#define lockless_dereference(p) \
+({ \
+	typeof(p) _________p1 = READ_ONCE(p); \
+	smp_read_barrier_depends(); /* Dependency order vs. p above. */ \
+	(_________p1); \
+})
 #endif	/* _LINUX_COMPILER_H_ */

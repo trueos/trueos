@@ -41,6 +41,7 @@
 #include <sys/smp.h>
 #include <sys/stddef.h>
 #include <sys/syslog.h>
+#include <sys/kdb.h>
 
 #include <linux/bitops.h>
 #include <linux/bug.h>
@@ -51,9 +52,11 @@
 #include <linux/jiffies.h>
 #include <linux/wait.h>
 #include <linux/log2.h>
-#include <linux/kconfig.h> 
+#include <linux/kconfig.h>
+#include <linux/printk.h> 
 
 #include <asm/byteorder.h>
+#include <asm-generic/bitops/const_hweight.h>
 
 #include <machine/stdarg.h>
 
@@ -87,6 +90,8 @@ struct va_format {
 	va_list *va;
 };
 
+/* XXX */ 
+#define irqs_disabled() (0)
 
 /*
  * The "pr_debug()" and "pr_devel()" macros should produce zero code
@@ -204,6 +209,8 @@ struct va_format {
 
 #define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
 #define clamp(x, lo, hi)		min( max(x,lo), hi)
+#define clamp_val(val, lo, hi) clamp_t(typeof(val), val, lo, hi)
+
 
 /*
  * This looks more complex than it should be. But we need to

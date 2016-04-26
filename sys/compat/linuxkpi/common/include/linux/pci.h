@@ -542,6 +542,8 @@ pci_disable_msix(struct pci_dev *pdev)
 
 #define	PCI_CAP_ID_EXP	PCIY_EXPRESS
 #define	PCI_CAP_ID_PCIX	PCIY_PCIX
+#define PCI_CAP_ID_AGP  PCIY_AGP
+#define PCI_CAP_ID_PM   PCIY_PMG
 
 
 static inline int

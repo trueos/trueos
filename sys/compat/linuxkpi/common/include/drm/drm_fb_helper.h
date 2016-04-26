@@ -32,7 +32,7 @@
 #ifndef DRM_FB_HELPER_H
 #define DRM_FB_HELPER_H
 
-#include <dev/drm2/linux_fb.h>
+#include <linux/fb.h>
 
 struct linux_fb_info;
 struct drm_fb_helper;

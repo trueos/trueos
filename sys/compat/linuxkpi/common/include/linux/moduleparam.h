@@ -97,6 +97,19 @@ param_sysinit(struct kernel_param *param)
 
 #define	MODULE_PARM_DESC(name, desc)
 
+
+#if 0
+#define module_param_named_unsafe(name, value, type, perm)		\
+	param_check_##type(name, &(value));				\
+	module_param_cb_unsafe(name, &param_ops_##type, &value, perm);	\
+	__MODULE_PARM_TYPE(name, #type)
+#endif
+#define module_param_named_unsafe(a, b, c, d)
+
+#define module_param_unsafe(name, type, perm)			\
+	module_param_named_unsafe(name, name, type, perm)
+
+
 static inline int
 param_set_byte(const char *val, struct kernel_param *kp)
 {

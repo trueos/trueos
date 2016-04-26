@@ -1,7 +1,20 @@
 #ifndef __LINUX_FB_H_
 #define __LINUX_FB_H_
+#include <sys/fbio.h>
+
+#include <linux/fs.h>
+#include <linux/init.h>
+#include <linux/workqueue.h>
+#include <linux/list.h>
+#include <linux/slab.h>
+#include <linux/mutex.h>
+#include <asm/io.h>
+
 
 struct linux_fb_info;
+struct videomode;
+struct vm_area_struct;
+
 
 #define FB_MAX			32	/* sufficient for now */
 
@@ -651,8 +664,11 @@ extern int fb_alloc_cmap(struct fb_cmap *cmap, int len, int transp);
 extern void fb_dealloc_cmap(struct fb_cmap *cmap);
 
 /* updated FreeBSD fb_info */
-void drm_legacy_fb_init(struct linux_fb_info *fb_info);
-void linux_fb_destroy(void);
+extern void drm_legacy_fb_init(struct linux_fb_info *fb_info);
+extern void linux_fb_destroy(void);
+extern int fb_get_options(const char *name, char **option);
+
+
 
 /*
  * GPL licensed routines that need to be replaced:

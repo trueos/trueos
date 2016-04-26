@@ -1,5 +1,6 @@
-/*
+/*-
  * Copyright (c) 2015 François Tigeot
+ * Copyright (c) 2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,6 +23,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _LINUX_RCULIST_H_
@@ -37,5 +40,27 @@ static inline void hlist_add_behind_rcu(struct hlist_node *n,
 
 #define hlist_for_each_entry_rcu(pos, head, member)	\
 	hlist_for_each_entry(pos, head, member)
+
+#define	hlist_add_head_rcu(n, h)		\
+do {						\
+  	sx_xlock(&linux_global_rcu_lock);	\
+	hlist_add_head(n, h);			\
+	sx_xunlock(&linux_global_rcu_lock);	\
+} while (0)
+
+#define	hlist_del_init_rcu(n)			\
+do {						\
+    	sx_xlock(&linux_global_rcu_lock);	\
+	hlist_del_init(n);			\
+	sx_xunlock(&linux_global_rcu_lock);	\
+} while (0)
+
+#define	hlist_del_rcu(n)			\
+do {						\
+    	sx_xlock(&linux_global_rcu_lock);	\
+	hlist_del(n);				\
+	sx_xunlock(&linux_global_rcu_lock);	\
+} while (0)
+
 
 #endif	/* _LINUX_RCULIST_H_ */

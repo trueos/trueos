@@ -54,6 +54,20 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	vmalloc(size)                   kmalloc(size, GFP_KERNEL)
 #define	vmalloc_node(size, node)        kmalloc(size, GFP_KERNEL)
 #define	vmalloc_user(size)              kmalloc(size, GFP_KERNEL | __GFP_ZERO)
+#define __kmalloc			kmalloc
+
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
+static inline void *kmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+	if (size != 0 && n > SIZE_MAX / size)
+		return NULL;
+	return __kmalloc(n * size, flags);
+}
 
 struct kmem_cache {
 	uma_zone_t	cache_zone;

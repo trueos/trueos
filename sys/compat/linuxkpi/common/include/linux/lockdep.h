@@ -38,4 +38,7 @@ struct lock_class_key {
 
 #define lockdep_set_class_and_name(lock, key, name)
 
+#define might_lock(lock) do { } while (0)
+#define might_lock_read(lock) do { } while (0)
+
 #endif  /* _LINUX_LOCKDEP_H_ */
