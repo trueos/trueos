@@ -131,7 +131,9 @@ SRCS	= \
 	sdma_v3_0.c \
 	si.c \
 	si_dma.c \
+	si_dpm.c \
 	si_ih.c \
+	si_smc.c \
 	smumgr.c \
 	tonga_clockpowergating.c \
 	tonga_dpm.c \
@@ -238,6 +240,7 @@ CWARNFLAGS.ppatomctrl.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.processpptables.c=	-Wno-missing-prototypes -Wno-sometimes-uninitialized
 CWARNFLAGS.sdma_v3_0.c=		-Wno-missing-prototypes
 CWARNFLAGS.si.c=		-Wno-missing-prototypes
+CWARNFLAGS.si_dpm.c=		-Wno-missing-prototypes -Wno-unused-const-variable
 CWARNFLAGS.tonga_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.tonga_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual -Wno-unused-const-variable
 CWARNFLAGS.tonga_processpptables.c=	-Wno-missing-prototypes -Wno-cast-qual
