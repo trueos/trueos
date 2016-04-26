@@ -3,10 +3,12 @@
 .PATH:	${.CURDIR}/../../../dev/drm2 ${.CURDIR}/../../../dev/drm2/ttm
 KMOD	= drm2
 SRCS	= \
+	ati_pcigart.c \
 	drm_agpsupport.c \
+	drm_atomic.c \
+	drm_atomic_helper.c \
 	drm_auth.c \
 	drm_bufs.c \
-	drm_buffer.c \
 	drm_context.c \
 	drm_crtc.c \
 	drm_crtc_helper.c \
@@ -27,12 +29,11 @@ SRCS	= \
 	drm_memory.c \
 	drm_mm.c \
 	drm_modes.c \
+	drm_os_freebsd.c \
 	drm_pci.c \
 	drm_scatter.c \
 	drm_stub.c \
 	drm_sysctl.c \
-	drm_vm_freebsd.c \
-	drm_os_freebsd.c \
 	linux_fb.c \
 	tainted_linux_fb.c \
 	linux_hdmi.c \
@@ -48,7 +49,6 @@ SRCS	= \
 	ttm_module.c \
 	ttm_page_alloc.c \
 	ttm_bo_vm.c \
-	ati_pcigart.c
 #ttm_page_alloc_dma.c
 
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
