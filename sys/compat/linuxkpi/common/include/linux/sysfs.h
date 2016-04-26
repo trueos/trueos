@@ -37,6 +37,21 @@
 
 #include <linux/kobject.h>
 
+
+struct vm_area_struct;
+
+struct bin_attribute {
+	struct attribute	attr;
+	size_t			size;
+	void			*private;
+	ssize_t (*read)(struct file *, struct kobject *, struct bin_attribute *,
+			char *, loff_t, size_t);
+	ssize_t (*write)(struct file *, struct kobject *, struct bin_attribute *,
+			 char *, loff_t, size_t);
+	int (*mmap)(struct file *, struct kobject *, struct bin_attribute *attr,
+		    struct vm_area_struct *vma);
+};
+
 struct sysfs_ops {
 	ssize_t (*show)(struct kobject *, struct attribute *, char *);
 	ssize_t (*store)(struct kobject *, struct attribute *, const char *,
@@ -45,9 +60,12 @@ struct sysfs_ops {
 
 struct attribute_group {
 	const char		*name;
-	mode_t                  (*is_visible)(struct kobject *,
-				    struct attribute *, int);
+	umode_t			(*is_visible)(struct kobject *,
+					      struct attribute *, int);
+	umode_t			(*is_bin_visible)(struct kobject *,
+						  struct bin_attribute *, int);
 	struct attribute	**attrs;
+	struct bin_attribute	**bin_attrs;
 };
 
 #define	__ATTR(_name, _mode, _show, _store) {				\
@@ -59,6 +77,16 @@ struct attribute_group {
 	.attr = { .name = __stringify(_name), .mode = 0444 },		\
 	.show   = _name##_show,						\
 }
+
+
+#define __ATTR_WO(_name) {						\
+	.attr	= { .name = __stringify(_name), .mode = S_IWUSR },	\
+	.store	= _name##_store,					\
+}
+
+#define __ATTR_RW(_name) __ATTR(_name, (S_IWUSR | S_IRUGO),		\
+			 _name##_show, _name##_store)
+
 
 #define	__ATTR_NULL	{ .attr = { .name = NULL } }
 
@@ -187,4 +215,20 @@ sysfs_remove_dir(struct kobject *kobj)
 
 #define sysfs_attr_init(attr) do {} while(0)
 
+
+static inline bool sysfs_streq(const char *s1, const char *s2)
+{
+	while (*s1 && *s1 == *s2) {
+		s1++;
+		s2++;
+	}
+
+	if (*s1 == *s2)
+		return true;
+	if (!*s1 && *s2 == '\n' && !s2[1])
+		return true;
+	if (*s1 == '\n' && !s1[1] && !*s2)
+		return true;
+	return false;
+}
 #endif	/* _LINUX_SYSFS_H_ */

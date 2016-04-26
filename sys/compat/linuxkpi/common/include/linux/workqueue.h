@@ -39,7 +39,6 @@
 #include <asm/atomic.h>
 
 #include <sys/taskqueue.h>
-
 struct workqueue_struct {
 	struct taskqueue	*taskqueue;
 	atomic_t		draining;
@@ -57,6 +56,9 @@ struct delayed_work {
 	struct work_struct	work;
 	struct callout		timer;
 };
+
+extern struct workqueue_struct *system_long_wq;
+
 
 extern void linux_work_fn(void *, int);
 extern void linux_flush_fn(void *, int);
@@ -213,4 +215,12 @@ mod_delayed_work(struct workqueue_struct *wq, struct delayed_work *dwork,
 	return false;
 }
 
+
+static inline bool
+flush_work(struct work_struct *work)
+{
+/* XXX */
+	flush_taskqueue(work->taskqueue);
+	return true;
+}
 #endif	/* _LINUX_WORKQUEUE_H_ */

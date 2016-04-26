@@ -14,6 +14,7 @@ SRCS	= \
 	drm_crtc_helper.c \
 	drm_dma.c \
 	drm_dp_helper.c \
+	drm_dp_mst_topology.c \
 	drm_drv.c \
 	drm_edid.c \
 	drm_fb_helper.c \
@@ -32,8 +33,9 @@ SRCS	= \
 	drm_os_freebsd.c \
 	drm_pci.c \
 	drm_scatter.c \
-	drm_stub.c \
+	drm_sysfs.c \
 	drm_sysctl.c \
+	drm_vma_manager.c \
 	linux_fb.c \
 	tainted_linux_fb.c \
 	linux_hdmi.c \
@@ -49,6 +51,8 @@ SRCS	= \
 	ttm_module.c \
 	ttm_page_alloc.c \
 	ttm_bo_vm.c \
+
+#
 #ttm_page_alloc_dma.c
 
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include

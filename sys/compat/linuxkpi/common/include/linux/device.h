@@ -85,6 +85,15 @@ struct device_driver {
 #endif	
 };
 
+#define DEVICE_ATTR(_name, _mode, _show, _store) \
+	struct device_attribute dev_attr_##_name = __ATTR(_name, _mode, _show, _store)
+#define DEVICE_ATTR_RW(_name) \
+	struct device_attribute dev_attr_##_name = __ATTR_RW(_name)
+#define DEVICE_ATTR_RO(_name) \
+	struct device_attribute dev_attr_##_name = __ATTR_RO(_name)
+#define DEVICE_ATTR_WO(_name) \
+	struct device_attribute dev_attr_##_name = __ATTR_WO(_name)
+
 /*
  * The type of device, "struct device" is embedded in. A class
  * or bus can contain devices of different types
@@ -148,10 +157,6 @@ struct device_attribute {
 					struct device_attribute *, const char *,
 					size_t);
 };
-
-#define	DEVICE_ATTR(_name, _mode, _show, _store)			\
-	struct device_attribute dev_attr_##_name =			\
-	    { { #_name, NULL, _mode }, _show, _store }
 
 /* Simple class attribute that is just a static string */
 struct class_attribute_string {
@@ -245,14 +250,14 @@ class_unregister(struct class *class)
 
 static inline int device_is_registered(struct device *dev)
 {
-#ifdef notyet	
 	return dev->kobj.state_in_sysfs;
-#else
-	/* XXX */
-	return (1);
-#endif
 }
 
+
+static inline struct device *kobj_to_dev(struct kobject *kobj)
+{
+	return container_of(kobj, struct device, kobj);
+}
 
 extern int device_add(struct device *dev);
 extern void device_del(struct device *dev);
@@ -302,8 +307,15 @@ device_unregister(struct device *dev)
 	put_device(dev);
 }
 
+extern void device_initialize(struct device *dev);
+
 struct device *device_create(struct class *class, struct device *parent,
 	    dev_t devt, void *drvdata, const char *fmt, ...);
+
+struct device *device_create_with_groups(struct class *cls,
+			     struct device *parent, dev_t devt, void *drvdata,
+			     const struct attribute_group **groups,
+			     const char *fmt, ...);
 
 static inline void
 device_destroy(struct class *class, dev_t devt)
