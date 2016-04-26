@@ -32,11 +32,11 @@
 #ifndef _TTM_BO_DRIVER_H_
 #define _TTM_BO_DRIVER_H_
 
-#include <dev/drm2/drmP.h>
+#include <drm/drmP.h>
 #include <dev/drm2/ttm/ttm_bo_api.h>
 #include <dev/drm2/ttm/ttm_memory.h>
-#include <dev/drm2/ttm/ttm_module.h>
-#include <dev/drm2/drm_global.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/drm_global.h>
 #include <sys/rwlock.h>
 #include <sys/tree.h>
 

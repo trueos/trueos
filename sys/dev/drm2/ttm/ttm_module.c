@@ -32,7 +32,7 @@
 #include <linux/device.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
-#include <dev/drm2/ttm/ttm_module.h>
+#include <drm/ttm/ttm_module.h>
 
 static DECLARE_WAIT_QUEUE_HEAD(exit_q);
 atomic_t device_released;

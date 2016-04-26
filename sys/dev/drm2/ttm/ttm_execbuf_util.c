@@ -28,10 +28,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/ttm/ttm_execbuf_util.h>
-#include <dev/drm2/ttm/ttm_bo_driver.h>
-#include <dev/drm2/ttm/ttm_placement.h>
+#include <drm/drmP.h>
+#include <drm/ttm/ttm_execbuf_util.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
 
 static void ttm_eu_backoff_reservation_locked(struct list_head *list)
 {

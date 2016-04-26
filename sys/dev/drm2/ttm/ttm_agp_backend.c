@@ -32,12 +32,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/ttm/ttm_module.h>
-#include <dev/drm2/ttm/ttm_bo_driver.h>
-#include <dev/drm2/ttm/ttm_page_alloc.h>
+#include <drm/drmP.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_page_alloc.h>
 #ifdef TTM_HAS_AGP
-#include <dev/drm2/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_placement.h>
 
 struct ttm_agp_backend {
 	struct ttm_tt ttm;

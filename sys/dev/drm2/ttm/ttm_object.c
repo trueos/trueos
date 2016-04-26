@@ -55,11 +55,11 @@ __FBSDID("$FreeBSD$");
 
 #define pr_fmt(fmt) "[TTM] " fmt
 
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/drm.h>
+#include <drm/drmP.h>
+#include <uapi/drm/drm.h>
 #include <sys/rwlock.h>
-#include <dev/drm2/ttm/ttm_object.h>
-#include <dev/drm2/ttm/ttm_module.h>
+#include <drm/ttm/ttm_object.h>
+#include <drm/ttm/ttm_module.h>
 
 struct ttm_object_file {
 	struct ttm_object_device *tdev;

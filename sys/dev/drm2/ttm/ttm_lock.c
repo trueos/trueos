@@ -38,8 +38,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/drm2/ttm/ttm_lock.h>
-#include <dev/drm2/ttm/ttm_module.h>
+#include <drm/ttm/ttm_lock.h>
+#include <drm/ttm/ttm_module.h>
 
 #define TTM_WRITE_LOCK_PENDING    (1 << 0)
 #define TTM_VT_LOCK_PENDING       (1 << 1)
