@@ -50,6 +50,9 @@ kmemdup(const void *src, size_t len, gfp_t gfp)
 	return (dst);
 }
 
+extern char *kstrdup(const char *s, gfp_t gfp);
+
+
 static inline const char *
 kstrdup_const(const char *src, gfp_t gfp)
 {

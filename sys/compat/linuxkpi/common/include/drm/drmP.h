@@ -787,7 +787,7 @@ struct drm_minor {
 	int type;                       /**< Control or render */
 	dev_t device;			/**< Linux's Device number for mknod */
 	struct cdev *bsd_device;		/**< Device number for mknod */
-	struct device kdev;			/**< Linux device */
+	struct device *kdev;			/**< Linux device */
 	device_t bsd_kdev;			/**< OS device */
 	struct drm_device *dev;
 
@@ -900,6 +900,8 @@ struct drm_device {
 	struct mutex ctxlist_mutex;	/**< For ctxlist */
 
 	struct idr ctx_idr;
+
+	struct list_head vmalist;	/**< List of vmas (for debugging) */
 
 	/*@} */
 

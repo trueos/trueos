@@ -391,8 +391,6 @@ static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return
 #define drm_prime_gem_destroy(x, y)
 #define class_create_file(a, b)
 #define class_destroy_file(a, b)
-#define register_chrdev(a, b, c)
-#define unregister_chrdev(a, b)
 
 #define CONFIG_X86_PAT
 

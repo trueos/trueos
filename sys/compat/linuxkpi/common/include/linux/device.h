@@ -242,6 +242,21 @@ class_unregister(struct class *class)
 	kobject_put(&class->kobj);
 }
 
+
+static inline int device_is_registered(struct device *dev)
+{
+#ifdef notyet	
+	return dev->kobj.state_in_sysfs;
+#else
+	/* XXX */
+	return (1);
+#endif
+}
+
+
+extern int device_add(struct device *dev);
+extern void device_del(struct device *dev);
+
 /*
  * Devices are registered and created for exporting to sysfs.  create
  * implies register and register assumes the device fields have been

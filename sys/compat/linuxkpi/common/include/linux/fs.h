@@ -156,6 +156,39 @@ struct file_operations {
 #define	FMODE_WRITE	FWRITE
 #define	FMODE_EXEC	FEXEC
 
+extern int __register_chrdev(unsigned int major, unsigned int baseminor,
+			     unsigned int count, const char *name,
+			     const struct file_operations *fops);
+extern void __unregister_chrdev(unsigned int major, unsigned int baseminor,
+				unsigned int count, const char *name);
+
+static inline int register_chrdev(unsigned int major, const char *name,
+				  const struct file_operations *fops)
+{
+	return __register_chrdev(major, 0, 256, name, fops);
+}
+
+/* Alas, no aliases. Too much hassle with bringing module.h everywhere */
+#define fops_put(fops) \
+	do { if (fops) module_put((fops)->owner); } while(0)
+/*
+ * This one is to be used *ONLY* from ->open() instances.
+ * fops must be non-NULL, pinned down *and* module dependencies
+ * should be sufficient to pin the caller down as well.
+ */
+#define replace_fops(f, fops) \
+	do {	\
+		struct file *__file = (f); \
+		fops_put(__file->f_op); \
+		BUG_ON(!(__file->f_op = (fops))); \
+	} while(0)
+
+
+static inline void unregister_chrdev(unsigned int major, const char *name)
+{
+	__unregister_chrdev(major, 0, 256, name);
+}
+
 static inline int
 register_chrdev_region(dev_t dev, unsigned range, const char *name)
 {
