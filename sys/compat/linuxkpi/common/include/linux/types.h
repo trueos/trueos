@@ -66,7 +66,7 @@ typedef u64 phys_addr_t;
 #ifdef __LP64__
 
 typedef struct {
-	long long counter;
+	uint64_t counter;
 } atomic64_t;
 
 typedef atomic64_t atomic_long_t;
@@ -84,5 +84,6 @@ typedef atomic_t atomic_long_t;
 
 #endif
 
+#define pgoff_t unsigned long
 
 #endif	/* _LINUX_TYPES_H_ */

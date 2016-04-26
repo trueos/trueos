@@ -36,6 +36,7 @@
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_memory.h>
 #include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_placement.h>
 #include <drm/drm_global.h>
 #include <sys/rwlock.h>
 #include <sys/tree.h>
@@ -118,7 +119,7 @@ struct ttm_tt {
 	unsigned long num_pages;
 	struct sg_table *sg; /* for SG objects via dma-buf */
 	struct ttm_bo_global *glob;
-	struct vm_object *swap_storage;
+	struct linux_file *swap_storage;
 	enum ttm_caching_state caching_state;
 	enum {
 		tt_bound,
@@ -206,7 +207,7 @@ struct ttm_mem_type_manager_func {
 	 */
 	int  (*get_node)(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *bo,
-			 struct ttm_place *place,
+			 const struct ttm_place *place,
 			 struct ttm_mem_reg *mem);
 
 	/**
@@ -646,7 +647,7 @@ extern int ttm_tt_swapin(struct ttm_tt *ttm);
  */
 extern int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement);
 extern int ttm_tt_swapout(struct ttm_tt *ttm,
-			  struct vm_object *persistent_swap_storage);
+			  struct linux_file *persistent_swap_storage);
 
 /**
  * ttm_tt_unpopulate - free pages from a ttm
@@ -1027,7 +1028,7 @@ extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
  * Utility function that returns the pgprot_t that should be used for
  * setting up a PTE with the caching model indicated by @c_state.
  */
-extern vm_memattr_t ttm_io_prot(uint32_t caching_flags);
+extern pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
 
 extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 

@@ -12,6 +12,15 @@
 #include <linux/kernel.h>
 
 
+struct fence;
+struct fence_cb;
+
+typedef void (*fence_func_t)(struct fence *fence, struct fence_cb *cb);
+
+struct fence_cb {
+	struct list_head node;
+	fence_func_t func;
+};
 
 struct fence {
 	struct kref refcount;
@@ -25,6 +34,25 @@ struct fence {
 	int status;
 	struct list_head child_list;
 	struct list_head active_list;
+};
+
+enum fence_flag_bits {
+	FENCE_FLAG_SIGNALED_BIT,
+	FENCE_FLAG_ENABLE_SIGNAL_BIT,
+	FENCE_FLAG_USER_BITS, /* must always be last member */
+};
+
+struct fence_ops {
+	const char * (*get_driver_name)(struct fence *fence);
+	const char * (*get_timeline_name)(struct fence *fence);
+	bool (*enable_signaling)(struct fence *fence);
+	bool (*signaled)(struct fence *fence);
+	signed long (*wait)(struct fence *fence, bool intr, signed long timeout);
+	void (*release)(struct fence *fence);
+
+	int (*fill_driver_data)(struct fence *fence, void *data, int size);
+	void (*fence_value_str)(struct fence *fence, char *str, int size);
+	void (*timeline_value_str)(struct fence *fence, char *str, int size);
 };
 
 void fence_release(struct kref *kref);
@@ -71,6 +99,23 @@ static inline signed long fence_wait(struct fence *fence, bool intr)
 	ret = fence_wait_timeout(fence, intr, MAX_SCHEDULE_TIMEOUT);
 
 	return ret < 0 ? ret : 0;
+}
+
+void fence_enable_sw_signaling(struct fence *fence);
+int fence_signal(struct fence *fence);
+
+static inline bool
+fence_is_signaled(struct fence *fence)
+{
+	if (test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		return true;
+
+	if (fence->ops->signaled && fence->ops->signaled(fence)) {
+		fence_signal(fence);
+		return true;
+	}
+
+	return false;
 }
 
 #endif

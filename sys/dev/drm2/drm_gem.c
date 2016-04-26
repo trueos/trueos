@@ -136,12 +136,11 @@ int drm_gem_object_init(struct drm_device *dev,
 
 	drm_gem_private_object_init(dev, obj, size);
 
-	obj->dev = dev;
-	obj->i_mapping.vm_obj = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
-	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
-	if (obj->i_mapping.vm_obj)
-		return (-ENOMEM);
+	filp = shmem_file_setup("drm mm object", size, VM_NORESERVE);
+	if (IS_ERR(filp))
+		return PTR_ERR(filp);
 
+	obj->filp = filp;
 	return 0;
 }
 EXPORT_SYMBOL(drm_gem_object_init);
@@ -383,10 +382,8 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 
 	*handlep = handle;
 	return 0;
-#ifdef __linux__
 err_revoke:
 	drm_vma_node_revoke(&obj->vma_node, file_priv->filp);
-#endif
 err_remove:
 	spin_lock(&file_priv->table_lock);
 	idr_remove(&file_priv->object_idr, handle);
@@ -777,8 +774,11 @@ drm_gem_object_release(struct drm_gem_object *obj)
 {
 	WARN_ON(obj->dma_buf);
 
-	if (obj->i_mapping.vm_obj != NULL)
+	if (obj->filp)
+		fput(obj->filp);
+#if 0		
 		vm_object_deallocate(obj->i_mapping.vm_obj);
+#endif	
 #ifdef notyet
 	/* do we need anything else ? */
 	drm_gem_free_mmap_offset(obj);

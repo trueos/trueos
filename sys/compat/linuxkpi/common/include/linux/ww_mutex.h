@@ -49,4 +49,20 @@ struct ww_acquire_ctx {
 #define ww_mutex_destroy(m) linux_mutex_destroy(m)
 
 #define	ww_mutex_is_locked(_m)		sx_xlocked(&(_m)->sx)
+
+#define ww_mutex_lock(m, x)  ({ mutex_lock(m); 0; })
+#define ww_mutex_lock_slow(m, x)  ({ mutex_lock(m); 0; })
+#define ww_mutex_unlock mutex_unlock
+#define ww_mutex_trylock mutex_trylock
+#define ww_mutex_lock_interruptible(m, x) mutex_lock_interruptible(m)
+#define ww_mutex_lock_slow_interruptible(m, x) mutex_lock_interruptible(m)
+
+
+/*
+ * XXX FIX ME
+ */
+#define ww_acquire_fini(x)  panic(" XXX implement me!!!")
+#define ww_acquire_init(a, b) panic(" XXX implement me!!!")
+#define ww_acquire_done(a) panic(" XXX implement me!!!")
+
 #endif

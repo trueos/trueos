@@ -33,6 +33,7 @@
 
 #include <sys/time.h>
 #include <sys/stdint.h>
+# include <linux/math64.h>
 
 typedef unsigned long cycles_t;
 

@@ -549,6 +549,8 @@ int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 }
 EXPORT_SYMBOL(drm_ioctl_permit);
 
+
+#ifdef __linux__
 #define DRM_IOCTL_DEF(ioctl, _func, _flags)	\
 	[DRM_IOCTL_NR(ioctl)] = {		\
 		.cmd = ioctl,			\
@@ -556,6 +558,11 @@ EXPORT_SYMBOL(drm_ioctl_permit);
 		.flags = _flags,		\
 		.name = #ioctl			\
 	}
+#else
+
+#define DRM_IOCTL_DEF(ioctl, _func, _flags) \
+	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
+#endif
 
 /* Ioctl table */
 static const struct drm_ioctl_desc drm_ioctls[] = {
@@ -718,9 +725,11 @@ long drm_ioctl(struct file *filp,
 		ioctl = &drm_ioctls[nr];
 	}
 
+#ifdef notyet
 	drv_size = _IOC_SIZE(ioctl->cmd);
 	usize = _IOC_SIZE(cmd);
 	asize = max(usize, drv_size);
+#endif	
 	cmd = ioctl->cmd;
 
 	DRM_DEBUG("pid=%d, dev=0x%lx, auth=%d, %s\n",

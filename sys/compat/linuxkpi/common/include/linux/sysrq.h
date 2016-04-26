@@ -24,4 +24,7 @@ struct sysrq_key_op {
 	char *action_msg;
 	int enable_mask;
 };
+#define register_sysrq_key(a, b)
+#define unregister_sysrq_key(a, b)
+
 #endif

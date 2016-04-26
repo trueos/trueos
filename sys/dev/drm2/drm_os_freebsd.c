@@ -152,7 +152,7 @@ drm_generic_detach(device_t kdev)
 	dev = device_get_softc(kdev);
 
 	drm_put_dev(dev);
-
+#if 0
 	/* Clean up PCI resources allocated by drm_bufs.c.  We're not really
 	 * worried about resource consumption while the DRM is inactive (between
 	 * lastclose and firstopen or unload) because these aren't actually
@@ -166,6 +166,7 @@ drm_generic_detach(device_t kdev)
 		dev->pcir[i] = NULL;
 	}
 
+#endif	
 	if (pci_disable_busmaster(dev->dev->bsddev))
 		DRM_ERROR("Request to disable bus-master failed.\n");
 
@@ -702,7 +703,7 @@ static int drm_alloc_resource(struct drm_device *dev, int resource)
 {
 	struct resource *res;
 	int rid;
-
+#if 0
 	if (resource >= DRM_MAX_PCI_RESOURCE) {
 		DRM_ERROR("Resource %d too large\n", resource);
 		return 1;
@@ -724,7 +725,8 @@ static int drm_alloc_resource(struct drm_device *dev, int resource)
 		dev->pcirid[resource] = rid;
 		dev->pcir[resource] = res;
 	}
-
+#endif
+	
 	return 0;
 }
 

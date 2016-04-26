@@ -237,7 +237,18 @@ typedef struct pm_message {
 	b = _swap_tmp;			\
 } while (0)
 
+
+
 #define	DIV_ROUND_CLOSEST(x, divisor)	(((x) + ((divisor) / 2)) / (divisor))
+
+#define DIV_ROUND_CLOSEST_ULL(x, divisor)(		\
+{							\
+	typeof(divisor) __d = divisor;			\
+	unsigned long long _tmp = (x) + (__d) / 2;	\
+	_tmp /=  __d;		  		        \
+	_tmp;						\
+}							\
+)
 
 static inline uintmax_t
 mult_frac(uintmax_t x, uintmax_t multiplier, uintmax_t divisor)
@@ -253,5 +264,8 @@ abs64(int64_t x)
 {
 	return (x < 0 ? -x : x);
 }
+
+#define div_s64(di, dv) (di/dv)
+#define div_u64(di, dv) (di/dv)
 
 #endif	/* _LINUX_KERNEL_H_ */

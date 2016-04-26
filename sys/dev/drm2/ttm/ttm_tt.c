@@ -45,6 +45,8 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_page_alloc.h>
 
+#define file linux_file
+
 /**
  * Allocates storage for pointers to the pages that back the ttm.
  */
@@ -386,10 +388,12 @@ static void ttm_tt_clear_mapping(struct ttm_tt *ttm)
 	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
 		return;
 
+#ifdef notyet	
 	for (i = 0; i < ttm->num_pages; ++i) {
 		(*page)->mapping = NULL;
 		(*page++)->index = 0;
 	}
+#endif	
 }
 
 void ttm_tt_unpopulate(struct ttm_tt *ttm)

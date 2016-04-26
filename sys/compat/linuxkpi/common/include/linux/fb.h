@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <asm/io.h>
-
+#define CONFIG_DRM_FBDEV_EMULATION
 
 struct linux_fb_info;
 struct videomode;

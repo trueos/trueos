@@ -88,8 +88,6 @@ struct vt_kms_softc {
 #define	DRM_READMEMORYBARRIER()		rmb()
 #define	DRM_WRITEMEMORYBARRIER()	wmb()
 #define	DRM_MEMORYBARRIER()		mb()
-#define	smp_rmb()			rmb()
-#define	smp_wmb()			wmb()
 #define	smp_mb__before_atomic_inc()	mb()
 #define	smp_mb__after_atomic_inc()	mb()
 
@@ -366,11 +364,6 @@ static inline void vga_switcheroo_unregister_handler(void) {}
 static inline int vga_switcheroo_process_delayed_switch(void) { return 0; }
 static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return VGA_SWITCHEROO_ON; }
 #endif
-
-#define vga_client_register(a, b, c, d) 0
-#define vga_get_interruptible(a, b)
-#define vga_get_uninterruptible(a, b)
-#define vga_put(a, b)
 
 #define pm_qos_add_request(a, b, c)
 #define pm_qos_update_request(a, b)

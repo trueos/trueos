@@ -36,6 +36,7 @@
 #include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/slab.h>
+#include <linux/list.h>
 
 struct kobject;
 struct sysctl_oid;

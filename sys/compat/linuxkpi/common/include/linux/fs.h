@@ -38,9 +38,11 @@
 #include <sys/vnode.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/semaphore.h>
+#include <linux/list.h>
 
 struct module;
 struct kiocb;
@@ -68,9 +70,9 @@ struct dentry {
 
 struct file_operations;
 
-struct address_space {
-	struct vm_object *vm_obj;
-};
+#define address_space vm_object
+#define i_mapping bo_object
+#define file_inode(f) (&((f)->f_vnode->v_bufobj))
 
 
 struct linux_file {
@@ -84,6 +86,7 @@ struct linux_file {
 	struct selinfo	f_selinfo;
 	struct sigio	*f_sigio;
 	struct vnode	*f_vnode;
+	atomic_long_t		f_count;
 };
 
 #define	file		linux_file
@@ -257,6 +260,8 @@ shmem_read_mapping_page(struct address_space *as, int idx)
 
 	return (shmem_read_mapping_page_gfp(as, idx, 0));
 }
+
+extern struct linux_file *shmem_file_setup(char *name, int size, int flags);
 
 static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask) {}
 static inline gfp_t mapping_gfp_mask(struct address_space *m)

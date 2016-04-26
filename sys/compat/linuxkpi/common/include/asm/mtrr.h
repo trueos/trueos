@@ -15,5 +15,6 @@ extern int mtrr_del(int reg, unsigned long base, unsigned long size);
 
 #define arch_phys_wc_add(base, size) mtrr_add(base, size, MTRR_TYPE_WRCOMB, 1)
 #define arch_phys_wc_del(reg, base, size) mtrr_del(reg, base, size)
+#define arch_phys_wc_index(x) (x)
 
 #endif

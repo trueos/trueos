@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFUL >> PAGE_SHIFT) * 16)
 #endif
 
-
+#ifdef notyet
 static struct drm_gem_object *
 drm_gem_object_from_offset(struct drm_device *dev, vm_ooffset_t offset)
 {
@@ -129,3 +129,4 @@ drm_gem_pager_dtr(void *handle)
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
 }
+#endif

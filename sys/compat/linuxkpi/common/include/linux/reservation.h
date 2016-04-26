@@ -44,6 +44,8 @@
 #include <linux/slab.h>
 #include <linux/seqlock.h>
 #include <linux/rcupdate.h>
+#include <linux/atomic.h>
+
 
 extern struct ww_class reservation_ww_class;
 extern struct lock_class_key reservation_seqcount_class;

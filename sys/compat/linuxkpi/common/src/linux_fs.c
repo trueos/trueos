@@ -91,3 +91,15 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 	VM_OBJECT_WUNLOCK(object);
 	return (page);
 }
+
+struct linux_file *
+shmem_file_setup(char *name, int size, int flags)
+{
+#ifdef notyet
+	file_inode(obj->filp)->i_mapping = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
+	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
+
+#endif
+	return (NULL);
+}
+

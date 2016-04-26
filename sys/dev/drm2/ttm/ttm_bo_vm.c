@@ -51,53 +51,6 @@ __FBSDID("$FreeBSD$");
 
 #define TTM_BO_VM_NUM_PREFAULT 16
 
-RB_GENERATE(ttm_bo_device_buffer_objects, ttm_buffer_object, vm_rb,
-    ttm_bo_cmp_rb_tree_items);
-
-int
-ttm_bo_cmp_rb_tree_items(struct ttm_buffer_object *a,
-    struct ttm_buffer_object *b)
-{
-
-	if (a->vm_node->start < b->vm_node->start) {
-		return (-1);
-	} else if (a->vm_node->start > b->vm_node->start) {
-		return (1);
-	} else {
-		return (0);
-	}
-}
-
-static struct ttm_buffer_object *ttm_bo_vm_lookup_rb(struct ttm_bo_device *bdev,
-						     unsigned long page_start,
-						     unsigned long num_pages)
-{
-	unsigned long cur_offset;
-	struct ttm_buffer_object *bo;
-	struct ttm_buffer_object *best_bo = NULL;
-
-	bo = RB_ROOT(&bdev->addr_space_rb);
-	while (bo != NULL) {
-		cur_offset = bo->vm_node->start;
-		if (page_start >= cur_offset) {
-			best_bo = bo;
-			if (page_start == cur_offset)
-				break;
-			bo = RB_RIGHT(bo, vm_rb);
-		} else
-			bo = RB_LEFT(bo, vm_rb);
-	}
-
-	if (unlikely(best_bo == NULL))
-		return NULL;
-
-	if (unlikely((best_bo->vm_node->start + best_bo->num_pages) <
-		     (page_start + num_pages)))
-		return NULL;
-
-	return best_bo;
-}
-
 static int
 ttm_bo_vm_fault(vm_object_t vm_obj, vm_ooffset_t offset,
     int prot, vm_page_t *mres)
@@ -219,7 +172,7 @@ reserve:
 		    ("physical address %#jx not fictitious",
 		    (uintmax_t)(bo->mem.bus.base + bo->mem.bus.offset
 		    + offset)));
-		pmap_page_set_memattr(m, ttm_io_prot(bo->mem.placement));
+		pmap_page_set_memattr(m, ttm_io_prot(bo->mem.placement, 0));
 	} else {
 		ttm = bo->ttm;
 		m = ttm->pages[OFF_TO_IDX(offset)];
@@ -229,7 +182,7 @@ reserve:
 		}
 		pmap_page_set_memattr(m,
 		    (bo->mem.placement & TTM_PL_FLAG_CACHED) ?
-		    VM_MEMATTR_WRITE_BACK : ttm_io_prot(bo->mem.placement));
+				      VM_MEMATTR_WRITE_BACK : ttm_io_prot(bo->mem.placement, 0));
 	}
 
 	VM_OBJECT_WLOCK(vm_obj);
@@ -319,6 +272,7 @@ static struct cdev_pager_ops ttm_pager_ops = {
 	.cdev_pg_dtor = ttm_bo_vm_dtor
 };
 
+#if 0
 int
 ttm_bo_mmap_single(struct ttm_bo_device *bdev, vm_ooffset_t *offset, vm_size_t size,
     struct vm_object **obj_res, int nprot)
@@ -366,6 +320,7 @@ out_unref:
 }
 EXPORT_SYMBOL(ttm_bo_mmap);
 
+#endif
 void
 ttm_bo_release_mmap(struct ttm_buffer_object *bo)
 {

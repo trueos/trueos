@@ -32,6 +32,8 @@
 #define	_LINUX_KTHREAD_H_
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
@@ -40,6 +42,42 @@
 
 #include <linux/slab.h>
 #include <linux/sched.h>
+
+
+#define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
+
+#define	TASK_RUNNING		0
+#define	TASK_INTERRUPTIBLE	1
+#define	TASK_UNINTERRUPTIBLE	2
+#define	TASK_DEAD		64
+#define	TASK_WAKEKILL		128
+#define	TASK_WAKING		256
+
+#define	TASK_SHOULD_STOP	1
+#define	TASK_STOPPED		2
+
+
+
+/*
+ * A task_struct is only provided for those tasks created with kthread.
+ * Using these routines with threads not started via kthread will cause
+ * panics because no task_struct is allocated and td_retval[1] is
+ * overwritten by syscalls which kernel threads will not make use of.
+ */
+
+#define	current			task_struct_get(curthread)
+#define	task_struct_get(x)	((struct task_struct *)(uintptr_t)(x)->td_retval[1])
+#define	task_struct_set(x, y)	(x)->td_retval[1] = (uintptr_t)(y)
+
+struct task_struct {
+	struct	thread *task_thread;
+	int	(*task_fn)(void *data);
+	void	*task_data;
+	int	task_ret;
+	int	state;
+	int	should_stop;
+};
+
 
 static inline void
 linux_kthread_fn(void *arg)
@@ -84,6 +122,20 @@ linux_kthread_create(int (*threadfn)(void *data), void *data)
 })
 
 #define	kthread_should_stop()	current->should_stop
+
+#define	wake_up_process(x)						\
+do {									\
+	int wakeup_swapper;						\
+	void *c;							\
+									\
+	c = (x)->task_thread;						\
+	sleepq_lock(c);							\
+	(x)->state = TASK_RUNNING;					\
+	wakeup_swapper = sleepq_signal(c, SLEEPQ_SLEEP, 0, 0);		\
+	sleepq_release(c);						\
+	if (wakeup_swapper)						\
+		kick_proc0();						\
+} while (0)
 
 static inline int
 kthread_stop(struct task_struct *task)

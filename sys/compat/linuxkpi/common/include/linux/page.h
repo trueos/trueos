@@ -43,11 +43,14 @@
 
 #define page	vm_page
 
+
+typedef unsigned long pgprot_t;
+
 #define	virt_to_page(x)	PHYS_TO_VM_PAGE(vtophys((x)))
 
 #define	clear_page(page)		memset((page), 0, PAGE_SIZE)
-#define	pgprot_noncached(prot)		VM_MEMATTR_UNCACHEABLE
-#define	pgprot_writecombine(prot)	VM_MEMATTR_WRITE_COMBINING
+#define	pgprot_noncached(prot)		((pgprot_t)VM_MEMATTR_UNCACHEABLE)
+#define	pgprot_writecombine(prot)	((pgprot_t)VM_MEMATTR_WRITE_COMBINING)
 
 #undef	PAGE_MASK
 #define	PAGE_MASK	(~(PAGE_SIZE-1))
@@ -72,6 +75,7 @@ struct io_mapping {
 /* XXX note that this is incomplete */
 void *kmap(vm_page_t page);
 void *kmap_atomic(vm_page_t page);
+void *kmap_atomic_prot(vm_page_t page, pgprot_t prot);
 void kunmap(vm_page_t page);
 void kunmap_atomic(void *vaddr);
 void page_cache_release(vm_page_t page);
@@ -93,6 +97,7 @@ io_mapping_unmap_atomic(void *vaddr)
 {
 	iounmap_atomic(vaddr);
 }
+
 
 extern void *io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset);
 extern void *io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset);

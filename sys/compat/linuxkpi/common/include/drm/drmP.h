@@ -105,6 +105,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/pm.h>
 #include <linux/ktime.h>
 
+
 /*
  * CEM: drm.h brings in drm_os_freebsd.h, which brings in linuxkpi list.h.
  * drm_gem_names and drm_hashtab use FreeBSD queue(9) macros.  Include them
@@ -125,14 +126,20 @@ __FBSDID("$FreeBSD$");
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/i2c.h>
+#include <linux/kthread.h>
 
+#include <asm/mtrr.h>
 #include <drm/drm_agpsupport.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_global.h>
+#include <drm/drm_mem_util.h>
 #include <drm/drm_mm.h>
-#include <asm/mtrr.h>
 #include <dev/drm2/drm_os_freebsd.h>
+#include <uapi/drm/drm_sarea.h>
+#include <drm/drm_vma_manager.h>
+#include <linux/atomic.h>
 
+#define smp_wmb() wmb()
 
 #include "opt_compat.h"
 #include "opt_drm.h"
@@ -151,7 +158,6 @@ __FBSDID("$FreeBSD$");
 #define DRM_LINUX 0
 
 /* place holders */
-struct dma_buf { };
 struct dma_buf_attachment {
 	struct dma_buf *dmabuf;
 };
@@ -328,6 +334,8 @@ typedef int drm_ioctl_t(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 
 #define DRM_IOCTL_NR(n)                ((n) & 0xff)
+
+
 #define DRM_MAJOR       226
 
 #define DRM_AUTH	0x1
@@ -342,15 +350,13 @@ struct drm_ioctl_desc {
 	int flags;
 	drm_ioctl_t *func;
 	unsigned int cmd_drv;
+	char *name;
 };
 
 /**
  * Creates a driver or general drm_ioctl_desc array entry for the given
  * ioctl, for use by drm_ioctl().
  */
-
-#define DRM_IOCTL_DEF(ioctl, _func, _flags) \
-	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0}
 
 #define DRM_IOCTL_DEF_DRV(ioctl, _func, _flags)			\
 	[DRM_IOCTL_NR(DRM_##ioctl)] = {.cmd = DRM_##ioctl, .func = _func, .flags = _flags, .cmd_drv = DRM_IOCTL_##ioctl}
@@ -858,6 +864,7 @@ struct drm_device {
 	struct device *dev;		/**< Device structure of bus-device */
 	struct drm_driver *driver;	/**< DRM driver managing the device */
 	void *dev_private;		/**< DRM driver private data */
+	void *mm_private;
 	struct drm_minor *control;		/**< Control node */
 	struct drm_minor *primary;		/**< Primary node */
 	struct drm_minor *render;		/**< Render node */
@@ -982,6 +989,7 @@ struct drm_device {
 	/*@{ */
 	struct mutex object_name_lock;
 	struct idr object_name_idr;
+	struct drm_vma_offset_manager *vma_offset_manager;
 	/*@} */
 	int switch_power_state;
 
@@ -1155,8 +1163,6 @@ extern unsigned int drm_debug;
 extern bool drm_atomic;
 extern unsigned int drm_notyet;
 
-extern unsigned int drm_vblank_offdelay;
-extern unsigned int drm_timestamp_precision;
 extern unsigned int drm_timestamp_monotonic;
 
 extern struct class *drm_class;
@@ -1255,6 +1261,12 @@ static __inline__ bool drm_can_sleep(void)
 		return false;
 	return true;
 }
+/* sysctl support (drm_sysctl.h) */
+extern int		drm_vblank_offdelay;
+extern unsigned int	drm_timestamp_precision;
+extern int		drm_sysctl_init(struct drm_device *dev);
+extern int		drm_sysctl_cleanup(struct drm_device *dev);
+
 
 /* helper for handling conditionals in various for_each macros */
 #define for_each_if(condition) if (!(condition)) {} else

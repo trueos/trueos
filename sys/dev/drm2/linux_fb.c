@@ -13,7 +13,7 @@ __FBSDID("$FreeBSD$");
 #define FB_MAJOR		29   /* /dev/fb* framebuffers */
 #define FBPIXMAPSIZE	(1024 * 8)
 
-
+#undef fb_info
 static struct sx linux_fb_mtx;
 SX_SYSINIT(linux_fb_mtx, &linux_fb_mtx, "linux fb");
 
@@ -53,7 +53,7 @@ vt_restore_fbdev_mode(void *arg, int pending)
 	sc = (struct vt_kms_softc *)arg;
 	fb_helper = sc->fb_helper;
 	mutex_lock(&fb_helper->dev->mode_config.mutex);
-	drm_fb_helper_restore_fbdev_mode(fb_helper);
+	drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
 	mutex_unlock(&fb_helper->dev->mode_config.mutex);
 }
 
@@ -67,7 +67,7 @@ vt_kms_postswitch(void *arg)
 	if (!kdb_active && panicstr == NULL)
 		taskqueue_enqueue(taskqueue_thread, &sc->fb_mode_task);
 	else
-		drm_fb_helper_restore_fbdev_mode(sc->fb_helper);
+		drm_fb_helper_restore_fbdev_mode_unlocked(sc->fb_helper);
 
 	return (0);
 }

@@ -36,8 +36,12 @@
 #include <linux/spinlock.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 
 #define	PAGE_ALIGN(x)	ALIGN(x, PAGE_SIZE)
+
+
+#define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
 
 struct vm_area_struct {
 	vm_offset_t	vm_start;
@@ -119,5 +123,6 @@ get_page(struct vm_page *page)
 
 
 #define put_page(page) __free_hot_cold_page(page);
+#define copy_highpage(to, from) pmap_copy_page(from, to)
 
 #endif	/* _LINUX_MM_H_ */

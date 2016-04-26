@@ -132,4 +132,6 @@ ktime_get(void)
 	return (timespec_to_ktime(ts));
 }
 
+#include <linux/timekeeping.h>
+
 #endif	/* _LINUX_KTIME_H */

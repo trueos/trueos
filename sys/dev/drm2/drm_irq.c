@@ -63,7 +63,7 @@ static bool
 drm_get_last_vbltimestamp(struct drm_device *dev, unsigned int pipe,
 			  struct timeval *tvblank, unsigned flags);
 
-static unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
+unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
 
 /*
  * Default to use monotonic timestamps for wait-for-vblank and page-flip
@@ -71,7 +71,7 @@ static unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
  */
 unsigned int drm_timestamp_monotonic = 1;
 
-static int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
+int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
 
 module_param_named(vblankoffdelay, drm_vblank_offdelay, int, 0600);
 module_param_named(timestamp_precision_usec, drm_timestamp_precision, int, 0600);
@@ -1666,7 +1666,9 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 	}
 
 	e->pipe = pipe;
+#ifdef notyet
 	e->base.pid = current->pid;
+#endif	
 	e->event.base.type = DRM_EVENT_VBLANK;
 	e->event.base.length = sizeof(e->event);
 	e->event.user_data = vblwait->request.signal;
@@ -1702,8 +1704,10 @@ static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 	DRM_DEBUG("event on vblank count %d, current %d, crtc %u\n",
 		  vblwait->request.sequence, seq, pipe);
 
+#if 0	
 	trace_drm_vblank_event_queued(current->pid, pipe,
 				      vblwait->request.sequence);
+#endif	
 
 	e->event.sequence = vblwait->request.sequence;
 	if ((seq - vblwait->request.sequence) <= (1 << 23)) {

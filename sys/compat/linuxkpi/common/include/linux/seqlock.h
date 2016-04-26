@@ -37,6 +37,8 @@
 #include <linux/lockdep.h>
 #include <linux/compiler.h>
 #include <asm/processor.h>
+#include <linux/atomic.h>
+
 
 /*
  * Version using sequence counter only.

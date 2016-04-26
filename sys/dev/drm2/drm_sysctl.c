@@ -31,8 +31,14 @@ __FBSDID("$FreeBSD$");
 
 #include <drm/drmP.h>
 #include <uapi/drm/drm.h>
+#include "drm_legacy.h"
 
 #include <sys/sysctl.h>
+
+SYSCTL_DECL(_hw_drm);
+
+#define DRM_SYSCTL_HANDLER_ARGS	(SYSCTL_HANDLER_ARGS)
+
 
 static int	   drm_name_info DRM_SYSCTL_HANDLER_ARGS;
 static int	   drm_vm_info DRM_SYSCTL_HANDLER_ARGS;
@@ -203,7 +209,6 @@ static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 		[_DRM_AGP] = "AGP",
 		[_DRM_SCATTER_GATHER] = "SG",
 		[_DRM_CONSISTENT] = "CONS",
-		[_DRM_GEM] = "GEM"
 	};
 	const char *type, *yesno;
 	int i, mapcount;
@@ -252,7 +257,6 @@ static int drm_vm_info DRM_SYSCTL_HANDLER_ARGS
 		case _DRM_AGP:
 		case _DRM_SCATTER_GATHER:
 		case _DRM_CONSISTENT:
-		case _DRM_GEM:
 			type = types[map->type];
 			break;
 		}
@@ -292,25 +296,23 @@ static int drm_bufs_info DRM_SYSCTL_HANDLER_ARGS
 		mutex_unlock(&dev->struct_mutex);
 		return 0;
 	}
-	DRM_SPINLOCK(&dev->dma_lock);
+	/*DRM_SPINLOCK(&dev->dma_lock); */
 	tempdma = *dma;
 	templists = malloc(sizeof(int) * dma->buf_count, DRM_MEM_DRIVER,
 	    M_NOWAIT);
 	for (i = 0; i < dma->buf_count; i++)
 		templists[i] = dma->buflist[i]->list;
 	dma = &tempdma;
-	DRM_SPINUNLOCK(&dev->dma_lock);
+	/* DRM_SPINUNLOCK(&dev->dma_lock); */
 	mutex_unlock(&dev->struct_mutex);
 
-	DRM_SYSCTL_PRINT("\n o     size count  free	 segs pages    kB\n");
+	DRM_SYSCTL_PRINT("\n o     size count	 segs pages    kB\n");
 	for (i = 0; i <= DRM_MAX_ORDER; i++) {
 		if (dma->bufs[i].buf_count)
-			DRM_SYSCTL_PRINT("%2d %8d %5d %5d %5d %5d %5d\n",
+			DRM_SYSCTL_PRINT("%2d %8d %5d %5d %5d %5d\n",
 				       i,
 				       dma->bufs[i].buf_size,
 				       dma->bufs[i].buf_count,
-				       atomic_read(&dma->bufs[i]
-						   .freelist.count),
 				       dma->bufs[i].seg_count,
 				       dma->bufs[i].seg_count
 				       *(1 << dma->bufs[i].page_order),
@@ -385,15 +387,15 @@ static int drm_vblank_info DRM_SYSCTL_HANDLER_ARGS
 
 	DRM_SYSCTL_PRINT("\ncrtc ref count    last     enabled inmodeset\n");
 	mutex_lock(&dev->struct_mutex);
-	if (dev->_vblank_count == NULL)
+	if (dev->vblank == NULL)
 		goto done;
 	for (i = 0 ; i < dev->num_crtcs ; i++) {
 		DRM_SYSCTL_PRINT("  %02d  %02d %08d %08d %02d      %02d\n",
-		    i, dev->vblank_refcount[i].counter,
-		    dev->_vblank_count[i].counter,
-		    dev->last_vblank[i],
-		    dev->vblank_enabled[i],
-		    dev->vblank_inmodeset[i]);
+		    i, dev->vblank[i].refcount.counter,
+		    dev->vblank[i].count,
+		    dev->vblank[i].last,
+		    dev->vblank[i].enabled,
+		    dev->vblank[i].inmodeset);
 	}
 done:
 	mutex_unlock(&dev->struct_mutex);

@@ -52,6 +52,20 @@ call_rcu(struct rcu_head *ptr, rcu_callback_t func)
 	sx_xunlock(&linux_global_rcu_lock);
 }
 
+static inline void kfree_call_rcu(struct rcu_head *head,
+				  rcu_callback_t func)
+{
+	call_rcu(head, func);
+}
+
+#define __kfree_rcu(head, offset) \
+	do { \
+		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
+	} while (0)
+
+#define kfree_rcu(ptr, rcu_head)					\
+	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
+
 static inline void
 rcu_read_lock(void)
 {
@@ -77,6 +91,15 @@ synchronize_rcu(void)
 	sx_xlock(&linux_global_rcu_lock);
 	sx_xunlock(&linux_global_rcu_lock);
 }
+#define RCU_INIT_POINTER(p, v) p=(v)
 
+
+#define __rcu_dereference_protected(p, c, space) \
+({ \
+	((typeof(*p) __force __kernel *)(p)); \
+})
+
+#define rcu_dereference_protected(p, c) \
+	__rcu_dereference_protected((p), (c), __rcu)
 
 #endif					/* _LINUX_RCUPDATE_H_ */
