@@ -605,6 +605,7 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	spin_lock_init(&dev->buf_lock);
 	spin_lock_init(&dev->event_lock);
 	mutex_init_nowitness(&dev->struct_mutex);
+	mutex_init(&dev->filelist_mutex);
 	mutex_init_nowitness(&dev->ctxlist_mutex);
 	mutex_init(&dev->master_mutex);
 
