@@ -156,6 +156,7 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 						       state->connector_states[i]);
 		state->connectors[i] = NULL;
 		state->connector_states[i] = NULL;
+		drm_connector_unreference(connector);
 	}
 
 	for (i = 0; i < config->num_crtc; i++) {
@@ -933,6 +934,7 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 	if (!connector_state)
 		return ERR_PTR(-ENOMEM);
 
+	drm_connector_reference(connector);
 	state->connector_states[index] = connector_state;
 	state->connectors[index] = connector;
 	connector_state->state = state;
@@ -1648,12 +1650,19 @@ retry:
 		}
 
 		obj = drm_mode_object_find(dev, obj_id, DRM_MODE_OBJECT_ANY);
-		if (!obj || !obj->properties) {
+		if (!obj) {
+			ret = -ENOENT;
+			goto out;
+		}
+
+		if (!obj->properties) {
+			drm_mode_object_unreference(obj);
 			ret = -ENOENT;
 			goto out;
 		}
 
 		if (get_user(count_props, count_props_ptr + copied_objs)) {
+			drm_mode_object_unreference(obj);
 			ret = -EFAULT;
 			goto out;
 		}
@@ -1666,12 +1675,14 @@ retry:
 			struct drm_property *prop;
 
 			if (get_user(prop_id, props_ptr + copied_props)) {
+				drm_mode_object_unreference(obj);
 				ret = -EFAULT;
 				goto out;
 			}
 
 			prop = drm_property_find(dev, prop_id);
 			if (!prop) {
+				drm_mode_object_unreference(obj);
 				ret = -ENOENT;
 				goto out;
 			}
@@ -1679,13 +1690,16 @@ retry:
 			if (copy_from_user(&prop_value,
 					   prop_values_ptr + copied_props,
 					   sizeof(prop_value))) {
+				drm_mode_object_unreference(obj);
 				ret = -EFAULT;
 				goto out;
 			}
 
 			ret = atomic_set_prop(state, obj, prop, prop_value);
-			if (ret)
+			if (ret) {
+				drm_mode_object_unreference(obj);
 				goto out;
+			}
 
 			copied_props++;
 		}
@@ -1696,6 +1710,7 @@ retry:
 			plane_mask |= (1 << drm_plane_index(plane));
 			plane->old_fb = plane->fb;
 		}
+		drm_mode_object_unreference(obj);
 	}
 
 	if (arg->flags & DRM_MODE_PAGE_FLIP_EVENT) {
