@@ -48,6 +48,17 @@
 
 #define SKIP_SLEEP() (SCHEDULER_STOPPED() || kdb_active)
 
+static inline void
+wake_up_atomic_t(atomic_t *v)
+{
+	panic("%s unimplemented", __FUNCTION__);
+}
+
+static inline int
+wait_on_atomic_t(atomic_t *val, int (*action)(atomic_t *), unsigned mode)
+{
+	panic("%s unimplemented", __FUNCTION__);
+}
 
 struct __wait_queue;
 typedef struct __wait_queue wait_queue_t;

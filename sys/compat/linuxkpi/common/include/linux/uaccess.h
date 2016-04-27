@@ -64,11 +64,11 @@ extern int linux_copyin(const void *uaddr, void *kaddr, size_t len);
 extern int linux_copyout(const void *kaddr, void *uaddr, size_t len);
 
 static inline int
-access_ok(int rw, void *addr, int len)
+access_ok(int rw, const void *addr, int len)
 {
 	if (len == 0)
 		return (TRUE);
-	return (useracc(addr, len, rw));
+	return (useracc(__DECONST(void *, addr), len, rw));
 }
 
 static inline void

@@ -362,6 +362,12 @@ extern int simple_statfs(struct dentry *, struct kstatfs *);
 extern int simple_pin_fs(struct file_system_type *, struct vfsmount **mount, int *count);
 extern void simple_release_fs(struct vfsmount **mount, int *count);
 
+static inline loff_t fixed_size_llseek(struct file *file, loff_t offset,
+				       int whence, loff_t size)
+{
+	panic("%s unimplemented", __FUNCTION__);
+}
+
 
 static inline __printf(1, 2)
 void __simple_attr_check_format(const char *fmt, ...)
