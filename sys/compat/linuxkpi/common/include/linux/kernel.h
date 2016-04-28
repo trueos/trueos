@@ -91,6 +91,18 @@ struct va_format {
 	va_list *va;
 };
 
+
+static inline int
+vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
+{
+	int i;
+	ssize_t ssize = size;
+
+	i = vsnprintf(buf, size, fmt, args);
+
+	return (i >= ssize) ? (ssize - 1) : i;
+}
+
 /* XXX */ 
 #define irqs_disabled() (0)
 

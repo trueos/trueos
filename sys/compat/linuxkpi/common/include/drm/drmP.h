@@ -107,6 +107,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/vmalloc.h>
 
 
+
 /*
  * CEM: drm.h brings in drm_os_freebsd.h, which brings in linuxkpi list.h.
  * drm_gem_names and drm_hashtab use FreeBSD queue(9) macros.  Include them
@@ -128,6 +129,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/mutex.h>
 #include <linux/i2c.h>
 #include <linux/kthread.h>
+#include <linux/interrupt.h>
+
 
 #include <asm/mtrr.h>
 #include <drm/drm_agpsupport.h>
