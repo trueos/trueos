@@ -2414,44 +2414,6 @@ int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 	return 0;
 }
 
-int intel_ring_reserve_space(struct drm_i915_gem_request *request)
-{
-	/*
-	 * The first call merely notes the reserve request and is common for
-	 * all back ends. The subsequent localised _begin() call actually
-	 * ensures that the reservation is available. Without the begin, if
-	 * the request creator immediately submitted the request without
-	 * adding any commands to it then there might not actually be
-	 * sufficient room for the submission commands.
-	 */
-	intel_ring_reserved_space_reserve(request->ringbuf, MIN_SPACE_FOR_ADD_REQUEST);
-
-	return intel_ring_begin(request, 0);
-}
-
-void intel_ring_reserved_space_reserve(struct intel_ringbuffer *ringbuf, int size)
-{
-	GEM_BUG_ON(ringbuf->reserved_size);
-	ringbuf->reserved_size = size;
-}
-
-void intel_ring_reserved_space_cancel(struct intel_ringbuffer *ringbuf)
-{
-	GEM_BUG_ON(!ringbuf->reserved_size);
-	ringbuf->reserved_size   = 0;
-}
-
-void intel_ring_reserved_space_use(struct intel_ringbuffer *ringbuf)
-{
-	GEM_BUG_ON(!ringbuf->reserved_size);
-	ringbuf->reserved_size   = 0;
-}
-
-void intel_ring_reserved_space_end(struct intel_ringbuffer *ringbuf)
-{
-	GEM_BUG_ON(ringbuf->reserved_size);
-}
-
 static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 {
 	struct intel_ringbuffer *ringbuf = req->ringbuf;
@@ -2471,7 +2433,7 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 	 *
 	 * See also i915_gem_request_alloc() and i915_add_request().
 	 */
-	GEM_BUG_ON(!ringbuf->reserved_size);
+	GEM_BUG_ON(!req->reserved_space);
 
 	list_for_each_entry(target, &engine->request_list, list) {
 		unsigned space;
@@ -2506,7 +2468,7 @@ int intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 	int total_bytes, wait_bytes;
 	bool need_wrap = false;
 
-	total_bytes = bytes + ringbuf->reserved_size;
+	total_bytes = bytes + req->reserved_space;
 
 	if (unlikely(bytes > remain_usable)) {
 		/*
@@ -2522,7 +2484,7 @@ int intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 		 * and only need to effectively wait for the reserved
 		 * size space from the start of ringbuffer.
 		 */
-		wait_bytes = remain_actual + ringbuf->reserved_size;
+		wait_bytes = remain_actual + req->reserved_space;
 	} else {
 		/* No wrapping required, just waiting. */
 		wait_bytes = total_bytes;
