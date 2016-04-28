@@ -140,7 +140,8 @@ i915_gem_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
 	struct drm_gem_object *gem_obj = vm_obj->handle;
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
 	struct drm_device *dev = obj->base.dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_ggtt_view view = i915_ggtt_view_normal;
 	vm_page_t page, oldpage;
 	int ret = 0;
 #ifdef FREEBSD_WIP
@@ -220,7 +221,8 @@ retry:
 	obj->fault_mappable = true;
 
 	VM_OBJECT_WLOCK(vm_obj);
-	page = PHYS_TO_VM_PAGE(dev_priv->gtt.mappable_base + obj->gtt_offset + offset);
+
+	page = PHYS_TO_VM_PAGE(dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset_view(obj, &view) + offset);
 	KASSERT((page->flags & PG_FICTITIOUS) != 0,
 	    ("physical address %#jx not fictitious",
 	    (uintmax_t)(dev_priv->gtt.mappable_base + obj->gtt_offset + offset)));
@@ -234,7 +236,7 @@ retry:
 	KASSERT(page->wire_count == 1, ("wire_count not 1 %p", page));
 
 	if (vm_page_busied(page)) {
-		i915_gem_object_unpin(obj);
+		i915_gem_object_unpin_pages(obj);
 		mutex_unlock(&dev->struct_mutex);
 		vm_page_lock(page);
 		VM_OBJECT_WUNLOCK(vm_obj);
@@ -242,7 +244,7 @@ retry:
 		goto retry;
 	}
 	if (vm_page_insert(page, vm_obj, OFF_TO_IDX(offset))) {
-		i915_gem_object_unpin(obj);
+		i915_gem_object_unpin_pages(obj);
 		mutex_unlock(&dev->struct_mutex);
 		VM_OBJECT_WUNLOCK(vm_obj);
 		VM_WAIT;
@@ -260,7 +262,7 @@ have_page:
 		 * We may have not pinned the object if the page was
 		 * found by the call to vm_page_lookup()
 		 */
-		i915_gem_object_unpin(obj);
+		i915_gem_object_unpin_pages(obj);
 	}
 	mutex_unlock(&dev->struct_mutex);
 	if (oldpage != NULL) {
@@ -272,7 +274,7 @@ have_page:
 	return (VM_PAGER_OK);
 
 unpin:
-	i915_gem_object_unpin(obj);
+	i915_gem_object_unpin_pages(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 out:

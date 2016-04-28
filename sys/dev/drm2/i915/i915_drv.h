@@ -3675,14 +3675,6 @@ static inline void i915_trace_irq_get(struct intel_engine_cs *ring,
 		i915_gem_request_assign(&ring->trace_irq_req, req);
 }
 
-
-/*static inline void
-trace_i915_reg_rw(boolean_t rw, int reg, uint64_t val, int sz)
-{
-
-	CTR4(KTR_DRM_REG, "[%x/%d] %c %x", reg, sz, rw ? "w" : "r", val);
-}*/
-
 static inline void
 trace_i915_reg_rw(boolean_t rw, i915_reg_t reg, uint64_t val, int sz, bool trace)
 {
@@ -3690,4 +3682,5 @@ trace_i915_reg_rw(boolean_t rw, i915_reg_t reg, uint64_t val, int sz, bool trace
         CTR4(KTR_DRM_REG, "[%x/%d] %c %x", reg.reg, sz, rw ? "w" : "r", val);
 }
 
+vm_page_t i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex, bool *fresh);
 #endif
