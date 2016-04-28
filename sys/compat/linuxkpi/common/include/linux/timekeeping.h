@@ -38,9 +38,4 @@ static inline ktime_t ktime_get_real(void)
 
 
 
-static inline u64 ktime_get_raw_ns(void)
-{
-	return ktime_to_ns(ktime_get_raw());
-}
-
 #endif
