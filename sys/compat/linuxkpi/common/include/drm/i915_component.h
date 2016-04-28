@@ -30,6 +30,8 @@
  */
 #define MAX_PORTS 5
 
+struct device;
+
 /**
  * struct i915_audio_component_ops - Ops implemented by i915 driver, called by hda driver
  */

@@ -4,6 +4,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/completion.h>
+#include <linux/sched.h>
 
 struct i2c_adapter;
 struct i2c_msg;

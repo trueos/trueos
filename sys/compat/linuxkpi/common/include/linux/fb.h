@@ -602,6 +602,8 @@ struct linux_fb_info {
 			resource_size_t size;
 		} ranges[0];
 	} *apertures;
+	bool skip_vt_switch; /* no VT switch on suspend/resume required */
+
 	struct fb_info fbio;
 	struct cdev *fb_cdev;
 	device_t fb_bsddev;

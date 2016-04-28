@@ -937,6 +937,12 @@ pci_unmap_rom(struct pci_dev *pdev, u8 *bios)
 	vga_pci_unmap_bios(pdev->dev.bsddev, bios);
 }
 
+static inline void *
+pci_map_rom(struct pci_dev *pdev, size_t *size)
+{
+	return (vga_pci_map_bios(pdev->dev.bsddev, size));
+}
+
 
 int pci_bus_read_config_byte(struct pci_bus *bus, unsigned int devfn,
 			     int where, u8 *val);
