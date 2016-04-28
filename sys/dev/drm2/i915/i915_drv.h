@@ -3676,11 +3676,18 @@ static inline void i915_trace_irq_get(struct intel_engine_cs *ring,
 }
 
 
-static inline void
+/*static inline void
 trace_i915_reg_rw(boolean_t rw, int reg, uint64_t val, int sz)
 {
 
 	CTR4(KTR_DRM_REG, "[%x/%d] %c %x", reg, sz, rw ? "w" : "r", val);
+}*/
+
+static inline void
+trace_i915_reg_rw(boolean_t rw, i915_reg_t reg, uint64_t val, int sz, bool trace)
+{
+
+        CTR4(KTR_DRM_REG, "[%x/%d] %c %x", reg.reg, sz, rw ? "w" : "r", val);
 }
 
 #endif

@@ -77,4 +77,6 @@ extern void add_timer(struct timer_list *);
 #define	round_jiffies_up(j)		round_jiffies(j) /* TODO */
 #define	round_jiffies_up_relative(j)	round_jiffies_up(j) /* TODO */
 
+#define mod_timer_pinned(timer, exp)  mod_timer(timer, exp)
+
 #endif					/* _LINUX_TIMER_H_ */
