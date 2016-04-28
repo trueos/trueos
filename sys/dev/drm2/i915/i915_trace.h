@@ -245,7 +245,6 @@ trace_i915_va_alloc(void *vma)
 	CTR1(KTR_DRM, "va_alloc vma %p", vma);
 }
 
-
 static inline void
 trace_i915_vma_unbind(void *vma)
 {
@@ -257,4 +256,19 @@ trace_intel_gpu_freq_change(uint32_t freq)
 {
 	CTR1(KTR_DRM, "gpu_freq_change %x", freq);
 }
+
+static inline void
+trace_i915_ppgtt_create(void *base)
+{
+
+	CTR1(KTR_DRM, "ppgtt_create %p", base);
+}
+
+static inline void
+trace_i915_ppgtt_release(void *base)
+{
+
+	CTR1(KTR_DRM, "ppgtt_release %p", base);
+}
+
 #endif /* _I915_TRACE_H_ */
