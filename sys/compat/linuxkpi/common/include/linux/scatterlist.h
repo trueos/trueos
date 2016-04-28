@@ -276,6 +276,11 @@ sg_page_iter_dma_address(struct sg_page_iter *spi)
 	return spi->sg->address + (spi->sg_pgoffset << PAGE_SHIFT);
 }
 
+static inline struct page *sg_page_iter_page(struct sg_page_iter *piter)
+{
+	return nth_page(sg_page(piter->sg), piter->sg_pgoffset);
+}
+
 #define	for_each_sg_page(sgl, iter, nents, pgoffset)			\
 	for (_sg_iter_init(sgl, iter, nents, pgoffset);			\
 	     (iter)->sg; _sg_iter_next(iter))

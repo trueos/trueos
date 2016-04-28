@@ -41,11 +41,11 @@
 
 #include <linux/rcupdate.h>
 #include <linux/rculist.h>
-
+#include <linux/smp.h>
+#include <linux/kthread.h>
 #include <asm/processor.h>
 
-
-
+#define TASK_COMM_LEN 16
 
 #define task_pid(task) ((task)->task_thread->td_proc->p_pid)
 #define get_pid(x) (x)
@@ -59,6 +59,11 @@ CTASSERT(sizeof(((struct thread *)0)->td_retval[1]) >= sizeof(uintptr_t));
 	atomic_store_rel_int((volatile int *)&current->state, (x))
 #define	__set_current_state(x)	current->state = (x)
 
+
+extern u64 cpu_clock(int cpu);
+extern u64 local_clock(void);
+extern u64 running_clock(void);
+extern u64 sched_clock_cpu(int cpu);
 
 #define	schedule()							\
 do {									\
@@ -91,6 +96,50 @@ schedule_timeout(signed long timeout)
 	pause("lstim", timeout);
 
 	return 0;
+}
+
+
+static inline int signal_pending(struct task_struct *p)
+{
+	return SIGPENDING(p->task_thread);
+}
+
+static inline int __fatal_signal_pending(struct task_struct *p)
+{
+	return (SIGISMEMBER(p->task_thread->td_siglist, SIGKILL));
+}
+
+static inline int fatal_signal_pending(struct task_struct *p)
+{
+	return signal_pending(p) && __fatal_signal_pending(p);
+}
+
+static inline int signal_pending_state(long state, struct task_struct *p)
+{
+	if (!(state & (TASK_INTERRUPTIBLE | TASK_WAKEKILL)))
+		return 0;
+	if (!signal_pending(p))
+		return 0;
+
+	return (state & TASK_INTERRUPTIBLE) || __fatal_signal_pending(p);
+}
+
+
+#define schedule_timeout_uninterruptible schedule_timeout
+#define need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
+
+static inline long
+schedule_timeout_interruptible(signed long timeout)
+{
+	int ret;
+
+	if (timeout < 0)
+		return 0;
+
+	mtx_lock(&Giant);
+	ret = msleep(&Giant, &Giant, PCATCH | PDROP , "lstimi", timeout);
+	
+	return (ret);
 }
 
 #endif	/* _LINUX_SCHED_H_ */

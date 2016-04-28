@@ -41,7 +41,7 @@
 #include <sys/sleepqueue.h>
 
 #include <linux/slab.h>
-#include <linux/sched.h>
+
 
 
 #define	MAX_SCHEDULE_TIMEOUT	LONG_MAX

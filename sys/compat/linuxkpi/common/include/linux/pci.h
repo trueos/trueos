@@ -207,6 +207,9 @@ enum {
 	DEVICE_COUNT_RESOURCE = PCI_NUM_RESOURCES,
 };
 
+
+typedef int pci_power_t;
+
 #define PCI_D0	PCI_POWERSTATE_D0
 #define PCI_D1	PCI_POWERSTATE_D1
 #define PCI_D2	PCI_POWERSTATE_D2
@@ -493,10 +496,11 @@ pci_request_regions(struct pci_dev *pdev, const char *res_name)
 }
 
 
-static inline void
+static inline int
 linux_pci_enable_msi(struct pci_dev *pdev)
 {
 	/*  not clear what address to use - ignore for now*/
+	return (0);
 }
 
 static inline void
@@ -926,7 +930,7 @@ pci_num_vf(struct pci_dev *dev)
 	return (0);
 }
 
-void
+static inline void
 pci_unmap_rom(struct pci_dev *pdev, u8 *bios)
 {
 	vga_pci_unmap_bios(pdev->dev.bsddev, bios);

@@ -36,6 +36,7 @@
 
 #include <sys/bus.h>
 #include <sys/rman.h>
+#include <linux/hardirq.h>
 
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 

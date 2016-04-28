@@ -104,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/gfp.h>
 #include <linux/pm.h>
 #include <linux/ktime.h>
+#include <linux/vmalloc.h>
 
 
 /*
@@ -749,7 +750,7 @@ struct drm_driver {
 
 	u32 driver_features;
 	int dev_priv_size;
-	struct drm_ioctl_desc *ioctls;
+	const struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
 	const struct file_operations *fops;
 
@@ -1085,7 +1086,7 @@ int drm_invalid_op(struct drm_device *dev, void *data,
 /* Cache management (drm_cache.c) */
 void drm_clflush_pages(vm_page_t *pages, unsigned long num_pages);
 void drm_clflush_sg(struct sg_table *st);
-void drm_clflush_virt_range(char *addr, unsigned long length);
+void drm_clflush_virt_range(void *addr, unsigned long length);
 
 /*
  * These are exported to drivers so that they can implement fencing using

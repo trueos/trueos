@@ -118,6 +118,12 @@ kmem_cache_alloc(struct kmem_cache *c, int flags)
 	return uma_zalloc_arg(c->cache_zone, c->cache_ctor, flags);
 }
 
+static inline void *
+kmem_cache_zalloc(struct kmem_cache *c, int flags)
+{
+	return uma_zalloc_arg(c->cache_zone, c->cache_ctor, flags|M_ZERO);
+}
+
 static inline void
 kmem_cache_free(struct kmem_cache *c, void *m)
 {

@@ -44,6 +44,13 @@
 #define page	vm_page
 
 
+extern vm_page_t vm_page_array;
+
+#define page_to_pfn(page) ((vm_page_array - page)/sizeof(*page))
+#define pfn_to_page(pfn) (&vm_page_array[pfn])
+#define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
+
+
 typedef unsigned long pgprot_t;
 
 #define	virt_to_page(x)	PHYS_TO_VM_PAGE(vtophys((x)))

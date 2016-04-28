@@ -57,6 +57,7 @@
 
 #include <asm/byteorder.h>
 #include <asm-generic/bitops/const_hweight.h>
+#include <asm/cpufeature.h>
 
 #include <machine/stdarg.h>
 

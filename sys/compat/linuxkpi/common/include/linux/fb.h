@@ -9,6 +9,8 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <asm/io.h>
+#include <linux/notifier.h>
+
 #define CONFIG_DRM_FBDEV_EMULATION
 
 struct linux_fb_info;
@@ -641,7 +643,7 @@ extern ssize_t fb_sys_write(struct linux_fb_info *info, const char __user *buf,
 /* drivers/video/fbmem.c */
 extern int linux_register_framebuffer(struct linux_fb_info *fb_info);
 extern int linux_unregister_framebuffer(struct linux_fb_info *fb_info);
-extern void linux_remove_conflicting_framebuffers(struct apertures_struct *a,
+extern int remove_conflicting_framebuffers(struct apertures_struct *a,
 				const char *name, bool primary);
 struct linux_fb_info *linux_framebuffer_alloc(size_t size, struct device *dev);
 extern void linux_framebuffer_release(struct linux_fb_info *info);

@@ -37,6 +37,14 @@
 
 typedef unsigned long cycles_t;
 
+static inline u64 nsecs_to_jiffies64(u64 n)
+{
+	if (NSEC_PER_SEC % hz == 0)
+		return div_u64(n, NSEC_PER_SEC / hz);
+	else 
+		return div_u64(n * 9, (9ull * NSEC_PER_SEC + hz / 2) / hz);
+}
+
 static inline struct timeval
 ns_to_timeval(const int64_t nsec)
 {

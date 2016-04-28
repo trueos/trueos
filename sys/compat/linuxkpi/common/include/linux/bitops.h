@@ -517,4 +517,12 @@ bitmap_equal(const unsigned long *pa,
 	return (1);
 }
 
+static inline uint64_t
+sign_extend64(uint64_t value, int index)
+{
+	uint8_t shift = 63 - index;
+
+	return ((int64_t)(value << shift) >> shift);
+}
+
 #endif	/* _LINUX_BITOPS_H_ */

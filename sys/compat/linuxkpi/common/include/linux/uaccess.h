@@ -65,4 +65,7 @@ pagefault_enable(int save)
 	vm_fault_enable_pagefaults(save);
 }
 
+#define pagefault_disabled() (curthread->td_pflags & TDP_NOFAULTING)
+
+
 #endif	/* _LINUX_UACCESS_H_ */

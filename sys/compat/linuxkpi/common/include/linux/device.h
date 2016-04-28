@@ -187,7 +187,7 @@ show_class_attr_string(struct class *class,
 	    device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 
 static inline void *
-dev_get_drvdata(struct device *dev)
+dev_get_drvdata(const struct device *dev)
 {
 
 	return dev->driver_data;

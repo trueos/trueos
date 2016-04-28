@@ -163,6 +163,5 @@ static inline int atomic64_add_unless(atomic64_t *v, long a, long u)
 #define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
 
 #define atomic_long_inc_not_zero atomic64_inc_not_zero
-
-
+#include <asm-generic/atomic.h>
 #endif					/* _ASM_ATOMIC_H_ */

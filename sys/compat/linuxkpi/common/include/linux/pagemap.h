@@ -1,6 +1,6 @@
 #ifndef _LINUX_PAGEMAP_H
 #define _LINUX_PAGEMAP_H
-
+#include <linux/hardirq.h>
 
 
 #define __get_user(a, b) ({panic("XXX implement me!!!"); NULL;})
