@@ -47,6 +47,7 @@ SRCS	= \
 	intel_ddi.c \
 	intel_display.c \
 	intel_dp.c \
+	intel_dp_aux_backlight.c \
 	intel_dp_link_training.c \
 	intel_dp_mst.c \
 	intel_dpll_mgr.c \

@@ -32,15 +32,76 @@
 #define	_LINUX_IO_MAPPING_H_
 
 #include <linux/types.h>
+#include <linux/slab.h>
+#include <linux/bug.h>
 #include <linux/io.h>
+#include <linux/page.h>
 
-struct io_mapping;
+struct io_mapping {
+	vm_paddr_t base;
+	unsigned long size;
+	vm_prot_t prot;
+	struct resource *r;
+};
+
+static inline struct io_mapping *
+io_mapping_create_wc(vm_paddr_t base, unsigned long size)
+{
+	struct io_mapping *iomap;
+
+	if ((iomap = kmalloc(sizeof(*iomap), GFP_KERNEL)) == NULL)
+		return (NULL);
+
+	/* resource allocation happens when we look up the address on FreeBSD */
+	iomap->base = base;
+	iomap->size = size;
+	return (iomap);
+}
+
+static inline void
+io_mapping_free(struct io_mapping *mapping)
+{
+	/* assuming the resource is released elsewhere */
+	kfree(mapping);
+}
+
+static inline void *
+io_mapping_map_atomic_wc(struct io_mapping *mapping,
+			 unsigned long offset)
+{
+	vm_paddr_t phys_addr;
+	unsigned long pfn;
+
+	BUG_ON(offset >= mapping->size);
+	phys_addr = mapping->base + offset;
+	pfn = (unsigned long) (phys_addr >> PAGE_SHIFT);
+	mapping->prot = PAT_WRITE_COMBINING;
+	return iomap_atomic_prot_pfn(pfn, mapping->prot);
+}
+
+static inline void
+io_mapping_unmap_atomic(void *vaddr)
+{
+	iounmap_atomic(vaddr);
+}
+
+static inline void __iomem *
+io_mapping_map_wc(struct io_mapping *mapping,
+		  unsigned long offset,
+		  unsigned long size)
+{
+	resource_size_t phys_addr;
+
+	BUG_ON(offset >= mapping->size);
+	phys_addr = mapping->base + offset;
+
+	return ioremap_wc(phys_addr, size);
+}
 
 static inline void
 io_mapping_unmap(void *vaddr)
 {
 	iounmap(vaddr);
 }
-
 
 #endif	/* _LINUX_IO_MAPPING_H_ */

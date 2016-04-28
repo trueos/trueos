@@ -405,58 +405,11 @@ iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot)
 					PAGE_SIZE, prot);
 }
 
-struct io_mapping *
-io_mapping_create_wc(vm_paddr_t base, unsigned long size)
-{
-	struct io_mapping *iomap;
-
-	if ((iomap = kmalloc(sizeof(*iomap), GFP_KERNEL)) == NULL)
-		return (NULL);
-
-	/* resource allocation happens when we look up the address on FreeBSD */
-	iomap->base = base;
-	iomap->size = size;
-	return (iomap);
-}
-
 void
 iounmap_atomic(void *vaddr)
 {
 	pmap_unmapdev((vm_offset_t)vaddr, PAGE_SIZE);
 	sched_unpin();
-}
-
-void *
-io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
-{
-	resource_size_t phys_addr;
-
-	BUG_ON(offset >= mapping->size);
-	phys_addr = mapping->base + offset;
-
-	return ioremap_wc(phys_addr, PAGE_SIZE);
-}
-
-
-void *
-io_mapping_map_atomic_wc(struct io_mapping *mapping,
-			 unsigned long offset)
-{
-	vm_paddr_t phys_addr;
-	unsigned long pfn;
-
-	BUG_ON(offset >= mapping->size);
-	phys_addr = mapping->base + offset;
-	pfn = (unsigned long) (phys_addr >> PAGE_SHIFT);
-	mapping->prot = PAT_WRITE_COMBINING;
-	return iomap_atomic_prot_pfn(pfn, mapping->prot);
-}
-
-void
-io_mapping_free(struct io_mapping *mapping)
-{
-	/* assuming the resource is released elsewhere */
-	kfree(mapping);
 }
 
 int
