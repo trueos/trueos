@@ -43,6 +43,7 @@
 #include <linux/rculist.h>
 #include <linux/smp.h>
 #include <linux/kthread.h>
+#include <linux/nodemask.h>
 #include <asm/processor.h>
 
 #define TASK_COMM_LEN 16
