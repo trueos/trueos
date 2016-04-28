@@ -10,6 +10,7 @@ __FBSDID("$FreeBSD$");
 #define	_DRM_OS_FREEBSD_H_
 
 #include <sys/fbio.h>
+#include <sys/priv.h>
 #include <sys/smp.h>
 
 #include <linux/kernel.h>
@@ -251,8 +252,9 @@ capable(enum __drm_capabilities cap)
 		return DRM_SUSER(curthread);
 	}
 }
-
+#if 0
 #define	to_user_ptr(x)		((void *)(uintptr_t)(x))
+#endif
 #define	sigemptyset(set)	SIGEMPTYSET(set)
 #define	sigaddset(set, sig)	SIGADDSET(set, sig)
 
@@ -395,5 +397,8 @@ static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return
 #define	DRM_GEM_MAPPING_OFF(i)	(((uint64_t)(i)) << 40)
 #define	DRM_GEM_MAPPING_MAPOFF(o) \
     ((o) & ~(DRM_GEM_MAPPING_OFF(DRM_GEM_MAX_IDX) | DRM_GEM_MAPPING_KEY))
+
+extern	u_int	cpu_clflush_line_size;
+
 
 #endif /* _DRM_OS_FREEBSD_H_ */
