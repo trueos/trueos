@@ -41,8 +41,8 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#ifndef __ACPI_H__
-#define __ACPI_H__
+#ifndef __ACPI_ACPI_H__
+#define __ACPI_ACPI_H__
 
 /*
  * Public include files for use by code that will interface to ACPICA.

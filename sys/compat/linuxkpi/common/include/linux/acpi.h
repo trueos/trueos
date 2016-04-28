@@ -7,22 +7,22 @@
 #include <linux/resource_ext.h>
 #include <linux/device.h>
 #include <linux/property.h>
+#include <linux/notifier.h>
 
-#include <acpi/acpi.h>
-#include <sys/systm.h>
+#define CONFIG_ACPI
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 
-#define ACPI_COMPANION(dev)	to_acpi_device_node()
-#define ACPI_HANDLE(dev)	acpi_device_handle(ACPI_COMPANION(dev))
-
-struct acpi_device;
 
 static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
 {
-	panic("IMPLEMENT ME");
-        return NULL;
+	return adev ? adev->handle : NULL;
 }
+
+#define ACPI_COMPANION(dev)		to_acpi_device_node((dev)->fwnode)
+#define ACPI_HANDLE_GET(dev)	acpi_device_handle(ACPI_COMPANION(dev))
+
+struct acpi_device;
 
 static inline long acpi_is_video_device(acpi_handle handle){
 	panic("IMPLEMENT ME");
