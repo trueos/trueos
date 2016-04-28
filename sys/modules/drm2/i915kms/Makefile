@@ -95,9 +95,11 @@ CWARNFLAGS += -Wno-pointer-arith
 
 CWARNFLAGS.intel_audio.c=	-Wno-cast-qual
 CWARNFLAGS.intel_bios.c=	-Wno-cast-qual
+CWARNFLAGS.intel_dp.c=		-Wno-enum-conversion -Wno-format -Wno-unused
 CWARNFLAGS.intel_lvds.c=	-Wno-unused
-CWARNFLAGS.intel_display.c=	-Wno-tautological-pointer-compare -Wno-enum-conversion -Wno-cast-qual
+CWARNFLAGS.intel_display.c=	-Wno-tautological-pointer-compare -Wno-enum-conversion -Wno-cast-qual -Wno-incompatible-pointer-types-discards-qualifiers
 CWARNFLAGS.intel_dsi_panel_vbt.c= -Wno-cast-qual
+CWARNFLAGS.intel_guc_loader.c= 	-Wno-cast-qual
 CWARNFLAGS.intel_hdmi.c=	-Wno-enum-conversion
 CWARNFLAGS.intel_overlay.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.intel_pm.c=		-Wno-cast-qual -Wno-incompatible-pointer-types-discards-qualifiers -Wno-unused-const-variable
