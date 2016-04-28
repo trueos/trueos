@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/circ_buf.h>
 #include "i915_drv.h"
+#include "intel_drv.h"
 #include "intel_guc.h"
 
 /**
