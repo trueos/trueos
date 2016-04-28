@@ -14733,7 +14733,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	case I915_FORMAT_MOD_Y_TILED:
 	case I915_FORMAT_MOD_Yf_TILED:
 		if (INTEL_INFO(dev)->gen < 9) {
-			DRM_DEBUG("Unsupported tiling 0x%llx!\n",
+			DRM_DEBUG("Unsupported tiling 0x%zx!\n",
 				  mode_cmd->modifier[0]);
 			return -EINVAL;
 		}
@@ -14741,7 +14741,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	case I915_FORMAT_MOD_X_TILED:
 		break;
 	default:
-		DRM_DEBUG("Unsupported fb modifier 0x%llx!\n",
+		DRM_DEBUG("Unsupported fb modifier 0x%zx!\n",
 			  mode_cmd->modifier[0]);
 		return -EINVAL;
 	}

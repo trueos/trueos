@@ -31,13 +31,14 @@
  */
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_fourcc.h>
+#include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_plane_helper.h>
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_trace.h"
 
 static bool
 format_is_yuv(uint32_t format)
@@ -168,7 +169,7 @@ void intel_pipe_update_end(struct intel_crtc *crtc)
 
 	if (crtc->debug.start_vbl_count &&
 	    crtc->debug.start_vbl_count != end_vbl_count) {
-		DRM_ERROR("Atomic update failure on pipe %c (start=%u end=%u) time %lld us, min %d, max %d, scanline start %d, end %d\n",
+		DRM_ERROR("Atomic update failure on pipe %c (start=%u end=%u) time %zd us, min %d, max %d, scanline start %d, end %d\n",
 			  pipe_name(pipe), crtc->debug.start_vbl_count,
 			  end_vbl_count,
 			  ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time),

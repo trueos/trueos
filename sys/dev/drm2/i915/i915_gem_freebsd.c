@@ -31,8 +31,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/i915/i915_drm.h>
+#include <drm/drmP.h>
+#include <drm/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/intel_drv.h>
 
@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 
 
 MALLOC_DEFINE(DRM_I915_GEM, "i915", "i915 DRM GEM");
+
+#define GEM_PARANOID_CHECK_GTT 0
 
 extern long i915_gem_wired_pages_cnt;
 int i915_intr_pf;

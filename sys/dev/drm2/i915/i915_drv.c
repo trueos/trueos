@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/vga_switcheroo.h>
 #include <drm/drm_crtc_helper.h>
 
+#define pci_get_class linux_pci_get_class
+
 static struct drm_driver driver;
 
 #define GEN_DEFAULT_PIPEOFFSETS \
@@ -1717,12 +1719,13 @@ static struct drm_driver driver = {
 #elif defined(__FreeBSD__)
 	.gem_pager_ops	= &i915_gem_pager_ops,
 #endif
-	
+#ifdef notyet	
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = i915_gem_prime_export,
 	.gem_prime_import = i915_gem_prime_import,
-
+#endif
+	
 	.dumb_create = i915_gem_dumb_create,
 	.dumb_map_offset = i915_gem_mmap_gtt,
 	.dumb_destroy = drm_gem_dumb_destroy,
@@ -1731,7 +1734,9 @@ static struct drm_driver driver = {
 	.compat_ioctls  = i915_compat_ioctls,
 	.num_compat_ioctls = &i915_compat_ioctls_nr,
 #endif
+#ifdef __linux__
 	.fops = &i915_driver_fops,
+#endif
 #ifdef __FreeBSD__
 	.sysctl_init	= i915_sysctl_init,
 	.sysctl_cleanup	= i915_sysctl_cleanup,

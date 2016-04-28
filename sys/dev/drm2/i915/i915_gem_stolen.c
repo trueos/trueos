@@ -96,7 +96,7 @@ void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct resource *r;
+	struct linux_resource *r;
 	u32 base;
 
 	/* Almost universally we can find the Graphics Base of Stolen Memory
@@ -227,7 +227,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 
 		if (stolen[0].start != stolen[1].start ||
 		    stolen[0].end != stolen[1].end) {
-			DRM_DEBUG_KMS("GTT within stolen memory at 0x%llx-0x%llx\n",
+			DRM_DEBUG_KMS("GTT within stolen memory at 0x%zx-0x%zx\n",
 				      (unsigned long long) gtt_start,
 				      (unsigned long long) gtt_end - 1);
 			DRM_DEBUG_KMS("Stolen memory adjusted to 0x%x-0x%x\n",

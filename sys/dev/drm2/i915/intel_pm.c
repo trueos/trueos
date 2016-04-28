@@ -28,7 +28,9 @@
 #include <linux/cpufreq.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
+#ifdef __linux__
 #include "../../../platform/x86/intel_ips.h"
+#endif
 #include <linux/module.h>
 
 /**
@@ -5743,7 +5745,7 @@ unsigned long i915_mch_val(struct drm_i915_private *dev_priv)
 	tsfs = I915_READ(TSFS);
 
 	m = ((tsfs & TSFS_SLOPE_MASK) >> TSFS_SLOPE_SHIFT);
-	x = I915_READ8(TR1);
+	x = I915_READ8(I915_TR1);
 
 	b = tsfs & TSFS_INTR_MASK;
 

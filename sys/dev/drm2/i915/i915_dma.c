@@ -62,7 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <linux/oom.h>
 
 
-static int i915_getparam(struct drm_device *dev, void *data,
+#define pci_disable_msi linux_pci_disable_msi
+#define pci_enable_msi linux_pci_enable_msi
+
+int i915_getparam(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
