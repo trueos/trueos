@@ -1373,23 +1373,6 @@ static const struct vbt_header *find_vbt(void __iomem *bios, size_t size)
 }
 
 
-/*
- * NOTE Linux<->FreeBSD:
- * Apparently, Linux doesn't free those pointers.
- * TODO: Report that upstream.
- */
-void
-intel_free_parsed_bios_data(struct drm_i915_private *dev_priv)
-{
-
-	kfree(dev_priv->lfp_lvds_vbt_mode);
-	kfree(dev_priv->sdvo_lvds_vbt_mode);
-	kfree(dev_priv->child_dev);
-
-	dev_priv->lfp_lvds_vbt_mode = NULL;
-	dev_priv->sdvo_lvds_vbt_mode = NULL;
-	dev_priv->child_dev = NULL;
-}
 /**
  * intel_bios_init - find VBT and initialize settings from the BIOS
  * @dev_priv: i915 device instance
