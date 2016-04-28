@@ -221,6 +221,9 @@ trace_i915_pipe_update_end(void *crtc, u32 end_vbl_count, int scanline_end)
 	CTR1(KTR_DRM, "pipe_update_end %p", crtc);
 }
 
-
-
+static inline void
+trace_intel_gpu_freq_change(uint32_t freq)
+{
+	CTR1(KTR_DRM, "gpu_freq_change %x", freq);
+}
 #endif /* _I915_TRACE_H_ */
