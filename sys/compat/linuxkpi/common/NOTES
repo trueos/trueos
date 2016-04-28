@@ -3,5 +3,5 @@
 kthread:
 in_atomic
 
-pwm:
+pwm, acexcep, acpi_bus, actypes:
 everything
