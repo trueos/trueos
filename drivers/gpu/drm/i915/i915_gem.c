@@ -4923,7 +4923,7 @@ i915_gem_init_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
-	int ret, j;
+	int ret;
 
 	/* Double layer security blanket, see i915_gem_init() */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
@@ -5000,14 +5000,6 @@ i915_gem_init_hw(struct drm_device *dev)
 		if (IS_ERR(req)) {
 			ret = PTR_ERR(req);
 			break;
-		}
-
-		if (engine->id == RCS) {
-			for (j = 0; j < NUM_L3_SLICES(dev); j++) {
-				ret = i915_gem_l3_remap(req, j);
-				if (ret)
-					goto err_request;
-			}
 		}
 
 		ret = i915_ppgtt_init_ring(req);
