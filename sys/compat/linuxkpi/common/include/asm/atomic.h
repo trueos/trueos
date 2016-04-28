@@ -90,6 +90,12 @@ atomic_read(atomic_t *v)
 	return atomic_load_acq_int(&v->counter);
 }
 
+static inline long
+atomic_long_read(atomic64_t *v)
+{
+	return atomic_load_acq_long(&v->counter);
+}
+
 static inline int
 atomic_inc(atomic_t *v)
 {

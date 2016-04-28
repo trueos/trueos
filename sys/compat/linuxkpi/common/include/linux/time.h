@@ -40,6 +40,7 @@
 # include <linux/math64.h>
 
 typedef unsigned long cycles_t;
+#define USEC_PER_SEC	1000000L
 
 static inline u64 nsecs_to_jiffies64(u64 n)
 {
@@ -47,6 +48,12 @@ static inline u64 nsecs_to_jiffies64(u64 n)
 		return div_u64(n, NSEC_PER_SEC / hz);
 	else 
 		return div_u64(n * 9, (9ull * NSEC_PER_SEC + hz / 2) / hz);
+}
+
+static inline unsigned int
+jiffies_to_usecs(const unsigned long j)
+{
+	return (USEC_PER_SEC / hz) * j;
 }
 
 static inline struct timeval

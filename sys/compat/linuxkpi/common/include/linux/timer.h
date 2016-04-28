@@ -56,6 +56,8 @@ do {									\
 	callout_init(&(timer)->timer_callout, 1);			\
 } while (0)
 
+#define setup_timer_on_stack setup_timer
+
 #define	init_timer(timer)						\
 do {									\
 	(timer)->function = NULL;					\
@@ -63,11 +65,16 @@ do {									\
 	callout_init(&(timer)->timer_callout, 1);			\
 } while (0)
 
+
+#define init_timer_on_stack init_timer
+
+
 extern void mod_timer(struct timer_list *, unsigned long);
 extern void add_timer(struct timer_list *);
 
 #define	del_timer(timer)	callout_stop(&(timer)->timer_callout)
 #define	del_timer_sync(timer)	callout_drain(&(timer)->timer_callout)
+#define del_singleshot_timer_sync(t) del_timer_sync(t)
 #define	timer_pending(timer)	callout_pending(&(timer)->timer_callout)
 #define	round_jiffies(j) \
 	((unsigned long)(((j) + linux_timer_hz_mask) & ~linux_timer_hz_mask))
@@ -78,5 +85,8 @@ extern void add_timer(struct timer_list *);
 #define	round_jiffies_up_relative(j)	round_jiffies_up(j) /* TODO */
 
 #define mod_timer_pinned(timer, exp)  mod_timer(timer, exp)
+
+static inline void destroy_timer_on_stack(struct timer_list *timer) { }
+
 
 #endif					/* _LINUX_TIMER_H_ */

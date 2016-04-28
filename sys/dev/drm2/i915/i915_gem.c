@@ -37,6 +37,7 @@
 #include <linux/swap.h>
 #include <linux/pci.h>
 #include <linux/dma-buf.h>
+#include <linux/pagemap.h>
 
 #define RQ_BUG_ON(expr)
 
@@ -1408,7 +1409,7 @@ i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 	spin_unlock(&file_priv->mm.lock);
 
 	put_pid(request->pid);
-	request->pid = NULL;
+	request->pid = 0;
 }
 
 static void i915_gem_request_retire(struct drm_i915_gem_request *request)
@@ -1729,9 +1730,9 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *obj;
 	unsigned long addr;
 #ifndef __linux__
+	vm_object_t vmobj;
 	struct proc *p;
 	vm_map_t map;
-	vm_offset_t addr;
 	vm_size_t size;
 	int error, rv;
 #endif
@@ -1787,12 +1788,13 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	PROC_UNLOCK(p);
 
 	addr = 0;
-	vm_object_reference(obj->i_mapping.vm_obj);
-	rv = vm_map_find(map, obj->i_mapping.vm_obj, args->offset, &addr, args->size, 0,
+	vmobj = file_inode(obj->filp)->i_mapping;
+	vm_object_reference(vmobj);
+	rv = vm_map_find(map, vmobj, args->offset, &addr, args->size, 0,
 	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 	    VM_PROT_READ | VM_PROT_WRITE, MAP_INHERIT_SHARE);
 	if (rv != KERN_SUCCESS) {
-		vm_object_deallocate(obj->i_mapping.vm_obj);
+		vm_object_deallocate(vmobj);
 		error = -vm_mmap_to_errno(rv);
 	} else {
 		args->addr_ptr = (uint64_t)addr;
@@ -3575,7 +3577,7 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	 * attempt to find space.
 	 */
 	if (size > end) {
-		DRM_DEBUG("Attempting to bind an object (view type=%u) larger than the aperture: size=%llu > %s aperture=%llu\n",
+		DRM_DEBUG("Attempting to bind an object (view type=%u) larger than the aperture: size=%zu > %s aperture=%zu\n",
 			  ggtt_view ? ggtt_view->type : 0,
 			  size,
 			  flags & PIN_MAPPABLE ? "mappable" : "total",

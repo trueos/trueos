@@ -2304,7 +2304,7 @@ struct drm_i915_gem_request {
 	struct list_head client_list;
 
 	/** process identifier submitting this request */
-	struct pid *pid;
+	pid_t pid;
 
 	/**
 	 * The ELSP only accepts two elements at a time, so we queue

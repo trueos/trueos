@@ -224,11 +224,9 @@ flush_work(struct work_struct *work)
 	return true;
 }
 
-static inline bool
-flush_delayed_work(struct delayed_work *dwork)
+static inline bool flush_delayed_work(struct delayed_work *dwork)
 {
-/* XXX */	
-	return true;
+	panic("XXX implmeent me!!");
 }
 
 #endif	/* _LINUX_WORKQUEUE_H_ */

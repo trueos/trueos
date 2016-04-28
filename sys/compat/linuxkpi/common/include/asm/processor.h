@@ -21,5 +21,7 @@ static __always_inline void cpu_relax(void)
 	rep_nop();
 }
 
+#define cpu_relax_lowlatency() cpu_relax()
+
 #define smp_read_barrier_depends() do {} while (0)
 #endif

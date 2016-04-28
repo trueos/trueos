@@ -87,16 +87,6 @@ do {									\
 
 #define	sched_yield()	sched_relinquish(curthread)
 
-static inline long
-schedule_timeout(signed long timeout)
-{
-	if (timeout < 0)
-		return 0;
-
-	pause("lstim", timeout);
-
-	return 0;
-}
 
 
 static inline int signal_pending(struct task_struct *p)
@@ -125,7 +115,16 @@ static inline int signal_pending_state(long state, struct task_struct *p)
 }
 
 
-#define schedule_timeout_uninterruptible schedule_timeout
+static inline long
+schedule_timeout_uninterruptible(signed long timeout)
+{
+	if (timeout < 0)
+		return 0;
+
+	pause("lstim", timeout);
+
+	return 0;
+}
 #define need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
 
 static inline long
@@ -141,5 +140,17 @@ schedule_timeout_interruptible(signed long timeout)
 	
 	return (ret);
 }
+
+#define schedule_timeout schedule_timeout_interruptible
+
+#define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
+
+extern long io_schedule_timeout(long timeout);
+
+static inline void io_schedule(void)
+{
+	io_schedule_timeout(MAX_SCHEDULE_TIMEOUT);
+}
+
 
 #endif	/* _LINUX_SCHED_H_ */

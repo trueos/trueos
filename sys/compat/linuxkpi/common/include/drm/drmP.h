@@ -130,6 +130,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/i2c.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
+#include <linux/pagemap.h>
 
 
 #include <asm/mtrr.h>
