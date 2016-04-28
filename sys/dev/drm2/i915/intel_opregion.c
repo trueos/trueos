@@ -25,12 +25,8 @@
  *
  */
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#include <sys/types.h>
-#include <sys/bus.h>
-#include <sys/pciio.h>
 
 #include <linux/acpi.h>
 #include <linux/dmi.h>
@@ -684,7 +680,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	u32 temp, max_outputs;
 	int i = 0;
 
-	handle = ACPI_HANDLE(&dev->pdev->dev);
+	handle = ACPI_HANDLE_GET(&dev->pdev->dev);
 	if (!handle || acpi_bus_get_device(handle, &acpi_dev))
 		return;
 
