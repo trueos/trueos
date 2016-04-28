@@ -31,17 +31,19 @@
 #ifndef	_LINUX_DEVICE_H_
 #define	_LINUX_DEVICE_H_
 
-#include <linux/types.h>
+#include <linux/ioport.h>
 #include <linux/kobject.h>
-#include <linux/sysfs.h>
+#include <linux/klist.h>
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <linux/mutex.h>
+#include <linux/pm.h>
+#include <linux/atomic.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/sysfs.h>
 #include <linux/kdev_t.h>
-#include <asm/atomic.h>
 
 #include <sys/bus.h>
 

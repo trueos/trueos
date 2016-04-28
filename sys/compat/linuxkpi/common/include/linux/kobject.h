@@ -33,21 +33,20 @@
 
 #include <machine/stdarg.h>
 
-#include <linux/kernel.h>
-#include <linux/kref.h>
-#include <linux/slab.h>
+#include <linux/types.h>
 #include <linux/list.h>
+#include <linux/sysfs.h>
+#include <linux/compiler.h>
+#include <linux/spinlock.h>
+#include <linux/kref.h>
+#include <linux/kobject_ns.h>
+#include <linux/kernel.h>
+#include <linux/wait.h>
+#include <linux/atomic.h>
+#include <linux/workqueue.h>
 
 struct kobject;
 struct sysctl_oid;
-
-struct kobj_type {
-	void (*release)(struct kobject *kobj);
-	const struct sysfs_ops *sysfs_ops;
-	struct attribute **default_attrs;
-};
-
-extern const struct kobj_type linux_kfree_type;
 
 
 enum kobject_action {
@@ -59,6 +58,15 @@ enum kobject_action {
 	KOBJ_OFFLINE,
 	KOBJ_MAX
 };
+
+struct kobj_type {
+	void (*release)(struct kobject *kobj);
+	const struct sysfs_ops *sysfs_ops;
+	struct attribute **default_attrs;
+};
+
+extern const struct kobj_type linux_kfree_type;
+
 
 struct kobject {
 	struct kobject		*parent;
@@ -76,11 +84,6 @@ struct kobject {
 
 extern struct kobject *mm_kobj;
 
-struct attribute {
-	const char 	*name;
-	struct module	*owner;
-	mode_t		mode;
-};
 
 struct kobj_attribute {
         struct attribute attr;

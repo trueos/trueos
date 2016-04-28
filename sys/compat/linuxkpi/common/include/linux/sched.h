@@ -44,8 +44,11 @@
 #include <linux/smp.h>
 #include <linux/kthread.h>
 #include <linux/nodemask.h>
+#include <linux/mm_types.h>
+
 #include <asm/processor.h>
 #include <linux/completion.h>
+#include <asm/atomic.h>
 
 #define TASK_COMM_LEN 16
 
@@ -61,6 +64,13 @@ CTASSERT(sizeof(((struct thread *)0)->td_retval[1]) >= sizeof(uintptr_t));
 	atomic_store_rel_int((volatile int *)&current->state, (x))
 #define	__set_current_state(x)	current->state = (x)
 
+
+extern void __mmdrop(struct mm_struct *);
+static inline void mmdrop(struct mm_struct * mm)
+{
+	if (__predict_false(atomic_dec_and_test(&mm->mm_count)))
+		__mmdrop(mm);
+}
 
 extern u64 cpu_clock(int cpu);
 extern u64 local_clock(void);

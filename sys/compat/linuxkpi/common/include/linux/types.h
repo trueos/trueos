@@ -63,19 +63,26 @@ typedef u64 phys_addr_t;
 #define	DECLARE_BITMAP(n, bits)						\
 	unsigned long n[howmany(bits, sizeof(long) * 8)]
 
-#ifdef __LP64__
+typedef struct {
+	int counter;
+} atomic_t;
+
 
 typedef struct {
-	uint64_t counter;
+	int64_t counter;
 } atomic64_t;
 
+#ifdef __LP64__
 typedef atomic64_t atomic_long_t;
+
+
+
 
 #define ATOMIC_LONG_INIT(i)	ATOMIC64_INIT(i)
 #define ATOMIC_LONG_PFX(x)	atomic64 ## x
 
-#else
 
+#else
 
 typedef atomic_t atomic_long_t;
 

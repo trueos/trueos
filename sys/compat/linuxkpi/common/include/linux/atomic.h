@@ -1,6 +1,8 @@
 #ifndef _LINUX___ATOMIC_H_
 #define _LINUX___ATOMIC_H_
+
 #include <machine/atomic.h>
+#include <asm/atomic.h>
 
 #define smp_rmb() rmb()
 #define smb_wmb() wmb()

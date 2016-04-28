@@ -43,6 +43,7 @@
 #include <linux/wait.h>
 #include <linux/semaphore.h>
 #include <linux/list.h>
+#include <linux/atomic.h>
 
 struct module;
 struct kiocb;

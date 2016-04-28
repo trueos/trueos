@@ -37,6 +37,8 @@
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/atomic.h>
+#include <linux/mm_types.h>
 
 #include <asm/pgtable.h>
 

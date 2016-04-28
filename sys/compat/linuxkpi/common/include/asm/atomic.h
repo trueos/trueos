@@ -34,14 +34,10 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <machine/atomic.h>
+#include <linux/types.h>
 
 #define	ATOMIC_INIT(x)	{ .counter = (x) }
 
-typedef struct {
-	volatile u_int counter;
-} atomic_t;
-
-#define ATOMIC64_INIT(i)	{ (i) }
 
 /*------------------------------------------------------------------------*
  *	32-bit atomic operations
