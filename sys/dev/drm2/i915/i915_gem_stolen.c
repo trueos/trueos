@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #define KB(x) ((x) * 1024)
 #define MB(x) (KB(x) * 1024)
+#define resource linux_resource
 
 /*
  * The BIOS typically reserves some of the system's memory for the exclusive
@@ -227,7 +228,7 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 
 		if (stolen[0].start != stolen[1].start ||
 		    stolen[0].end != stolen[1].end) {
-			DRM_DEBUG_KMS("GTT within stolen memory at 0x%zx-0x%zx\n",
+			DRM_DEBUG_KMS("GTT within stolen memory at 0x%llx-0x%llx\n",
 				      (unsigned long long) gtt_start,
 				      (unsigned long long) gtt_end - 1);
 			DRM_DEBUG_KMS("Stolen memory adjusted to 0x%x-0x%x\n",
