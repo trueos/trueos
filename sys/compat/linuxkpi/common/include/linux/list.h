@@ -111,6 +111,13 @@ list_replace(struct list_head *old, struct list_head *new)
 }
 
 static inline void
+list_replace_init(struct list_head *old, struct list_head *new)
+{
+	list_replace(old, new);
+	INIT_LIST_HEAD(old);
+}
+
+static inline void
 linux_list_add(struct list_head *new, struct list_head *prev,
     struct list_head *next)
 {
@@ -133,6 +140,9 @@ list_del_init(struct list_head *entry)
 
 #define list_first_entry(ptr, type, member) \
         list_entry((ptr)->next, type, member)
+
+#define list_last_entry(ptr, type, member)	\
+	list_entry((ptr)->prev, type, member)
 
 #define list_first_entry_or_null(ptr, type, member) \
 	(!list_empty(ptr) ? list_first_entry(ptr, type, member) : NULL)
@@ -443,6 +453,8 @@ static inline int list_is_last(const struct list_head *list,
 	for (pos = hlist_entry_safe((head)->first, typeof(*(pos)), member); \
 	     (pos) && ({ n = (pos)->member.next; 1; });			\
 	     pos = hlist_entry_safe(n, typeof(*(pos)), member))
+
+
 
 struct list_sort_thunk {
 	int (*cmp)(void *, struct list_head *, struct list_head *);

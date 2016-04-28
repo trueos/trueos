@@ -73,6 +73,10 @@
 
 #define	barrier()			__asm__ __volatile__("": : :"memory")
 
+#define ___PASTE(a,b) a##b
+#define __PASTE(a,b) ___PASTE(a,b)
+
+	
 #define	ACCESS_ONCE(x)			(*(volatile __typeof(x) *)&(x))
   
 #define	WRITE_ONCE(x,v) do {		\

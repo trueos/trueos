@@ -407,4 +407,12 @@ dev_to_node(struct device *dev)
 char *kvasprintf(gfp_t, const char *, va_list);
 char *kasprintf(gfp_t, const char *, ...);
 
+extern void *devm_kmalloc(struct device *dev, size_t size, gfp_t gfp);
+
+
+static inline void *
+devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
+{
+	return devm_kmalloc(dev, size, gfp | __GFP_ZERO);
+}
 #endif	/* _LINUX_DEVICE_H_ */

@@ -96,6 +96,14 @@ param_sysinit(struct kernel_param *param)
         module_param_named(var, var, type, mode)
 
 #define	MODULE_PARM_DESC(name, desc)
+#define __MODULE_INFO(tag, name, info)					  \
+
+#define __UNIQUE_ID(prefix) __PASTE(__PASTE(__UNIQUE_ID_, prefix), __COUNTER__)
+#ifdef notyet
+	static const char __UNIQUE_ID(name)[]				\
+  __used __attribute__((section(".modinfo"), unused, aligned(1)))	  \
+  = __stringify(tag) "=" info
+#endif
 
 
 #if 0
