@@ -55,6 +55,8 @@
 #include <linux/pm_qos.h>
 #include "intel_guc.h"
 
+#define CONFIG_DEBUG_FS 1
+
 /* General customization:
  */
 
