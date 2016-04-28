@@ -216,7 +216,7 @@ trace_i915_pipe_update_vblank_evaded(void *crtc)
 }
 
 static inline void
-trace_i915_pipe_update_end(void *crtc)
+trace_i915_pipe_update_end(void *crtc, u32 end_vbl_count, int scanline_end)
 {
 	CTR1(KTR_DRM, "pipe_update_end %p", crtc);
 }
