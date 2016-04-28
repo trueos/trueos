@@ -98,6 +98,7 @@ CWARNFLAGS.intel_bios.c=	-Wno-cast-qual
 CWARNFLAGS.intel_lvds.c=	-Wno-unused
 CWARNFLAGS.intel_display.c=	-Wno-tautological-pointer-compare -Wno-enum-conversion -Wno-cast-qual
 CWARNFLAGS.intel_dsi_panel_vbt.c= -Wno-cast-qual
+CWARNFLAGS.intel_hdmi.c=	-Wno-enum-conversion
 CWARNFLAGS.intel_overlay.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.intel_pm.c=		-Wno-cast-qual -Wno-incompatible-pointer-types-discards-qualifiers -Wno-unused-const-variable
 CWARNFLAGS.intel_sdvo.c=	-Wno-cast-qual -Wno-enum-conversion
