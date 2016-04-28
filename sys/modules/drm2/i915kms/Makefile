@@ -10,6 +10,7 @@ SRCS	= \
 	dvo_sil164.c \
 	dvo_tfp410.c \
 	i915_cmd_parser.c \
+	i915_debugfs.c \
 	i915_dma.c \
 	i915_drv.c \
 	i915_gem.c \
@@ -67,7 +68,7 @@ SRCS	= \
 	intel_tv.c \
 	intel_uncore.c
 
-#	i915_debugfs.c \
+#
 
 
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
@@ -105,7 +106,7 @@ CWARNFLAGS.intel_overlay.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.intel_pm.c=		-Wno-cast-qual -Wno-incompatible-pointer-types-discards-qualifiers -Wno-unused-const-variable
 CWARNFLAGS.intel_sdvo.c=	-Wno-cast-qual -Wno-enum-conversion
 CWARNFLAGS.intel_tv.c=		-Wno-unused
-CWARNFLAGS.i915_debugfs.c=	-Wno-unused-function
+CWARNFLAGS.i915_debugfs.c=	-Wno-unused-function -Wno-cast-qual -Wno-format -Wno-dangling-else
 CWARNFLAGS.i915_gem.c=		-Wno-tautological-pointer-compare -Wno-pointer-arith -Wno-cast-qual -Wno-int-conversion
 CWARNFLAGS.i915_dma.c=		-Wno-cast-qual
 CWARNFLAGS.i915_drv.c=		-Wno-initializer-overrides
