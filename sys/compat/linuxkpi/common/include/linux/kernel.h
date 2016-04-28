@@ -305,4 +305,8 @@ abs64(int64_t x)
 #define div_s64(di, dv) (di/dv)
 #define div_u64(di, dv) (di/dv)
 
+/* XXX move me */
+#define rdmsrl(msr, val)			\
+	((val) = rdmsr((msr)))
+
 #endif	/* _LINUX_KERNEL_H_ */

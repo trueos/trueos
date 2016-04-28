@@ -229,4 +229,7 @@ static inline bool flush_delayed_work(struct delayed_work *dwork)
 	panic("XXX implmeent me!!");
 }
 
+unsigned int work_busy(struct work_struct *work);
+
+
 #endif	/* _LINUX_WORKQUEUE_H_ */

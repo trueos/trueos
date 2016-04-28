@@ -676,6 +676,9 @@ struct drm_driver {
 	void (*master_drop)(struct drm_device *dev, struct drm_file *file_priv,
 			    bool from_release);
 
+	int (*debugfs_init)(struct drm_minor *minor);
+	void (*debugfs_cleanup)(struct drm_minor *minor);
+
 	/**
 	 * Driver-specific constructor for drm_gem_objects, to set up
 	 * obj->driver_private.
@@ -804,6 +807,11 @@ struct drm_minor {
 	struct drm_device *dev;
 
 	struct drm_master *master; /* currently active master for this node */
+
+	struct dentry *debugfs_root;
+
+	struct list_head debugfs_list;
+	struct mutex debugfs_lock; /* Protects debugfs_list. */
 #if 0
 	struct list_head master_list;
 	struct drm_mode_group mode_group;
@@ -1167,6 +1175,27 @@ extern void drm_put_dev(struct drm_device *dev);
 extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
 extern bool drm_atomic;
+#if defined(CONFIG_DEBUG_FS)
+extern int drm_debugfs_create_files(const struct drm_info_list *files,
+				    int count, struct dentry *root,
+				    struct drm_minor *minor);
+extern int drm_debugfs_remove_files(const struct drm_info_list *files,
+				    int count, struct drm_minor *minor);
+#else
+static inline int drm_debugfs_create_files(const struct drm_info_list *files,
+					   int count, struct dentry *root,
+					   struct drm_minor *minor)
+{
+	return 0;
+}
+
+static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
+					   int count, struct drm_minor *minor)
+{
+	return 0;
+}
+#endif
+
 extern unsigned int drm_notyet;
 
 extern unsigned int drm_timestamp_monotonic;

@@ -29,14 +29,31 @@
 
 #include <linux/types.h>
 #include <linux/bug.h>
+#include <linux/fs.h>
 
 struct seq_file {
 	struct sbuf	*buf;
+
+	void *private;
 };
+
+
+ssize_t seq_read(struct file *, char __user *, size_t, loff_t *);
+int seq_write(struct seq_file *seq, const void *data, size_t len);
+
+loff_t seq_lseek(struct file *file, loff_t offset, int whence);
+int single_open(struct file *, int (*)(struct seq_file *, void *), void *);
+int single_release(struct inode *, struct file *);
+
+
+
+loff_t seq_lseek(struct file *, loff_t, int);
 
 #define seq_printf(m, fmt, ...) sbuf_printf((m)->buf, (fmt), ##__VA_ARGS__)
 //#define seq_printf(m, args...) sbuf_printf(((m)->buf, args...)
 
 #define seq_puts(m, str)	sbuf_printf((m)->buf, str)
+#define seq_putc(m, str)	sbuf_putc((m)->buf, str)
+
 
 #endif	/* _LINUX_SEQ_FILE_H_ */

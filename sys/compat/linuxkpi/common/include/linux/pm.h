@@ -1,6 +1,14 @@
 #ifndef _LINUX_PM_H_
 #define _LINUX_PM_H_
 
+
+#include <linux/list.h>
+#include <linux/workqueue.h>
+#include <linux/spinlock.h>
+#include <linux/wait.h>
+#include <linux/timer.h>
+#include <linux/completion.h>
+
 struct dev_pm_ops {
 	int (*prepare)(struct device *dev);
 	void (*complete)(struct device *dev);

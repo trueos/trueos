@@ -48,6 +48,8 @@
 
 #include <asm/processor.h>
 #include <linux/completion.h>
+#include <linux/pid.h>
+
 #include <asm/atomic.h>
 
 #define TASK_COMM_LEN 16
