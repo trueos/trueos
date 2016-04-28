@@ -34,6 +34,7 @@
 
 #include <linux/page.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 
 struct scatterlist {
 	union {

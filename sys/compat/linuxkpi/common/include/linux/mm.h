@@ -38,6 +38,8 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 
+#include <asm/pgtable.h>
+
 
 #define	PAGE_ALIGN(x)	ALIGN(x, PAGE_SIZE)
 

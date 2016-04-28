@@ -105,6 +105,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/pm.h>
 #include <linux/ktime.h>
 #include <linux/vmalloc.h>
+#include <linux/mm.h>
 
 
 

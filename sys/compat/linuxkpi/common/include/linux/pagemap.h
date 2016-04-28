@@ -1,6 +1,7 @@
 #ifndef _LINUX_PAGEMAP_H
 #define _LINUX_PAGEMAP_H
 #include <linux/hardirq.h>
+#include <linux/mm.h>
 
 
 static inline int
