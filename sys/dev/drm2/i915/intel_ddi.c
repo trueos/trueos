@@ -739,7 +739,7 @@ intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state)
 #define abs_diff(a, b) ({			\
 	typeof(a) __a = (a);			\
 	typeof(b) __b = (b);			\
-	(void) (&__a == &__b);			\
+	(void) ((uintptr_t)&__a == (uintptr_t)&__b);	\
 	__a > __b ? (__a - __b) : (__b - __a); })
 
 struct hsw_wrpll_rnp {

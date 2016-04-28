@@ -322,9 +322,6 @@ static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return
 /* XXX ?? */
 #define pci_disable_device(dev)
 
-#define register_acpi_notifier(x)
-#define unregister_acpi_notifier(x)
-
 #define in_dbg_master() (kdb_active)
 #define do_gettimeofday microtime
 #define acpi_video_register()

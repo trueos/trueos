@@ -35,9 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <acpi/video.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/actypes.h>
-#include <acpi/acexcep.h>
 
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
