@@ -12,6 +12,14 @@ __arch_hweight8(u_long mask)
         return (result);
 }
 
+static __inline u_long
+__arch_hweight_long(u_long mask)
+{
+        u_long result;
+
+        __asm __volatile("popcntq %1,%0" : "=r" (result) : "rm" (mask));
+        return (result);
+}
 
 #define __const_hweight8(w)		\
 	((unsigned int)			\
@@ -29,6 +37,7 @@ __arch_hweight8(u_long mask)
 #define hweight16(x) bitcount16(x)
 #define hweight32(x) bitcount32(x)
 #define hweight64(x) (bitcount32((uint32_t)(x>>32)) + bitcount32((uint32_t)x))
+#define hweight_long(x) __arch_hweight_long(x)
 
 
 #endif /* _ASM_GENERIC_BITOPS_CONST_HWEIGHT_H_ */

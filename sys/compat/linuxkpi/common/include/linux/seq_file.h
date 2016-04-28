@@ -34,9 +34,9 @@ struct seq_file {
 	struct sbuf	*buf;
 };
 
-//seq_printf(m, fmt, ...) sbuf_printf((m)->buf, (fmt), ##__VA_ARGS__)
-#define seq_printf(m, args...) sbuf_printf((m)->buf, args)
+#define seq_printf(m, fmt, ...) sbuf_printf((m)->buf, (fmt), ##__VA_ARGS__)
+//#define seq_printf(m, args...) sbuf_printf(((m)->buf, args...)
 
-#define seq_puts(m, str)	sbuf_printf(m)->buf, str)
+#define seq_puts(m, str)	sbuf_printf((m)->buf, str)
 
 #endif	/* _LINUX_SEQ_FILE_H_ */

@@ -938,4 +938,19 @@ pci_unmap_rom(struct pci_dev *pdev, u8 *bios)
 }
 
 
+int pci_bus_read_config_byte(struct pci_bus *bus, unsigned int devfn,
+			     int where, u8 *val);
+int pci_bus_read_config_word(struct pci_bus *bus, unsigned int devfn,
+			     int where, u16 *val);
+int pci_bus_read_config_dword(struct pci_bus *bus, unsigned int devfn,
+			      int where, u32 *val);
+int pci_bus_write_config_byte(struct pci_bus *bus, unsigned int devfn,
+			      int where, u8 val);
+int pci_bus_write_config_word(struct pci_bus *bus, unsigned int devfn,
+			      int where, u16 val);
+int pci_bus_write_config_dword(struct pci_bus *bus, unsigned int devfn,
+			       int where, u32 val);
+
+int pci_generic_config_read(struct pci_bus *bus, unsigned int devfn,
+			       int where, u32 val);
 #endif	/* _LINUX_PCI_H_ */
