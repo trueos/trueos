@@ -127,6 +127,17 @@ get_page(struct vm_page *page)
 }
 
 
+/*
+ * doesn't attempt to fault and will return short.
+ */
+int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+			  struct page **pages);
+
+
+long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
+			    unsigned long start, unsigned long nr_pages,
+			    int write, int force, struct page **pages,
+			   struct vm_area_struct **vmas);
 
 #define put_page(page) __free_hot_cold_page(page);
 #define copy_highpage(to, from) pmap_copy_page(from, to)

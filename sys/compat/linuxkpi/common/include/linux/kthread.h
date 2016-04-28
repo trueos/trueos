@@ -73,6 +73,7 @@ struct task_struct {
 	struct	thread *task_thread;
 	struct mm_struct *mm;
 	int	(*task_fn)(void *data);
+	atomic_t usage;
 	void	*task_data;
 	int	task_ret;
 	int	state;

@@ -354,4 +354,9 @@ static inline struct page *sg_page_iter_page(struct sg_page_iter *piter)
 #define	for_each_sg(sglist, sg, sgmax, _itr)				\
 	for (_itr = 0, sg = (sglist); _itr < (sgmax); _itr++, sg = sg_next(sg))
 
+int sg_alloc_table_from_pages(struct sg_table *sgt,
+	struct page **pages, unsigned int n_pages,
+	unsigned long offset, unsigned long size,
+			      gfp_t gfp_mask);
+
 #endif					/* _LINUX_SCATTERLIST_H_ */

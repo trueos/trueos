@@ -74,5 +74,7 @@ static inline gfp_t mapping_gfp_constraint(struct address_space *mapping,
 	panic("XXX implement me");
 }
 
+void release_pages(struct page **pages, int nr, bool cold);
+
 
 #endif
