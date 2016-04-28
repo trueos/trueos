@@ -223,4 +223,10 @@ flush_work(struct work_struct *work)
 	flush_taskqueue(work->taskqueue);
 	return true;
 }
+
+static inline bool flush_delayed_work(struct delayed_work *dwork)
+{
+	panic("XXX implmeent me!!");
+}
+
 #endif	/* _LINUX_WORKQUEUE_H_ */

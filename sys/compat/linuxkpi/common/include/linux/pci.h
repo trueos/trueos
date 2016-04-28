@@ -42,6 +42,7 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pci_private.h>
+#include <sys/resourcevar.h>
 
 #include <machine/resource.h>
 

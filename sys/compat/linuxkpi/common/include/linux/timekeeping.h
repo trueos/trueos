@@ -12,6 +12,7 @@ enum tk_offsets {
 
 extern ktime_t ktime_mono_to_any(ktime_t tmono, enum tk_offsets offs);
 extern ktime_t ktime_get_with_offset(enum tk_offsets offs);
+extern ktime_t ktime_get_raw(void);
 
 
 static inline ktime_t ktime_mono_to_real(ktime_t mono)
@@ -25,6 +26,13 @@ static inline ktime_t ktime_mono_to_real(ktime_t mono)
 static inline ktime_t ktime_get_real(void)
 {
 	return ktime_get_with_offset(TK_OFFS_REAL);
+}
+
+
+
+static inline u64 ktime_get_raw_ns(void)
+{
+	return ktime_to_ns(ktime_get_raw());
 }
 
 #endif

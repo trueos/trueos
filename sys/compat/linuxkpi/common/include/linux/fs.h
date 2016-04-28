@@ -71,8 +71,8 @@ struct dentry {
 struct file_operations;
 
 #define address_space vm_object
-#define i_mapping bo_object
-#define file_inode(f) (&((f)->f_vnode->v_bufobj))
+#define i_mapping v_bufobj.bo_object
+#define file_inode(f) ((f)->f_vnode)
 
 
 struct linux_file {
@@ -252,6 +252,10 @@ no_llseek(struct file *file, loff_t offset, int whence)
 {
         return -ESPIPE;
 }
+
+
+unsigned long invalidate_mapping_pages(struct address_space *mapping,
+					pgoff_t start, pgoff_t end);
 
 struct page *shmem_read_mapping_page_gfp(struct address_space *as, int idx, gfp_t gfp);
 static inline struct page *

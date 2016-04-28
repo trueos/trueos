@@ -218,7 +218,31 @@ trace_i915_pipe_update_vblank_evaded(void *crtc)
 static inline void
 trace_i915_pipe_update_end(void *crtc, u32 end_vbl_count, int scanline_end)
 {
-	CTR1(KTR_DRM, "pipe_update_end %p", crtc);
+	CTR3(KTR_DRM, "pipe_update_end %p end_vbl_count %d scanline_end %d", crtc, end_vbl_count, scanline_end);
+}
+static inline void
+trace_i915_gem_request_add(void *req)
+{
+	CTR1(KTR_DRM, "gem_request_add req %p", req);
+}
+
+static inline void
+trace_i915_gem_ring_sync_to(void *to_req, void *from, void *from_req)
+{
+	CTR3(KTR_DRM, "gem_ring_sync_to  to_req %p from %p from_req %p", to_req, from, from_req);
+}
+
+static inline void
+trace_i915_vma_bind(void *vma, uint32_t flags)
+{
+	CTR2(KTR_DRM, "vma_bind vma %p flags %x", vma, flags);
+}
+
+
+static inline void
+trace_i915_vma_unbind(void *vma)
+{
+	CTR1(KTR_DRM, "vma_bind vma %p", vma);
 }
 
 
