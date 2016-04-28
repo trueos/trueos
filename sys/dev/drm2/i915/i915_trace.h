@@ -198,9 +198,9 @@ trace_i915_page_directory_pointer_entry_alloc(void *vm, uint32_t pml4e, uint64_t
 }
 
 static inline void
-trace_i915_page_table_entry_map(void *base, uint32_t pde, uint32_t pt, int index, int count, uint32_t flags)
+trace_i915_page_table_entry_map(void *base, uint32_t pde, void *pt, int index, int count, uint32_t flags)
 {
-	CTR6(KTR_DRM, "page_table_entry_map base %p pde %x pt %x index %x count %d flags %x", base, pde, pt, index, count, flags);
+	CTR6(KTR_DRM, "page_table_entry_map base %p pde %x pt %p index %x count %d flags %x", base, pde, pt, index, count, flags);
 }
 
 static inline void
@@ -236,6 +236,13 @@ static inline void
 trace_i915_vma_bind(void *vma, uint32_t flags)
 {
 	CTR2(KTR_DRM, "vma_bind vma %p flags %x", vma, flags);
+}
+
+
+static inline void
+trace_i915_va_alloc(void *vma)
+{
+	CTR1(KTR_DRM, "va_alloc vma %p", vma);
 }
 
 

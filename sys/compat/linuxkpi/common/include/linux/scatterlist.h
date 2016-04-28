@@ -58,6 +58,8 @@ struct sg_page_iter {
 	struct scatterlist *sg;
 	unsigned int sg_pgoffset;
 	unsigned int maxents;
+	unsigned int		__nents;	
+	int			__pg_advance;
 };
 
 #define	SG_MAX_SINGLE_ALLOC	(PAGE_SIZE / sizeof(struct scatterlist))
@@ -248,6 +250,27 @@ size_t sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
 size_t sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 			  void *buf, size_t buflen, off_t skip);
 
+static inline int
+sg_nents(struct scatterlist *sg)
+{
+	int nents;
+	for (nents = 0; sg; sg = sg_next(sg))
+		nents++;
+	return nents;
+}
+
+static inline void
+__sg_page_iter_start(struct sg_page_iter *piter,
+			  struct scatterlist *sglist, unsigned int nents,
+			  unsigned long pgoffset)
+{
+	piter->__pg_advance = 0;
+	piter->__nents = nents;
+
+	piter->sg = sglist;
+	piter->sg_pgoffset = pgoffset;
+}
+
 static inline void
 _sg_iter_next(struct sg_page_iter *iter)
 {
@@ -267,6 +290,34 @@ _sg_iter_next(struct sg_page_iter *iter)
 		pgcount = (sg->offset + sg->length + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	}
 	iter->sg = sg;
+}
+
+static inline int
+sg_page_count(struct scatterlist *sg)
+{
+	return PAGE_ALIGN(sg->offset + sg->length) >> PAGE_SHIFT;
+}
+
+static inline bool
+__sg_page_iter_next(struct sg_page_iter *piter)
+{
+	if (piter->__nents == 0)
+		return (false);
+	if (piter->sg == NULL)
+		return (false);
+
+	piter->sg_pgoffset += piter->__pg_advance;
+	piter->__pg_advance = 1;
+
+	while (piter->sg_pgoffset >= sg_page_count(piter->sg)) {
+		piter->sg_pgoffset -= sg_page_count(piter->sg);
+		piter->sg = sg_next(piter->sg);
+		if (--piter->__nents == 0) 
+			return (false);
+		if (piter->sg == NULL)
+			return (false);
+	}
+	return (true);
 }
 
 static inline void
