@@ -231,4 +231,8 @@ static inline bool sysfs_streq(const char *s1, const char *s2)
 		return true;
 	return false;
 }
+
+/* XXX not implemented yet */
+#define sysfs_remove_link(a, b)
+#define sysfs_create_link(a, b, c) 0
 #endif	/* _LINUX_SYSFS_H_ */

@@ -64,7 +64,7 @@ SRCS	= \
 	intel_sdvo.c \
 	intel_sideband.c \
 	intel_sprite.c \
-	intel_tv.c	\
+	intel_tv.c \
 	intel_uncore.c
 
 #	i915_debugfs.c \
@@ -100,7 +100,7 @@ CWARNFLAGS.intel_display.c=	-Wno-tautological-pointer-compare -Wno-enum-conversi
 CWARNFLAGS.intel_dsi_panel_vbt.c= -Wno-cast-qual
 CWARNFLAGS.intel_overlay.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.intel_pm.c=		-Wno-cast-qual
-CWARNFLAGS.intel_sdvo.c=	-Wno-cast-qual
+CWARNFLAGS.intel_sdvo.c=	-Wno-cast-qual -Wno-enum-conversion
 CWARNFLAGS.intel_tv.c=		-Wno-unused
 CWARNFLAGS.i915_debugfs.c=	-Wno-unused-function
 CWARNFLAGS.i915_gem.c=		-Wno-tautological-pointer-compare -Wno-pointer-arith
