@@ -2190,7 +2190,7 @@ daregister(struct cam_periph *periph, void *arg)
 	 */
 	match = cam_quirkmatch((caddr_t)&cgd->inq_data,
 			       (caddr_t)da_quirk_table,
-			       sizeof(da_quirk_table)/sizeof(*da_quirk_table),
+			       nitems(da_quirk_table),
 			       sizeof(*da_quirk_table), scsi_inquiry_match);
 
 	if (match != NULL)
@@ -2868,7 +2868,7 @@ da_delete_trim(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 		}
 	} while (1);
 
-	block_count = (ranges + ATA_DSM_BLK_RANGES - 1) / ATA_DSM_BLK_RANGES;
+	block_count = howmany(ranges, ATA_DSM_BLK_RANGES);
 	scsi_ata_trim(&ccb->csio,
 		      /*retries*/da_retry_count,
 		      /*cbfcnp*/dadone,

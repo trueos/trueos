@@ -464,7 +464,8 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 		 */
 		if (!is_digital) {
 			DRM_DEBUG_KMS("CRT detected via DDC:0x50 [EDID]\n");
-			return true;
+			res = true;
+			goto out;
 		}
 
 		DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
@@ -472,9 +473,9 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 		DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [no valid EDID found]\n");
 	}
 
+out:
 	kfree(edid);
-
-	return false;
+	return res;
 }
 
 static enum drm_connector_status

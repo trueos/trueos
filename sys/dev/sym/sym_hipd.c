@@ -2526,11 +2526,11 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 	 * Minimum synchronous period factor supported by the chip.
 	 * Btw, 'period' is in tenths of nanoseconds.
 	 */
-	period = (4 * div_10M[0] + np->clock_khz - 1) / np->clock_khz;
+	period = howmany(4 * div_10M[0], np->clock_khz);
 	if	(period <= 250)		np->minsync = 10;
 	else if	(period <= 303)		np->minsync = 11;
 	else if	(period <= 500)		np->minsync = 12;
-	else				np->minsync = (period + 40 - 1) / 40;
+	else				np->minsync = howmany(period, 40);
 
 	/*
 	 * Check against chip SCSI standard support (SCSI-2,ULTRA,ULTRA2).
@@ -7903,7 +7903,7 @@ sym_scatter_sg_physical(hcb_p np, ccb_p cp, bus_dma_segment_t *psegs, int nsegs)
 	pe = ps + psegs[t].ds_len;
 
 	while (s >= 0) {
-		pn = (pe - 1) & ~(SYM_CONF_DMA_BOUNDARY - 1);
+		pn = rounddown2(pe - 1, SYM_CONF_DMA_BOUNDARY);
 		if (pn <= ps)
 			pn = ps;
 		k = pe - pn;
@@ -8890,6 +8890,7 @@ static int sym_cam_attach(hcb_p np)
 	if (xpt_bus_register(sim, np->device, 0) != CAM_SUCCESS)
 		goto fail;
 	np->sim = sim;
+	sim = NULL;
 
 	if (xpt_create_path(&path, NULL,
 			    cam_sim_path(np->sim), CAM_TARGET_WILDCARD,

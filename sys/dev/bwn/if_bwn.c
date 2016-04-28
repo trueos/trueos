@@ -906,7 +906,7 @@ bwn_probe(device_t dev)
 {
 	int i;
 
-	for (i = 0; i < sizeof(bwn_devs) / sizeof(bwn_devs[0]); i++) {
+	for (i = 0; i < nitems(bwn_devs); i++) {
 		if (siba_get_vendor(dev) == bwn_devs[i].sd_vendor &&
 		    siba_get_device(dev) == bwn_devs[i].sd_device &&
 		    siba_get_revid(dev) == bwn_devs[i].sd_rev)
@@ -11166,7 +11166,7 @@ bwn_phy_lp_b2063_switch_channel(struct bwn_mac *mac, uint8_t chan)
 	tmp[2] = ((41 * (val[2] - 3000)) /1200) + 27;
 	tmp[3] = bwn_phy_lp_roundup(132000 * tmp[0], 8451, 16);
 
-	if ((tmp[3] + tmp[2] - 1) / tmp[2] > 60) {
+	if (howmany(tmp[3], tmp[2]) > 60) {
 		scale = 1;
 		tmp[4] = ((tmp[3] + tmp[2]) / (tmp[2] << 1)) - 8;
 	} else {

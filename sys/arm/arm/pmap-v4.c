@@ -2285,7 +2285,7 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 	    round_page(size * L2_TABLE_SIZE_REAL) / PAGE_SIZE,
 	    &pmap_kernel_l2ptp_kva, NULL);
 
-	size = (size + (L2_BUCKET_SIZE - 1)) / L2_BUCKET_SIZE;
+	size = howmany(size, L2_BUCKET_SIZE);
 	pmap_alloc_specials(&virtual_avail,
 	    round_page(size * sizeof(struct l2_dtable)) / PAGE_SIZE,
 	    &pmap_kernel_l2dtable_kva, NULL);
@@ -4754,7 +4754,7 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 	vm_size_t resid;
 	int i;
 
-	resid = (size + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
+	resid = roundup2(size, PAGE_SIZE);
 
 	if (l1pt == 0)
 		panic("pmap_map_chunk: no L1 table provided");

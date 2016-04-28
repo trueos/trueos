@@ -1062,6 +1062,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if (ath_hal_getcapability(ah, HAL_CAP_HT, 0, NULL) == HAL_OK &&
 	    (wmodes & (HAL_MODE_HT20 | HAL_MODE_HT40))) {
 		uint32_t rxs, txs;
+		uint32_t ldpc;
 
 		device_printf(sc->sc_dev, "[HT] enabling HT modes\n");
 
@@ -1129,6 +1130,18 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			device_printf(sc->sc_dev,
 			    "[HT] RTS aggregates limited to %d KiB\n",
 			    sc->sc_rts_aggr_limit / 1024);
+
+		/*
+		 * LDPC
+		 */
+		if ((ath_hal_getcapability(ah, HAL_CAP_LDPC, 0, &ldpc))
+		    == HAL_OK && (ldpc == 1)) {
+			sc->sc_has_ldpc = 1;
+			device_printf(sc->sc_dev,
+			    "[HT] LDPC transmit/receive enabled\n");
+			ic->ic_htcaps |= IEEE80211_HTCAP_LDPC;
+		}
+
 
 		device_printf(sc->sc_dev,
 		    "[HT] %d RX streams; %d TX streams\n", rxs, txs);
@@ -3483,10 +3496,10 @@ ath_update_mcast_hw(struct ath_softc *sc)
 				/* calculate XOR of eight 6bit values */
 				dl = LLADDR((struct sockaddr_dl *)
 				    ifma->ifma_addr);
-				val = LE_READ_4(dl + 0);
+				val = le32dec(dl + 0);
 				pos = (val >> 18) ^ (val >> 12) ^ (val >> 6) ^
 				    val;
-				val = LE_READ_4(dl + 3);
+				val = le32dec(dl + 3);
 				pos ^= (val >> 18) ^ (val >> 12) ^ (val >> 6) ^
 				    val;
 				pos &= 0x3f;

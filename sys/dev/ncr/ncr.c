@@ -3230,7 +3230,7 @@ static int ncr_chip_lookup(u_long device_id, u_char revision_id)
 	int i, found;
 	
 	found = -1;
-	for (i = 0; i < sizeof(ncr_chip_table)/sizeof(ncr_chip_table[0]); i++) {
+	for (i = 0; i < nitems(ncr_chip_table); i++) {
 		if (device_id	== ncr_chip_table[i].device_id &&
 		    ncr_chip_table[i].minrevid <= revision_id) {
 			if (found < 0 || 
@@ -3468,11 +3468,11 @@ ncr_attach (device_t dev)
 	 * Btw, 'period' is in tenths of nanoseconds.
 	 */
 
-	period = (4 * div_10M[0] + np->clock_khz - 1) / np->clock_khz;
+	period = howmany(4 * div_10M[0], np->clock_khz);
 	if	(period <= 250)		np->minsync = 10;
 	else if	(period <= 303)		np->minsync = 11;
 	else if	(period <= 500)		np->minsync = 12;
-	else				np->minsync = (period + 40 - 1) / 40;
+	else				np->minsync = howmany(period, 40);
 
 	/*
 	 * Check against chip SCSI standard support (SCSI-2,ULTRA,ULTRA2).
