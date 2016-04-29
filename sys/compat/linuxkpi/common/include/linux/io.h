@@ -34,6 +34,7 @@
 #include <machine/vm.h>
 #include <sys/endian.h>
 #include <sys/types.h>
+#include <linux/types.h>
 
 static inline uint32_t
 __raw_readl(const volatile void *addr)
@@ -208,5 +209,13 @@ __iowrite64_copy(void *to, void *from, size_t count)
 #endif
 }
 
+enum {
+	MEMREMAP_WB = 1 << 0,
+	MEMREMAP_WT = 1 << 1,
+	MEMREMAP_WC = 1 << 2,
+};
+
+void *memremap(resource_size_t offset, size_t size, unsigned long flags);
+void memunmap(void *addr);
 
 #endif	/* _LINUX_IO_H_ */

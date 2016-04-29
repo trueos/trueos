@@ -45,6 +45,7 @@
 #include <linux/kthread.h>
 #include <linux/nodemask.h>
 #include <asm/processor.h>
+#include <linux/completion.h>
 
 #define TASK_COMM_LEN 16
 

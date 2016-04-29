@@ -19,8 +19,8 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#ifndef __ACPI_BUS_H__
-#define __ACPI_BUS_H__
+#ifndef __ACPI_ACPI_BUS_H__
+#define __ACPI_ACPI_BUS_H__
 
 #include <linux/device.h>
 #include <linux/property.h>
@@ -568,7 +568,7 @@ struct acpi_pci_root {
 	struct acpi_device * device;
 	struct pci_bus *bus;
 	u16 segment;
-	struct resource secondary;	/* downstream bus range */
+	struct linux_resource secondary;	/* downstream bus range */
 
 	u32 osc_support_set;	/* _OSC state of support bits */
 	u32 osc_control_set;	/* _OSC state of control bits */

@@ -116,6 +116,7 @@ struct device_type {
 	const struct dev_pm_ops *pm;
 };
 
+struct fwnode_handle;
 
 struct device {
 	struct device	*parent;
@@ -131,6 +132,7 @@ struct device {
 	unsigned int	msix;
 	unsigned int	msix_max;
 	struct device_type *type;
+	struct fwnode_handle	*fwnode;
 };
 
 extern struct device linux_root_device;

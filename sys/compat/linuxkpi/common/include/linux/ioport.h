@@ -1,7 +1,8 @@
 #ifndef _LINUX_IOPORT_H
 #define _LINUX_IOPORT_H
 
-
+#include <linux/compiler.h>
+#include <linux/types.h>
 
 extern struct linux_resource ioport_resource;
 extern struct linux_resource iomem_resource;
@@ -18,6 +19,7 @@ struct linux_resource {
 };
 
 
+struct device;
 
 #define devm_request_region(dev,start,n,name) \
 	__devm_request_region(dev, &ioport_resource, (start), (n), (name))
