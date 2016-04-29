@@ -12,6 +12,7 @@ SRCS=	linux_compat.c \
 	linux_pci.c \
 	linux_radix.c \
 	linux_string.c \
+	linux_sysfs.c \
 	linux_usb.c
 
 SRCS+=	bus_if.h \
