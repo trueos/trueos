@@ -112,14 +112,14 @@ struct attribute_group {
 extern int sysctl_handle_attr(SYSCTL_HANDLER_ARGS);
 extern int sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
 extern void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);	
-extern int sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
-void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
-int sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp);
-int sysfs_create_dir(struct kobject *kobj);
-void sysfs_remove_dir(struct kobject *kobj);
+extern int sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp);
+extern void sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp);
+extern int sysfs_create_dir(struct kobject *kobj);
+extern void sysfs_remove_dir(struct kobject *kobj);
 
 
-static inline bool sysfs_streq(const char *s1, const char *s2)
+static inline bool
+sysfs_streq(const char *s1, const char *s2)
 {
 	while (*s1 && *s1 == *s2) {
 		s1++;
