@@ -39,6 +39,8 @@
 
 #include <linux/list.h>
 #include <linux/ktime.h>
+#include <linux/stringify.h>
+
 
 struct timer_list {
 	struct callout timer_callout;

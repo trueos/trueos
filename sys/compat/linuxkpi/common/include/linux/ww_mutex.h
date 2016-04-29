@@ -2,7 +2,7 @@
 #define	_LINUX_WW_MUTEX_H_
 
 #include <linux/mutex.h>
-
+#include <linux/types.h>
 
 struct ww_class {
 	atomic_long_t stamp;

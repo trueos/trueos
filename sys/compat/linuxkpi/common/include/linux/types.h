@@ -72,6 +72,8 @@ typedef struct {
 	int64_t counter;
 } atomic64_t;
 
+
+#define ATOMIC64_INIT(i) { (i) }
 #ifdef __LP64__
 typedef atomic64_t atomic_long_t;
 

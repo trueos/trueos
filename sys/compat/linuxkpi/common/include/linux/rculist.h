@@ -32,6 +32,8 @@
 
 #include <linux/list.h>
 
+struct hlist_node;
+
 static inline void hlist_add_behind_rcu(struct hlist_node *n,
 				        struct hlist_node *prev)
 {

@@ -46,7 +46,7 @@
 
 extern vm_page_t vm_page_array;
 
-#define page_to_pfn(page) ((vm_page_array - page)/sizeof(*page))
+#define page_to_pfn(pp) OFF_TO_IDX(VM_PAGE_TO_PHYS(pp))
 #define pfn_to_page(pfn) (&vm_page_array[pfn])
 #define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
 

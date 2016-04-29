@@ -35,6 +35,7 @@
 #include <sys/lock.h>
 #include <sys/sx.h>
 
+#include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/lockdep.h>
 

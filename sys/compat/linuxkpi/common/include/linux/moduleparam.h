@@ -32,6 +32,7 @@
 #define	_LINUX_MODULEPARAM_H_
 
 #include <linux/types.h>
+#include <linux/stringify.h>
 
 /*
  * These are presently not hooked up to anything.  In linux the parameters

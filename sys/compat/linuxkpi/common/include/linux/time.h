@@ -41,6 +41,7 @@
 
 typedef unsigned long cycles_t;
 #define USEC_PER_SEC	1000000L
+extern int hz;
 
 static inline u64 nsecs_to_jiffies64(u64 n)
 {
