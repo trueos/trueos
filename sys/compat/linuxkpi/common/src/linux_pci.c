@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+
 #include <linux/kobject.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -61,7 +62,7 @@ __FBSDID("$FreeBSD$");
 
 /* assumes !e820 */
 unsigned long pci_mem_start;
-
+#ifdef notyet
 struct linux_resource ioport_resource = {
 	.name	= "PCI IO",
 	.start	= 0,
@@ -76,7 +77,7 @@ struct linux_resource iomem_resource = {
 	.end	= -1,
 	.flags	= IORESOURCE_MEM,
 };
-
+#endif
 
 static device_probe_t linux_pci_probe;
 static device_attach_t linux_pci_attach;

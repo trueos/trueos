@@ -52,6 +52,8 @@
 
 #include <asm/atomic.h>
 
+#include <linux/rwsem.h>
+
 #define TASK_COMM_LEN 16
 
 #define task_pid(task) ((task)->task_thread->td_proc->p_pid)
