@@ -1,14 +1,6 @@
-/*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+/*
+ * Copyright (c) 2016 Maxim Sobolev <sobomax@FreeBSD.org>
  * All rights reserved.
- *
- * Portions of this software were developed by SRI International and the
- * University of Cambridge Computer Laboratory under DARPA/AFRL contract
- * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
- *
- * Portions of this software were developed by the University of Cambridge
- * Computer Laboratory as part of the CTSRD Project, with support from the
- * UK Higher Education Innovation Fund (HEIF).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,32 +22,31 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+struct mkuz_fifo_queue;
 
-/* RISC-V doesn't provide memory-mapped devices yet */
+#define ITEMS_PER_WORKER	4
 
-#include "opt_ddb.h"
+#define MAX_WORKERS_AUTO	24
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-#include <vm/pmap.h>
-#include <machine/riscvreg.h>
-#include <machine/vmparam.h>
+struct mkuz_conveyor {
+    /*
+     * Work items are places in here, and picked up by workers in a FIFO
+     * fashion.
+     */
+    struct mkuz_fifo_queue *wrk_queue;
+    /*
+     * Results are dropped into this FIFO and consumer is buzzed to pick them
+     * up
+     */
+    struct mkuz_fifo_queue *results;
 
-void *
-pmap_mapdev(vm_offset_t pa, vm_size_t size)
-{
+    pthread_t wthreads[];
+};
 
-	return (NULL);
-}
+struct mkuz_cfg;
 
-void
-pmap_unmapdev(vm_offset_t va, vm_size_t size)
-{
-
-}
+struct mkuz_conveyor *mkuz_conveyor_ctor(struct mkuz_cfg *);

@@ -306,9 +306,6 @@ acpi_pcib_osc(struct acpi_hpcib_softc *sc)
 		0x96, 0x57, 0x74, 0x41, 0xc0, 0x3d, 0xd7, 0x66
 	};
 
-	/* Query Support Flag */
-	cap_set[0] = 0;
-
 	/* Support Field: Extended PCI Config Space, MSI */
 	cap_set[1] = 0x11;
 
@@ -316,7 +313,7 @@ acpi_pcib_osc(struct acpi_hpcib_softc *sc)
 	cap_set[2] = 0;
 
 	status = acpi_EvaluateOSC(sc->ap_handle, pci_host_bridge_uuid, 1,
-	    nitems(cap_set), cap_set);
+	    nitems(cap_set), cap_set, cap_set, false);
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_NOT_FOUND)
 			return;
@@ -328,7 +325,6 @@ acpi_pcib_osc(struct acpi_hpcib_softc *sc)
 	if (cap_set[0] != 0) {
 		device_printf(sc->ap_dev, "_OSC returned error %#x\n",
 		    cap_set[0]);
-		return;
 	}
 }
 
@@ -506,7 +502,13 @@ acpi_pcib_acpi_attach(device_t dev)
     if (sc->ap_segment == 0 && sc->ap_bus == 0)
 	    bus0_seen = 1;
 
-    return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_bus));
+    acpi_pcib_fetch_prt(dev, &sc->ap_prt);
+
+    if (device_add_child(dev, "pci", -1) == NULL) {
+	device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
+	return (ENXIO);
+    }
+    return (bus_generic_attach(dev));
 }
 
 /*
