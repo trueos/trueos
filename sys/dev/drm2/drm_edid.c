@@ -1309,7 +1309,6 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	new = krealloc(block, (block[0x7e] + 1) * EDID_LENGTH, GFP_KERNEL);
 	if (!new)
 		goto out;
-	}
 	block = new;
 
 	for (j = 1; j <= block[0x7e]; j++) {
