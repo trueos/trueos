@@ -276,7 +276,7 @@ drm_clflush_sg(struct sg_table *st)
 }
 
 void
-drm_clflush_virt_range(char *addr, unsigned long length)
+drm_clflush_virt_range(void *addr, unsigned long length)
 {
 
 #if defined(__i386__) || defined(__amd64__)
