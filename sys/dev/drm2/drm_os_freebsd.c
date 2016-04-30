@@ -244,6 +244,7 @@ dmi_check_system(const struct dmi_system_id *sysid)
 }
 
 #endif
+#if 0
 void
 drm_clflush_pages(vm_page_t *pages, unsigned long num_pages)
 {
@@ -286,6 +287,7 @@ drm_clflush_virt_range(void *addr, unsigned long length)
 	DRM_ERROR("drm_clflush_virt_range not implemented on this architecture");
 #endif
 }
+#endif
 
 void
 hex_dump_to_buffer(const void *buf, size_t len, int rowsize, int groupsize,
