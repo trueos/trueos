@@ -140,10 +140,4 @@ void unmap_mapping_range(void *obj,
 
 #define cpu_has_pat pat_works
 
-static inline void
-unregister_shrinker(eventhandler_tag shrinker)
-{
-	EVENTHANDLER_DEREGISTER(vm_lowmem, shrinker);	
-}
-
 #endif	/* _LINUX_PAGE_H_ */

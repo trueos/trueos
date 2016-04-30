@@ -744,6 +744,10 @@ struct drm_driver {
 		    struct sysctl_ctx_list *ctx, struct sysctl_oid *top);
 	void	(*sysctl_cleanup)(struct drm_device *dev);
 
+#ifdef COMPAT_FREEBSD32
+	struct drm_ioctl_desc *compat_ioctls;
+	int *num_compat_ioctls;
+#endif
 	int major;
 	int minor;
 	int patchlevel;

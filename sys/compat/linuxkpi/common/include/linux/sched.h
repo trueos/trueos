@@ -169,6 +169,9 @@ schedule_timeout_interruptible(signed long timeout)
 	return (ret);
 }
 
+extern signed long schedule_timeout_killable(signed long timeout);
+
+
 #define schedule_timeout schedule_timeout_interruptible
 
 #define	MAX_SCHEDULE_TIMEOUT	LONG_MAX

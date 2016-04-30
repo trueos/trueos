@@ -136,7 +136,7 @@ struct device {
 	struct device_type *type;
 	struct fwnode_handle	*fwnode;
 	struct device_driver *driver;	/* which driver has allocated this device */
-
+	struct dev_pm_info	power;
 };
 
 extern struct device linux_root_device;

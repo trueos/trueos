@@ -57,6 +57,7 @@ struct delayed_work {
 	struct callout		timer;
 };
 
+extern struct workqueue_struct *system_wq;
 extern struct workqueue_struct *system_long_wq;
 
 

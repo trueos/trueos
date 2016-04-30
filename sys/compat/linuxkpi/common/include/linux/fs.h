@@ -44,6 +44,7 @@
 #include <linux/semaphore.h>
 #include <linux/list.h>
 #include <linux/atomic.h>
+#include <linux/shrinker.h>
 
 struct module;
 struct kiocb;
