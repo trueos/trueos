@@ -50,6 +50,7 @@ struct drm_vma_entry {
 	pid_t pid;
 };
 
+#ifdef __linux__
 static void drm_vm_open(struct vm_area_struct *vma);
 static void drm_vm_close(struct vm_area_struct *vma);
 
@@ -667,7 +668,7 @@ int drm_legacy_mmap(struct file *filp, struct vm_area_struct *vma)
 	return ret;
 }
 EXPORT_SYMBOL(drm_legacy_mmap);
-
+#endif
 void drm_legacy_vma_flush(struct drm_device *dev)
 {
 	struct drm_vma_entry *vma, *vma_temp;
@@ -678,7 +679,7 @@ void drm_legacy_vma_flush(struct drm_device *dev)
 		kfree(vma);
 	}
 }
-
+#ifdef __linux__
 int drm_vma_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -732,3 +733,4 @@ int drm_vma_info(struct seq_file *m, void *data)
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
+#endif

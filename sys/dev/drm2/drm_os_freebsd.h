@@ -326,7 +326,6 @@ static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return
 #define do_gettimeofday microtime
 #define acpi_video_register()
 #define acpi_video_unregister()
-#define unregister_shrinker(x)
 #define class_create_file(a, b)
 #define class_destroy_file(a, b)
 

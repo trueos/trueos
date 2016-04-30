@@ -835,6 +835,7 @@ void drm_gem_vm_close(struct vm_area_struct *vma)
 	drm_gem_object_unreference_unlocked(obj);
 }
 EXPORT_SYMBOL(drm_gem_vm_close);
+#endif
 
 /**
  * drm_gem_mmap_obj - memory map a GEM object
@@ -952,4 +953,3 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_mmap);
-#endif /* __linux__ */
