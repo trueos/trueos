@@ -625,6 +625,10 @@ static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
 #define FBINFO_DEFAULT	0
 #endif
 
+// This will go away
+#define FBINFO_FLAG_MODULE	FBINFO_MODULE
+#define FBINFO_FLAG_DEFAULT	FBINFO_DEFAULT
+
 extern int fb_set_var(struct linux_fb_info *info, struct fb_var_screeninfo *var); 
 extern int fb_pan_display(struct linux_fb_info *info, struct fb_var_screeninfo *var); 
 extern int fb_blank(struct linux_fb_info *info, int blank);

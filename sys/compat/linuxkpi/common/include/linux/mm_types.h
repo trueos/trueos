@@ -14,6 +14,7 @@ struct mm_struct {
 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
 	atomic_t mm_users;
 	struct rw_semaphore mmap_sem;
+
 };
 
 

@@ -42,6 +42,7 @@
 #include <linux/sysfs.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
+#include <linux/kmod.h>
 
 #define MODULE_AUTHOR(name)
 #define MODULE_DESCRIPTION(name)

@@ -65,8 +65,8 @@ struct class {
 struct device_driver {
 	const char		*name;
 	struct bus_type		*bus;
-#ifdef notyet
 	struct module		*owner;
+#ifdef notyet
 	const char		*mod_name;	/* used for built-in modules */
 
 	bool suppress_bind_attrs;	/* disables bind/unbind via sysfs */
@@ -135,6 +135,8 @@ struct device {
 	unsigned int	msix_max;
 	struct device_type *type;
 	struct fwnode_handle	*fwnode;
+	struct device_driver *driver;	/* which driver has allocated this device */
+
 };
 
 extern struct device linux_root_device;

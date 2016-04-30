@@ -1,6 +1,7 @@
 #ifndef _LINUX_I2C_H_
 #define _LINUX_I2C_H_
 
+#include <linux/mod_devicetable.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/completion.h>
@@ -125,9 +126,82 @@ struct i2c_adapter {
 	struct completion dev_released;
 };
 
+struct i2c_board_info {
+	char		type[I2C_NAME_SIZE];
+	unsigned short	flags;
+	unsigned short	addr;
+	void		*platform_data;
+	struct dev_archdata	*archdata;
+	struct device_node *of_node;
+	struct fwnode_handle *fwnode;
+	int		irq;
+};
+
+struct i2c_client {
+	unsigned short flags;		/* div., see below		*/
+	unsigned short addr;		/* chip address - NOTE: 7bit	*/
+					/* addresses are stored in the	*/
+					/* _LOWER_ 7 bits		*/
+	char name[I2C_NAME_SIZE];
+	struct i2c_adapter *adapter;	/* the adapter we sit on	*/
+	struct device dev;		/* the device structure		*/
+	int irq;			/* irq issued by device		*/
+	struct list_head detected;
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	i2c_slave_cb_t slave_cb;	/* callback for slave mode	*/
+#endif
+};
+
+struct i2c_driver {
+	unsigned int class;
+
+	/* Notifies the driver that a new bus has appeared. You should avoid
+	 * using this, it will be removed in a near future.
+	 */
+	int (*attach_adapter)(struct i2c_adapter *) __deprecated;
+
+	/* Standard driver model interfaces */
+	int (*probe)(struct i2c_client *, const struct i2c_device_id *);
+	int (*remove)(struct i2c_client *);
+
+	/* driver model interfaces that don't relate to enumeration  */
+	void (*shutdown)(struct i2c_client *);
+
+	/* Alert callback, for example for the SMBus alert protocol.
+	 * The format and meaning of the data value depends on the protocol.
+	 * For the SMBus alert protocol, there is a single bit of data passed
+	 * as the alert response's low bit ("event flag").
+	 */
+	void (*alert)(struct i2c_client *, unsigned int data);
+
+	/* a ioctl like command that can be used to perform specific functions
+	 * with the device.
+	 */
+	int (*command)(struct i2c_client *client, unsigned int cmd, void *arg);
+
+	struct device_driver driver;
+	const struct i2c_device_id *id_table;
+
+	/* Device detection callback for automatic device creation */
+	int (*detect)(struct i2c_client *, struct i2c_board_info *);
+	const unsigned short *address_list;
+	struct list_head clients;
+};
+#define to_i2c_driver(d) container_of(d, struct i2c_driver, driver)
+
+
+
+extern struct i2c_client *
+i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info);
+extern void i2c_unregister_device(struct i2c_client *);
+
 extern int i2c_add_adapter(struct i2c_adapter *adapter);
 
 extern int i2c_del_adapter(struct i2c_adapter *);
+
+extern int i2c_register_driver(struct module *, struct i2c_driver *);
+extern void i2c_del_driver(struct i2c_driver *);
+
 
 extern int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
                         int num);

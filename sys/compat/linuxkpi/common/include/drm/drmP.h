@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 
 #include <linux/io.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
 #include <linux/idr.h>
 #include <linux/string.h>
 #include <linux/compat.h>
@@ -163,11 +164,6 @@ __FBSDID("$FreeBSD$");
 #undef DRM_LINUX
 #define DRM_LINUX 0
 
-/* place holders */
-struct dma_buf_attachment {
-	struct dma_buf *dmabuf;
-};
-
 struct drm_file;
 struct drm_device;
 struct drm_agp_head;
@@ -180,6 +176,7 @@ struct device_node;
 struct videomode;
 struct reservation_object;
 struct seq_file;
+struct dma_buf_attachment;
 
 
 /*
@@ -696,7 +693,6 @@ struct drm_driver {
 	struct drm_gem_object *(*gem_create_object)(struct drm_device *dev,
 						    size_t size);
 
-#ifdef FREEBSD_NOTYET
 	/* prime: */
 	/* export handle -> fd (see drm_gem_prime_handle_to_fd() helper) */
 	int (*prime_handle_to_fd)(struct drm_device *dev, struct drm_file *file_priv,
@@ -710,7 +706,6 @@ struct drm_driver {
 	/* import dmabuf -> GEM */
 	struct drm_gem_object * (*gem_prime_import)(struct drm_device *dev,
 				struct dma_buf *dma_buf);
-#endif /* defined(FREEBSD_NOTYET) */
 
 	/* low-level interface used by drm_gem_prime_{import,export} */
 	int (*gem_prime_pin)(struct drm_gem_object *obj);
@@ -1195,6 +1190,25 @@ static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
 	return 0;
 }
 #endif
+
+
+extern struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
+		struct drm_gem_object *obj, int flags);
+extern int drm_gem_prime_handle_to_fd(struct drm_device *dev,
+		struct drm_file *file_priv, uint32_t handle, uint32_t flags,
+		int *prime_fd);
+extern struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
+		struct dma_buf *dma_buf);
+extern int drm_gem_prime_fd_to_handle(struct drm_device *dev,
+		struct drm_file *file_priv, int prime_fd, uint32_t *handle);
+extern void drm_gem_dmabuf_release(struct dma_buf *dma_buf);
+
+extern int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
+					    dma_addr_t *addrs, int max_pages);
+extern struct sg_table *drm_prime_pages_to_sg(struct page **pages, unsigned int nr_pages);
+extern void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg);
+
+
 
 extern unsigned int drm_notyet;
 

@@ -49,6 +49,10 @@
 
 #define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
 
+#define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
+
+
+
 struct vm_area_struct {
 	vm_offset_t	vm_start;
 	vm_offset_t	vm_end;
@@ -56,6 +60,9 @@ struct vm_area_struct {
 	vm_paddr_t	vm_pfn;		/* PFN For mmap. */
 	vm_size_t	vm_len;		/* length for mmap. */
 	vm_memattr_t	vm_page_prot;
+	unsigned long vm_flags;		/* Flags, see mm.h. */
+	struct mm_struct *vm_mm;	/* The address space we belong to. */
+	void * vm_private_data;		/* was vm_pte (shared mem) */
 };
 
 /*
@@ -141,5 +148,7 @@ long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 
 #define put_page(page) __free_hot_cold_page(page);
 #define copy_highpage(to, from) pmap_copy_page(from, to)
+
+
 
 #endif	/* _LINUX_MM_H_ */

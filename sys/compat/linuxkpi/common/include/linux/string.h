@@ -62,5 +62,7 @@ kstrdup_const(const char *src, gfp_t gfp)
 void *memchr_inv(const void *start, int c, size_t bytes);
 extern char * __must_check skip_spaces(const char *);
 
+int match_string(const char * const *array, size_t n, const char *string);
+
 
 #endif	/* _LINUX_STRING_H_ */
