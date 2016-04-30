@@ -50,6 +50,7 @@ SRCS	= \
 	drm_sysfs.c \
 	drm_sysctl.c \
 	drm_vma_manager.c \
+	drm_vm.c \
 	linux_fb.c \
 	tainted_linux_fb.c \
 	linux_hdmi.c \
@@ -71,7 +72,7 @@ SRCS	= \
         # drm_of.c
         # 	drm_mipi_dsi.c \
        # drm_platform.c
-        # drm_vm.c
+        # 
 
 
 
