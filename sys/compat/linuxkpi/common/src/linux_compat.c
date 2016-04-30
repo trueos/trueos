@@ -69,6 +69,8 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm_pager.h>
 
+extern u_int cpu_clflush_line_size;
+
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 
 #include <linux/rbtree.h>
@@ -77,6 +79,9 @@ MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 #undef file
 #undef cdev
 #define	RB_ROOT(head)	(head)->rbh_root
+
+
+struct cpuinfo_x86 boot_cpu_data; 
 
 struct kobject linux_class_root;
 struct device linux_root_device;
@@ -1249,7 +1254,8 @@ linux_compat_init(void *arg)
 	int i;
 
 	sx_init(&linux_global_rcu_lock, "LinuxGlobalRCU");
-
+	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
+	
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
 	kobject_init(&linux_class_root, &linux_class_ktype);

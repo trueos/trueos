@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/idr.h>
 
 
+#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -106,8 +107,7 @@ err:
 	mutex_unlock(&i2c_core);
 	return (rc);
 }
-
-
+	
 #define setsda(adap, val)	adap->setsda(adap->data, val)
 #define setscl(adap, val)	adap->setscl(adap->data, val)
 #define getsda(adap)		adap->getsda(adap->data)
@@ -484,4 +484,110 @@ i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	rc = __i2c_transfer(adap, msgs, num);
 	mutex_unlock(&i2c_core);
 	return (rc);
+}
+/*
+ * XXX cleanup !!!!
+ *
+ */
+#define I2C_ADDR_OFFSET_TEN_BIT	0xa000
+#define I2C_ADDR_OFFSET_SLAVE	0x1000
+
+static int
+i2c_check_addr_validity(unsigned addr, unsigned short flags)
+{
+	if (flags & I2C_CLIENT_TEN) {
+		/* 10-bit address, all values are valid */
+		if (addr > 0x3ff)
+			return -EINVAL;
+	} else {
+		/* 7-bit address, reject the general call address */
+		if (addr == 0x00 || addr > 0x7f)
+			return -EINVAL;
+	}
+	return 0;
+}
+
+static unsigned short
+i2c_encode_flags_to_addr(struct i2c_client *client)
+{
+	unsigned short addr = client->addr;
+
+	/* For some client flags, add an arbitrary offset to avoid collisions */
+	if (client->flags & I2C_CLIENT_TEN)
+		addr |= I2C_ADDR_OFFSET_TEN_BIT;
+
+	if (client->flags & I2C_CLIENT_SLAVE)
+		addr |= I2C_ADDR_OFFSET_SLAVE;
+
+	return addr;
+}
+
+/*
+ * XXX
+ */
+
+static int
+i2c_check_addr_busy(struct i2c_adapter *adapter, int addr)
+{
+	return (0);
+}
+
+static void i2c_dev_set_name(struct i2c_adapter *adap,
+			     struct i2c_client *client)
+{
+	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
+
+	if (adev) {
+		dev_set_name(&client->dev, "i2c-%s", acpi_dev_name(adev));
+		return;
+	}
+
+	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
+		     i2c_encode_flags_to_addr(client));
+}
+
+struct i2c_client *
+i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
+{
+	struct i2c_client	*client;
+	int			status;
+
+	client = kzalloc(sizeof *client, GFP_KERNEL);
+	if (!client)
+		return NULL;
+
+	client->adapter = adap;
+
+	client->flags = info->flags;
+	client->addr = info->addr;
+	client->irq = info->irq;
+
+	strlcpy(client->name, info->type, sizeof(client->name));
+
+	status = i2c_check_addr_validity(client->addr, client->flags);
+	if (status) {
+		dev_err(&adap->dev, "Invalid %d-bit I2C address 0x%02hx\n",
+			client->flags & I2C_CLIENT_TEN ? 10 : 7, client->addr);
+		goto out_err_silent;
+	}
+
+	status = i2c_check_addr_busy(adap, i2c_encode_flags_to_addr(client));
+	if (status)
+		goto out_err;
+
+	client->dev.parent = &client->adapter->dev;
+	client->dev.fwnode = info->fwnode;
+
+	i2c_dev_set_name(adap, client);
+	status = device_register(&client->dev);
+	if (status)
+		goto out_err;
+
+	return client;
+out_err:
+	dev_err(&adap->dev, "Failed to register i2c client %s at 0x%02x "
+		"(%d)\n", client->name, client->addr, status);
+out_err_silent:
+	kfree(client);
+	return NULL;
 }

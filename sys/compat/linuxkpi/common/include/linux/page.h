@@ -50,8 +50,11 @@ extern vm_page_t vm_page_array;
 #define pfn_to_page(pfn) (&vm_page_array[pfn])
 #define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
 
-
+typedef unsigned long pte_t;
+typedef unsigned long pmd_t;
+typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
+
 
 #define	virt_to_page(x)	PHYS_TO_VM_PAGE(vtophys((x)))
 

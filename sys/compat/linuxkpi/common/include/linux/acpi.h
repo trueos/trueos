@@ -33,4 +33,9 @@ static inline long acpi_is_video_device(acpi_handle handle){
 	panic("IMPLEMENT ME");
 }
 
+
+static inline const char *acpi_dev_name(struct acpi_device *adev)
+{
+	return dev_name(&adev->dev);
+}
 #endif

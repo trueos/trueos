@@ -50,8 +50,17 @@ kmemdup(const void *src, size_t len, gfp_t gfp)
 	return (dst);
 }
 
-extern char *kstrdup(const char *s, gfp_t gfp);
+static inline char *
+kstrdup(const char *string, gfp_t gfp)
+{
+	size_t len;
+	char *copy;
 
+	len = strlen(string) + 1;
+	copy = malloc(len, M_KMALLOC, gfp);
+	bcopy(string, copy, len);
+	return (copy);
+}
 
 static inline const char *
 kstrdup_const(const char *src, gfp_t gfp)
@@ -63,6 +72,8 @@ void *memchr_inv(const void *start, int c, size_t bytes);
 extern char * __must_check skip_spaces(const char *);
 
 int match_string(const char * const *array, size_t n, const char *string);
+
+
 
 
 #endif	/* _LINUX_STRING_H_ */

@@ -73,6 +73,10 @@ struct i2c_msg {
 #define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
 #define I2C_CLASS_SPD		(1<<7)	/* Memory modules */
 
+
+#define I2C_CLIENT_TEN		0x10	/* we have a ten bit chip address */
+					/* Must equal I2C_M_TEN below */
+#define I2C_CLIENT_SLAVE	0x20
 /* Internal numbers to terminate lists */
 #define I2C_CLIENT_END		0xfffeU
 
@@ -190,11 +194,14 @@ struct i2c_driver {
 #define to_i2c_driver(d) container_of(d, struct i2c_driver, driver)
 
 
+static inline int
+i2c_adapter_id(struct i2c_adapter *adap)
+{
+	return adap->nr;
+}
 
 extern struct i2c_client *
 i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info);
-extern void i2c_unregister_device(struct i2c_client *);
-
 extern int i2c_add_adapter(struct i2c_adapter *adapter);
 
 extern int i2c_del_adapter(struct i2c_adapter *);
@@ -205,4 +212,10 @@ extern void i2c_del_driver(struct i2c_driver *);
 
 extern int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
                         int num);
+static inline void
+i2c_unregister_device(struct i2c_client *client)
+{
+	device_unregister(&client->dev);
+}
+
 #endif

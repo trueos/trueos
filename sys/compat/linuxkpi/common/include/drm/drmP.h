@@ -737,8 +737,11 @@ struct drm_driver {
 			    struct drm_device *dev,
 			    uint32_t handle);
 
-	/* Driver private ops for this object */
+	/* Driver private pager ops for this object */
 	struct cdev_pager_ops *gem_pager_ops;
+
+	/* Driver private ops for this object */
+	const struct vm_operations_struct *gem_vm_ops;
 
 	int	(*sysctl_init)(struct drm_device *dev,
 		    struct sysctl_ctx_list *ctx, struct sysctl_oid *top);
@@ -763,6 +766,8 @@ struct drm_driver {
 
 	/* List of devices hanging off this driver with stealth attach. */
 	struct list_head legacy_dev_list;
+
+
 };
 
 enum drm_minor_type {

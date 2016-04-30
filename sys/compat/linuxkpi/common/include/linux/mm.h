@@ -48,9 +48,18 @@
 
 
 #define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
-
 #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
 
+#define VM_LOCKED	0x00002000
+#define VM_IO           0x00004000	/* Memory mapped I/O or similar */
+
+					/* Used by sys_madvise() */
+#define VM_SEQ_READ	0x00008000	/* App will access data sequentially */
+#define VM_RAND_READ	0x00010000	/* App will not benefit from clustered reads */
+
+#define VM_DONTCOPY	0x00020000      /* Do not copy this vma on fork */
+#define VM_DONTEXPAND	0x00040000	/* Cannot expand with mremap() */
+#define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
 
 
 struct vm_area_struct {
@@ -63,6 +72,7 @@ struct vm_area_struct {
 	unsigned long vm_flags;		/* Flags, see mm.h. */
 	struct mm_struct *vm_mm;	/* The address space we belong to. */
 	void * vm_private_data;		/* was vm_pte (shared mem) */
+	const struct vm_operations_struct *vm_ops;
 };
 
 /*
@@ -150,5 +160,48 @@ long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 #define copy_highpage(to, from) pmap_copy_page(from, to)
 
 
+struct vm_fault {
+	unsigned int flags;		/* FAULT_FLAG_xxx flags */
+	gfp_t gfp_mask;			/* gfp mask to be used for allocations */
+	pgoff_t pgoff;			/* Logical page offset based on vma */
+	void __user *virtual_address;	/* Faulting virtual address */
+
+	struct page *cow_page;		/* Handler may choose to COW */
+	struct page *page;		/* ->fault handlers should return a
+					 * page here, unless VM_FAULT_NOPAGE
+					 * is set (which is also implied by
+					 * VM_FAULT_ERROR).
+					 */
+	/* for ->map_pages() only */
+	pgoff_t max_pgoff;		/* map pages for offset from pgoff till
+					 * max_pgoff inclusive */
+	pte_t *pte;			/* pte entry associated with ->pgoff */
+};
+
+
+
+struct vm_operations_struct {
+	void (*open)(struct vm_area_struct * area);
+	void (*close)(struct vm_area_struct * area);
+	int (*mremap)(struct vm_area_struct * area);
+	int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
+	int (*pmd_fault)(struct vm_area_struct *, unsigned long address,
+						pmd_t *, unsigned int flags);
+	void (*map_pages)(struct vm_area_struct *vma, struct vm_fault *vmf);
+
+	/* notification that a previously read-only page is about to become
+	 * writable, if an error is returned it will cause a SIGBUS */
+	int (*page_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
+
+	/* same as page_mkwrite when using VM_PFNMAP|VM_MIXEDMAP */
+	int (*pfn_mkwrite)(struct vm_area_struct *vma, struct vm_fault *vmf);
+
+	/* called by access_process_vm when get_user_pages() fails, typically
+	 * for use by special VMAs that can switch between memory and hardware
+	 */
+	int (*access)(struct vm_area_struct *vma, unsigned long addr,
+		      void *buf, int len, int write);
+
+};
 
 #endif	/* _LINUX_MM_H_ */
