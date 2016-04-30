@@ -55,7 +55,7 @@
 #include <linux/pm_qos.h>
 #include "intel_guc.h"
 
-#define CONFIG_DEBUG_FS 1
+/* #define CONFIG_DEBUG_FS 1 */
 
 /* General customization:
  */
@@ -1303,11 +1303,7 @@ struct i915_gem_mm {
 	struct i915_hw_ppgtt *aliasing_ppgtt;
 
 	struct notifier_block oom_notifier;
-#ifdef __linux__
 	struct shrinker shrinker;
-#else
-	eventhandler_tag inactive_shrinker;
-#endif	
 	bool shrinker_no_lock_stealing;
 
 	/** LRU list of objects with fence regs on them. */
@@ -3685,4 +3681,6 @@ trace_i915_reg_rw(boolean_t rw, i915_reg_t reg, uint64_t val, int sz, bool trace
 }
 
 vm_page_t i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex, bool *fresh);
+bool intel_has_pending_fb_unpin(struct drm_device *dev);
+
 #endif

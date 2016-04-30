@@ -145,6 +145,12 @@ trace_i915_gem_evict_everything(struct drm_device *dev){
 }
 
 static inline void
+trace_i915_gem_shrink(void *dev, int target, int flags)
+{
+	CTR3(KTR_DRM, "gem_shrink %p %d %x", dev, target, flags);
+}
+
+static inline void
 trace_switch_mm(void *ring, void *to) {
 	CTR2(KTR_DRM, "switch_mm ring %p to %p", ring, to);
 }

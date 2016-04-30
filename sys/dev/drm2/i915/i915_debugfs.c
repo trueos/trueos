@@ -40,6 +40,8 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
+#ifdef CONFIG_DEBUG_FS
+
 enum {
 	ACTIVE_LIST,
 	INACTIVE_LIST,
@@ -5585,3 +5587,4 @@ int i915_debugfs_connector_add(struct drm_connector *connector)
 
 	return 0;
 }
+#endif
