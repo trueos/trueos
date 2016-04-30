@@ -38,6 +38,7 @@ SRCS	= \
 	drm_memory.c \
 	drm_mm.c \
 	drm_modes.c \
+	drm_modeset_lock.c \
 	drm_os_freebsd.c \
 	drm_panel.c \
 	drm_pci.c \
