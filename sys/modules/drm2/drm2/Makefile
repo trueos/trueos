@@ -9,6 +9,8 @@ SRCS	= \
 	drm_atomic_helper.c \
 	drm_auth.c \
 	drm_bufs.c \
+	drm_bridge.c \
+	drm_cache.c \
 	drm_context.c \
 	drm_crtc.c \
 	drm_crtc_helper.c \
@@ -17,21 +19,32 @@ SRCS	= \
 	drm_dp_mst_topology.c \
 	drm_drv.c \
 	drm_edid.c \
+	drm_edid_load.c \
+	drm_encoder_slave.c \
 	drm_fb_helper.c \
+	drm_fb_cma_helper.c \
 	drm_fb_helper_freebsd.c \
+	drm_flip_work.c \
 	drm_fops.c \
 	drm_gem.c \
 	drm_gem_freebsd.c \
+	drm_gem_cma_helper.c \
 	drm_global.c \
 	drm_hashtab.c \
 	drm_ioctl.c \
 	drm_irq.c \
+	drm_kms_helper_common.c \
 	drm_lock.c \
 	drm_memory.c \
 	drm_mm.c \
 	drm_modes.c \
 	drm_os_freebsd.c \
+	drm_panel.c \
 	drm_pci.c \
+	drm_plane_helper.c \
+	drm_prime.c \
+	drm_probe_helper.c \
+	drm_rect.c \
 	drm_scatter.c \
 	drm_sysfs.c \
 	drm_sysctl.c \
@@ -52,6 +65,15 @@ SRCS	= \
 	ttm_page_alloc.c \
 	ttm_bo_vm.c \
 
+
+
+        # drm_of.c
+        # 	drm_mipi_dsi.c \
+       # drm_platform.c
+        # drm_vm.c
+
+
+
 #
 #ttm_page_alloc_dma.c
 
@@ -69,8 +91,8 @@ SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.
 .if ${MACHINE_CPUARCH} == "powerpc"
 CWARNFLAGS+=-Wno-cast-qual
 .endif
-CWARNFLAGS += -Wno-pointer-arith
-CWARNFLAGS += -Wno-pointer-sign
+CWARNFLAGS += -Wno-pointer-arith -Wno-pointer-sign
 
+CWARNFLAGS.drm_cache.c+=	-Wno-int-conversion
 CWARNFLAGS.drm_scatter.c+=	-Wno-int-conversion
 .include <bsd.kmod.mk>
