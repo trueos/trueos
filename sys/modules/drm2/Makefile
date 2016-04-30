@@ -31,9 +31,8 @@ _radeonkmsfw=	radeonkmsfw
 .endif
 
 SUBDIR = \
-	drm2
-#\
-#	${_i915kms} 
+	drm2 \
+	${_i915kms} 
 
 #${_radeonkms} \
 #	${_radeonkmsfw}
