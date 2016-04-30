@@ -412,6 +412,7 @@ dev_to_node(struct device *dev)
 
 char *kvasprintf(gfp_t, const char *, va_list);
 char *kasprintf(gfp_t, const char *, ...);
+void dev_notice(const struct device *dev, const char *fmt, ...);
 
 extern void *devm_kmalloc(struct device *dev, size_t size, gfp_t gfp);
 
