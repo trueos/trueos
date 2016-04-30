@@ -127,6 +127,9 @@ typedef struct drm_i915_mem_alloc32 {
 	u32 region_offset;	/* offset from start of fb or agp */
 } drm_i915_mem_alloc32_t;
 
+#define DRM_IOCTL_DEF(ioctl, _func, _flags) \
+	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
+
 struct drm_ioctl_desc i915_compat_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_I915_BATCHBUFFER, compat_i915_batchbuffer, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_I915_CMDBUFFER, compat_i915_cmdbuffer, DRM_AUTH),

@@ -225,7 +225,7 @@ retry:
 	page = PHYS_TO_VM_PAGE(dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset_view(obj, &view) + offset);
 	KASSERT((page->flags & PG_FICTITIOUS) != 0,
 	    ("physical address %#jx not fictitious",
-	    (uintmax_t)(dev_priv->gtt.mappable_base + obj->gtt_offset + offset)));
+	     (uintmax_t)(dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset_view(obj, &view) + offset)));
 	if (page == NULL) {
 		VM_OBJECT_WUNLOCK(vm_obj);
 		ret = -EFAULT;
