@@ -19,8 +19,11 @@ SRCS	= \
 	i915_gem_evict.c \
 	i915_gem_execbuffer.c \
 	i915_gem_freebsd.c \
+	i915_gem_fence.c \
 	i915_gem_gtt.c \
+	i915_gem_render_state.c \
 	i915_gem_stolen.c \
+	i915_gem_shrinker.c \
 	i915_gem_tiling.c \
 	i915_gem_userptr.c \
 	i915_guc_submission.c \
@@ -34,6 +37,7 @@ SRCS	= \
 	intel_audio.c \
 	intel_bios.c \
 	intel_crt.c \
+	intel_csr.c \
 	intel_ddi.c \
 	intel_display.c \
 	intel_dp.c \
@@ -49,6 +53,7 @@ SRCS	= \
 	intel_frontbuffer.c \
 	intel_guc_loader.c \
 	intel_hdmi.c \
+	intel_hotplug.c \
 	intel_i2c.c \
 	intel_lrc.c \
 	intel_lvds.c \
@@ -57,11 +62,13 @@ SRCS	= \
 	intel_overlay.c \
 	intel_panel.c \
 	intel_pm.c \
+	intel_psr.c \
 	intel_renderstate_gen6.c \
 	intel_renderstate_gen7.c \
 	intel_renderstate_gen8.c \
 	intel_renderstate_gen9.c \
 	intel_ringbuffer.c \
+	intel_runtime_pm.c \
 	intel_sdvo.c \
 	intel_sideband.c \
 	intel_sprite.c \
@@ -96,6 +103,7 @@ CWARNFLAGS += -Wno-pointer-arith
 
 CWARNFLAGS.intel_audio.c=	-Wno-cast-qual
 CWARNFLAGS.intel_bios.c=	-Wno-cast-qual
+CWARNFLAGS.intel_csr.c=		-Wno-cast-qual
 CWARNFLAGS.intel_dp.c=		-Wno-enum-conversion -Wno-format -Wno-unused
 CWARNFLAGS.intel_lvds.c=	-Wno-unused
 CWARNFLAGS.intel_display.c=	-Wno-tautological-pointer-compare -Wno-enum-conversion -Wno-cast-qual -Wno-incompatible-pointer-types-discards-qualifiers
@@ -104,6 +112,8 @@ CWARNFLAGS.intel_guc_loader.c= 	-Wno-cast-qual
 CWARNFLAGS.intel_hdmi.c=	-Wno-enum-conversion
 CWARNFLAGS.intel_overlay.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.intel_pm.c=		-Wno-cast-qual -Wno-incompatible-pointer-types-discards-qualifiers -Wno-unused-const-variable
+CWARNFLAGS.intel_psr.c=		-Wno-cast-qual
+CWARNFLAGS.intel_runtime_pm.c=		-Wno-cast-qual 
 CWARNFLAGS.intel_sdvo.c=	-Wno-cast-qual -Wno-enum-conversion
 CWARNFLAGS.intel_tv.c=		-Wno-unused
 CWARNFLAGS.i915_debugfs.c=	-Wno-unused-function -Wno-cast-qual -Wno-format -Wno-dangling-else
