@@ -6,6 +6,17 @@ KMOD	= amdgpukms
 SRCS	= \
 	uvd_v4_2.h \
 	uvd_v4_2.c \
+	uvd_v5_0.h \
+	uvd_v5_0.c \
+	uvd_v6_0.h \
+	uvd_v6_0.c \
+	vce_v2_0.h \
+	vce_v2_0.c \
+	vce_v3_0.h \
+	vce_v3_0.c \
+	vi.h \
+	vi.c \
+	vi_dpm.h \
 	vid.h
 
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
