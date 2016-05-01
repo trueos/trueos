@@ -58,6 +58,7 @@ SRCS	= \
 	intel_lrc.c \
 	intel_lvds.c \
 	intel_modes.c \
+	intel_mocs.c \
 	intel_opregion.c \
 	intel_overlay.c \
 	intel_panel.c \
