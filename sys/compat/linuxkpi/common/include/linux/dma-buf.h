@@ -74,7 +74,7 @@ struct dma_buf_ops {
 #undef file
 struct dma_buf {
 	size_t size;
-	struct file *file;
+	struct file *linux_file;
 	struct list_head attachments;
 	const struct dma_buf_ops *ops;
 	/* mutex to serialize list manipulation, attach/detach and vmap/unmap */
@@ -104,14 +104,13 @@ struct dma_buf_attachment {
 	struct list_head node;
 	void *priv;
 };
-
-static inline void get_dma_buf(struct dma_buf *dmabuf)
+#define file linux_file 
+static inline void
+get_dma_buf(struct dma_buf *dmabuf)
 {
-#if 0	
-	get_file(dmabuf->file);
-#endif
-	panic("XXX implement me!!");
+	fhold(dmabuf->file);
 }
+
 
 struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 							struct device *dev);

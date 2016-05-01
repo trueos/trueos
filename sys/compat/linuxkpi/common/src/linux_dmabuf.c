@@ -322,9 +322,9 @@ dma_buf_put(struct dma_buf *db)
 {
 
 	MPASS(db != NULL);
-	MPASS(db->file != NULL);
+	MPASS(db->linux_file != NULL);
 
-	fdrop(db->file, curthread);
+	fdrop(db->linux_file, curthread);
 }
 
 int
@@ -332,11 +332,11 @@ dma_buf_fd(struct dma_buf *db, int flags)
 {
 	int err, fd;
 
-	if (db == NULL || db->file == NULL)
+	if (db == NULL || db->linux_file == NULL)
 		return (-EINVAL);
 
 	/* XXX ignore flags for now */
-	if ((err = finstall(curthread, db->file, &fd, 0, NULL)) != 0)
+	if ((err = finstall(curthread, db->linux_file, &fd, 0, NULL)) != 0)
 		return (err);
 
 	return (fd);
@@ -376,7 +376,7 @@ dma_buf_export(const struct dma_buf_export_info *exp_info)
 
 	finit(fp, 0, DTYPE_DMABUF, db, &dma_buf_fileops);
 
-	db->file = fp;
+	db->linux_file = fp;
 	mutex_init(&db->lock);
 	INIT_LIST_HEAD(&db->attachments);
 
