@@ -16,11 +16,9 @@ struct dma_buf;
 struct dma_buf_attachment;
 struct dma_buf_export_info;
 
-#define dma_buf_put(x)
-
-
 int dma_buf_fd(struct dma_buf *dmabuf, int flags);
 struct dma_buf *dma_buf_get(int fd);
+void dma_buf_put(struct dma_buf *db);
 
 struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info);
 
@@ -73,7 +71,7 @@ struct dma_buf_ops {
 	void (*vunmap)(struct dma_buf *, void *vaddr);
 };
 
-
+#undef file
 struct dma_buf {
 	size_t size;
 	struct file *file;
