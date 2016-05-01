@@ -95,6 +95,14 @@ struct dev_pm_ops {
 	int (*runtime_idle)(struct device *dev);
 };
 
+struct dev_pm_domain {
+        struct dev_pm_ops       ops;
+        void (*detach)(struct device *dev, bool power_off);
+        int (*activate)(struct device *dev);
+        void (*sync)(struct device *dev);
+        void (*dismiss)(struct device *dev);
+};
+
 #define PM_EVENT_INVALID	(-1)
 #define PM_EVENT_ON		0x0000
 #define PM_EVENT_FREEZE		0x0001
