@@ -991,6 +991,4 @@ enum mipi_gpio_pin_index {
 	MIPI_GPIO_MAX
 };
 
-void intel_free_parsed_bios_data(struct drm_device *dev);
-
 #endif /* _INTEL_BIOS_H_ */

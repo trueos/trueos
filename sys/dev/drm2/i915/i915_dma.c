@@ -1231,8 +1231,6 @@ int i915_driver_unload(struct drm_device *dev)
 		return ret;
 	}
 
-	intel_free_parsed_bios_data(dev);
-
 	intel_power_domains_fini(dev_priv);
 
 	intel_gpu_ips_teardown();
