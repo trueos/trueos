@@ -3,7 +3,16 @@
 .PATH:	${.CURDIR}/../../../dev/drm2/amd/amdgpu
 
 KMOD	= amdgpukms
+
+# XXX we do not enable this yet
+#       amdgpu_acp.h \
+#       amdgpu_acp.c
 SRCS	= \
+	amdgpu.h \
+	amdgpu_acpi.c \
+	amdgpu_afmt.c \
+	amdgpu_amdkfd.h \
+	amdgpu_amdkfd.c \
 	uvd_v4_2.h \
 	uvd_v4_2.c \
 	uvd_v5_0.h \
@@ -24,6 +33,7 @@ CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include/drm
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include/uapi
 CFLAGS+= -I${.CURDIR}/../../../dev/drm2/amd/amdgpu
 CFLAGS+= -I${.CURDIR}/../../../dev/drm2/amd/include
+CFLAGS+= -I${.CURDIR}/../../../dev/drm2/amd/acp/include
 CFLAGS+= -I${.CURDIR}/../../../dev/drm2/amd/powerplay/inc
 CFLAGS+= -I${.CURDIR}/../../../dev/drm2/amd/scheduler
 CFLAGS+= -I${.CURDIR}/../../../dev/drm2/amd/include/asic_reg
@@ -32,7 +42,7 @@ CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.h \
         opt_vm.h opt_compat.h opt_syscons.h
 
-CWARNFLAGS.r600_cp.c=		-Wno-unused-value
+CWARNFLAGS.amdgpu_acpi.c=	-Wno-int-conversion
 CWARNFLAGS+=			-Wno-pointer-sign ${CWARNFLAGS.${.IMPSRC:T}}
 
 .include <bsd.kmod.mk>

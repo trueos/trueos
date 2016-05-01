@@ -26,6 +26,7 @@ static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
 
 #define ACPI_COMPANION(dev)		to_acpi_device_node((dev)->fwnode)
 #define ACPI_HANDLE_GET(dev)	acpi_device_handle(ACPI_COMPANION(dev))
+#define ACPI_HANDLE(dev)	acpi_device_handle(ACPI_COMPANION(dev))
 
 struct acpi_device;
 
