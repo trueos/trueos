@@ -959,4 +959,10 @@ int pci_bus_write_config_dword(struct pci_bus *bus, unsigned int devfn,
 
 int pci_generic_config_read(struct pci_bus *bus, unsigned int devfn,
 			       int where, u32 val);
+
+static inline bool pci_is_root_bus(struct pci_bus *pbus){
+	panic("IMPLEMENT ME!");
+	return false;
+}
+
 #endif	/* _LINUX_PCI_H_ */

@@ -240,7 +240,7 @@ typedef int (*cgs_gpu_mem_info_t)(void *cgs_device, enum cgs_gpu_mem_type type,
  * Return:  0 on success, -errno otherwise
  */
 typedef int (*cgs_gmap_kmem_t)(void *cgs_device, void *kmem, uint64_t size,
-			       uint64_t min_offset, uint64_t max_offset,
+			       uint64_t, uint64_t,
 			       cgs_handle_t *kmem_handle, uint64_t *mcaddr);
 
 /**
@@ -281,7 +281,7 @@ typedef int (*cgs_gunmap_kmem_t)(void *cgs_device, cgs_handle_t kmem_handle);
  */
 typedef int (*cgs_alloc_gpu_mem_t)(void *cgs_device, enum cgs_gpu_mem_type type,
 				   uint64_t size, uint64_t align,
-				   uint64_t min_offset, uint64_t max_offset,
+				   uint64_t , uint64_t ,
 				   cgs_handle_t *handle);
 
 /**

@@ -3,5 +3,15 @@
 kthread:
 in_atomic
 
-pwm, acexcep, acpi_bus, actypes:
+pwm, acexcep, acpi_bus, actypes: 
 everything
+
+pm, interval_tree: stub structs
+
+pci: pci_is_root_bus
+
+gcd: gcd
+
+module: symbol_put
+
+power_supply: power_supply_is_system_supplied()

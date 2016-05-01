@@ -24,8 +24,8 @@
 #ifndef __LINUX_HDMI_H_
 #define __LINUX_HDMI_H_
 
-#include <sys/bus.h>
 #include <linux/types.h>
+#include <sys/bus.h>
 #include <linux/device.h>
 
 enum hdmi_infoframe_type {
