@@ -11,6 +11,7 @@
 #include <linux/rcupdate.h>
 #include <linux/kernel.h>
 
+#include <linux/compat.h>
 
 struct fence;
 struct fence_cb;
@@ -55,67 +56,147 @@ struct fence_ops {
 	void (*timeline_value_str)(struct fence *fence, char *str, int size);
 };
 
-void fence_release(struct kref *kref);
-void fence_free(struct fence *fence);
+#define fence_free(f) kfree(f)
 
 
-
-/**
- * fence_put - decreases refcount of the fence
- * @fence:	[in]	fence to reduce refcount of
- */
-static inline void fence_put(struct fence *fence)
+static inline struct fence *
+fence_get(struct fence *fence)
 {
 	if (fence)
-		kref_put(&fence->refcount, fence_release);
+		kref_get(&fence->refcount);
+	return (fence);
 }
 
+#define fence_get_rcu fence_get
 
-signed long fence_wait_timeout(struct fence *, bool intr, signed long timeout);
-signed long fence_wait_any_timeout(struct fence **fences, uint32_t count,
-				   bool intr, signed long timeout);
-
-/**
- * fence_wait - sleep until the fence gets signaled
- * @fence:	[in]	the fence to wait on
- * @intr:	[in]	if true, do an interruptible wait
- *
- * This function will return -ERESTARTSYS if interrupted by a signal,
- * or 0 if the fence was signaled. Other error values may be
- * returned on custom implementations.
- *
- * Performs a synchronous wait on this fence. It is assumed the caller
- * directly or indirectly holds a reference to the fence, otherwise the
- * fence might be freed before return, resulting in undefined behavior.
- */
-static inline signed long fence_wait(struct fence *fence, bool intr)
+static inline void
+fence_release(struct kref *kref)
 {
-	signed long ret;
+	struct fence *fence = container_of(kref, struct fence, refcount);
 
-	/* Since fence_wait_timeout cannot timeout with
-	 * MAX_SCHEDULE_TIMEOUT, only valid return values are
-	 * -ERESTARTSYS and MAX_SCHEDULE_TIMEOUT.
-	 */
-	ret = fence_wait_timeout(fence, intr, MAX_SCHEDULE_TIMEOUT);
-
-	return ret < 0 ? ret : 0;
+	BUG_ON(!list_empty(&fence->cb_list));
+	if (fence->ops->release)
+		fence->ops->release(fence);
+	else
+		kfree(fence);
 }
 
-void fence_enable_sw_signaling(struct fence *fence);
-int fence_signal(struct fence *fence);
+static inline int
+fence_signal_locked(struct fence *fence)
+{
+	struct fence_cb *cur, *tmp;
+	int ret = 0;
+
+	if (WARN_ON(!fence))
+		return (-EINVAL);
+
+	if (!ktime_to_ns(fence->timestamp)) {
+		fence->timestamp = ktime_get();
+		smp_mb__before_atomic();
+	}
+
+	if (test_and_set_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+		ret = -EINVAL;
+	}
+	list_for_each_entry_safe(cur, tmp, &fence->cb_list, node) {
+		list_del_init(&cur->node);
+		cur->func(fence, cur);
+	}
+	return (ret);
+}
+
+static inline void
+fence_enable_sw_signaling(struct fence *fence)
+{
+	unsigned long flags;
+
+	if (!test_and_set_bit(FENCE_FLAG_ENABLE_SIGNAL_BIT, &fence->flags) &&
+	    !test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+		spin_lock_irqsave(fence->lock, flags);
+
+		if (!fence->ops->enable_signaling(fence))
+			fence_signal_locked(fence);
+
+		spin_unlock_irqrestore(fence->lock, flags);
+	}
+}
+
+
+static inline int
+fence_signal(struct fence *fence)
+{
+	unsigned long flags;
+
+	if (!fence)
+		return (-EINVAL);
+
+	if (!ktime_to_ns(fence->timestamp)) {
+		fence->timestamp = ktime_get();
+		smp_mb__before_atomic();
+	}
+
+	if (test_and_set_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		return (-EINVAL);
+
+
+	if (test_bit(FENCE_FLAG_ENABLE_SIGNAL_BIT, &fence->flags)) {
+		struct fence_cb *cur, *tmp;
+
+		spin_lock_irqsave(fence->lock, flags);
+		list_for_each_entry_safe(cur, tmp, &fence->cb_list, node) {
+			list_del_init(&cur->node);
+			cur->func(fence, cur);
+		}
+		spin_unlock_irqrestore(fence->lock, flags);
+	}
+	return (0);
+}
 
 static inline bool
 fence_is_signaled(struct fence *fence)
 {
 	if (test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		return true;
+		return (true);
 
 	if (fence->ops->signaled && fence->ops->signaled(fence)) {
 		fence_signal(fence);
-		return true;
+		return (true);
 	}
 
-	return false;
+	return (false);
 }
+
+static inline int64_t
+fence_wait_timeout(struct fence *fence, bool intr, int64_t timeout)
+{
+
+	if (WARN_ON(timeout < 0))
+		return (-EINVAL);
+
+	if (timeout == 0)
+		return (fence_is_signaled(fence));
+	else
+		return (fence->ops->wait(fence, intr, timeout));
+}
+
+
+static inline signed long
+fence_wait(struct fence *fence, bool intr)
+{
+	signed long ret;
+
+	ret = fence_wait_timeout(fence, intr, MAX_SCHEDULE_TIMEOUT);
+
+	return (ret < 0 ? ret : 0);
+}
+
+
+static inline void
+fence_put(struct fence *fence)
+{
+	if (fence)
+		kref_put(&fence->refcount, fence_release);
+}
+
 
 #endif
