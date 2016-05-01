@@ -279,12 +279,6 @@ on_each_cpu(void callback(void *data), void *data, int wait)
 void	hex_dump_to_buffer(const void *buf, size_t len, int rowsize,
 	    int groupsize, char *linebuf, size_t linebuflen, bool ascii);
 
-#define KIB_NOTYET()							\
-do {									\
-	if (drm_debug && drm_notyet)					\
-		printf("NOTYET: %s at %s:%d\n", __func__, __FILE__, __LINE__); \
-} while (0)
-
 #define drm_proc_cleanup(a, b)
 
 

@@ -346,7 +346,6 @@ drm_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		TUNABLE_INT_FETCH("drm.debug", &drm_debug);
-		TUNABLE_INT_FETCH("drm.notyet", &drm_notyet);
 		break;
 	}
 	return (0);
