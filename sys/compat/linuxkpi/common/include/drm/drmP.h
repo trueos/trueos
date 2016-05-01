@@ -1219,8 +1219,6 @@ extern void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *s
 
 
 
-extern unsigned int drm_notyet;
-
 extern unsigned int drm_timestamp_monotonic;
 
 extern struct class *drm_class;
