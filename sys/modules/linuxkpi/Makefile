@@ -11,6 +11,7 @@ SRCS=	linux_compat.c \
 	linux_page.c \
 	linux_pci.c \
 	linux_radix.c \
+	linux_reservation.c \
 	linux_string.c \
 	linux_sysfs.c \
 	linux_usb.c
