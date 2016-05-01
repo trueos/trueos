@@ -102,4 +102,7 @@ synchronize_rcu(void)
 #define rcu_dereference_protected(p, c) \
 	__rcu_dereference_protected((p), (c), __rcu)
 
+
+#define rcu_dereference(p) rcu_dereference_protected(p, 0)
+
 #endif					/* _LINUX_RCUPDATE_H_ */

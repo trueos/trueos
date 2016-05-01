@@ -49,7 +49,10 @@ struct linux_cdev {
 	struct module	*owner;
 	struct cdev	*cdev;
 	dev_t		dev;
+	uint32_t	major;
+	uint32_t	baseminor;
 	const struct file_operations *ops;
+	struct list_head list;
 };
 
 static inline void

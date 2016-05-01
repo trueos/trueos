@@ -93,6 +93,8 @@ spinlock_t pci_lock;
 struct sx linux_global_rcu_lock;
 
 unsigned long linux_timer_hz_mask;
+struct list_head cdev_list;
+
 
 int
 panic_cmp(struct rb_node *one, struct rb_node *two)
@@ -1247,6 +1249,55 @@ in_atomic(void)
 
 	return ((curthread->td_pflags & TDP_NOFAULTING) != 0);
 }
+
+int
+__register_chrdev(unsigned int major, unsigned int baseminor,
+		  unsigned int count, const char *name,
+		  const struct file_operations *fops)
+{
+	struct linux_cdev *cdev;
+	int ret;
+
+	cdev = cdev_alloc();
+	cdev_init(cdev, fops);
+	kobject_set_name(&cdev->kobj, name);
+	ret = cdev_add(cdev, major, count);
+	cdev->major = major;
+	cdev->baseminor = baseminor;	
+	sx_xlock(&linux_global_rcu_lock);
+	if (list_empty(&cdev_list))
+		INIT_LIST_HEAD(&cdev->list);
+	else 
+		linux_list_add(&cdev->list, &cdev_list, cdev_list.next);
+	sx_xunlock(&linux_global_rcu_lock);
+	return (ret);
+}
+
+void
+__unregister_chrdev(unsigned int major, unsigned int baseminor,
+		    unsigned int count, const char *name)
+{
+	struct linux_cdev *cdev;
+	struct list_head *h;
+	bool found;
+
+	found = false;
+	sx_xlock(&linux_global_rcu_lock);
+	list_for_each(h, &cdev_list) {
+		cdev = __containerof(h, struct linux_cdev, list);
+		if ((strcmp(kobject_name(&cdev->kobj), name) == 0) &&
+		    cdev->baseminor == baseminor &&
+		    cdev->major == major) {
+			list_del(&cdev->list);
+			found = true;
+			break;
+		}
+	}
+	sx_xunlock(&linux_global_rcu_lock);
+	MPASS(found != false);
+	cdev_del(cdev);
+}
+
 static void
 linux_compat_init(void *arg)
 {
@@ -1255,7 +1306,8 @@ linux_compat_init(void *arg)
 
 	sx_init(&linux_global_rcu_lock, "LinuxGlobalRCU");
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
-	
+
+	INIT_LIST_HEAD(&cdev_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
 	kobject_init(&linux_class_root, &linux_class_ktype);
