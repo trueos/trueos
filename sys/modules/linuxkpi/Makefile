@@ -5,12 +5,14 @@ KMOD=	linuxkpi
 SRCS=	linux_compat.c \
 	linux_dmabuf.c \
 	linux_fs.c \
+	linux_firmware.c \
 	linux_i2c.c \
 	linux_idr.c \
 	linux_kmod.c \
 	linux_mtrr.c \
 	linux_page.c \
 	linux_pci.c \
+	linux_platform_device.c \
 	linux_radix.c \
 	linux_reservation.c \
 	linux_string.c \
@@ -26,6 +28,9 @@ SRCS+=	bus_if.h \
 
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
 
+# until stable
+CFLAGS += -O0
+
 .include <bsd.kmod.mk>
-CWARNFLAGS += -Wno-pointer-arith
+CWARNFLAGS 		+= -Wno-pointer-arith
 CWARNFLAGS.linux_string.c=	-Wno-cast-qual
