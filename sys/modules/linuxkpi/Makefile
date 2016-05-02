@@ -10,6 +10,7 @@ SRCS=	linux_compat.c \
 	linux_idr.c \
 	linux_kmod.c \
 	linux_mtrr.c \
+	linux_notifier.c \
 	linux_page.c \
 	linux_pci.c \
 	linux_platform_device.c \
