@@ -269,7 +269,7 @@ EXPORT_SYMBOL(of_find_mipi_dsi_host_by_node);
 int mipi_dsi_host_register(struct mipi_dsi_host *host)
 {
 	struct device_node *node;
-
+#ifdef notyet
 	for_each_available_child_of_node(host->dev->of_node, node) {
 		/* skip nodes without reg property */
 		if (!of_find_property(node, "reg", NULL))
@@ -280,7 +280,7 @@ int mipi_dsi_host_register(struct mipi_dsi_host *host)
 	mutex_lock(&host_lock);
 	list_add_tail(&host->list, &host_list);
 	mutex_unlock(&host_lock);
-
+#endif
 	return 0;
 }
 EXPORT_SYMBOL(mipi_dsi_host_register);
