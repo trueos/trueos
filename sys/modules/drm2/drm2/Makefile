@@ -36,6 +36,7 @@ SRCS	= \
 	drm_kms_helper_common.c \
 	drm_lock.c \
 	drm_memory.c \
+	drm_mipi_dsi.c \
 	drm_mm.c \
 	drm_modes.c \
 	drm_modeset_lock.c \
@@ -70,7 +71,7 @@ SRCS	= \
 
 
         # drm_of.c
-        # 	drm_mipi_dsi.c \
+        # 	
        # drm_platform.c
         # 
 
@@ -81,6 +82,10 @@ SRCS	= \
 
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
+
+
+# until stable
+CFLAGS += -O0
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
 SRCS	+= drm_ioc32.c
@@ -95,6 +100,7 @@ CWARNFLAGS+=-Wno-cast-qual
 .endif
 CWARNFLAGS += -Wno-pointer-arith -Wno-pointer-sign
 
+CWARNFLAGS.drm_mipi_dsi.c+=	-Wno-incompatible-pointer-types-discards-qualifiers -Wno-int-conversion
 CWARNFLAGS.drm_cache.c+=	-Wno-int-conversion
 CWARNFLAGS.drm_scatter.c+=	-Wno-int-conversion
 .include <bsd.kmod.mk>
