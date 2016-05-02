@@ -392,7 +392,7 @@ idr_get_new_locked(struct idr *idr, void *ptr, int *idp)
 	error = 0;
 out:
 #ifdef INVARIANTS
-	if (error == 0 && idr_find_locked(idr, id) != ptr) {
+	if (error == 0 && idr_find_locked(idr, id, NULL) != ptr) {
 		panic("idr_get_new: Failed for idr %p, id %d, ptr %p\n",
 		    idr, id, ptr);
 	}
@@ -510,7 +510,7 @@ restart:
 	error = 0;
 out:
 #ifdef INVARIANTS
-	if (error == 0 && idr_find_locked(idr, id) != ptr) {
+	if (error == 0 && idr_find_locked(idr, id, NULL) != ptr) {
 		panic("idr_get_new_above: Failed for idr %p, id %d, ptr %p\n",
 		    idr, id, ptr);
 	}
@@ -673,11 +673,24 @@ again:
 	return (ret);
 }
 
+void
+ida_simple_remove(struct ida *ida, unsigned int id)
+{
+
+	idr_remove(&ida->idr, id);
+}
+
 
 void
 ida_remove(struct ida *ida, int id)
 {	
 	idr_remove(&ida->idr, id);
+}
+
+void
+ida_init(struct ida *ida)
+{
+	idr_init(&ida->idr);
 }
 
 void
