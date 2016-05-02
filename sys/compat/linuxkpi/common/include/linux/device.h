@@ -110,6 +110,27 @@ struct device_driver {
 struct kobj_uevent_env;
 struct bus_type {
 	const char		*name;
+	const char		*dev_name;
+	struct device		*dev_root;
+	struct device_attribute	*dev_attrs;	/* use dev_groups instead */
+	const struct attribute_group **bus_groups;
+	const struct attribute_group **dev_groups;
+	const struct attribute_group **drv_groups;
+
+	int (*match)(struct device *dev, struct device_driver *drv);
+	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
+	int (*probe)(struct device *dev);
+	int (*remove)(struct device *dev);
+	void (*shutdown)(struct device *dev);
+
+	int (*online)(struct device *dev);
+	int (*offline)(struct device *dev);
+
+	int (*suspend)(struct device *dev, pm_message_t state);
+	int (*resume)(struct device *dev);
+
+	const struct dev_pm_ops *pm;
+
 };
 
 struct device_type {
@@ -138,6 +159,7 @@ struct device {
 	unsigned int	msix;
 	unsigned int	msix_max;
 	struct device_type *type;
+	struct device_node	*of_node; /* associated device tree node */	
 	struct fwnode_handle	*fwnode;
 	struct device_driver *driver;	/* which driver has allocated this device */
 	struct dev_pm_info	power;
@@ -314,6 +336,7 @@ device_create_release(struct device *dev)
 	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
 	kfree(dev);
 }
+
 static inline struct device *
 device_create_groups_vargs(struct class *class, struct device *parent,
 			   dev_t devt, void *drvdata,
@@ -445,6 +468,50 @@ device_destroy(struct class *class, dev_t devt)
 	bsddev = devclass_get_device(class->bsdclass, unit);
 	if (bsddev)
 		device_unregister(device_get_softc(bsddev));
+}
+
+
+static inline int
+driver_register(struct device_driver *drv)
+{
+	log(LOG_WARNING, "%s unimplemented!!!",__FUNCTION__);
+	return (-ENOTSUPP);
+}
+
+static inline void
+driver_unregister(struct device_driver *drv)
+{
+	log(LOG_WARNING, "%s unimplemented!!!", __FUNCTION__);
+}
+
+static inline struct device *
+bus_find_device(struct bus_type *bus, struct device *start, void *data,
+		int (*match)(struct device *dev, void *data))
+{
+	log(LOG_WARNING, "%s unimplemented!!!", __FUNCTION__);
+	return (NULL);
+}
+
+static inline int
+bus_register(struct bus_type *bus)
+{
+	log(LOG_WARNING, "%s unimplemented!!!", __FUNCTION__);
+	return (0);
+}
+
+static inline void
+bus_unregister(struct bus_type *bus)
+{
+	log(LOG_WARNING, "%s unimplemented!!!", __FUNCTION__);
+}
+
+
+static inline int
+device_for_each_child(struct device *dev, void *data,
+		      int (*fn)(struct device *dev, void *data))
+{
+	log(LOG_WARNING, "%s unimplemented!!!", __FUNCTION__);
+	return (0);
 }
 
 static inline void

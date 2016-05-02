@@ -87,6 +87,9 @@ _module_run(void *arg)
 #define	module_exit(fn)						\
 	SYSUNINIT(fn, SI_SUB_OFED_MODINIT, SI_ORDER_SECOND, _module_run, (fn))
 
+
+#define postcore_initcall(fn)		module_init(fn)
+
 #define MODULE_INFO(tag, info) __MODULE_INFO(tag, tag, info)
 #define MODULE_FIRMWARE(_firmware) MODULE_INFO(firmware, _firmware)
 

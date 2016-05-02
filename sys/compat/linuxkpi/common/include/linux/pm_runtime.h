@@ -64,4 +64,67 @@ static inline void pm_runtime_dont_use_autosuspend(struct device *dev)
 	__pm_runtime_use_autosuspend(dev, false);
 }
 
+static inline int
+pm_generic_runtime_suspend(struct device *dev)
+{
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+
+	return (pm && pm->runtime_suspend ? pm->runtime_suspend(dev) : 0);
+}
+
+static inline int
+pm_generic_runtime_resume(struct device *dev)
+{
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+
+	return (pm && pm->runtime_resume ? pm->runtime_resume(dev) : 0);
+}
+
+static int
+pm_generic_suspend(struct device *dev)
+{
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+
+	return (pm && pm->suspend ? pm->suspend(dev) : 0);
+}
+
+static inline int
+pm_generic_resume(struct device *dev)
+{
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+
+	return pm && pm->resume ? pm->resume(dev) : 0;
+}
+
+static inline int
+pm_generic_restore(struct device *dev)
+{
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+
+	return (pm && pm->restore ? pm->restore(dev) : 0);
+}
+
+static inline int
+pm_generic_freeze(struct device *dev)
+{
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+
+	return (pm && pm->freeze ? pm->freeze(dev) : 0);
+}
+
+static inline int
+pm_generic_thaw(struct device *dev)
+{
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+
+	return (pm && pm->thaw ? pm->thaw(dev) : 0);
+}
+static inline int
+pm_generic_poweroff(struct device *dev)
+{
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+
+	return (pm && pm->poweroff ? pm->poweroff(dev) : 0);
+}
+
 #endif /*  _LINUX_PM_RUNTIME_H_ */

@@ -145,6 +145,7 @@ __FBSDID("$FreeBSD$");
 #include <uapi/drm/drm_sarea.h>
 #include <drm/drm_vma_manager.h>
 #include <linux/atomic.h>
+#include <linux/types.h>
 
 #define smp_wmb() wmb()
 

@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 extern u_int cpu_clflush_line_size;
 
 struct workqueue_struct *system_long_wq;
+struct workqueue_struct *system_wq;
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 
@@ -1311,6 +1312,7 @@ linux_compat_init(void *arg)
 	sx_init(&linux_global_rcu_lock, "LinuxGlobalRCU");
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	system_long_wq = alloc_workqueue("events_long", 0, 0);
+	system_wq = alloc_workqueue("events", 0, 0);
 
 	INIT_LIST_HEAD(&cdev_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
