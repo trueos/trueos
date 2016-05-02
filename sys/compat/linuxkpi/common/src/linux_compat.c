@@ -1264,14 +1264,15 @@ __register_chrdev(unsigned int major, unsigned int baseminor,
 	cdev = cdev_alloc();
 	cdev_init(cdev, fops);
 	kobject_set_name(&cdev->kobj, name);
+	if (count != 1) {
+		log(LOG_WARNING, "count = %d, only 1 is supported", count); 
+		count = 1;
+	}
 	ret = cdev_add(cdev, major, count);
 	cdev->major = major;
 	cdev->baseminor = baseminor;	
 	sx_xlock(&linux_global_rcu_lock);
-	if (list_empty(&cdev_list))
-		INIT_LIST_HEAD(&cdev->list);
-	else 
-		linux_list_add(&cdev->list, &cdev_list, cdev_list.next);
+	list_add(&cdev->list, &cdev_list);
 	sx_xunlock(&linux_global_rcu_lock);
 	return (ret);
 }
