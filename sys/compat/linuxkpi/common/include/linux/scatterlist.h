@@ -78,6 +78,13 @@ struct sg_page_iter {
 #define	SG_END		0x01
 #define	SG_CHAIN	0x02
 
+#define	for_each_sg_page(sgl, iter, nents, pgoffset)			\
+	for (_sg_iter_init(sgl, iter, nents, pgoffset);			\
+	     (iter)->sg; _sg_iter_next(iter))
+
+#define	for_each_sg(sglist, sg, sgmax, _itr)				\
+	for (_itr = 0, sg = (sglist); _itr < (sgmax); _itr++, sg = sg_next(sg))
+
 static inline void
 sg_set_page(struct scatterlist *sg, struct page *page, unsigned int len,
     unsigned int offset)
@@ -237,6 +244,45 @@ sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
 }
 
 
+
+static inline int
+sg_alloc_table_from_pages(struct sg_table *sgt,
+	struct page **pages, unsigned int count,
+	unsigned long off, unsigned long size,
+	gfp_t gfp_mask)
+{
+	unsigned int i, segs, cur;
+	int rc;
+	struct scatterlist *s;
+
+	for (segs = i = 1; i < count; ++i) {
+		if (page_to_pfn(pages[i]) != page_to_pfn(pages[i - 1]) + 1)
+			++segs;
+	}
+	if (__predict_false((rc = sg_alloc_table(sgt, segs, gfp_mask))))
+		return (rc);
+
+	cur = 0;
+	for_each_sg(sgt->sgl, s, sgt->orig_nents, i) {
+		unsigned long seg_size;
+		unsigned int j;
+
+		for (j = cur + 1; j < count; ++j)
+			if (page_to_pfn(pages[j]) !=
+			    page_to_pfn(pages[j - 1]) + 1)
+				break;
+
+		seg_size = ((j - cur) << PAGE_SHIFT) - off;
+		sg_set_page(s, pages[cur], min(size, seg_size), off);
+		size -= seg_size;
+		off = 0;
+		cur = j;
+	}
+
+	return (0);
+}
+
+
 size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents, void *buf,
 		      size_t buflen, off_t skip, bool to_buffer);
 
@@ -346,17 +392,5 @@ static inline struct page *sg_page_iter_page(struct sg_page_iter *piter)
 {
 	return nth_page(sg_page(piter->sg), piter->sg_pgoffset);
 }
-
-#define	for_each_sg_page(sgl, iter, nents, pgoffset)			\
-	for (_sg_iter_init(sgl, iter, nents, pgoffset);			\
-	     (iter)->sg; _sg_iter_next(iter))
-
-#define	for_each_sg(sglist, sg, sgmax, _itr)				\
-	for (_itr = 0, sg = (sglist); _itr < (sgmax); _itr++, sg = sg_next(sg))
-
-int sg_alloc_table_from_pages(struct sg_table *sgt,
-	struct page **pages, unsigned int n_pages,
-	unsigned long offset, unsigned long size,
-			      gfp_t gfp_mask);
 
 #endif					/* _LINUX_SCATTERLIST_H_ */

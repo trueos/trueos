@@ -108,6 +108,9 @@ struct device_driver {
  */
 
 struct kobj_uevent_env;
+struct bus_type {
+	const char		*name;
+};
 
 struct device_type {
 	const char *name;
@@ -139,6 +142,9 @@ struct device {
 	struct device_driver *driver;	/* which driver has allocated this device */
 	struct dev_pm_info	power;
 	const struct attribute_group **groups;	/* optional groups */
+	const char		*init_name; /* initial name of the device */
+	struct bus_type	*bus;		/* type of bus device is on */
+
 };
 
 extern struct device linux_root_device;

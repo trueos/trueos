@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
  */
 static MALLOC_DEFINE(M_IDR, "idr", "Linux IDR compat");
 
+
 static inline int
 idr_max(struct idr *idr)
 {
@@ -191,14 +192,13 @@ out:
 	return (res);
 }
 
-static inline void *
-idr_find_locked(struct idr *idr, int id)
+
+static inline struct idr_layer *
+idr_find_layer(struct idr *idr, int id)
 {
 	struct idr_layer *il;
 	void *res;
 	int layer;
-
-	mtx_assert(&idr->lock, MA_OWNED);
 
 	id &= MAX_ID_MASK;
 	res = NULL;
@@ -210,10 +210,42 @@ idr_find_locked(struct idr *idr, int id)
 		il = il->ary[idr_pos(id, layer)];
 		layer--;
 	}
+	return (il);
+}
+
+static inline void *
+idr_find_locked(struct idr *idr, int id, int *nextidp)
+{
+	struct idr_layer *il;
+	void *res;
+	int i;
+
+	mtx_assert(&idr->lock, MA_OWNED);
+	il = idr_find_layer(idr, id);
 	if (il != NULL)
 		res = il->ary[id & IDR_MASK];
+	if (nextidp == NULL)
+		return (res);
+
+	for (i = id + 1; i  <  (i & ~IDR_MASK) + IDR_SIZE; i++) {
+		if (il->ary[i & IDR_MASK]) {
+			*nextidp = i;
+			goto done;
+		}
+	}
+	while ((il = idr_find_layer(idr, i)) != NULL) {
+		for (;i  <  (i & ~IDR_MASK) + IDR_SIZE; i++) {
+			if (il->ary[i & IDR_MASK]) {
+				*nextidp = i;
+				goto done;
+			}
+		}
+	}
+	*nextidp = -1;
+done:
 	return (res);
 }
+
 
 void *
 idr_find(struct idr *idr, int id)
@@ -221,7 +253,18 @@ idr_find(struct idr *idr, int id)
 	void *res;
 
 	mtx_lock(&idr->lock);
-	res = idr_find_locked(idr, id);
+	res = idr_find_locked(idr, id, NULL);
+	mtx_unlock(&idr->lock);
+	return (res);
+}
+
+void *
+idr_get_next(struct idr *idr, int *nextidp)
+{
+	void *res;
+
+	mtx_lock(&idr->lock);
+	res = idr_find_locked(idr, *nextidp, nextidp);
 	mtx_unlock(&idr->lock);
 	return (res);
 }
@@ -486,6 +529,14 @@ idr_get_new_above(struct idr *idr, void *ptr, int starting_id, int *idp)
 	return (retval);
 }
 
+int
+ida_get_new_above(struct ida *ida, int starting_id, int *p_id)
+{
+
+	return (idr_get_new_above(&ida->idr, NULL, starting_id, p_id));
+}
+
+
 static int
 idr_alloc_locked(struct idr *idr, void *ptr, int start, int end)
 {
@@ -576,4 +627,63 @@ idr_for_each(struct idr *idp, int (*f)(int id, void *p, void *data), void *data)
 	err = idr_for_each_layer(idp->top, idp->layers - 1, f, data);
 	mtx_unlock(&idp->lock);
 	return (err);
+}
+
+int
+ida_pre_get(struct ida *ida, gfp_t flags)
+{
+	if (idr_pre_get(&ida->idr, flags))
+		return (0);
+
+	if (ida->free_bitmap == NULL)
+		ida->free_bitmap = malloc(sizeof(struct ida_bitmap), M_IDR, flags);
+	return (ida->free_bitmap != NULL);
+}
+
+int
+ida_simple_get(struct ida *ida, unsigned int start, unsigned int end, gfp_t flags)
+{
+	int ret, id;
+	unsigned int max;
+
+	MPASS((int)start > 0);
+	MPASS((int)end > 0);
+
+	if (end == 0)
+		max = 0x80000000;
+	else {
+		MPASS(end > start);
+		max = end - 1;
+	}
+again:
+	if (!ida_pre_get(ida, flags))
+		return (-ENOMEM);
+
+	if ((ret = ida_get_new_above(ida, start, &id)) == 0) {
+		if (id > max) {
+			ida_remove(ida, id);
+			ret = -ENOSPC;
+		} else {
+			ret = id;
+		}
+	}
+	if (__predict_false(ret == -EAGAIN))
+		goto again;
+
+	return (ret);
+}
+
+
+void
+ida_remove(struct ida *ida, int id)
+{	
+	idr_remove(&ida->idr, id);
+}
+
+void
+ida_destroy(struct ida *ida)
+{
+	idr_destroy(&ida->idr);
+	if (ida->free_bitmap != NULL)
+		free(ida->free_bitmap, M_IDR);
 }

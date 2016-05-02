@@ -8,7 +8,7 @@
 #define FW_ACTION_NOHOTPLUG 0
 #define FW_ACTION_HOTPLUG 1
 
-struct firmware {
+struct linux_firmware {
 	size_t size;
 	const u8 *data;
 	struct page **pages;
@@ -38,15 +38,15 @@ struct builtin_fw {
 	static const struct builtin_fw __fw_concat(__builtin_fw,__COUNTER__) \
 	__used __section(.builtin_fw) = { name, blob, size }
 
-int request_firmware(const struct firmware **fw, const char *name,
+int request_firmware(const struct linux_firmware **fw, const char *name,
 		     struct device *device);
 int request_firmware_nowait(
 	struct module *module, bool uevent,
 	const char *name, struct device *device, gfp_t gfp, void *context,
-	void (*cont)(const struct firmware *fw, void *context));
-int request_firmware_direct(const struct firmware **fw, const char *name,
+	void (*cont)(const struct linux_firmware *fw, void *context));
+int request_firmware_direct(const struct linux_firmware **fw, const char *name,
 			    struct device *device);
 
-void release_firmware(const struct firmware *fw);
+void release_firmware(const struct linux_firmware *fw);
 
 #endif

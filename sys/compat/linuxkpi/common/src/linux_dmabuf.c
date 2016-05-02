@@ -273,7 +273,7 @@ dma_buf_attach(struct dma_buf *db, struct device *dev)
 		if ((rc = db->ops->attach(db, dev, dba)) != 0) {
 			sx_xunlock(&db->lock.sx);
 			free(dba, M_DMABUF);
-			return ERR_PTR(rc);
+			return (ERR_PTR(rc));
 		}
 	}
 	list_add(&dba->node, &db->attachments);
@@ -388,6 +388,23 @@ dma_buf_export(const struct dma_buf_export_info *exp_info)
 err:	
 	free(db, M_DMABUF);
 	return (ERR_PTR(-err));
+}
+struct sg_table *
+dma_buf_map_attachment(struct dma_buf_attachment *dba, enum dma_data_direction dir)
+{
+	struct sg_table *sgt;
+
+	MPASS(dba != NULL);
+	MPASS(dba->dmabuf != NULL);
+		
+	if (dba == NULL || dba->dmabuf == NULL)
+		return (ERR_PTR(-EINVAL));
+
+	sgt = dba->dmabuf->ops->map_dma_buf(dba, dir);
+	if (sgt == NULL)
+		return (ERR_PTR(-ENOMEM));
+
+	return (sgt);
 }
 
 void

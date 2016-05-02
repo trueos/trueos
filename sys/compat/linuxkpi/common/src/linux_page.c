@@ -75,6 +75,15 @@ kmap_atomic(vm_page_t page)
 	return kmap(page);
 }
 	
+void *
+kmap_atomic_prot(vm_page_t page, pgprot_t prot)
+{
+
+	sched_pin();
+	return (pmap_mapdev_attr(VM_PAGE_TO_PHYS(page), PAGE_SIZE, prot));
+}
+	
+
 void
 kunmap(vm_page_t page)
 {

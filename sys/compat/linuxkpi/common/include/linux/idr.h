@@ -67,7 +67,16 @@ struct idr {
 #define DEFINE_IDR(name)						\
 	struct idr name;						\
 	SYSINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
-	    idr_init, &(name));
+		idr_init, &(name));					\
+	SYSUNINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
+		  idr_destroy, &(name));				
+#define DEFINE_IDA(name)						\
+	struct ida name;						\
+	SYSINIT(name##_ida_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
+		ida_init, &(name));					\
+	SYSUNINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
+		  ida_destroy, &(name));				
+
 
 #define	idr_preload(x) do { } while (0)
 #define	idr_preload_end() do { } while (0)
@@ -122,8 +131,6 @@ struct ida {
 	struct ida_bitmap	*free_bitmap;
 };
 
-#define IDA_INIT(name)		{ .idr = IDR_INIT((name).idr), .free_bitmap = NULL, }
-#define DEFINE_IDA(name)	struct ida name = IDA_INIT(name)
 
 int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
 int ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
@@ -135,14 +142,8 @@ int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
 		   gfp_t gfp_mask);
 void ida_simple_remove(struct ida *ida, unsigned int id);
 
-/**
- * ida_get_new - allocate new ID
- * @ida:	idr handle
- * @p_id:	pointer to the allocated handle
- *
- * Simple wrapper around ida_get_new_above() w/ @starting_id of zero.
- */
-static inline int ida_get_new(struct ida *ida, int *p_id)
+static inline int
+ida_get_new(struct ida *ida, int *p_id)
 {
 	return ida_get_new_above(ida, 0, p_id);
 }

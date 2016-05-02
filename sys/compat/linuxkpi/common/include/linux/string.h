@@ -39,6 +39,18 @@
 
 #define	strnicmp(...) strncasecmp(__VA_ARGS__)
 
+static inline int
+match_string(const char * const *table, size_t n, const char *key)
+{
+	int i;
+
+	for (i = 0; i < n && table[i] != NULL; i++) {
+		if (strcmp(table[i], key) == 0)
+			return (i);
+	}
+	return (-EINVAL);
+}
+
 static inline void *
 kmemdup(const void *src, size_t len, gfp_t gfp)
 {
@@ -70,8 +82,6 @@ kstrdup_const(const char *src, gfp_t gfp)
 
 void *memchr_inv(const void *start, int c, size_t bytes);
 extern char * __must_check skip_spaces(const char *);
-
-int match_string(const char * const *array, size_t n, const char *string);
 
 
 
