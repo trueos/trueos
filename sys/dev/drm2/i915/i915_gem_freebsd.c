@@ -49,7 +49,7 @@ MALLOC_DEFINE(DRM_I915_GEM, "i915", "i915 DRM GEM");
 
 #define GEM_PARANOID_CHECK_GTT 0
 
-extern long i915_gem_wired_pages_cnt;
+long i915_gem_wired_pages_cnt;
 int i915_intr_pf;
 
 vm_page_t

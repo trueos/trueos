@@ -1737,9 +1737,11 @@ static struct drm_driver driver = {
 #ifdef __linux__
 	.fops = &i915_driver_fops,
 #endif
+#ifdef notyet
 #ifdef __FreeBSD__
 	.sysctl_init	= i915_sysctl_init,
 	.sysctl_cleanup	= i915_sysctl_cleanup,
+#endif
 #endif	
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

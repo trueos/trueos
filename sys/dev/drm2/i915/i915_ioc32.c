@@ -44,30 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/intel_drv.h>
 
-typedef struct _drm_i915_batchbuffer32 {
-	int start;		/* agp offset */
-	int used;		/* nr bytes in use */
-	int DR1;		/* hw flags for GFX_OP_DRAWRECT_INFO */
-	int DR4;		/* window origin for GFX_OP_DRAWRECT_INFO */
-	int num_cliprects;	/* mulitpass with multiple cliprects? */
-	u32 cliprects;		/* pointer to userspace cliprects */
-} drm_i915_batchbuffer32_t;
-
-static int compat_i915_batchbuffer(struct drm_device *dev, void *data, struct drm_file *file_priv)
-{
-	drm_i915_batchbuffer32_t *batchbuffer32 = data;
-	drm_i915_batchbuffer_t batchbuffer;
-
-	batchbuffer.start = batchbuffer32->start;
-	batchbuffer.used = batchbuffer32->used;
-	batchbuffer.DR1 = batchbuffer32->DR1;
-	batchbuffer.DR4 = batchbuffer32->DR4;
-	batchbuffer.num_cliprects = batchbuffer32->num_cliprects;
-	batchbuffer.cliprects = (void *)(unsigned long)batchbuffer32->cliprects;
-
-	return i915_batchbuffer(dev, (void *)&batchbuffer, file_priv);
-}
-
 typedef struct _drm_i915_cmdbuffer32 {
 	u32 buf;		/* pointer to userspace command buffer */
 	int sz;			/* nr bytes in buf */
@@ -91,19 +67,6 @@ static int compat_i915_cmdbuffer(struct drm_device *dev, void *data, struct drm_
 	return i915_cmdbuffer(dev, (void *)&cmdbuffer, file_priv);
 }
 
-typedef struct drm_i915_irq_emit32 {
-	u32 irq_seq;
-} drm_i915_irq_emit32_t;
-
-static int compat_i915_irq_emit(struct drm_device *dev, void *data, struct drm_file *file_priv)
-{
-	drm_i915_irq_emit32_t *req32 = data;
-	drm_i915_irq_emit_t request;
-
-	request.irq_seq = (int *)(unsigned long)req32->irq_seq;
-
-	return i915_irq_emit(dev, (void *)&request, file_priv);
-}
 typedef struct drm_i915_getparam32 {
 	int param;
 	u32 value;
@@ -131,7 +94,6 @@ typedef struct drm_i915_mem_alloc32 {
 	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
 
 struct drm_ioctl_desc i915_compat_ioctls[] = {
-	DRM_IOCTL_DEF(DRM_I915_BATCHBUFFER, compat_i915_batchbuffer, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_I915_CMDBUFFER, compat_i915_cmdbuffer, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_I915_GETPARAM, compat_i915_getparam, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_I915_IRQ_EMIT, compat_i915_irq_emit, DRM_AUTH)
