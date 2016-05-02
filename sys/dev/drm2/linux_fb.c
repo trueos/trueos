@@ -326,13 +326,14 @@ __remove_conflicting(struct apertures_struct *a, const char *name, bool primary)
 	}
 }
 
-void
-linux_remove_conflicting_framebuffers(struct apertures_struct *a,
+int
+remove_conflicting_framebuffers(struct apertures_struct *a,
 				const char *name, bool primary)
 {
 	sx_xlock(&linux_fb_mtx);
 	__remove_conflicting(a, name, primary);
 	sx_xunlock(&linux_fb_mtx);
+	return (0);
 }
 
 static int

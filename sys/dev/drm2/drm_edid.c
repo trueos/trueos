@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <drm/drm_edid.h>
 #include <drm/drm_displayid.h>
 
+#define firmware linux_firmware
+
 #define version_greater(edid, maj, min) \
 	(((edid)->version > (maj)) || \
 	 ((edid)->version == (maj) && (edid)->revision > (min)))
