@@ -26,12 +26,15 @@ SRCS	= \
 	i915_gem_shrinker.c \
 	i915_gem_tiling.c \
 	i915_gem_userptr.c \
+	i915_gpu_error.c \
 	i915_guc_submission.c \
+	i915_params.c \
 	i915_irq.c \
 	i915_suspend.c \
 	i915_trace_points.c \
 	i915_vgpu.c \
 	intel_acpi.c \
+	intel_agp_freebsd.c \
 	intel_atomic.c \
 	intel_atomic_plane.c \
 	intel_audio.c \
@@ -124,3 +127,4 @@ CWARNFLAGS.i915_drv.c=		-Wno-initializer-overrides
 CWARNFLAGS.i915_gem_gtt.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.i915_gem_tiling.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.i915_gem_execbuffer.c=	-Wno-tautological-pointer-compare  -Wno-pointer-arith
+CWARNFLAGS.i915_gpu_error.c=	-Wno-format
