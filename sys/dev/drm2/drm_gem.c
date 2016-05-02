@@ -805,7 +805,6 @@ drm_gem_object_free(struct kref *kref)
 }
 EXPORT_SYMBOL(drm_gem_object_free);
 
-#ifdef __linux__
 /**
  * drm_gem_vm_open - vma->ops->open implementation for GEM
  * @vma: VM area structure
@@ -835,7 +834,7 @@ void drm_gem_vm_close(struct vm_area_struct *vma)
 	drm_gem_object_unreference_unlocked(obj);
 }
 EXPORT_SYMBOL(drm_gem_vm_close);
-#endif
+
 
 /**
  * drm_gem_mmap_obj - memory map a GEM object
