@@ -1195,10 +1195,10 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 			return ret;
 	}
 
-	/* WaInsertDummyPushConstPs:bxt */
-	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B0))
-		WA_SET_BIT_MASKED(COMMON_SLICE_CHICKEN2,
-				  GEN8_SBE_DISABLE_REPLAY_BUF_OPTIMIZATION);
+	/* WaProgramL3SqcReg1DefaultForPerf:bxt */
+	if (IS_BXT_REVID(dev_priv, BXT_REVID_B0, REVID_FOREVER))
+		I915_WRITE(GEN8_L3SQCREG1, L3_GENERAL_PRIO_CREDITS(62) |
+					   L3_HIGH_PRIO_CREDITS(2));
 
 	return 0;
 }
