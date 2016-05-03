@@ -49,6 +49,7 @@
 #define	TASK_RUNNING		0
 #define	TASK_INTERRUPTIBLE	1
 #define	TASK_UNINTERRUPTIBLE	2
+#define	TASK_KILLABLE           3
 #define	TASK_DEAD		64
 #define	TASK_WAKEKILL		128
 #define	TASK_WAKING		256

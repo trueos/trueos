@@ -12,7 +12,15 @@ enum pid_type
 };
 
 
-extern struct task_struct *pid_task(pid_t pid, enum pid_type);
+static inline struct task_struct *
+pid_task(pid_t pid, enum pid_type type)
+{
+	struct thread *td;
+
+	/* pid corresponds to a thread in this context */
+	td = tdfind(pid, -1);
+	return (task_struct_get(td));
+}
 extern struct task_struct *get_pid_task(pid_t pid, enum pid_type);
 
 

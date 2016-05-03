@@ -216,10 +216,15 @@ show_class_attr_string(struct class *class,
 	struct class_attribute_string class_attr_##_name = \
 		_CLASS_ATTR_STRING(_name, _mode, _str)
 
+/*
+ * should we create device_printf with corresponding
+ * syslog priorities?
+ */ 
 #define	dev_err(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_warn(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_info(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
-#define	dev_printk(lvl, dev, fmt, ...)					\
+#define	dev_notice(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
+#define	dev_printk(lvl, dev, fmt, ...)				\
 	    device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 
 static inline void *
@@ -591,10 +596,17 @@ dev_to_node(struct device *dev)
 
 char *kvasprintf(gfp_t, const char *, va_list);
 char *kasprintf(gfp_t, const char *, ...);
-void dev_notice(const struct device *dev, const char *fmt, ...);
 
-extern void *devm_kmalloc(struct device *dev, size_t size, gfp_t gfp);
-
+static inline void *
+devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
+{
+	/*
+	 * this allocates managed memory which is automatically freed
+	 * on unload - we're instead just leaking for now
+	 */
+	DODGY();
+	return (kmalloc(size, gfp));
+}
 
 static inline void *
 devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)

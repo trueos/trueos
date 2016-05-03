@@ -97,7 +97,12 @@ mmput(struct mm_struct *mm)
 
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
 
-extern void __put_task_struct(struct task_struct *t);
+static inline void
+__put_task_struct(struct task_struct *t)
+{
+	DODGY();
+	kfree(t);
+}
 
 static inline void put_task_struct(struct task_struct *t)
 {
@@ -106,9 +111,19 @@ static inline void put_task_struct(struct task_struct *t)
 }
 
 extern u64 cpu_clock(int cpu);
-extern u64 local_clock(void);
 extern u64 running_clock(void);
 extern u64 sched_clock_cpu(int cpu);
+
+
+static inline u64
+local_clock(void)
+{
+        struct timespec ts;
+
+        nanotime(&ts);
+        return (ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
+}
+
 
 #define	schedule()							\
 do {									\
@@ -180,20 +195,30 @@ schedule_timeout_interruptible(signed long timeout)
 	if (timeout < 0)
 		return 0;
 
+	__set_current_state(TASK_UNINTERRUPTIBLE);
 	mtx_lock(&Giant);
 	ret = msleep(&Giant, &Giant, PCATCH | PDROP , "lstimi", timeout);
 	
 	return (ret);
 }
 
-extern signed long schedule_timeout_killable(signed long timeout);
-
-
 #define schedule_timeout schedule_timeout_interruptible
+
+static inline signed long
+schedule_timeout_killable(signed long timeout)
+{
+	__set_current_state(TASK_KILLABLE);
+	return (schedule_timeout(timeout));
+}
 
 #define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
 
-extern long io_schedule_timeout(long timeout);
+static inline long
+io_schedule_timeout(long timeout)
+{
+	DODGY();
+	return (schedule_timeout(timeout));
+}
 
 static inline void io_schedule(void)
 {
