@@ -1929,7 +1929,6 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 				if (ret)
 					break;
 			}
-
 			obj->fault_mappable = true;
 		} else
 			ret = vm_insert_pfn(vma,

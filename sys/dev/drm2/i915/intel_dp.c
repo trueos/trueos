@@ -4850,7 +4850,6 @@ intel_dp_set_property(struct drm_connector *connector,
 done:
 	if (intel_encoder->base.crtc)
 		intel_crtc_restore_mode(intel_encoder->base.crtc);
-
 	return 0;
 }
 
