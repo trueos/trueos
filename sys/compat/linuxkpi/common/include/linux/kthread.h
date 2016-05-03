@@ -79,6 +79,7 @@ struct task_struct {
 	int	state;
 	int	should_stop;
 	char	*comm;
+	int	flags;
 	pid_t	pid;
 };
 

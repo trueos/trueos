@@ -34,7 +34,17 @@
  * ...
  * we prefer to panic() for the time being
  */
-#define local_irq_disable() panic("XXX unclear if this should be implemented")
-#define local_irq_enable() panic("XXX unclear if this should be implemented")
+
+static inline void
+local_irq_disable(void)
+{
+	UNIMPLEMENTED();
+}
+
+static inline void
+local_irq_enable(void)
+{
+	UNIMPLEMENTED();
+}
 
 #endif	/* _LINUX_IRQFLAGS_H_ */

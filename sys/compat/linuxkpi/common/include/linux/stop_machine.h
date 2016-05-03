@@ -9,8 +9,8 @@
 struct cpumask;
 typedef int (*cpu_stop_fn_t)(void *arg);
 
-static inline int stop_machine(cpu_stop_fn_t fn, void *data,
-				 const struct cpumask *cpus)
+static inline int
+stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus)
 {
 #if 0
 	unsigned long flags;
@@ -20,7 +20,8 @@ static inline int stop_machine(cpu_stop_fn_t fn, void *data,
 	local_irq_restore(flags);
 	return ret;
 #endif
-	panic("implement me !!!");
+	UNIMPLEMENTED();
+	return (0);
 }
 
 #endif

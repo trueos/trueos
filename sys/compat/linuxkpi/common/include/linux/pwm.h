@@ -6,28 +6,44 @@
 
 struct pwm_device;
 
-static inline void pwm_put(struct pwm_device *pwm){
-	panic("IMPLEMENT ME");
+static inline void
+pwm_put(struct pwm_device *pwm)
+{
+	UNIMPLEMENTED();
 }
 
-static inline struct pwm_device *pwm_get(struct device *dev, const char *con_id){
-	panic("IMPLEMENT ME");
+static inline struct pwm_device *
+pwm_get(struct device *dev, const char *con_id)
+{
+	UNIMPLEMENTED();
+	return (NULL);
 }
 
-static inline int pwm_enable(struct pwm_device *pwm){
-	panic("IMPLEMENT ME");
+static inline int
+pwm_enable(struct pwm_device *pwm)
+{
+	UNIMPLEMENTED();
+	return (0);
 }
 
-static inline void pwm_disable(struct pwm_device *pwm){
-	panic("IMPLEMENT ME");
+static inline void
+pwm_disable(struct pwm_device *pwm)
+{
+	UNIMPLEMENTED();
 }
 
-static inline unsigned int pwm_get_duty_cycle(const struct pwm_device *pwm){
-	panic("IMPLEMENT ME");
+static inline unsigned int
+pwm_get_duty_cycle(const struct pwm_device *pwm)
+{
+	UNIMPLEMENTED();
+	return (0);
 }
 
-static inline int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns){
-	panic("IMPLEMENT ME");
+static inline int
+pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
+{
+	UNIMPLEMENTED();
+	return (0);
 }
 
 enum pwm_polarity {

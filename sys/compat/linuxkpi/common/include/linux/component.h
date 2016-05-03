@@ -12,8 +12,18 @@ struct component_ops {
 		       void *master_data);
 };
 
-int component_add(struct device *, const struct component_ops *);
-void component_del(struct device *, const struct component_ops *);
+static inline int
+component_add(struct device *dev, const struct component_ops *ops)
+{
+	UNIMPLEMENTED();
+	return (0);
+}
+
+static inline void
+component_del(struct device *dev, const struct component_ops *ops)
+{
+	UNIMPLEMENTED();
+}
 
 int component_bind_all(struct device *master, void *master_data);
 void component_unbind_all(struct device *master, void *master_data);
@@ -25,8 +35,11 @@ struct component_master_ops {
 	void (*unbind)(struct device *master);
 };
 
-void component_master_del(struct device *,
-	const struct component_master_ops *);
+static inline void
+component_master_del(struct device *dev, const struct component_master_ops *ops)
+{
+	UNIMPLEMENTED();
+}
 
 struct component_match;
 

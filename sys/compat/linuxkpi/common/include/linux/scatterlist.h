@@ -283,19 +283,6 @@ sg_alloc_table_from_pages(struct sg_table *sgt,
 }
 
 
-size_t sg_copy_buffer(struct scatterlist *sgl, unsigned int nents, void *buf,
-		      size_t buflen, off_t skip, bool to_buffer);
-
-size_t sg_copy_from_buffer(struct scatterlist *sgl, unsigned int nents,
-			   const void *buf, size_t buflen);
-size_t sg_copy_to_buffer(struct scatterlist *sgl, unsigned int nents,
-			 void *buf, size_t buflen);
-
-size_t sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
-			    const void *buf, size_t buflen, off_t skip);
-size_t sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
-			  void *buf, size_t buflen, off_t skip);
-
 static inline int
 sg_nents(struct scatterlist *sg)
 {
@@ -392,5 +379,98 @@ static inline struct page *sg_page_iter_page(struct sg_page_iter *piter)
 {
 	return nth_page(sg_page(piter->sg), piter->sg_pgoffset);
 }
+
+/*
+ *
+ * XXX please review these
+ */
+static inline size_t
+sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
+		      const void *buf, size_t buflen, off_t skip)
+{
+	off_t off;
+	int len, curlen, curoff;
+	struct sg_page_iter iter;
+	struct scatterlist *sg;
+	struct page *page;
+	void *vaddr;
+
+	off = 0;
+	for_each_sg_page(sgl, &iter, nents, 0) {
+		sg = iter.sg;
+		curlen = sg->length;
+		curoff = sg->offset;
+		if (skip && curlen >= skip) {
+			skip -= curlen;
+			continue;
+		}
+		if (skip) {
+			curlen -= skip;
+			curoff += skip;
+			skip = 0;
+		}
+		len = min(curlen, buflen - off);
+		page = sg_page_iter_page(&iter);
+		vaddr = kmap(page) + sg->offset;
+		memcpy(vaddr, buf + off, len);
+		off += len;
+		kunmap(page);
+	}
+
+	return (off);
+}
+
+
+static inline size_t
+sg_copy_from_buffer(struct scatterlist *sgl, unsigned int nents,
+		     const void *buf, size_t buflen)
+{
+	return (sg_pcopy_from_buffer(sgl, nents, buf, buflen, 0));
+}
+
+static inline size_t
+sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
+		   void *buf, size_t buflen, off_t skip)
+{
+	off_t off;
+	int len, curlen, curoff;
+	struct sg_page_iter iter;
+	struct scatterlist *sg;
+	struct page *page;
+	void *vaddr;
+
+	off = 0;
+	for_each_sg_page(sgl, &iter, nents, 0) {
+		sg = iter.sg;
+		curlen = sg->length;
+		curoff = sg->offset;
+		if (skip && curlen >= skip) {
+			skip -= curlen;
+			continue;
+		}
+		if (skip) {
+			curlen -= skip;
+			curoff += skip;
+			skip = 0;
+		}
+		len = min(curlen, buflen - off);
+		page = sg_page_iter_page(&iter);
+		vaddr = kmap(page) + sg->offset;
+		memcpy(buf + off, vaddr, len);
+		off += len;
+		kunmap(page);
+	}
+
+	return (off);
+}
+
+static inline size_t
+sg_copy_to_buffer(struct scatterlist *sgl, unsigned int nents,
+		  void *buf, size_t buflen)
+{
+
+	return (sg_pcopy_to_buffer(sgl, nents, buf, buflen, 0));
+}
+
 
 #endif					/* _LINUX_SCATTERLIST_H_ */

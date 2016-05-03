@@ -45,7 +45,6 @@ struct ww_acquire_ctx {
 
 
 #define ww_mutex mutex
-#define ww_mutex_init(m, class) linux_mutex_init(m, #m)
 #define ww_mutex_destroy(m) linux_mutex_destroy(m)
 
 #define	ww_mutex_is_locked(_m)		sx_xlocked(&(_m)->sx)
@@ -61,8 +60,26 @@ struct ww_acquire_ctx {
 /*
  * XXX FIX ME
  */
-#define ww_acquire_fini(x)  panic(" XXX implement me!!!")
-#define ww_acquire_init(a, b) panic(" XXX implement me!!!")
-#define ww_acquire_done(a) panic(" XXX implement me!!!")
+
+static inline void
+ww_acquire_fini(struct ww_acquire_ctx *ctx)
+{
+	UNIMPLEMENTED();
+}
+
+static inline void
+__ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class, char *name)
+{
+	DODGY();
+	linux_mutex_init(lock, name);
+}
+
+#define ww_mutex_init(l, w) __ww_mutex_init(l, w, #l)
+
+static inline void
+ww_acquire_done(struct ww_acquire_ctx *ctx)
+{
+	UNIMPLEMENTED();
+}
 
 #endif

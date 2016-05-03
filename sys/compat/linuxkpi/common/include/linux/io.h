@@ -179,7 +179,9 @@ void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
 #define	ioremap_nocache(addr, size)					\
     _ioremap_attr((addr), (size), VM_MEMATTR_UNCACHEABLE)
 #define	ioremap_wc(addr, size)						\
-    _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_COMBINING)
+	_ioremap_attr((addr), (size), VM_MEMATTR_WRITE_COMBINING)
+#define	ioremap_wb(addr, size)						\
+    _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_BACK)
 #define	ioremap(addr, size)						\
     _ioremap_attr((addr), (size), VM_MEMATTR_UNCACHEABLE)
 void iounmap(void *addr);
@@ -215,7 +217,30 @@ enum {
 	MEMREMAP_WC = 1 << 2,
 };
 
-void *memremap(resource_size_t offset, size_t size, unsigned long flags);
-void memunmap(void *addr);
+static inline void *
+memremap(resource_size_t offset, size_t size, unsigned long flags)
+{
+	int mflags;
+	void *addr = NULL;
+
+	mflags = flags & 0x7;
+	if ((mflags & MEMREMAP_WB) &&
+	    (addr = ioremap_wb(offset, size)) != NULL)
+		return (addr);
+	if ((mflags & MEMREMAP_WT) &&
+	    (addr = ioremap_nocache(offset, size)) != NULL)
+		return (addr);
+	if ((mflags & MEMREMAP_WC) &&
+	    (addr = ioremap_wc(offset, size)) != NULL)
+		return (addr);	
+	return (NULL);
+}
+static inline void
+memunmap(void *addr)
+{
+	/* may need to check if this is RAM */
+	DODGY();
+	iounmap(addr);
+}
 
 #endif	/* _LINUX_IO_H_ */

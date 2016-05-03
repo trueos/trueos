@@ -39,6 +39,22 @@
 #include <asm/atomic.h>
 
 #include <sys/taskqueue.h>
+
+enum {
+	WORK_BUSY_PENDING	= 1 << 0,
+	WORK_BUSY_RUNNING	= 1 << 1,
+};
+
+enum {
+	WQ_UNBOUND		= 1 << 1, /* not bound to any cpu */
+	WQ_HIGHPRI		= 1 << 4, /* high priority */
+	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
+	WQ_MAX_UNBOUND_PER_CPU	= 4,	  /* 4 * #cpus for unbound wq */
+};
+
+#define WQ_UNBOUND_MAX_ACTIVE	\
+	max_t(int, WQ_MAX_ACTIVE, mp_ncpus * WQ_MAX_UNBOUND_PER_CPU)
+
 struct workqueue_struct {
 	struct taskqueue	*taskqueue;
 	atomic_t		draining;
@@ -222,15 +238,38 @@ flush_work(struct work_struct *work)
 {
 /* XXX */
 	flush_taskqueue(work->taskqueue);
-	return true;
+	return (true);
 }
 
-static inline bool flush_delayed_work(struct delayed_work *dwork)
+static inline bool
+flush_delayed_work(struct delayed_work *dwork)
 {
-	panic("XXX implmeent me!!");
+	UNIMPLEMENTED();
+	return (false);
 }
 
-unsigned int work_busy(struct work_struct *work);
+static inline unsigned int
+work_busy(struct work_struct *work)
+{
+	struct task *ta;
+	struct taskqueue *tq;
+	int rc;
 
+	DODGY();
+	rc = 0;
+	ta = &work->work_task;
+	tq = work->taskqueue;
 
+	if (ta->ta_pending)
+		rc |= WORK_BUSY_PENDING;
+	/*
+	 * There's currently no interface to query if a task running
+	 */
+#ifdef notyet
+	if (tq != NULL) {
+
+	}
+#endif	
+	return (rc);
+}
 #endif	/* _LINUX_WORKQUEUE_H_ */

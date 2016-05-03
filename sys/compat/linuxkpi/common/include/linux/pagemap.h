@@ -65,13 +65,14 @@ fault_in_multipages_writeable(char __user *uaddr, int size)
 }
 
 /* Restricts the given gfp_mask to what the mapping allows. */
-static inline gfp_t mapping_gfp_constraint(struct address_space *mapping,
-		gfp_t gfp_mask)
+static inline gfp_t
+mapping_gfp_constraint(struct address_space *mapping, gfp_t gfp_mask)
 {
 #if 0	
 	return mapping_gfp_mask(mapping) & gfp_mask;
 #endif
-	panic("XXX implement me");
+	UNIMPLEMENTED();
+	return (0);
 }
 
 void release_pages(struct page **pages, int nr, bool cold);

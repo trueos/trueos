@@ -56,6 +56,10 @@
 
 #define TASK_COMM_LEN 16
 
+#define PF_EXITING	0x00000004
+#define PF_USED_ASYNC	0x00004000
+
+
 #define task_pid(task) ((task)->task_thread->td_proc->p_pid)
 #define get_pid(x) (x)
 #define put_pid(x)
@@ -69,14 +73,27 @@ CTASSERT(sizeof(((struct thread *)0)->td_retval[1]) >= sizeof(uintptr_t));
 #define	__set_current_state(x)	current->state = (x)
 
 
-extern void __mmdrop(struct mm_struct *);
-static inline void mmdrop(struct mm_struct * mm)
+static inline void
+__mmdrop(struct mm_struct *mm)
+{
+	UNIMPLEMENTED();
+}
+
+static inline void
+mmdrop(struct mm_struct * mm)
 {
 	if (__predict_false(atomic_dec_and_test(&mm->mm_count)))
 		__mmdrop(mm);
 }
 
-extern void mmput(struct mm_struct *);
+static inline void
+mmput(struct mm_struct *mm)
+{
+	DODGY();
+	if (atomic_dec_and_test(&mm->mm_users)) {
+		mmdrop(mm);
+	}
+}
 
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
 

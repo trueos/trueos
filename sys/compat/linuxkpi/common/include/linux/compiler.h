@@ -33,6 +33,9 @@
 #define	_LINUX_COMPILER_H_
 
 #include <sys/cdefs.h>
+#include <sys/types.h>
+#include <sys/systm.h>
+#include <sys/syslog.h>
 
 #define __user
 #define __kernel
@@ -76,7 +79,11 @@
 #define ___PASTE(a,b) a##b
 #define __PASTE(a,b) ___PASTE(a,b)
 
-	
+
+#define UNIMPLEMENTED()	\
+	log(LOG_WARNING, "%s not implemented -- see your local kernel hacker", __FUNCTION__)
+#define DODGY()	\
+	log(LOG_WARNING, "%s is implemented but dodgy -- see your local kernel hacker", __FUNCTION__)
 #define	ACCESS_ONCE(x)			(*(volatile __typeof(x) *)&(x))
   
 #define	WRITE_ONCE(x,v) do {		\

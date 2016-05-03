@@ -605,8 +605,33 @@ pci_write_config_dword(struct pci_dev *pdev, int where, u32 val)
 	return (0);
 }
 
+static inline int
+pci_bus_read_config(struct pci_bus *bus, unsigned int devfn,
+		    int where, uint32_t *val, int size)
+{
+	device_t dev;
+	int dom, busid, slot, func;
 
+	dom = pci_get_domain(bus->self->dev.bsddev);
+	busid = pci_get_bus(bus->self->dev.bsddev);
+	slot = ((devfn >> 3) & 0x1f);
+	func = devfn & 0x7;
+	dev = pci_find_dbsf(dom, busid, slot, func);
+	*val = pci_read_config(dev, where, size);
+	return (0);
+}
 
+static inline int
+pci_bus_read_config_word(struct pci_bus *bus, unsigned int devfn, int where, u16 *val)
+{
+	return (pci_bus_read_config(bus, devfn, where, (uint32_t *)val, 2));
+}
+
+static inline int
+pci_bus_read_config_byte(struct pci_bus *bus, unsigned int devfn, int where, u8 *val)
+{
+	return (pci_bus_read_config(bus, devfn, where, (uint32_t *)val, 1));
+}
 
 extern struct pci_dev *pci_get_bus_and_slot(unsigned int bus, unsigned int devfn);
 
@@ -950,9 +975,10 @@ int pci_bus_write_config_dword(struct pci_bus *bus, unsigned int devfn,
 int pci_generic_config_read(struct pci_bus *bus, unsigned int devfn,
 			       int where, u32 val);
 
-static inline bool pci_is_root_bus(struct pci_bus *pbus){
-	panic("IMPLEMENT ME!");
-	return false;
+static inline bool pci_is_root_bus(struct pci_bus *pbus)
+{
+	UNIMPLEMENTED();
+	return (false);
 }
 
 #endif	/* _LINUX_PCI_H_ */

@@ -169,7 +169,7 @@ dma_get_sgtable_attrs(struct device *dev, struct sg_table *sgt, void *cpu_addr,
 					attrs);
 	return dma_common_get_sgtable(dev, sgt, cpu_addr, dma_addr, size);
 #endif
-	panic("XXX implement me!");
+	UNIMPLEMENTED();
 	return (0);
 }
 
@@ -186,7 +186,7 @@ static inline void *dma_alloc_wc(struct device *dev, size_t size,
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
 	return dma_alloc_attrs(dev, size, dma_addr, gfp, &attrs);
 #endif
-	panic("XXX implement me");
+	UNIMPLEMENTED();
 	return (NULL);
 }
 #ifndef dma_alloc_writecombine
@@ -196,7 +196,7 @@ static inline void *dma_alloc_wc(struct device *dev, size_t size,
 static inline void dma_free_wc(struct device *dev, size_t size,
 			       void *cpu_addr, dma_addr_t dma_addr)
 {
-	panic("XXX implement me");
+	UNIMPLEMENTED();
 #if 0
 	DEFINE_DMA_ATTRS(attrs);
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
@@ -219,7 +219,7 @@ static inline int dma_mmap_wc(struct device *dev,
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
 	return dma_mmap_attrs(dev, vma, cpu_addr, dma_addr, size, &attrs);
 #endif
-	panic("XXX implement me!!!");
+	UNIMPLEMENTED();
 	return (0);
 }
 /* XXX This only works with no iommu. */

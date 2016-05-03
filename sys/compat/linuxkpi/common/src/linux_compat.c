@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/workqueue.h>
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
+#include <linux/async.h>
 
 #include <vm/vm_pager.h>
 
@@ -73,6 +74,7 @@ extern u_int cpu_clflush_line_size;
 
 struct workqueue_struct *system_long_wq;
 struct workqueue_struct *system_wq;
+struct workqueue_struct *system_unbound_wq;
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 
@@ -1303,6 +1305,58 @@ __unregister_chrdev(unsigned int major, unsigned int baseminor,
 	cdev_del(cdev);
 }
 
+static DECLARE_WAIT_QUEUE_HEAD(async_done);
+static async_cookie_t nextcookie;
+static atomic_t entry_count;
+
+void
+async_synchronize_full(void)
+{
+	UNIMPLEMENTED();
+}
+
+static void
+async_run_entry_fn(struct work_struct *work)
+{
+	struct async_entry *entry; 	
+
+	entry  = container_of(work, struct async_entry, work);
+	entry->func(entry->data, entry->cookie);
+	kfree(entry);
+	atomic_dec(&entry_count);
+	wake_up(&async_done);
+}
+
+async_cookie_t
+async_schedule(async_func_t func, void *data)
+{
+	struct async_entry *entry;
+	async_cookie_t newcookie;
+
+	DODGY();
+	entry = kzalloc(sizeof(struct async_entry), GFP_ATOMIC);
+
+	if (entry == NULL) {
+		sx_xlock(&linux_global_rcu_lock);
+		nextcookie++;
+		sx_xunlock(&linux_global_rcu_lock);
+		newcookie = nextcookie;
+		func(data, newcookie);
+		return (newcookie);
+	}
+
+	INIT_WORK(&entry->work, async_run_entry_fn);
+	entry->func = func;
+	entry->data = data;
+	sx_xlock(&linux_global_rcu_lock);
+	atomic_inc(&entry_count);
+	newcookie = entry->cookie = nextcookie++;
+	sx_xunlock(&linux_global_rcu_lock);
+	current->flags |= PF_USED_ASYNC;
+	queue_work(system_unbound_wq, &entry->work);
+	return (newcookie);
+}
+
 static void
 linux_compat_init(void *arg)
 {
@@ -1313,7 +1367,7 @@ linux_compat_init(void *arg)
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	system_long_wq = alloc_workqueue("events_long", 0, 0);
 	system_wq = alloc_workqueue("events", 0, 0);
-
+	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
 	INIT_LIST_HEAD(&cdev_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
@@ -1336,6 +1390,7 @@ linux_compat_init(void *arg)
 	for (i = 0; i < VMMAP_HASH_SIZE; i++)
 		LIST_INIT(&vmmaphead[i]);
 }
+
 SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);
 
 static void

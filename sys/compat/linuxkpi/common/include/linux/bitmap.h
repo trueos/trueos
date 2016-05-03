@@ -102,8 +102,6 @@ extern void __bitmap_shift_left(unsigned long *dst, const unsigned long *src,
 				unsigned int shift, unsigned int nbits);
 extern int __bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
 			const unsigned long *bitmap2, unsigned int nbits);
-extern void __bitmap_or(unsigned long *dst, const unsigned long *bitmap1,
-			const unsigned long *bitmap2, unsigned int nbits);
 extern void __bitmap_xor(unsigned long *dst, const unsigned long *bitmap1,
 			const unsigned long *bitmap2, unsigned int nbits);
 extern int __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
@@ -296,6 +294,14 @@ static inline int bitmap_and(unsigned long *dst, const unsigned long *src1,
 	if (small_const_nbits(nbits))
 		return (*dst = *src1 & *src2 & BITMAP_LAST_WORD_MASK(nbits)) != 0;
 	return __bitmap_and(dst, src1, src2, nbits);
+}
+
+static inline void
+__bitmap_or(unsigned long *dst, const unsigned long *bitmap1,
+	    const unsigned long *bitmap2, unsigned int bits)
+{
+	for (int i = 0; i < __bitset_words(bits); i++)
+		dst[i] = bitmap1[i] | bitmap2[i];
 }
 
 static inline void bitmap_or(unsigned long *dst, const unsigned long *src1,
