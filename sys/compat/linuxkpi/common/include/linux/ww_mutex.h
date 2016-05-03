@@ -60,6 +60,11 @@ struct ww_acquire_ctx {
 /*
  * XXX FIX ME
  */
+static inline void
+ww_acquire_init(struct ww_acquire_ctx *ctx, struct ww_class *ww_class)
+{
+	UNIMPLEMENTED();
+}
 
 static inline void
 ww_acquire_fini(struct ww_acquire_ctx *ctx)
