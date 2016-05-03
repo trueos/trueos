@@ -180,7 +180,6 @@ drm_pci_device_is_pcie(struct drm_device *dev)
 	return (drm_device_find_capability(dev, PCIY_EXPRESS));
 }
 
-#if 0
 static bool
 dmi_found(const struct dmi_system_id *dsi)
 {
@@ -226,7 +225,6 @@ out:
 	return (res);
 }
 
-
 bool
 dmi_check_system(const struct dmi_system_id *sysid)
 {
@@ -243,7 +241,7 @@ dmi_check_system(const struct dmi_system_id *sysid)
 	return (res);
 }
 
-#endif
+
 #if 0
 void
 drm_clflush_pages(vm_page_t *pages, unsigned long num_pages)
@@ -255,7 +253,6 @@ drm_clflush_pages(vm_page_t *pages, unsigned long num_pages)
 	DRM_ERROR("drm_clflush_pages not implemented on this architecture");
 #endif
 }
-
 
 void
 drm_clflush_sg(struct sg_table *st)
