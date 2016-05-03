@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <drm/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/intel_drv.h>
-
+#ifdef __notyet__
 typedef struct _drm_i915_cmdbuffer32 {
 	u32 buf;		/* pointer to userspace command buffer */
 	int sz;			/* nr bytes in buf */
@@ -66,6 +66,7 @@ static int compat_i915_cmdbuffer(struct drm_device *dev, void *data, struct drm_
 
 	return i915_cmdbuffer(dev, (void *)&cmdbuffer, file_priv);
 }
+#endif
 
 typedef struct drm_i915_getparam32 {
 	int param;
@@ -94,9 +95,10 @@ typedef struct drm_i915_mem_alloc32 {
 	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
 
 struct drm_ioctl_desc i915_compat_ioctls[] = {
+#ifdef __notyet__	
 	DRM_IOCTL_DEF(DRM_I915_CMDBUFFER, compat_i915_cmdbuffer, DRM_AUTH),
+#endif	
 	DRM_IOCTL_DEF(DRM_I915_GETPARAM, compat_i915_getparam, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I915_IRQ_EMIT, compat_i915_irq_emit, DRM_AUTH)
 };
 int i915_compat_ioctls_nr = ARRAY_SIZE(i915_compat_ioctls);
 
