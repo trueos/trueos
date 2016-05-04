@@ -277,7 +277,7 @@ static inline gfp_t mapping_gfp_mask(struct address_space *m)
 {
 	return (0);
 }
-void shmem_truncate_range(struct vnode *, int, loff_t);
+void shmem_truncate_range(struct vnode *, loff_t, loff_t);
 /*
   void shmem_truncate_range(struct vnode *, int, loff_t) =>
   	vm_obj = obj->base.i_mapping.vm_obj;

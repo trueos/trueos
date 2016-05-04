@@ -45,14 +45,27 @@ enum gpiod_flags {
 int gpiod_count(struct device *dev, const char *con_id);
 
 /* Acquire and dispose GPIOs */
-struct gpio_desc *__must_check gpiod_get(struct device *dev,
-					 const char *con_id,
-					 enum gpiod_flags flags);
-void gpiod_put(struct gpio_desc *desc);
+static inline struct gpio_desc *
+gpiod_get(struct device *dev, const char *con_id, enum gpiod_flags flags)
+{
+	UNIMPLEMENTED();
+	return (ERR_PTR(-ENOENT));
+}
+static inline void
+gpiod_put(struct gpio_desc *desc)
+{
+	UNIMPLEMENTED();
+}
 
 /* Value get/set from sleeping context */
 int gpiod_get_value_cansleep(const struct gpio_desc *desc);
-void gpiod_set_value_cansleep(struct gpio_desc *desc, int value);
+
+static inline void
+gpiod_set_value_cansleep(struct gpio_desc *desc, int value)
+{
+	UNIMPLEMENTED();
+}
+
 void gpiod_set_array_value_cansleep(unsigned int array_size,
 				    struct gpio_desc **desc_array,
 				    int *value_array);

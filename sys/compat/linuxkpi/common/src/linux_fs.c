@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
+#include <linux/mm.h>
 
 
 #include <vm/vm.h>
@@ -57,7 +58,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_map.h>
 
+
+static MALLOC_DEFINE(M_LKFS, "lkfs", "lkpi fs");
+uma_zone_t vnode_zone;
 
 struct page *
 shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
@@ -95,11 +100,126 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 struct linux_file *
 shmem_file_setup(char *name, int size, int flags)
 {
-#ifdef notyet
-	file_inode(obj->filp)->i_mapping = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
+	struct linux_file *filp;
+	struct vnode *vp;
+
+	if ((filp = malloc(sizeof(*filp), M_LKFS, M_NOWAIT|M_ZERO)) == NULL)
+		return (NULL);
+
+	if ((vp = uma_zalloc(vnode_zone, M_NOWAIT)) == NULL)
+		goto err_1;
+
+	filp->f_dentry = &filp->f_dentry_store;
+	filp->f_vnode = vp;
+	file_inode(filp)->i_mapping = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
 	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
 
-#endif
+	if (file_inode(filp)->i_mapping == NULL)
+		goto err_2;
+
+	return (filp);
+err_2:
+	uma_zfree(vnode_zone, vp);
+err_1:
+	free(filp, M_LKFS);
 	return (NULL);
 }
 
+unsigned long
+invalidate_mapping_pages(vm_object_t obj, pgoff_t start, pgoff_t end)
+{
+	int start_count, end_count;
+
+	VM_OBJECT_WLOCK(obj);
+	start_count = obj->resident_page_count;
+	vm_object_page_remove(obj, start, end, false);
+	end_count = obj->resident_page_count;
+	VM_OBJECT_WUNLOCK(obj);
+
+	return (start_count - end_count);
+}
+
+void
+shmem_truncate_range(struct vnode *vp, loff_t lstart, loff_t lend)
+{
+	vm_object_t vm_obj;
+	vm_pindex_t start = (lstart + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	vm_pindex_t end = (lend + 1) >> PAGE_SHIFT;
+
+	vm_obj = vp->i_mapping;
+	(void)invalidate_mapping_pages(vm_obj, start, end);
+}
+
+static int
+__get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages, int write,
+			  struct page **pages)
+{
+	int count, len;
+	vm_prot_t prot;
+
+	prot = VM_PROT_READ;
+	if (write)
+		prot |= VM_PROT_WRITE;
+	len = nr_pages << PAGE_SHIFT;
+	count = vm_fault_quick_hold_pages(map, start, len, prot, pages, nr_pages);
+
+	return (count == -1 ? -EFAULT : count);
+}
+
+int
+__get_user_pages_fast(unsigned long start, int nr_pages, int write,
+			  struct page **pages)
+
+{
+	vm_map_t map;
+	vm_page_t *ma, *mp;
+	vm_offset_t va, end;
+	int count;
+	vm_prot_t prot;
+
+	if (nr_pages == 0)
+		return (0);
+
+	count = 0;
+	ma = pages;
+	va = start;
+	map = &curthread->td_proc->p_vmspace->vm_map;
+	end = start + (nr_pages << PAGE_SHIFT);
+	if (start < vm_map_min(map) ||  end > vm_map_max(map))
+		return (-EINVAL);
+	prot = VM_PROT_READ;
+	if (write)
+		prot |= VM_PROT_WRITE;
+
+	for (mp = ma, va = start; va < end; mp++, va += PAGE_SIZE) {
+		*mp = pmap_extract_and_hold(map->pmap, va, prot);
+		if (*mp != NULL)
+			count++;
+		else if ((prot & VM_PROT_WRITE) != 0 &&
+		    (*mp)->dirty != VM_PAGE_BITS_ALL) {
+			/*
+			 * Explicitly dirty the physical page.  Otherwise, the
+			 * caller's changes may go unnoticed because they are
+			 * performed through an unmanaged mapping or by a DMA
+			 * operation.
+			 *
+			 * The object lock is not held here.
+			 * See vm_page_clear_dirty_mask().
+			 */
+			vm_page_dirty(*mp);
+		}
+	}
+	return (count);
+}
+
+long
+get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
+		      unsigned long start, unsigned long nr_pages,
+		      int write, int force, struct page **pages,
+		      struct vm_area_struct **vmas)
+{
+	vm_map_t map;
+
+	map = &tsk->task_thread->td_proc->p_vmspace->vm_map;
+	return (__get_user_pages_internal(map, start, nr_pages, write, pages));
+}
