@@ -1571,7 +1571,7 @@ struct amdgpu_pm {
 	bool                    dpm_enabled;
 	bool                    sysfs_initialized;
 	struct amdgpu_dpm       dpm;
-	const struct linux_firmware	*fw;	/* SMC firmware */
+	const struct firmware	*fw;	/* SMC firmware */
 	uint32_t                fw_version;
 	const struct amdgpu_dpm_funcs *funcs;
 	uint32_t                pcie_gen_mask;
