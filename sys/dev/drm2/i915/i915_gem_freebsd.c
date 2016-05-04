@@ -351,3 +351,6 @@ struct cdev_pager_ops i915_gem_pager_ops = {
 	.cdev_pg_dtor	= i915_gem_pager_dtor
 };
 
+MODULE_DEPEND(i915kms, drmn, 1, 1, 1);
+MODULE_DEPEND(i915kms, agp, 1, 1, 1);
+MODULE_DEPEND(i915kms, linuxkpi, 1, 1, 1);
