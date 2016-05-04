@@ -1672,6 +1672,7 @@ static const struct vm_operations_struct i915_gem_vm_ops = {
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
 };
+#endif
 
 static const struct file_operations i915_driver_fops = {
 	.owner = THIS_MODULE,
@@ -1686,7 +1687,6 @@ static const struct file_operations i915_driver_fops = {
 #endif
 	.llseek = noop_llseek,
 };
-#endif
 
 
 #ifdef COMPAT_FREEBSD32
@@ -1719,13 +1719,10 @@ static struct drm_driver driver = {
 #elif defined(__FreeBSD__)
 	.gem_pager_ops	= &i915_gem_pager_ops,
 #endif
-#ifdef notyet	
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = i915_gem_prime_export,
 	.gem_prime_import = i915_gem_prime_import,
-#endif
-	
 	.dumb_create = i915_gem_dumb_create,
 	.dumb_map_offset = i915_gem_mmap_gtt,
 	.dumb_destroy = drm_gem_dumb_destroy,
@@ -1734,9 +1731,7 @@ static struct drm_driver driver = {
 	.compat_ioctls  = i915_compat_ioctls,
 	.num_compat_ioctls = &i915_compat_ioctls_nr,
 #endif
-#ifdef __linux__
 	.fops = &i915_driver_fops,
-#endif
 #ifdef notyet
 #ifdef __FreeBSD__
 	.sysctl_init	= i915_sysctl_init,
