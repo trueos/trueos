@@ -215,6 +215,8 @@ MALLOC_DECLARE(DRM_MEM_CTXBITMAP);
 MALLOC_DECLARE(DRM_MEM_HASHTAB);
 MALLOC_DECLARE(DRM_MEM_KMS);
 
+extern devclass_t drm_devclass;
+
 typedef struct drm_pci_id_list
 {
 	int vendor;
@@ -222,6 +224,7 @@ typedef struct drm_pci_id_list
 	long driver_private;
 	char *name;
 } drm_pci_id_list_t;
+
 
 #ifdef __i386__
 #define	CONFIG_X86	1
@@ -235,6 +238,7 @@ typedef struct drm_pci_id_list
 #endif
 
 #if defined(__i386__) || defined(__amd64__)
+#define CONFIG_PCI
 #define	CONFIG_ACPI
 #define	CONFIG_DRM_I915_KMS
 #undef	CONFIG_INTEL_IOMMU

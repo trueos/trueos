@@ -75,7 +75,14 @@ mapping_gfp_constraint(struct address_space *mapping, gfp_t gfp_mask)
 	return (0);
 }
 
-void release_pages(struct page **pages, int nr, bool cold);
+static inline void
+release_pages(struct page **pages, int nr, bool cold)
+{
+	int i;
+
+	for (i = 0; i < nr; i++, pages++)
+		__free_hot_cold_page(*pages);
+}
 
 
 #endif

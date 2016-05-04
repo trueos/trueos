@@ -250,12 +250,25 @@ iput(struct inode *inode)
 	vrele(inode);
 }
 
+static inline struct linux_file *
+get_file(struct linux_file *f)
+{
+	fhold(f->_file);
+	return (f);
+}
+
 extern loff_t default_llseek(struct file *file, loff_t offset, int whence);
 
 static inline loff_t 
 no_llseek(struct file *file, loff_t offset, int whence)
 {
         return -ESPIPE;
+}
+
+static inline loff_t 
+noop_llseek(struct file *file, loff_t offset, int whence)
+{
+        return file->_file->f_offset;
 }
 
 
@@ -277,7 +290,7 @@ static inline gfp_t mapping_gfp_mask(struct address_space *m)
 {
 	return (0);
 }
-void shmem_truncate_range(struct vnode *, int, loff_t);
+void shmem_truncate_range(struct vnode *, loff_t, loff_t);
 /*
   void shmem_truncate_range(struct vnode *, int, loff_t) =>
   	vm_obj = obj->base.i_mapping.vm_obj;
