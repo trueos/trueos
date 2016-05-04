@@ -155,6 +155,10 @@ struct pci_device_id {
 #define	PCI_EXP_LNKCAP2_SLS_5_0GB 0x04	/* Supported Link Speed 5.0GT/s */
 #define	PCI_EXP_LNKCAP2_SLS_8_0GB 0x08	/* Supported Link Speed 8.0GT/s */
 
+#define PCI_EXP_LNKCTL_HAWD	PCIEM_LINK_CTL_HAWD
+#define PCI_EXP_LNKCAP_CLKPM	0x00040000
+#define PCI_EXP_DEVSTA_TRPND	0x0020
+
 enum pci_bus_speed {
 	PCI_SPEED_UNKNOWN = -1,
 	PCIE_SPEED_2_5GT,

@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/drm2/amd/amdgpu
+.PATH:	${.CURDIR}/../../../../dev/drm2/amd/amdgpu
 
-KMOD	= amdgpukms
+KMOD	= amdgpu
 
 # XXX we do not enable this yet
 #       amdgpu_acp.h \
@@ -16,6 +16,11 @@ SRCS	= \
         amdgpu_atombios.h \
         amdgpu_atombios.c \
         amdgpu_bios.c \
+	cik.h \
+	cik.c \
+	cik_dpm.h \
+	cik_ih.h \
+	cik_ih.c \
         cz_dpm.h \
         cz_dpm.c \
         cz_ih.h \
@@ -70,15 +75,15 @@ SRCS	= \
 	vi_dpm.h \
 	vid.h
 
-CFLAGS+=	-I${.CURDIR}/../../../compat/linuxkpi/common/include
-CFLAGS+=	-I${.CURDIR}/../../../compat/linuxkpi/common/include/drm
-CFLAGS+=	-I${.CURDIR}/../../../compat/linuxkpi/common/include/uapi
-CFLAGS+=	-I${.CURDIR}/../../../dev/drm2/amd/amdgpu
-CFLAGS+=	-I${.CURDIR}/../../../dev/drm2/amd/include
-CFLAGS+=	-I${.CURDIR}/../../../dev/drm2/amd/acp/include
-CFLAGS+=	-I${.CURDIR}/../../../dev/drm2/amd/powerplay/inc
-CFLAGS+=	-I${.CURDIR}/../../../dev/drm2/amd/scheduler
-CFLAGS+=	-I${.CURDIR}/../../../dev/drm2/amd/include/asic_reg
+CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
+CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
+CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/uapi
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/amdgpu
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/include
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/acp/include
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/powerplay/inc
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/scheduler
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/include/asic_reg
 CFLAGS+=	'-DKBUILD_MODNAME="${KMOD}"'
 
 SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.h \
