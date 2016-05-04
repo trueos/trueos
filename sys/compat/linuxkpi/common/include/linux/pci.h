@@ -981,4 +981,9 @@ static inline bool pci_is_root_bus(struct pci_bus *pbus)
 	return (false);
 }
 
+static inline void *pci_platform_rom(struct pci_dev *pdev, size_t *size){
+	UNIMPLEMENTED();
+        return (false);
+}
+
 #endif	/* _LINUX_PCI_H_ */
