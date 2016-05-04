@@ -41,7 +41,6 @@
  * be moved to FW_FAILED.
  */
 
-#define firmware linux_firmware
 #define I915_CSR_SKL "i915/skl_dmc_ver1.bin"
 #define I915_CSR_BXT "i915/bxt_dmc_ver1.bin"
 

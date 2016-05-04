@@ -6,6 +6,7 @@
 #include <sys/firmware.h>
 
 #include <linux/firmware.h>
+#undef firmware
 
 MALLOC_DEFINE(M_LKPI_FW, "lkpifw", "linux kpi firmware");
 

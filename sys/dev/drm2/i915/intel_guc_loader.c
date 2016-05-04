@@ -30,7 +30,6 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_guc.h"
-#define firmware linux_firmware
 
 /**
  * DOC: GuC-specific firmware loader

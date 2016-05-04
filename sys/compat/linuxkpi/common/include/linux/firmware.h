@@ -48,5 +48,5 @@ int request_firmware_direct(const struct linux_firmware **fw, const char *name,
 			    struct device *device);
 
 void release_firmware(const struct linux_firmware *fw);
-
+#define firmware linux_firmware
 #endif
