@@ -121,6 +121,9 @@ static inline void
 linux_list_add(struct list_head *new, struct list_head *prev,
     struct list_head *next)
 {
+	MPASS(new != NULL);
+	MPASS(prev != NULL);
+	MPASS(next != NULL);
 
 	next->prev = new;
 	new->next = next;
