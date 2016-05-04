@@ -76,7 +76,7 @@ static inline void
 __ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class, char *name)
 {
 	DODGY();
-	linux_mutex_init(lock, name);
+	linux_mutex_init(lock, name, SX_RECURSE);
 }
 
 #define ww_mutex_init(l, w) __ww_mutex_init(l, w, #l)
