@@ -25,6 +25,8 @@
 #include "amdgpu.h"
 #include "smu8.h"
 #include "smu8_fusion.h"
+#include "cz_dpm.h"
+#include "vi_dpm.h"
 #include "cz_ppsmc.h"
 #include "cz_smumgr.h"
 #include "smu_ucode_xfer_cz.h"

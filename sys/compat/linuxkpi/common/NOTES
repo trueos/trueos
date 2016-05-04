@@ -3,12 +3,12 @@
 kthread:
 in_atomic
 
-pwm, acexcep, acpi_bus, actypes: 
+pwm, acexcep, acpi_bus, actypes, fdtable: 
 everything
 
 pm, interval_tree: stub structs
 
-pci: pci_is_root_bus
+pci: pci_is_root_bus, pci_platform_rom
 
 gcd: gcd
 

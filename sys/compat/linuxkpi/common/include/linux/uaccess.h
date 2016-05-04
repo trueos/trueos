@@ -32,6 +32,8 @@
 #ifndef	_LINUX_UACCESS_H_
 #define	_LINUX_UACCESS_H_
 
+#include <sys/types.h>
+#include <vm/vm_extern.h>
 #include <linux/compiler.h>
 
 #define	__get_user(_x, _p) ({				\

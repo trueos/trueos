@@ -23,6 +23,8 @@
 #ifndef __AMDGPU_UCODE_H__
 #define __AMDGPU_UCODE_H__
 
+#include <linux/firmware.h>
+
 struct common_firmware_header {
 	uint32_t size_bytes; /* size of the entire header+image(s) in bytes */
 	uint32_t header_size_bytes; /* size of just the header in bytes */
@@ -155,7 +157,7 @@ struct amdgpu_firmware_info {
 	/* ucode ID */
 	enum AMDGPU_UCODE_ID ucode_id;
 	/* request_firmware */
-	const struct firmware *fw;
+	const struct linux_firmware *fw;
 	/* starting mc address */
 	uint64_t mc_addr;
 	/* kernel linear address */
@@ -167,7 +169,7 @@ void amdgpu_ucode_print_smc_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_gfx_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr);
-int amdgpu_ucode_validate(const struct firmware *fw);
+int amdgpu_ucode_validate(const struct linux_firmware *fw);
 bool amdgpu_ucode_hdr_version(union amdgpu_firmware_header *hdr,
 				uint16_t hdr_major, uint16_t hdr_minor);
 int amdgpu_ucode_init_bo(struct amdgpu_device *adev);
