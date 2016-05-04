@@ -36,3 +36,4 @@ CFLAGS += -O0
 .include <bsd.kmod.mk>
 CWARNFLAGS 		+= -Wno-pointer-arith
 CWARNFLAGS.linux_string.c=	-Wno-cast-qual
+CWARNFLAGS.linux_acpi.c=	-Wno-cast-qual
