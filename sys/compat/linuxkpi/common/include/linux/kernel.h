@@ -43,14 +43,14 @@
 #include <sys/syslog.h>
 #include <sys/kdb.h>
 
-#include <linux/bitops.h>
+
 #include <linux/bug.h>
-#include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/kthread.h>
 #include <linux/types.h>
+#include <linux/compiler.h>
+#include <linux/bitops.h>
 #include <linux/jiffies.h>
-#include <linux/wait.h>
 #include <linux/log2.h>
 #include <linux/kconfig.h>
 #include <linux/printk.h> 

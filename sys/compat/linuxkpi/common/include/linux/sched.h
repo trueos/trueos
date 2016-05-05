@@ -57,7 +57,7 @@
 #define TASK_COMM_LEN 16
 
 #define PF_EXITING	0x00000004
-#define PF_USED_ASYNC	0x00004000
+#define PF_USED_ASYNC	TDP_UNUSED9
 
 
 #define task_pid(task) ((task)->task_thread->td_proc->p_pid)
@@ -197,7 +197,7 @@ schedule_timeout_interruptible(signed long timeout)
 
 	__set_current_state(TASK_UNINTERRUPTIBLE);
 	mtx_lock(&Giant);
-	ret = msleep(&Giant, &Giant, PCATCH | PDROP , "lstimi", timeout);
+	ret = _sleep(&Giant, &(Giant.lock_object), PCATCH | PDROP , "lstimi", tick_sbt * timeout, 0 , C_HARDCLOCK);
 	
 	return (ret);
 }
