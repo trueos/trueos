@@ -24,6 +24,7 @@ SRCS	= \
 	amdgpu_drv.c \
 	amdgpu_encoders.c \
 	amdgpu_fb.c \
+	amdgpu_fence.c \
 	amdgpu_ring.c \
 	amdgpu_sa.c \
 	amdgpu_test.c \
@@ -114,6 +115,7 @@ CWARNFLAGS.amdgpu_acpi.c=	-Wno-int-conversion -Wno-missing-prototypes -Wno-unuse
 CWARNFLAGS.amdgpu_amdkfd.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_cs.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_device.c=	-Wno-format -Wno-cast-qual
+CWARNFLAGS.amdgpu_fence.c=	-Wno-format
 CWARNFLAGS.amdgpu_ring.c=	-Wno-cast-qual
 CWARNFLAGS.amdgpu_ucode.c=	-Wno-incompatible-pointer-types-discards-qualifiers -Wno-cast-qual
 CWARNFLAGS.amdgpu_uvd.c=	-Wno-format
