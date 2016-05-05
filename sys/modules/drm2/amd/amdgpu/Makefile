@@ -66,6 +66,8 @@ SRCS	= \
 	iceland_smc.c \
 	kv_dpm.c \
 	kv_smc.c \
+	sdma_v2_4.c \
+	sdma_v3_0.c \
 	tonga_dpm.c \
 	tonga_ih.c \
 	tonga_smc.c \
