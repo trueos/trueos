@@ -423,13 +423,9 @@ EXPORT_SYMBOL(drm_gem_handle_create);
 void
 drm_gem_free_mmap_offset(struct drm_gem_object *obj)
 {
-#ifdef __notyet__
 	struct drm_device *dev = obj->dev;
 
 	drm_vma_offset_remove(dev->vma_offset_manager, &obj->vma_node);
-#else
-	panic("XXX implement me!!!");
-#endif
 }
 EXPORT_SYMBOL(drm_gem_free_mmap_offset);
 
@@ -450,14 +446,10 @@ EXPORT_SYMBOL(drm_gem_free_mmap_offset);
 int
 drm_gem_create_mmap_offset_size(struct drm_gem_object *obj, size_t size)
 {
-#ifdef __notyet__
 	struct drm_device *dev = obj->dev;
 
 	return drm_vma_offset_add(dev->vma_offset_manager, &obj->vma_node,
 				  size / PAGE_SIZE);
-#else
-	panic("XXX implement me!!!");
-#endif
 }
 EXPORT_SYMBOL(drm_gem_create_mmap_offset_size);
 
@@ -772,13 +764,9 @@ drm_gem_object_release(struct drm_gem_object *obj)
 
 	if (obj->filp)
 		fput(obj->filp);
-#if 0		
-		vm_object_deallocate(obj->i_mapping.vm_obj);
-#endif	
-#ifdef notyet
+
 	/* do we need anything else ? */
 	drm_gem_free_mmap_offset(obj);
-#endif
 }
 EXPORT_SYMBOL(drm_gem_object_release);
 
