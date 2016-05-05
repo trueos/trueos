@@ -12,7 +12,7 @@
 static inline void
 pm_runtime_mark_last_busy(struct device *dev)
 {
-	UNIMPLEMENTED();
+	UNIMPLEMENTED_ONCE();
 }
 
 
@@ -28,7 +28,7 @@ pm_runtime_mark_last_busy(struct device *dev)
 static inline int
 __pm_runtime_suspend(struct device *dev, int rpmflags)
 {
-	UNIMPLEMENTED();
+	UNIMPLEMENTED_ONCE();
 	return (0);
 }
 extern int pm_runtime_get_if_in_use(struct device *dev);
@@ -48,7 +48,7 @@ pm_runtime_set_autosuspend_delay(struct device *dev, int delay)
 static inline int
 __pm_runtime_resume(struct device *dev, int rpmflags)
 {
-	UNIMPLEMENTED();
+	UNIMPLEMENTED_ONCE();
 	return (0);
 }
 
