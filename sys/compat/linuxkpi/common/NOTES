@@ -14,7 +14,7 @@ pm, interval_tree: stub structs
 
 pm_runtime: pm_runtime_forbid, pm_runtime_autosuspend
 
-pci: pci_is_root_bus, pci_platform_rom, pci_dev struct: d3_delay, pci_ignore_hotplug
+pci: pci_is_root_bus, pci_platform_rom, pci_dev struct: d3_delay, pci_ignore_hotplug, pci_alloc_consistent
 
 gcd: gcd
 

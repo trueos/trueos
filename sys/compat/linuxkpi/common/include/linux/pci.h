@@ -1006,4 +1006,12 @@ static inline void pci_ignore_hotplug(struct pci_dev *pdev){
 	UNIMPLEMENTED();
 }
 
+static inline void *
+pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
+                     dma_addr_t *dma_handle)
+{
+	UNIMPLEMENTED();
+	return NULL;
+}
+
 #endif	/* _LINUX_PCI_H_ */
