@@ -225,7 +225,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	adev->irq.msi_enabled = false;
 
 	if (amdgpu_msi_ok(adev)) {
-		int ret = pci_enable_msi(adev->pdev);
+		int ret = linux_pci_enable_msi(adev->pdev);
 		if (!ret) {
 			adev->irq.msi_enabled = true;
 			dev_info(adev->dev, "amdgpu: using MSI.\n");
@@ -263,7 +263,7 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 		drm_irq_uninstall(adev->ddev);
 		adev->irq.installed = false;
 		if (adev->irq.msi_enabled)
-			pci_disable_msi(adev->pdev);
+			linux_pci_disable_msi(adev->pdev);
 		flush_work(&adev->hotplug_work);
 	}
 

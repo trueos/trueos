@@ -13,9 +13,9 @@ SRCS	= \
         amdgpu_afmt.c \
         amdgpu_amdkfd.h \
         amdgpu_amdkfd.c \
-        amdgpu_atombios.h \
-        amdgpu_atombios.c \
-        amdgpu_bios.c \
+	amdgpu_atombios.h \
+	amdgpu_atombios.c \
+	amdgpu_bios.c \
 	amdgpu_cs.c \
 	amdgpu_ctx.c \
 	amdgpu_device.c \
@@ -31,6 +31,11 @@ SRCS	= \
 	amdgpu_i2c.c \
 	amdgpu_ib.c \
 	amdgpu_ih.c \
+	amdgpu_ioc32.c \
+	amdgpu_job.c \
+	amdgpu_pll.c \
+	amdgpu_powerplay.c \
+	amdgpu_prime.c \
 	amdgpu_ring.c \
 	amdgpu_sa.c \
 	amdgpu_test.c \
@@ -124,6 +129,9 @@ CWARNFLAGS.amdgpu_device.c=	-Wno-format -Wno-cast-qual
 CWARNFLAGS.amdgpu_fence.c=	-Wno-format
 CWARNFLAGS.amdgpu_gfx.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_ih.c=	-Wno-cast-qual
+CWARNFLAGS.amdgpu_ioc32.c=	-Wno-missing-prototypes
+CWARNFLAGS.amdgpu_pll.c=	-Wno-missing-prototypes
+CWARNFLAGS.amdgpu_pm.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_ring.c=	-Wno-cast-qual
 CWARNFLAGS.amdgpu_ucode.c=	-Wno-incompatible-pointer-types-discards-qualifiers -Wno-cast-qual
 CWARNFLAGS.amdgpu_uvd.c=	-Wno-format
