@@ -16,9 +16,16 @@ SRCS	= \
         amdgpu_atombios.h \
         amdgpu_atombios.c \
         amdgpu_bios.c \
+	amdgpu_cs.c \
+	amdgpu_ctx.c \
+	amdgpu_device.c \
+	amdgpu_display.c \
+	amdgpu_dpm.c \
+	amdgpu_drv.c \
+	amdgpu_encoders.c \
+	amdgpu_fb.c \
 	amdgpu_ring.c \
 	amdgpu_sa.c \
-	amdgpu_sync.c \
 	amdgpu_test.c \
 	amdgpu_ucode.c \
 	amdgpu_uvd.c \
@@ -105,10 +112,13 @@ CWARNFLAGS+=	-Wno-pointer-sign ${CWARNFLAGS.${.IMPSRC:T}}
 
 CWARNFLAGS.amdgpu_acpi.c=	-Wno-int-conversion -Wno-missing-prototypes -Wno-unused-variable
 CWARNFLAGS.amdgpu_amdkfd.c=	-Wno-missing-prototypes
+CWARNFLAGS.amdgpu_cs.c=	-Wno-missing-prototypes
+CWARNFLAGS.amdgpu_device.c=	-Wno-format -Wno-cast-qual
 CWARNFLAGS.amdgpu_ring.c=	-Wno-cast-qual
 CWARNFLAGS.amdgpu_ucode.c=	-Wno-incompatible-pointer-types-discards-qualifiers -Wno-cast-qual
 CWARNFLAGS.amdgpu_uvd.c=	-Wno-format
 CWARNFLAGS.amdgpu_vce.c=	-Wno-format
+CWARNFLAGS.amdgpu_test.c=	-Wno-format
 CWARNFLAGS.ci_dpm.c=	-Wno-unused-const-variable
 CWARNFLAGS.cz_smc.c=	-Wno-missing-prototypes
 CWARNFLAGS.fiji_smc.c=	-Wno-cast-qual

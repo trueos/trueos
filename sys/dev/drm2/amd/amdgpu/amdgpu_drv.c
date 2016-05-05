@@ -386,7 +386,7 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);
 
 	ret = amdgpu_suspend_kms(drm_dev, false, false);
-	pci_save_state(pdev);
+	linux_pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_ignore_hotplug(pdev);
 	pci_set_power_state(pdev, PCI_D3cold);
@@ -407,7 +407,7 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
 	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
+	linux_pci_restore_state(pdev);
 	ret = pci_enable_device(pdev);
 	if (ret)
 		return ret;
@@ -550,7 +550,7 @@ static struct pci_driver amdgpu_kms_pci_driver = {
 	.id_table = pciidlist,
 	.probe = amdgpu_pci_probe,
 	.remove = amdgpu_pci_remove,
-	.driver.pm = &amdgpu_pm_ops,
+	.linux_driver.pm = &amdgpu_pm_ops,
 };
 
 static int __init amdgpu_init(void)

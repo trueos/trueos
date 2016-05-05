@@ -307,6 +307,7 @@ struct pci_dev {
 	unsigned int		irq;
 	u8			revision;
 	struct linux_resource resource[DEVICE_COUNT_RESOURCE]; /* I/O and memory regions + expansion ROMs */
+	unsigned int		d3_delay;
 };
 
 static inline struct resource_list_entry *
@@ -991,6 +992,18 @@ static inline bool pci_is_root_bus(struct pci_bus *pbus)
 static inline void *pci_platform_rom(struct pci_dev *pdev, size_t *size){
 	UNIMPLEMENTED();
         return (false);
+}
+
+static inline void linux_pci_save_state(struct pci_dev *pdev){
+	UNIMPLEMENTED();
+}
+
+static inline void linux_pci_restore_state(struct pci_dev *pdev){
+	UNIMPLEMENTED();
+}
+
+static inline void pci_ignore_hotplug(struct pci_dev *pdev){
+	UNIMPLEMENTED();
 }
 
 #endif	/* _LINUX_PCI_H_ */

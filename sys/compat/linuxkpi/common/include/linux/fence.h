@@ -199,4 +199,24 @@ fence_put(struct fence *fence)
 }
 
 
+static inline signed long
+fence_wait_any_timeout(struct fence **fences, uint32_t count,
+                                   bool intr, signed long timeout){
+	panic("not implemented yet");
+	return (0);
+}
+
+static inline unsigned
+fence_context_alloc(unsigned num){
+	panic("not implemented yet");
+	return (0);
+}
+
+static inline int
+fence_add_callback(struct fence *fence, struct fence_cb *cb,
+                       fence_func_t func){
+	UNIMPLEMENTED();
+	return (0);
+}
+
 #endif

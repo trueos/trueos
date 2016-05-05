@@ -46,7 +46,7 @@ typedef struct {
 } wait_queue_t;
 
 typedef struct {
-	struct spinlock_t	lock;
+	spinlock_t	lock;
 	unsigned int	wchan;
 } wait_queue_head_t;
 
@@ -215,5 +215,9 @@ static inline void
 finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 {
 }
+
+#define wait_event_interruptible_locked(wq, condition) ({panic("implement me!!! XXX"); 0;})
+
+#define wake_up_all_locked(x) ({panic("implement me!!! XXX"); 0;})
 
 #endif
