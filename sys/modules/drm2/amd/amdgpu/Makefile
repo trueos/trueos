@@ -29,6 +29,7 @@ SRCS	= \
 	amdgpu_gem.c \
 	amdgpu_gfx.c \
 	amdgpu_i2c.c \
+	amdgpu_ib.c \
 	amdgpu_ring.c \
 	amdgpu_sa.c \
 	amdgpu_test.c \
