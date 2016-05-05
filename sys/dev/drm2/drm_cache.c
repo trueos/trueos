@@ -48,11 +48,14 @@ drm_clflush_page(struct page *page)
 
 	if (unlikely(page == NULL))
 		return;
-
+#ifdef __linux__
 	page_virtual = kmap_atomic(page);
 	for (i = 0; i < PAGE_SIZE; i += size)
 		clflushopt(page_virtual + i);
 	kunmap_atomic(page_virtual);
+#else
+	pmap_invalidate_cache_pages(&page, 1);
+#endif	
 }
 
 static void drm_cache_flush_clflush(struct page *pages[],
