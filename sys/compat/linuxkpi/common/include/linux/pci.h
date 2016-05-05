@@ -1002,4 +1002,8 @@ static inline void linux_pci_restore_state(struct pci_dev *pdev){
 	UNIMPLEMENTED();
 }
 
+static inline void pci_ignore_hotplug(struct pci_dev *pdev){
+	UNIMPLEMENTED();
+}
+
 #endif	/* _LINUX_PCI_H_ */

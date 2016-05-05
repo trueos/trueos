@@ -164,4 +164,15 @@ pm_generic_poweroff(struct device *dev)
 	return (pm && pm->poweroff ? pm->poweroff(dev) : 0);
 }
 
+static inline void
+pm_runtime_forbid(struct device *dev){
+	UNIMPLEMENTED();
+}
+
+static inline unsigned long
+pm_runtime_autosuspend(struct device *dev){
+	UNIMPLEMENTED();
+	return(0);
+}
+
 #endif /*  _LINUX_PM_RUNTIME_H_ */
