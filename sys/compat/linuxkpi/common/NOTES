@@ -1,16 +1,18 @@
 ### Stubbed implementations:
 
+efi: everything
+
 kthread:
 in_atomic
 
-fence: fence_wait_any_timeout
+fence: fence_wait_any_timeout, fence_context_alloc
 
 pwm, acexcep, acpi_bus, actypes, fdtable: 
 everything
 
 pm, interval_tree: stub structs
 
-pci: pci_is_root_bus, pci_platform_rom
+pci: pci_is_root_bus, pci_platform_rom, pci_dev struct: d3_delay
 
 gcd: gcd
 

@@ -203,7 +203,13 @@ static inline signed long
 fence_wait_any_timeout(struct fence **fences, uint32_t count,
                                    bool intr, signed long timeout){
 	panic("not implemented yet");
-	return (1);
+	return (0);
+}
+
+static inline unsigned
+fence_context_alloc(unsigned num){
+	panic("not implemented yet");
+	return (0);
 }
 
 #endif
