@@ -35,6 +35,8 @@
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
 
 #include <linux/page.h>
 
@@ -91,10 +93,18 @@ linux_get_page(gfp_t mask)
 static inline void
 __free_hot_cold_page(vm_page_t page)
 {
+	vm_object_t object;
 	MPASS(page->wire_count == 1);
+	/* XXX unsafe */
+	if ((object = page->object))
+		VM_OBJECT_WLOCK(object);
 
+	vm_page_lock(page);
 	vm_page_unwire(page, PQ_INACTIVE);
 	vm_page_free(page);
+	vm_page_unlock(page);
+	if (object)
+		VM_OBJECT_WUNLOCK(object);
 }
 
 static inline void
@@ -128,6 +138,9 @@ free_pages(uintptr_t addr, unsigned int order)
 
 #define __free_page(page) __free_pages((page), 0)
 #define free_page(addr) free_pages((addr), 0)
+
+extern void db_trace_self_depth();
+#define BACKTRACE() db_trace_self_depth(5)
 
 /*
  * Alloc pages allocates directly from the buddy allocator on linux so
