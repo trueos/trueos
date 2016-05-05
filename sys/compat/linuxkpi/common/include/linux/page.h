@@ -46,8 +46,8 @@
 
 extern vm_page_t vm_page_array;
 
-#define page_to_pfn(pp) OFF_TO_IDX(VM_PAGE_TO_PHYS(pp))
-#define pfn_to_page(pfn) (&vm_page_array[pfn])
+#define page_to_pfn(pp) (VM_PAGE_TO_PHYS((pp)) >> PAGE_SHIFT)
+#define pfn_to_page(pfn) (PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
 #define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
 
 typedef unsigned long pte_t;
