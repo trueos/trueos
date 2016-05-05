@@ -49,7 +49,8 @@ SRCS	= \
 	ci_smc.c \
 	cik.c \
 	cik_ih.c \
-        cz_dpm.c \
+	cik_sdma.c \
+	cz_dpm.c \
         cz_ih.c \
         cz_smc.c \
 	dce_v10_0.c \
