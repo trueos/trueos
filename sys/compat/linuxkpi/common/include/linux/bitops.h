@@ -315,7 +315,8 @@ enum {
         REG_OP_RELEASE,
 };
 
-static int __reg_op(unsigned long *bitmap, int pos, int order, int reg_op)
+static inline int
+__reg_op(unsigned long *bitmap, int pos, int order, int reg_op)
 {
         int nbits_reg;
         int index;
