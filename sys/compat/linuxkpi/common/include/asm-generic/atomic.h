@@ -25,4 +25,6 @@ static inline void atomic_##op(int i, atomic_t *v)                      \
 ATOMIC_OP(or, |)
 #endif
 
+#define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
+
 #endif

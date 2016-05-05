@@ -16,6 +16,8 @@ SRCS	= \
         amdgpu_atombios.h \
         amdgpu_atombios.c \
         amdgpu_bios.c \
+	amdgpu_ucode.c \
+	amdgpu_uvd.c \
 	ci_dpm.c \
 	ci_smc.c \
 	cik.h \
@@ -98,6 +100,8 @@ CWARNFLAGS+=	-Wno-pointer-sign ${CWARNFLAGS.${.IMPSRC:T}}
 
 CWARNFLAGS.amdgpu_acpi.c=	-Wno-int-conversion -Wno-missing-prototypes -Wno-unused-variable
 CWARNFLAGS.amdgpu_amdkfd.c=	-Wno-missing-prototypes
+CWARNFLAGS.amdgpu_ucode.c=	-Wno-incompatible-pointer-types-discards-qualifiers -Wno-cast-qual
+CWARNFLAGS.amdgpu_uvd.c=	-Wno-format
 CWARNFLAGS.ci_dpm.c=	-Wno-unused-const-variable
 CWARNFLAGS.cz_smc.c=	-Wno-missing-prototypes
 CWARNFLAGS.fiji_smc.c=	-Wno-cast-qual

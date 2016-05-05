@@ -5,6 +5,8 @@
 KMOD	= amdkfd
 
 SRCS	= \
+	kfd_dbgmgr.c \
+	kfd_device.c \
 	kfd_chardev.c \
 	kfd_dbgdev.c \
 	kfd_dbgmgr.c \
