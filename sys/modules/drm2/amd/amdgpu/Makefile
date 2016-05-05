@@ -11,9 +11,7 @@ SRCS	= \
 	amdgpu.h \
         amdgpu_acpi.c \
         amdgpu_afmt.c \
-        amdgpu_amdkfd.h \
         amdgpu_amdkfd.c \
-	amdgpu_atombios.h \
 	amdgpu_atombios.c \
 	amdgpu_bios.c \
 	amdgpu_cs.c \
@@ -42,66 +40,37 @@ SRCS	= \
 	amdgpu_ucode.c \
 	amdgpu_uvd.c \
 	amdgpu_vce.c \
+	atom.c \
 	ci_dpm.c \
 	ci_smc.c \
-	cik.h \
 	cik.c \
-	cik_dpm.h \
-	cik_ih.h \
 	cik_ih.c \
-        cz_dpm.h \
         cz_dpm.c \
-        cz_ih.h \
         cz_ih.c \
         cz_smc.c \
-        cz_smumgr.h \
-	dce_v10_0.h \
 	dce_v10_0.c \
-	dce_v11_0.h \
 	dce_v11_0.c \
-	dce_v8_0.h \
 	dce_v8_0.c \
 	fiji_dpm.c \
 	fiji_smc.c \
-	fiji_smum.h \
-	gfx_v7_0.h \
 	gfx_v7_0.c \
-	gfx_v8_0.h \
 	gfx_v8_0.c \
-	gmc_v7_0.h \
 	gmc_v7_0.c \
-	gmc_v8_0.h \
 	gmc_v8_0.c \
 	iceland_dpm.c \
-	iceland_ih.h \
 	iceland_ih.c \
-	iceland_sdma_pkt_open.h \
 	iceland_smc.c \
-	iceland_smumgr.h \
-	kv_dpm.h \
 	kv_dpm.c \
 	kv_smc.c \
-	smu_ucode_xfer_vi.h \
 	tonga_dpm.c \
-	tonga_ih.h \
 	tonga_ih.c \
-	tonga_sdma_pkt_open.h \
 	tonga_smc.c \
-	tonga_smum.h \
-	uvd_v4_2.h \
 	uvd_v4_2.c \
-	uvd_v5_0.h \
 	uvd_v5_0.c \
-	uvd_v6_0.h \
 	uvd_v6_0.c \
-	vce_v2_0.h \
 	vce_v2_0.c \
-	vce_v3_0.h \
 	vce_v3_0.c \
-	vi.h \
-	vi.c \
-	vi_dpm.h \
-	vid.h
+	vi.c
 
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
