@@ -23,6 +23,7 @@ SRCS	= \
 	amdgpu_dpm.c \
 	amdgpu_drv.c \
 	amdgpu_encoders.c \
+	amdgpu_fb.c \
 	amdgpu_ring.c \
 	amdgpu_sa.c \
 	amdgpu_test.c \
