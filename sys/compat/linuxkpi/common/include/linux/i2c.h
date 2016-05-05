@@ -219,4 +219,16 @@ i2c_unregister_device(struct i2c_client *client)
 	device_unregister(&client->dev);
 }
 
+static inline void *
+i2c_get_adapdata(const struct i2c_adapter *dev)
+{
+	return dev_get_drvdata(&dev->dev);
+}
+
+static inline void
+i2c_set_adapdata(struct i2c_adapter *dev, void *data)
+{
+	UNIMPLEMENTED();
+}
+
 #endif

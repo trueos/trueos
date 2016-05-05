@@ -9,6 +9,8 @@ fence: fence_wait_any_timeout, fence_context_alloc, fence_add_callback, fence_in
 
 ktime: ns_to_ktime
 
+i2c: i2c_set_adapdata
+
 pwm, acexcep, acpi_bus, actypes, fdtable: 
 everything
 
