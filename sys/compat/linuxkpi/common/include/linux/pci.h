@@ -46,12 +46,15 @@
 
 #include <machine/resource.h>
 
+#include <linux/mod_devicetable.h>
+
 #include <linux/list.h>
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
 #include <linux/compiler.h>
 #include <linux/errno.h>
-#include <linux/pci.h>
+#include <linux/kobject.h>
+
 #include <asm/atomic.h>
 #include <linux/device.h>
 #include <linux/ioport.h>

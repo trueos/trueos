@@ -1,6 +1,8 @@
 #ifndef LINUX_MOD_DEVICETABLE_H
 #define LINUX_MOD_DEVICETABLE_H
+
 #include <sys/types.h>
+#include <linux/types.h>
 
 #define I2C_NAME_SIZE	20
 #define I2C_MODULE_PREFIX "i2c:"
