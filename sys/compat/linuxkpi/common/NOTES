@@ -5,7 +5,7 @@ efi: everything
 kthread:
 in_atomic
 
-fence: fence_wait_any_timeout, fence_context_alloc
+fence: fence_wait_any_timeout, fence_context_alloc, fence_add_callback
 
 pwm, acexcep, acpi_bus, actypes, fdtable: 
 everything

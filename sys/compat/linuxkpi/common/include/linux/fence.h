@@ -212,4 +212,11 @@ fence_context_alloc(unsigned num){
 	return (0);
 }
 
+static inline int
+fence_add_callback(struct fence *fence, struct fence_cb *cb,
+                       fence_func_t func){
+	UNIMPLEMENTED();
+	return (0);
+}
+
 #endif
