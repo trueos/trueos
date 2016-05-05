@@ -19,8 +19,12 @@ struct ww_acquire_ctx {
 	unsigned long stamp;
 	unsigned acquired;
 };
-
-
+#ifdef __linux__
+struct ww_mutex {
+	struct sx base;
+	struct ww_acquire_ctx *ctx;
+};
+#endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 # define __WW_CLASS_MUTEX_INITIALIZER(lockname, ww_class) \
 		, .ww_class = &ww_class
@@ -48,18 +52,32 @@ struct ww_acquire_ctx {
 #define ww_mutex_destroy(m) linux_mutex_destroy(m)
 
 #define	ww_mutex_is_locked(_m)		sx_xlocked(&(_m)->sx)
-
-#define ww_mutex_lock(m, x)  ({ mutex_lock(m); 0; })
-#define ww_mutex_lock_slow(m, x)  ({ mutex_lock(m); 0; })
-#define ww_mutex_unlock mutex_unlock
+#define ww_mutex_lock_slow(m, x)  ww_mutex_lock(m, x)
 #define ww_mutex_trylock mutex_trylock
 #define ww_mutex_lock_interruptible(m, x) mutex_lock_interruptible(m)
 #define ww_mutex_lock_slow_interruptible(m, x) mutex_lock_interruptible(m)
 
 
+#define ww_mutex_unlock(m)			\
+	do {					\
+		mutex_unlock(m);		\
+	} while (0)
+
+
+static inline int
+ww_mutex_lock(struct ww_mutex *m, struct ww_acquire_ctx *ctx)
+{
+	if (sx_xlocked(&m->sx))
+		return (-EALREADY);
+	sx_xlock(&m->sx);
+	return (0);
+}
+
 /*
  * XXX FIX ME
  */
+
+
 static inline void
 ww_acquire_init(struct ww_acquire_ctx *ctx, struct ww_class *ww_class)
 {
@@ -67,24 +85,18 @@ ww_acquire_init(struct ww_acquire_ctx *ctx, struct ww_class *ww_class)
 }
 
 static inline void
-ww_acquire_fini(struct ww_acquire_ctx *ctx)
-{
-	UNIMPLEMENTED();
-}
+ww_acquire_fini(struct ww_acquire_ctx *ctx) { }
 
 static inline void
 __ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class, char *name)
 {
 	DODGY();
-	linux_mutex_init(lock, name);
+	linux_mutex_init(lock, name, SX_RECURSE|SX_DUPOK);
 }
 
 #define ww_mutex_init(l, w) __ww_mutex_init(l, w, #l)
 
 static inline void
-ww_acquire_done(struct ww_acquire_ctx *ctx)
-{
-	UNIMPLEMENTED();
-}
+ww_acquire_done(struct ww_acquire_ctx *ctx) { }
 
 #endif

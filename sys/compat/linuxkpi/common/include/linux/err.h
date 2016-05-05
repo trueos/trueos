@@ -30,10 +30,11 @@
  */
 #ifndef	_LINUX_ERR_H_
 #define	_LINUX_ERR_H_
+#include <sys/cdefs.h>
 
 #define MAX_ERRNO	4095
 
-#define IS_ERR_VALUE(x) ((x) >= (unsigned long)-MAX_ERRNO)
+#define IS_ERR_VALUE(x) __predict_false(((unsigned long)x) >= (unsigned long)-MAX_ERRNO)
 
 static inline void *
 ERR_PTR(long error)

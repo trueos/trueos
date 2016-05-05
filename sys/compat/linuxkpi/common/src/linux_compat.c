@@ -1352,7 +1352,7 @@ async_schedule(async_func_t func, void *data)
 	atomic_inc(&entry_count);
 	newcookie = entry->cookie = nextcookie++;
 	sx_xunlock(&linux_global_rcu_lock);
-	current->flags |= PF_USED_ASYNC;
+	curthread->td_pflags |= PF_USED_ASYNC;
 	queue_work(system_unbound_wq, &entry->work);
 	return (newcookie);
 }

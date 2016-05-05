@@ -632,7 +632,7 @@ idr_for_each(struct idr *idp, int (*f)(int id, void *p, void *data), void *data)
 int
 ida_pre_get(struct ida *ida, gfp_t flags)
 {
-	if (idr_pre_get(&ida->idr, flags))
+	if (idr_pre_get(&ida->idr, flags) == 0)
 		return (0);
 
 	if (ida->free_bitmap == NULL)

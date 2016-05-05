@@ -63,6 +63,13 @@ div64_s64(int64_t dividend, int64_t divisor)
 	return (dividend / divisor);
 }
 
+static inline int64_t
+div_s64(int64_t dividend, int32_t divisor)
+{
+	return (dividend/divisor);
+}
+
+
 static inline u64 div64_u64_rem(u64 dividend, u64 divisor, u64 *remainder)
 {
 	*remainder = dividend % divisor;

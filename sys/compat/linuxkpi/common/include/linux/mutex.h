@@ -59,12 +59,11 @@ typedef struct mutex {
 
 
 static inline void
-linux_mutex_init(mutex_t *m, char *name)
+linux_mutex_init(mutex_t *m, char *name, int flags)
 {
 
 	memset(&m->sx, 0, sizeof(m->sx));
-	sx_init_flags(&m->sx, name,  SX_DUPOK);
-	MPASS(m->sx.sx_lock == SX_LOCK_UNLOCKED);
+	sx_init_flags(&m->sx, name,  flags);
 }
 
 static inline void
@@ -73,7 +72,7 @@ linux_mutex_destroy(mutex_t *m)
 	sx_destroy(&m->sx);
 }
 
-#define	mutex_init(m)	linux_mutex_init(m, #m)
+#define	mutex_init(m)	linux_mutex_init(m, #m, SX_DUPOK)
 #define mutex_destroy(m) linux_mutex_destroy(m);
 
 #endif	/* _LINUX_MUTEX_H_ */

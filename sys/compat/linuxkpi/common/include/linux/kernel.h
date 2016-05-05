@@ -315,8 +315,6 @@ abs64(int64_t x)
 	return (x < 0 ? -x : x);
 }
 
-#define div_s64(di, dv) (di/dv)
-#define div_u64(di, dv) (di/dv)
 
 /* XXX move me */
 #define rdmsrl(msr, val)			\
