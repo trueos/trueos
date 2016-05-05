@@ -46,6 +46,7 @@ typedef struct {
 } wait_queue_t;
 
 typedef struct {
+	struct spinlock_t	lock;
 	unsigned int	wchan;
 } wait_queue_head_t;
 
