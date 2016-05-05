@@ -7,6 +7,8 @@ in_atomic
 
 fence: fence_wait_any_timeout, fence_context_alloc, fence_add_callback, fence_init, fence_default_wait
 
+ktime: ns_to_ktime
+
 pwm, acexcep, acpi_bus, actypes, fdtable: 
 everything
 

@@ -26,6 +26,7 @@ SRCS	= \
 	amdgpu_fb.c \
 	amdgpu_fence.c \
 	amdgpu_gart.c \
+	amdgpu_gem.c \
 	amdgpu_ring.c \
 	amdgpu_sa.c \
 	amdgpu_test.c \

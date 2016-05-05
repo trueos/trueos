@@ -90,6 +90,12 @@ usecs_to_jiffies(const unsigned int u)
 }
 
 static inline u64
+nsecs_to_jiffies(u64 n){
+	UNIMPLEMENTED();
+	return n;
+}
+
+static inline u64
 get_jiffies_64(void)
 {
 	return ((u64)(unsigned)ticks);
