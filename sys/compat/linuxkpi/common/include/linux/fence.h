@@ -219,4 +219,16 @@ fence_add_callback(struct fence *fence, struct fence_cb *cb,
 	return (0);
 }
 
+static inline void
+fence_init(struct fence *fence, const struct fence_ops *ops,
+                spinlock_t *lock, unsigned context, unsigned seqno){
+	UNIMPLEMENTED();
+}
+
+static inline signed long
+fence_default_wait(struct fence *fence, bool intr, signed long timeout){
+	UNIMPLEMENTED();
+	return (0);
+}
+
 #endif

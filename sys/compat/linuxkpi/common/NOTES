@@ -5,7 +5,7 @@ efi: everything
 kthread:
 in_atomic
 
-fence: fence_wait_any_timeout, fence_context_alloc, fence_add_callback
+fence: fence_wait_any_timeout, fence_context_alloc, fence_add_callback, fence_init, fence_default_wait
 
 pwm, acexcep, acpi_bus, actypes, fdtable: 
 everything
@@ -21,5 +21,7 @@ gcd: gcd
 module: symbol_put
 
 power_supply: power_supply_is_system_supplied()
+
+rcupdate: rcu_assign_pointer
 
 wait: wait_event_interruptible_locked, wake_up_all_locked

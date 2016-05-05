@@ -105,4 +105,9 @@ synchronize_rcu(void)
 
 #define rcu_dereference(p) rcu_dereference_protected(p, 0)
 
+#define rcu_assign_pointer(p, v) \
+({ \
+	panic("XXX implemented"); \
+})
+
 #endif					/* _LINUX_RCUPDATE_H_ */
