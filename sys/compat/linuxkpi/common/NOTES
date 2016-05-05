@@ -3,6 +3,8 @@
 kthread:
 in_atomic
 
+fence: fence_wait_any_timeout
+
 pwm, acexcep, acpi_bus, actypes, fdtable: 
 everything
 
@@ -15,3 +17,5 @@ gcd: gcd
 module: symbol_put
 
 power_supply: power_supply_is_system_supplied()
+
+wait: wait_event_interruptible_locked, wake_up_all_locked

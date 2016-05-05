@@ -199,4 +199,11 @@ fence_put(struct fence *fence)
 }
 
 
+static inline signed long
+fence_wait_any_timeout(struct fence **fences, uint32_t count,
+                                   bool intr, signed long timeout){
+	panic("not implemented yet");
+	return (1);
+}
+
 #endif
