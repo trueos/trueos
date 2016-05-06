@@ -138,6 +138,7 @@ CWARNFLAGS.amdgpu_vce.c=	-Wno-format
 CWARNFLAGS.amdgpu_vce.c=	-Wno-format
 CWARNFLAGS.amdgpu_vm.c=		-Wno-format
 CWARNFLAGS.amdgpu_test.c=	-Wno-format
+CWARNFLAGS.amdgpu_vm.c=		-Wno-format
 CWARNFLAGS.atombios_crtc.c=	-Wno-missing-prototypes
 CWARNFLAGS.atombios_dp.c=	-Wno-format
 CWARNFLAGS.atombios_i2c.c=	-Wno-missing-prototypes
