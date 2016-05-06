@@ -139,6 +139,15 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 
 	return i;
 }
+int kstrtouint(const char *s, unsigned int base, unsigned int *res);
+
+static inline int
+kstrtou32(const char *s, unsigned int base, uint32_t *res)
+{
+	return (kstrtouint(s, base, res));
+}
+
+
 
 /* XXX */ 
 #define irqs_disabled() (0)
