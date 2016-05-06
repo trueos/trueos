@@ -33,7 +33,8 @@
 #define	_LINUX_UACCESS_H_
 
 #include <sys/types.h>
-#include <vm/vm_extern.h>
+#include <sys/param.h>
+#include <sys/proc.h>
 #include <linux/compiler.h>
 
 #define	__get_user(_x, _p) ({				\
@@ -58,13 +59,13 @@
 static inline int __must_check
 pagefault_disable(void)
 {
-	return (vm_fault_disable_pagefaults());
+	return (curthread_pflags_set(TDP_NOFAULTING | TDP_RESETSPUR));
 }
 
 static inline void
 pagefault_enable(int save)
 {
-	vm_fault_enable_pagefaults(save);
+	curthread_pflags_restore(save);
 }
 
 #define pagefault_disabled() (curthread->td_pflags & TDP_NOFAULTING)
