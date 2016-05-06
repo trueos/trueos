@@ -205,4 +205,7 @@ extern int __mmu_notifier_register(struct mmu_notifier *mn,
 				   struct mm_struct *mm);
 extern void mmu_notifier_unregister(struct mmu_notifier *mn,
 				    struct mm_struct *mm);
+
+extern void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
+					       struct mm_struct *mm);
 #endif
