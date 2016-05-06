@@ -6,6 +6,15 @@
 #	radeon_agp.c : missing definitions in struct agp_info
 #	radeon_drv.c : some weirdness w/ char -> int
 #	radeon_fence.c : fence, power, traces
+#	radeon_ioc32.c : missing some 'compat_alloc_user_space' and more
+#	radeon_irq_kms.c : missing fields in pci_dev
+#	radeon_mn.c : rbtree
+#	radeon_object.c : atomic64 stuff
+#	radeon_pm.c : sensors stuff
+#	radeon_ring.c : atomic64
+#	radeon_ttm.c : atomic64, VM?
+#	radeon_ucode.c : firmware weirdness
+#	radeon_vm.c : VM.
 
 KMOD	= radeonkms
 SRCS	= \
@@ -66,6 +75,20 @@ SRCS	= \
 	radeon_gart.c \
 	radeon_gem.c \
 	radeon_i2c.c \
+	radeon_ib.c \
+	radeon_kfd.c \
+	radeon_kms.c \
+	radeon_legacy_crtc.c \
+	radeon_legacy_encoders.c \
+	radeon_legacy_tv.c \
+	radeon_prime.c \
+	radeon_sa.c \
+	radeon_semaphore.c \
+	radeon_sync.c \
+	radeon_test.c \
+	radeon_trace_points.c \
+	radeon_uvd.c \
+	radeon_vce.c \
 	rs400.c \
 	rs600.c \
 	rs690.c \
@@ -131,6 +154,13 @@ CWARNFLAGS.radeon_device.c=	-Wno-format -Wno-cast-qual
 CWARNFLAGS.radeon_display.c=	-Wno-format
 CWARNFLAGS.radeon_dp_mst.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_gem.c=	-Wno-missing-prototypes
+CWARNFLAGS.radeon_irq_kms.c=	-Wno-missing-prototypes
+CWARNFLAGS.radeon_kms.c=	-Wno-missing-prototypes
+CWARNFLAGS.radeon_legacy_encoders.c=	-Wno-missing-prototypes
+CWARNFLAGS.radeon_prime.c=	-Wno-missing-prototypes
+CWARNFLAGS.radeon_test.c=	-Wno-format
+CWARNFLAGS.radeon_uvd.c=	-Wno-format
+CWARNFLAGS.radeon_vce.c=	-Wno-format
 CWARNFLAGS.rv770.c=		-Wno-missing-prototypes -Wno-format
 CWARNFLAGS.rv770_dpm.c=		-Wno-missing-prototypes
 CWARNFLAGS.si.c=		-Wno-missing-prototypes -Wno-cast-qual
