@@ -111,4 +111,9 @@ rb_replace_node(struct rb_node *victim, struct rb_node *new,
 #undef RB_ROOT
 #define RB_ROOT		(struct rb_root) { NULL }
 
+
+
+#define rbtree_postorder_for_each_entry_safe(pos, n, root, field) panic("XXX implement me");
+
+
 #endif	/* _LINUX_RBTREE_H_ */
