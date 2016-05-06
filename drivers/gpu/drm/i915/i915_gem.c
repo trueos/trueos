@@ -178,7 +178,7 @@ i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 		vaddr += PAGE_SIZE;
 	}
 
-	i915_gem_chipset_flush(obj->base.dev);
+	i915_gem_chipset_flush(to_i915(obj->base.dev));
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (st == NULL)
@@ -348,7 +348,7 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 	}
 
 	drm_clflush_virt_range(vaddr, args->size);
-	i915_gem_chipset_flush(dev);
+	i915_gem_chipset_flush(to_i915(dev));
 
 out:
 	intel_fb_obj_flush(obj, false, ORIGIN_CPU);
@@ -1007,7 +1007,7 @@ out:
 	}
 
 	if (needs_clflush_after)
-		i915_gem_chipset_flush(dev);
+		i915_gem_chipset_flush(to_i915(dev));
 	else
 		obj->cache_dirty = true;
 
@@ -1231,8 +1231,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			struct intel_rps_client *rps)
 {
 	struct intel_engine_cs *engine = i915_gem_request_get_engine(req);
-	struct drm_device *dev = engine->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = req->i915;
 	const bool irq_test_in_progress =
 		ACCESS_ONCE(dev_priv->gpu_error.test_irq_rings) & intel_engine_flag(engine);
 	int state = interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
@@ -1430,7 +1429,7 @@ __i915_gem_request_retire__upto(struct drm_i915_gem_request *req)
 	struct intel_engine_cs *engine = req->engine;
 	struct drm_i915_gem_request *tmp;
 
-	lockdep_assert_held(&engine->dev->struct_mutex);
+	lockdep_assert_held(&engine->i915->dev->struct_mutex);
 
 	if (list_empty(&req->list))
 		return;
@@ -2574,9 +2573,8 @@ i915_gem_object_retire__read(struct drm_i915_gem_object *obj, int ring)
 }
 
 static int
-i915_gem_init_seqno(struct drm_device *dev, u32 seqno)
+i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
 	int ret;
 
@@ -2586,7 +2584,7 @@ i915_gem_init_seqno(struct drm_device *dev, u32 seqno)
 		if (ret)
 			return ret;
 	}
-	i915_gem_retire_requests(dev);
+	i915_gem_retire_requests(dev_priv);
 
 	/* Finally reset hw state */
 	for_each_engine(engine, dev_priv)
@@ -2606,7 +2604,7 @@ int i915_gem_set_seqno(struct drm_device *dev, u32 seqno)
 	/* HWS page needs to be set less than what we
 	 * will inject to ring
 	 */
-	ret = i915_gem_init_seqno(dev, seqno - 1);
+	ret = i915_gem_init_seqno(dev_priv, seqno - 1);
 	if (ret)
 		return ret;
 
@@ -2622,13 +2620,11 @@ int i915_gem_set_seqno(struct drm_device *dev, u32 seqno)
 }
 
 int
-i915_gem_get_seqno(struct drm_device *dev, u32 *seqno)
+i915_gem_get_seqno(struct drm_i915_private *dev_priv, u32 *seqno)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	/* reserve 0 for non-seqno */
 	if (dev_priv->next_seqno == 0) {
-		int ret = i915_gem_init_seqno(dev, 0);
+		int ret = i915_gem_init_seqno(dev_priv, 0);
 		if (ret)
 			return ret;
 
@@ -2726,7 +2722,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	/* Not allowed to fail! */
 	WARN(ret, "emit|add_request failed: %d!\n", ret);
 
-	i915_queue_hangcheck(engine->dev);
+	i915_queue_hangcheck(engine->i915);
 
 	queue_delayed_work(dev_priv->wq,
 			   &dev_priv->mm.retire_work,
@@ -2800,7 +2796,7 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 			 struct intel_context *ctx,
 			 struct drm_i915_gem_request **req_out)
 {
-	struct drm_i915_private *dev_priv = to_i915(engine->dev);
+	struct drm_i915_private *dev_priv = engine->i915;
 	unsigned reset_counter = i915_reset_counter(&dev_priv->gpu_error);
 	struct drm_i915_gem_request *req;
 	int ret;
@@ -2822,7 +2818,7 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (req == NULL)
 		return -ENOMEM;
 
-	ret = i915_gem_get_seqno(engine->dev, &req->seqno);
+	ret = i915_gem_get_seqno(engine->i915, &req->seqno);
 	if (ret)
 		goto err;
 
@@ -2879,7 +2875,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	int err;
 
 	if (ctx == NULL)
-		ctx = to_i915(engine->dev)->kernel_context;
+		ctx = engine->i915->kernel_context;
 	err = __i915_gem_request_alloc(engine, ctx, &req);
 	return err ? ERR_PTR(err) : req;
 }
@@ -3054,9 +3050,8 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 }
 
 bool
-i915_gem_retire_requests(struct drm_device *dev)
+i915_gem_retire_requests(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
 	bool idle = true;
 
@@ -3089,7 +3084,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	/* Come back later if the device is busy... */
 	idle = false;
 	if (mutex_trylock(&dev->struct_mutex)) {
-		idle = i915_gem_retire_requests(dev);
+		idle = i915_gem_retire_requests(dev_priv);
 		mutex_unlock(&dev->struct_mutex);
 	}
 	if (!idle)
@@ -3258,7 +3253,7 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	if (i915_gem_request_completed(from_req, true))
 		return 0;
 
-	if (!i915_semaphore_is_enabled(obj->base.dev)) {
+	if (!i915_semaphore_is_enabled(to_i915(obj->base.dev))) {
 		struct drm_i915_private *i915 = to_i915(obj->base.dev);
 		ret = __i915_wait_request(from_req,
 					  i915->mm.interruptible,
@@ -3803,7 +3798,7 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 		return;
 
 	if (i915_gem_clflush_object(obj, obj->pin_display))
-		i915_gem_chipset_flush(obj->base.dev);
+		i915_gem_chipset_flush(to_i915(obj->base.dev));
 
 	old_write_domain = obj->base.write_domain;
 	obj->base.write_domain = 0;
@@ -4001,7 +3996,7 @@ out:
 	    obj->base.write_domain != I915_GEM_DOMAIN_CPU &&
 	    cpu_write_needs_clflush(obj)) {
 		if (i915_gem_clflush_object(obj, true))
-			i915_gem_chipset_flush(obj->base.dev);
+			i915_gem_chipset_flush(to_i915(obj->base.dev));
 	}
 
 	return 0;
@@ -4779,7 +4774,7 @@ i915_gem_suspend(struct drm_device *dev)
 	if (ret)
 		goto err;
 
-	i915_gem_retire_requests(dev);
+	i915_gem_retire_requests(dev_priv);
 
 	i915_gem_stop_engines(dev);
 	i915_gem_context_lost(dev_priv);
@@ -5067,7 +5062,7 @@ i915_gem_load_init_fences(struct drm_i915_private *dev_priv)
 	else
 		dev_priv->num_fence_regs = 8;
 
-	if (intel_vgpu_active(dev))
+	if (intel_vgpu_active(dev_priv))
 		dev_priv->num_fence_regs =
 				I915_READ(vgtif_reg(avail_rs.fence_num));
 
