@@ -664,10 +664,9 @@ extern void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map);
  * if the fbdev address space is to be backed by a bo.
  */
 
-/* XXXKIB
 extern int ttm_fbdev_mmap(struct vm_area_struct *vma,
 			  struct ttm_buffer_object *bo);
-*/
+
 /**
  * ttm_bo_mmap - mmap out of the ttm device address space.
  *
@@ -678,10 +677,10 @@ extern int ttm_fbdev_mmap(struct vm_area_struct *vma,
  * This function is intended to be called by the device mmap method.
  * if the device address space is to be backed by the bo manager.
  */
-/* XXXKIB
-extern int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
+
+extern int ttm_bo_mmap(struct linux_file *filp, struct vm_area_struct *vma,
 		       struct ttm_bo_device *bdev);
-*/
+
 /**
  * ttm_bo_io
  *

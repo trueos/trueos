@@ -410,7 +410,7 @@ struct ttm_bo_driver {
 	 * access for all buffer objects.
 	 * This function should return 0 if access is granted, -EPERM otherwise.
 	 */
-	int (*verify_access) (struct ttm_buffer_object *bo);
+	int (*verify_access) (struct ttm_buffer_object *bo, struct linux_file *filp);
 
 	/* hook to notify driver about a driver move so it
 	 * can do tiling things */
