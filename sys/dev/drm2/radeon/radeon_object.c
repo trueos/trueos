@@ -37,6 +37,8 @@
 #include "radeon.h"
 #include "radeon_trace.h"
 
+#undef min_offset
+#undef max_offset
 
 int radeon_ttm_init(struct radeon_device *rdev);
 void radeon_ttm_fini(struct radeon_device *rdev);

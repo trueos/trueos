@@ -81,6 +81,7 @@ SRCS	= \
 	radeon_legacy_crtc.c \
 	radeon_legacy_encoders.c \
 	radeon_legacy_tv.c \
+	radeon_object.c \
 	radeon_prime.c \
 	radeon_sa.c \
 	radeon_semaphore.c \
@@ -157,6 +158,7 @@ CWARNFLAGS.radeon_gem.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_irq_kms.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_kms.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_legacy_encoders.c=	-Wno-missing-prototypes
+CWARNFLAGS.radeon_object.c=	-Wno-format
 CWARNFLAGS.radeon_prime.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_test.c=	-Wno-format
 CWARNFLAGS.radeon_uvd.c=	-Wno-format
