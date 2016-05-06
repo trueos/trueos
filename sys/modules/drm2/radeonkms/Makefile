@@ -4,6 +4,8 @@
 
 ### XXX NOT PORTED YET:
 #	radeon_agp.c : missing definitions in struct agp_info
+#	radeon_drv.c : some weirdness w/ char -> int
+#	radeon_fence.c : fence, power, traces
 
 KMOD	= radeonkms
 SRCS	= \
@@ -57,6 +59,13 @@ SRCS	= \
 	radeon_cursor.c \
 	radeon_device.c \
 	radeon_display.c \
+	radeon_dp_auxch.c \
+	radeon_dp_mst.c \
+	radeon_encoders.c \
+	radeon_fb.c \
+	radeon_gart.c \
+	radeon_gem.c \
+	radeon_i2c.c \
 	rs400.c \
 	rs600.c \
 	rs690.c \
@@ -120,6 +129,8 @@ CWARNFLAGS.radeon_atpx_handler.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_clocks.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_device.c=	-Wno-format -Wno-cast-qual
 CWARNFLAGS.radeon_display.c=	-Wno-format
+CWARNFLAGS.radeon_dp_mst.c=	-Wno-missing-prototypes
+CWARNFLAGS.radeon_gem.c=	-Wno-missing-prototypes
 CWARNFLAGS.rv770.c=		-Wno-missing-prototypes -Wno-format
 CWARNFLAGS.rv770_dpm.c=		-Wno-missing-prototypes
 CWARNFLAGS.si.c=		-Wno-missing-prototypes -Wno-cast-qual
