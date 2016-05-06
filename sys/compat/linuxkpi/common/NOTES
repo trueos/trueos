@@ -5,7 +5,7 @@ efi: everything
 kthread:
 in_atomic
 
-fence: fence_wait_any_timeout, fence_context_alloc, fence_add_callback, fence_init, fence_default_wait
+fence: fence_wait_any_timeout, fence_context_alloc, fence_add_callback, fence_init, fence_default_wait, fence_is_later
 
 ktime: ns_to_ktime
 
@@ -16,7 +16,7 @@ everything
 
 pm, interval_tree: stub structs
 
-pm_runtime: pm_runtime_forbid, pm_runtime_autosuspend
+pm_runtime: pm_runtime_forbid, pm_runtime_autosuspend, pm_runtime_set_active, pm_runtime_allow
 
 pci: pci_is_root_bus, pci_platform_rom, pci_dev struct: d3_delay, pci_ignore_hotplug, pci_alloc_consistent
 

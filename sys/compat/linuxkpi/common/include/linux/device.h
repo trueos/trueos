@@ -614,4 +614,11 @@ devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
 {
 	return devm_kmalloc(dev, size, gfp | __GFP_ZERO);
 }
+
+#define dev_dbg(dev, format, arg...)                            \
+({                                                              \
+        if (0)                                                  \
+                UNIMPLEMENTED();				\
+})
+
 #endif	/* _LINUX_DEVICE_H_ */

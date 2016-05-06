@@ -7,13 +7,26 @@ KMOD	= amdgpu
 # XXX we do not enable this yet
 #       amdgpu_acp.h \
 #       amdgpu_acp.c
+# XXX not ported yet
+#	amdgpu_amdkfd_gfx_v7.c : issues w/ vm intrinsics
+#	amdgpu_irq.c : a lot of missing irq functionality
+#	amdgpu_mn.c : missing rbtree functionality
+#	amdgpu_object.c : atomic read/subs/... weird macro expansions
+#	amdgpu_pm.c : missing functions and constants, enum conversion warnings
+#	amdgpu_ttm.c : missing atomic add, find_vma, get_user_pages
+#	amdgpu_vm.c : trace points, atomic, rbtree
+
 SRCS	= \
 	amdgpu.h \
         amdgpu_acpi.c \
         amdgpu_afmt.c \
         amdgpu_amdkfd.c \
+	amdgpu_amdkfd_gfx_v8.c \
 	amdgpu_atombios.c \
+	amdgpu_atpx_handler.c \
+	amdgpu_benchmark.c \
 	amdgpu_bios.c \
+	amdgpu_connectors.c \
 	amdgpu_cs.c \
 	amdgpu_ctx.c \
 	amdgpu_device.c \
@@ -31,12 +44,15 @@ SRCS	= \
 	amdgpu_ih.c \
 	amdgpu_ioc32.c \
 	amdgpu_job.c \
+	amdgpu_kms.c \
 	amdgpu_pll.c \
 	amdgpu_powerplay.c \
 	amdgpu_prime.c \
 	amdgpu_ring.c \
 	amdgpu_sa.c \
+	amdgpu_sync.c \
 	amdgpu_test.c \
+	amdgpu_trace_points.c \
 	amdgpu_ucode.c \
 	amdgpu_uvd.c \
 	amdgpu_vce.c \
@@ -104,6 +120,8 @@ CWARNFLAGS.amdgpu_cs.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_device.c=	-Wno-format -Wno-cast-qual
 CWARNFLAGS.amdgpu_fence.c=	-Wno-format
 CWARNFLAGS.amdgpu_gfx.c=	-Wno-missing-prototypes
+CWARNFLAGS.amdgpu_amdkfd_gfx_v8.c=	-Wno-cast-qual
+CWARNFLAGS.amdgpu_atpx_handler.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_ih.c=	-Wno-cast-qual
 CWARNFLAGS.amdgpu_ioc32.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_pll.c=	-Wno-missing-prototypes

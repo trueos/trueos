@@ -231,4 +231,10 @@ fence_default_wait(struct fence *fence, bool intr, signed long timeout){
 	return (0);
 }
 
+static inline bool
+fence_is_later(struct fence *f1, struct fence *f2){
+	UNIMPLEMENTED();
+	return (0);
+}
+
 #endif

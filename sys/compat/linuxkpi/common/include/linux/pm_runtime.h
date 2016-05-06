@@ -175,4 +175,15 @@ pm_runtime_autosuspend(struct device *dev){
 	return(0);
 }
 
+static inline int
+pm_runtime_set_active(struct device *dev){
+	UNIMPLEMENTED();
+	return (0);
+}
+
+static inline void
+pm_runtime_allow(struct device *dev){
+	UNIMPLEMENTED();
+}
+
 #endif /*  _LINUX_PM_RUNTIME_H_ */
