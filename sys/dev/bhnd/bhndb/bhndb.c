@@ -259,9 +259,9 @@ bhndb_initialize_region_cfg(struct bhndb_softc *sc, device_t *devs, int ndevs,
 				continue;
 			
 			/* Fetch the base address of the mapped port. */
-			error = bhnd_get_region_addr(child, 
-			    regw->core.port_type, regw->core.port, 
-			    regw->core.region, &addr, &size);
+			error = bhnd_get_region_addr(child,
+			    regw->d.core.port_type, regw->d.core.port,
+			    regw->d.core.region, &addr, &size);
 			if (error)
 			    return (error);
 
@@ -536,8 +536,7 @@ bhndb_attach(device_t dev, bhnd_devclass_t bridge_devclass)
 	}
 
 	/* Attach our bridged bus device */
-	sc->bus_dev = BUS_ADD_CHILD(dev, 0, devclass_get_name(bhnd_devclass),
-	    -1);
+	sc->bus_dev = BUS_ADD_CHILD(dev, 0, "bhnd", -1);
 	if (sc->bus_dev == NULL) {
 		error = ENXIO;
 		goto failed;
@@ -868,6 +867,9 @@ bhndb_get_rman(struct bhndb_softc *sc, device_t child, int type)
 			return (NULL);
 		};
 	}
+
+	/* Quieten gcc */
+	return (NULL);
 }
 
 /**
@@ -1515,7 +1517,7 @@ bhndb_get_resource_list(device_t dev, device_t child)
  * Default bhndb(4) implementation of BHND_BUS_ACTIVATE_RESOURCE().
  *
  * For BHNDB_ADDRSPACE_NATIVE children, all resources may be assumed to
- * be actived by the bridge.
+ * be activated by the bridge.
  * 
  * For BHNDB_ADDRSPACE_BRIDGED children, attempts to activate a static register
  * window, a dynamic register window, or configures @p r as an indirect

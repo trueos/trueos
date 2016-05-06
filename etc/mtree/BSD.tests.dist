@@ -460,6 +460,8 @@
         ..
         posixshm
         ..
+        sys
+        ..
         vfs
         ..
         vm
@@ -607,6 +609,8 @@
         opensm
         ..
         printf
+        ..
+        sdiff
         ..
         sed
             regress.multitest.out

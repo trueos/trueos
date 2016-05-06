@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Machine dependant functions for kernel setup
+ * Machine dependent functions for kernel setup
  *
  * Created      : 17/09/94
  * Updated	: 18/04/01 updated for new wscons
@@ -242,6 +242,10 @@ char atags[LBABI_MAX_COMMAND_LINE * 2];
 uint32_t memstart[LBABI_MAX_BANKS];
 uint32_t memsize[LBABI_MAX_BANKS];
 uint32_t membanks;
+#endif
+#ifdef MULTIDELAY
+static delay_func *delay_impl;
+static void *delay_arg;
 #endif
 
 static uint32_t board_revision;
@@ -549,6 +553,24 @@ arm_generic_initclocks(void)
 #endif
 }
 __weak_reference(arm_generic_initclocks, cpu_initclocks);
+
+#ifdef MULTIDELAY
+void
+arm_set_delay(delay_func *impl, void *arg)
+{
+
+	KASSERT(impl != NULL, ("No DELAY implementation"));
+	delay_impl = impl;
+	delay_arg = arg;
+}
+
+void
+DELAY(int usec)
+{
+
+	delay_impl(usec, delay_arg);
+}
+#endif
 
 int
 fill_regs(struct thread *td, struct reg *regs)

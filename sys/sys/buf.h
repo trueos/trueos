@@ -206,7 +206,7 @@ struct buf {
 #define	B_NOREUSE	0x00000800	/* Contents not reused once released. */
 #define	B_00001000	0x00001000	/* Available flag. */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
-#define	B_BARRIER	0x00004000	/* Write this and all preceeding first. */
+#define	B_BARRIER	0x00004000	/* Write this and all preceding first. */
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
 #define	B_MALLOC	0x00010000	/* malloced b_data */
 #define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */
@@ -226,9 +226,9 @@ struct buf {
 #define B_REMFREE	0x80000000	/* Delayed bremfree */
 
 #define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34managed" \
-	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26dirty\25b20" \
+	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26b21\25b20" \
 	"\24b19\23b18\22clusterok\21malloc\20nocache\17b14\16inval" \
-	"\15b12\14noreuse\13eintr\12done\11persist\10delwri" \
+	"\15b12\14noreuse\13eintr\12done\11b8\10delwri" \
 	"\7validsuspwrt\6cache\5deferred\4direct\3async\2needcommit\1age"
 
 /*
