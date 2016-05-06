@@ -225,6 +225,7 @@ typedef struct drm_pci_id_list
 	char *name;
 } drm_pci_id_list_t;
 
+#define CONFIG_MMU_NOTIFIER 1
 
 #ifdef __i386__
 #define	CONFIG_X86	1
