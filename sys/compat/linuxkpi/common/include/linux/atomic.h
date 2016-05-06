@@ -12,4 +12,6 @@
 
 #define atomic64_add(i, v)  atomic_add_acq_long((volatile u_long *)(v), (i))
 #define atomic64_sub(i, v)  atomic_add_acq_long((volatile u_long *)(v), -(i))
+#define atomic_long_cmpxchg(v, o, n) atomic_cmpset_acq_long((volatile u_long *)(v), (o), (n))
+#define atomic_long_set(v, i) (*((u_long *)v) = i)
 #endif
