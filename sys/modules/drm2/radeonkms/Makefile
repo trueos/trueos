@@ -9,7 +9,6 @@
 #	radeon_ioc32.c : missing some 'compat_alloc_user_space' and more
 #	radeon_irq_kms.c : missing fields in pci_dev
 #	radeon_mn.c : rbtree
-#	radeon_object.c : atomic64 stuff
 #	radeon_pm.c : sensors stuff
 #	radeon_ring.c : atomic64
 #	radeon_ttm.c : atomic64, VM?

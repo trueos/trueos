@@ -18,6 +18,11 @@ trace_radeon_semaphore_wait(int ridx, struct radeon_semaphore * semaphore){
 	CTR2(KTR_DRM, "radeon_semaphore_wait %d %p", ridx, semaphore);
 }
 
+static inline void
+trace_radeon_bo_create(void *bo)
+{
+        CTR1(KTR_DRM, "radeon_bo_create %p", bo);
+}
 
 
 #endif
