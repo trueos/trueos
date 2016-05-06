@@ -64,7 +64,7 @@ RB_PROTOTYPE(linux_root, rb_node, __entry, panic_cmp);
 #define	rb_set_color(r, c)	rb_color((r)) = (c)
 #define	rb_entry(ptr, type, member)	container_of(ptr, type, member)
 
-#define RB_EMPTY_ROOT(root)     RB_EMPTY((struct linux_root *)root)
+#define RB_EMPTY_ROOT(root)     (((struct linux_root *)root)->rbh_root == NULL)
 #define RB_EMPTY_NODE(node)     (rb_parent(node) == node)
 #define RB_CLEAR_NODE(node)     (rb_set_parent(node, node))
 
