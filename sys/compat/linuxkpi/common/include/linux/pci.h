@@ -262,7 +262,7 @@ struct pci_bus {
 	void		*sysdata;	/* hook for sys-specific extension */
 
 	unsigned char	number;		/* bus number */
-
+	unsigned char   max_bus_speed;  /* enum pci_bus_speed */
 };
 
 int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
@@ -1013,5 +1013,13 @@ pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
 	UNIMPLEMENTED();
 	return NULL;
 }
+
+static inline int
+pcie_get_readrq(struct pci_dev *dev){
+	UNIMPLEMENTED();
+	return (0);
+}
+
+#define PCI_DEVICE_ID_ATI_RADEON_QY     0x5159
 
 #endif	/* _LINUX_PCI_H_ */

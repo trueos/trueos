@@ -1629,7 +1629,7 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 
 	radeon_agp_suspend(rdev);
 
-	pci_save_state(dev->pdev);
+	linux_pci_save_state(dev->pdev);
 	if (suspend) {
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
@@ -1668,7 +1668,7 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	}
 	if (resume) {
 		pci_set_power_state(dev->pdev, PCI_D0);
-		pci_restore_state(dev->pdev);
+		linux_pci_restore_state(dev->pdev);
 		if (pci_enable_device(dev->pdev)) {
 			if (fbcon)
 				console_unlock();

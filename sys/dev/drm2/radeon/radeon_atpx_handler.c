@@ -523,14 +523,14 @@ static bool radeon_atpx_detect(void)
 	bool has_atpx = false;
 	int vga_count = 0;
 
-	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
+	while ((pdev = linux_pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
 		vga_count++;
 
 		has_atpx |= (radeon_atpx_pci_probe_handle(pdev) == true);
 	}
 
 	/* some newer PX laptops mark the dGPU as a non-VGA display device */
-	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_OTHER << 8, pdev)) != NULL) {
+	while ((pdev = linux_pci_get_class(PCI_CLASS_DISPLAY_OTHER << 8, pdev)) != NULL) {
 		vga_count++;
 
 		has_atpx |= (radeon_atpx_pci_probe_handle(pdev) == true);

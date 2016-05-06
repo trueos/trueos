@@ -2576,7 +2576,7 @@ int r100_asic_reset(struct radeon_device *rdev)
 	WREG32(RADEON_CP_RB_WPTR, 0);
 	WREG32(RADEON_CP_RB_CNTL, tmp);
 	/* save PCI state */
-	pci_save_state(rdev->pdev);
+	linux_pci_save_state(rdev->pdev);
 	/* disable bus mastering */
 	r100_bm_disable(rdev);
 	WREG32(R_0000F0_RBBM_SOFT_RESET, S_0000F0_SOFT_RESET_SE(1) |
@@ -2598,7 +2598,7 @@ int r100_asic_reset(struct radeon_device *rdev)
 	status = RREG32(R_000E40_RBBM_STATUS);
 	dev_info(rdev->dev, "(%s:%d) RBBM_STATUS=0x%08X\n", __func__, __LINE__, status);
 	/* restore PCI & busmastering */
-	pci_restore_state(rdev->pdev);
+	linux_pci_restore_state(rdev->pdev);
 	r100_enable_bm(rdev);
 	/* Check if GPU is idle */
 	if (G_000E40_SE_BUSY(status) || G_000E40_RE_BUSY(status) ||

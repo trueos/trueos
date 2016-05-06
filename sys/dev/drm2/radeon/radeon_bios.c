@@ -187,7 +187,7 @@ static bool radeon_atrm_get_bios(struct radeon_device *rdev)
 	if (rdev->flags & RADEON_IS_IGP)
 		return false;
 
-	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
+	while ((pdev = linux_pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
 		dhandle = ACPI_HANDLE(&pdev->dev);
 		if (!dhandle)
 			continue;
@@ -200,7 +200,7 @@ static bool radeon_atrm_get_bios(struct radeon_device *rdev)
 	}
 
 	if (!found) {
-		while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_OTHER << 8, pdev)) != NULL) {
+		while ((pdev = linux_pci_get_class(PCI_CLASS_DISPLAY_OTHER << 8, pdev)) != NULL) {
 			dhandle = ACPI_HANDLE(&pdev->dev);
 			if (!dhandle)
 				continue;
