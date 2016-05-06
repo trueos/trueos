@@ -57,6 +57,27 @@ SRCS	= \
 	radeon_cursor.c \
 	radeon_device.c \
 	radeon_display.c \
+	rs400.c \
+	rs600.c \
+	rs690.c \
+	rs780_dpm.c \
+	rv515.c \
+	rv6xx_dpm.c \
+	rv730_dpm.c \
+	rv740_dpm.c \
+	rv770.c \
+	rv770_dma.c \
+	rv770_dpm.c \
+	rv770_smc.c \
+	si.c \
+	si_blit_shaders.c \
+	si_dma.c \
+	si_dpm.c \
+	si_smc.c \
+	sumo_dpm.c \
+	sumo_smc.c \
+	trinity_dpm.c \
+	trinity_smc.c \
 	uvd_v1_0.c \
 	uvd_v2_2.c \
 	uvd_v3_1.c \
@@ -99,6 +120,12 @@ CWARNFLAGS.radeon_atpx_handler.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_clocks.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_device.c=	-Wno-format -Wno-cast-qual
 CWARNFLAGS.radeon_display.c=	-Wno-format
+CWARNFLAGS.rv770.c=		-Wno-missing-prototypes -Wno-format
+CWARNFLAGS.rv770_dpm.c=		-Wno-missing-prototypes
+CWARNFLAGS.si.c=		-Wno-missing-prototypes -Wno-cast-qual
+CWARNFLAGS.si_dpm.c=		-Wno-missing-prototypes -Wno-unused-const-variable
+CWARNFLAGS.sumo_dpm.c=		-Wno-missing-prototypes
+CWARNFLAGS.trinity_dpm.c=	-Wno-unused-const-variable
 CWARNFLAGS.vce_v1_0.c=		-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.vce_v2_0.c=		-Wno-missing-prototypes
 CWARNFLAGS+=			-Wno-pointer-arith ${CWARNFLAGS.${.IMPSRC:T}}

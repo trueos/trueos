@@ -465,7 +465,7 @@ int rs600_asic_reset(struct radeon_device *rdev)
 	WREG32(RADEON_CP_RB_RPTR_WR, 0);
 	WREG32(RADEON_CP_RB_WPTR, 0);
 	WREG32(RADEON_CP_RB_CNTL, tmp);
-	pci_save_state(rdev->pdev);
+	linux_pci_save_state(rdev->pdev);
 	/* disable bus mastering */
 	pci_clear_master(rdev->pdev);
 	mdelay(1);
@@ -495,7 +495,7 @@ int rs600_asic_reset(struct radeon_device *rdev)
 	status = RREG32(R_000E40_RBBM_STATUS);
 	dev_info(rdev->dev, "(%s:%d) RBBM_STATUS=0x%08X\n", __func__, __LINE__, status);
 	/* restore PCI & busmastering */
-	pci_restore_state(rdev->pdev);
+	linux_pci_restore_state(rdev->pdev);
 	/* Check if GPU is idle */
 	if (G_000E40_GA_BUSY(status) || G_000E40_VAP_BUSY(status)) {
 		dev_err(rdev->dev, "failed to reset GPU\n");
