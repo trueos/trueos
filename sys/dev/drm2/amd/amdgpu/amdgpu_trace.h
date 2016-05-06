@@ -19,5 +19,10 @@ trace_amdgpu_sched_run_job(struct amdgpu_job *job){
 	CTR1(KTR_DRM, "amdgpu_sched_run_job %p", job);
 }
 
+static inline void
+trace_amdgpu_bo_create(void *bo)
+{
+	CTR1(KTR_DRM, "amdgpu_bo_create %p", bo);
+}
 #endif
 
