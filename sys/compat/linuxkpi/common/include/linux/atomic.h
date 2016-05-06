@@ -10,4 +10,6 @@
 
 #define smp_mb__before_atomic() smb_mb()
 
+#define atomic64_add(i, v)  atomic_add_acq_long((volatile u_long *)(v), (i))
+#define atomic64_sub(i, v)  atomic_add_acq_long((volatile u_long *)(v), -(i))
 #endif
