@@ -8,12 +8,6 @@ KMOD	= amdgpu
 #       amdgpu_acp.h \
 #       amdgpu_acp.c
 # XXX not ported yet
-#	amdgpu_amdkfd_gfx_v7.c : issues w/ vm intrinsics
-#	amdgpu_irq.c : a lot of missing irq functionality
-#	amdgpu_mn.c : missing rbtree functionality
-#	amdgpu_object.c : atomic read/subs/... weird macro expansions
-#	amdgpu_pm.c : missing functions and constants, enum conversion warnings
-#	amdgpu_ttm.c : missing atomic add, find_vma, get_user_pages
 #	amdgpu_vm.c : trace points, atomic, rbtree
 
 SRCS	= \
@@ -21,6 +15,7 @@ SRCS	= \
         amdgpu_acpi.c \
         amdgpu_afmt.c \
         amdgpu_amdkfd.c \
+	amdgpu_amdkfd_gfx_v7.c \
 	amdgpu_amdkfd_gfx_v8.c \
 	amdgpu_atombios.c \
 	amdgpu_atpx_handler.c \
@@ -43,9 +38,13 @@ SRCS	= \
 	amdgpu_ib.c \
 	amdgpu_ih.c \
 	amdgpu_ioc32.c \
+	amdgpu_irq.c \
 	amdgpu_job.c \
 	amdgpu_kms.c \
+	amdgpu_mn.c \
+	amdgpu_object.c \
 	amdgpu_pll.c \
+	amdgpu_pm.c \
 	amdgpu_powerplay.c \
 	amdgpu_prime.c \
 	amdgpu_ring.c \
@@ -53,9 +52,11 @@ SRCS	= \
 	amdgpu_sync.c \
 	amdgpu_test.c \
 	amdgpu_trace_points.c \
+	amdgpu_ttm.c \
 	amdgpu_ucode.c \
 	amdgpu_uvd.c \
 	amdgpu_vce.c \
+	amdgpu_vm.c \
 	atom.c \
 	atombios_crtc.c \
 	atombios_dp.c \
@@ -120,13 +121,17 @@ CWARNFLAGS.amdgpu_cs.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_device.c=	-Wno-format -Wno-cast-qual
 CWARNFLAGS.amdgpu_fence.c=	-Wno-format
 CWARNFLAGS.amdgpu_gfx.c=	-Wno-missing-prototypes
+CWARNFLAGS.amdgpu_amdkfd_gfx_v7.c=	-Wno-cast-qual
 CWARNFLAGS.amdgpu_amdkfd_gfx_v8.c=	-Wno-cast-qual
 CWARNFLAGS.amdgpu_atpx_handler.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_ih.c=	-Wno-cast-qual
 CWARNFLAGS.amdgpu_ioc32.c=	-Wno-missing-prototypes
+CWARNFLAGS.amdgpu_object.c=	-Wno-format
+CWARNFLAGS.amdgpu_mn.c=		-Wno-unused-variable
 CWARNFLAGS.amdgpu_pll.c=	-Wno-missing-prototypes
-CWARNFLAGS.amdgpu_pm.c=	-Wno-missing-prototypes
+CWARNFLAGS.amdgpu_pm.c=		-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.amdgpu_ring.c=	-Wno-cast-qual
+CWARNFLAGS.amdgpu_ttm.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_ucode.c=	-Wno-incompatible-pointer-types-discards-qualifiers -Wno-cast-qual
 CWARNFLAGS.amdgpu_uvd.c=	-Wno-format
 CWARNFLAGS.amdgpu_vce.c=	-Wno-format
