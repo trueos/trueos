@@ -104,7 +104,27 @@ SRCS	= \
 	eventmgr.c \
 	eventsubchains.c \
 	eventtasks.c \
-	psm.c
+	psm.c \
+	cz_clockpowergating.c \
+	cz_hwmgr.c \
+	fiji_clockpowergating.c \
+	fiji_hwmgr.c \
+	fiji_powertune.c \
+	fiji_thermal.c \
+	functiontables.c \
+	hardwaremanager.c \
+	hwmgr.c \
+	pp_acpi.c \
+	processpptables.c \
+	tonga_clockpowergating.c \
+	tonga_hwmgr.c \
+	tonga_processpptables.c \
+	tonga_thermal.c \
+	smumgr.c \
+	cz_smumgr.c \
+	tonga_smumgr.c \
+	fiji_smumgr.c
+	
 
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
@@ -166,3 +186,15 @@ CWARNFLAGS.tonga_smc.c=	-Wno-cast-qual
 CWARNFLAGS.gpu_scheduler.c=	-Wno-format
 CWARNFLAGS.amd_powerplay.c=	-Wno-missing-prototypes
 CWARNFLAGS.eventtasks.c=	-Wno-missing-prototypes
+CWARNFLAGS.cz_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
+CWARNFLAGS.cz_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
+CWARNFLAGS.fiji_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
+CWARNFLAGS.fiji_thermal.c=	-Wno-missing-prototypes
+CWARNFLAGS.pp_acpi.c=	-Wno-missing-prototypes
+CWARNFLAGS.processpptables.c=	-Wno-missing-prototypes -Wno-sometimes-uninitialized
+CWARNFLAGS.tonga_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
+CWARNFLAGS.tonga_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
+CWARNFLAGS.tonga_processpptables.c=	-Wno-missing-prototypes -Wno-cast-qual
+CWARNFLAGS.tonga_thermal.c=	-Wno-missing-prototypes
+CWARNFLAGS.tonga_smumgr.c=	-Wno-missing-prototypes -Wno-cast-qual
+CWARNFLAGS.fiji_smumgr.c=	-Wno-missing-prototypes -Wno-cast-qual

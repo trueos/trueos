@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/bug.h>
 #include <linux/fs.h>
+#include <sys/sbuf.h>
 
 struct seq_file {
 	struct sbuf	*buf;
