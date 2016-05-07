@@ -61,8 +61,52 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 
+
 static MALLOC_DEFINE(M_LKFS, "lkfs", "lkpi fs");
 uma_zone_t vnode_zone;
+
+struct dentry *
+mount_pseudo(struct file_system_type *fs_type, char *name,
+	const struct super_operations *ops,
+			    const struct dentry_operations *dops, unsigned long magic)
+{
+	UNIMPLEMENTED();
+	return (NULL);
+}
+void
+kill_anon_super(struct super_block *sb)
+{
+	UNIMPLEMENTED();	
+}
+
+
+char *
+simple_dname(struct dentry *dentry, char *buffer, int buflen)
+{
+	UNIMPLEMENTED();
+	return (NULL);
+}
+
+
+int
+simple_pin_fs(struct file_system_type *type, struct vfsmount **mount, int *count)
+{
+	UNIMPLEMENTED();
+	return (0);
+}
+
+void
+simple_release_fs(struct vfsmount **mount, int *count)
+{
+	UNIMPLEMENTED();
+}
+
+int
+simple_statfs(struct dentry *dentry, struct kstatfs *buf)
+{
+	UNIMPLEMENTED();
+	return (0);
+}
 
 struct page *
 shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
@@ -83,6 +127,7 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 				vm_page_unlock(page);
 				return (NULL);
 			}
+			MPASS(page->valid == VM_PAGE_BITS_ALL);
 		} else {
 			pmap_zero_page(page);
 			page->valid = VM_PAGE_BITS_ALL;
@@ -94,6 +139,7 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 	vm_page_unlock(page);
 	vm_page_xunbusy(page);
 	VM_OBJECT_WUNLOCK(object);
+
 	return (page);
 }
 
@@ -106,7 +152,7 @@ shmem_file_setup(char *name, int size, int flags)
 	if ((filp = malloc(sizeof(*filp), M_LKFS, M_NOWAIT|M_ZERO)) == NULL)
 		return (NULL);
 
-	if ((vp = uma_zalloc(vnode_zone, M_NOWAIT)) == NULL)
+	if (getnewvnode("LINUX", NULL, &dead_vnodeops, &vp))
 		goto err_1;
 
 	filp->f_dentry = &filp->f_dentry_store;
@@ -119,10 +165,21 @@ shmem_file_setup(char *name, int size, int flags)
 
 	return (filp);
 err_2:
-	uma_zfree(vnode_zone, vp);
+	_vdrop(vp, 0);
 err_1:
 	free(filp, M_LKFS);
 	return (NULL);
+}
+
+
+struct inode *
+alloc_anon_inode(struct super_block *s)
+{
+	struct vnode *vp;
+
+	if (getnewvnode("LINUX", NULL, &dead_vnodeops, &vp))
+		return (NULL);
+	return (vp);
 }
 
 unsigned long
@@ -162,7 +219,8 @@ __get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages, int w
 		prot |= VM_PROT_WRITE;
 	len = nr_pages << PAGE_SHIFT;
 	count = vm_fault_quick_hold_pages(map, start, len, prot, pages, nr_pages);
-
+	BACKTRACE();
+	printf("%s count == %d\n", __FUNCTION__, count); 
 	return (count == -1 ? -EFAULT : count);
 }
 
@@ -191,6 +249,7 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	if (write)
 		prot |= VM_PROT_WRITE;
 
+	BACKTRACE();
 	for (mp = ma, va = start; va < end; mp++, va += PAGE_SIZE) {
 		*mp = pmap_extract_and_hold(map->pmap, va, prot);
 		if (*mp != NULL)
@@ -223,3 +282,23 @@ get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 	map = &tsk->task_thread->td_proc->p_vmspace->vm_map;
 	return (__get_user_pages_internal(map, start, nr_pages, write, pages));
 }
+
+#include <sys/mount.h>
+#include <fs/pseudofs/pseudofs.h>
+
+
+static int
+linpseudofs_init(PFS_INIT_ARGS)
+{
+	return (0);
+}
+
+static int
+linpseudofs_uninit(PFS_INIT_ARGS)
+{
+	return (0);
+}
+
+PSEUDOFS(linpseudofs, 1, PR_ALLOW_MOUNT);
+
+
