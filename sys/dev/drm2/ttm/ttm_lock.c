@@ -27,19 +27,17 @@
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
-/*
- * Copyright (c) 2013 The FreeBSD Foundation
- * All rights reserved.
- *
- * Portions of this software were developed by Konstantin Belousov
- * <kib@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
- */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <drm/ttm/ttm_lock.h>
 #include <drm/ttm/ttm_module.h>
+#include <linux/atomic.h>
+#include <linux/errno.h>
+#include <linux/wait.h>
+#include <linux/sched.h>
+#include <linux/module.h>
 
 #define TTM_WRITE_LOCK_PENDING    (1 << 0)
 #define TTM_VT_LOCK_PENDING       (1 << 1)
@@ -58,14 +56,6 @@ void ttm_lock_init(struct ttm_lock *lock)
 }
 EXPORT_SYMBOL(ttm_lock_init);
 
-static void
-ttm_lock_send_sig(int signo)
-{
-	PROC_LOCK(curproc);
-	tdsignal(curthread, signo);
-	PROC_UNLOCK(curproc);
-}
-
 void ttm_read_unlock(struct ttm_lock *lock)
 {
 	spin_lock(&lock->lock);
@@ -81,7 +71,7 @@ static bool __ttm_read_lock(struct ttm_lock *lock)
 
 	spin_lock(&lock->lock);
 	if (unlikely(lock->kill_takers)) {
-		ttm_lock_send_sig(lock->signal);
+		send_sig(lock->signal, current, 0);
 		spin_unlock(&lock->lock);
 		return false;
 	}
@@ -114,7 +104,7 @@ static bool __ttm_read_trylock(struct ttm_lock *lock, bool *locked)
 
 	spin_lock(&lock->lock);
 	if (unlikely(lock->kill_takers)) {
-		ttm_lock_send_sig(lock->signal);
+		send_sig(lock->signal, current, 0);
 		spin_unlock(&lock->lock);
 		return false;
 	}
@@ -164,7 +154,7 @@ static bool __ttm_write_lock(struct ttm_lock *lock)
 
 	spin_lock(&lock->lock);
 	if (unlikely(lock->kill_takers)) {
-		ttm_lock_send_sig(lock->signal);
+		send_sig(lock->signal, current, 0);
 		spin_unlock(&lock->lock);
 		return false;
 	}
@@ -193,19 +183,11 @@ int ttm_write_lock(struct ttm_lock *lock, bool interruptible)
 			spin_unlock(&lock->lock);
 		}
 	} else
-		wait_event(lock->queue, __ttm_read_lock(lock));
+		wait_event(lock->queue, __ttm_write_lock(lock));
 
 	return ret;
 }
 EXPORT_SYMBOL(ttm_write_lock);
-
-void ttm_write_lock_downgrade(struct ttm_lock *lock)
-{
-	spin_lock(&lock->lock);
-	lock->rw = 1;
-	wake_up_all(&lock->queue);
-	spin_unlock(&lock->lock);
-}
 
 static int __ttm_vt_unlock(struct ttm_lock *lock)
 {

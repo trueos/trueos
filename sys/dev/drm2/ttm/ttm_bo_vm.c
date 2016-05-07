@@ -41,8 +41,9 @@
 #include <linux/uaccess.h>
 
 #define TTM_BO_VM_NUM_PREFAULT 16
+#define mapping object
+#define index pindex
 
-#ifdef __linux__
 static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 				struct vm_area_struct *vma,
 				struct vm_fault *vmf)
@@ -277,15 +278,12 @@ static void ttm_bo_vm_close(struct vm_area_struct *vma)
 	ttm_bo_unref(&bo);
 	vma->vm_private_data = NULL;
 }
-#endif
 
-#ifdef __linux__
 static const struct vm_operations_struct ttm_bo_vm_ops = {
 	.fault = ttm_bo_vm_fault,
 	.open = ttm_bo_vm_open,
 	.close = ttm_bo_vm_close
 };
-#endif
 
 static struct ttm_buffer_object *ttm_bo_vm_lookup(struct ttm_bo_device *bdev,
 						  unsigned long offset,
@@ -331,12 +329,8 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 	if (unlikely(ret != 0))
 		goto out_unref;
 
-/*
- * XXX what if anything should this do on FreeBSD
- */
-#ifdef __linux__
 	vma->vm_ops = &ttm_bo_vm_ops;
-#endif
+
 	/*
 	 * Note: We're transferring the bo reference to
 	 * vma->vm_private_data here.
@@ -365,12 +359,7 @@ int ttm_fbdev_mmap(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 	if (vma->vm_pgoff != 0)
 		return -EACCES;
 
-/*
- * XXX what if anything should this do on FreeBSD
- */
-#ifdef __linux__
 	vma->vm_ops = &ttm_bo_vm_ops;
-#endif
 	vma->vm_private_data = ttm_bo_reference(bo);
 	vma->vm_flags |= VM_MIXEDMAP;
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND;

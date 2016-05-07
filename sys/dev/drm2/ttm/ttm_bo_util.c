@@ -487,7 +487,7 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp)
 #if defined(__i386__) || defined(__x86_64__)
 	if (caching_flags & TTM_PL_FLAG_WC)
 		tmp = pgprot_writecombine(tmp);
-	else /*if (boot_cpu_data.x86 > 3) */
+	else if (boot_cpu_data.x86 > 3)
 		tmp = pgprot_noncached(tmp);
 #endif
 #if defined(__ia64__) || defined(__arm__) || defined(__aarch64__) || \
