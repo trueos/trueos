@@ -39,6 +39,7 @@
 #include <linux/list.h>
 #include <linux/atomic.h>
 #include <linux/mm_types.h>
+#include <linux/pfn.h>
 
 #include <asm/pgtable.h>
 
@@ -165,6 +166,15 @@ long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 
 extern struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr);
 
+pgprot_t vm_get_page_prot(unsigned long vm_flags);
+void vma_set_page_prot(struct vm_area_struct *vma);
+
+int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+			unsigned long pfn);
+int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+			unsigned long pfn, pgprot_t pgprot);
+int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+			pfn_t pfn);
 
 
 #define VM_FAULT_OOM	0x0001
