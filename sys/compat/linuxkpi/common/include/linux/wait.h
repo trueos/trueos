@@ -42,8 +42,19 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 
-typedef struct {
-} wait_queue_t;
+
+struct __wait_queue;
+typedef struct __wait_queue wait_queue_t;
+
+typedef int (*wait_queue_func_t)(wait_queue_t *wait, unsigned mode, int flags, void *key);
+
+struct __wait_queue {
+	unsigned int		flags;
+	void			*private;
+	wait_queue_func_t	func;
+	struct list_head	task_list;
+};
+
 
 typedef struct {
 	spinlock_t	lock;
@@ -191,6 +202,21 @@ ___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,			\
 	__ret;								\
 })
 
+static inline void __add_wait_queue(wait_queue_head_t *head, wait_queue_t *new)
+{
+#if 0
+	list_add(&new->task_list, &head->task_list);
+#endif
+}
+
+static inline void
+__remove_wait_queue(wait_queue_head_t *head, wait_queue_t *old)
+{
+#if 0	
+	list_del(&old->task_list);
+#endif	
+}
+	
 static inline int
 waitqueue_active(wait_queue_head_t *q)
 {
