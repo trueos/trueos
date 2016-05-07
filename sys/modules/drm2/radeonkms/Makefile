@@ -11,7 +11,7 @@
 ##	radeon_pm.c : sensors stuff
 ##	radeon_ring.c : atomic64
 ##	radeon_ttm.c : atomic64, VM?
-#	radeon_ucode.c : firmware weirdness
+##	radeon_ucode.c : firmware weirdness
 #	radeon_vm.c : VM.
 
 KMOD	= radeonkms
@@ -76,6 +76,7 @@ SRCS	= \
 	radeon_gem.c \
 	radeon_i2c.c \
 	radeon_ib.c \
+	radeon_ioc32.c \
 	radeon_irq_kms.c \
 	radeon_kfd.c \
 	radeon_kms.c \
@@ -96,6 +97,7 @@ SRCS	= \
 	radeon_ucode.c \
 	radeon_uvd.c \
 	radeon_vce.c \
+	radeon_vm.c \
 	rs400.c \
 	rs600.c \
 	rs690.c \
@@ -162,6 +164,7 @@ CWARNFLAGS.radeon_display.c=	-Wno-format
 CWARNFLAGS.radeon_dp_mst.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_fence.c=	-Wno-format
 CWARNFLAGS.radeon_gem.c=	-Wno-missing-prototypes
+CWARNFLAGS.radeon_ioc32.c=	-Wno-missing-prototypes -Wno-int-conversion
 CWARNFLAGS.radeon_irq_kms.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_kms.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_legacy_encoders.c=	-Wno-missing-prototypes
@@ -175,6 +178,7 @@ CWARNFLAGS.radeon_ttm.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_ucode.c=	-Wno-incompatible-pointer-types-discards-qualifiers
 CWARNFLAGS.radeon_uvd.c=	-Wno-format
 CWARNFLAGS.radeon_vce.c=	-Wno-format
+CWARNFLAGS.radeon_vm.c=	-Wno-format
 CWARNFLAGS.rv770.c=		-Wno-missing-prototypes -Wno-format
 CWARNFLAGS.rv770_dpm.c=		-Wno-missing-prototypes
 CWARNFLAGS.si.c=		-Wno-missing-prototypes -Wno-cast-qual
