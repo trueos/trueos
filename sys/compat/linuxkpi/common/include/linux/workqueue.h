@@ -40,9 +40,23 @@
 
 #include <sys/taskqueue.h>
 
+#define work_data_bits(work) ((unsigned long *)(&(work)->data))
+
 enum {
+	WORK_STRUCT_PENDING_BIT	= 0,	/* work item is pending execution */	
 	WORK_BUSY_PENDING	= 1 << 0,
 	WORK_BUSY_RUNNING	= 1 << 1,
+	WORK_STRUCT_PENDING	= 1 << WORK_STRUCT_PENDING_BIT,
+
+	WORK_STRUCT_COLOR_SHIFT	= 4,	/* color for workqueue flushing */
+	WORK_OFFQ_FLAG_BASE	= WORK_STRUCT_COLOR_SHIFT,
+	WORK_OFFQ_FLAG_BITS	= 1,
+	WORK_OFFQ_POOL_SHIFT	= WORK_OFFQ_FLAG_BASE + WORK_OFFQ_FLAG_BITS,
+	WORK_OFFQ_LEFT		= BITS_PER_LONG - WORK_OFFQ_POOL_SHIFT,
+	WORK_OFFQ_POOL_BITS	= WORK_OFFQ_LEFT <= 31 ? WORK_OFFQ_LEFT : 31,
+	WORK_OFFQ_POOL_NONE	= (1LU << WORK_OFFQ_POOL_BITS) - 1,
+	WORK_STRUCT_NO_POOL	= (unsigned long)WORK_OFFQ_POOL_NONE << WORK_OFFQ_POOL_SHIFT,
+
 };
 
 enum {
@@ -61,12 +75,15 @@ struct workqueue_struct {
 };
 
 struct work_struct {
+	atomic_long_t data;
 	struct	task 		work_task;
 	struct	taskqueue	*taskqueue;
 	void			(*fn)(struct work_struct *);
 };
+#define WORK_DATA_INIT()	ATOMIC_LONG_INIT(WORK_STRUCT_NO_POOL)
 
 typedef __typeof(((struct work_struct *)0)->fn) work_func_t;
+
 
 struct delayed_work {
 	struct work_struct	work;
@@ -99,7 +116,8 @@ to_delayed_work(struct work_struct *work)
 do {									\
 	(work)->fn = (func);						\
 	(work)->taskqueue = NULL;					\
-	TASK_INIT(&(work)->work_task, 0, linux_work_fn, (work));		\
+	(work)->data = (atomic_long_t) WORK_DATA_INIT();		\
+	TASK_INIT(&(work)->work_task, 0, linux_work_fn, (work));	\
 } while (0)
 
 #define	INIT_DELAYED_WORK(_work, func)					\
@@ -117,6 +135,10 @@ do {									\
 } while (0)
 
 #define	flush_scheduled_work()	flush_taskqueue(taskqueue_thread)
+
+#define work_pending(work) \
+	test_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(work))
+
 
 static inline int
 queue_work(struct workqueue_struct *wq, struct work_struct *work)
