@@ -1666,13 +1666,11 @@ static const struct dev_pm_ops i915_pm_ops = {
 	.runtime_resume = intel_runtime_resume,
 };
 
-#ifdef __linux__
 static const struct vm_operations_struct i915_gem_vm_ops = {
 	.fault = i915_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
 };
-#endif
 
 static const struct file_operations i915_driver_fops = {
 	.owner = THIS_MODULE,
@@ -1714,11 +1712,7 @@ static struct drm_driver driver = {
 	.debugfs_cleanup = i915_debugfs_cleanup,
 #endif
 	.gem_free_object = i915_gem_free_object,
-#ifdef __linux__
 	.gem_vm_ops = &i915_gem_vm_ops,
-#elif defined(__FreeBSD__)
-	.gem_pager_ops	= &i915_gem_pager_ops,
-#endif
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = i915_gem_prime_export,
