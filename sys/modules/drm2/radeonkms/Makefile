@@ -2,17 +2,6 @@
 
 .PATH:	${.CURDIR}/../../../dev/drm2/radeon
 
-### XXX NOT PORTED YET:
-#	radeon_agp.c : missing definitions in struct agp_info
-##	radeon_drv.c : some weirdness w/ char -> int
-##	radeon_fence.c : fence, power, traces
-#	radeon_ioc32.c : missing some 'compat_alloc_user_space' and more
-##	radeon_irq_kms.c : missing fields in pci_dev
-##	radeon_pm.c : sensors stuff
-##	radeon_ring.c : atomic64
-##	radeon_ttm.c : atomic64, VM?
-##	radeon_ucode.c : firmware weirdness
-#	radeon_vm.c : VM.
 
 KMOD	= radeonkms
 SRCS	= \
@@ -53,6 +42,7 @@ SRCS	= \
 	r600_dpm.c \
 	r600_hdmi.c \
 	radeon_acpi.c \
+	radeon_agp.c \
 	radeon_asic.c \
 	radeon_atombios.c \
 	radeon_atpx_handler.c \
