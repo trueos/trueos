@@ -24,5 +24,19 @@ trace_radeon_bo_create(void *bo)
         CTR1(KTR_DRM, "radeon_bo_create %p", bo);
 }
 
+static inline void
+trace_radeon_fence_emit(void* ddev, int ring, int seq){
+	CTR3(KTR_DRM, "radeon_fence_emit %p %d %d", ddev, ring, seq);
+}
+
+static inline void
+trace_radeon_fence_wait_begin(void* ddev, int i, int seq){
+	CTR3(KTR_DRM, "radeon_fence_wait_begin %p %d %d", ddev, i, seq);
+}
+
+static inline void
+trace_radeon_fence_wait_end(void* ddev, int i, int seq){
+	CTR3(KTR_DRM, "radeon_fence_wait_end %p %d %d", ddev, i, seq);
+}
 
 #endif
