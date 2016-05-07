@@ -148,6 +148,17 @@ do {									\
 #define	sched_yield()	sched_relinquish(curthread)
 
 
+static inline int
+send_sig(int signo, struct task_struct *t, int priv)
+{
+	/* Only support signalling current process right now  */
+	MPASS(t == current);
+
+	PROC_LOCK(curproc);
+	tdsignal(curthread, signo);
+	PROC_UNLOCK(curproc);
+	return (0);
+}
 
 static inline int signal_pending(struct task_struct *p)
 {
