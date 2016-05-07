@@ -62,6 +62,7 @@
 #define	__attribute_const__		__attribute__((__const__))
 #undef __always_inline
 #define	__always_inline			inline
+#define ____cacheline_aligned __aligned(CACHE_LINE_SIZE)
 
 #define	likely(x)			__builtin_expect(!!(x), 1)
 #define	unlikely(x)			__builtin_expect(!!(x), 0)
@@ -85,14 +86,14 @@
 		static int seen = 0;		\
 									\
 		if (seen == 0) {					\
-			log(LOG_WARNING, "%s not implemented -- see your local kernel hacker", __FUNCTION__); \
+			log(LOG_WARNING, "%s not implemented -- see your local kernel hacker\n", __FUNCTION__); \
 			seen = 1;					\
 		}							\
 	} while (0)
 #define UNIMPLEMENTED()	\
-	log(LOG_WARNING, "%s not implemented -- see your local kernel hacker", __FUNCTION__)
+	log(LOG_WARNING, "%s not implemented -- see your local kernel hacker\n", __FUNCTION__)
 #define DODGY()	\
-	log(LOG_WARNING, "%s is implemented but dodgy -- see your local kernel hacker", __FUNCTION__)
+	log(LOG_WARNING, "%s is implemented but dodgy -- see your local kernel hacker\n", __FUNCTION__)
 #define	ACCESS_ONCE(x)			(*(volatile __typeof(x) *)&(x))
   
 #define	WRITE_ONCE(x,v) do {		\

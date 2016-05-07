@@ -41,6 +41,7 @@
 
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <linux/dcache.h>
 #include <linux/semaphore.h>
 #include <linux/list.h>
 #include <linux/atomic.h>
@@ -56,6 +57,8 @@ struct pipe_inode_info;
 struct vm_area_struct;
 struct poll_table_struct;
 struct files_struct;
+struct kstatfs;
+
 
 #define	inode	vnode
 #define	i_cdev	v_rdev
@@ -64,11 +67,34 @@ struct files_struct;
 #define	S_IWUGO	(S_IWUSR | S_IWGRP | S_IWOTH)
 
 
+struct super_block {
+};
+
+struct super_operations {
+	int (*statfs) (struct dentry *, struct kstatfs *);
+};
+struct file_system_type {
+		const char *name;
+	struct module *owner;
+	struct dentry *(*mount) (struct file_system_type *, int,
+				 const char *, void *);
+	void (*kill_sb) (struct super_block *);
+
+};
+
+extern struct dentry *mount_pseudo(struct file_system_type *, char *,
+	const struct super_operations *ops,
+	const struct dentry_operations *dops,
+	unsigned long);
+void kill_anon_super(struct super_block *sb);
+
+
 typedef struct files_struct *fl_owner_t;
 
 struct dentry {
 	struct inode	*d_inode;
 };
+
 
 struct file_operations;
 
@@ -90,6 +116,7 @@ struct linux_file {
 	struct sigio	*f_sigio;
 	struct vnode	*f_vnode;
 	atomic_long_t		f_count;
+	vm_object_t	f_mapping;
 };
 
 #define	file		linux_file
@@ -301,11 +328,14 @@ void shmem_truncate_range(struct vnode *, loff_t, loff_t);
 
 extern loff_t generic_file_llseek(struct file *file, loff_t offset, int whence);
 
+extern struct inode *alloc_anon_inode(struct super_block *);
 extern ssize_t simple_read_from_buffer(void __user *to, size_t count,
 			loff_t *ppos, const void *from, size_t available);
 extern ssize_t simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 		const void __user *from, size_t count);
-
+extern int simple_statfs(struct dentry *, struct kstatfs *);
+extern int simple_pin_fs(struct file_system_type *, struct vfsmount **mount, int *count);
+extern void simple_release_fs(struct vfsmount **mount, int *count);
 
 
 static inline __printf(1, 2)

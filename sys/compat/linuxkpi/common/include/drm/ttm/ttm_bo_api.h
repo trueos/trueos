@@ -707,5 +707,5 @@ extern ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 			 size_t count, off_t *f_pos, bool write);
 
 extern void ttm_bo_swapout_all(struct ttm_bo_device *bdev);
-
+extern int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo);
 #endif

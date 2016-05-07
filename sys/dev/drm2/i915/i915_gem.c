@@ -1810,7 +1810,6 @@ out:
 	return 0;
 }
 
-#ifdef __linux__
 /**
  * i915_gem_fault - fault a page into the GTT
  * @vma: VMA in question
@@ -1984,7 +1983,7 @@ out:
 	intel_runtime_pm_put(dev_priv);
 	return ret;
 }
-#endif
+
 /**
  * i915_gem_release_mmap - remove physical page mappings
  * @obj: obj in question
