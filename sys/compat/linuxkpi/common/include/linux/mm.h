@@ -165,6 +165,10 @@ long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 
 extern struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr);
 
+
+#define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
+
+
 struct vm_fault {
 	unsigned int flags;		/* FAULT_FLAG_xxx flags */
 	gfp_t gfp_mask;			/* gfp mask to be used for allocations */
