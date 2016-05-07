@@ -101,8 +101,7 @@ drm_dma_handle_t *drm_pci_alloc(struct drm_device * dev, size_t size,
 		free(dmah, DRM_MEM_DMA);
 		return NULL;
 	}
-
-	return dmah;
+	return (dmah);
 }
 EXPORT_SYMBOL(drm_pci_alloc);
 
