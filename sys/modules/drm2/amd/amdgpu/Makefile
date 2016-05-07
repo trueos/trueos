@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../../dev/drm2/amd/amdgpu
+.PATH:	${.CURDIR}/../../../../dev/drm2/amd/amdgpu ${.CURDIR}/../../../../dev/drm2/amd/scheduler
 
 KMOD	= amdgpu
 
@@ -9,6 +9,7 @@ KMOD	= amdgpu
 #       amdgpu_acp.c
 # XXX not ported yet
 #	amdgpu_vm.c : trace points, atomic, rbtree
+#	gpu_scheduler.c : kfifo
 
 SRCS	= \
 	amdgpu.h \
@@ -94,7 +95,8 @@ SRCS	= \
 	uvd_v6_0.c \
 	vce_v2_0.c \
 	vce_v3_0.c \
-	vi.c
+	vi.c \
+	sched_fence.c
 
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
@@ -150,3 +152,4 @@ CWARNFLAGS.gfx_v8_0.c=	-Wno-missing-prototypes
 CWARNFLAGS.iceland_smc.c=	-Wno-missing-prototypes
 CWARNFLAGS.kv_dpm.c=	-Wno-unused-const-variable
 CWARNFLAGS.tonga_smc.c=	-Wno-cast-qual
+CWARNFLAGS.gpu_scheduler.c=	-Wno-format
