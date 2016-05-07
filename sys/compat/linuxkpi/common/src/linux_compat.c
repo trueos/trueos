@@ -71,12 +71,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 extern u_int cpu_clflush_line_size;
+extern u_int cpu_id;
 
 struct workqueue_struct *system_long_wq;
 struct workqueue_struct *system_wq;
 struct workqueue_struct *system_unbound_wq;
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
+MALLOC_DEFINE(M_LCINT, "linuxint", "Linux compat internal");
 
 
 #include <linux/rbtree.h>
@@ -398,6 +400,107 @@ linux_file_dtor(void *cdp)
 }
 
 static int
+linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_page_t *mres)
+{
+	vm_page_t page, oldpage;
+	struct vm_fault vmf;
+	struct vm_area_struct *vmap = vm_obj->handle;
+	int objlocked, rc, err;
+
+	vm_object_pip_add(vm_obj, 1);
+	objlocked = 1;
+
+	if (*mres != NULL) {
+		oldpage = *mres;
+		*mres = NULL;
+		vm_page_lock(oldpage);
+		vm_page_remove(oldpage);
+		vm_page_unlock(oldpage);
+	} else
+		oldpage = NULL;
+	page = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
+	if (page != NULL)
+		goto have_page;
+
+	vmf.virtual_address = (void *)(vmap->vm_start + offset);
+	vmf.flags = FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT;
+	err = vmap->vm_ops->fault(vmap, &vmf);
+	if (__predict_false(err == VM_FAULT_RETRY)) {
+		VM_OBJECT_WUNLOCK(vm_obj);
+		objlocked = 0;
+		vmf.flags = FAULT_FLAG_ALLOW_RETRY;
+		err = vmap->vm_ops->fault(vmap, &vmf);
+	}
+	if (__predict_false(err == VM_FAULT_RETRY)) {
+		kern_yield(0);
+		vmf.flags = 0;
+		err = vmap->vm_ops->fault(vmap, &vmf);
+	}
+	if (objlocked == 0) {
+		VM_OBJECT_WLOCK(vm_obj);
+		objlocked = 1;
+	}
+	if (err)
+		goto err;
+	if (err == 0)
+		page = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
+have_page:
+	*mres = page;
+	vm_page_xbusy(page);
+
+	if (oldpage != NULL) {
+		vm_page_lock(oldpage);
+		vm_page_free(oldpage);
+		vm_page_unlock(oldpage);
+	}
+	vm_object_pip_wakeup(vm_obj);
+	return (VM_PAGER_OK);
+err:
+	switch (err) {
+	case VM_FAULT_OOM:
+		rc = VM_PAGER_ERROR;
+		break;
+	case VM_FAULT_SIGBUS:
+		rc = VM_PAGER_BAD;
+		break;
+	case VM_FAULT_NOPAGE:
+		rc = VM_PAGER_ERROR;
+		break;
+	default:
+		panic("unknown error %d", err);
+	}
+	if (objlocked == 0)
+		VM_OBJECT_WLOCK(vm_obj);
+	vm_object_pip_wakeup(vm_obj);
+	return (rc);
+}
+
+static int
+linux_cdev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
+		      vm_ooffset_t foff, struct ucred *cred, u_short *color)
+{
+	struct vm_area_struct *vmap = handle;
+
+	vmap->vm_ops->open(vmap);
+	return (0);
+}
+
+static void
+linux_cdev_pager_dtor(void *handle)
+{
+	struct vm_area_struct *vmap = handle;
+
+	vmap->vm_ops->close(vmap);
+	free(vmap, M_LCINT);
+}
+
+static struct cdev_pager_ops linux_cdev_pager_ops = {
+	.cdev_pg_fault	= linux_cdev_pager_fault,
+	.cdev_pg_ctor	= linux_cdev_pager_ctor,
+	.cdev_pg_dtor	= linux_cdev_pager_dtor
+};
+
+static int
 linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct linux_cdev *ldev;
@@ -585,7 +688,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct file *file;
-	struct vm_area_struct vma;
+	struct vm_area_struct vma, *vmap;
 	int error;
 
 	file = curthread->td_fpop;
@@ -600,6 +703,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	vma.vm_pgoff = *offset / PAGE_SIZE;
 	vma.vm_pfn = 0;
 	vma.vm_page_prot = VM_MEMATTR_DEFAULT;
+	vma.vm_ops = NULL;
 	if (filp->f_op->mmap) {
 		error = -filp->f_op->mmap(filp, &vma);
 		if (error == 0) {
@@ -607,9 +711,18 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 
 			sg = sglist_alloc(1, M_WAITOK);
 			sglist_append_phys(sg,
-			    (vm_paddr_t)vma.vm_pfn << PAGE_SHIFT, vma.vm_len);
-			*object = vm_pager_allocate(OBJT_SG, sg, vma.vm_len,
-			    nprot, 0, curthread->td_ucred);
+					   (vm_paddr_t)vma.vm_pfn << PAGE_SHIFT, vma.vm_len);
+			if (vma.vm_ops != NULL && vma.vm_ops->fault != NULL) {
+				MPASS(vma.vm_ops.open != NULL);
+				MPASS(vma.vm_ops.close != NULL);
+				vmap = malloc(sizeof(*vmap), M_LCINT, M_WAITOK);
+				memcpy(vmap, &vma, sizeof(*vmap));
+				*object = cdev_pager_allocate(vmap, OBJT_MGTDEVICE, &linux_cdev_pager_ops, size, nprot,
+							      *offset, curthread->td_ucred);
+			} else {
+				*object = vm_pager_allocate(OBJT_SG, sg, vma.vm_len,
+							    nprot, 0, curthread->td_ucred);
+			}
 		        if (*object == NULL) {
 				sglist_free(sg);
 				return (EINVAL);
@@ -859,7 +972,6 @@ vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 		return (NULL);
 	vmmap_add((void *)off, size);
 	pmap_qenter(off, pages, count);
-
 	return ((void *)off);
 }
 
@@ -1365,6 +1477,8 @@ linux_compat_init(void *arg)
 
 	sx_init(&linux_global_rcu_lock, "LinuxGlobalRCU");
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
+	boot_cpu_data.x86 = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
+
 	system_long_wq = alloc_workqueue("events_long", 0, 0);
 	system_wq = alloc_workqueue("events", 0, 0);
 	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
