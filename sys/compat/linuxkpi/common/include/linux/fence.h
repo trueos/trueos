@@ -218,6 +218,12 @@ fence_add_callback(struct fence *fence, struct fence_cb *cb,
 	UNIMPLEMENTED();
 	return (0);
 }
+static inline bool
+fence_remove_callback(struct fence *fence, struct fence_cb *cb)
+{
+	UNIMPLEMENTED();
+	return (false);
+}
 
 static inline void
 fence_init(struct fence *fence, const struct fence_ops *ops,
@@ -237,4 +243,27 @@ fence_is_later(struct fence *f1, struct fence *f2){
 	return (0);
 }
 
+
+
+#define FENCE_TRACE(f, fmt, args...) \
+	do {								\
+		struct fence *__ff = (f);				\
+		if (config_enabled(CONFIG_FENCE_TRACE))			\
+			pr_info("f %u#%u: " fmt,			\
+				__ff->context, __ff->seqno, ##args);	\
+	} while (0)
+
+#define FENCE_WARN(f, fmt, args...) \
+	do {								\
+		struct fence *__ff = (f);				\
+		pr_warn("f %u#%u: " fmt, __ff->context, __ff->seqno,	\
+			 ##args);					\
+	} while (0)
+
+#define FENCE_ERR(f, fmt, args...) \
+	do {								\
+		struct fence *__ff = (f);				\
+		pr_err("f %u#%u: " fmt, __ff->context, __ff->seqno,	\
+			##args);					\
+	} while (0)
 #endif
