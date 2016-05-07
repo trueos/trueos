@@ -42,7 +42,12 @@ __FBSDID("$FreeBSD$");
 #include "drm_legacy.h"
 #include "drm_internal.h"
 
+#if defined(DRM_DEBUG_LOG_ALL) || defined(INVARIANTS)
+unsigned int drm_debug = 0xffffffff;	/* bitmask of DRM_UT_x */
+#else
 unsigned int drm_debug = 0;	/* bitmask of DRM_UT_x */
+#endif
+
 EXPORT_SYMBOL(drm_debug);
 
 MODULE_AUTHOR(CORE_AUTHOR);
@@ -66,7 +71,7 @@ void drm_err(const char *format, ...)
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	printk(KERN_ERR "[" DRM_NAME ":%ps] *ERROR* %pV",
+	printk(KERN_ERR "[" DRM_NAME ":%ps] *ERROR* %pV\n",
 	       __builtin_return_address(0), &vaf);
 
 	va_end(args);
@@ -82,7 +87,7 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	printk(KERN_DEBUG "[" DRM_NAME ":%s] %pV", function_name, &vaf);
+	printk(KERN_DEBUG "[" DRM_NAME ":%s] %pV\n", function_name, &vaf);
 
 	va_end(args);
 }
@@ -496,7 +501,7 @@ EXPORT_SYMBOL(drm_unplug_dev);
  * iget() + drm_fs_inode_free() directly after alloc and sometime later do an
  * iput(), but this way you'd end up with a new vfsmount for each inode.
  */
-#if 0
+
 static int drm_fs_cnt;
 static struct vfsmount *drm_fs_mnt;
 
@@ -550,7 +555,6 @@ static void drm_fs_inode_free(struct inode *inode)
 		simple_release_fs(&drm_fs_mnt, &drm_fs_cnt);
 	}
 }
-#endif
 
 /**
  * drm_dev_alloc - Allocate new DRM device
@@ -596,14 +600,14 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->ctxlist_mutex);
 	mutex_init(&dev->master_mutex);
-#if 0
+
 	dev->anon_inode = drm_fs_inode_new();
 	if (IS_ERR(dev->anon_inode)) {
 		ret = PTR_ERR(dev->anon_inode);
 		DRM_ERROR("Cannot allocate anonymous inode: %d\n", ret);
 		goto err_free;
 	}
-#endif
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = drm_minor_alloc(dev, DRM_MINOR_CONTROL);
 		if (ret)
@@ -653,9 +657,7 @@ err_minors:
 	drm_minor_free(dev, DRM_MINOR_LEGACY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
 	drm_minor_free(dev, DRM_MINOR_CONTROL);
-#if 0	
 	drm_fs_inode_free(dev->anon_inode);
-#endif	
 err_free:
 	mutex_destroy(&dev->master_mutex);
 	spin_lock_destroy(&dev->buf_lock);
@@ -677,9 +679,7 @@ static void drm_dev_release(struct kref *ref)
 
 	drm_legacy_ctxbitmap_cleanup(dev);
 	drm_ht_remove(&dev->map_hash);
-#if 0	
 	drm_fs_inode_free(dev->anon_inode);
-#endif	
 
 	drm_minor_free(dev, DRM_MINOR_LEGACY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
@@ -917,7 +917,7 @@ static int __init drm_core_init(void)
 		goto err_p2;
 	}
 
-#if 0
+#ifdef __linux__
 	drm_debugfs_root = debugfs_create_dir("dri", NULL);
 	if (!drm_debugfs_root) {
 		DRM_ERROR("Cannot create /sys/kernel/debug/dri\n");
@@ -941,7 +941,7 @@ err_p1:
 
 static void __exit drm_core_exit(void)
 {
-#if 0
+#ifdef __linux__
 	debugfs_remove(drm_debugfs_root);
 #endif	
 	drm_sysfs_destroy();
