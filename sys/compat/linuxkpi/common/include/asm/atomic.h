@@ -74,6 +74,13 @@ atomic_set(atomic_t *v, int i)
 
 
 static inline void
+atomic64_set(atomic64_t *v, long i)
+{
+	atomic_store_rel_long(&v->counter, i);
+}
+
+
+static inline void
 atomic_set_mask(int mask, atomic_t *v)
 {
 	atomic_set_int(&v->counter, mask);
@@ -131,6 +138,13 @@ atomic_xchg(atomic_t *v, int i)
 {
 
 	return (atomic_swap_int(&v->counter, i));
+}
+
+static inline long
+atomic64_xchg(atomic64_t *v, long i)
+{
+
+	return (atomic_swap_long(&v->counter, i));
 }
 
 
