@@ -3090,9 +3090,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			s64 *timeout,
 			struct intel_rps_client *rps);
 int __must_check i915_wait_request(struct drm_i915_gem_request *req);
-#ifdef __linux__
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
-#endif
 /**** FreeBSD ****/
 
 
@@ -3105,8 +3103,6 @@ int i915_sysctl_init(struct drm_device *dev, struct sysctl_ctx_list *ctx,
     struct sysctl_oid *top);
 void i915_sysctl_cleanup(struct drm_device *dev);
 
-int i915_gem_fault(struct drm_device *dev, uint64_t offset, int prot,
-    uint64_t *phys);
 /***************/
 int __must_check
 i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
