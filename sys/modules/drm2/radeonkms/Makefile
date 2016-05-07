@@ -8,7 +8,6 @@
 #	radeon_fence.c : fence, power, traces
 #	radeon_ioc32.c : missing some 'compat_alloc_user_space' and more
 #	radeon_irq_kms.c : missing fields in pci_dev
-#	radeon_mn.c : rbtree
 #	radeon_pm.c : sensors stuff
 #	radeon_ring.c : atomic64
 #	radeon_ttm.c : atomic64, VM?
@@ -80,6 +79,7 @@ SRCS	= \
 	radeon_legacy_crtc.c \
 	radeon_legacy_encoders.c \
 	radeon_legacy_tv.c \
+	radeon_mn.c \
 	radeon_object.c \
 	radeon_prime.c \
 	radeon_sa.c \
@@ -157,8 +157,10 @@ CWARNFLAGS.radeon_gem.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_irq_kms.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_kms.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_legacy_encoders.c=	-Wno-missing-prototypes
+CWARNFLAGS.radeon_mn.c=		-Wno-unused-variable
 CWARNFLAGS.radeon_object.c=	-Wno-format
 CWARNFLAGS.radeon_prime.c=	-Wno-missing-prototypes
+CWARNFLAGS.radeon_ring.c=	-Wno-cast-qual -Wno-format
 CWARNFLAGS.radeon_test.c=	-Wno-format
 CWARNFLAGS.radeon_uvd.c=	-Wno-format
 CWARNFLAGS.radeon_vce.c=	-Wno-format
