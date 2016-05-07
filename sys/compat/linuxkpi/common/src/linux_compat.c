@@ -713,8 +713,8 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 			sglist_append_phys(sg,
 					   (vm_paddr_t)vma.vm_pfn << PAGE_SHIFT, vma.vm_len);
 			if (vma.vm_ops != NULL && vma.vm_ops->fault != NULL) {
-				MPASS(vma.vm_ops.open != NULL);
-				MPASS(vma.vm_ops.close != NULL);
+				MPASS(vma.vm_ops->open != NULL);
+				MPASS(vma.vm_ops->close != NULL);
 				vmap = malloc(sizeof(*vmap), M_LCINT, M_WAITOK);
 				memcpy(vmap, &vma, sizeof(*vmap));
 				*object = cdev_pager_allocate(vmap, OBJT_MGTDEVICE, &linux_cdev_pager_ops, size, nprot,
