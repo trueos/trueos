@@ -53,6 +53,7 @@
 #include <linux/intel-iommu.h>
 #include <linux/kref.h>
 #include <linux/pm_qos.h>
+#include <linux/io.h>
 #include "intel_guc.h"
 
 /* #define CONFIG_DEBUG_FS 1 */
@@ -3097,7 +3098,6 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 
 /******* FreeBSD support ************/
 extern struct drm_driver i915_driver_info;
-extern struct cdev_pager_ops i915_gem_pager_ops;
 extern int intel_iommu_gfx_mapped;
 
 /* i915_debugfs.c */
