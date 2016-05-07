@@ -28,6 +28,9 @@
 #include "radeon.h"
 #include <drm/radeon_drm.h>
 
+#define aper_base ai_aperture_base
+#define aper_size ai_aperture_size
+
 #if IS_ENABLED(CONFIG_AGP)
 
 struct radeon_agpmode_quirk {
