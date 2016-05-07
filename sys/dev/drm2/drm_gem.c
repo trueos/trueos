@@ -252,11 +252,10 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 	struct drm_gem_object *obj = ptr;
 	struct drm_device *dev = obj->dev;
 
-#ifdef __linux__
 	if (drm_core_check_feature(dev, DRIVER_PRIME))
 		drm_gem_remove_prime_handles(obj, file_priv);
 	drm_vma_node_revoke(&obj->vma_node, file_priv->filp);
-#endif
+
 	if (dev->driver->gem_close_object)
 		dev->driver->gem_close_object(obj, file_priv);
 
@@ -369,11 +368,9 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 		goto err_unref;
 
 	handle = ret;
-#ifdef __linux__
 	ret = drm_vma_node_allow(&obj->vma_node, file_priv->filp);
 	if (ret)
 		goto err_remove;
-#endif
 	if (dev->driver->gem_open_object) {
 		ret = dev->driver->gem_open_object(obj, file_priv);
 		if (ret)
