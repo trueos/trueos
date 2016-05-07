@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../../dev/drm2/amd/amdgpu ${.CURDIR}/../../../../dev/drm2/amd/scheduler
+.PATH:	${.CURDIR}/../../../../dev/drm2/amd/amdgpu ${.CURDIR}/../../../../dev/drm2/amd/scheduler ${.CURDIR}/../../../../dev/drm2/amd/powerplay ${.CURDIR}/../../../../dev/drm2/amd/powerplay/eventmgr ${.CURDIR}/../../../../dev/drm2/amd/powerplay/hwmgr ${.CURDIR}/../../../../dev/drm2/amd/powerplay/smumgr
 
 KMOD	= amdgpu
 
@@ -96,7 +96,15 @@ SRCS	= \
 	vce_v2_0.c \
 	vce_v3_0.c \
 	vi.c \
-	sched_fence.c
+	sched_fence.c \
+	amd_powerplay.c \
+	eventactionchains.c \
+	eventinit.c \
+	eventmanagement.c \
+	eventmgr.c \
+	eventsubchains.c \
+	eventtasks.c \
+	psm.c
 
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
@@ -104,7 +112,10 @@ CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/uapi
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/amdgpu
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/include
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/acp/include
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/powerplay/eventmgr
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/powerplay/hwmgr
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/powerplay/inc
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/powerplay/smumgr
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/scheduler
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/include/asic_reg
 CFLAGS+=	'-DKBUILD_MODNAME="${KMOD}"'
@@ -153,3 +164,5 @@ CWARNFLAGS.iceland_smc.c=	-Wno-missing-prototypes
 CWARNFLAGS.kv_dpm.c=	-Wno-unused-const-variable
 CWARNFLAGS.tonga_smc.c=	-Wno-cast-qual
 CWARNFLAGS.gpu_scheduler.c=	-Wno-format
+CWARNFLAGS.amd_powerplay.c=	-Wno-missing-prototypes
+CWARNFLAGS.eventtasks.c=	-Wno-missing-prototypes
