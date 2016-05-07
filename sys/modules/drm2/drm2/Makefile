@@ -27,7 +27,6 @@ SRCS	= \
 	drm_flip_work.c \
 	drm_fops.c \
 	drm_gem.c \
-	drm_gem_freebsd.c \
 	drm_gem_cma_helper.c \
 	drm_global.c \
 	drm_hashtab.c \
@@ -66,6 +65,7 @@ SRCS	= \
 	ttm_memory.c \
 	ttm_module.c \
 	ttm_page_alloc.c \
+	ttm_page_alloc_dma.c \
 	ttm_bo_vm.c \
 
 
@@ -86,6 +86,7 @@ CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 
 # until stable
 CFLAGS += -O0
+CFLAGS += -DDRM_DEBUG_LOG_ALL
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
 SRCS	+= drm_ioc32.c
