@@ -35,4 +35,7 @@
 #define preempt_disable() critical_enter()
 #define preempt_enable() critical_exit()
 
+
+extern void *compat_alloc_user_space(unsigned long len);
+
 #endif	/* _LINUX_COMPAT_H_ */

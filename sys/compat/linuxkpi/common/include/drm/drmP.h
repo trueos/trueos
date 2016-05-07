@@ -337,6 +337,9 @@ void drm_err(const char *format, ...);
 typedef int drm_ioctl_t(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 
+typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
+			       unsigned long arg);
+
 #define DRM_IOCTL_NR(n)                ((n) & 0xff)
 
 
