@@ -304,6 +304,7 @@ struct pci_dev {
 	uint16_t		subsystem_device;
 	unsigned int		msi_enabled:1;
 	unsigned int		msix_enabled:1;
+	unsigned int		no_64bit_msi:1;
 	unsigned int		irq;
 	u8			revision;
 	struct linux_resource resource[DEVICE_COUNT_RESOURCE]; /* I/O and memory regions + expansion ROMs */
@@ -1021,5 +1022,7 @@ pcie_get_readrq(struct pci_dev *dev){
 }
 
 #define PCI_DEVICE_ID_ATI_RADEON_QY     0x5159
+#define pci_enable_msi linux_pci_enable_msi
+#define pci_disable_msi linux_pci_disable_msi
 
 #endif	/* _LINUX_PCI_H_ */
