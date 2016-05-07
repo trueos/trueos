@@ -130,7 +130,7 @@ int drm_sysfs_init(void)
 	drm_class = class_create(THIS_MODULE, "drm");
 	if (IS_ERR(drm_class))
 		return PTR_ERR(drm_class);
-#if 0
+#ifdef __linux__
 	drm_class->pm = &drm_class_dev_pm_ops;
 
 	err = class_create_file(drm_class, &class_attr_version.attr);
