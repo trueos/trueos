@@ -418,10 +418,22 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 		vm_page_unlock(oldpage);
 	} else
 		oldpage = NULL;
+retry:
+	if (objlocked == 0) {
+		VM_OBJECT_WLOCK(vm_obj);
+		objlocked = 1;
+	}
 	page = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
-	if (page != NULL)
+	if (page != NULL) {
+		if (vm_page_busied(page)) {
+			vm_page_lock(page);
+			VM_OBJECT_WUNLOCK(vm_obj);
+			vm_page_busy_sleep(page, "915pee");
+			objlocked = 0;
+			goto retry;
+		}
 		goto have_page;
-
+	}
 	vmf.virtual_address = (void *)(vmap->vm_start + offset);
 	vmf.flags = FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT;
 	err = vmap->vm_ops->fault(vmap, &vmf);
@@ -436,15 +448,28 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 		vmf.flags = 0;
 		err = vmap->vm_ops->fault(vmap, &vmf);
 	}
-	if (objlocked == 0) {
+	if (__predict_false(objlocked == 0)) {
 		VM_OBJECT_WLOCK(vm_obj);
 		objlocked = 1;
 	}
 	if (err)
 		goto err;
-	if (err == 0)
-		page = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
+	page = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
+	if (page == NULL) {
+		rc = VM_FAULT_OOM;
+		goto err;
+	}
+	if (vm_page_busied(page)) {
+		vm_page_lock(page);
+		VM_OBJECT_WUNLOCK(vm_obj);
+		vm_page_busy_sleep(page, "915pee");
+		objlocked = 0;
+		goto retry;
+	}
+	page->valid = VM_PAGE_BITS_ALL;
+
 have_page:
+	MPASS(page->flags & PG_FICTITIOUS);
 	*mres = page;
 	vm_page_xbusy(page);
 
@@ -469,8 +494,6 @@ err:
 	default:
 		panic("unknown error %d", err);
 	}
-	if (objlocked == 0)
-		VM_OBJECT_WLOCK(vm_obj);
 	vm_object_pip_wakeup(vm_obj);
 	return (rc);
 }
@@ -709,31 +732,34 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 		if (error == 0) {
 			struct sglist *sg;
 
-			sg = sglist_alloc(1, M_WAITOK);
-			sglist_append_phys(sg,
-					   (vm_paddr_t)vma.vm_pfn << PAGE_SHIFT, vma.vm_len);
 			if (vma.vm_ops != NULL && vma.vm_ops->fault != NULL) {
 				MPASS(vma.vm_ops->open != NULL);
 				MPASS(vma.vm_ops->close != NULL);
 				vmap = malloc(sizeof(*vmap), M_LCINT, M_WAITOK);
 				memcpy(vmap, &vma, sizeof(*vmap));
-				*object = cdev_pager_allocate(vmap, OBJT_MGTDEVICE, &linux_cdev_pager_ops, size, nprot,
-							      *offset, curthread->td_ucred);
+				/* XXX note to self - audit vm_page_prot usage */
+				*object = cdev_pager_allocate(vmap, OBJT_MGTDEVICE, &linux_cdev_pager_ops, size, vma.vm_page_prot,
+							      0, curthread->td_ucred);
+				if (*object != NULL)
+					vmap->vm_obj = *object;
 			} else {
+				sg = sglist_alloc(1, M_WAITOK);
+				sglist_append_phys(sg,
+						   (vm_paddr_t)vma.vm_pfn << PAGE_SHIFT, vma.vm_len);
 				*object = vm_pager_allocate(OBJT_SG, sg, vma.vm_len,
 							    nprot, 0, curthread->td_ucred);
-			}
-		        if (*object == NULL) {
-				sglist_free(sg);
-				return (EINVAL);
+				if (*object == NULL) {
+					sglist_free(sg);
+					return (EINVAL);
+				}
+				if (vma.vm_page_prot != VM_MEMATTR_DEFAULT) {
+					VM_OBJECT_WLOCK(*object);
+					vm_object_set_memattr(*object,
+							      vma.vm_page_prot);
+					VM_OBJECT_WUNLOCK(*object);
+				}
 			}
 			*offset = 0;
-			if (vma.vm_page_prot != VM_MEMATTR_DEFAULT) {
-				VM_OBJECT_WLOCK(*object);
-				vm_object_set_memattr(*object,
-				    vma.vm_page_prot);
-				VM_OBJECT_WUNLOCK(*object);
-			}
 		}
 	} else
 		error = ENODEV;
