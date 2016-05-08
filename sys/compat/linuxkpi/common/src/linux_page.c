@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/mm.h>
 
 
 #include <vm/vm.h>
@@ -102,7 +103,7 @@ kmap(vm_page_t page)
 	vm_offset_t daddr;
 
 
-	MPASS(page->flags & PG_FICTITIOUS == 0);
+	MPASS((page->flags & PG_FICTITIOUS) == 0);
 	daddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page));
 
 	return ((void *)daddr);
