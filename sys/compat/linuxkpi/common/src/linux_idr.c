@@ -160,38 +160,6 @@ idr_remove(struct idr *idr, int id)
 	mtx_unlock(&idr->lock);
 }
 
-void *
-idr_replace(struct idr *idr, void *ptr, int id)
-{
-	struct idr_layer *il;
-	void *res;
-	int layer;
-	int idx;
-
-	res = ERR_PTR(-EINVAL);
-	id &= MAX_ID_MASK;
-	mtx_lock(&idr->lock);
-	il = idr->top;
-	layer = idr->layers - 1;
-	if (il == NULL || id > idr_max(idr))
-		goto out;
-	while (layer && il) {
-		il = il->ary[idr_pos(id, layer)];
-		layer--;
-	}
-	idx = id & IDR_MASK;
-	/*
-	 * Replace still returns an error if the item was not allocated.
-	 */
-	if (il != NULL && (il->bitmap & (1 << idx)) != 0) {
-		res = il->ary[idx];
-		il->ary[idx] = ptr;
-	}
-out:
-	mtx_unlock(&idr->lock);
-	return (res);
-}
-
 
 static inline struct idr_layer *
 idr_find_layer(struct idr *idr, int id)
@@ -212,6 +180,32 @@ idr_find_layer(struct idr *idr, int id)
 	}
 	return (il);
 }
+
+void *
+idr_replace(struct idr *idr, void *ptr, int id)
+{
+	struct idr_layer *il;
+	void *res;
+	int idx;
+
+	id &= MAX_ID_MASK;
+	mtx_lock(&idr->lock);
+	il = idr_find_layer(idr, id);
+	idx = id & IDR_MASK;
+
+	/* Replace still returns an error if the item was not allocated. */
+	if (il == NULL || (il->bitmap & (1 << idx))) {
+		res = ERR_PTR(-EINVAL);
+		goto out;
+	}
+	res = il->ary[idx];
+	il->ary[idx] = ptr;
+
+out:
+	mtx_unlock(&idr->lock);
+	return (res);
+}
+
 
 static inline void *
 idr_find_locked(struct idr *idr, int id, int *nextidp)
