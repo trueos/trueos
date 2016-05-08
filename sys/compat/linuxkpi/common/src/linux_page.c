@@ -59,12 +59,53 @@ __FBSDID("$FreeBSD$");
 
 
 
+int
+vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn, pgprot_t pgprot)
+{
+	vm_object_t vm_obj;
+	vm_page_t page;
+	off_t off;
+	int owned, rc;
+
+	vm_obj = vma->vm_obj;
+	owned = VM_OBJECT_WOWNED(vm_obj);
+	page = PHYS_TO_VM_PAGE((pfn << PAGE_SHIFT));
+	MPASS(page->flags & PG_FICTITIOUS);
+	off = addr - vma->vm_start;
+	rc = 0;
+	if (!owned) {
+		VM_OBJECT_WLOCK(vm_obj);
+		if (vm_page_lookup(vm_obj, OFF_TO_IDX(off))) {
+			VM_OBJECT_WUNLOCK(vm_obj);
+			return (0);
+		}
+	}
+	if (vm_page_insert(page, vm_obj, OFF_TO_IDX(off)))
+		rc = -ENOMEM;
+	if (!owned)
+		VM_OBJECT_WUNLOCK(vm_obj);
+	return (rc);
+}
+
+int
+vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
+{
+
+	return (vm_insert_pfn_prot(vma, addr, pfn, vma->vm_page_prot));
+}
+
+
 #if defined(__LP64__)
 void *
 kmap(vm_page_t page)
 {
+	vm_offset_t daddr;
 
-	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
+
+	MPASS(page->flags & PG_FICTITIOUS == 0);
+	daddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page));
+
+	return ((void *)daddr);
 }
 
 void *
@@ -93,7 +134,7 @@ kunmap(vm_page_t page)
 void
 kunmap_atomic(void *vaddr)
 {
-	/* no VM work to be done here */
+	/* no VM work to be done here - unless it's from kmap_atomic_prot XXX */
 	sched_unpin();
 }
 
@@ -297,6 +338,9 @@ unmap_mapping_range(void *obj, loff_t const holebegin, loff_t const holelen, int
 	vm_page_t page;
 	int i, page_count;
 
+	BACKTRACE();
+	printf("unmap_mapping_range: obj: %p holebegin %zu, holelen: %zu, even_cows: %d\n",
+	       obj, holebegin, holelen, even_cows);
 	devobj = cdev_pager_lookup(obj);
 	if (devobj != NULL) {
 		page_count = OFF_TO_IDX(holelen);
