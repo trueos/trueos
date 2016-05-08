@@ -1394,27 +1394,73 @@ in_atomic(void)
 	return ((curthread->td_pflags & TDP_NOFAULTING) != 0);
 }
 
+struct linux_cdev*
+find_cdev(const char *name, unsigned int major, int minor, int remove)
+{
+	struct linux_cdev *cdev;
+	struct list_head *h;
+	
+	sx_xlock(&linux_global_rcu_lock);
+	list_for_each(h, &cdev_list) {
+		cdev = __containerof(h, struct linux_cdev, list);
+		if ((strcmp(kobject_name(&cdev->kobj), name) == 0) &&
+		    cdev->baseminor == minor &&
+		    cdev->major == major) {
+			if (remove)
+				list_del(&cdev->list);
+			sx_xunlock(&linux_global_rcu_lock);
+			return (cdev);
+		}
+	}
+	sx_xunlock(&linux_global_rcu_lock);
+	return (NULL);
+}
+
+
 int
 __register_chrdev(unsigned int major, unsigned int baseminor,
 		  unsigned int count, const char *name,
 		  const struct file_operations *fops)
 {
 	struct linux_cdev *cdev;
-	int ret;
+	int i, ret;
 
-	cdev = cdev_alloc();
-	cdev_init(cdev, fops);
-	kobject_set_name(&cdev->kobj, name);
-	if (count != 1) {
-		log(LOG_WARNING, "count = %d, only 1 is supported", count); 
-		count = 1;
+	for (i = baseminor; i < baseminor + count; i++) {
+		cdev = cdev_alloc();
+		cdev_init(cdev, fops);
+		kobject_set_name(&cdev->kobj, name);
+
+		ret = cdev_add(cdev, i, 1);
+		cdev->major = major;
+		cdev->baseminor = i;	
+		sx_xlock(&linux_global_rcu_lock);
+		list_add(&cdev->list, &cdev_list);
+		sx_xunlock(&linux_global_rcu_lock);
 	}
-	ret = cdev_add(cdev, major, count);
-	cdev->major = major;
-	cdev->baseminor = baseminor;	
-	sx_xlock(&linux_global_rcu_lock);
-	list_add(&cdev->list, &cdev_list);
-	sx_xunlock(&linux_global_rcu_lock);
+	return (ret);
+}
+
+int
+__register_chrdev_p(unsigned int major, unsigned int baseminor,
+		    unsigned int count, const char *name,
+		    const struct file_operations *fops, uid_t uid,
+		    gid_t gid, int mode)
+{
+	struct linux_cdev *cdev;
+	int i, ret;
+
+	for (i = baseminor; i < baseminor + count; i++) {
+		cdev = cdev_alloc();
+		cdev_init(cdev, fops);
+		kobject_set_name(&cdev->kobj, name);
+
+		ret = cdev_add_ext(cdev, i, uid, gid, mode);
+		cdev->major = major;
+		cdev->baseminor = i;	
+		sx_xlock(&linux_global_rcu_lock);
+		list_add(&cdev->list, &cdev_list);
+		sx_xunlock(&linux_global_rcu_lock);
+	}
 	return (ret);
 }
 
@@ -1422,25 +1468,15 @@ void
 __unregister_chrdev(unsigned int major, unsigned int baseminor,
 		    unsigned int count, const char *name)
 {
-	struct linux_cdev *cdev;
-	struct list_head *h;
-	bool found;
+	int i;
+	struct linux_cdev *cdevp;
 
-	found = false;
-	sx_xlock(&linux_global_rcu_lock);
-	list_for_each(h, &cdev_list) {
-		cdev = __containerof(h, struct linux_cdev, list);
-		if ((strcmp(kobject_name(&cdev->kobj), name) == 0) &&
-		    cdev->baseminor == baseminor &&
-		    cdev->major == major) {
-			list_del(&cdev->list);
-			found = true;
-			break;
-		}
+	for (i = baseminor; i < count; i++) {
+		cdevp = find_cdev(name, major, i, true);
+		MPASS(cdevp != NULL);
+		if (cdevp != NULL)
+			cdev_del(cdevp);
 	}
-	sx_xunlock(&linux_global_rcu_lock);
-	MPASS(found != false);
-	cdev_del(cdev);
 }
 
 static DECLARE_WAIT_QUEUE_HEAD(async_done);

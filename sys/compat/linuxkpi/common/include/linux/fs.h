@@ -192,6 +192,9 @@ struct file_operations {
 extern int __register_chrdev(unsigned int major, unsigned int baseminor,
 			     unsigned int count, const char *name,
 			     const struct file_operations *fops);
+extern int __register_chrdev_p(unsigned int major, unsigned int baseminor,
+			     unsigned int count, const char *name,
+			       const struct file_operations *fops, uid_t, gid_t, int);
 extern void __unregister_chrdev(unsigned int major, unsigned int baseminor,
 				unsigned int count, const char *name);
 
@@ -199,6 +202,13 @@ static inline int register_chrdev(unsigned int major, const char *name,
 				  const struct file_operations *fops)
 {
 	return __register_chrdev(major, 0, 256, name, fops);
+}
+
+static inline int register_chrdev_p(unsigned int major, const char *name,
+				    const struct file_operations *fops, uid_t uid,
+				    gid_t gid, int mode)
+{
+	return __register_chrdev_p(major, 0, 256, name, fops, uid, gid, mode);
 }
 
 /* Alas, no aliases. Too much hassle with bringing module.h everywhere */

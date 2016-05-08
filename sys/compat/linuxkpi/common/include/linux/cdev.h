@@ -86,7 +86,20 @@ cdev_add(struct linux_cdev *cdev, dev_t dev, unsigned count)
 	if (count != 1)
 		panic("cdev_add: Unsupported count: %d", count);
 	cdev->cdev = make_dev(&linuxcdevsw, MINOR(dev), 0, 0, 0700, 
-	    "%s", kobject_name(&cdev->kobj));
+		         "%s", kobject_name(&cdev->kobj));
+	cdev->dev = dev;
+	cdev->cdev->si_drv1 = cdev;
+
+	kobject_get(cdev->kobj.parent);
+	return (0);
+}
+
+
+static inline int
+cdev_add_ext(struct linux_cdev *cdev, dev_t dev, uid_t uid, gid_t gid, int mode)
+{
+	cdev->cdev = make_dev(&linuxcdevsw, MINOR(dev), uid, gid, mode, 
+		         "%s/%d", kobject_name(&cdev->kobj), MINOR(dev));
 	cdev->dev = dev;
 	cdev->cdev->si_drv1 = cdev;
 
@@ -104,6 +117,7 @@ cdev_del(struct linux_cdev *cdev)
 	kobject_put(&cdev->kobj);
 }
 
+struct linux_cdev* find_cdev(const char *name, unsigned int major, int minor, int remove);
 #define	cdev	linux_cdev
 
 #endif	/* _LINUX_CDEV_H_ */
