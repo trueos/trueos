@@ -52,9 +52,7 @@ vt_restore_fbdev_mode(void *arg, int pending)
 
 	sc = (struct vt_kms_softc *)arg;
 	fb_helper = sc->fb_helper;
-	mutex_lock(&fb_helper->dev->mode_config.mutex);
 	drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
-	mutex_unlock(&fb_helper->dev->mode_config.mutex);
 }
 
 static int
@@ -537,6 +535,11 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 	if (num_registered_fb == 1) {
 		/* tell vt_fb to initialize color map */
 		fb_info->fbio.fb_cmsize = 0;
+		if (fb_info->fbio.fb_bpp == 0) {
+			device_printf(fb_info->fbio.fb_fbd_dev,
+				      "fb_bpp not set, setting to 8");
+			fb_info->fbio.fb_bpp = 32;
+		}
 		if ((err = vt_fb_attach(&fb_info->fbio)) != 0)
 			return (err);
 	}
