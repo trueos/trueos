@@ -145,6 +145,12 @@ trace_i915_gem_evict_everything(struct drm_device *dev){
 }
 
 static inline void
+trace_i915_gem_object_fault(void *obj, off_t off, int bit, int write)
+{
+	CTR4(KTR_DRM, "gem_object_fault obj %p off %zd bit %d write: %d", obj, off, bit, write);
+}
+
+static inline void
 trace_i915_gem_shrink(void *dev, int target, int flags)
 {
 	CTR3(KTR_DRM, "gem_shrink %p %d %x", dev, target, flags);
