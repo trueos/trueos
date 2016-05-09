@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/mount.h>
 
 
 #include <vm/vm.h>
@@ -91,14 +92,19 @@ simple_dname(struct dentry *dentry, char *buffer, int buflen)
 int
 simple_pin_fs(struct file_system_type *type, struct vfsmount **mount, int *count)
 {
-	UNIMPLEMENTED();
+	struct vfsmount *mp;
+
+	DODGY();
+	if ((mp = malloc(sizeof(*mp), M_LKFS, M_WAITOK|M_ZERO)) == NULL)
+		return (-ENOMEM);
+	*mount = mp;
 	return (0);
 }
 
 void
 simple_release_fs(struct vfsmount **mount, int *count)
 {
-	UNIMPLEMENTED();
+	free(*mount, M_LKFS);
 }
 
 int
