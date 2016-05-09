@@ -389,12 +389,36 @@ kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 }
 
 static void
+linux_set_current(void)
+{
+	struct task_struct *t;
+
+	t = linux_kthread_create(NULL, NULL);
+	t->task_thread = curthread;
+	t->comm = curthread->td_name;
+	t->pid = curthread->td_tid;
+	task_struct_set(curthread, t);
+}
+
+static void
+linux_free_current(void)
+{
+	struct task_struct *t;
+
+	t = task_struct_get(curthread);
+	task_struct_set(curthread, NULL);
+	kfree(t);
+}
+
+static void
 linux_file_dtor(void *cdp)
 {
 	struct linux_file *filp;
 
 	filp = cdp;
+	linux_set_current();
 	filp->f_op->release(filp->f_vnode, filp);
+	linux_free_current();
 	vdrop(filp->f_vnode);
 	kfree(filp);
 }
@@ -405,11 +429,10 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	vm_page_t page, oldpage;
 	struct vm_fault vmf;
 	struct vm_area_struct *vmap = vm_obj->handle;
-	int objlocked, rc, err;
+	int rc, err, retries;
 
 	vm_object_pip_add(vm_obj, 1);
-	objlocked = 1;
-
+	retries = 0;
 	if (*mres != NULL) {
 		oldpage = *mres;
 		*mres = NULL;
@@ -419,27 +442,26 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	} else
 		oldpage = NULL;
 retry:
-	if (objlocked == 0) {
-		VM_OBJECT_WLOCK(vm_obj);
-		objlocked = 1;
-	}
+	if (retries > 1)
+		printf("DBG: too many retries\n");
+	MPASS(retries++ < 4);
 	page = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
 	if (page != NULL) {
 		if (vm_page_busied(page)) {
 			vm_page_lock(page);
 			VM_OBJECT_WUNLOCK(vm_obj);
-			vm_page_busy_sleep(page, "915pee");
-			objlocked = 0;
+			vm_page_busy_sleep(page, "linuxcpf");
+			VM_OBJECT_WLOCK(vm_obj);
 			goto retry;
 		}
 		goto have_page;
+
 	}
+	VM_OBJECT_WUNLOCK(vm_obj);
 	vmf.virtual_address = (void *)(vmap->vm_start + offset);
 	vmf.flags = FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT;
 	err = vmap->vm_ops->fault(vmap, &vmf);
 	if (__predict_false(err == VM_FAULT_RETRY)) {
-		VM_OBJECT_WUNLOCK(vm_obj);
-		objlocked = 0;
 		vmf.flags = FAULT_FLAG_ALLOW_RETRY;
 		err = vmap->vm_ops->fault(vmap, &vmf);
 	}
@@ -448,12 +470,10 @@ retry:
 		vmf.flags = 0;
 		err = vmap->vm_ops->fault(vmap, &vmf);
 	}
-	if (__predict_false(objlocked == 0)) {
-		VM_OBJECT_WLOCK(vm_obj);
-		objlocked = 1;
-	}
+	VM_OBJECT_WLOCK(vm_obj);
 	if (err)
 		goto err;
+
 	page = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
 	if (page == NULL) {
 		rc = VM_FAULT_OOM;
@@ -462,8 +482,8 @@ retry:
 	if (vm_page_busied(page)) {
 		vm_page_lock(page);
 		VM_OBJECT_WUNLOCK(vm_obj);
-		vm_page_busy_sleep(page, "915pee");
-		objlocked = 0;
+		vm_page_busy_sleep(page, "linuxcpf");
+		VM_OBJECT_WLOCK(vm_obj);
 		goto retry;
 	}
 	page->valid = VM_PAGE_BITS_ALL;
@@ -471,6 +491,10 @@ retry:
 have_page:
 	MPASS(page->flags & PG_FICTITIOUS);
 	*mres = page;
+
+	/* we don't have control over the termination of the object
+	 * and we don't want to find it still busied
+	 */
 	vm_page_xbusy(page);
 
 	if (oldpage != NULL) {
@@ -481,6 +505,7 @@ have_page:
 	vm_object_pip_wakeup(vm_obj);
 	return (VM_PAGER_OK);
 err:
+	*mres = oldpage;
 	switch (err) {
 	case VM_FAULT_OOM:
 		rc = VM_PAGER_ERROR;
@@ -492,7 +517,8 @@ err:
 		rc = VM_PAGER_ERROR;
 		break;
 	default:
-		panic("unknown error %d", err);
+		/* Should panic - but can't get cores or to debugger from here */
+		rc = VM_PAGER_ERROR;
 	}
 	vm_object_pip_wakeup(vm_obj);
 	return (rc);
@@ -542,7 +568,9 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	vhold(file->f_vnode);
 	filp->f_vnode = file->f_vnode;
 	if (filp->f_op->open) {
+		linux_set_current();
 		error = -filp->f_op->open(file->f_vnode, filp);
+		linux_free_current();
 		if (error) {
 			kfree(filp);
 			return (error);
@@ -550,7 +578,9 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	}
 	error = devfs_set_cdevpriv(filp, linux_file_dtor);
 	if (error) {
+		linux_set_current();
 		filp->f_op->release(file->f_vnode, filp);
+		linux_free_current();
 		kfree(filp);
 		return (error);
 	}
@@ -595,16 +625,28 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
+
 	/*
 	 * Linux does not have a generic ioctl copyin/copyout layer.  All
 	 * linux ioctls must be converted to void ioctls which pass a
 	 * pointer to the address of the data.  We want the actual user
 	 * address so we dereference here.
+	 *
+	 * the above is true, but the kernel doesn't pass us the user address
+	 * 	data = *(void **)data;
+	 * so we rely on the kernel to set it in td_retval[1] which is otherwise
+	 * only used for pipe and socketpair return
 	 */
-	data = *(void **)data;
-	if (filp->f_op->unlocked_ioctl)
-		error = -filp->f_op->unlocked_ioctl(filp, cmd, (u_long)data);
-	else
+
+	if (cmd & (IOC_IN|IOC_OUT))
+		MPASS(td->td_retval[1] != 0);
+	data = (caddr_t)td->td_retval[1];
+	if (filp->f_op->unlocked_ioctl) {
+		linux_set_current();
+		error = -filp->f_op->unlocked_ioctl(filp, (unsigned int)cmd, (u_long)data);
+		linux_free_current();
+		td->td_retval[1] = 0;
+	} else
 		error = ENOTTY;
 
 	return (error);
@@ -630,8 +672,10 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 		panic("linux_dev_read: uio %p iovcnt %d",
 		    uio, uio->uio_iovcnt);
 	if (filp->f_op->read) {
+		linux_set_current();
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
-		    uio->uio_iov->iov_len, &uio->uio_offset);
+					 uio->uio_iov->iov_len, &uio->uio_offset);
+		linux_free_current();
 		if (bytes >= 0) {
 			uio->uio_iov->iov_base =
 			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
@@ -665,8 +709,10 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 		panic("linux_dev_write: uio %p iovcnt %d",
 		    uio, uio->uio_iovcnt);
 	if (filp->f_op->write) {
+		linux_set_current();
 		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
-		    uio->uio_iov->iov_len, &uio->uio_offset);
+					  uio->uio_iov->iov_len, &uio->uio_offset);
+		linux_free_current();
 		if (bytes >= 0) {
 			uio->uio_iov->iov_base =
 			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
@@ -695,10 +741,13 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 		return (0);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
+	BACKTRACE();
 	filp->f_flags = file->f_flag;
-	if (filp->f_op->poll)
+	if (filp->f_op->poll) {
+		linux_set_current();
 		revents = filp->f_op->poll(filp, NULL) & events;
-	else
+		linux_free_current();
+	} else
 		revents = 0;
 
 	return (revents);
@@ -714,6 +763,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	struct vm_area_struct vma, *vmap;
 	int error;
 
+	BACKTRACE();
 	file = curthread->td_fpop;
 	ldev = dev->si_drv1;
 	if (ldev == NULL)
@@ -728,7 +778,9 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	vma.vm_page_prot = VM_MEMATTR_DEFAULT;
 	vma.vm_ops = NULL;
 	if (filp->f_op->mmap) {
+		linux_set_current();
 		error = -filp->f_op->mmap(filp, &vma);
+		linux_free_current();
 		if (error == 0) {
 			struct sglist *sg;
 
@@ -763,7 +815,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 		}
 	} else
 		error = ENODEV;
-
+	printf("successfully returned from mmap\n");
 	return (error);
 }
 
@@ -834,7 +886,9 @@ linux_file_close(struct file *file, struct thread *td)
 
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
+	linux_set_current();
 	error = -filp->f_op->release(NULL, filp);
+	linux_free_current();
 	funsetown(&filp->f_sigio);
 	kfree(filp);
 
