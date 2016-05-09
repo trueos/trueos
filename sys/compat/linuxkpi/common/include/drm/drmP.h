@@ -366,7 +366,7 @@ struct drm_ioctl_desc {
  */
 
 #define DRM_IOCTL_DEF_DRV(ioctl, _func, _flags)			\
-	[DRM_IOCTL_NR(DRM_##ioctl)] = {.cmd = DRM_##ioctl, .func = _func, .flags = _flags, .cmd_drv = DRM_IOCTL_##ioctl}
+	[DRM_IOCTL_NR(DRM_##ioctl)] = {.cmd = DRM_IOCTL_##ioctl, .func = _func, .flags = _flags, .cmd_drv = DRM_IOCTL_##ioctl, .name = #ioctl }
 
 /* Event queued up for userspace to read */
 struct drm_pending_event {
