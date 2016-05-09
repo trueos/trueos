@@ -722,11 +722,9 @@ long drm_ioctl(struct file *filp,
 		ioctl = &drm_ioctls[nr];
 	}
 
-#ifdef notyet
 	drv_size = _IOC_SIZE(ioctl->cmd);
 	usize = _IOC_SIZE(cmd);
 	asize = max(usize, drv_size);
-#endif	
 	cmd = ioctl->cmd;
 
 	DRM_DEBUG("pid=%d, dev=0x%lx, auth=%d, %s\n",
