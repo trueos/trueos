@@ -89,19 +89,17 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 
 static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 				      struct amdgpu_user_fence *uf,
-				      struct drm_amdgpu_cs_chunk_fence *fence_data)
+				      struct drm_amdgpu_cs_chunk_fence *data)
 {
 	struct drm_gem_object *gobj;
-	uint32_t handle;
 
-	handle = fence_data->handle;
-	gobj = drm_gem_object_lookup(p->adev->ddev, p->filp,
-				     fence_data->handle);
+	gobj = drm_gem_object_lookup(p->filp, data->handle);
+
 	if (gobj == NULL)
 		return -EINVAL;
 
 	uf->bo = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
-	uf->offset = fence_data->offset;
+	uf->offset = data->offset;
 
 	if (amdgpu_ttm_tt_get_usermm(uf->bo->tbo.ttm)) {
 		drm_gem_object_unreference_unlocked(gobj);
