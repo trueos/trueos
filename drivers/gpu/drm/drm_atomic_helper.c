@@ -2529,12 +2529,9 @@ EXPORT_SYMBOL(drm_atomic_helper_best_encoder);
  */
 void drm_atomic_helper_crtc_reset(struct drm_crtc *crtc)
 {
-	if (crtc->state) {
-		drm_property_unreference_blob(crtc->state->mode_blob);
-		drm_property_unreference_blob(crtc->state->degamma_lut);
-		drm_property_unreference_blob(crtc->state->ctm);
-		drm_property_unreference_blob(crtc->state->gamma_lut);
-	}
+	if (crtc->state)
+		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+
 	kfree(crtc->state);
 	crtc->state = kzalloc(sizeof(*crtc->state), GFP_KERNEL);
 
@@ -2598,15 +2595,13 @@ EXPORT_SYMBOL(drm_atomic_helper_crtc_duplicate_state);
 
 /**
  * __drm_atomic_helper_crtc_destroy_state - release CRTC state
- * @crtc: CRTC object
  * @state: CRTC state object to release
  *
  * Releases all resources stored in the CRTC state without actually freeing
  * the memory of the CRTC state. This is useful for drivers that subclass the
  * CRTC state.
  */
-void __drm_atomic_helper_crtc_destroy_state(struct drm_crtc *crtc,
-					    struct drm_crtc_state *state)
+void __drm_atomic_helper_crtc_destroy_state(struct drm_crtc_state *state)
 {
 	drm_property_unreference_blob(state->mode_blob);
 	drm_property_unreference_blob(state->degamma_lut);
@@ -2626,7 +2621,7 @@ EXPORT_SYMBOL(__drm_atomic_helper_crtc_destroy_state);
 void drm_atomic_helper_crtc_destroy_state(struct drm_crtc *crtc,
 					  struct drm_crtc_state *state)
 {
-	__drm_atomic_helper_crtc_destroy_state(crtc, state);
+	__drm_atomic_helper_crtc_destroy_state(state);
 	kfree(state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_crtc_destroy_state);
