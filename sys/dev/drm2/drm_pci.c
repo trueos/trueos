@@ -156,8 +156,8 @@ int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 {
 	master->unique = kasprintf(GFP_KERNEL, "pci:%04x:%02x:%02x.%d",
 					drm_get_pci_domain(dev),
-					dev->pdev->bus->number,
-					PCI_SLOT(dev->pdev->devfn),
+				   pci_get_bus(dev->dev->bsddev),
+				   pci_get_slot(dev->dev->bsddev),
 					PCI_FUNC(dev->pdev->devfn));
 	if (!master->unique)
 		return -ENOMEM;
