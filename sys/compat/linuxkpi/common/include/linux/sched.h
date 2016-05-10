@@ -129,6 +129,8 @@ local_clock(void)
 do {									\
 	void *c;							\
 									\
+	if (SCHEDULER_STOPPED())					\
+		break;							\
 	if (cold)							\
 		break;							\
 	c = curthread;							\
@@ -191,6 +193,8 @@ schedule_timeout_uninterruptible(signed long timeout)
 {
 	if (timeout < 0)
 		return 0;
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	pause("lstim", timeout);
 
@@ -205,6 +209,8 @@ schedule_timeout_interruptible(signed long timeout)
 
 	if (timeout < 0)
 		return 0;
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	__set_current_state(TASK_UNINTERRUPTIBLE);
 	mtx_lock(&Giant);
