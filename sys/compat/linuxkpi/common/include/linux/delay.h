@@ -38,6 +38,10 @@
 static inline void
 linux_msleep(int ms)
 {
+	if (SCHEDULER_STOPPED()) {
+		DELAY(100000);
+		return;
+	}
 	pause("lnxsleep", msecs_to_jiffies(ms));
 }
 
