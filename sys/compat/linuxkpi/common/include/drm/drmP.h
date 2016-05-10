@@ -107,17 +107,9 @@ __FBSDID("$FreeBSD$");
 #include <linux/ktime.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
+#include <linux/ioctl.h>
 
 
-
-/*
- * CEM: drm.h brings in drm_os_freebsd.h, which brings in linuxkpi list.h.
- * drm_gem_names and drm_hashtab use FreeBSD queue(9) macros.  Include them
- * first so they get the BSD macros.
- *
- * We probably can (and should) drop drm_hashtab.h entirely and diff-reduce
- * drm_hashtab.c to use the Linux list implementation.
- */
 
 #include <drm/drm_hashtab.h>
 
