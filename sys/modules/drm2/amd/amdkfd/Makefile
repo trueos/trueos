@@ -4,33 +4,34 @@
 
 KMOD	= amdkfd
 
+# XXX NOT PORTED YET:
+#	kfd_device.c : amd_iommu 
+#	kfd_chardev.c : 
+#	kfd_device_queue_manager_cik.c :
+#	kfd_device_queue_manager_vi.c :
+#	kfd_doorbell.c :
+#	kfd_events.c :
+#	kfd_interrupt.c :
+#	kfd_kernel_queue_cik.c :
+#	kfd_kernel_queue_vi.c :
+#	kfd_module.c :
+#	kfd_mqd_manager.c :
+#	kfd_mqd_manager_cik.c :
+#	kfd_mqd_manager_vi.c :
+#	kfd_packet_manager.c :
+#	kfd_pasid.c :
+#	kfd_process.c :
+#	kfd_process_queue_manager.c :
+#	kfd_queue.c :
+#	kfd_topology.c :
+
 SRCS	= \
 	kfd_dbgmgr.c \
-	kfd_device.c \
-	kfd_chardev.c \
 	kfd_dbgdev.c \
 	kfd_dbgmgr.c \
-	kfd_device.c \
 	kfd_device_queue_manager.c \
-	kfd_device_queue_manager_cik.c \
-	kfd_device_queue_manager_vi.c \
-	kfd_doorbell.c \
-	kfd_events.c \
 	kfd_flat_memory.c \
-	kfd_interrupt.c \
-	kfd_kernel_queue.c \
-	kfd_kernel_queue_cik.c \
-	kfd_kernel_queue_vi.c \
-	kfd_module.c \
-	kfd_mqd_manager.c \
-	kfd_mqd_manager_cik.c \
-	kfd_mqd_manager_vi.c \
-	kfd_packet_manager.c \
-	kfd_pasid.c \
-	kfd_process.c \
-	kfd_process_queue_manager.c \
-	kfd_queue.c \
-	kfd_topology.c	
+	kfd_kernel_queue.c
 
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
@@ -51,4 +52,5 @@ SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.
 CWARNFLAGS+=	-Wno-pointer-arith
 CWARNFLAGS+=	-Wno-pointer-sign ${CWARNFLAGS.${.IMPSRC:T}}
 
-CWARNFLAGS.gfx_v8_0.c=	-Wno-missing-prototypes
+CWARNFLAGS.kfd_dbgdev.c=	-Wno-format
+CWARNFLAGS.kfd_device_queue_manager.c=	-Wno-format
