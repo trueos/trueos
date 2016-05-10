@@ -69,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/async.h>
 
 #include <vm/vm_pager.h>
+#include <vm/vm_pageout.h>
+#include "linux_trace.h"
 
 extern u_int cpu_clflush_line_size;
 extern u_int cpu_id;
@@ -423,80 +425,92 @@ linux_file_dtor(void *cdp)
 	kfree(filp);
 }
 
+#define PFN_TO_VM_PAGE(pfn) PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT)
+
 static int
 linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_page_t *mres)
 {
 	vm_page_t page, oldpage;
 	struct vm_fault vmf;
-	struct vm_area_struct *vmap = vm_obj->handle;
-	int rc, err, retries;
+	struct vm_area_struct *vmap, cvma;
+	vm_memattr_t memattr;
+	int rc, err, vma_flags, i;
 
+	memattr = vm_obj->memattr;
+
+	vmap  = vm_obj->handle;
+	/*
+	 * We minimize object lock acquisition by tracking the pfn
+	 * inside of the vma that we pass in.
+	 */
+	vma_flags = VM_PFNINTERNAL;
+	oldpage = NULL;
+
+	trace_compat_cdev_pager_fault(vm_obj, offset, prot, mres);
 	vm_object_pip_add(vm_obj, 1);
-	retries = 0;
+
+	/*
+	 * The VM has helpfully given us a page, but device memory
+	 * is note fungible so we need to remove it from the object
+	 * in order to replace it with a device address we can actually
+	 * use. We don't free it unless we succeed, so that there is still
+	 * a valid result page on failure.
+	 */
 	if (*mres != NULL) {
 		oldpage = *mres;
-		*mres = NULL;
 		vm_page_lock(oldpage);
 		vm_page_remove(oldpage);
 		vm_page_unlock(oldpage);
+		*mres = NULL;
 	} else
 		oldpage = NULL;
-retry:
-	if (retries > 1)
-		printf("DBG: too many retries\n");
-	MPASS(retries++ < 4);
-	page = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
-	if (page != NULL) {
-		if (vm_page_busied(page)) {
-			vm_page_lock(page);
-			VM_OBJECT_WUNLOCK(vm_obj);
-			vm_page_busy_sleep(page, "linuxcpf");
-			VM_OBJECT_WLOCK(vm_obj);
-			goto retry;
-		}
-		goto have_page;
 
-	}
 	VM_OBJECT_WUNLOCK(vm_obj);
+	memcpy(&cvma, vmap, sizeof(cvma));
+	cvma.vm_pfn_count = 0;
+	cvma.vm_flags |= vma_flags;
 	vmf.virtual_address = (void *)(vmap->vm_start + offset);
 	vmf.flags = FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT;
-	err = vmap->vm_ops->fault(vmap, &vmf);
+	err = vmap->vm_ops->fault(&cvma, &vmf);
 	if (__predict_false(err == VM_FAULT_RETRY)) {
+		MPASS(cvma.vm_pfn_count == 0);
 		vmf.flags = FAULT_FLAG_ALLOW_RETRY;
-		err = vmap->vm_ops->fault(vmap, &vmf);
+		err = vmap->vm_ops->fault(&cvma, &vmf);
 	}
 	if (__predict_false(err == VM_FAULT_RETRY)) {
+		MPASS(cvma.vm_pfn_count == 0);
 		kern_yield(0);
 		vmf.flags = 0;
-		err = vmap->vm_ops->fault(vmap, &vmf);
+		err = vmap->vm_ops->fault(&cvma, &vmf);
 	}
-	VM_OBJECT_WLOCK(vm_obj);
-	if (err)
+	if (err != VM_FAULT_NOPAGE)
 		goto err;
 
-	page = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
-	if (page == NULL) {
-		rc = VM_FAULT_OOM;
-		goto err;
-	}
-	if (vm_page_busied(page)) {
-		vm_page_lock(page);
-		VM_OBJECT_WUNLOCK(vm_obj);
-		vm_page_busy_sleep(page, "linuxcpf");
-		VM_OBJECT_WLOCK(vm_obj);
-		goto retry;
-	}
-	page->valid = VM_PAGE_BITS_ALL;
-
-have_page:
-	MPASS(page->flags & PG_FICTITIOUS);
-	*mres = page;
-
-	/* we don't have control over the termination of the object
-	 * and we don't want to find it still busied
+	/*
+	 * By contract vm_insert_pfn will wait until it can busy the first
+	 * page. So if we get here without at least one valid pfn there is
+	 * definitively a bug.
 	 */
-	vm_page_xbusy(page);
+	MPASS(cvma.vm_pfn_count > 0);
+	VM_OBJECT_WLOCK(vm_obj);
+	*mres = PFN_TO_VM_PAGE(cvma.vm_pfn_array[0]);
+	for  (i = 0; i < cvma.vm_pfn_count; i++)  {
+		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
 
+		/* If the page's object is not NULL it's already in an object */
+		if (page->object != NULL)
+			continue;
+		while (page->object == NULL && vm_page_insert(page, vm_obj, OFF_TO_IDX(offset + PAGE_SIZE*i))) {
+			VM_OBJECT_WUNLOCK(vm_obj);
+			VM_WAIT;
+			VM_OBJECT_WLOCK(vm_obj);
+		}
+		page->valid = VM_PAGE_BITS_ALL;
+	}
+	for  (i = 1; i < cvma.vm_pfn_count; i++)  {
+		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
+		vm_page_xunbusy(page);
+	}
 	if (oldpage != NULL) {
 		vm_page_lock(oldpage);
 		vm_page_free(oldpage);
@@ -505,24 +519,24 @@ have_page:
 	vm_object_pip_wakeup(vm_obj);
 	return (VM_PAGER_OK);
 err:
+	panic("fault failed!");
+	VM_OBJECT_WLOCK(vm_obj);
 	*mres = oldpage;
 	switch (err) {
 	case VM_FAULT_OOM:
-		rc = VM_PAGER_ERROR;
+		rc = VM_PAGER_AGAIN;
 		break;
 	case VM_FAULT_SIGBUS:
 		rc = VM_PAGER_BAD;
 		break;
-	case VM_FAULT_NOPAGE:
-		rc = VM_PAGER_ERROR;
-		break;
 	default:
-		/* Should panic - but can't get cores or to debugger from here */
+		panic("unexpected error %d\n", err);
 		rc = VM_PAGER_ERROR;
 	}
 	vm_object_pip_wakeup(vm_obj);
 	return (rc);
 }
+
 
 static int
 linux_cdev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
@@ -531,6 +545,7 @@ linux_cdev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	struct vm_area_struct *vmap = handle;
 
 	vmap->vm_ops->open(vmap);
+	*color = 0;
 	return (0);
 }
 
@@ -1165,6 +1180,8 @@ linux_complete_common(struct completion *c, int all)
 long
 linux_wait_for_common(struct completion *c, int flags)
 {
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	if (flags != 0)
 		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
@@ -1194,6 +1211,9 @@ long
 linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
 {
 	long end = jiffies + timeout;
+
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	if (flags != 0)
 		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;

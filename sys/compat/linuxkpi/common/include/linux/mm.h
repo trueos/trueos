@@ -62,7 +62,9 @@
 #define VM_DONTEXPAND	0x00040000	/* Cannot expand with mremap() */
 #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
 
+#define VM_PFNINTERNAL	0x80000000	/* FreeBSD private flag to vm_insert_pfn */
 
+#define VMA_MAX_PREFAULT 32
 struct vm_area_struct {
 	vm_offset_t	vm_start;
 	vm_offset_t	vm_end;
@@ -76,7 +78,14 @@ struct vm_area_struct {
 	const struct vm_operations_struct *vm_ops;
 	struct linux_file *vm_file;
 	/* internal operation */
+	int vm_pfn_count;
 	vm_object_t vm_obj;
+	/*
+	 * this will need to be revisited if we ever have to map
+	 * device memory past 16TB - for the next decade this could
+	 * only be an issue with mapping SSDs
+	 */
+	uint32_t vm_pfn_array[VMA_MAX_PREFAULT];
 };
 
 /*

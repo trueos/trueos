@@ -71,12 +71,33 @@ vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long
 	vm_obj = vma->vm_obj;
 	owned = VM_OBJECT_WOWNED(vm_obj);
 	page = PHYS_TO_VM_PAGE((pfn << PAGE_SHIFT));
-	MPASS(page->flags & PG_FICTITIOUS);
+
+	MPASS(vma->vm_flags & VM_PFNINTERNAL);
+	if (vma->vm_flags & VM_PFNINTERNAL) {
+		if (vma->vm_pfn_count == VMA_MAX_PREFAULT)
+			return (-EBUSY);
+		if (vm_page_tryxbusy(page) == 0) {
+			if (vma->vm_pfn_count > 0)
+				return (-EBUSY);
+			/* the first page isn't optional - so we sleep on it */
+			while (vm_page_tryxbusy(page) == 0) {
+				vm_page_lock(page);
+				vm_page_busy_sleep(page, "linuxvipp");
+			}
+		}
+		vma->vm_pfn_array[vma->vm_pfn_count++] = pfn;
+		return (0);
+	}
+	panic("not yet supported");
+	if (page == NULL)
+		return (-EINVAL);
+	if (vm_page_busied(page))
+		return (-EBUSY);
 	off = addr - vma->vm_start;
 	rc = 0;
 	if (!owned) {
 		VM_OBJECT_WLOCK(vm_obj);
-		if (vm_page_lookup(vm_obj, OFF_TO_IDX(off))) {
+		if (page->object != NULL) {
 			VM_OBJECT_WUNLOCK(vm_obj);
 			return (0);
 		}
@@ -102,8 +123,6 @@ kmap(vm_page_t page)
 {
 	vm_offset_t daddr;
 
-
-	MPASS((page->flags & PG_FICTITIOUS) == 0);
 	daddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page));
 
 	return ((void *)daddr);
@@ -129,6 +148,7 @@ kmap_atomic_prot(vm_page_t page, pgprot_t prot)
 void
 kunmap(vm_page_t page)
 {
+	/* XXX */
 	/* no work to be done here */
 }
 
