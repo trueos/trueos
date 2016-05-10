@@ -487,6 +487,12 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 	mutex_init(&fb_info->lock);
 	mutex_init(&fb_info->mm_lock);
 
+	MPASS(fb_info->apertures->ranges[0].base);
+	MPASS(fb_info->apertures->ranges[0].size);
+	vm_phys_fictitious_reg_range(fb_info->apertures->ranges[0].base,
+				     fb_info->apertures->ranges[0].base +
+				     fb_info->apertures->ranges[0].size,
+				     VM_MEMATTR_WRITE_COMBINING);
 	fb_info->dev = device_create(fb_class, fb_info->device,
 				     MKDEV(FB_MAJOR, i), NULL, "fb%d", i);
 	if (IS_ERR(fb_info->dev)) {
