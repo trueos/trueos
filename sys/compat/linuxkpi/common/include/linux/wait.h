@@ -110,6 +110,8 @@ do {									\
 	_error = 0;							\
 	if (!(cond)) {							\
 		for (; _error == 0;) {					\
+			if (SCHEDULER_STOPPED())			\
+				break;					\
 			sleepq_lock(c);					\
 			if (cond) {					\
 				sleepq_release(c);			\
@@ -133,6 +135,8 @@ do {									\
 	_error = 0;							\
 	if (!(cond)) {							\
 		for (; _error == 0;) {					\
+			if (SCHEDULER_STOPPED())			\
+				break;					\
 			sleepq_lock(c);					\
 			if (cond) {					\
 				sleepq_release(c);			\
@@ -157,6 +161,8 @@ do {									\
 	_error = 0;							\
 	if (!(cond)) {							\
 		for (; _error == 0;) {					\
+			if (SCHEDULER_STOPPED())			\
+				break;					\
 			sleepq_lock(c);					\
 			if (cond) {					\
 				sleepq_release(c);			\
@@ -196,9 +202,12 @@ ___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,			\
 #define wait_event_interruptible_lock_irq(wq, condition, lock)		\
 ({									\
 	int __ret = 0;							\
+	if (SCHEDULER_STOPPED())					\
+		goto done;						\
 	if (!(condition))						\
 		__ret = __wait_event_interruptible_lock_irq(wq,		\
 						condition, lock,);	\
+done:									\
 	__ret;								\
 })
 
