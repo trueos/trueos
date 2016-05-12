@@ -420,8 +420,10 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 
 	/* we've already hold a reference to all valid objects */
 	target_vma = eb_get_vma(eb, reloc->target_handle);
-	if (unlikely(target_vma == NULL))
+	if (unlikely(target_vma == NULL)) {
+		DRM_DEBUG("target_handle %d not found", reloc->target_handle);
 		return -ENOENT;
+	}
 	target_i915_obj = target_vma->obj;
 	target_obj = &target_vma->obj->base;
 
@@ -604,8 +606,10 @@ i915_gem_execbuffer_relocate(struct eb_vmas *eb)
 	pflags = vm_fault_disable_pagefaults();
 	list_for_each_entry(vma, &eb->vmas, exec_list) {
 		ret = i915_gem_execbuffer_relocate_vma(vma, eb);
-		if (ret)
+		if (ret) {
+			DRM_DEBUG("failed to relocate all vmas");
 			break;
+		}
 	}
 	vm_fault_enable_pagefaults(pflags);
 
@@ -1580,6 +1584,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 						      file->is_master);
 		if (IS_ERR(parsed_batch_obj)) {
 			ret = PTR_ERR(parsed_batch_obj);
+			DRM_DEBUG("bad parsed batch err=%d", ret);
 			goto err;
 		}
 
