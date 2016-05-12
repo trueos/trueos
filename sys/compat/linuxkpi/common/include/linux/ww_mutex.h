@@ -81,7 +81,6 @@ ww_mutex_lock(struct ww_mutex *m, struct ww_acquire_ctx *ctx)
 static inline void
 ww_acquire_init(struct ww_acquire_ctx *ctx, struct ww_class *ww_class)
 {
-	UNIMPLEMENTED();
 }
 
 static inline void
@@ -91,7 +90,7 @@ static inline void
 __ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class, char *name)
 {
 	DODGY();
-	linux_mutex_init(lock, name, SX_RECURSE|SX_DUPOK);
+	linux_mutex_init(lock, name, SX_DUPOK);
 }
 
 #define ww_mutex_init(l, w) __ww_mutex_init(l, w, #l)
