@@ -101,6 +101,8 @@ __free_hot_cold_page(vm_page_t page)
 
 	vm_page_lock(page);
 	vm_page_unwire(page, PQ_INACTIVE);
+	if (pmap_page_is_mapped(page))
+		pmap_remove_all(page);
 	vm_page_free(page);
 	vm_page_unlock(page);
 	if (object)
@@ -139,7 +141,7 @@ free_pages(uintptr_t addr, unsigned int order)
 #define __free_page(page) __free_pages((page), 0)
 #define free_page(addr) free_pages((addr), 0)
 
-extern void db_trace_self_depth();
+extern void db_trace_self_depth(int);
 #define BACKTRACE() db_trace_self_depth(5)
 
 /*
