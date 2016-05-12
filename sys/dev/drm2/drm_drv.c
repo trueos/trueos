@@ -71,8 +71,8 @@ void drm_err(const char *format, ...)
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	printk(KERN_ERR "[" DRM_NAME ":%ps] *ERROR* %pV\n",
-	       __builtin_return_address(0), &vaf);
+	printf("[" DRM_NAME ":%ps] *ERROR* ", __builtin_return_address(0));
+	vprintf(format, args);
 
 	va_end(args);
 }
@@ -87,7 +87,8 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	printk(KERN_DEBUG "[" DRM_NAME ":%s] %pV\n", function_name, &vaf);
+	printf("[" DRM_NAME ":%s] ", function_name);
+	vprintf(format, args);
 
 	va_end(args);
 }
@@ -895,9 +896,7 @@ out_unlock:
 static const struct file_operations drm_stub_fops = {
 	.owner = THIS_MODULE,
 	.open = drm_stub_open,
-#ifdef notyet	
 	.llseek = noop_llseek,
-#endif	
 };
 
 static int __init drm_core_init(void)
@@ -908,7 +907,7 @@ static int __init drm_core_init(void)
 	drm_connector_ida_init();
 	idr_init(&drm_minors_idr);
 
-	if (register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops))
+	if (register_chrdev_p(DRM_MAJOR, "drm", &drm_stub_fops, DRM_DEV_UID, DRM_DEV_GID, DRM_DEV_MODE))
 		goto err_p1;
 
 	ret = drm_sysfs_init();
