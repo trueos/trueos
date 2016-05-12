@@ -20,6 +20,10 @@ __FBSDID("$FreeBSD$");
 #include <linux/mod_devicetable.h>
 #include <linux/pci.h>
 
+#define DRM_DEV_MODE	(S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP)
+#define DRM_DEV_UID	UID_ROOT
+#define DRM_DEV_GID	GID_VIDEO
+
 struct vt_kms_softc {
 	struct drm_fb_helper    *fb_helper;
 	struct task              fb_mode_task;
@@ -225,8 +229,9 @@ typedef struct drm_pci_id_list
 	char *name;
 } drm_pci_id_list_t;
 
+#ifdef notyet
 #define CONFIG_MMU_NOTIFIER 1
-
+#endif
 #ifdef __i386__
 #define	CONFIG_X86	1
 #endif
