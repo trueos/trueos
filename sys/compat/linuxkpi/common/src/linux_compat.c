@@ -756,7 +756,6 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 		return (0);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
-	BACKTRACE();
 	filp->f_flags = file->f_flag;
 	if (filp->f_op->poll) {
 		linux_set_current();
@@ -778,7 +777,6 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	struct vm_area_struct vma, *vmap;
 	int error;
 
-	BACKTRACE();
 	file = curthread->td_fpop;
 	ldev = dev->si_drv1;
 	if (ldev == NULL)
