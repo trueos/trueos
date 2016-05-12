@@ -51,7 +51,7 @@ trace_i915_gem_ring_dispatch(void *req, u32 flags)
 static inline void
 trace_i915_gem_object_create(struct drm_i915_gem_object *obj)
 {
-	CTR2(KTR_DRM, "object_create %p %x", obj, size);
+	CTR1(KTR_DRM, "object_create %p", obj);
 }
 
 static inline void
@@ -116,7 +116,7 @@ trace_i915_gem_object_clflush(struct drm_i915_gem_object *obj)
 static inline void
 trace_i915_gem_object_bind(struct drm_i915_gem_object *obj, bool map_and_fenceable)
 {
-	CTR4(KTR_DRM, "object_bind %p %x %x %d", obj, obj->gtt_offset,
+	CTR3(KTR_DRM, "object_bind %p %x %d", obj,
 		obj->base.size, map_and_fenceable);
 }
 
