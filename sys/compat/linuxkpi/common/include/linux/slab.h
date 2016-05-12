@@ -41,9 +41,9 @@
 
 MALLOC_DECLARE(M_KMALLOC);
 
-#define	kmalloc(size, flags)		malloc((size), M_KMALLOC, (flags))
+#define	kmalloc(size, flags)		malloc((size), M_KMALLOC, (flags) ? (flags) : M_NOWAIT)
 #define	kvmalloc(size)			kmalloc((size), 0)
-#define	kzalloc(size, flags)		kmalloc((size), (flags) | M_ZERO)
+#define	kzalloc(size, flags)		kmalloc((size), ((flags) ? (flags) : M_NOWAIT) | M_ZERO)
 #define	kzalloc_node(size, flags, node)	kzalloc(size, flags)
 #define	kfree_const(ptr)		kfree(ptr)
 #define	krealloc(ptr, size, flags)	realloc((ptr), (size), M_KMALLOC, (flags))
