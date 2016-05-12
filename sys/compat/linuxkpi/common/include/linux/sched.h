@@ -213,8 +213,8 @@ schedule_timeout_interruptible(signed long timeout)
 		return (0);
 
 	__set_current_state(TASK_UNINTERRUPTIBLE);
-	mtx_lock(&Giant);
-	ret = _sleep(&Giant, &(Giant.lock_object), PCATCH | PDROP , "lstimi", tick_sbt * timeout, 0 , C_HARDCLOCK);
+	sx_xlock(&linux_global_rcu_lock);
+	ret = _sleep(&Giant, &(linux_global_rcu_lock.lock_object), PCATCH | PDROP , "lstimi", tick_sbt * timeout, 0 , C_HARDCLOCK);
 	
 	return (ret);
 }
