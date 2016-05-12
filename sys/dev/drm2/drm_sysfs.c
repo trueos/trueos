@@ -22,6 +22,12 @@
 #include <drm/drm_core.h>
 #include <drm/drmP.h>
 #include "drm_internal.h"
+#include <linux/cdev.h>
+#undef cdev
+
+SYSCTL_NODE(_dev, OID_AUTO, drm, CTLFLAG_RW, 0, "DRM args");
+SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug, CTLFLAG_RW, &drm_debug, 0, "drm debug flags");
+
 
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
@@ -581,14 +587,15 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 {
 	const char *minor_str;
 	struct device *kdev;
+	struct linux_cdev *cdevp;
 	int r;
 
 	if (minor->type == DRM_MINOR_CONTROL)
-		minor_str = "controlD%d";
+		minor_str = "dri/controlD%d";
 	else if (minor->type == DRM_MINOR_RENDER)
-		minor_str = "renderD%d";
+		minor_str = "dri/renderD%d";
 	else
-		minor_str = "card%d";
+		minor_str = "dri/card%d";
 
 	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
 	if (!kdev)
@@ -606,6 +613,16 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 	if (r < 0)
 		goto err_free;
 
+	/*
+	 * FreeBSD won't automaticaly create the corresponding device
+	 * node as linux must so we find the corresponding one created by
+	 * register_chrdev in drm_drv.c and alias it.
+	 */
+	cdevp = find_cdev("drm", DRM_MAJOR, minor->index, false);
+	MPASS(cdevp != NULL);
+	if (cdevp == NULL)
+		goto err_free;
+	make_dev_alias(cdevp->cdev, minor_str, minor->index);
 	return kdev;
 
 err_free:
