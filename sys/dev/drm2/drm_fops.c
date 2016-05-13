@@ -34,9 +34,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <drm/drmP.h>
 #include <linux/poll.h>
 #include <linux/slab.h>

@@ -32,10 +32,6 @@
  * Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <drm/drmP.h>
 #include <drm/drm_hashtab.h>
 #include <linux/hash.h>

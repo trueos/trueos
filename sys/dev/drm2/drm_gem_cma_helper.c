@@ -305,13 +305,11 @@ int drm_gem_cma_dumb_map_offset(struct drm_file *file_priv,
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_dumb_map_offset);
 
-#if 0
 const struct vm_operations_struct drm_gem_cma_vm_ops = {
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
 };
 EXPORT_SYMBOL_GPL(drm_gem_cma_vm_ops);
-#endif
 
 static int drm_gem_cma_mmap_obj(struct drm_gem_cma_object *cma_obj,
 				struct vm_area_struct *vma)

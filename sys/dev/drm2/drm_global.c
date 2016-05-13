@@ -28,10 +28,6 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/module.h>
