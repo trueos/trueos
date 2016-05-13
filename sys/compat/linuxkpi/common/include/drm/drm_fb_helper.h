@@ -36,9 +36,6 @@ struct drm_fb_helper;
 #include <linux/fb.h>
 
 #define fb_info linux_fb_info
-#define framebuffer_alloc linux_framebuffer_alloc
-#define framebuffer_release linux_framebuffer_release
-#define unregister_framebuffer linux_unregister_framebuffer
 
 enum mode_set_atomic {
 	LEAVE_ATOMIC_MODE_SET,
