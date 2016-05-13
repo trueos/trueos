@@ -217,7 +217,7 @@ linux_fb_destroy(void)
 
 
 struct linux_fb_info *
-linux_framebuffer_alloc(size_t size, struct device *dev)
+framebuffer_alloc(size_t size, struct device *dev)
 {
 #define BYTES_PER_LONG (BITS_PER_LONG/8)
 #define PADDING (BYTES_PER_LONG - (sizeof(struct linux_fb_info) % BYTES_PER_LONG))
@@ -248,7 +248,7 @@ linux_framebuffer_alloc(size_t size, struct device *dev)
 }
 
 void
-linux_framebuffer_release(struct linux_fb_info *info)
+framebuffer_release(struct linux_fb_info *info)
 {
 	if (info == NULL)
 		return;
@@ -563,7 +563,7 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 }
 
 int
-linux_register_framebuffer(struct linux_fb_info *fb_info)
+register_framebuffer(struct linux_fb_info *fb_info)
 {
 	int rc;
 
@@ -639,7 +639,7 @@ __unregister_framebuffer(struct linux_fb_info *fb_info)
 }
 
 int
-linux_unregister_framebuffer(struct linux_fb_info *fb_info)
+unregister_framebuffer(struct linux_fb_info *fb_info)
 {
 	int rc;
 
