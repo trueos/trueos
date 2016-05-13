@@ -46,7 +46,8 @@ __devm_request_region(struct device *dev,
 		      resource_size_t n, const char *name)
 {
 	UNIMPLEMENTED();
-	return (NULL);
+	/* XXX return a non-NULL value where the driver just needs to reserve the range */
+	return ((void *)0x1);
 }
 
 #define IORESOURCE_BITS		0x000000ff	/* Bus-specific bits */
