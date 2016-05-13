@@ -34,7 +34,6 @@ struct vt_kms_softc {
 
 #define	DRM_HZ			hz
 #define DRM_CURPROC		curthread
-#define	DRM_CURRENTPID		curthread->td_proc->p_pid
 #define	DRM_SUSER(p)		(priv_check(p, PRIV_DRIVER) == 0)
 #define	DRM_UDELAY(udelay)	DELAY(udelay)
 /* Ugly copy/paste from systm.h to work around conflicting Linux macro */
@@ -225,6 +224,9 @@ typedef struct drm_pci_id_list
 	char *name;
 } drm_pci_id_list_t;
 
+#ifdef notyet
+#define CONFIG_COMPAT COMPAT_FREEBSD32
+#endif
 #ifdef notyet
 #define CONFIG_MMU_NOTIFIER 1
 #endif
