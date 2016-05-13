@@ -27,9 +27,6 @@
  *
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/device.h>
 #include <linux/acpi.h>
 #include <drm/drmP.h>
@@ -807,6 +804,36 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	 *
 	 * FIXME: This should be solved with a special hdmi sink device or
 	 * similar so that power domains can be employed.
+	 */
+
+	/*
+	 * Note that we need to set the power state explicitly, since we
+	 * powered off the device during freeze and the PCI core won't power
+	 * it back up for us during thaw. Powering off the device during
+	 * freeze is not a hard requirement though, and during the
+	 * suspend/resume phases the PCI core makes sure we get here with the
+	 * device powered on. So in case we change our freeze logic and keep
+	 * the device powered we can also remove the following set power state
+	 * call.
+	 */
+	ret = pci_set_power_state(dev->pdev, PCI_D0);
+	if (ret) {
+		DRM_ERROR("failed to set PCI D0 power state (%d)\n", ret);
+		goto out;
+	}
+
+	/*
+	 * Note that pci_enable_device() first enables any parent bridge
+	 * device and only then sets the power state for this device. The
+	 * bridge enabling is a nop though, since bridge devices are resumed
+	 * first. The order of enabling power and enabling the device is
+	 * imposed by the PCI core as described above, so here we preserve the
+	 * same order for the freeze/thaw phases.
+	 *
+	 * TODO: eventually we should remove pci_disable_device() /
+	 * pci_enable_enable_device() from suspend/resume. Due to how they
+	 * depend on the device enable refcount we can't anyway depend on them
+	 * disabling/enabling the device.
 	 */
 	if (pci_enable_device(dev->pdev)) {
 		ret = -EIO;
@@ -1686,18 +1713,12 @@ static const struct file_operations i915_driver_fops = {
 	.llseek = noop_llseek,
 };
 
-
-#ifdef COMPAT_FREEBSD32
-extern struct drm_ioctl_desc i915_compat_ioctls[];
-extern int i915_compat_ioctls_nr;
-#endif
-
 static struct drm_driver driver = {
 	/* Don't use MTRRs here; the Xserver or userspace app should
 	 * deal with them for Intel hardware.
 	 */
 	.driver_features =
-	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME |
+	DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |/* DRIVER_PRIME | */
 	    DRIVER_RENDER | DRIVER_MODESET,
 	.load = i915_driver_load,
 	.unload = i915_driver_unload,
@@ -1713,18 +1734,16 @@ static struct drm_driver driver = {
 #endif
 	.gem_free_object = i915_gem_free_object,
 	.gem_vm_ops = &i915_gem_vm_ops,
+
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = i915_gem_prime_export,
 	.gem_prime_import = i915_gem_prime_import,
+
 	.dumb_create = i915_gem_dumb_create,
 	.dumb_map_offset = i915_gem_mmap_gtt,
 	.dumb_destroy = drm_gem_dumb_destroy,
 	.ioctls = i915_ioctls,
-#ifdef COMPAT_FREEBSD32
-	.compat_ioctls  = i915_compat_ioctls,
-	.num_compat_ioctls = &i915_compat_ioctls_nr,
-#endif
 	.fops = &i915_driver_fops,
 #ifdef notyet
 #ifdef __FreeBSD__
