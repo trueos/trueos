@@ -19,7 +19,6 @@ SRCS	= \
 	i915_gem_dmabuf.c \
 	i915_gem_evict.c \
 	i915_gem_execbuffer.c \
-	i915_gem_freebsd.c \
 	i915_gem_fence.c \
 	i915_gem_gtt.c \
 	i915_gem_render_state.c \
@@ -85,7 +84,7 @@ SRCS	= \
 
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
-
+#CFLAGS += -O0
 
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS	+= i915_ioc32.c
@@ -110,6 +109,7 @@ CWARNFLAGS.intel_audio.c=	-Wno-cast-qual
 CWARNFLAGS.intel_bios.c=	-Wno-cast-qual
 CWARNFLAGS.intel_csr.c=		-Wno-cast-qual
 CWARNFLAGS.intel_dp.c=		-Wno-enum-conversion -Wno-format -Wno-unused
+CWARNFLAGS.intel_ddi.c=		-Wno-compare-distinct-pointer-types		
 CWARNFLAGS.intel_lvds.c=	-Wno-unused
 CWARNFLAGS.intel_display.c=	-Wno-tautological-pointer-compare -Wno-enum-conversion -Wno-cast-qual -Wno-incompatible-pointer-types-discards-qualifiers
 CWARNFLAGS.intel_dsi_panel_vbt.c= -Wno-cast-qual
