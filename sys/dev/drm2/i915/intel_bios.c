@@ -25,10 +25,6 @@
  *
  */
 
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <drm/drm_dp_helper.h>
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
@@ -1371,7 +1367,6 @@ static const struct vbt_header *find_vbt(void __iomem *bios, size_t size)
 
 	return NULL;
 }
-
 
 /**
  * intel_bios_init - find VBT and initialize settings from the BIOS
