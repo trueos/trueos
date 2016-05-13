@@ -24,9 +24,6 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/input.h>
@@ -13354,6 +13351,9 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 	}
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		if (state->legacy_cursor_update)
+			continue;
+
 		ret = intel_crtc_wait_for_pending_flips(crtc);
 		if (ret)
 			return ret;
@@ -15234,9 +15234,9 @@ static void i915_disable_vga(struct drm_device *dev)
 
 	/* WaEnableVGAAccessThroughIOPort:ctg,elk,ilk,snb,ivb,vlv,hsw */
 	vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
-	outb(VGA_SR_INDEX, SR01);
+	outb(SR01, VGA_SR_INDEX);
 	sr1 = inb(VGA_SR_DATA);
-	outb(VGA_SR_DATA,sr1 | 1<<5);
+	outb(sr1 | 1<<5, VGA_SR_DATA);
 	vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
 	udelay(300);
 
