@@ -62,21 +62,21 @@ access_ok(int rw, void *addr, int len)
 	return (useracc(addr, len, rw));
 }
 
-/*
- * NOTE: The returned value from pagefault_disable() must be stored
- * and passed to pagefault_enable(). Else possible recursion on the
- * state can be lost.
- */
-static inline int __must_check
+static inline void
 pagefault_disable(void)
 {
-	return (curthread_pflags_set(TDP_NOFAULTING | TDP_RESETSPUR));
+	/*
+	 * Use vm_fault_disable_pagefaults if we need to
+	 * recurse
+	 */
+	MPASS((curthread->td_pflags & (TDP_NOFAULTING|TDP_RESETSPUR)) == 0);
+	curthread->td_pflags |= (TDP_NOFAULTING | TDP_RESETSPUR);
 }
 
 static inline void
-pagefault_enable(int save)
+pagefault_enable(void)
 {
-	curthread_pflags_restore(save);
+	curthread->td_pflags &= ~(TDP_NOFAULTING|TDP_RESETSPUR);
 }
 
 #define pagefault_disabled() (curthread->td_pflags & TDP_NOFAULTING)
