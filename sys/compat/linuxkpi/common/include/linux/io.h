@@ -170,6 +170,13 @@ readl(const volatile void *addr)
 	return *(const volatile uint32_t *)addr;
 }
 
+static __inline void
+_outb(u_char data, u_int port)
+{
+	__asm __volatile("outb %0, %w1" : : "a" (data), "Nd" (port));
+}
+
+
 #if defined(__i386__) || defined(__amd64__)
 void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
 #else
