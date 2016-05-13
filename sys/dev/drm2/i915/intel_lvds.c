@@ -27,9 +27,6 @@
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <acpi/button.h>
 #include <linux/dmi.h>
 #include <linux/i2c.h>

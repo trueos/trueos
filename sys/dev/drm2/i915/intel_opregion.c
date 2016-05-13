@@ -25,9 +25,6 @@
  *
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <acpi/video.h>

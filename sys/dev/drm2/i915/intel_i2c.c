@@ -661,6 +661,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 
 		bus->adapter.dev.parent = &dev->pdev->dev;
 		bus->dev_priv = dev_priv;
+
 		/* needed by FreeBSD linux compat */
 		bus->adapter.dev.class = drm_class;
 		bus->adapter.algo = &gmbus_algorithm;

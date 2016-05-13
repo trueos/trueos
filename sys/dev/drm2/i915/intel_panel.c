@@ -28,9 +28,6 @@
  *      Chris Wilson <chris@chris-wilson.co.uk>
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
