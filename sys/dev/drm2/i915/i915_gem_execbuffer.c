@@ -26,10 +26,6 @@
  *
  */
 
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -38,10 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/dma_remapping.h>
 #include <linux/uaccess.h>
 
-
 /* CEM: Make sure we got the Linux version */
 CTASSERT(PAGE_MASK != (PAGE_SIZE - 1));
-
 #define  __EXEC_OBJECT_HAS_PIN (1<<31)
 #define  __EXEC_OBJECT_HAS_FENCE (1<<30)
 #define  __EXEC_OBJECT_NEEDS_MAP (1<<29)
@@ -462,19 +456,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 			  reloc->write_domain);
 		return -EINVAL;
 	}
-#ifdef old
-	if (unlikely(reloc->write_domain && target_obj->pending_write_domain &&
-		     reloc->write_domain != target_obj->pending_write_domain)) {
-		DRM_DEBUG("Write domain conflict: "
-			  "obj %p target %d offset %d "
-			  "new %08x old %08x\n",
-			  obj, reloc->target_handle,
-			  (int) reloc->offset,
-			  reloc->write_domain,
-			  target_obj->pending_write_domain);
-		return -EINVAL;
-	}
-#endif	
 
 	target_obj->pending_read_domains |= reloc->read_domains;
 	target_obj->pending_write_domain |= reloc->write_domain;
@@ -594,7 +575,7 @@ static int
 i915_gem_execbuffer_relocate(struct eb_vmas *eb)
 {
 	struct i915_vma *vma;
-	int ret = 0, pflags;
+	int ret = 0;
 
 	/* This is the fast path and we cannot handle a pagefault whilst
 	 * holding the struct mutex lest the user pass in the relocations
@@ -603,7 +584,7 @@ i915_gem_execbuffer_relocate(struct eb_vmas *eb)
 	 * acquire the struct mutex again. Obviously this is bad and so
 	 * lockdep complains vehemently.
 	 */
-	pflags = vm_fault_disable_pagefaults();
+	pagefault_disable();
 	list_for_each_entry(vma, &eb->vmas, exec_list) {
 		ret = i915_gem_execbuffer_relocate_vma(vma, eb);
 		if (ret) {
@@ -611,7 +592,7 @@ i915_gem_execbuffer_relocate(struct eb_vmas *eb)
 			break;
 		}
 	}
-	vm_fault_enable_pagefaults(pflags);
+	pagefault_enable();
 
 	return ret;
 }
