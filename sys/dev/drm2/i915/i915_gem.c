@@ -964,7 +964,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		 * overcomplicate things and flush the entire patch. */
 		partial_cacheline_write = needs_clflush_before &&
 			((shmem_page_offset | page_length)
-				& (cpu_clflush_line_size - 1));
+				& (boot_cpu_data.x86_clflush_size - 1));
 
 		page_do_bit17_swizzling = obj_do_bit17_swizzling &&
 			(page_to_phys(page) & (1 << 17)) != 0;
@@ -1934,6 +1934,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 				if (ret)
 					break;
 			}
+
 			obj->fault_mappable = true;
 		} else
 			ret = vm_insert_pfn(vma,
