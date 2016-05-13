@@ -28,9 +28,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <drm/drmP.h>
 #include <drm/drm_core.h>
 #include "drm_legacy.h"
@@ -39,6 +36,9 @@ __FBSDID("$FreeBSD$");
 
 #include <linux/pci.h>
 #include <linux/export.h>
+
+static int drm_version(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv);
 
 /*
  * Get the bus id.
@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
  *
  * Copies the bus id from drm_device::unique into user space.
  */
-int drm_getunique(struct drm_device *dev, void *data,
+static int drm_getunique(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	struct drm_unique *u = data;
@@ -90,7 +90,7 @@ drm_unset_busid(struct drm_device *dev,
  * version 1.1 or greater. Also note that KMS is all version 1.1 and later and
  * UMS was only ever supported on pci devices.
  */
-int drm_setunique(struct drm_device *dev, void *data,
+static int drm_setunique(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	struct drm_unique *u = data;
@@ -162,7 +162,7 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
  * Searches for the mapping with the specified offset and copies its information
  * into userspace
  */
-int drm_getmap(struct drm_device *dev, void *data,
+static int drm_getmap(struct drm_device *dev, void *data,
 	       struct drm_file *file_priv)
 {
 	struct drm_map *map = data;
@@ -214,7 +214,7 @@ int drm_getmap(struct drm_device *dev, void *data,
  * Searches for the client with the specified index and copies its information
  * into userspace
  */
-int drm_getclient(struct drm_device *dev, void *data,
+static int drm_getclient(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
 	struct drm_client *client = data;
@@ -234,6 +234,7 @@ int drm_getclient(struct drm_device *dev, void *data,
 		client->auth = file_priv->authenticated;
 		client->pid = file_priv->pid;
 		client->uid = file_priv->uid;
+
 		client->magic = 0;
 		client->iocs = 0;
 
@@ -253,7 +254,7 @@ int drm_getclient(struct drm_device *dev, void *data,
  *
  * \return zero on success or a negative number on failure.
  */
-int drm_getstats(struct drm_device *dev, void *data,
+static int drm_getstats(struct drm_device *dev, void *data,
 		 struct drm_file *file_priv)
 {
 	struct drm_stats *stats = data;
@@ -287,12 +288,8 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 		req->value = dev->mode_config.prefer_shadow;
 		break;
 	case DRM_CAP_PRIME:
-#ifdef __linux__
 		req->value |= dev->driver->prime_fd_to_handle ? DRM_PRIME_CAP_IMPORT : 0;
 		req->value |= dev->driver->prime_handle_to_fd ? DRM_PRIME_CAP_EXPORT : 0;
-#else
-		req->value |= false;
-#endif
 		break;
 	case DRM_CAP_TIMESTAMP_MONOTONIC:
 		req->value = drm_timestamp_monotonic;
@@ -485,7 +482,7 @@ static int drm_copy_field(char __user *buf, size_t *buf_len, const char *value)
  *
  * Fills in the version information in \p arg.
  */
-int drm_version(struct drm_device *dev, void *data,
+static int drm_version(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
 	struct drm_version *version = data;
@@ -546,8 +543,6 @@ int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 }
 EXPORT_SYMBOL(drm_ioctl_permit);
 
-
-#ifdef __linux__
 #define DRM_IOCTL_DEF(ioctl, _func, _flags)	\
 	[DRM_IOCTL_NR(ioctl)] = {		\
 		.cmd = ioctl,			\
@@ -555,11 +550,6 @@ EXPORT_SYMBOL(drm_ioctl_permit);
 		.flags = _flags,		\
 		.name = #ioctl			\
 	}
-#else
-
-#define DRM_IOCTL_DEF(ioctl, _func, _flags) \
-	[DRM_IOCTL_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
-#endif
 
 /* Ioctl table */
 static const struct drm_ioctl_desc drm_ioctls[] = {
