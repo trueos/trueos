@@ -84,7 +84,7 @@ SRCS	= \
 
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
-#CFLAGS += -O0
+CFLAGS += -O0
 
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS	+= i915_ioc32.c
