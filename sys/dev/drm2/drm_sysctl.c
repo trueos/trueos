@@ -39,6 +39,8 @@ SYSCTL_DECL(_hw_drm);
 
 #define DRM_SYSCTL_HANDLER_ARGS	(SYSCTL_HANDLER_ARGS)
 
+extern int drm_vblank_offdelay;
+extern unsigned int drm_timestamp_precision;
 
 static int	   drm_name_info DRM_SYSCTL_HANDLER_ARGS;
 static int	   drm_vm_info DRM_SYSCTL_HANDLER_ARGS;
