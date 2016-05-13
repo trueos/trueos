@@ -1314,23 +1314,8 @@ static __inline__ bool drm_can_sleep(void)
 	return true;
 }
 
-/* 32-bit/64-bit ioctl support */
-int drm_version(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv);
-int drm_getunique(struct drm_device *dev, void *data,
-		  struct drm_file *file_priv);
-int drm_setunique(struct drm_device *dev, void *data,
-		  struct drm_file *file_priv);
-int drm_getmap(struct drm_device *dev, void *data,
-	       struct drm_file *file_priv);
-int drm_getclient(struct drm_device *dev, void *data,
-		  struct drm_file *file_priv);
-int drm_getstats(struct drm_device *dev, void *data,
-		 struct drm_file *file_priv);
 
 /* sysctl support (drm_sysctl.h) */
-extern int		drm_vblank_offdelay;
-extern unsigned int	drm_timestamp_precision;
 extern int		drm_sysctl_init(struct drm_device *dev);
 extern int		drm_sysctl_cleanup(struct drm_device *dev);
 
