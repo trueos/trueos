@@ -37,6 +37,9 @@
 #include <sys/proc.h>
 #include <linux/compiler.h>
 
+#define	VERIFY_READ	VM_PROT_READ
+#define	VERIFY_WRITE	VM_PROT_WRITE
+
 #define	__get_user(_x, _p) ({				\
 	int __err;					\
 	__typeof(*(_p)) __x;				\
@@ -50,6 +53,14 @@
 })
 #define	get_user(_x, _p)	-copyin((_p), &(_x), sizeof(*(_p)))
 #define	put_user(_x, _p)	-copyout(&(_x), (_p), sizeof(*(_p)))
+
+static inline int
+access_ok(int rw, void *addr, int len)
+{
+	if (len == 0)
+		return (TRUE);
+	return (useracc(addr, len, rw));
+}
 
 /*
  * NOTE: The returned value from pagefault_disable() must be stored

@@ -99,10 +99,6 @@ struct vt_kms_softc {
 #define	lower_32_bits(n)	((u32)(n))
 #define	upper_32_bits(n)	((u32)(((n) >> 16) >> 16))
 
-#define	VERIFY_READ	VM_PROT_READ
-#define	VERIFY_WRITE	VM_PROT_WRITE
-#define	access_ok(prot, p, l)	useracc((p), (l), (prot))
-
 /* XXXKIB what is the right code for the FreeBSD ? */
 /* kib@ used ENXIO here -- dumbbell@ */
 #define	EREMOTEIO	EIO
