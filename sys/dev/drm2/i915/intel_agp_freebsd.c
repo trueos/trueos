@@ -35,10 +35,26 @@ intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 	return (0);
 }
 
-void intel_gmch_remove(void)
+void
+intel_gmch_remove(void)
 {
 	WARN_UN();
 }
+
+void
+i915_locks_destroy(struct drm_i915_private *dev_priv)
+{
+	spin_lock_destroy(&dev_priv->irq_lock);
+	spin_lock_destroy(&dev_priv->gpu_error.lock);
+	mutex_destroy(&dev_priv->backlight_lock);
+	spin_lock_destroy(&dev_priv->uncore.lock);
+	spin_lock_destroy(&dev_priv->mm.object_stat_lock);
+	spin_lock_destroy(&dev_priv->mmio_flip_lock);
+	mutex_destroy(&dev_priv->sb_lock);
+	mutex_destroy(&dev_priv->modeset_restore_lock);
+	mutex_destroy(&dev_priv->av_mutex);
+}
+
 
 MODULE_DEPEND(i915kms, drmn, 1, 1, 1);
 MODULE_DEPEND(i915kms, agp, 1, 1, 1);

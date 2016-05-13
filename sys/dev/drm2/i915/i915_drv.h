@@ -25,7 +25,6 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * $FreeBSD$
  */
 
 #ifndef _I915_DRV_H_
@@ -56,6 +55,7 @@
 #include <linux/io.h>
 #include "intel_guc.h"
 
+#define resource linux_resource
 /* #define CONFIG_DEBUG_FS 1 */
 
 /* General customization:
@@ -1782,7 +1782,7 @@ struct drm_i915_private {
 	uint32_t last_seqno, next_seqno;
 
 	struct drm_dma_handle *status_page_dmah;
-	struct linux_resource mch_res;
+	struct resource mch_res;
 
 	/* protects the irq masks */
 	spinlock_t irq_lock;
@@ -2723,9 +2723,9 @@ struct drm_i915_cmd_table {
 
 #define GT_FREQUENCY_MULTIPLIER 50
 #define GEN9_FREQ_SCALER 3
-#ifdef __linux__
+
 #include "i915_trace.h"
-#endif
+
 extern const struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
 
@@ -2741,10 +2741,6 @@ extern void i915_driver_preclose(struct drm_device *dev,
 				 struct drm_file *file);
 extern void i915_driver_postclose(struct drm_device *dev,
 				  struct drm_file *file);
-extern int i915_cmdbuffer(struct drm_device *dev, void *data,
-			  struct drm_file *file_priv);
-extern int i915_getparam(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
 #ifdef CONFIG_COMPAT
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
@@ -3138,8 +3134,6 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *gem_obj, int flags);
 
-int i915_gem_mmap(struct drm_device *dev, uint64_t offset, int prot);
-
 u64 i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
 				  const struct i915_ggtt_view *view);
 u64 i915_gem_obj_offset(struct drm_i915_gem_object *o,
@@ -3346,10 +3340,6 @@ int i915_verify_lists(struct drm_device *dev);
 /* i915_debugfs.c */
 int i915_debugfs_init(struct drm_minor *minor);
 void i915_debugfs_cleanup(struct drm_minor *minor);
-
-
-
-
 #ifdef CONFIG_DEBUG_FS
 int i915_debugfs_connector_add(struct drm_connector *connector);
 void intel_display_crc_init(struct drm_device *dev);
@@ -3585,6 +3575,8 @@ __raw_write(64, q)
 #undef __raw_read
 #undef __raw_write
 
+#define outb _outb
+
 /* These are untraced mmio-accessors that are only valid to be used inside
  * criticial sections inside IRQ handlers where forcewake is explicitly
  * controlled.
@@ -3664,20 +3656,12 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 }
 
 static inline void i915_trace_irq_get(struct intel_engine_cs *ring,
-				      struct drm_i915_gem_request *req)
+                                     struct drm_i915_gem_request *req)
 {
-	if (ring->trace_irq_req == NULL && ring->irq_get(ring))
-		i915_gem_request_assign(&ring->trace_irq_req, req);
+       if (ring->trace_irq_req == NULL && ring->irq_get(ring))
+               i915_gem_request_assign(&ring->trace_irq_req, req);
 }
 
-static inline void
-trace_i915_reg_rw(boolean_t rw, i915_reg_t reg, uint64_t val, int sz, bool trace)
-{
 
-        CTR4(KTR_DRM_REG, "[%x/%d] %c %x", reg.reg, sz, rw ? "w" : "r", val);
-}
-
-vm_page_t i915_gem_wire_page(vm_object_t object, vm_pindex_t pindex, bool *fresh);
-bool intel_has_pending_fb_unpin(struct drm_device *dev);
-
+void i915_locks_destroy(struct drm_i915_private *dev_priv);
 #endif

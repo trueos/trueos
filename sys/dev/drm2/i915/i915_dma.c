@@ -26,17 +26,6 @@
  *
  */
 
-
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-#include <sys/types.h>
-#include <sys/bus.h>
-#include <sys/pciio.h>
-
-#include <linux/pci.h>
-
-#undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <drm/drmP.h>
@@ -62,10 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <linux/oom.h>
 
 
+#undef resource
 #define pci_disable_msi linux_pci_disable_msi
 #define pci_enable_msi linux_pci_enable_msi
 
-int i915_getparam(struct drm_device *dev, void *data,
+static int i915_getparam(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1200,19 +1190,9 @@ out_runtime_pm_put:
 	intel_runtime_pm_put(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
 out_free_priv:
+	i915_locks_destroy(dev_priv);
+	kfree(dev_priv);
 
-
-	spin_lock_destroy(&dev_priv->irq_lock);
-	spin_lock_destroy(&dev_priv->gpu_error.lock);
-	mutex_destroy(&dev_priv->backlight_lock);
-	spin_lock_destroy(&dev_priv->uncore.lock);
-	spin_lock_destroy(&dev_priv->mm.object_stat_lock);
-	spin_lock_destroy(&dev_priv->mmio_flip_lock);
-	mutex_destroy(&dev_priv->sb_lock);
-	mutex_destroy(&dev_priv->modeset_restore_lock);
-	mutex_destroy(&dev_priv->av_mutex);
-
-	kfree(dev_priv);	
 	return ret;
 }
 
@@ -1247,7 +1227,7 @@ int i915_driver_unload(struct drm_device *dev)
 	drm_vblank_cleanup(dev);
 
 	intel_modeset_cleanup(dev);
-	
+
 	/*
 	 * free the memory space allocated for the child device
 	 * config parsed from VBT
@@ -1296,19 +1276,9 @@ int i915_driver_unload(struct drm_device *dev)
 	i915_gem_load_cleanup(dev);
 	pci_dev_put(dev_priv->bridge_dev);
 	i915_workqueues_cleanup(dev_priv);
-
-
-	spin_lock_destroy(&dev_priv->irq_lock);
-	spin_lock_destroy(&dev_priv->gpu_error.lock);
-	mutex_destroy(&dev_priv->backlight_lock);
-	spin_lock_destroy(&dev_priv->uncore.lock);
-	spin_lock_destroy(&dev_priv->mm.object_stat_lock);
-	spin_lock_destroy(&dev_priv->mmio_flip_lock);
-	mutex_destroy(&dev_priv->sb_lock);
-	mutex_destroy(&dev_priv->modeset_restore_lock);
-	mutex_destroy(&dev_priv->av_mutex);
-
+	i915_locks_destroy(dev_priv);
 	kfree(dev_priv);
+
 	return 0;
 }
 
