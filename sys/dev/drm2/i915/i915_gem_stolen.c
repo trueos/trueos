@@ -26,21 +26,12 @@
  *
  */
 
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/types.h>
-#include <sys/bus.h>
-#include <sys/pciio.h>
-
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
 #define KB(x) ((x) * 1024)
 #define MB(x) (KB(x) * 1024)
-#define resource linux_resource
 
 /*
  * The BIOS typically reserves some of the system's memory for the exclusive
@@ -97,7 +88,7 @@ void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct linux_resource *r;
+	struct resource *r;
 	u32 base;
 
 	/* Almost universally we can find the Graphics Base of Stolen Memory
