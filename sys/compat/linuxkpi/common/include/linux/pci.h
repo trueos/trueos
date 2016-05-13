@@ -429,11 +429,12 @@ pci_set_master(struct pci_dev *pdev)
 	return (0);
 }
 
-static inline void
+static inline int
 pci_set_power_state(struct pci_dev *pdev, int state)
 {
 
 	pci_set_powerstate(pdev->dev.bsddev, state);
+	return (0);
 }
 
 static inline int
