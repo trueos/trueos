@@ -54,6 +54,11 @@
 #define VM_LOCKED	0x00002000
 #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
 
+#define VM_MAYREAD	0x00000010	/* limits for mprotect() etc */
+#define VM_MAYWRITE	0x00000020
+#define VM_MAYEXEC	0x00000040
+#define VM_MAYSHARE	0x00000080
+
 					/* Used by sys_madvise() */
 #define VM_SEQ_READ	0x00008000	/* App will access data sequentially */
 #define VM_RAND_READ	0x00010000	/* App will not benefit from clustered reads */
@@ -127,6 +132,13 @@ io_remap_pfn_range(struct vm_area_struct *vma,
 
 	return (0);
 }
+static inline int
+remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
+		unsigned long pfn, unsigned long size, pgprot_t prot)
+{
+	panic("XXX implement me!!!");
+}
+
 
 static inline unsigned long
 vma_pages(struct vm_area_struct *vma)
@@ -197,7 +209,22 @@ int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long pfn, pgprot_t pgprot);
 
 
+static inline vm_page_t
+vmalloc_to_page(const void *addr)
+{
+	vm_paddr_t paddr;
 
+	paddr = pmap_kextract((vm_offset_t)addr);
+	return (PHYS_TO_VM_PAGE(paddr));
+}
+
+
+static inline void *
+vmalloc_32(unsigned long size)
+{
+	return (contigmalloc(size, M_KMALLOC, M_WAITOK, 0, UINT_MAX, 1, 1));
+
+}
 #define VM_FAULT_OOM	0x0001
 #define VM_FAULT_SIGBUS	0x0002
 #define VM_FAULT_MAJOR	0x0004
