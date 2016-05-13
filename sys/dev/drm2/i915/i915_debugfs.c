@@ -1354,15 +1354,14 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	i915_get_extra_instdone(dev, instdone);
 
 	intel_runtime_pm_put(dev_priv);
-#ifdef notyet
-	
+
 	if (delayed_work_pending(&dev_priv->gpu_error.hangcheck_work)) {
 		seq_printf(m, "Hangcheck active, fires in %dms\n",
 			   jiffies_to_msecs(dev_priv->gpu_error.hangcheck_work.timer.expires -
 					    jiffies));
 	} else
 		seq_printf(m, "Hangcheck inactive\n");
-#endif
+
 	for_each_ring(ring, dev_priv, i) {
 		seq_printf(m, "%s:\n", ring->name);
 		seq_printf(m, "\tseqno = %x [current %x]\n",
