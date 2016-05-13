@@ -29,9 +29,6 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/kernel.h>
 #include <linux/sysrq.h>
 #include <linux/slab.h>
@@ -45,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <drm/drm_atomic_helper.h>
 
 #define fb_info linux_fb_info
-#define register_framebuffer linux_register_framebuffer
 
 static bool drm_fbdev_emulation = true;
 module_param_named(fbdev_emulation, drm_fbdev_emulation, bool, 0600);
@@ -1463,6 +1459,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 
 	info->var.pixclock = 0;
+	info->fbio.fb_bpp = preferred_bpp;
 	if (register_framebuffer(info) < 0)
 		return -EINVAL;
 
