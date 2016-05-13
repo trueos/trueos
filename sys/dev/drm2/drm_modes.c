@@ -30,9 +30,6 @@
  * authorization from the copyright holder(s) and author(s).
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/export.h>

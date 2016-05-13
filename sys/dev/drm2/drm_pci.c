@@ -22,9 +22,6 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
@@ -32,6 +29,9 @@ __FBSDID("$FreeBSD$");
 #include <drm/drmP.h>
 #include "drm_internal.h"
 #include "drm_legacy.h"
+
+#define aper_base ai_aperture_base
+#define aper_size ai_aperture_size
 
 static void
 drm_pci_busdma_callback(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
@@ -262,8 +262,8 @@ static void drm_pci_agp_init(struct drm_device *dev)
 			dev->agp = drm_agp_init(dev);
 		if (dev->agp) {
 			dev->agp->agp_mtrr = arch_phys_wc_add(
-				dev->agp->agp_info.ai_aperture_base,
-				dev->agp->agp_info.ai_aperture_size *
+				dev->agp->agp_info.aper_base,
+				dev->agp->agp_info.aper_size *
 				1024 * 1024);
 		}
 	}
