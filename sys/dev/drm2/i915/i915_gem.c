@@ -1737,12 +1737,18 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	int error, rv;
 #endif
 
+#ifdef __future__
+/*
+ * This is another example of the antique xf86-intel driver passing in
+ * bad values.
+ */
 	if (args->flags & ~(I915_MMAP_WC))
 		return -EINVAL;
 
 	if (args->flags & I915_MMAP_WC && !cpu_has_pat)
 		return -ENODEV;
 
+#endif
 	obj = drm_gem_object_lookup(dev, file, args->handle);
 	if (obj == NULL)
 		return -ENOENT;
@@ -3511,12 +3517,18 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	struct i915_vma *vma;
 	int ret;
 
+#ifdef __future__
+/*
+ * It appears that the antique xf86-intel driver in ports
+ * does not set this correctly, so we need to bypass this
+ * sanit check
+ */
 	if (obj->madv != I915_MADV_WILLNEED) {
 		DRM_ERROR("Attempting to bind a purgeable object\n");
 		return PTR_ERR(-EINVAL);
 	}
 
-	
+#endif
 	if (i915_is_ggtt(vm)) {
 		u32 view_size;
 
