@@ -36,10 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drv.h>
 
 #define fb_info linux_fb_info
-#define framebuffer_alloc linux_framebuffer_alloc
-#define framebuffer_release linux_framebuffer_release
-#define register_framebuffer linux_register_framebuffer
-#define unregister_framebuffer linux_unregister_framebuffer
 
 static struct fb_ops intelfb_ops = {
 	.owner = THIS_MODULE,
@@ -144,7 +140,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		ret = -ENOSPC;
 		goto out_unpin;
 	}
-	info->fbio.fb_bpp = sizes->surface_bpp;
 //	memset(info->screen_base, 0, size);
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
