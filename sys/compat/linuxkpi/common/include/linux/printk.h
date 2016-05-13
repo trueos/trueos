@@ -55,5 +55,6 @@ static inline void print_hex_dump_bytes(const char *prefix_str, int prefix_type,
 {
 }
 
+#define printk_ratelimited printk
 
 #endif					/* _FBSD_PRINTK_H */
