@@ -448,13 +448,12 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = crt->base.base.dev->dev_private;
 	struct edid *edid;
 	struct i2c_adapter *i2c;
-	bool res;
 
 	BUG_ON(crt->base.type != INTEL_OUTPUT_ANALOG);
 
 	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->vbt.crt_ddc_pin);
 	edid = intel_crt_get_edid(connector, i2c);
-	res = false;
+
 	if (edid) {
 		bool is_digital = edid->input & DRM_EDID_INPUT_DIGITAL;
 
@@ -465,15 +464,17 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 		 */
 		if (!is_digital) {
 			DRM_DEBUG_KMS("CRT detected via DDC:0x50 [EDID]\n");
-			res = true;
+			return true;
 		}
-		kfree(edid);
+
 		DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [EDID reports a digital panel]\n");
 	} else {
 		DRM_DEBUG_KMS("CRT not detected via DDC:0x50 [no valid EDID found]\n");
 	}
 
-	return res;
+	kfree(edid);
+
+	return false;
 }
 
 static enum drm_connector_status
