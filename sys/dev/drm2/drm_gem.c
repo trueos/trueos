@@ -37,6 +37,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
 #include <drm/drmP.h>
+#include <drm/drm_vma_manager.h>
 #include <drm/drm_gem.h>
 #include "drm_internal.h"
 
@@ -141,6 +142,7 @@ int drm_gem_object_init(struct drm_device *dev,
 		return PTR_ERR(filp);
 
 	obj->filp = filp;
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_gem_object_init);
@@ -369,9 +371,11 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 		goto err_unref;
 
 	handle = ret;
+
 	ret = drm_vma_node_allow(&obj->vma_node, file_priv->filp);
 	if (ret)
 		goto err_remove;
+
 	if (dev->driver->gem_open_object) {
 		ret = dev->driver->gem_open_object(obj, file_priv);
 		if (ret)
@@ -380,6 +384,7 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
 
 	*handlep = handle;
 	return 0;
+
 err_revoke:
 	drm_vma_node_revoke(&obj->vma_node, file_priv->filp);
 err_remove:
@@ -515,15 +520,14 @@ struct page **drm_gem_get_pages(struct drm_gem_object *obj)
 		if (IS_ERR(p))
 			goto fail;
 		pages[i] = p;
-#ifdef __linux__
+
 		/* Make sure shmem keeps __GFP_DMA32 allocated pages in the
 		 * correct region during swapin. Note that this requires
 		 * __GFP_DMA32 to be set in mapping_gfp_mask(inode->i_mapping)
 		 * so shmem can relocate pages during swapin if required.
 		 */
 		BUG_ON(mapping_gfp_constraint(mapping, __GFP_DMA32) &&
-		       (page_to_pfn(p) >= 0x00100000UL));
-#endif
+				(page_to_pfn(p) >= 0x00100000UL));
 	}
 
 	return pages;
@@ -763,7 +767,6 @@ drm_gem_object_release(struct drm_gem_object *obj)
 	if (obj->filp)
 		fput(obj->filp);
 
-	/* do we need anything else ? */
 	drm_gem_free_mmap_offset(obj);
 }
 EXPORT_SYMBOL(drm_gem_object_release);
@@ -820,7 +823,6 @@ void drm_gem_vm_close(struct vm_area_struct *vma)
 	drm_gem_object_unreference_unlocked(obj);
 }
 EXPORT_SYMBOL(drm_gem_vm_close);
-
 
 /**
  * drm_gem_mmap_obj - memory map a GEM object
