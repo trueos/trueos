@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
 #include <linux/async.h>
+#include <linux/compat.h>
 
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
@@ -104,6 +105,20 @@ struct sx linux_global_rcu_lock;
 
 unsigned long linux_timer_hz_mask;
 struct list_head cdev_list;
+
+
+/*
+ * XXX this leaks right now, we need to track
+ * this memory so that it's freed on return from
+ * the compatibility ioctl calls
+ */
+void *
+compat_alloc_user_space(unsigned long len)
+{
+
+	return (malloc(len, M_LCINT, M_NOWAIT));
+}
+
 
 
 int
