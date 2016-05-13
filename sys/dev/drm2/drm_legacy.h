@@ -77,6 +77,7 @@ void drm_legacy_vma_flush(struct drm_device *d);
 /*
  * AGP Support
  */
+
 struct drm_agp_mem {
 	unsigned long handle;
 	struct agp_memory *memory;
