@@ -50,5 +50,7 @@ copy_from_user(void *to, const void *from, unsigned long n)
 	return 0;
 }
 #define	__copy_from_user	copy_from_user
+#define __copy_in_user		copy_from_user
+
 
 #endif	/* _ASM_UACCESS_H_ */
