@@ -31,9 +31,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+#include <linux/export.h>
 #include <drm/drmP.h>
 
 #include <drm/ati_pcigart.h>
@@ -135,7 +133,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 			goto done;
 		}
 
-		pci_gart = (u32*)gart_info->table_handle->vaddr;
+		pci_gart = gart_info->table_handle->vaddr;
 		address = gart_info->table_handle->vaddr;
 		bus_address = gart_info->table_handle->busaddr;
 	} else {

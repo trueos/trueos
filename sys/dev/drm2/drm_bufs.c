@@ -28,9 +28,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/shm.h>
 
@@ -42,8 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/log2.h>
 #include <drm/drmP.h>
 
-#include <linux/mm.h>
 #include "drm_legacy.h"
+#define aper_size ai_aperture_size
 
 static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 						  struct drm_local_map *map)
@@ -214,7 +211,8 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 
 		if (map->type == _DRM_FRAME_BUFFER ||
 		    (map->flags & _DRM_WRITE_COMBINING)) {
-			map->mtrr = arch_phys_wc_add(map->offset, map->size);
+			map->mtrr =
+				arch_phys_wc_add(map->offset, map->size);
 		}
 		if (map->type == _DRM_REGISTERS) {
 			if (map->flags & _DRM_WRITE_COMBINING)
@@ -280,7 +278,7 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 		 */
 		if (map->offset < dev->agp->base ||
 		    map->offset > dev->agp->base +
-		    dev->agp->agp_info.ai_aperture_size * 1024 * 1024 - 1) {
+		    dev->agp->agp_info.aper_size * 1024 * 1024 - 1) {
 			map->offset += dev->agp->base;
 		}
 		map->mtrr = dev->agp->agp_mtrr;	/* for getmap */
@@ -1343,7 +1341,7 @@ int drm_legacy_freebufs(struct drm_device *dev, void *data,
 		buf = dma->buflist[idx];
 		if (buf->file_priv != file_priv) {
 			DRM_ERROR("Process %d freeing buffer not owned\n",
-				  DRM_CURRENTPID);
+				  task_pid_nr(current));
 			return -EINVAL;
 		}
 		drm_legacy_free_buffer(dev, buf);
