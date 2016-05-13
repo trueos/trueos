@@ -3391,6 +3391,8 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
+int i915_gem_context_reset_stats_ioctl(struct drm_device *dev, void *data,
+				       struct drm_file *file);
 
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct drm_device *dev,
@@ -3608,8 +3610,6 @@ extern void intel_detect_pch(struct drm_device *dev);
 extern bool i915_semaphore_is_enabled(struct drm_i915_private *dev_priv);
 int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
-int i915_get_reset_stats_ioctl(struct drm_device *dev, void *data,
-			       struct drm_file *file);
 
 /* overlay */
 extern struct intel_overlay_error_state *
