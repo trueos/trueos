@@ -37,6 +37,7 @@
 #include <sys/mutex.h>
 
 #include <linux/compiler.h>
+#include <linux/irqflags.h>
 #include <linux/kernel.h>
 #include <linux/rwlock.h>
 
