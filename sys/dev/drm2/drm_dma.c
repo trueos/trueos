@@ -33,9 +33,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
+#include <linux/export.h>
 #include <drm/drmP.h>
 #include "drm_legacy.h"
 

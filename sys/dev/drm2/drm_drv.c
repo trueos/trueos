@@ -26,9 +26,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/sysent.h>
 
 #include <linux/debugfs.h>

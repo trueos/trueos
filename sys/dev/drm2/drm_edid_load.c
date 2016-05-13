@@ -26,8 +26,6 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
-#define firmware linux_firmware
-
 static char edid_firmware[PATH_MAX];
 module_param_string(edid_firmware, edid_firmware, sizeof(edid_firmware), 0644);
 MODULE_PARM_DESC(edid_firmware, "Do not probe monitor, use specified EDID blob "

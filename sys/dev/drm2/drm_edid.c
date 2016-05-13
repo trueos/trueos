@@ -27,10 +27,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/hdmi.h>
@@ -40,8 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_displayid.h>
-
-#define firmware linux_firmware
 
 #define version_greater(edid, maj, min) \
 	(((edid)->version > (maj)) || \
