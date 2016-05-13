@@ -176,5 +176,10 @@ static inline uintptr_t __get_free_pages(gfp_t gfp_mask, unsigned int order)
 #define alloc_pages_node(node, mask, order)     alloc_pages(mask, order)
 
 #define kmalloc_node(chunk, mask, node)         kmalloc(chunk, mask)
+/*
+* AFAICT FreeBSD has no analog
+*/
+#define SetPageReserved(page)
+#define ClearPageReserved(page)
 
 #endif	/* _LINUX_GFP_H_ */
