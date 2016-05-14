@@ -223,7 +223,6 @@ schedule_timeout_interruptible(signed long timeout)
 static inline signed long
 schedule_timeout_killable(signed long timeout)
 {
-	__set_current_state(TASK_KILLABLE);
 	return (schedule_timeout(timeout));
 }
 
