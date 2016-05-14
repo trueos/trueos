@@ -1,26 +1,13 @@
 #ifndef _ASM_GENERIC_BITOPS_CONST_HWEIGHT_H_
 #define _ASM_GENERIC_BITOPS_CONST_HWEIGHT_H_
 
+static uint8_t hbits[] = {0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4} ;
 
-
-static __inline u_long
-__arch_hweight8(u_long mask)
+static inline uint8_t
+__arch_hweight8(uint8_t x)
 {
-        u_long result;
-
-        __asm __volatile("popcntq %1,%0" : "=r" (result) : "rm" (mask));
-        return (result);
+	return (hbits[x & 0xf] + hbits[x >> 4]);
 }
-
-static __inline u_long
-__arch_hweight_long(u_long mask)
-{
-        u_long result;
-
-        __asm __volatile("popcntq %1,%0" : "=r" (result) : "rm" (mask));
-        return (result);
-}
-
 #define __const_hweight8(w)		\
 	((unsigned int)			\
 	 ((!!((w) & (1ULL << 0))) +	\
@@ -37,7 +24,7 @@ __arch_hweight_long(u_long mask)
 #define hweight16(x) bitcount16(x)
 #define hweight32(x) bitcount32(x)
 #define hweight64(x) (bitcount32((uint32_t)(x>>32)) + bitcount32((uint32_t)x))
-#define hweight_long(x) __arch_hweight_long(x)
+#define hweight_long(x) hweight64(x)
 
 
 #endif /* _ASM_GENERIC_BITOPS_CONST_HWEIGHT_H_ */
