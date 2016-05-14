@@ -212,7 +212,6 @@ schedule_timeout_interruptible(signed long timeout)
 	if (SCHEDULER_STOPPED())
 		return (0);
 
-	__set_current_state(TASK_UNINTERRUPTIBLE);
 	sx_xlock(&linux_global_rcu_lock);
 	ret = _sleep(&Giant, &(linux_global_rcu_lock.lock_object), PCATCH | PDROP , "lstimi", tick_sbt * timeout, 0 , C_HARDCLOCK);
 	
