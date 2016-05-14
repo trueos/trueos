@@ -75,15 +75,25 @@ void drm_err(const char *format, ...)
 }
 EXPORT_SYMBOL(drm_err);
 
+#include <sys/reboot.h>
 void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
+	static int stop_count = 0;
 
 	va_start(args, format);
 	vaf.fmt = format;
 	vaf.va = &args;
 
+	if (SCHEDULER_STOPPED()) {
+		printf(" ");
+		if (stop_count++ == 12) {
+			doadump(0);
+			EVENTHANDLER_INVOKE(shutdown_final, RB_NOSYNC);
+		}
+		return;
+	}
 	printf("[" DRM_NAME ":%s] ", function_name);
 	vprintf(format, args);
 
