@@ -76,6 +76,18 @@ static DEFINE_IDR(i2c_adapter_idr);
 
 static DEFINE_MUTEX(i2c_core);
 
+static struct class *i2c_class;
+
+static int
+linux_i2c_init(void *arg __unused)
+{
+	i2c_class = class_create(THIS_MODULE, "i2c");
+
+	return (i2c_class == NULL ? ENOMEM : 0);
+}
+SYSINIT(linux_i2c, SI_SUB_DRIVERS, SI_ORDER_FIRST, linux_i2c_init, NULL);
+
+
 
 static int
 i2c_register_adapter(struct i2c_adapter *adap)
@@ -93,6 +105,10 @@ i2c_register_adapter(struct i2c_adapter *adap)
 		adap->timeout = hz;
 
 	dev_set_name(&adap->dev, "i2c-%d", adap->nr);
+
+	if (adap->dev.class == NULL)
+		adap->dev.class = i2c_class;
+
 #ifdef notyet
 	adap->dev.bus = &i2c_bus_type;
 	adap->dev.type = &i2c_adapter_type;
