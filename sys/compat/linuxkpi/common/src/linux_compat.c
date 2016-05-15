@@ -443,7 +443,7 @@ linux_file_dtor(void *cdp)
 #define PFN_TO_VM_PAGE(pfn) PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT)
 
 static int
-linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_page_t *mres)
+linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_page_t *mres, int count, int *rahead)
 {
 	vm_page_t page, oldpage;
 	struct vm_fault vmf;
@@ -463,22 +463,6 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 
 	trace_compat_cdev_pager_fault(vm_obj, offset, prot, mres);
 	vm_object_pip_add(vm_obj, 1);
-
-	/*
-	 * The VM has helpfully given us a page, but device memory
-	 * is note fungible so we need to remove it from the object
-	 * in order to replace it with a device address we can actually
-	 * use. We don't free it unless we succeed, so that there is still
-	 * a valid result page on failure.
-	 */
-	if (*mres != NULL) {
-		oldpage = *mres;
-		vm_page_lock(oldpage);
-		vm_page_remove(oldpage);
-		vm_page_unlock(oldpage);
-		*mres = NULL;
-	} else
-		oldpage = NULL;
 
 	VM_OBJECT_WUNLOCK(vm_obj);
 	memcpy(&cvma, vmap, sizeof(cvma));
@@ -508,7 +492,22 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	 */
 	MPASS(cvma.vm_pfn_count > 0);
 	VM_OBJECT_WLOCK(vm_obj);
-	*mres = PFN_TO_VM_PAGE(cvma.vm_pfn_array[0]);
+	/*
+	 * The VM has helpfully given us pages, but device memory
+	 * is not fungible. Thus we need to remove them from the object
+	 * in order to replace them with device addresses that we can actually
+	 * use. We don't free them unless we succeed, so that there is still
+	 * a valid result page on failure.
+	 */
+	for (i = 0; i < min(count, cvma.vm_pfn_count); i++) {
+		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
+		if (mres[i] == page)
+			continue;
+		vm_page_lock(mres[i]);
+		vm_page_free(mres[i]);
+		vm_page_unlock(mres[i]);
+		mres[i] = page;
+	}
 	for  (i = 0; i < cvma.vm_pfn_count; i++)  {
 		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
 
@@ -526,11 +525,8 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
 		vm_page_xunbusy(page);
 	}
-	if (oldpage != NULL) {
-		vm_page_lock(oldpage);
-		vm_page_free(oldpage);
-		vm_page_unlock(oldpage);
-	}
+	if (rahead)
+		*rahead = min(cvma.vm_pfn_count, count) - 1;
 	vm_object_pip_wakeup(vm_obj);
 	return (VM_PAGER_OK);
 err:

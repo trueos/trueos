@@ -90,7 +90,7 @@ static int old_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred, u_short *color);
 static void old_dev_pager_dtor(void *handle);
 static int old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
-    int prot, vm_page_t *mres);
+    int prot, vm_page_t *mres, int count, int *rahead);
 
 static struct cdev_pager_ops old_dev_pager_ops = {
 	.cdev_pg_ctor =	old_dev_pager_ctor,
@@ -265,8 +265,13 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 	/* Since our haspage reports zero after/before, the count is 1. */
 	KASSERT(count == 1, ("%s: count %d", __func__, count));
 	VM_OBJECT_ASSERT_WLOCKED(object);
+	if (object->type == OBJT_DEVICE) {
+		count = 1;
+		if (rahead)
+			*rahead = 0;
+	}
 	error = object->un_pager.devp.ops->cdev_pg_fault(object,
-	    IDX_TO_OFF(ma[0]->pindex), PROT_READ, &ma[0]);
+			IDX_TO_OFF(ma[0]->pindex), PROT_READ, ma, count, rahead);
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
@@ -282,8 +287,6 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 		}
 		if (rbehind)
 			*rbehind = 0;
-		if (rahead)
-			*rahead = 0;
 	}
 
 	return (error);
@@ -291,7 +294,7 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 
 static int
 old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
-    vm_page_t *mres)
+		    vm_page_t *mres, int count, int *rahead)
 {
 	vm_paddr_t paddr;
 	vm_page_t m_paddr, page;
@@ -301,6 +304,9 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 	struct thread *td;
 	vm_memattr_t memattr, memattr1;
 	int ref, ret;
+
+	if (rahead)
+		*rahead = 0;
 
 	memattr = object->memattr;
 

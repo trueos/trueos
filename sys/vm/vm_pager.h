@@ -176,7 +176,7 @@ vm_pager_page_unswapped(vm_page_t m)
 
 struct cdev_pager_ops {
 	int (*cdev_pg_fault)(vm_object_t vm_obj, vm_ooffset_t offset,
-	    int prot, vm_page_t *mres);
+	    int prot, vm_page_t *mres, int count, int *rahead);
 	int (*cdev_pg_ctor)(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	    vm_ooffset_t foff, struct ucred *cred, u_short *color);
 	void (*cdev_pg_dtor)(void *handle);
