@@ -119,8 +119,6 @@ compat_alloc_user_space(unsigned long len)
 	return (malloc(len, M_LCINT, M_NOWAIT));
 }
 
-
-
 int
 panic_cmp(struct rb_node *one, struct rb_node *two)
 {
@@ -409,11 +407,20 @@ static void
 linux_set_current(void)
 {
 	struct task_struct *t;
+	struct mm_struct *mm;
 
 	t = linux_kthread_create(NULL, NULL);
+	mm = malloc(sizeof(*mm), M_LCINT, M_WAITOK|M_ZERO);
+
 	t->task_thread = curthread;
 	t->comm = curthread->td_name;
 	t->pid = curthread->td_tid;
+
+	init_rwsem(&mm->mmap_sem);
+	mm->mm_count.counter = 1;
+	mm->mm_users.counter = 1;
+	t->mm = mm;
+
 	task_struct_set(curthread, t);
 }
 
@@ -423,6 +430,7 @@ linux_free_current(void)
 	struct task_struct *t;
 
 	t = task_struct_get(curthread);
+	free(t->mm, M_LCINT);
 	task_struct_set(curthread, NULL);
 	kfree(t);
 }
@@ -450,10 +458,20 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	struct vm_area_struct *vmap, cvma;
 	vm_memattr_t memattr;
 	int rc, err, vma_flags, i;
+	vm_object_t page_object;
 
 	memattr = vm_obj->memattr;
 
 	vmap  = vm_obj->handle;
+	/*
+	 * We can be fairly certain that these aren't 
+	 * the pages we're looking for.
+	 */
+	for (i = 0; i < count; i++) {
+		vm_page_lock(mres[i]);
+		vm_page_remove(mres[i]);
+		vm_page_unlock(mres[i]);
+	}
 	/*
 	 * We minimize object lock acquisition by tracking the pfn
 	 * inside of the vma that we pass in.
@@ -491,13 +509,39 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	 * definitively a bug.
 	 */
 	MPASS(cvma.vm_pfn_count > 0);
+
+	/*
+	 * This probably should never happen, but just in case.
+	 * The linux fault handler could well be pulling pages
+	 * that are already in other objects.
+	 */
+	for  (i = 0; i < cvma.vm_pfn_count; i++)  {
+		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
+		if (page->object == NULL || page->object == vm_obj)
+			continue;
+		page_object = page->object;
+		VM_OBJECT_WLOCK(page_object);
+		vm_page_lock(page);
+		vm_page_remove(page);
+		vm_page_unlock(page);
+		VM_OBJECT_WLOCK(page_object);
+	}
+
 	VM_OBJECT_WLOCK(vm_obj);
+	/*
+	 * The '1' here may need to be count 
+	 */
+	for  (i = 1; i < cvma.vm_pfn_count; i++)  {
+		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
+		vm_page_xunbusy(page);
+	}
+	vm_page_assert_xbusied(PFN_TO_VM_PAGE(cvma.vm_pfn_array[0]));
 	/*
 	 * The VM has helpfully given us pages, but device memory
 	 * is not fungible. Thus we need to remove them from the object
-	 * in order to replace them with device addresses that we can actually
-	 * use. We don't free them unless we succeed, so that there is still
-	 * a valid result page on failure.
+	 * in order to replace them with device addresses that we can 
+	 * actually use. We don't free them unless we succeed, so that 
+	 * there is still a valid result page on failure.
 	 */
 	for (i = 0; i < min(count, cvma.vm_pfn_count); i++) {
 		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
@@ -508,12 +552,15 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 		vm_page_unlock(mres[i]);
 		mres[i] = page;
 	}
+	vm_page_assert_xbusied(mres[0]);
 	for  (i = 0; i < cvma.vm_pfn_count; i++)  {
 		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
-
-		/* If the page's object is not NULL it's already in an object */
-		if (page->object != NULL)
-			continue;
+		/* Check if the page needs to be moved - there may be a cheaper way*/
+		if (page->object == vm_obj && page->pindex != OFF_TO_IDX(offset + PAGE_SIZE*i)) {
+			vm_page_lock(page);
+			vm_page_remove(page);
+			vm_page_unlock(page);
+		}
 		while (page->object == NULL && vm_page_insert(page, vm_obj, OFF_TO_IDX(offset + PAGE_SIZE*i))) {
 			VM_OBJECT_WUNLOCK(vm_obj);
 			VM_WAIT;
@@ -521,18 +568,20 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 		}
 		page->valid = VM_PAGE_BITS_ALL;
 	}
-	for  (i = 1; i < cvma.vm_pfn_count; i++)  {
-		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
-		vm_page_xunbusy(page);
+	for (i = 0; i < min(cvma.vm_pfn_count, count); i++) {
+		if (!vm_page_xbusied(mres[i]))
+			vm_page_xbusy(mres[i]);
 	}
+	MPASS(cvma.vm_pfn_count >= count);
+
 	if (rahead)
 		*rahead = min(cvma.vm_pfn_count, count) - 1;
+	vm_page_assert_xbusied(mres[0]);
 	vm_object_pip_wakeup(vm_obj);
 	return (VM_PAGER_OK);
 err:
 	panic("fault failed!");
 	VM_OBJECT_WLOCK(vm_obj);
-	*mres = oldpage;
 	switch (err) {
 	case VM_FAULT_OOM:
 		rc = VM_PAGER_AGAIN;
