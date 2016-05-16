@@ -94,13 +94,17 @@ static inline void
 __free_hot_cold_page(vm_page_t page)
 {
 	vm_object_t object;
-	MPASS(page->wire_count == 1);
+
 	/* XXX unsafe */
 	if ((object = page->object))
 		VM_OBJECT_WLOCK(object);
 
 	vm_page_lock(page);
-	vm_page_unwire(page, PQ_INACTIVE);
+
+	if (page->wire_count) {
+		MPASS(page->wire_count == 1);
+		vm_page_unwire(page, PQ_INACTIVE);
+	}
 	if (pmap_page_is_mapped(page))
 		pmap_remove_all(page);
 	vm_page_free(page);
