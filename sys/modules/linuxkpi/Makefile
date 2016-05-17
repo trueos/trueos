@@ -5,6 +5,7 @@ KMOD=	linuxkpi
 SRCS=	linux_acpi.c \
 	linux_compat.c \
 	linux_dmabuf.c \
+	linux_fence.c \
 	linux_fs.c \
 	linux_firmware.c \
 	linux_i2c.c \
