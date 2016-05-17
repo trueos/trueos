@@ -4,7 +4,7 @@ SYSDIR?=${.CURDIR}/../..
 .include "${SYSDIR}/conf/kern.opts.mk"
 
 .if ${MACHINE_CPUARCH} == "amd64"
-_i915kms=	i915kms
+_i915kms=	i915
 _radeonkms=	radeonkms
 . if ${MK_SOURCELESS_UCODE} != "no"
 _amdgpukmsfw=	amdgpukmsfw
@@ -14,7 +14,7 @@ _radeonkmsfw=	radeonkmsfw
 
 .if ${MACHINE_CPUARCH} == "i386"
 . if ${MACHINE} != "pc98"
-_i915kms=	i915kms
+_i915kms=	i915
 _radeonkms=	radeonkms
 .  if ${MK_SOURCELESS_UCODE} != "no"
 _amdgpukmsfw=	amdgpukmsfw
