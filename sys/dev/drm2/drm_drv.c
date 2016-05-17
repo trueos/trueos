@@ -94,6 +94,8 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 		}
 		return;
 	}
+	if (panicstr != NULL)
+		return;
 	printf("[" DRM_NAME ":%s] ", function_name);
 	vprintf(format, args);
 
