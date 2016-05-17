@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/drm2/i915
+.PATH:	${.CURDIR}/../../../../dev/drm2/i915
 KMOD	= i915kms
 SRCS	= \
 	dvo_ch7017.c \
@@ -82,7 +82,7 @@ SRCS	= \
 #
 
 
-CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
+CFLAGS+= -I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 CFLAGS += -O0
 
