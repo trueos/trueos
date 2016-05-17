@@ -2165,7 +2165,7 @@ static void ilk_display_irq_handler(struct drm_i915_private *dev_priv,
 		/* plane/pipes map 1:1 on ilk+ */
 		if (de_iir & DE_PLANE_FLIP_DONE(pipe)) {
 			intel_prepare_page_flip(dev_priv, pipe);
-			intel_finish_page_flip_plane(dev_priv, pipe);
+			intel_finish_page_flip(dev_priv, pipe);
 		}
 	}
 
@@ -2212,7 +2212,7 @@ static void ivb_display_irq_handler(struct drm_i915_private *dev_priv,
 		/* plane/pipes map 1:1 on ilk+ */
 		if (de_iir & DE_PLANE_FLIP_DONE_IVB(pipe)) {
 			intel_prepare_page_flip(dev_priv, pipe);
-			intel_finish_page_flip_plane(dev_priv, pipe);
+			intel_finish_page_flip(dev_priv, pipe);
 		}
 	}
 
@@ -2420,7 +2420,7 @@ gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 
 		if (flip_done) {
 			intel_prepare_page_flip(dev_priv, pipe);
-			intel_finish_page_flip_plane(dev_priv, pipe);
+			intel_finish_page_flip(dev_priv, pipe);
 		}
 
 		if (iir & GEN8_PIPE_CDCLK_CRC_DONE)
