@@ -263,7 +263,6 @@ fence_is_later(struct fence *f1, struct fence *f2){
 }
 
 
-
 #define FENCE_TRACE(f, fmt, args...) \
 	do {								\
 		struct fence *__ff = (f);				\
