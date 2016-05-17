@@ -13,6 +13,10 @@
 
 #include <linux/compat.h>
 
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/condvar.h>
+
 struct fence;
 struct fence_cb;
 
@@ -163,7 +167,7 @@ fence_is_signaled(struct fence *fence)
 		return (true);
 	}
 
-	return (false);
+	UNIMPLEMENTED();return (false);
 }
 
 static inline int64_t
@@ -202,15 +206,11 @@ fence_put(struct fence *fence)
 static inline signed long
 fence_wait_any_timeout(struct fence **fences, uint32_t count,
                                    bool intr, signed long timeout){
-	panic("not implemented yet");
+	UNIMPLEMENTED();
 	return (0);
 }
 
-static inline unsigned
-fence_context_alloc(unsigned num){
-	panic("not implemented yet");
-	return (0);
-}
+unsigned fence_context_alloc(unsigned num);
 
 static inline int
 fence_add_callback(struct fence *fence, struct fence_cb *cb,
@@ -221,14 +221,30 @@ fence_add_callback(struct fence *fence, struct fence_cb *cb,
 static inline bool
 fence_remove_callback(struct fence *fence, struct fence_cb *cb)
 {
-	UNIMPLEMENTED();
-	return (false);
+	unsigned long flags;
+        bool ret;
+
+        spin_lock_irqsave(fence->lock, flags);
+
+        ret = !list_empty(&cb->node);
+        if (ret)
+                list_del_init(&cb->node);
+
+        spin_unlock_irqrestore(fence->lock, flags);
+
+        return ret;
 }
 
 static inline void
 fence_init(struct fence *fence, const struct fence_ops *ops,
                 spinlock_t *lock, unsigned context, unsigned seqno){
-	UNIMPLEMENTED();
+	fence->ops = ops;
+	fence->lock = lock;
+	fence->context = context;
+	fence->seqno = seqno;
+	INIT_LIST_HEAD(&fence->cb_list);
+	kref_init(&fence->refcount);
+	fence->flags = 0UL;
 }
 
 static inline signed long
@@ -239,8 +255,11 @@ fence_default_wait(struct fence *fence, bool intr, signed long timeout){
 
 static inline bool
 fence_is_later(struct fence *f1, struct fence *f2){
-	UNIMPLEMENTED();
-	return (0);
+
+	// must be in the same context to be a reasonable comparison 
+	if(WARN_ON(f1->context != f2->context)) return false;
+	
+	return (f1->seqno > f2->seqno);
 }
 
 
