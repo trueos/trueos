@@ -34,7 +34,10 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <linux/compiler.h>
 
 #define	VERIFY_READ	VM_PROT_READ

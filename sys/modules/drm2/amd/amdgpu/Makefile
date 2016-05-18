@@ -10,6 +10,8 @@ KMOD	= amdgpu
 # XXX not ported yet
 #	amdgpu_vm.c : trace points, atomic, rbtree
 #	gpu_scheduler.c : kfifo
+# XXX not enabled:
+#	amdgpu_mn.c 
 
 SRCS	= \
 	amdgpu.h \
@@ -42,7 +44,6 @@ SRCS	= \
 	amdgpu_irq.c \
 	amdgpu_job.c \
 	amdgpu_kms.c \
-	amdgpu_mn.c \
 	amdgpu_object.c \
 	amdgpu_pll.c \
 	amdgpu_pm.c \
