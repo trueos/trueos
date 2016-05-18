@@ -2,6 +2,8 @@
 
 .PATH:	${.CURDIR}/../../../dev/drm2/radeon
 
+# XXX not ported:
+#	radeon_mn.c
 
 KMOD	= radeonkms
 SRCS	= \
@@ -73,7 +75,6 @@ SRCS	= \
 	radeon_legacy_crtc.c \
 	radeon_legacy_encoders.c \
 	radeon_legacy_tv.c \
-	radeon_mn.c \
 	radeon_object.c \
 	radeon_pm.c \
 	radeon_prime.c \
