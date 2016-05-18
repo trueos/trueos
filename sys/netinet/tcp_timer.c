@@ -522,7 +522,7 @@ tcp_timer_persist(void *xtp)
 	KASSERT((tp->t_timers->tt_flags & TT_PERSIST) != 0,
 		("%s: tp %p persist callout should be running", __func__, tp));
 	/*
-	 * Persistance timer into zero window.
+	 * Persistence timer into zero window.
 	 * Force a byte to be output, if possible.
 	 */
 	TCPSTAT_INC(tcps_persisttimeo);
@@ -604,6 +604,10 @@ tcp_timer_rexmt(void * xtp)
 	KASSERT((tp->t_timers->tt_flags & TT_REXMT) != 0,
 		("%s: tp %p rexmt callout should be running", __func__, tp));
 	tcp_free_sackholes(tp);
+	if (tp->t_fb->tfb_tcp_rexmit_tmr) {
+		/* The stack has a timer action too. */
+		(*tp->t_fb->tfb_tcp_rexmit_tmr)(tp);
+	}
 	/*
 	 * Retransmission timer went off.  Message has not
 	 * been acked within retransmit interval.  Back off

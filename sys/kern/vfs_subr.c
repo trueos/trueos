@@ -4722,6 +4722,45 @@ vop_symlink_post(void *ap, int rc)
 		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE);
 }
 
+void
+vop_open_post(void *ap, int rc)
+{
+	struct vop_open_args *a = ap;
+
+	if (!rc)
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_OPEN);
+}
+
+void
+vop_close_post(void *ap, int rc)
+{
+	struct vop_close_args *a = ap;
+
+	if (!rc && (a->a_cred != NOCRED || /* filter out revokes */
+	    (a->a_vp->v_iflag & VI_DOOMED) == 0)) {
+		VFS_KNOTE_LOCKED(a->a_vp, (a->a_fflag & FWRITE) != 0 ?
+		    NOTE_CLOSE_WRITE : NOTE_CLOSE);
+	}
+}
+
+void
+vop_read_post(void *ap, int rc)
+{
+	struct vop_read_args *a = ap;
+
+	if (!rc)
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_READ);
+}
+
+void
+vop_readdir_post(void *ap, int rc)
+{
+	struct vop_readdir_args *a = ap;
+
+	if (!rc)
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_READ);
+}
+
 static struct knlist fs_knlist;
 
 static void
@@ -5014,6 +5053,7 @@ vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off)
 	*ap->a_cookies = realloc(*ap->a_cookies,
 	    (*ap->a_ncookies + 1) * sizeof(u_long), M_TEMP, M_WAITOK | M_ZERO);
 	(*ap->a_cookies)[*ap->a_ncookies] = off;
+	*ap->a_ncookies += 1;
 	return (0);
 }
 

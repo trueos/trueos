@@ -78,5 +78,4 @@ typedef unsigned long	pgprotval_t;
 
 
 
-
 #endif	/* _ASM_PGTABLE_H_ */

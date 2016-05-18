@@ -439,8 +439,12 @@ acpi_cpu_postattach(void *unused __unused)
     free(devices, M_TEMP);
 
     if (attached) {
+#ifdef EARLY_AP_STARTUP
+	acpi_cpu_startup(NULL);
+#else
 	/* Queue post cpu-probing task handler */
 	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_cpu_startup, NULL);
+#endif
     }
 }
 
@@ -641,7 +645,7 @@ acpi_cpu_shutdown(device_t dev)
     disable_idle(device_get_softc(dev));
 
     /*
-     * CPU devices are not truely detached and remain referenced,
+     * CPU devices are not truly detached and remain referenced,
      * so their resources are not freed.
      */
 

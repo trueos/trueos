@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,7 @@
 
 #include <linux/slab.h>
 
+#include <linux/mm_types.h>
 
 
 #define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
@@ -70,6 +71,13 @@
 #define	task_struct_get(x)	((struct task_struct *)(uintptr_t)(x)->td_retval[1])
 #define	task_struct_set(x, y)	(x)->td_retval[1] = (uintptr_t)(y)
 
+#define	task_struct_fill(x, y, mm) do {		\
+  	(y)->task_thread = (x);			\
+	(y)->comm = (x)->td_name;		\
+	(y)->pid = (x)->td_tid;			\
+	(y)->mm = mm;				\
+} while (0)
+
 struct task_struct {
 	struct	thread *task_thread;
 	struct mm_struct *mm;
@@ -82,6 +90,8 @@ struct task_struct {
 	char	*comm;
 	int	flags;
 	pid_t	pid;
+	void	*bsd_ioctl_data;
+	unsigned	bsd_ioctl_len;
 };
 
 
@@ -89,15 +99,22 @@ static inline void
 linux_kthread_fn(void *arg)
 {
 	struct task_struct *task;
+	struct mm_struct *mm;
+	struct thread *td = curthread;
 
 	task = arg;
-	task_struct_set(curthread, task);
+	mm = malloc(sizeof(*mm), M_DEVBUF, M_WAITOK | M_ZERO);
+	/* XXX init me */
+	task_struct_fill(td, task, mm);
+	task_struct_set(td, task);
 	if (task->should_stop == 0)
 		task->task_ret = task->task_fn(task->task_data);
-	PROC_LOCK(task->task_thread->td_proc);
+	PROC_LOCK(td->td_proc);
 	task->should_stop = TASK_STOPPED;
 	wakeup(task);
-	PROC_UNLOCK(task->task_thread->td_proc);
+	PROC_UNLOCK(td->td_proc);
+	free(mm, M_DEVBUF);
+	task_struct_set(td, NULL);
 	kthread_exit();
 }
 
@@ -122,8 +139,7 @@ linux_kthread_create(int (*threadfn)(void *data), void *data)
 	    0, 0, fmt, ## __VA_ARGS__)) {				\
 		kfree(_task);						\
 		_task = NULL;						\
-	} else								\
-		task_struct_set(_task->task_thread, _task);		\
+	}								\
 	_task;								\
 })
 

@@ -122,7 +122,8 @@ static void		pci_resume_msix(device_t dev);
 static int		pci_remap_intr_method(device_t bus, device_t dev,
 			    u_int irq);
 
-static uint16_t		pci_get_rid_method(device_t dev, device_t child);
+static int		pci_get_id_method(device_t dev, device_t child,
+			    enum pci_id_type type, uintptr_t *rid);
 
 static struct pci_devinfo * pci_fill_devinfo(device_t pcib, device_t bus, int d,
     int b, int s, int f, uint16_t vid, uint16_t did);
@@ -190,7 +191,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_msix_count,	pci_msix_count_method),
 	DEVMETHOD(pci_msix_pba_bar,	pci_msix_pba_bar_method),
 	DEVMETHOD(pci_msix_table_bar,	pci_msix_table_bar_method),
-	DEVMETHOD(pci_get_rid,		pci_get_rid_method),
+	DEVMETHOD(pci_get_id,		pci_get_id_method),
 	DEVMETHOD(pci_alloc_devinfo,	pci_alloc_devinfo_method),
 	DEVMETHOD(pci_child_added,	pci_child_added_method),
 #ifdef PCI_IOV
@@ -333,7 +334,7 @@ SYSCTL_INT(_hw_pci, OID_AUTO, do_power_nodriver, CTLFLAG_RWTUN,
     &pci_do_power_nodriver, 0,
   "Place a function into D3 state when no driver attaches to it.  0 means\n\
 disable.  1 means conservatively place devices into D3 state.  2 means\n\
-agressively place devices into D3 state.  3 means put absolutely everything\n\
+aggressively place devices into D3 state.  3 means put absolutely everything\n\
 in D3 state.");
 
 int pci_do_power_resume = 1;
@@ -4128,7 +4129,7 @@ pci_attach(device_t dev)
 		return (error);
 
 	/*
-	 * Since there can be multiple independantly numbered PCI
+	 * Since there can be multiple independently numbered PCI
 	 * busses on systems with multiple PCI domains, we can't use
 	 * the unit number to decide which bus we are probing. We ask
 	 * the parent pcib what our domain and bus numbers are.
@@ -5427,7 +5428,8 @@ pci_child_location_str_method(device_t dev, device_t child, char *buf,
     size_t buflen)
 {
 
-	snprintf(buf, buflen, "pci%d:%d:%d:%d", pci_get_domain(child),
+	snprintf(buf, buflen, "slot=%d function=%d dbsf=pci%d:%d:%d:%d",
+	    pci_get_slot(child), pci_get_function(child), pci_get_domain(child),
 	    pci_get_bus(child), pci_get_slot(child), pci_get_function(child));
 	return (0);
 }
@@ -5643,6 +5645,11 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 		pci_resume_msi(dev);
 	if (dinfo->cfg.msix.msix_location != 0)
 		pci_resume_msix(dev);
+
+#ifdef PCI_IOV
+	if (dinfo->cfg.iov != NULL)
+		pci_iov_cfg_restore(dev, dinfo);
+#endif
 }
 
 static void
@@ -5755,6 +5762,11 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	if (dinfo->cfg.pcix.pcix_location != 0)
 		pci_cfg_save_pcix(dev, dinfo);
 
+#ifdef PCI_IOV
+	if (dinfo->cfg.iov != NULL)
+		pci_iov_cfg_save(dev, dinfo);
+#endif
+
 	/*
 	 * don't set the state for display devices, base peripherals and
 	 * memory devices since bad things happen when they are powered down.
@@ -5774,7 +5786,7 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 			if (cls == PCIC_STORAGE)
 				return;
 			/*FALLTHROUGH*/
-		case 2:		/* Agressive about what to power down */
+		case 2:		/* Aggressive about what to power down */
 			if (cls == PCIC_DISPLAY || cls == PCIC_MEMORY ||
 			    cls == PCIC_BASEPERIPH)
 				return;
@@ -5812,11 +5824,12 @@ pci_restore_state(device_t dev)
 	pci_cfg_restore(dev, dinfo);
 }
 
-static uint16_t
-pci_get_rid_method(device_t dev, device_t child)
+static int
+pci_get_id_method(device_t dev, device_t child, enum pci_id_type type,
+    uintptr_t *id)
 {
 
-	return (PCIB_GET_RID(device_get_parent(dev), child));
+	return (PCIB_GET_ID(device_get_parent(dev), child, type, id));
 }
 
 /* Find the upstream port of a given PCI device in a root complex. */

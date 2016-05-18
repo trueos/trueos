@@ -333,7 +333,8 @@ ida_eisa_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	error = ida_raid_init(ida);
+	error = ida_setup(ida);
+
 	if (error) {
 		ida_free(ida);
 		return (error);

@@ -223,6 +223,12 @@ options 	SCHED_STATS
 # Mandatory:
 options 	SMP			# Symmetric MultiProcessor Kernel
 
+# EARLY_AP_STARTUP releases the Application Processors earlier in the
+# kernel startup process (before devices are probed) rather than at the
+# end.  This is a temporary option for use during the transition from
+# late to early AP startup.
+options		EARLY_AP_STARTUP
+
 # MAXCPU defines the maximum number of CPUs that can boot in the system.
 # A default value should be already present, for every architecture.
 options 	MAXCPU=32
@@ -1133,12 +1139,6 @@ options 	NFS_DEBUG		# Enable NFS Debugging
 #
 options 	EXT2FS
 
-#
-# Add support for the ReiserFS filesystem (used in Linux). Currently,
-# this is limited to read-only access.
-#
-options 	REISERFS
-
 # Cryptographically secure random number generator; /dev/random
 device		random
 
@@ -1411,6 +1411,7 @@ options 	MSGBUF_SIZE=40960
 # PCI bus & PCI options:
 #
 device		pci
+options 	PCI_HP			# PCI-Express native HotPlug
 options 	PCI_IOV			# PCI SR-IOV support
 
 
@@ -3054,3 +3055,6 @@ options		EM_MULTIQUEUE # Activate multiqueue features/disable MSI-X
 # zlib I/O stream support
 # This enables support for compressed core dumps.
 options 	GZIO
+
+# BHND(4) drivers
+options		BHND_LOGLEVEL	# Logging threshold level

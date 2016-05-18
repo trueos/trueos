@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,20 +43,16 @@
 
 #define page	vm_page
 
-
-extern vm_page_t vm_page_array;
-
-#define page_to_pfn(pp) (VM_PAGE_TO_PHYS((pp)) >> PAGE_SHIFT)
-#define pfn_to_page(pfn) (PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
-#define nth_page(page,n) pfn_to_page(page_to_pfn((page)) + (n))
-
 typedef unsigned long pte_t;
 typedef unsigned long pmd_t;
 typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
 
-#define	virt_to_page(x)	PHYS_TO_VM_PAGE(vtophys((x)))
+#define	virt_to_page(x)		PHYS_TO_VM_PAGE(vtophys((x)))
+#define	page_to_pfn(pp)		(VM_PAGE_TO_PHYS((pp)) >> PAGE_SHIFT)
+#define	pfn_to_page(pfn)	(PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
+#define	nth_page(page,n)	pfn_to_page(page_to_pfn((page)) + (n))
 
 #define	clear_page(page)		memset((page), 0, PAGE_SIZE)
 #define	pgprot_noncached(prot)		((pgprot_t)VM_MEMATTR_UNCACHEABLE)
@@ -142,5 +138,4 @@ void unmap_mapping_range(void *obj,
 			 loff_t const holebegin, loff_t const holelen, int even_cows);
 
 #define cpu_has_pat pat_works
-
 #endif	/* _LINUX_PAGE_H_ */

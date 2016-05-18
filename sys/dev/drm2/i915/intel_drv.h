@@ -88,6 +88,8 @@
 			pause((WMSG), 1);				\
 		else							\
 			DELAY(1000);					\
+		if (cold)						\
+			end -= howmany(hz, 1000);			\
 	}								\
 									\
 	ret;								\
@@ -106,6 +108,8 @@
 		} else {						\
 			DELAY(1000);					\
 		}							\
+		if (cold)						\
+			timeout__ -= howmany(hz, 1000);			\
 	}								\
 	ret__;								\
 })

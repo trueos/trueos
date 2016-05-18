@@ -36,6 +36,8 @@
 #include <sys/types.h>
 #include <linux/types.h>
 
+#include <linux/compiler.h>
+
 static inline uint32_t
 __raw_readl(const volatile void *addr)
 {
@@ -186,9 +188,11 @@ void *_ioremap_attr(vm_paddr_t phys_addr, unsigned long size, int attr);
 #define	ioremap_nocache(addr, size)					\
     _ioremap_attr((addr), (size), VM_MEMATTR_UNCACHEABLE)
 #define	ioremap_wc(addr, size)						\
-	_ioremap_attr((addr), (size), VM_MEMATTR_WRITE_COMBINING)
+    _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_COMBINING)
 #define	ioremap_wb(addr, size)						\
     _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_BACK)
+#define	ioremap_wt(addr, size)						\
+    _ioremap_attr((addr), (size), VM_MEMATTR_WRITE_THROUGH)
 #define	ioremap(addr, size)						\
     _ioremap_attr((addr), (size), VM_MEMATTR_UNCACHEABLE)
 void iounmap(void *addr);
@@ -227,26 +231,25 @@ enum {
 static inline void *
 memremap(resource_size_t offset, size_t size, unsigned long flags)
 {
-	int mflags;
 	void *addr = NULL;
 
-	mflags = flags & 0x7;
-	if ((mflags & MEMREMAP_WB) &&
+	if ((flags & MEMREMAP_WB) &&
 	    (addr = ioremap_wb(offset, size)) != NULL)
-		return (addr);
-	if ((mflags & MEMREMAP_WT) &&
-	    (addr = ioremap_nocache(offset, size)) != NULL)
-		return (addr);
-	if ((mflags & MEMREMAP_WC) &&
+		goto done;
+	if ((flags & MEMREMAP_WT) &&
+	    (addr = ioremap_wt(offset, size)) != NULL)
+		goto done;
+	if ((flags & MEMREMAP_WC) &&
 	    (addr = ioremap_wc(offset, size)) != NULL)
-		return (addr);	
-	return (NULL);
+		goto done;
+done:
+	return (addr);
 }
+
 static inline void
 memunmap(void *addr)
 {
-	/* may need to check if this is RAM */
-	DODGY();
+	/* XXX May need to check if this is RAM */
 	iounmap(addr);
 }
 

@@ -43,6 +43,8 @@ struct bwn_mac;
 extern uint64_t	bwn_hf_read(struct bwn_mac *);
 extern void	bwn_hf_write(struct bwn_mac *, uint64_t);
 
+extern void	bwn_dummy_transmission(struct bwn_mac *mac, int ofdm, int paon);
+
 extern void	bwn_ram_write(struct bwn_mac *, uint16_t, uint32_t);
 
 extern void	bwn_mac_suspend(struct bwn_mac *);
@@ -57,7 +59,9 @@ extern uint32_t	bwn_shm_read_4(struct bwn_mac *, uint16_t, uint16_t);
 extern void	bwn_shm_write_4(struct bwn_mac *, uint16_t, uint16_t,
 		    uint32_t);
 
-extern void	bwn_reset_core(struct bwn_mac *, uint32_t);
+/* This is only for SIBA core */
+extern	void bwn_reset_core(struct bwn_mac *, int g_mode);
+
 extern void	bwn_psctl(struct bwn_mac *, uint32_t);
 
 #endif

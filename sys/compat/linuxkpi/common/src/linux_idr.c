@@ -88,6 +88,7 @@ idr_destroy(struct idr *idr)
 		free(il, M_IDR);
 	}
 	mtx_unlock(&idr->lock);
+	mtx_destroy(&idr->lock);
 }
 
 static void
@@ -162,14 +163,12 @@ idr_remove(struct idr *idr, int id)
 
 
 static inline struct idr_layer *
-idr_find_layer(struct idr *idr, int id)
+idr_find_layer_locked(struct idr *idr, int id)
 {
 	struct idr_layer *il;
-	void *res;
 	int layer;
 
 	id &= MAX_ID_MASK;
-	res = NULL;
 	il = idr->top;
 	layer = idr->layers - 1;
 	if (il == NULL || id > idr_max(idr))
@@ -188,20 +187,17 @@ idr_replace(struct idr *idr, void *ptr, int id)
 	void *res;
 	int idx;
 
-	id &= MAX_ID_MASK;
 	mtx_lock(&idr->lock);
-	il = idr_find_layer(idr, id);
+	il = idr_find_layer_locked(idr, id);
 	idx = id & IDR_MASK;
 
 	/* Replace still returns an error if the item was not allocated. */
 	if (il == NULL || (il->bitmap & (1 << idx))) {
-		res = ERR_PTR(-EINVAL);
-		goto out;
+		res = ERR_PTR(-ENOENT);
+	} else {
+		res = il->ary[idx];
+		il->ary[idx] = ptr;
 	}
-	res = il->ary[idx];
-	il->ary[idx] = ptr;
-
-out:
 	mtx_unlock(&idr->lock);
 	return (res);
 }
@@ -215,7 +211,7 @@ idr_find_locked(struct idr *idr, int id, int *nextidp)
 	int i;
 
 	mtx_assert(&idr->lock, MA_OWNED);
-	il = idr_find_layer(idr, id);
+	il = idr_find_layer_locked(idr, id);
 	if (il != NULL)
 		res = il->ary[id & IDR_MASK];
 	if (nextidp == NULL)
@@ -227,7 +223,7 @@ idr_find_locked(struct idr *idr, int id, int *nextidp)
 			goto done;
 		}
 	}
-	while ((il = idr_find_layer(idr, i)) != NULL) {
+	while ((il = idr_find_layer_locked(idr, i)) != NULL) {
 		for (;i  <  (i & ~IDR_MASK) + IDR_SIZE; i++) {
 			if (il->ary[i & IDR_MASK]) {
 				*nextidp = i;
@@ -530,7 +526,6 @@ ida_get_new_above(struct ida *ida, int starting_id, int *p_id)
 	return (idr_get_new_above(&ida->idr, NULL, starting_id, p_id));
 }
 
-
 static int
 idr_alloc_locked(struct idr *idr, void *ptr, int start, int end)
 {
@@ -587,7 +582,7 @@ idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
 
 static int
 idr_for_each_layer(struct idr_layer *il, int layer,
-		   int (*f)(int id, void *p, void *data), void *data)
+    int (*f)(int id, void *p, void *data), void *data)
 {
 	int i, err;
 
@@ -595,32 +590,29 @@ idr_for_each_layer(struct idr_layer *il, int layer,
 		return (0);
 	if (layer == 0) {
 		for (i = 0; i < IDR_SIZE; i++) {
-			if (il->ary[i]) {
-				err = f(i, il->ary[i],  data);
-				if (err)
-					return (err);
-			}
-		}
-		return (0);
-	}
-	for (i = 0; i < IDR_SIZE; i++)
-		if (il->ary[i]) {
-			err = idr_for_each_layer(il->ary[i], layer - 1, f, data);
+			if (il->ary[i] == NULL)
+				continue;
+			err = f(i, il->ary[i],  data);
 			if (err)
 				return (err);
 		}
+		return (0);
+	}
+	for (i = 0; i < IDR_SIZE; i++) {
+		if (il->ary[i] == NULL)
+			continue;
+		err = idr_for_each_layer(il->ary[i], layer - 1, f, data);
+		if (err)
+			return (err);
+	}
 	return (0);
 }
 
+/* NOTE: It is not allowed to modify the IDR tree while it is being iterated */
 int
 idr_for_each(struct idr *idp, int (*f)(int id, void *p, void *data), void *data)
 {
-	int err;
-
-	mtx_lock(&idp->lock);
-	err = idr_for_each_layer(idp->top, idp->layers - 1, f, data);
-	mtx_unlock(&idp->lock);
-	return (err);
+	return (idr_for_each_layer(idp->top, idp->layers - 1, f, data));
 }
 
 int
@@ -631,6 +623,7 @@ ida_pre_get(struct ida *ida, gfp_t flags)
 
 	if (ida->free_bitmap == NULL)
 		ida->free_bitmap = malloc(sizeof(struct ida_bitmap), M_IDR, flags);
+
 	return (ida->free_bitmap != NULL);
 }
 
@@ -673,7 +666,6 @@ ida_simple_remove(struct ida *ida, unsigned int id)
 
 	idr_remove(&ida->idr, id);
 }
-
 
 void
 ida_remove(struct ida *ida, int id)

@@ -58,7 +58,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_reserv.h>
 #include <vm/vm_extern.h>
 
+#include <asm/smp.h>
 
+int
+wbinvd_on_all_cpus(void)
+{
+	/* XXX */
+	return (0);
+}
 
 int
 vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn, pgprot_t pgprot)

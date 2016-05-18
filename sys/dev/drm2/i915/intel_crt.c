@@ -885,7 +885,7 @@ void intel_crt_init(struct drm_device *dev)
 	crt->force_hotplug_required = 0;
 
 	/*
-	 * TODO: find a proper way to discover whether we need to set the the
+	 * TODO: find a proper way to discover whether we need to set the
 	 * polarity and link reversal bits or not, instead of relying on the
 	 * BIOS.
 	 */

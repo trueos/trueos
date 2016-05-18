@@ -406,6 +406,17 @@ ieee80211_find_com(const char *name)
 	return (ic);
 }
 
+void
+ieee80211_iterate_coms(ieee80211_com_iter_func *f, void *arg)
+{
+	struct ieee80211com *ic;
+
+	mtx_lock(&ic_list_mtx);
+	LIST_FOREACH(ic, &ic_head, ic_next)
+		(*f)(arg, ic);
+	mtx_unlock(&ic_list_mtx);
+}
+
 /*
  * Default reset method for use with the ioctl support.  This
  * method is invoked after any state change in the 802.11
@@ -1833,7 +1844,7 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 		{   6 | IFM_IEEE80211_11A, IFM_IEEE80211_OFDM3 },
 		{   9 | IFM_IEEE80211_11A, IFM_IEEE80211_OFDM4 },
 		{  54 | IFM_IEEE80211_11A, IFM_IEEE80211_OFDM27 },
-		/* NB: OFDM72 doesn't realy exist so we don't handle it */
+		/* NB: OFDM72 doesn't really exist so we don't handle it */
 	};
 	static const struct ratemedia htrates[] = {
 		{   0, IFM_IEEE80211_MCS },

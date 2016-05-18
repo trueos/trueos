@@ -40,8 +40,14 @@ enum intr_map_data_type {
 	INTR_MAP_DATA_GPIO,
 };
 
+struct intr_map_data {
+	enum intr_map_data_type	type;
+	size_t			size;
+};
+
 #ifdef DEV_ACPI
 struct intr_map_data_acpi {
+	struct intr_map_data	hdr;
 	u_int			irq;
 	enum intr_polarity	pol;
 	enum intr_trigger	trig;
@@ -49,28 +55,17 @@ struct intr_map_data_acpi {
 #endif
 #ifdef FDT
 struct intr_map_data_fdt {
-	u_int	ncells;
-	pcell_t	*cells;
+	struct intr_map_data	hdr;
+	u_int			ncells;
+	pcell_t			cells[0];
 };
 #endif
 
 struct intr_map_data_gpio {
+	struct intr_map_data	hdr;
 	u_int			gpio_pin_num;
 	u_int			gpio_pin_flags;
 	u_int		 	gpio_intr_mode;
-};
-
-struct intr_map_data {
-	enum intr_map_data_type	type;
-	union {
-#ifdef DEV_ACPI
-		struct intr_map_data_acpi	acpi;
-#endif
-#ifdef FDT
-		struct intr_map_data_fdt	fdt;
-#endif
-		struct intr_map_data_gpio	gpio;
-	};
 };
 
 #ifdef notyet
@@ -132,6 +127,14 @@ int intr_setup_irq(device_t, struct resource *, driver_filter_t, driver_intr_t,
 int intr_teardown_irq(device_t, struct resource *, void *);
 
 int intr_describe_irq(device_t, struct resource *, void *, const char *);
+
+/* MSI/MSI-X handling */
+int intr_msi_register(device_t, intptr_t);
+int intr_alloc_msi(device_t, device_t, intptr_t, int, int, int *);
+int intr_release_msi(device_t, device_t, intptr_t, int, int *);
+int intr_map_msi(device_t, device_t, intptr_t, int, uint64_t *, uint32_t *);
+int intr_alloc_msix(device_t, device_t, intptr_t, int *);
+int intr_release_msix(device_t, device_t, intptr_t, int);
 
 #ifdef DEV_ACPI
 u_int intr_acpi_map_irq(device_t, u_int, enum intr_polarity,

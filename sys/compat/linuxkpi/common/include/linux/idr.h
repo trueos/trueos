@@ -64,7 +64,8 @@ struct idr {
 	int			next_cyclic_id;
 };
 
-#define DEFINE_IDR(name)						\
+/* NOTE: It is the applications responsibility to destroy the IDR */
+#define	DEFINE_IDR(name)						\
 	struct idr name;						\
 	SYSINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
 		idr_init, &(name));					\
@@ -77,12 +78,11 @@ struct idr {
 	SYSUNINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
 		  ida_destroy, &(name));				
 
-
 #define	idr_preload(x) do { } while (0)
 #define	idr_preload_end() do { } while (0)
 
 void	*idr_find(struct idr *idp, int id);
-void *idr_get_next(struct idr *idp, int *nextid);
+void	*idr_get_next(struct idr *idp, int *nextid);
 int	idr_pre_get(struct idr *idp, gfp_t gfp_mask);
 int	idr_get_new(struct idr *idp, void *ptr, int *id);
 int	idr_get_new_above(struct idr *idp, void *ptr, int starting_id, int *id);
@@ -131,7 +131,6 @@ struct ida {
 	struct ida_bitmap	*free_bitmap;
 };
 
-
 int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
 int ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
 void ida_remove(struct ida *ida, int id);
@@ -145,8 +144,7 @@ void ida_simple_remove(struct ida *ida, unsigned int id);
 static inline int
 ida_get_new(struct ida *ida, int *p_id)
 {
-	return ida_get_new_above(ida, 0, p_id);
+	return (ida_get_new_above(ida, 0, p_id));
 }
-
 
 #endif	/* _LINUX_IDR_H_ */
