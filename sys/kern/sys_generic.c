@@ -739,14 +739,10 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 		 */
 		bzero(data, size);
 	}
-	/*
-	 * store the original user address in case a lower layer needs it
-	 * as in the case of the linuxkpi
-	 */
-	td->td_retval[1] = (register_t)uap->data;
+
 	error = kern_ioctl(td, uap->fd, com, data);
 
-	if (error == 0 && (com & IOC_OUT) && td->td_retval[1] != 0)
+	if (error == 0 && (com & IOC_OUT))
 		error = copyout(data, uap->data, (u_int)size);
 
 out:
