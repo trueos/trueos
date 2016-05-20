@@ -700,13 +700,14 @@ vpanic(const char *fmt, va_list ap)
 	int bootopt, newpanic;
 	static char buf[256];
 
+	spinlock_enter();
+
 /***** DEBUGGING DRM *****/
 
 	doadump(0);
 	EVENTHANDLER_INVOKE(shutdown_final, RB_NOSYNC);
 
 /************************/
-	spinlock_enter();
 
 #ifdef SMP
 	/*
