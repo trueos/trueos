@@ -41,6 +41,9 @@
 
 #include <sys/taskqueue.h>
 
+struct work_struct;
+typedef void (*work_func_t)(struct work_struct *work);
+
 #define work_data_bits(work) ((unsigned long *)(&(work)->data))
 
 enum {
@@ -96,7 +99,7 @@ struct work_struct {
 	atomic_long_t data;
 	struct	task 		work_task;
 	struct taskqueue	*taskqueue;
-	void			(*fn)(struct work_struct *);
+	work_func_t func;
 };
 
 #define WORK_DATA_INIT()	ATOMIC_LONG_INIT(WORK_STRUCT_NO_POOL)
@@ -111,7 +114,6 @@ struct work_struct {
 #define DECLARE_WORK(n, f)						\
 	struct work_struct n = LINUX_WORK_INITIALIZER(n, f);
 
-typedef __typeof(((struct work_struct *)0)->fn) work_func_t;
 
 struct delayed_work {
 	struct work_struct	work;
@@ -154,9 +156,9 @@ to_delayed_work(struct work_struct *work)
  	return container_of(work, struct delayed_work, work);
 }
 
-#define	INIT_WORK(work, func) 	 					\
+#define	INIT_WORK(work, fn) 	 					\
 do {									\
-	(work)->fn = (func);						\
+	(work)->func = (fn);						\
 	(work)->taskqueue = NULL;					\
 	(work)->data = (atomic_long_t) WORK_DATA_INIT();		\
 	TASK_INIT(&(work)->work_task, 0, linux_work_fn, (work));	\
