@@ -88,6 +88,7 @@ struct workqueue_struct *system_unbound_wq;
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 MALLOC_DEFINE(M_LCINT, "linuxint", "Linux compat internal");
 
+TASKQGROUP_DEFINE(smp_tqg, mp_ncpus, 1);
 
 #include <linux/rbtree.h>
 /* Undo Linux compat changes. */
@@ -111,6 +112,61 @@ struct sx linux_global_rcu_lock;
 
 unsigned long linux_timer_hz_mask;
 struct list_head cdev_list;
+
+
+struct rendezvous_state {
+	struct mtx rs_mtx;
+	void *rs_data;
+	smp_call_func_t *rs_func;
+	bool rs_free;
+};
+
+static void
+rendezvous_wait(void *arg)
+{
+	struct rendezvous_state *rs = arg;
+
+	mtx_lock(&rs->rs_mtx);
+	wakeup(rs);
+	mtx_unlock(&rs->rs_mtx);
+}
+
+static void
+rendezvous_callback(void *arg)
+{
+	struct rendezvous_state *rs = arg;
+
+	rs->rs_func(rs->rs_data);
+	if (rs->rs_free)
+		free(rs, M_LCINT);
+}
+
+int
+on_each_cpu(void callback(void *data), void *data, int wait)
+{
+	struct rendezvous_state rs, *rsp;
+	if (wait)
+		rsp = &rs;
+	else
+		rsp = malloc(sizeof(*rsp), M_LCINT, M_WAITOK);
+	bzero(rsp, sizeof(*rsp));
+	rsp->rs_data = data;
+	rsp->rs_func = callback;
+
+	if (wait) {
+		rsp->rs_free = false;
+		mtx_init(&rsp->rs_mtx, "rs lock", NULL, MTX_DEF);
+		smp_rendezvous(NULL, rendezvous_callback, rendezvous_wait, rsp);
+
+		mtx_lock(&rsp->rs_mtx);
+		msleep(rsp, &rsp->rs_mtx, PI_SOFT|PDROP, "rendezvous", 0);
+	} else {
+		rsp->rs_free = true;
+		smp_rendezvous(NULL, callback, NULL, rsp);
+	}
+
+	return (0);
+}
 
 
 /*
@@ -1797,8 +1853,14 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_root_device.kobj);
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
 
+	destroy_workqueue(system_long_wq);
+	destroy_workqueue(system_wq);
+	destroy_workqueue(system_unbound_wq);
+
 	synchronize_rcu();
 	sx_destroy(&linux_global_rcu_lock);
+	spin_lock_destroy(&pci_lock);
+	mtx_destroy(&vmmaplock);
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
 

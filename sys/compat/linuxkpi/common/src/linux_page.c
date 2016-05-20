@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/smp.h>
 
 
 #include <vm/vm.h>
@@ -60,11 +61,18 @@ __FBSDID("$FreeBSD$");
 
 #include <asm/smp.h>
 
+
+static void
+__wbinvd(void *arg)
+{
+	wbinvd();
+}
+
 int
 wbinvd_on_all_cpus(void)
 {
-	/* XXX */
-	return (0);
+
+	return (on_each_cpu(__wbinvd, NULL, 1));
 }
 
 int
