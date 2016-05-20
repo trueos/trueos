@@ -277,13 +277,6 @@ extern const char *fb_mode_option;
 #define	PM_EVENT_PRETHAW	PM_EVENT_QUIESCE
 
 
-static inline void
-on_each_cpu(void callback(void *data), void *data, int wait)
-{
-
-	smp_rendezvous(NULL, callback, NULL, data);
-}
-
 void	hex_dump_to_buffer(const void *buf, size_t len, int rowsize,
 	    int groupsize, char *linebuf, size_t linebuflen, bool ascii);
 
