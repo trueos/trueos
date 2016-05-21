@@ -75,7 +75,6 @@ void drm_err(const char *format, ...)
 }
 EXPORT_SYMBOL(drm_err);
 
-#include <sys/reboot.h>
 void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 {
 	struct va_format vaf;
@@ -89,8 +88,11 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 	if (SCHEDULER_STOPPED()) {
 		printf(" ");
 		if (stop_count++ == 12) {
+			kdb_backtrace();
+#if 0
 			doadump(0);
 			EVENTHANDLER_INVOKE(shutdown_final, RB_NOSYNC);
+#endif
 		}
 		return;
 	}
