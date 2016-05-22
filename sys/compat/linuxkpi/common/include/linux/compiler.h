@@ -91,10 +91,19 @@
 			seen = 1;					\
 		}							\
 	} while (0)
-#define UNIMPLEMENTED()	\
-	log(LOG_WARNING, "%s not implemented -- see your local kernel hacker\n", __FUNCTION__)
-#define DODGY()	\
-	log(LOG_WARNING, "%s is implemented but dodgy -- see your local kernel hacker\n", __FUNCTION__)
+
+#define DODGY_ONCE()			\
+	do {					\
+		static int seen = 0;		\
+									\
+		if (seen == 0) {					\
+			log(LOG_WARNING, "%s is dodgy -- see your local kernel hacker\n", __FUNCTION__); \
+			seen = 1;					\
+		}							\
+	} while (0)
+
+#define UNIMPLEMENTED()	UNIMPLEMENTED_ONCE()
+#define DODGY() DODGY_ONCE();
 
 #define	ACCESS_ONCE(x)			(*(volatile __typeof(x) *)&(x))
   
