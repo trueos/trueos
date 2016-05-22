@@ -374,9 +374,11 @@ unmap_mapping_range(void *obj, loff_t const holebegin, loff_t const holelen, int
 	vm_page_t page;
 	int i, page_count;
 
+#ifdef LINUX_VERBOSE_DEBUG
 	BACKTRACE();
 	printf("unmap_mapping_range: obj: %p holebegin %zu, holelen: %zu, even_cows: %d\n",
 	       obj, holebegin, holelen, even_cows);
+#endif
 	devobj = cdev_pager_lookup(obj);
 	if (devobj != NULL) {
 		page_count = OFF_TO_IDX(holelen);
