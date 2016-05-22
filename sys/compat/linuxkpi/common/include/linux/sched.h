@@ -237,7 +237,8 @@ io_schedule_timeout(long timeout)
 
 static inline void io_schedule(void)
 {
-	io_schedule_timeout(MAX_SCHEDULE_TIMEOUT);
+	/* XXX how am I supposed to signal I/O ? */
+	io_schedule_timeout(max(1, hz/100));
 }
 
 
