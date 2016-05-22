@@ -39,12 +39,13 @@
 #include "drm_legacy.h"
 #include "drm_internal.h"
 
-#if defined(DRM_DEBUG_LOG_ALL) || defined(INVARIANTS)
+#if defined(DRM_DEBUG_LOG_ALL)
 unsigned int drm_debug = 0xffffffff;	/* bitmask of DRM_UT_x */
 #else
 unsigned int drm_debug = 0;	/* bitmask of DRM_UT_x */
 #endif
 
+int skip_ddb;
 EXPORT_SYMBOL(drm_debug);
 
 MODULE_AUTHOR(CORE_AUTHOR);
@@ -75,6 +76,7 @@ void drm_err(const char *format, ...)
 }
 EXPORT_SYMBOL(drm_err);
 
+#include <sys/reboot.h>
 void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 {
 	struct va_format vaf;
@@ -89,10 +91,10 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 		printf(" ");
 		if (stop_count++ == 12) {
 			kdb_backtrace();
-#if 0
-			doadump(0);
-			EVENTHANDLER_INVOKE(shutdown_final, RB_NOSYNC);
-#endif
+			if (skip_ddb) {
+				doadump(0);
+				EVENTHANDLER_INVOKE(shutdown_final, RB_NOSYNC);
+			}
 		}
 		return;
 	}

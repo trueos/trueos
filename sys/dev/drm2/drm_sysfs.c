@@ -25,8 +25,11 @@
 #include <linux/cdev.h>
 #undef cdev
 
+
 SYSCTL_NODE(_dev, OID_AUTO, drm, CTLFLAG_RW, 0, "DRM args");
 SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug, CTLFLAG_RW, &drm_debug, 0, "drm debug flags");
+extern int skip_ddb;
+SYSCTL_INT(_dev_drm, OID_AUTO, skip_ddb, CTLFLAG_RW, &skip_ddb, 0, "go straight to dumping core");
 
 
 #define to_drm_minor(d) dev_get_drvdata(d)
