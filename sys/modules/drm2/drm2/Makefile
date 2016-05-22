@@ -85,8 +85,8 @@ CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 
 
 # until stable
-CFLAGS += -O0
-CFLAGS += -DDRM_DEBUG_LOG_ALL
+#CFLAGS += -O0
+#CFLAGS += -DDRM_DEBUG_LOG_ALL
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
 SRCS	+= drm_ioc32.c
