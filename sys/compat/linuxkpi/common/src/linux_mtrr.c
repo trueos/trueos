@@ -37,8 +37,21 @@ __FBSDID("$FreeBSD$");
 
 #include <asm/mtrr.h>
 
-int
-mtrr_add(unsigned long offset, unsigned long size, unsigned int flags, bool increment __unused)
+#include <linux/idr.h>
+
+/*
+ * Check that there is a SYSUNINIT for this
+ */
+DEFINE_IDR(mtrr_idr);
+struct mtrr_info {
+	unsigned long base;
+	unsigned long size;
+};
+
+static MALLOC_DEFINE(M_LKMTRR, "idr", "Linux MTRR compat");
+
+static int
+mtrr_add(unsigned long offset, unsigned long size, int flags)
 {
 	int act, bsdflags, rc;
 	struct mem_range_desc mrdesc;
@@ -61,8 +74,8 @@ mtrr_add(unsigned long offset, unsigned long size, unsigned int flags, bool incr
 	return (rc ? -rc : (int)offset);
 }
 
-int
-mtrr_del(int reg __unused, unsigned long offset, unsigned long size)
+static int
+mtrr_del(unsigned long offset, unsigned long size)
 {
 	int act;
 	struct mem_range_desc mrdesc;
@@ -73,4 +86,36 @@ mtrr_del(int reg __unused, unsigned long offset, unsigned long size)
 	act = MEMRANGE_SET_REMOVE;
 	strlcpy(mrdesc.mr_owner, "drm", sizeof(mrdesc.mr_owner));
 	return (-mem_range_attr_set(&mrdesc, &act));
+}
+
+int
+arch_phys_wc_add(unsigned long base, unsigned long size)
+{
+	int rc, rc2, id;
+	struct mtrr_info *mi;
+
+	mi = malloc(sizeof(*mi), M_LKMTRR, M_WAITOK);
+	mi->base = base;
+	mi->size = size;
+	rc  = mtrr_add(base, size, MTRR_TYPE_WRCOMB);
+	if (rc > 0) {
+		rc2 = idr_get_new(&mtrr_idr, mi, &id);
+		MPASS(rc2 == 0);
+	} else {
+		free(mi, M_LKMTRR);
+	}
+
+	return (rc != 0 ? rc : id);
+}
+
+void
+arch_phys_wc_del(int reg)
+{
+	struct mtrr_info *mi;
+
+	mi = idr_find(&mtrr_idr, reg);
+	MPASS(mi != NULL);
+	idr_remove(&mtrr_idr, reg);
+	mtrr_del(mi->base, mi->size);
+	free(mi, M_LKMTRR);
 }

@@ -1,9 +1,6 @@
 #ifndef _ASM_X86_MTRR_H
 #define _ASM_X86_MTRR_H
 
-extern int mtrr_add(unsigned long base, unsigned long size,
-		    unsigned int type, bool increment);
-extern int mtrr_del(int reg, unsigned long base, unsigned long size);
 
 #define MTRR_TYPE_UNCACHABLE 0
 #define MTRR_TYPE_WRCOMB     1
@@ -13,8 +10,10 @@ extern int mtrr_del(int reg, unsigned long base, unsigned long size);
 #define MTRR_TYPE_WRBACK     6
 #define MTRR_NUM_TYPES       7
 
-#define arch_phys_wc_add(base, size) mtrr_add(base, size, MTRR_TYPE_WRCOMB, 1 )
-#define arch_phys_wc_del(reg) /* mtrr_del(reg, base, size) */ panic("fix mtrrs you shmuck")
+
+int arch_phys_wc_add(unsigned long base, unsigned long size);
+void arch_phys_wc_del(int handle);
+
 #define arch_phys_wc_index(x) (x)
 
 #endif
