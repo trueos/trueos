@@ -79,7 +79,7 @@ __wake_up(wait_queue_head_t *q, int all)
 	} else {
 		spin_lock(&q->lock);
 		wakeup(&q->wchan);
-		spin_lock(&q->lock);
+		spin_unlock(&q->lock);
 	}
 }
 
