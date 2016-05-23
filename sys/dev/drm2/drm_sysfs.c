@@ -30,6 +30,26 @@ SYSCTL_NODE(_dev, OID_AUTO, drm, CTLFLAG_RW, 0, "DRM args");
 SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug, CTLFLAG_RW, &drm_debug, 0, "drm debug flags");
 extern int skip_ddb;
 SYSCTL_INT(_dev_drm, OID_AUTO, skip_ddb, CTLFLAG_RW, &skip_ddb, 0, "go straight to dumping core");
+#if defined(DRM_DEBUG_LOG_ALL)
+int drm_debug_persist = 1;
+#else
+int drm_debug_persist = 0;
+#endif
+SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug_persist, CTLFLAG_RWTUN, &drm_debug_persist, 0, "keep drm debug flags post-load");
+
+static void
+clear_debug_func(void *arg __unused)
+{
+	drm_debug = 0;
+}
+
+static void
+reset_debug_log(void)
+{
+	if (drm_debug_persist)
+		return;
+	timeout(clear_debug_func, NULL, 10*hz);
+}
 
 
 #define to_drm_minor(d) dev_get_drvdata(d)
@@ -626,6 +646,7 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 	if (cdevp == NULL)
 		goto err_free;
 	make_dev_alias(cdevp->cdev, minor_str, minor->index);
+	reset_debug_log();
 	return kdev;
 
 err_free:
