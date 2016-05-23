@@ -211,6 +211,7 @@ idr_find_locked(struct idr *idr, int id, int *nextidp)
 	void *res;
 	int i;
 
+	res = NULL;
 	mtx_assert(&idr->lock, MA_OWNED);
 	il = idr_find_layer_locked(idr, id);
 	if (il != NULL)

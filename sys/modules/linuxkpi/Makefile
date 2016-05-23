@@ -32,7 +32,7 @@ SRCS+=	bus_if.h \
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
 
 # until stable
-CFLAGS += -O0
+
 
 .include <bsd.kmod.mk>
 CWARNFLAGS 		+= -Wno-pointer-arith
