@@ -107,6 +107,7 @@
 	} while (0)
 
 #define UNIMPLEMENTED()	UNIMPLEMENTED_ONCE()
+#define WARN_NOT() 	UNIMPLEMENTED_ONCE()
 #define DODGY() DODGY_ONCE();
 
 #define	ACCESS_ONCE(x)			(*(volatile __typeof(x) *)&(x))

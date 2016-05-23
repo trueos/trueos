@@ -9,8 +9,6 @@
 #include <linux/shrinker.h>
 #include <acpi/button.h>
 
-#define WARN_NOT() log(LOG_WARNING, "%s unimplemented", __FUNCTION__)
-
 /*
  * This file will be used to register 
  */
