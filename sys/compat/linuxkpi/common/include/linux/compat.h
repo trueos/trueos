@@ -35,7 +35,12 @@
 #define preempt_disable() critical_enter()
 #define preempt_enable() critical_exit()
 
+struct thread;
+struct task_struct;
+struct mm_struct;
 
 extern void *compat_alloc_user_space(unsigned long len);
+void linux_set_current(struct thread *td, struct task_struct *t, struct mm_struct *mm);
+void linux_clear_current(struct thread *td);
 
 #endif	/* _LINUX_COMPAT_H_ */
