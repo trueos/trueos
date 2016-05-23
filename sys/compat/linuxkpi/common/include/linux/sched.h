@@ -49,6 +49,7 @@
 #include <asm/processor.h>
 #include <linux/completion.h>
 #include <linux/pid.h>
+#include <linux/wait.h>
 
 #include <asm/atomic.h>
 
@@ -206,14 +207,18 @@ static inline long
 schedule_timeout_interruptible(signed long timeout)
 {
 	int ret;
+	struct mtx *m;
 
 	if (timeout < 0)
 		return 0;
 	if (SCHEDULER_STOPPED())
 		return (0);
+	MPASS(current);
+	MPASS(current->sleep_wq != NULL);
 
-	sx_xlock(&linux_global_rcu_lock);
-	ret = _sleep(&Giant, &(linux_global_rcu_lock.lock_object), PCATCH | PDROP , "lstimi", tick_sbt * timeout, 0 , C_HARDCLOCK);
+	m = &current->sleep_wq->lock.m;
+	mtx_lock(m);
+	ret = _sleep(&current->sleep_wq->wchan, &(m->lock_object), PCATCH | PDROP , "lstimi", tick_sbt * timeout, 0 , C_HARDCLOCK);
 	
 	return (ret);
 }
@@ -238,7 +243,7 @@ io_schedule_timeout(long timeout)
 static inline void io_schedule(void)
 {
 	/* XXX how am I supposed to signal I/O ? */
-	io_schedule_timeout(max(1, hz/100));
+	io_schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 }
 
 

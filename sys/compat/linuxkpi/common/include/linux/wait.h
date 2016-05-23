@@ -32,7 +32,6 @@
 #define	_LINUX_WAIT_H_
 
 #include <linux/spinlock.h>
-#include <linux/sched.h>
 #include <linux/list.h>
 #include <linux/jiffies.h>
 
@@ -56,7 +55,7 @@ struct __wait_queue {
 };
 
 
-typedef struct {
+typedef struct wait_queue_head {
 	spinlock_t	lock;
 	unsigned int	wchan;
 } wait_queue_head_t;
@@ -67,21 +66,27 @@ typedef struct {
         wait_queue_head_t name
 
 #define	init_waitqueue_head(x) \
-    do { } while (0)
+	do { mtx_init(&((x)->lock.m), "wq", NULL, MTX_NOWITNESS); } while (0)
 
 static inline void
 __wake_up(wait_queue_head_t *q, int all)
 {
 
-	if (all == 0)
+	if (all == 0) {
+		spin_lock(&q->lock);
 		wakeup_one(&q->wchan);
-	else
+		spin_unlock(&q->lock);
+	} else {
+		spin_lock(&q->lock);
 		wakeup(&q->wchan);
+		spin_lock(&q->lock);
+	}
 }
 
 #define	wake_up(q)				__wake_up(q, 0)
 #define	wake_up_nr(q, nr)			__wake_up(q, 1)
 #define	wake_up_all(q)				__wake_up(q, 1)
+#define	wake_up_all_locked(x)			__wake_up(q, 1)
 #define	wake_up_interruptible(q)		__wake_up(q, 0)
 #define	wake_up_interruptible_nr(q, nr)		__wake_up(q, 1)
 #define	wake_up_interruptible_all(q)		__wake_up(q, 1)
@@ -244,15 +249,21 @@ waitqueue_active(wait_queue_head_t *q)
 static inline void
 prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
 {
+	MPASS(current != NULL);
+
+	current->sleep_wq = q;
 }
 
 static inline void
 finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 {
+	MPASS(current != NULL);
+	MPASS(current->sleep_wq == q);
+	current->sleep_wq = NULL;
 }
 
 #define wait_event_interruptible_locked(wq, condition) ({panic("implement me!!! XXX"); 0;})
 
-#define wake_up_all_locked(x) ({panic("implement me!!! XXX"); 0;})
+
 
 #endif

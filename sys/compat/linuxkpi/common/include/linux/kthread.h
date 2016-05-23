@@ -78,6 +78,8 @@
 	(y)->mm = mm;				\
 } while (0)
 
+struct wait_queue_head;
+
 struct task_struct {
 	struct	thread *task_thread;
 	struct mm_struct *mm;
@@ -90,6 +92,7 @@ struct task_struct {
 	char	*comm;
 	int	flags;
 	pid_t	pid;
+	struct wait_queue_head	*sleep_wq;
 	void	*bsd_ioctl_data;
 	unsigned	bsd_ioctl_len;
 };

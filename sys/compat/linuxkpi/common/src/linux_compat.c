@@ -73,6 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/async.h>
 #include <linux/compat.h>
 #include <linux/uaccess.h>
+#include <linux/smp.h>
+#include <linux/sched.h>
 
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
@@ -465,7 +467,7 @@ kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 	return kobject_add_complete(kobj, parent);
 }
 
-static void
+void
 linux_set_current(struct thread *td, struct task_struct *t, struct mm_struct *mm)
 {
 	memset(t, 0, sizeof(*t));
@@ -477,7 +479,7 @@ linux_set_current(struct thread *td, struct task_struct *t, struct mm_struct *mm
 	task_struct_set(td, t);
 }
 
-static void
+void
 linux_clear_current(struct thread *td)
 {
 	task_struct_set(td, NULL);
@@ -492,8 +494,8 @@ linux_file_dtor(void *cdp)
 	struct thread *td;
 
 	td = curthread;
-	filp = cdp;
 	linux_set_current(td, &t, &mm);
+	filp = cdp;
 	filp->f_op->release(filp->f_vnode, filp);
 	linux_clear_current(td);
 	vdrop(filp->f_vnode);
@@ -1487,9 +1489,14 @@ void
 linux_work_fn(void *context, int pending)
 {
 	struct work_struct *work;
+	struct task_struct t;
+	struct mm_struct mm;
 
 	work = context;
+
+	linux_set_current(curthread, &t, &mm);
 	work->fn(work);
+	linux_clear_current(curthread);
 }
 
 void
@@ -1767,12 +1774,18 @@ static void
 async_run_entry_fn(struct work_struct *work)
 {
 	struct async_entry *entry; 	
+	struct task_struct t;
+	struct mm_struct mm;
+	struct thread *td;
 
+	td = curthread;
+	linux_set_current(td, &t, &mm);
 	entry  = container_of(work, struct async_entry, work);
 	entry->func(entry->data, entry->cookie);
 	kfree(entry);
 	atomic_dec(&entry_count);
 	wake_up(&async_done);
+	linux_clear_current(td);
 }
 
 async_cookie_t
@@ -1821,6 +1834,7 @@ linux_compat_init(void *arg)
 	system_long_wq = alloc_workqueue("events_long", 0, 0);
 	system_wq = alloc_workqueue("events", 0, 0);
 	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
+	init_waitqueue_head(&async_done);
 	INIT_LIST_HEAD(&cdev_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
