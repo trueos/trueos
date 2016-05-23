@@ -82,11 +82,15 @@
 #define __PASTE(a,b) ___PASTE(a,b)
 
 
+#ifndef PRINT_UNIMPLEMENTED
+#define PRINT_UNIMPLEMENTED 0
+#endif
+
 #define UNIMPLEMENTED_ONCE()			\
 	do {					\
 		static int seen = 0;		\
 									\
-		if (seen == 0) {					\
+		if (seen == 0 && PRINT_UNIMPLEMENTED) {					\
 			log(LOG_WARNING, "%s not implemented -- see your local kernel hacker\n", __FUNCTION__); \
 			seen = 1;					\
 		}							\
@@ -96,7 +100,7 @@
 	do {					\
 		static int seen = 0;		\
 									\
-		if (seen == 0) {					\
+		if (seen == 0 && PRINT_UNIMPLEMENTED) {					\
 			log(LOG_WARNING, "%s is dodgy -- see your local kernel hacker\n", __FUNCTION__); \
 			seen = 1;					\
 		}							\
