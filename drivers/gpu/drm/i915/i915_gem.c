@@ -2757,7 +2757,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 }
 
 static bool i915_context_is_banned(struct drm_i915_private *dev_priv,
-				   const struct intel_context *ctx)
+				   const struct i915_gem_context *ctx)
 {
 	unsigned long elapsed;
 
@@ -2782,7 +2782,7 @@ static bool i915_context_is_banned(struct drm_i915_private *dev_priv,
 }
 
 static void i915_set_reset_status(struct drm_i915_private *dev_priv,
-				  struct intel_context *ctx,
+				  struct i915_gem_context *ctx,
 				  const bool guilty)
 {
 	struct i915_ctx_hang_stats *hs;
@@ -2810,7 +2810,7 @@ void i915_gem_request_free(struct kref *req_ref)
 
 static inline int
 __i915_gem_request_alloc(struct intel_engine_cs *engine,
-			 struct intel_context *ctx,
+			 struct i915_gem_context *ctx,
 			 struct drm_i915_gem_request **req_out)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
@@ -2886,7 +2886,7 @@ err:
  */
 struct drm_i915_gem_request *
 i915_gem_request_alloc(struct intel_engine_cs *engine,
-		       struct intel_context *ctx)
+		       struct i915_gem_context *ctx)
 {
 	struct drm_i915_gem_request *req;
 	int err;
