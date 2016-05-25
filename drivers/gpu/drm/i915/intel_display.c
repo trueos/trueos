@@ -8427,9 +8427,12 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 	else
 		final |= DREF_NONSPREAD_SOURCE_ENABLE;
 
-	final &= ~DREF_SSC_SOURCE_MASK;
 	final &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
-	final &= ~DREF_SSC1_ENABLE;
+
+	if (!using_ssc_source) {
+		final &= ~DREF_SSC_SOURCE_MASK;
+		final &= ~DREF_SSC1_ENABLE;
+	}
 
 	if (has_panel) {
 		final |= DREF_SSC_SOURCE_ENABLE;
