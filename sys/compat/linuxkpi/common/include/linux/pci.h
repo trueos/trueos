@@ -518,8 +518,14 @@ linux_pci_get_class(unsigned int class, struct pci_dev *from)
 	struct pci_dev *pdev;
 	struct pci_bus *pbus;
 
-	if (class != (PCI_CLASS_BRIDGE_ISA << 8))
+	if (class != (PCI_CLASS_BRIDGE_ISA << 8)) {
+		log(LOG_WARNING, "unrecognized class %d in %s\n", class, __FUNCTION__);
 		return (NULL);
+	}
+	if (from != NULL) {
+		/* we're expected to enumerate but FreeBSD doesn't appear to be able to do that */
+		return (NULL);
+	}
 
 	dev = pci_find_class(PCIC_BRIDGE, PCIS_BRIDGE_ISA);
 	if (dev == NULL)
