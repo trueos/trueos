@@ -1780,6 +1780,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	}
 #else
 	error = 0;
+	addr = 0;
 	if (args->size == 0)
 		goto out;
 	p = curproc;
@@ -1793,7 +1794,6 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	}
 	PROC_UNLOCK(p);
 
-	addr = 0;
 	vmobj = file_inode(obj->filp)->i_mapping;
 	vm_object_reference(vmobj);
 	rv = vm_map_find(map, vmobj, args->offset, &addr, args->size, 0,
@@ -1808,9 +1808,13 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 out:
 #endif
 	drm_gem_object_unreference_unlocked(obj);
+#ifdef __linux__
 	if (IS_ERR((void *)addr))
 		return addr;
-
+#else
+	if (error)
+		return error;
+#endif
 	args->addr_ptr = (uint64_t) addr;
 
 	return 0;
