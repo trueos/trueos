@@ -60,6 +60,7 @@
 
 static bool drm_kms_helper_poll = true;
 module_param_named(poll, drm_kms_helper_poll, bool, 0600);
+MODULE_PARM_DESC(poll, "help drm kms poll");
 
 static enum drm_mode_status
 drm_mode_validate_flag(const struct drm_display_mode *mode,
