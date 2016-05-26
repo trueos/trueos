@@ -74,13 +74,9 @@ __wake_up(wait_queue_head_t *q, int all)
 {
 
 	if (all == 0) {
-		spin_lock(&q->lock);
 		wakeup_one(&q->wchan);
-		spin_unlock(&q->lock);
 	} else {
-		spin_lock(&q->lock);
 		wakeup(&q->wchan);
-		spin_unlock(&q->lock);
 	}
 }
 
