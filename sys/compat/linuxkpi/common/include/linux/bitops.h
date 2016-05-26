@@ -46,7 +46,7 @@
 #define	BITS_TO_LONGS(n)	howmany((n), BITS_PER_LONG)
 #define	BIT_MASK(nr)		(1UL << ((nr) & (BITS_PER_LONG - 1)))
 #define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
-#define	GENMASK(h, l)		((~0UL) >> (BITS_PER_LONG - h - 1)) & ((~0UL) << l)
+#define	GENMASK(h, l)		(((~0UL) >> (BITS_PER_LONG - (h) - 1)) & ((~0UL) << (l)))
 #define BITS_PER_BYTE           8
 
 static inline int
@@ -73,20 +73,11 @@ __flsl(long mask)
 	return (flsl(mask) - 1);
 }
 
-/**
- * ror32 - rotate a 32-bit value right
- * @word: value to rotate
- * @shift: bits to roll
- *
- * Source: include/linux/bitops.h
- */
 static inline uint32_t
 ror32(uint32_t word, unsigned int shift)
 {
-
-	return (word >> shift) | (word << (32 - shift));
+	return ((word >> shift) | (word << (32 - shift)));
 }
-
 
 #define	ffz(mask)	__ffs(~(mask))
 
@@ -101,7 +92,7 @@ static inline int get_count_order(unsigned int count)
 }
 
 static inline unsigned long
-find_first_bit(unsigned long *addr, unsigned long size)
+find_first_bit(const unsigned long *addr, unsigned long size)
 {
 	long mask;
 	int bit;
@@ -145,7 +136,7 @@ find_first_zero_bit(const unsigned long *addr, unsigned long size)
 }
 
 static inline unsigned long
-find_last_bit(unsigned long *addr, unsigned long size)
+find_last_bit(const unsigned long *addr, unsigned long size)
 {
 	long mask;
 	int offs;
@@ -171,7 +162,7 @@ find_last_bit(unsigned long *addr, unsigned long size)
 }
 
 static inline unsigned long
-find_next_bit(unsigned long *addr, unsigned long size, unsigned long offset)
+find_next_bit(const unsigned long *addr, unsigned long size, unsigned long offset)
 {
 	long mask;
 	int offs;
@@ -210,7 +201,7 @@ find_next_bit(unsigned long *addr, unsigned long size, unsigned long offset)
 }
 
 static inline unsigned long
-find_next_zero_bit(unsigned long *addr, unsigned long size,
+find_next_zero_bit(const unsigned long *addr, unsigned long size,
     unsigned long offset)
 {
 	long mask;

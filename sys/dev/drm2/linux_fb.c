@@ -54,7 +54,7 @@ vt_restore_fbdev_mode(void *arg, int pending)
 
 	sc = (struct vt_kms_softc *)arg;
 	fb_helper = sc->fb_helper;
-	linux_set_current(curthread, &t, &mm);
+	linux_set_current(curthread, &t);
 	drm_fb_helper_restore_fbdev_mode_unlocked(fb_helper);
 	linux_clear_current(curthread);
 }
@@ -64,7 +64,6 @@ vt_kms_postswitch(void *arg)
 {
 	struct vt_kms_softc *sc;
 	struct task_struct t, *cur;
-	struct mm_struct mm;
 
 	sc = (struct vt_kms_softc *)arg;
 
@@ -73,7 +72,7 @@ vt_kms_postswitch(void *arg)
 	else {
 		cur = current;
 		if (cur == NULL)
-			linux_set_current(curthread, &t, &mm);
+			linux_set_current(curthread, &t);
 		drm_fb_helper_restore_fbdev_mode_unlocked(sc->fb_helper);
 		if (cur == NULL)
 			linux_clear_current(curthread);

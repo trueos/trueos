@@ -62,6 +62,8 @@
 
 #include <machine/stdarg.h>
 
+#include <machine/stdarg.h>
+
 #define KERN_CONT       ""
 #define	KERN_EMERG	"<0>"
 #define	KERN_ALERT	"<1>"
@@ -133,25 +135,23 @@
 #define	DIV_ROUND_UP_ULL(x, n)	DIV_ROUND_UP((unsigned long long)(x), (n))
 #define	FIELD_SIZEOF(t, f)	sizeof(((t *)0)->f)
 
-#define	printk(X...)		printf(X)
+#define	printk(...)		printf(__VA_ARGS__)
 #define	vprintk(f, a)		vprintf(f, a)
-
 
 struct va_format {
 	const char *fmt;
 	va_list *va;
 };
 
-
 static inline int
 vscnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
-	int i;
 	ssize_t ssize = size;
+	int i;
 
 	i = vsnprintf(buf, size, fmt, args);
 
-	return (i >= ssize) ? (ssize - 1) : i;
+	return ((i >= ssize) ? (ssize - 1) : i);
 }
 
 static inline int
@@ -178,6 +178,7 @@ kstrtou32(const char *s, unsigned int base, uint32_t *res)
 
 /* XXX */ 
 #define irqs_disabled() (0)
+
 
 /*
  * The "pr_debug()" and "pr_devel()" macros should produce zero code

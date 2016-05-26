@@ -144,16 +144,16 @@ list_del_init(struct list_head *entry)
 #define list_first_entry(ptr, type, member) \
         list_entry((ptr)->next, type, member)
 
-#define list_last_entry(ptr, type, member)	\
+#define	list_last_entry(ptr, type, member)	\
 	list_entry((ptr)->prev, type, member)
 
-#define list_first_entry_or_null(ptr, type, member) \
+#define	list_first_entry_or_null(ptr, type, member) \
 	(!list_empty(ptr) ? list_first_entry(ptr, type, member) : NULL)
 
 #define	list_next_entry(ptr, member)					\
 	list_entry(((ptr)->member.next), typeof(*(ptr)), member)
 
-#define list_prev_entry(ptr, member)					\
+#define	list_prev_entry(ptr, member)					\
 	list_entry(((ptr)->member.prev), typeof(*(ptr)), member)
 
 #define	list_for_each(p, head)						\
@@ -457,49 +457,7 @@ static inline int list_is_last(const struct list_head *list,
 	     (pos) && ({ n = (pos)->member.next; 1; });			\
 	     pos = hlist_entry_safe(n, typeof(*(pos)), member))
 
-
-
-struct list_sort_thunk {
-	int (*cmp)(void *, struct list_head *, struct list_head *);
-	void *priv;
-};
-
-static inline int
-le_cmp(void *priv, const void *d1, const void *d2)
-{
-	struct list_head *le1, *le2;
-	struct list_sort_thunk *thunk;
-
-	thunk = priv;
-	le1 = *(__DECONST(struct list_head **, d1));
-	le2 = *(__DECONST(struct list_head **, d2));
-	return ((thunk->cmp)(thunk->priv, le1, le2));
-}
-
-
-
-static void inline list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
-    struct list_head *a, struct list_head *b))
-{
-	struct list_sort_thunk thunk;
-	struct list_head **ar, *le;
-	int count, i;
-
-	count = 0;
-	list_for_each(le, head)
-		count++;
-	ar = malloc(sizeof(struct list_head *) * count, M_TEMP, M_WAITOK);
-	i = 0;
-	list_for_each(le, head)
-		ar[i++] = le;
-	thunk.cmp = cmp;
-	thunk.priv = priv;
-	qsort_r(ar, count, sizeof(struct list_head *), &thunk, le_cmp);
-	INIT_LIST_HEAD(head);
-	for (i = 0; i < count; i++)
-		list_add_tail(ar[i], head);
-	free(ar, M_TEMP);
-}
-
+extern void list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
+    struct list_head *a, struct list_head *b));
 
 #endif /* _LINUX_LIST_H_ */

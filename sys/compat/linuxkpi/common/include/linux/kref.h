@@ -35,7 +35,6 @@
 #include <sys/types.h>
 #include <sys/refcount.h>
 
-
 #include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
@@ -92,8 +91,7 @@ kref_get_unless_zero(struct kref *kref)
 }
 
 static inline int kref_put_mutex(struct kref *kref,
-				 void (*release)(struct kref *kref),
-				 struct mutex *lock)
+    void (*release)(struct kref *kref), struct mutex *lock)
 {
 	WARN_ON(release == NULL);
 	if (unlikely(!atomic_add_unless(&kref->refcount, -1, 1))) {
@@ -107,6 +105,5 @@ static inline int kref_put_mutex(struct kref *kref,
 	}
 	return 0;
 }
-
 
 #endif /* _LINUX_KREF_H_ */

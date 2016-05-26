@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/cdev.h>
 #include <linux/file.h>
 #include <linux/sysfs.h>
@@ -75,6 +76,9 @@ __FBSDID("$FreeBSD$");
 #include <linux/uaccess.h>
 #include <linux/smp.h>
 #include <linux/sched.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/compat.h>
 
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
@@ -86,6 +90,8 @@ extern u_int cpu_id;
 struct workqueue_struct *system_long_wq;
 struct workqueue_struct *system_wq;
 struct workqueue_struct *system_unbound_wq;
+
+SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 MALLOC_DEFINE(M_LCINT, "linuxint", "Linux compat internal");
@@ -468,11 +474,13 @@ kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 }
 
 void
-linux_set_current(struct thread *td, struct task_struct *t, struct mm_struct *mm)
+linux_set_current(struct thread *td, struct task_struct *t)
 {
+	struct mm_struct *mm;
+
 	memset(t, 0, sizeof(*t));
-	memset(t, 0, sizeof(*mm));
-	task_struct_fill(td, t, mm);
+	task_struct_fill(td, t);
+	mm = t->mm;
 	init_rwsem(&mm->mmap_sem);
 	mm->mm_count.counter = 1;
 	mm->mm_users.counter = 1;
@@ -490,11 +498,10 @@ linux_file_dtor(void *cdp)
 {
 	struct linux_file *filp;
 	struct task_struct t;
-	struct mm_struct mm;
 	struct thread *td;
 
 	td = curthread;
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	filp = cdp;
 	filp->f_op->release(filp->f_vnode, filp);
 	linux_clear_current(td);
@@ -684,7 +691,6 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct task_struct t;
-	struct mm_struct mm;
 	struct file *file;
 	int error;
 
@@ -698,7 +704,7 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	filp->f_flags = file->f_flag;
 	vhold(file->f_vnode);
 	filp->f_vnode = file->f_vnode;
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
@@ -804,7 +810,6 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct task_struct t;
-	struct mm_struct mm;
 	struct file *file;
 	unsigned size;
 	int error;
@@ -817,7 +822,7 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		return (error);
 	filp->f_flags = file->f_flag;
 
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	size = IOCPARM_LEN(cmd);
 	/* refer to logic in sys_ioctl() */
 	if (size > 0) {
@@ -849,7 +854,6 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct task_struct t;
-	struct mm_struct mm;
 	struct thread *td;
 	struct file *file;
 	ssize_t bytes;
@@ -866,7 +870,7 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
 		return (EOPNOTSUPP);
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	if (filp->f_op->read) {
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 					 uio->uio_iov->iov_len, &uio->uio_offset);
@@ -890,7 +894,6 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct task_struct t;
-	struct mm_struct mm;
 	struct thread *td;
 	struct file *file;
 	ssize_t bytes;
@@ -907,7 +910,7 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
 		return (EOPNOTSUPP);
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	if (filp->f_op->write) {
 		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
 					  uio->uio_iov->iov_len, &uio->uio_offset);
@@ -931,7 +934,6 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct task_struct t;
-	struct mm_struct mm;
 	struct file *file;
 	int revents;
 	int error;
@@ -944,7 +946,7 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 		return (error);
 	filp->f_flags = file->f_flag;
 
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	if (filp->f_op->poll)
 		revents = filp->f_op->poll(filp, NULL) & events;
 	else
@@ -962,7 +964,6 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	struct linux_file *filp;
 	struct thread *td;
 	struct task_struct t;
-	struct mm_struct mm;
 	struct file *file;
 	struct vm_area_struct vma, *vmap;
 	int error;
@@ -975,7 +976,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	vma.vm_start = 0;
 	vma.vm_end = size;
 	vma.vm_pgoff = *offset / PAGE_SIZE;
@@ -1040,7 +1041,6 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 {
 	struct linux_file *filp;
 	struct task_struct t;
-	struct mm_struct mm;
 	ssize_t bytes;
 	int error;
 
@@ -1050,7 +1050,7 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
 		return (EOPNOTSUPP);
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	if (filp->f_op->read) {
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
@@ -1074,12 +1074,11 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
 {
 	struct linux_file *filp;
 	struct task_struct t;
-	struct mm_struct mm;
 	int revents;
 
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	if (filp->f_op->poll)
 		revents = filp->f_op->poll(filp, NULL) & events;
 	else
@@ -1094,12 +1093,11 @@ linux_file_close(struct file *file, struct thread *td)
 {
 	struct linux_file *filp;
 	struct task_struct t;
-	struct mm_struct mm;
 	int error;
 
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	error = -filp->f_op->release(NULL, filp);
 	linux_clear_current(td);
 	funsetown(&filp->f_sigio);
@@ -1114,14 +1112,13 @@ linux_file_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *cred,
 {
 	struct linux_file *filp;
 	struct task_struct t;
-	struct mm_struct mm;
 	int error;
 
 	filp = (struct linux_file *)fp->f_data;
 	filp->f_flags = fp->f_flag;
 	error = 0;
 
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	switch (cmd) {
 	case FIONBIO:
 		break;
@@ -1382,7 +1379,8 @@ linux_complete_common(struct completion *c, int all)
 long
 linux_wait_for_common(struct completion *c, int flags)
 {
-	if (SCHEDULER_STOPPED())
+
+	if (unlikely(SCHEDULER_STOPPED()))
 		return (0);
 
 	if (flags != 0)
@@ -1414,7 +1412,7 @@ linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
 {
 	long end = jiffies + timeout;
 
-	if (SCHEDULER_STOPPED())
+	if (unlikely(SCHEDULER_STOPPED()))
 		return (0);
 
 	if (flags != 0)
@@ -1490,11 +1488,10 @@ linux_work_fn(void *context, int pending)
 {
 	struct work_struct *work;
 	struct task_struct t;
-	struct mm_struct mm;
 
 	work = context;
 
-	linux_set_current(curthread, &t, &mm);
+	linux_set_current(curthread, &t);
 	work->fn(work);
 	linux_clear_current(curthread);
 }
@@ -1659,6 +1656,47 @@ unregister_inetaddr_notifier(struct notifier_block *nb)
         return (0);
 }
 
+struct list_sort_thunk {
+	int (*cmp)(void *, struct list_head *, struct list_head *);
+	void *priv;
+};
+
+static inline int
+linux_le_cmp(void *priv, const void *d1, const void *d2)
+{
+	struct list_head *le1, *le2;
+	struct list_sort_thunk *thunk;
+
+	thunk = priv;
+	le1 = *(__DECONST(struct list_head **, d1));
+	le2 = *(__DECONST(struct list_head **, d2));
+	return ((thunk->cmp)(thunk->priv, le1, le2));
+}
+
+void
+list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
+    struct list_head *a, struct list_head *b))
+{
+	struct list_sort_thunk thunk;
+	struct list_head **ar, *le;
+	size_t count, i;
+
+	count = 0;
+	list_for_each(le, head)
+		count++;
+	ar = malloc(sizeof(struct list_head *) * count, M_KMALLOC, M_WAITOK);
+	i = 0;
+	list_for_each(le, head)
+		ar[i++] = le;
+	thunk.cmp = cmp;
+	thunk.priv = priv;
+	qsort_r(ar, count, sizeof(struct list_head *), &thunk, linux_le_cmp);
+	INIT_LIST_HEAD(head);
+	for (i = 0; i < count; i++)
+		list_add_tail(ar[i], head);
+	free(ar, M_KMALLOC);
+}
+
 void
 linux_irq_handler(void *ent)
 {
@@ -1775,11 +1813,10 @@ async_run_entry_fn(struct work_struct *work)
 {
 	struct async_entry *entry; 	
 	struct task_struct t;
-	struct mm_struct mm;
 	struct thread *td;
 
 	td = curthread;
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	entry  = container_of(work, struct async_entry, work);
 	entry->func(entry->data, entry->cookie);
 	kfree(entry);

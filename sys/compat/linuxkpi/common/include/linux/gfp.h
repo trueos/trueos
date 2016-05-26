@@ -55,9 +55,7 @@
 #define	__GFP_IO	0
 #define	__GFP_NO_KSWAPD	0
 #define	__GFP_WAIT	M_WAITOK
-#define __GFP_DMA32     0
-
-
+#define	__GFP_DMA32     0
 
 #define	GFP_NOWAIT	M_NOWAIT
 #define	GFP_ATOMIC	(M_NOWAIT | M_USE_RESERVE)
@@ -67,8 +65,8 @@
 #define	GFP_HIGHUSER_MOVABLE	M_WAITOK
 #define	GFP_IOFS	M_NOWAIT
 #define	GFP_NOIO	M_NOWAIT
-#define GFP_DMA32	0
-#define GFP_TEMPORARY	0
+#define	GFP_DMA32	0
+#define	GFP_TEMPORARY	0
 
 static inline void *
 page_address(struct page *page)
@@ -183,7 +181,7 @@ static inline uintptr_t __get_free_pages(gfp_t gfp_mask, unsigned int order)
 /*
 * AFAICT FreeBSD has no analog
 */
-#define SetPageReserved(page)
-#define ClearPageReserved(page)
+#define	SetPageReserved(page)	do { } while (0)	/* NOP */
+#define	ClearPageReserved(page)	do { } while (0)	/* NOP */
 
 #endif	/* _LINUX_GFP_H_ */

@@ -71,11 +71,11 @@
 #define	task_struct_get(x)	((struct task_struct *)(uintptr_t)(x)->td_retval[1])
 #define	task_struct_set(x, y)	(x)->td_retval[1] = (uintptr_t)(y)
 
-#define	task_struct_fill(x, y, mm) do {		\
+#define	task_struct_fill(x, y) do {		\
   	(y)->task_thread = (x);			\
 	(y)->comm = (x)->td_name;		\
 	(y)->pid = (x)->td_tid;			\
-	(y)->mm = mm;				\
+	(y)->mm = &(y)->bsd_mm;			\
 } while (0)
 
 struct wait_queue_head;
@@ -95,6 +95,7 @@ struct task_struct {
 	struct wait_queue_head	*sleep_wq;
 	void	*bsd_ioctl_data;
 	unsigned	bsd_ioctl_len;
+	struct mm_struct bsd_mm;
 };
 
 
@@ -102,13 +103,10 @@ static inline void
 linux_kthread_fn(void *arg)
 {
 	struct task_struct *task;
-	struct mm_struct *mm;
 	struct thread *td = curthread;
 
 	task = arg;
-	mm = malloc(sizeof(*mm), M_DEVBUF, M_WAITOK | M_ZERO);
-	/* XXX init me */
-	task_struct_fill(td, task, mm);
+	task_struct_fill(td, task);
 	task_struct_set(td, task);
 	if (task->should_stop == 0)
 		task->task_ret = task->task_fn(task->task_data);
@@ -116,7 +114,6 @@ linux_kthread_fn(void *arg)
 	task->should_stop = TASK_STOPPED;
 	wakeup(task);
 	PROC_UNLOCK(td->td_proc);
-	free(mm, M_DEVBUF);
 	task_struct_set(td, NULL);
 	kthread_exit();
 }

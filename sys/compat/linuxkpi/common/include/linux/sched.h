@@ -130,9 +130,7 @@ local_clock(void)
 do {									\
 	void *c;							\
 									\
-	if (SCHEDULER_STOPPED())					\
-		break;							\
-	if (cold)							\
+	if (cold || SCHEDULER_STOPPED())				\
 		break;							\
 	c = curthread;							\
 	sleepq_lock(c);							\

@@ -151,19 +151,11 @@ linux_pci_attach(device_t dev)
 	struct pci_driver *pdrv;
 	const struct pci_device_id *id;
 	struct task_struct t;
-	struct mm_struct mm;
-	devclass_t dc;
-	device_t parent;
-	int error;
 	struct thread *td;
+	int error;
 
-	error = 0;
 	td = curthread;
-	linux_set_current(td, &t, &mm);
-	parent = device_get_parent(dev);
-	dc = device_get_devclass(parent);
-	if (strcmp(devclass_get_name(dc), "pci") != 0)
-		device_set_ivars(dev, device_get_ivars(parent));
+	linux_set_current(td, &t);
 	pdrv = linux_pci_find(dev, &id);
 	pdev = device_get_softc(dev);
 	pdev->dev.parent = &linux_root_device;
@@ -186,18 +178,18 @@ linux_pci_attach(device_t dev)
 	else
 		pdev->dev.irq = 255;
 	pdev->irq = pdev->dev.irq;
-	mtx_unlock(&Giant);
+	DROP_GIANT();
 	spin_lock(&pci_lock);
 	list_add(&pdev->links, &pci_devices);
 	spin_unlock(&pci_lock);
 	error = pdrv->probe(pdev, id);
-	mtx_lock(&Giant);
+	PICKUP_GIANT();
 	if (error) {
 		spin_lock(&pci_lock);
 		list_del(&pdev->links);
 		spin_unlock(&pci_lock);
 		put_device(&pdev->dev);
-		printf("linux_pci_attach failed! %d", error);
+		device_printf(dev, "linux_pci_attach failed! %d", error);
 		error = -error;
 	}
 	linux_clear_current(td);
@@ -209,15 +201,14 @@ linux_pci_detach(device_t dev)
 {
 	struct pci_dev *pdev;
 	struct task_struct t;
-	struct mm_struct mm;
 	struct thread *td;
 
 	td = curthread;
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	pdev = device_get_softc(dev);
-	mtx_unlock(&Giant);
+	DROP_GIANT();
 	pdev->pdrv->remove(pdev);
-	mtx_lock(&Giant);
+	PICKUP_GIANT();
 	spin_lock(&pci_lock);
 	list_del(&pdev->links);
 	spin_unlock(&pci_lock);
@@ -232,13 +223,18 @@ linux_pci_suspend(device_t dev)
 {
 	struct pm_message pm = { };
 	struct pci_dev *pdev;
+	struct task_struct t;
+	struct thread *td;
 	int err;
 
+	td = curthread;
+	linux_set_current(td, &t);
 	pdev = device_get_softc(dev);
 	if (pdev->pdrv->suspend != NULL)
 		err = -pdev->pdrv->suspend(pdev, pm);
 	else
 		err = 0;
+	linux_clear_current(td);
 	return (err);
 }
 
@@ -246,13 +242,18 @@ static int
 linux_pci_resume(device_t dev)
 {
 	struct pci_dev *pdev;
+	struct task_struct t;
+	struct thread *td;
 	int err;
 
+	td = curthread;
+	linux_set_current(td, &t);
 	pdev = device_get_softc(dev);
 	if (pdev->pdrv->resume != NULL)
 		err = -pdev->pdrv->resume(pdev);
 	else
 		err = 0;
+	linux_clear_current(td);
 	return (err);
 }
 
@@ -260,13 +261,18 @@ static int
 linux_pci_shutdown(device_t dev)
 {
 	struct pci_dev *pdev;
+	struct task_struct t;
+	struct thread *td;
 
+	td = curthread;
+	linux_set_current(td, &t);
 	pdev = device_get_softc(dev);
 	if (pdev->pdrv->shutdown != NULL) {
 		DROP_GIANT();
 		pdev->pdrv->shutdown(pdev);
 		PICKUP_GIANT();
 	}
+	linux_clear_current(td);
 	return (0);
 }
 
@@ -276,7 +282,6 @@ pci_register_driver(struct pci_driver *pdrv)
 	devclass_t bus;
 	int error = 0;
 	struct task_struct t;
-	struct mm_struct mm;
 	struct thread *td;
 
 	if (pdrv->busname != NULL)
@@ -285,7 +290,7 @@ pci_register_driver(struct pci_driver *pdrv)
 		bus = devclass_find("pci");
 
 	td = curthread;
-	linux_set_current(td, &t, &mm);
+	linux_set_current(td, &t);
 	spin_lock(&pci_lock);
 	list_add(&pdrv->links, &pci_drivers);
 	spin_unlock(&pci_lock);
