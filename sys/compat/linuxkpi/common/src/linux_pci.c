@@ -151,11 +151,19 @@ linux_pci_attach(device_t dev)
 	struct pci_driver *pdrv;
 	const struct pci_device_id *id;
 	struct task_struct t;
-	struct thread *td;
+	devclass_t dc;
+	device_t parent;
 	int error;
+	struct thread *td;
 
+	error = 0;
 	td = curthread;
 	linux_set_current(td, &t);
+	parent = device_get_parent(dev);
+	dc = device_get_devclass(parent);
+	if (strcmp(devclass_get_name(dc), "pci") != 0)
+		device_set_ivars(dev, device_get_ivars(parent));
+
 	pdrv = linux_pci_find(dev, &id);
 	pdev = device_get_softc(dev);
 	pdev->dev.parent = &linux_root_device;
