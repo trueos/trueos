@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
  */
 static MALLOC_DEFINE(M_IDR, "idr", "Linux IDR compat");
 
-
 static inline int
 idr_max(struct idr *idr)
 {
@@ -203,41 +202,20 @@ idr_replace(struct idr *idr, void *ptr, int id)
 	return (res);
 }
 
-
 static inline void *
-idr_find_locked(struct idr *idr, int id, int *nextidp)
+idr_find_locked(struct idr *idr, int id)
 {
 	struct idr_layer *il;
 	void *res;
-	int i;
 
-	res = NULL;
 	mtx_assert(&idr->lock, MA_OWNED);
 	il = idr_find_layer_locked(idr, id);
 	if (il != NULL)
 		res = il->ary[id & IDR_MASK];
-	if (nextidp == NULL)
-		return (res);
-
-	for (i = id + 1; i  <  (i & ~IDR_MASK) + IDR_SIZE; i++) {
-		if (il->ary[i & IDR_MASK]) {
-			*nextidp = i;
-			goto done;
-		}
-	}
-	while ((il = idr_find_layer_locked(idr, i)) != NULL) {
-		for (;i  <  (i & ~IDR_MASK) + IDR_SIZE; i++) {
-			if (il->ary[i & IDR_MASK]) {
-				*nextidp = i;
-				goto done;
-			}
-		}
-	}
-	*nextidp = -1;
-done:
+	else
+		res = NULL;
 	return (res);
 }
-
 
 void *
 idr_find(struct idr *idr, int id)
@@ -245,7 +223,7 @@ idr_find(struct idr *idr, int id)
 	void *res;
 
 	mtx_lock(&idr->lock);
-	res = idr_find_locked(idr, id, NULL);
+	res = idr_find_locked(idr, id);
 	mtx_unlock(&idr->lock);
 	return (res);
 }
@@ -253,10 +231,17 @@ idr_find(struct idr *idr, int id)
 void *
 idr_get_next(struct idr *idr, int *nextidp)
 {
-	void *res;
+	void *res = NULL;
+	int id = *nextidp;
 
 	mtx_lock(&idr->lock);
-	res = idr_find_locked(idr, *nextidp, nextidp);
+	for (; id <= idr_max(idr); id++) {
+		res = idr_find_locked(idr, id);
+		if (res == NULL)
+			continue;
+		*nextidp = id;
+		break;
+	}
 	mtx_unlock(&idr->lock);
 	return (res);
 }
@@ -384,7 +369,7 @@ idr_get_new_locked(struct idr *idr, void *ptr, int *idp)
 	error = 0;
 out:
 #ifdef INVARIANTS
-	if (error == 0 && idr_find_locked(idr, id, NULL) != ptr) {
+	if (error == 0 && idr_find_locked(idr, id) != ptr) {
 		panic("idr_get_new: Failed for idr %p, id %d, ptr %p\n",
 		    idr, id, ptr);
 	}
@@ -502,7 +487,7 @@ restart:
 	error = 0;
 out:
 #ifdef INVARIANTS
-	if (error == 0 && idr_find_locked(idr, id, NULL) != ptr) {
+	if (error == 0 && idr_find_locked(idr, id) != ptr) {
 		panic("idr_get_new_above: Failed for idr %p, id %d, ptr %p\n",
 		    idr, id, ptr);
 	}
@@ -524,7 +509,6 @@ idr_get_new_above(struct idr *idr, void *ptr, int starting_id, int *idp)
 int
 ida_get_new_above(struct ida *ida, int starting_id, int *p_id)
 {
-
 	return (idr_get_new_above(&ida->idr, NULL, starting_id, p_id));
 }
 
@@ -623,14 +607,16 @@ ida_pre_get(struct ida *ida, gfp_t flags)
 	if (idr_pre_get(&ida->idr, flags) == 0)
 		return (0);
 
-	if (ida->free_bitmap == NULL)
-		ida->free_bitmap = malloc(sizeof(struct ida_bitmap), M_IDR, flags);
-
+	if (ida->free_bitmap == NULL) {
+		ida->free_bitmap =
+		    malloc(sizeof(struct ida_bitmap), M_IDR, flags);
+	}
 	return (ida->free_bitmap != NULL);
 }
 
 int
-ida_simple_get(struct ida *ida, unsigned int start, unsigned int end, gfp_t flags)
+ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
+    gfp_t flags)
 {
 	int ret, id;
 	unsigned int max;
@@ -665,7 +651,6 @@ again:
 void
 ida_simple_remove(struct ida *ida, unsigned int id)
 {
-
 	idr_remove(&ida->idr, id);
 }
 
@@ -685,6 +670,5 @@ void
 ida_destroy(struct ida *ida)
 {
 	idr_destroy(&ida->idr);
-	if (ida->free_bitmap != NULL)
-		free(ida->free_bitmap, M_IDR);
+	free(ida->free_bitmap, M_IDR);
 }

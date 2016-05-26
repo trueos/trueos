@@ -38,29 +38,23 @@
 #define	ECOMM           ESTALE
 #define	ENODATA         ECONNREFUSED
 #define	ENOIOCTLCMD     ENOIOCTL
-/*
- * CEM: BSD ERESTART is negative, may be confusing in Linux negative-error
- * model.
- */
-#define	ERESTARTSYS     512 /* Same value as Linux. */
+/* Use same value as Linux, because BSD's ERESTART is negative */
+#define	ERESTARTSYS     512
 #define	ENOTSUPP        EOPNOTSUPP
 #define	ENONET          EHOSTDOWN
 
-#define ERESTARTNOINTR	513
-#define ERESTARTNOHAND	514	/* restart if no handler.. */
-#define ERESTART_RESTARTBLOCK 516 /* restart by calling sys_restart_syscall */
-#define EPROBE_DEFER	517	/* Driver requests probe retry */
-#define EOPENSTALE	518	/* open found a stale dentry */
-
-/* Defined for the NFSv3 protocol */
-#define EBADHANDLE	521	/* Illegal NFS file handle */
-#define ENOTSYNC	522	/* Update synchronization mismatch */
-#define EBADCOOKIE	523	/* Cookie is stale */
-#define ETOOSMALL	525	/* Buffer or request is too small */
-#define ESERVERFAULT	526	/* An untranslatable error occurred */
-#define EBADTYPE	527	/* Type not supported by server */
-#define EJUKEBOX	528	/* Request initiated, but will not complete before timeout */
-#define EIOCBQUEUED	529	/* iocb queued, will get completion event */
-
+#define	ERESTARTNOINTR	513
+#define	ERESTARTNOHAND	514
+#define	ERESTART_RESTARTBLOCK 516
+#define	EPROBE_DEFER	517
+#define	EOPENSTALE	518
+#define	EBADHANDLE	521
+#define	ENOTSYNC	522
+#define	EBADCOOKIE	523
+#define	ETOOSMALL	525
+#define	ESERVERFAULT	526
+#define	EBADTYPE	527
+#define	EJUKEBOX	528
+#define	EIOCBQUEUED	529
 
 #endif					/* _LINUX_ERRNO_H_ */

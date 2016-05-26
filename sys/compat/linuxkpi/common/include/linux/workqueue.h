@@ -36,7 +36,7 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <sys/taskqueue.h>
 

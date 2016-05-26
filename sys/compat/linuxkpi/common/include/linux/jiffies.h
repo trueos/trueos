@@ -45,9 +45,9 @@
 
 #define	MAX_JIFFY_OFFSET	((INT_MAX >> 1) - 1)
 
-#define	time_after(a, b)	((long)((b) - (a)) < 0)
+#define	time_after(a, b)	((int)((b) - (a)) < 0)
 #define	time_before(a, b)	time_after(b,a)
-#define	time_after_eq(a, b)	((long)((a) - (b)) >= 0)
+#define	time_after_eq(a, b)	((int)((a) - (b)) >= 0)
 #define	time_before_eq(a, b)	time_after_eq(b, a)
 #define	time_in_range(a,b,c)	\
 	(time_after_eq(a,b) && time_before_eq(a,c))

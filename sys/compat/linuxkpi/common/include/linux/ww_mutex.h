@@ -3,6 +3,7 @@
 
 #include <linux/mutex.h>
 #include <linux/types.h>
+#include <linux/atomic.h>
 
 struct ww_class {
 	atomic_long_t stamp;

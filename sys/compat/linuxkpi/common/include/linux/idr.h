@@ -68,15 +68,13 @@ struct idr {
 #define	DEFINE_IDR(name)						\
 	struct idr name;						\
 	SYSINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
-		idr_init, &(name));					\
-	SYSUNINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
-		  idr_destroy, &(name));				
-#define DEFINE_IDA(name)						\
+	    idr_init, &(name))
+
+/* NOTE: It is the applications responsibility to destroy the IDA */
+#define	DEFINE_IDA(name)						\
 	struct ida name;						\
 	SYSINIT(name##_ida_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
-		ida_init, &(name));					\
-	SYSUNINIT(name##_idr_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
-		  ida_destroy, &(name));				
+	    ida_init, &(name))
 
 #define	idr_preload(x) do { } while (0)
 #define	idr_preload_end() do { } while (0)
@@ -95,31 +93,12 @@ int	idr_alloc(struct idr *idp, void *ptr, int start, int end, gfp_t);
 int	idr_alloc_cyclic(struct idr *idp, void *ptr, int start, int end, gfp_t);
 int	idr_for_each(struct idr *idp, int (*fn)(int id, void *p, void *data), void *data);
 
+#define	idr_for_each_entry(idp, entry, id)	\
+	for ((id) = 0; ((entry) = idr_get_next(idp, &(id))) != NULL; ++(id))
 
-/**
- * idr_for_each_entry - iterate over an idr's elements of a given type
- * @idp:     idr handle
- * @entry:   the type * to use as cursor
- * @id:      id entry's key
- *
- * @entry and @id do not need to be initialized before the loop, and
- * after normal terminatinon @entry is left with the value NULL.  This
- * is convenient for a "not found" value.
- */
-#define idr_for_each_entry(idp, entry, id)			\
-	for (id = 0; ((entry) = idr_get_next(idp, &(id))) != NULL; ++id)
-
-
-/*
- * IDA - IDR based id allocator, use when translation from id to
- * pointer isn't necessary.
- *
- * IDA_BITMAP_LONGS is calculated to be one less to accommodate
- * ida_bitmap->nr_busy so that the whole struct fits in 128 bytes.
- */
-#define IDA_CHUNK_SIZE		128	/* 128 bytes per chunk */
-#define IDA_BITMAP_LONGS	(IDA_CHUNK_SIZE / sizeof(long) - 1)
-#define IDA_BITMAP_BITS 	(IDA_BITMAP_LONGS * sizeof(long) * 8)
+#define	IDA_CHUNK_SIZE		128	/* 128 bytes per chunk */
+#define	IDA_BITMAP_LONGS	(IDA_CHUNK_SIZE / sizeof(long) - 1)
+#define	IDA_BITMAP_BITS 	(IDA_BITMAP_LONGS * sizeof(long) * 8)
 
 struct ida_bitmap {
 	long			nr_busy;
@@ -131,15 +110,15 @@ struct ida {
 	struct ida_bitmap	*free_bitmap;
 };
 
-int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
-int ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
-void ida_remove(struct ida *ida, int id);
-void ida_destroy(struct ida *ida);
-void ida_init(struct ida *ida);
+int	ida_pre_get(struct ida *ida, gfp_t gfp_mask);
+int	ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
+void	ida_remove(struct ida *ida, int id);
+void	ida_destroy(struct ida *ida);
+void	ida_init(struct ida *ida);
 
-int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
-		   gfp_t gfp_mask);
-void ida_simple_remove(struct ida *ida, unsigned int id);
+int	ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
+    gfp_t gfp_mask);
+void	ida_simple_remove(struct ida *ida, unsigned int id);
 
 static inline int
 ida_get_new(struct ida *ida, int *p_id)

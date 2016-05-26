@@ -69,32 +69,6 @@ typedef struct {
 	int counter;
 } atomic_t;
 
-
-typedef struct {
-	int64_t counter;
-} atomic64_t;
-
-
-#define ATOMIC64_INIT(i) { (i) }
-#ifdef __LP64__
-typedef atomic64_t atomic_long_t;
-
-
-
-
-#define ATOMIC_LONG_INIT(i)	ATOMIC64_INIT(i)
-#define ATOMIC_LONG_PFX(x)	atomic64 ## x
-
-
-#else
-
-typedef atomic_t atomic_long_t;
-
-#define ATOMIC_LONG_INIT(i)	ATOMIC_INIT(i)
-#define ATOMIC_LONG_PFX(x)	atomic ## x
-
-#endif
-
 #define pgoff_t unsigned long
 
 #endif	/* _LINUX_TYPES_H_ */

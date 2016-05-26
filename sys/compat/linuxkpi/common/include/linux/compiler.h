@@ -77,9 +77,8 @@
 
 #define	barrier()			__asm__ __volatile__("": : :"memory")
 
-
-#define ___PASTE(a,b) a##b
-#define __PASTE(a,b) ___PASTE(a,b)
+#define	___PASTE(a,b) a##b
+#define	__PASTE(a,b) ___PASTE(a,b)
 
 
 #ifndef PRINT_UNIMPLEMENTED
@@ -126,12 +125,7 @@
 	__var;				\
 })
 
-#define lockless_dereference(p) \
-({ \
-	typeof(p) _________p1 = READ_ONCE(p); \
-	smp_read_barrier_depends(); /* Dependency order vs. p above. */ \
-	(_________p1); \
-})
+#define	lockless_dereference(p) READ_ONCE(p)
 
 #define	_AT(T,X)	((T)(X))
 

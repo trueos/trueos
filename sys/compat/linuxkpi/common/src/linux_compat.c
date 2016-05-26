@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/async.h>
 #include <linux/compat.h>
 #include <linux/uaccess.h>
+#include <linux/list.h>
 #include <linux/smp.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>

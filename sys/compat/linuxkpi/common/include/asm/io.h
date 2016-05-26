@@ -33,7 +33,4 @@
 
 #include <linux/io.h>
 
-#define IO_SPACE_LIMIT 0xffff
-
-
 #endif	/* _ASM_IO_H_ */

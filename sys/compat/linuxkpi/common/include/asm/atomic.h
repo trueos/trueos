@@ -53,7 +53,6 @@
 #define	atomic_inc_and_test(v)		(atomic_add_return(1, (v)) == 0)
 #define	atomic_dec_return(v)		atomic_sub_return(1, (v))
 #define	atomic_inc_not_zero(v)		atomic_add_unless((v), 1, 0)
-#define atomic_long_inc_not_zero	atomic64_inc_not_zero
 
 static inline int
 atomic_add_return(int i, atomic_t *v)
@@ -74,13 +73,6 @@ atomic_set(atomic_t *v, int i)
 }
 
 static inline void
-atomic64_set(atomic64_t *v, long i)
-{
-	atomic_store_rel_long(&v->counter, i);
-}
-
-
-static inline void
 atomic_set_mask(unsigned int mask, atomic_t *v)
 {
 	atomic_set_int(&v->counter, mask);
@@ -90,12 +82,6 @@ static inline int
 atomic_read(atomic_t *v)
 {
 	return atomic_load_acq_int(&v->counter);
-}
-
-static inline long
-atomic_long_read(atomic64_t *v)
-{
-	return atomic_load_acq_long(&v->counter);
 }
 
 static inline int
@@ -128,50 +114,12 @@ atomic_add_unless(atomic_t *v, int a, int u)
 static inline void
 atomic_clear_mask(unsigned int mask, atomic_t *v)
 {
-
 	atomic_clear_int(&v->counter, mask);
 }
-
-static inline long
-atomic64_xchg(atomic64_t *v, long i)
-{
-
-	return (atomic_swap_long(&v->counter, i));
-}
-
-
-static inline uint64_t
-atomic64_read(atomic64_t *v)
-{
-	return atomic_load_acq_long(&v->counter);
-}
-
-
-#define	atomic64_cmpxchg(ptr, old, new) \
-    (atomic_cmpset_long((volatile uint64_t *)(ptr),(old),(new)) ? (old) : (0))
-
-static inline int atomic64_add_unless(atomic64_t *v, long a, long u)
-{
-	long c, old;
-	c = atomic64_read(v);
-	for (;;) {
-		if (unlikely(c == (u)))
-			break;
-		old = atomic64_cmpxchg((v), c, c + (a));
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return c != (u);
-}
-
-
-#include <asm-generic/atomic.h>
 
 static inline int
 atomic_xchg(atomic_t *v, int i)
 {
-
 #if defined(__i386__) || defined(__amd64__) || \
     defined(__arm__) || defined(__aarch64__)
 	return (atomic_swap_int(&v->counter, i));

@@ -48,9 +48,9 @@
 #define	__GFP_NOWARN	0
 #define	__GFP_HIGHMEM	0
 #define	__GFP_ZERO	M_ZERO
-#define __GFP_NORETRY	0
-#define __GFP_RECLAIM   0
-#define __GFP_RECLAIMABLE   0
+#define	__GFP_NORETRY	0
+#define	__GFP_RECLAIM   0
+#define	__GFP_RECLAIMABLE   0
 
 #define	__GFP_IO	0
 #define	__GFP_NO_KSWAPD	0
@@ -178,9 +178,7 @@ static inline uintptr_t __get_free_pages(gfp_t gfp_mask, unsigned int order)
 #define alloc_pages_node(node, mask, order)     alloc_pages(mask, order)
 
 #define kmalloc_node(chunk, mask, node)         kmalloc(chunk, mask)
-/*
-* AFAICT FreeBSD has no analog
-*/
+
 #define	SetPageReserved(page)	do { } while (0)	/* NOP */
 #define	ClearPageReserved(page)	do { } while (0)	/* NOP */
 
