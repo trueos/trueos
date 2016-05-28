@@ -116,7 +116,7 @@
 
 #define wait_for_atomic_us(COND, US) ({ \
 	int i, ret__ = -ETIMEDOUT;	\
-	for (i = 0; i < (US); i++) {	\
+	for (i = 0; i < (US) + 1; i++) {\
 		if ((COND)) {		\
 			ret__ = 0;	\
 			break;		\
