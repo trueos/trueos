@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 static vm_object_t default_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 static void default_pager_dealloc(vm_object_t);
-static int default_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
+static int default_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *, int);
 static void default_pager_putpages(vm_object_t, vm_page_t *, int, 
 		boolean_t, int *);
 static boolean_t default_pager_haspage(vm_object_t, vm_pindex_t, int *, 
@@ -123,7 +123,7 @@ default_pager_dealloc(object)
  */
 static int
 default_pager_getpages(vm_object_t object, vm_page_t *m, int count,
-    int *rbehind, int *rahead)
+    int *rbehind, int *rahead, int prot)
 {
 
 	return (VM_PAGER_FAIL);

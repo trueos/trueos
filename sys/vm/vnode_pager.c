@@ -84,7 +84,7 @@ static int vnode_pager_addr(struct vnode *vp, vm_ooffset_t address,
 static int vnode_pager_input_smlfs(vm_object_t object, vm_page_t m);
 static int vnode_pager_input_old(vm_object_t object, vm_page_t m);
 static void vnode_pager_dealloc(vm_object_t);
-static int vnode_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
+static int vnode_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *, int);
 static int vnode_pager_getpages_async(vm_object_t, vm_page_t *, int, int *,
     int *, vop_getpages_iodone_t, void *);
 static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
@@ -673,14 +673,14 @@ vnode_pager_input_old(vm_object_t object, vm_page_t m)
  */
 static int
 vnode_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
-    int *rahead)
+    int *rahead, int prot)
 {
 	struct vnode *vp;
 	int rtval;
 
 	vp = object->handle;
 	VM_OBJECT_WUNLOCK(object);
-	rtval = VOP_GETPAGES(vp, m, count, rbehind, rahead);
+	rtval = VOP_GETPAGES(vp, m, count, rbehind, rahead, prot);
 	KASSERT(rtval != EOPNOTSUPP,
 	    ("vnode_pager: FS getpages not implemented\n"));
 	VM_OBJECT_WLOCK(object);
