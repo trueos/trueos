@@ -628,6 +628,10 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 			vm_page_remove(page);
 			vm_page_unlock(page);
 		}
+		if (cvma.vm_pfn_count > 1 && page->object == NULL)
+			TAILQ_INSERT_TAIL(&vm_obj->un_pager.devp.devp_pglist,
+			    page, plinks.q);
+
 		while (page->object == NULL && vm_page_insert(page, vm_obj, OFF_TO_IDX(offset + PAGE_SIZE*i))) {
 			VM_OBJECT_WUNLOCK(vm_obj);
 			VM_WAIT;
