@@ -20,7 +20,8 @@ SRCS=	linux_acpi.c \
 	linux_reservation.c \
 	linux_string.c \
 	linux_sysfs.c \
-	linux_usb.c
+	linux_usb.c \
+	linux_video.c
 
 SRCS+=	bus_if.h \
 	device_if.h \
