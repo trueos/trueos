@@ -637,7 +637,6 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	}
 	MPASS(cvma.vm_pfn_count >= count);
 
-	atomic_add_long(&linux_pager_prefaults, cvma.vm_pfn_count - 1);
 	if (rahead)
 		*rahead = cvma.vm_pfn_count - 1;
 	vm_page_assert_xbusied(mres[0]);
