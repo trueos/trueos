@@ -30,6 +30,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bwn.h"
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
@@ -101,6 +104,7 @@ static const struct bwn_pci_device bcma_devices[] = {
 	BWN_BCM_DEV(BCM4331_D11N,	"BCM4331 802.11n Dual-Band",	0),
 	BWN_BCM_DEV(BCM4331_D11N2G,	"BCM4331 802.11n 2GHz",		0),
 	BWN_BCM_DEV(BCM4331_D11N5G,	"BCM4331 802.11n 5GHz",		0),
+	BWN_BCM_DEV(BCM43225_D11N2G,	"BCM43225 802.11n 2GHz",	0),
 
 	{ 0, 0, NULL, 0}
 };

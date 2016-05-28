@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/hyperv_busdma.h>
 #include "hv_net_vsc.h"
 #include "hv_rndis.h"
 #include "hv_rndis_filter.h"
@@ -140,7 +141,7 @@ __FBSDID("$FreeBSD$");
 
 #define HN_RNDIS_MSG_LEN		\
     (sizeof(rndis_msg) +		\
-     RNDIS_HASH_PPI_SIZE +		\
+     RNDIS_HASHVAL_PPI_SIZE +		\
      RNDIS_VLAN_PPI_SIZE +		\
      RNDIS_TSO_PPI_SIZE +		\
      RNDIS_CSUM_PPI_SIZE)
@@ -866,7 +867,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	rndis_msg *rndis_mesg;
 	rndis_packet *rndis_pkt;
 	rndis_per_packet_info *rppi;
-	struct ndis_hash_info *hash_info;
+	struct rndis_hash_value *hash_value;
 	uint32_t rndis_msg_size;
 
 	packet = &txd->netvsc_pkt;
@@ -892,16 +893,16 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	rndis_msg_size = RNDIS_MESSAGE_SIZE(rndis_packet);
 
 	/*
-	 * Set the hash info for this packet, so that the host could
+	 * Set the hash value for this packet, so that the host could
 	 * dispatch the TX done event for this packet back to this TX
 	 * ring's channel.
 	 */
-	rndis_msg_size += RNDIS_HASH_PPI_SIZE;
-	rppi = hv_set_rppi_data(rndis_mesg, RNDIS_HASH_PPI_SIZE,
+	rndis_msg_size += RNDIS_HASHVAL_PPI_SIZE;
+	rppi = hv_set_rppi_data(rndis_mesg, RNDIS_HASHVAL_PPI_SIZE,
 	    nbl_hash_value);
-	hash_info = (struct ndis_hash_info *)((uint8_t *)rppi +
+	hash_value = (struct rndis_hash_value *)((uint8_t *)rppi +
 	    rppi->per_packet_info_offset);
-	hash_info->hash = txr->hn_tx_idx;
+	hash_value->hash_value = txr->hn_tx_idx;
 
 	if (m_head->m_flags & M_VLANTAG) {
 		ndis_8021q_info *rppi_vlan_info;
@@ -1291,7 +1292,9 @@ hv_m_append(struct mbuf *m0, int len, c_caddr_t cp)
  */
 int
 netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
-    rndis_tcp_ip_csum_info *csum_info)
+    const rndis_tcp_ip_csum_info *csum_info,
+    const struct rndis_hash_info *hash_info,
+    const struct rndis_hash_value *hash_value)
 {
 	struct hn_rx_ring *rxr = chan->hv_chan_rxr;
 	struct ifnet *ifp = rxr->hn_ifp;
@@ -1400,7 +1403,6 @@ netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
 					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
 					m_new->m_pkthdr.csum_data = 0xffff;
 				}
-				/* Rely on SW csum verification though... */
 				do_lro = 1;
 			} else if (pr == IPPROTO_UDP) {
 				if (do_csum &&
@@ -1427,8 +1429,50 @@ skip:
 		m_new->m_flags |= M_VLANTAG;
 	}
 
-	m_new->m_pkthdr.flowid = rxr->hn_rx_idx;
-	M_HASHTYPE_SET(m_new, M_HASHTYPE_OPAQUE);
+	if (hash_info != NULL && hash_value != NULL) {
+		int hash_type = M_HASHTYPE_OPAQUE;
+
+		rxr->hn_rss_pkts++;
+		m_new->m_pkthdr.flowid = hash_value->hash_value;
+		if ((hash_info->hash_info & NDIS_HASH_FUNCTION_MASK) ==
+		    NDIS_HASH_FUNCTION_TOEPLITZ) {
+			uint32_t type =
+			    (hash_info->hash_info & NDIS_HASH_TYPE_MASK);
+
+			switch (type) {
+			case NDIS_HASH_IPV4:
+				hash_type = M_HASHTYPE_RSS_IPV4;
+				break;
+
+			case NDIS_HASH_TCP_IPV4:
+				hash_type = M_HASHTYPE_RSS_TCP_IPV4;
+				break;
+
+			case NDIS_HASH_IPV6:
+				hash_type = M_HASHTYPE_RSS_IPV6;
+				break;
+
+			case NDIS_HASH_IPV6_EX:
+				hash_type = M_HASHTYPE_RSS_IPV6_EX;
+				break;
+
+			case NDIS_HASH_TCP_IPV6:
+				hash_type = M_HASHTYPE_RSS_TCP_IPV6;
+				break;
+
+			case NDIS_HASH_TCP_IPV6_EX:
+				hash_type = M_HASHTYPE_RSS_TCP_IPV6_EX;
+				break;
+			}
+		}
+		M_HASHTYPE_SET(m_new, hash_type);
+	} else {
+		if (hash_value != NULL)
+			m_new->m_pkthdr.flowid = hash_value->hash_value;
+		else
+			m_new->m_pkthdr.flowid = rxr->hn_rx_idx;
+		M_HASHTYPE_SET(m_new, M_HASHTYPE_OPAQUE);
+	}
 
 	/*
 	 * Note:  Moved RX completion back to hv_nv_on_receive() so all
@@ -2128,18 +2172,6 @@ hn_check_iplen(const struct mbuf *m, int hoff)
 }
 
 static void
-hn_dma_map_paddr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	bus_addr_t *paddr = arg;
-
-	if (error)
-		return;
-
-	KASSERT(nseg == 1, ("too many segments %d!", nseg));
-	*paddr = segs->ds_addr;
-}
-
-static void
 hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 {
 	struct sysctl_oid_list *child;
@@ -2219,6 +2251,11 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
 				    OID_AUTO, "packets", CTLFLAG_RW,
 				    &rxr->hn_pkts, "# of packets received");
+				SYSCTL_ADD_ULONG(ctx,
+				    SYSCTL_CHILDREN(rxr->hn_rx_sysctl_tree),
+				    OID_AUTO, "rss_pkts", CTLFLAG_RW,
+				    &rxr->hn_rss_pkts,
+				    "# of packets w/ RSS info received");
 			}
 		}
 	}
@@ -2424,7 +2461,7 @@ hn_create_tx_ring(struct hn_softc *sc, int id)
 		error = bus_dmamap_load(txr->hn_tx_rndis_dtag,
 		    txd->rndis_msg_dmap,
 		    txd->rndis_msg, HN_RNDIS_MSG_LEN,
-		    hn_dma_map_paddr, &txd->rndis_msg_paddr,
+		    hyperv_dma_map_paddr, &txd->rndis_msg_paddr,
 		    BUS_DMA_NOWAIT);
 		if (error) {
 			device_printf(sc->hn_dev,

@@ -525,19 +525,21 @@ native_lapic_init(vm_paddr_t addr)
 	 */
 	KASSERT((cpu_feature & CPUID_TSC) != 0 && tsc_freq != 0,
 	    ("TSC not initialized"));
-	r = rdtsc();
-	for (rx = 0; rx < LOOPS; rx++) {
-		(void)lapic_read_icr_lo();
-		ia32_pause();
-	}
-	r = rdtsc() - r;
-	r1 = tsc_freq * LOOPS;
-	r2 = r * 1000000;
-	lapic_ipi_wait_mult = r1 >= r2 ? r1 / r2 : 1;
-	if (bootverbose) {
-		printf("LAPIC: ipi_wait() us multiplier %ju (r %ju tsc %ju)\n",
-		    (uintmax_t)lapic_ipi_wait_mult, (uintmax_t)r,
-		    (uintmax_t)tsc_freq);
+	if (!x2apic_mode) {
+		r = rdtsc();
+		for (rx = 0; rx < LOOPS; rx++) {
+			(void)lapic_read_icr_lo();
+			ia32_pause();
+		}
+		r = rdtsc() - r;
+		r1 = tsc_freq * LOOPS;
+		r2 = r * 1000000;
+		lapic_ipi_wait_mult = r1 >= r2 ? r1 / r2 : 1;
+		if (bootverbose) {
+			printf("LAPIC: ipi_wait() us multiplier %ju (r %ju "
+			    "tsc %ju)\n", (uintmax_t)lapic_ipi_wait_mult,
+			    (uintmax_t)r, (uintmax_t)tsc_freq);
+		}
 	}
 #undef LOOPS
 #endif /* SMP */
@@ -749,6 +751,10 @@ native_lapic_enable_pmc(void)
 
 	lvts[APIC_LVT_PMC].lvt_masked = 0;
 
+#ifdef EARLY_AP_STARTUP
+	MPASS(mp_ncpus == 1 || smp_started);
+	smp_rendezvous(NULL, lapic_update_pmc, NULL, NULL);
+#else
 #ifdef SMP
 	/*
 	 * If hwpmc was loaded at boot time then the APs may not be
@@ -760,6 +766,7 @@ native_lapic_enable_pmc(void)
 	else
 #endif
 		lapic_update_pmc(NULL);
+#endif
 	return (1);
 #else
 	return (0);

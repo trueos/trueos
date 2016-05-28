@@ -333,7 +333,7 @@ static inline void db_iowrite(struct ntb_softc *, uint64_t regoff, uint64_t);
 static inline void db_iowrite_raw(struct ntb_softc *, uint64_t regoff, uint64_t);
 static int ntb_create_msix_vec(struct ntb_softc *ntb, uint32_t num_vectors);
 static void ntb_free_msix_vec(struct ntb_softc *ntb);
-static void ntb_get_msix_info(struct ntb_softc *ntb, uint32_t num_vectors);
+static void ntb_get_msix_info(struct ntb_softc *ntb);
 static void ntb_exchange_msix(void *);
 static struct ntb_hw_info *ntb_get_device_info(uint32_t device_id);
 static void ntb_detect_max_mw(struct ntb_softc *ntb);
@@ -364,6 +364,8 @@ static bool ntb_poll_link(struct ntb_softc *ntb);
 static void save_bar_parameters(struct ntb_pci_bar_info *bar);
 static void ntb_sysctl_init(struct ntb_softc *);
 static int sysctl_handle_features(SYSCTL_HANDLER_ARGS);
+static int sysctl_handle_link_admin(SYSCTL_HANDLER_ARGS);
+static int sysctl_handle_link_status_human(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_link_status(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_register(SYSCTL_HANDLER_ARGS);
 
@@ -1065,10 +1067,18 @@ ntb_init_isr(struct ntb_softc *ntb)
 		ntb->db_vec_shift = XEON_DB_TOTAL_SHIFT;
 		rc = ntb_setup_legacy_interrupt(ntb);
 	} else {
+		if (num_vectors - 1 != XEON_NONLINK_DB_MSIX_BITS &&
+		    HAS_FEATURE(NTB_SB01BASE_LOCKUP)) {
+			device_printf(ntb->device,
+			    "Errata workaround expects %d doorbell bits\n",
+			    XEON_NONLINK_DB_MSIX_BITS);
+			return (EINVAL);
+		}
+
 		ntb_create_msix_vec(ntb, num_vectors);
 		rc = ntb_setup_msix(ntb, num_vectors);
 		if (rc == 0 && HAS_FEATURE(NTB_SB01BASE_LOCKUP))
-			ntb_get_msix_info(ntb, num_vectors);
+			ntb_get_msix_info(ntb);
 	}
 	if (rc != 0) {
 		device_printf(ntb->device,
@@ -1333,7 +1343,7 @@ ntb_free_msix_vec(struct ntb_softc *ntb)
 }
 
 static void
-ntb_get_msix_info(struct ntb_softc *ntb, uint32_t num_vectors)
+ntb_get_msix_info(struct ntb_softc *ntb)
 {
 	struct pci_devinfo *dinfo;
 	struct pcicfg_msix *msix;
@@ -1344,7 +1354,9 @@ ntb_get_msix_info(struct ntb_softc *ntb, uint32_t num_vectors)
 
 	laddr = data = 0;
 
-	for (i = 0; i < num_vectors; i++) {
+	CTASSERT(XEON_NONLINK_DB_MSIX_BITS == nitems(ntb->msix_data));
+
+	for (i = 0; i < XEON_NONLINK_DB_MSIX_BITS; i++) {
 		offset = msix->msix_table_offset + i * PCI_MSIX_ENTRY_SIZE;
 
 		laddr = bus_read_4(msix->msix_table_res, offset +
@@ -2132,6 +2144,8 @@ ntb_link_enable(struct ntb_softc *ntb, enum ntb_speed s __unused,
 {
 	uint32_t cntl;
 
+	ntb_printf(2, "%s\n", __func__);
+
 	if (ntb->type == NTB_ATOM) {
 		pci_write_config(ntb->device, NTB_PPD_OFFSET,
 		    ntb->ppd | ATOM_PPD_INIT_LINK, 4);
@@ -2170,6 +2184,8 @@ ntb_link_disable(struct ntb_softc *ntb)
 {
 	uint32_t cntl;
 
+	ntb_printf(2, "%s\n", __func__);
+
 	if (ntb->conn_type == NTB_CONN_TRANSPARENT) {
 		ntb_link_event(ntb);
 		return (0);
@@ -2183,6 +2199,23 @@ ntb_link_disable(struct ntb_softc *ntb)
 	cntl |= NTB_CNTL_LINK_DISABLE | NTB_CNTL_CFG_LOCK;
 	ntb_reg_write(4, ntb->reg->ntb_ctl, cntl);
 	return (0);
+}
+
+bool
+ntb_link_enabled(struct ntb_softc *ntb)
+{
+	uint32_t cntl;
+
+	if (ntb->type == NTB_ATOM) {
+		cntl = pci_read_config(ntb->device, NTB_PPD_OFFSET, 4);
+		return ((cntl & ATOM_PPD_INIT_LINK) != 0);
+	}
+
+	if (ntb->conn_type == NTB_CONN_TRANSPARENT)
+		return (true);
+
+	cntl = ntb_reg_read(4, ntb->reg->ntb_ctl);
+	return ((cntl & NTB_CNTL_LINK_DISABLE) == 0);
 }
 
 static void
@@ -2304,16 +2337,26 @@ SYSCTL_NODE(_hw_ntb, OID_AUTO, debug_info, CTLFLAG_RW, 0,
 static void
 ntb_sysctl_init(struct ntb_softc *ntb)
 {
-	struct sysctl_oid_list *tree_par, *regpar, *statpar, *errpar;
+	struct sysctl_oid_list *globals, *tree_par, *regpar, *statpar, *errpar;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid *tree, *tmptree;
 
 	ctx = device_get_sysctl_ctx(ntb->device);
+	globals = SYSCTL_CHILDREN(device_get_sysctl_tree(ntb->device));
 
-	tree = SYSCTL_ADD_NODE(ctx,
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(ntb->device)), OID_AUTO,
-	    "debug_info", CTLFLAG_RD, NULL,
-	    "Driver state, statistics, and HW registers");
+	SYSCTL_ADD_PROC(ctx, globals, OID_AUTO, "link_status",
+	    CTLFLAG_RD | CTLTYPE_STRING, ntb, 0,
+	    sysctl_handle_link_status_human, "A",
+	    "Link status (human readable)");
+	SYSCTL_ADD_PROC(ctx, globals, OID_AUTO, "active",
+	    CTLFLAG_RD | CTLTYPE_UINT, ntb, 0, sysctl_handle_link_status,
+	    "IU", "Link status (1=active, 0=inactive)");
+	SYSCTL_ADD_PROC(ctx, globals, OID_AUTO, "admin_up",
+	    CTLFLAG_RW | CTLTYPE_UINT, ntb, 0, sysctl_handle_link_admin,
+	    "IU", "Set/get interface status (1=UP, 0=DOWN)");
+
+	tree = SYSCTL_ADD_NODE(ctx, globals, OID_AUTO, "debug_info",
+	    CTLFLAG_RD, NULL, "Driver state, statistics, and HW registers");
 	tree_par = SYSCTL_CHILDREN(tree);
 
 	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "conn_type", CTLFLAG_RD,
@@ -2342,10 +2385,6 @@ ntb_sysctl_init(struct ntb_softc *ntb)
 	SYSCTL_ADD_UINT(ctx, tree_par, OID_AUTO, "lnk_sta", CTLFLAG_RD,
 	    __DEVOLATILE(uint32_t *, &ntb->lnk_sta), 0,
 	    "LNK STA register (cached)");
-
-	SYSCTL_ADD_PROC(ctx, tree_par, OID_AUTO, "link_status",
-	    CTLFLAG_RD | CTLTYPE_STRING, ntb, 0, sysctl_handle_link_status,
-	    "A", "Link status");
 
 	SYSCTL_ADD_U8(ctx, tree_par, OID_AUTO, "mw_count", CTLFLAG_RD,
 	    &ntb->mw_count, 0, "MW count");
@@ -2592,7 +2631,37 @@ sysctl_handle_features(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-sysctl_handle_link_status(SYSCTL_HANDLER_ARGS)
+sysctl_handle_link_admin(SYSCTL_HANDLER_ARGS)
+{
+	struct ntb_softc *ntb;
+	unsigned old, new;
+	int error;
+
+	error = 0;
+	ntb = arg1;
+
+	old = ntb_link_enabled(ntb);
+
+	error = SYSCTL_OUT(req, &old, sizeof(old));
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	error = SYSCTL_IN(req, &new, sizeof(new));
+	if (error != 0)
+		return (error);
+
+	ntb_printf(0, "Admin set interface state to '%sabled'\n",
+	    (new != 0)? "en" : "dis");
+
+	if (new != 0)
+		error = ntb_link_enable(ntb, NTB_SPEED_AUTO, NTB_WIDTH_AUTO);
+	else
+		error = ntb_link_disable(ntb);
+	return (error);
+}
+
+static int
+sysctl_handle_link_status_human(SYSCTL_HANDLER_ARGS)
 {
 	struct ntb_softc *ntb;
 	struct sbuf sb;
@@ -2614,6 +2683,24 @@ sysctl_handle_link_status(SYSCTL_HANDLER_ARGS)
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 
+	if (error || !req->newptr)
+		return (error);
+	return (EINVAL);
+}
+
+static int
+sysctl_handle_link_status(SYSCTL_HANDLER_ARGS)
+{
+	struct ntb_softc *ntb;
+	unsigned res;
+	int error;
+
+	error = 0;
+	ntb = arg1;
+
+	res = ntb_link_is_up(ntb, NULL, NULL);
+
+	error = SYSCTL_OUT(req, &res, sizeof(res));
 	if (error || !req->newptr)
 		return (error);
 	return (EINVAL);

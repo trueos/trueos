@@ -76,6 +76,9 @@ int	ofw_bus_lookup_imap(phandle_t, struct ofw_bus_iinfo *, void *, int,
 int	ofw_bus_search_intrmap(void *, int, void *, int, void *, int, void *,
 	    void *, void *, int, phandle_t *);
 
+/* Routines for processing msi maps */
+int ofw_bus_msimap(phandle_t, uint16_t, phandle_t *, uint32_t *);
+
 /* Routines for parsing device-tree data into resource lists. */
 int ofw_bus_reg_to_rl(device_t, phandle_t, pcell_t, pcell_t,
     struct resource_list *);
@@ -111,7 +114,7 @@ phandle_t ofw_bus_find_compatible(phandle_t, const char *);
 /* Helper to search for a child with a given name */
 phandle_t ofw_bus_find_child(phandle_t, const char *);
 
-/* Helper routine to find a device_t child matchig a given phandle_t */
+/* Helper routine to find a device_t child matching a given phandle_t */
 device_t ofw_bus_find_child_device_by_phandle(device_t bus, phandle_t node);
 
 /* Helper routines for parsing lists  */

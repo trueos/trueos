@@ -732,7 +732,7 @@ ti_adc_attach(device_t dev)
 	sc->sc_charge_delay = DEFAULT_CHARGE_DELAY;
 	/* Read "tsc" node properties */
 	child = ofw_bus_find_child(node, "tsc");
-	if (child != 0) {
+	if (child != 0 && OF_hasprop(child, "ti,wires")) {
 		if ((OF_getprop(child, "ti,wires", &cell, sizeof(cell))) > 0)
 			sc->sc_tsc_wires = fdt32_to_cpu(cell);
 		if ((OF_getprop(child, "ti,coordinate-readouts", &cell, sizeof(cell))) > 0)
@@ -745,13 +745,13 @@ ti_adc_attach(device_t dev)
 		    sizeof(*wire_configs), (void **)&wire_configs);
 		if (nwire_configs != sc->sc_tsc_wires) {
 			device_printf(sc->sc_dev,
-			    "invalid nubmer of ti,wire-config: %d (should be %d)\n",
+			    "invalid number of ti,wire-config: %d (should be %d)\n",
 			    nwire_configs, sc->sc_tsc_wires);
-			free(wire_configs, M_OFWPROP);
+			OF_prop_free(wire_configs);
 			return (EINVAL);
 		}
 		err = ti_adc_config_wires(sc, wire_configs, nwire_configs);
-		free(wire_configs, M_OFWPROP);
+		OF_prop_free(wire_configs);
 		if (err)
 			return (EINVAL);
 	}
@@ -764,7 +764,7 @@ ti_adc_attach(device_t dev)
 		if (sc->sc_adc_nchannels > 0) {
 			for (i = 0; i < sc->sc_adc_nchannels; i++)
 				sc->sc_adc_channels[i] = channels[i];
-			free(channels, M_OFWPROP);
+			OF_prop_free(channels);
 		}
 	}
 

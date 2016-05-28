@@ -105,6 +105,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -1725,7 +1727,7 @@ iwm_init_channel_map(struct ieee80211com *ic, int maxchans, int *nchans,
 {
 	struct iwm_softc *sc = ic->ic_softc;
 	struct iwm_nvm_data *data = &sc->sc_nvm;
-	uint8_t bands[howmany(IEEE80211_MODE_MAX, 8)];
+	uint8_t bands[IEEE80211_MODE_BYTES];
 
 	memset(bands, 0, sizeof(bands));
 	/* 1-13: 11b/g channels. */
@@ -3827,7 +3829,6 @@ iwm_stop(struct iwm_softc *sc)
 	sc->sc_flags |= IWM_FLAG_STOPPED;
 	sc->sc_generation++;
 	sc->sc_scanband = 0;
-	sc->sc_auth_prot = 0;
 	sc->sc_tx_timer = 0;
 	iwm_stop_device(sc);
 }
@@ -3836,6 +3837,7 @@ static void
 iwm_watchdog(void *arg)
 {
 	struct iwm_softc *sc = arg;
+	struct ieee80211com *ic = &sc->sc_ic;
 
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
@@ -3843,8 +3845,8 @@ iwm_watchdog(void *arg)
 #ifdef IWM_DEBUG
 			iwm_nic_error(sc);
 #endif
-			iwm_stop(sc);
-			counter_u64_add(sc->sc_ic.ic_oerrors, 1);
+			ieee80211_restart_all(ic);
+			counter_u64_add(ic->ic_oerrors, 1);
 			return;
 		}
 	}
@@ -4243,20 +4245,9 @@ iwm_notif_intr(struct iwm_softc *sc)
 			struct iwm_time_event_notif *notif;
 			SYNC_RESP_STRUCT(notif, pkt);
 
-			if (notif->status) {
-				if (le32toh(notif->action) &
-				    IWM_TE_V2_NOTIF_HOST_EVENT_START)
-					sc->sc_auth_prot = 2;
-				else
-					sc->sc_auth_prot = 0;
-			} else {
-				sc->sc_auth_prot = -1;
-			}
 			IWM_DPRINTF(sc, IWM_DEBUG_INTR,
-			    "%s: time event notification auth_prot=%d\n",
-				__func__, sc->sc_auth_prot);
-
-			wakeup(&sc->sc_auth_prot);
+			    "TE notif status = 0x%x action = 0x%x\n",
+			        notif->status, notif->action);
 			break; }
 
 		case IWM_MCAST_FILTER_CMD:

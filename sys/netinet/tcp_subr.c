@@ -934,16 +934,54 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		}
 		bcopy((caddr_t)th, (caddr_t)nth, sizeof(struct tcphdr));
 		flags = TH_ACK;
+	} else if (!M_WRITABLE(m)) {
+		struct mbuf *n;
+
+		/* Can't reuse 'm', allocate a new mbuf. */
+		n = m_gethdr(M_NOWAIT, MT_DATA);
+		if (n == NULL) {
+			m_freem(m);
+			return;
+		}
+
+		if (!m_dup_pkthdr(n, m, M_NOWAIT)) {
+			m_freem(m);
+			m_freem(n);
+			return;
+		}
+
+		n->m_data += max_linkhdr;
+		/* m_len is set later */
+#define xchg(a,b,type) { type t; t=a; a=b; b=t; }
+#ifdef INET6
+		if (isipv6) {
+			bcopy((caddr_t)ip6, mtod(n, caddr_t),
+			      sizeof(struct ip6_hdr));
+			ip6 = mtod(n, struct ip6_hdr *);
+			xchg(ip6->ip6_dst, ip6->ip6_src, struct in6_addr);
+			nth = (struct tcphdr *)(ip6 + 1);
+		} else
+#endif /* INET6 */
+		{
+			bcopy((caddr_t)ip, mtod(n, caddr_t), sizeof(struct ip));
+			ip = mtod(n, struct ip *);
+			xchg(ip->ip_dst.s_addr, ip->ip_src.s_addr, uint32_t);
+			nth = (struct tcphdr *)(ip + 1);
+		}
+		bcopy((caddr_t)th, (caddr_t)nth, sizeof(struct tcphdr));
+		xchg(nth->th_dport, nth->th_sport, uint16_t);
+		th = nth;
+		m_freem(m);
+		m = n;
 	} else {
 		/*
 		 *  reuse the mbuf. 
-		 * XXX MRT We inherrit the FIB, which is lucky.
+		 * XXX MRT We inherit the FIB, which is lucky.
 		 */
 		m_freem(m->m_next);
 		m->m_next = NULL;
 		m->m_data = (caddr_t)ipgen;
 		/* m_len is set later */
-#define xchg(a,b,type) { type t; t=a; a=b; b=t; }
 #ifdef INET6
 		if (isipv6) {
 			xchg(ip6->ip6_dst, ip6->ip6_src, struct in6_addr);
@@ -1642,7 +1680,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	 */
 	if (req->oldptr == NULL) {
 		n = V_tcbinfo.ipi_count +
-		    counter_u64_fetch(VNET(tcps_states)[TCPS_SYN_RECEIVED]);
+		    counter_u64_fetch(V_tcps_states[TCPS_SYN_RECEIVED]);
 		n += imax(n / 8, 10);
 		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xtcpcb);
 		return (0);
@@ -1659,7 +1697,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	n = V_tcbinfo.ipi_count;
 	INP_LIST_RUNLOCK(&V_tcbinfo);
 
-	m = counter_u64_fetch(VNET(tcps_states)[TCPS_SYN_RECEIVED]);
+	m = counter_u64_fetch(V_tcps_states[TCPS_SYN_RECEIVED]);
 
 	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
 		+ (n + m) * sizeof(struct xtcpcb));

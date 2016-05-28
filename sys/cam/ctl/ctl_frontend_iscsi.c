@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -1263,7 +1264,7 @@ cfiscsi_session_new(struct cfiscsi_softc *softc, const char *offload)
 	cv_init(&cs->cs_login_cv, "cfiscsi_login");
 #endif
 
-	cs->cs_conn = icl_new_conn(offload, "cfiscsi", &cs->cs_lock);
+	cs->cs_conn = icl_new_conn(offload, false, "cfiscsi", &cs->cs_lock);
 	if (cs->cs_conn == NULL) {
 		free(cs, M_CFISCSI);
 		return (NULL);
@@ -1792,7 +1793,8 @@ cfiscsi_ioctl_limits(struct ctl_iscsi *ci)
 
 	cilp = (struct ctl_iscsi_limits_params *)&(ci->data);
 
-	error = icl_limits(cilp->offload, &cilp->data_segment_limit);
+	error = icl_limits(cilp->offload, false,
+	    &cilp->data_segment_limit);
 	if (error != 0) {
 		ci->status = CTL_ISCSI_ERROR;
 		snprintf(ci->error_str, sizeof(ci->error_str),

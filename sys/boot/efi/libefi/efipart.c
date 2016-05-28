@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <efiprot.h>
 
 static EFI_GUID blkio_guid = BLOCK_IO_PROTOCOL;
-static EFI_GUID devpath_guid = DEVICE_PATH_PROTOCOL;
 
 static int efipart_init(void);
 static int efipart_strategy(void *, int, daddr_t, size_t, size_t, char *,
@@ -85,7 +84,6 @@ efipart_init(void)
 	UINTN sz;
 	u_int n, nin, nout;
 	int err;
-	size_t devpathlen;
 
 	sz = 0;
 	hin = NULL;
@@ -112,19 +110,10 @@ efipart_init(void)
 		return (ENOMEM);
 
 	for (n = 0; n < nin; n++) {
-		status = BS->HandleProtocol(hin[n], &devpath_guid,
-		    (void **)&devpath);
-		if (EFI_ERROR(status)) {
+		devpath = efi_lookup_devpath(hin[n]);
+		if (devpath == NULL) {
 			continue;
 		}
-
-		node = devpath;
-		devpathlen = DevicePathNodeLength(node);
-		while (!IsDevicePathEnd(NextDevicePathNode(node))) {
-			node = NextDevicePathNode(node);
-			devpathlen += DevicePathNodeLength(node);
-		}
-		devpathlen += DevicePathNodeLength(NextDevicePathNode(node));
 
 		status = BS->HandleProtocol(hin[n], &blkio_guid,
 		    (void**)&blkio);
@@ -140,14 +129,10 @@ efipart_init(void)
 		 * we try to find the parent device and add that instead as
 		 * that will be the CD filesystem.
 		 */
+		node = efi_devpath_last_node(devpath);
 		if (DevicePathType(node) == MEDIA_DEVICE_PATH &&
 		    DevicePathSubType(node) == MEDIA_CDROM_DP) {
-			devpathcpy = malloc(devpathlen);
-			memcpy(devpathcpy, devpath, devpathlen);
-			node = devpathcpy;
-			while (!IsDevicePathEnd(NextDevicePathNode(node)))
-				node = NextDevicePathNode(node);
-			SetDevicePathEndNode(node);
+			devpathcpy = efi_devpath_trim(devpath);
 			tmpdevpath = devpathcpy;
 			status = BS->LocateDevicePath(&blkio_guid, &tmpdevpath,
 			    &handle);
@@ -180,21 +165,27 @@ efipart_print(int verbose)
 	EFI_STATUS status;
 	u_int unit;
 
+	pager_open();
 	for (unit = 0, h = efi_find_handle(&efipart_dev, 0);
 	    h != NULL; h = efi_find_handle(&efipart_dev, ++unit)) {
 		sprintf(line, "    %s%d:", efipart_dev.dv_name, unit);
-		pager_output(line);
+		if (pager_output(line))
+			break;
 
 		status = BS->HandleProtocol(h, &blkio_guid, (void **)&blkio);
 		if (!EFI_ERROR(status)) {
 			sprintf(line, "    %llu blocks",
 			    (unsigned long long)(blkio->Media->LastBlock + 1));
-			pager_output(line);
+			if (pager_output(line))
+				break;
 			if (blkio->Media->RemovableMedia)
-				pager_output(" (removable)");
+				if (pager_output(" (removable)"))
+					break;
 		}
-		pager_output("\n");
+		if (pager_output("\n"))
+			break;
 	}
+	pager_close();
 }
 
 static int
@@ -334,11 +325,14 @@ efipart_realstrategy(void *devdata, int rw, daddr_t blk, size_t offset,
 	if (rsize != NULL)
 		*rsize = size;
 
-	if (blkio->Media->BlockSize == 512)
-		return (efipart_readwrite(blkio, rw, blk, size / 512, buf));
+        if ((size % blkio->Media->BlockSize == 0) &&
+	    ((blk * 512) % blkio->Media->BlockSize == 0))
+                return (efipart_readwrite(blkio, rw,
+		    blk * 512 / blkio->Media->BlockSize,
+		    size / blkio->Media->BlockSize, buf));
 
 	/*
-	 * The block size of the media is not 512B per sector.
+	 * The block size of the media is not a multiple of I/O.
 	 */
 	blkbuf = malloc(blkio->Media->BlockSize);
 	if (blkbuf == NULL)

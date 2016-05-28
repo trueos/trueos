@@ -350,12 +350,16 @@ static void		urtwn_set_rx_bssid_all(struct urtwn_softc *, int);
 static void		urtwn_set_gain(struct urtwn_softc *, uint8_t);
 static void		urtwn_scan_start(struct ieee80211com *);
 static void		urtwn_scan_end(struct ieee80211com *);
+static void		urtwn_getradiocaps(struct ieee80211com *, int, int *,
+			    struct ieee80211_channel[]);
 static void		urtwn_set_channel(struct ieee80211com *);
 static int		urtwn_wme_update(struct ieee80211com *);
 static void		urtwn_update_slot(struct ieee80211com *);
 static void		urtwn_update_slot_cb(struct urtwn_softc *,
 			    union sec_param *);
 static void		urtwn_update_aifs(struct urtwn_softc *, uint8_t);
+static uint8_t		urtwn_get_multi_pos(const uint8_t[]);
+static void		urtwn_set_multi(struct urtwn_softc *);
 static void		urtwn_set_promisc(struct urtwn_softc *);
 static void		urtwn_update_promisc(struct ieee80211com *);
 static void		urtwn_update_mcast(struct ieee80211com *);
@@ -456,6 +460,9 @@ static const struct wme_to_queue {
 	{ R92C_EDCA_VO_PARAM, URTWN_BULK_TX_VO}
 };
 
+static const uint8_t urtwn_chan_2ghz[] =
+	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
 static int
 urtwn_match(device_t self)
 {
@@ -490,7 +497,6 @@ urtwn_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	struct urtwn_softc *sc = device_get_softc(self);
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t bands[IEEE80211_MODE_BYTES];
 	int error;
 
 	device_set_usb_desc(self);
@@ -606,17 +612,16 @@ urtwn_attach(device_t self)
 		ic->ic_rxstream = sc->nrxchains;
 	}
 
-	memset(bands, 0, sizeof(bands));
-	setbit(bands, IEEE80211_MODE_11B);
-	setbit(bands, IEEE80211_MODE_11G);
-	if (urtwn_enable_11n)
-		setbit(bands, IEEE80211_MODE_11NG);
-	ieee80211_init_channels(ic, NULL, bands);
+	/* XXX TODO: setup regdomain if R92C_CHANNEL_PLAN_BY_HW bit is set. */
+
+	urtwn_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
+	    ic->ic_channels);
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = urtwn_raw_xmit;
 	ic->ic_scan_start = urtwn_scan_start;
 	ic->ic_scan_end = urtwn_scan_end;
+	ic->ic_getradiocaps = urtwn_getradiocaps;
 	ic->ic_set_channel = urtwn_set_channel;
 	ic->ic_transmit = urtwn_transmit;
 	ic->ic_parent = urtwn_parent;
@@ -2836,26 +2841,24 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211_channel *chan;
 	struct ieee80211_frame *wh;
 	struct r92c_tx_desc *txd;
-	uint8_t macid, raid, rate, ridx, subtype, type, tid, qsel;
+	uint8_t macid, raid, rate, ridx, type, tid, qos, qsel;
 	int hasqos, ismcast;
 
 	URTWN_ASSERT_LOCKED(sc);
 
-	/*
-	 * Software crypto.
-	 */
 	wh = mtod(m, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
-	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
 	hasqos = IEEE80211_QOS_HAS_SEQ(wh);
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 
 	/* Select TX ring for this frame. */
 	if (hasqos) {
-		tid = ((const struct ieee80211_qosframe *)wh)->i_qos[0];
-		tid &= IEEE80211_QOS_TID;
-	} else
+		qos = ((const struct ieee80211_qosframe *)wh)->i_qos[0];
+		tid = qos & IEEE80211_QOS_TID;
+	} else {
+		qos = 0;
 		tid = 0;
+	}
 
 	chan = (ni->ni_chan != IEEE80211_CHAN_ANYC) ?
 		ni->ni_chan : ic->ic_curchan;
@@ -2921,6 +2924,14 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		txd->txdw0 |= htole32(R92C_TXDW0_BMCAST);
 
 	if (!ismcast) {
+		/* Unicast frame, check if an ACK is expected. */
+		if (!qos || (qos & IEEE80211_QOS_ACKPOLICY) !=
+		    IEEE80211_QOS_ACKPOLICY_NOACK) {
+			txd->txdw5 |= htole32(R92C_TXDW5_RTY_LMT_ENA);
+			txd->txdw5 |= htole32(SM(R92C_TXDW5_RTY_LMT,
+			    tp->maxretry));
+		}
+
 		if (sc->chip & URTWN_CHIP_88E) {
 			struct urtwn_node *un = URTWN_NODE(ni);
 			macid = un->id;
@@ -3100,6 +3111,11 @@ urtwn_tx_raw(struct urtwn_softc *sc, struct ieee80211_node *ni,
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		txd->txdw0 |= htole32(R92C_TXDW0_BMCAST);
 
+	if ((params->ibp_flags & IEEE80211_BPF_NOACK) == 0) {
+		txd->txdw5 |= htole32(R92C_TXDW5_RTY_LMT_ENA);
+		txd->txdw5 |= htole32(SM(R92C_TXDW5_RTY_LMT,
+		    params->ibp_try0));
+	}
 	if (params->ibp_flags & IEEE80211_BPF_RTS)
 		txd->txdw4 |= htole32(R92C_TXDW4_RTSEN);
 	if (params->ibp_flags & IEEE80211_BPF_CTS)
@@ -4359,9 +4375,8 @@ urtwn_rxfilter_init(struct urtwn_softc *sc)
 
 	URTWN_ASSERT_LOCKED(sc);
 
-	/* Accept all multicast frames. */
-	urtwn_write_4(sc, R92C_MAR + 0, 0xffffffff);
-	urtwn_write_4(sc, R92C_MAR + 4, 0xffffffff);
+	/* Setup multicast filter. */
+	urtwn_set_multi(sc);
 
 	/* Filter for management frames. */
 	filter = 0x7f3f;
@@ -4732,6 +4747,21 @@ urtwn_scan_end(struct ieee80211com *ic)
 }
 
 static void
+urtwn_getradiocaps(struct ieee80211com *ic,
+    int maxchans, int *nchans, struct ieee80211_channel chans[])
+{
+	uint8_t bands[IEEE80211_MODE_BYTES];
+
+	memset(bands, 0, sizeof(bands));
+	setbit(bands, IEEE80211_MODE_11B);
+	setbit(bands, IEEE80211_MODE_11G);
+	if (urtwn_enable_11n)
+		setbit(bands, IEEE80211_MODE_11NG);
+	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    urtwn_chan_2ghz, nitems(urtwn_chan_2ghz), bands, 0);
+}
+
+static void
 urtwn_set_channel(struct ieee80211com *ic)
 {
 	struct urtwn_softc *sc = ic->ic_softc;
@@ -4822,6 +4852,67 @@ urtwn_update_aifs(struct urtwn_softc *sc, uint8_t slottime)
         }
 }
 
+static uint8_t
+urtwn_get_multi_pos(const uint8_t maddr[])
+{
+	uint64_t mask = 0x00004d101df481b4;
+	uint8_t pos = 0x27;	/* initial value */
+	int i, j;
+
+	for (i = 0; i < IEEE80211_ADDR_LEN; i++)
+		for (j = (i == 0) ? 1 : 0; j < 8; j++)
+			if ((maddr[i] >> j) & 1)
+				pos ^= (mask >> (i * 8 + j - 1));
+
+	pos &= 0x3f;
+
+	return (pos);
+}
+
+static void
+urtwn_set_multi(struct urtwn_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	uint32_t mfilt[2];
+
+	URTWN_ASSERT_LOCKED(sc);
+
+	/* general structure was copied from ath(4). */
+	if (ic->ic_allmulti == 0) {
+		struct ieee80211vap *vap;
+		struct ifnet *ifp;
+		struct ifmultiaddr *ifma;
+
+		/*
+		 * Merge multicast addresses to form the hardware filter.
+		 */
+		mfilt[0] = mfilt[1] = 0;
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
+			ifp = vap->iv_ifp;
+			if_maddr_rlock(ifp);
+			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+				caddr_t dl;
+				uint8_t pos;
+
+				dl = LLADDR((struct sockaddr_dl *)
+				    ifma->ifma_addr);
+				pos = urtwn_get_multi_pos(dl);
+
+				mfilt[pos / 32] |= (1 << (pos % 32));
+			}
+			if_maddr_runlock(ifp);
+		}
+	} else
+		mfilt[0] = mfilt[1] = ~0;
+
+
+	urtwn_write_4(sc, R92C_MAR + 0, mfilt[0]);
+	urtwn_write_4(sc, R92C_MAR + 4, mfilt[1]);
+
+	URTWN_DPRINTF(sc, URTWN_DEBUG_STATE, "%s: MC filter %08x:%08x\n",
+	     __func__, mfilt[0], mfilt[1]);
+}
+
 static void
 urtwn_set_promisc(struct urtwn_softc *sc)
 {
@@ -4877,7 +4968,12 @@ urtwn_update_promisc(struct ieee80211com *ic)
 static void
 urtwn_update_mcast(struct ieee80211com *ic)
 {
-	/* XXX do nothing?  */
+	struct urtwn_softc *sc = ic->ic_softc;
+
+	URTWN_LOCK(sc);
+	if (sc->sc_flags & URTWN_RUNNING)
+		urtwn_set_multi(sc);
+	URTWN_UNLOCK(sc);
 }
 
 static struct ieee80211_node *
