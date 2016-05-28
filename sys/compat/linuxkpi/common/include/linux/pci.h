@@ -543,6 +543,7 @@ linux_pci_get_class(unsigned int class, struct pci_dev *from)
 }
 
 
+struct pci_dev *linux_bsddev_to_pci_dev(device_t dev);
 
 static inline void
 pci_disable_msix(struct pci_dev *pdev)

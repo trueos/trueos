@@ -74,6 +74,11 @@
 
 #define	prefetch(x)
 
+#define LINUX_LIST_HEAD_INIT(name) { &(name), &(name) }
+
+#define LINUX_LIST_HEAD(name) \
+	struct list_head name = LINUX_LIST_HEAD_INIT(name)
+
 struct list_head {
 	struct list_head *next;
 	struct list_head *prev;

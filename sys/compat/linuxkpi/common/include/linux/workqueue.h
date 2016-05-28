@@ -80,10 +80,20 @@ struct work_struct {
 	struct	taskqueue	*taskqueue;
 	void			(*fn)(struct work_struct *);
 };
+
 #define WORK_DATA_INIT()	ATOMIC_LONG_INIT(WORK_STRUCT_NO_POOL)
+#define WORK_DATA_STATIC_INIT()	\
+	ATOMIC_LONG_INIT(WORK_STRUCT_NO_POOL | WORK_STRUCT_STATIC)
+
+
+#define LINUX_WORK_INITIALIZER(n, f) {					\
+	.data = WORK_DATA_STATIC_INIT(),				\
+	}
+
+#define DECLARE_WORK(n, f)						\
+	struct work_struct n = LINUX_WORK_INITIALIZER(n, f);
 
 typedef __typeof(((struct work_struct *)0)->fn) work_func_t;
-
 
 struct delayed_work {
 	struct work_struct	work;

@@ -7,6 +7,7 @@
 #include <linux/oom.h>
 #include <linux/mmu_notifier.h>
 #include <linux/shrinker.h>
+#include <linux/backlight.h>
 #include <acpi/button.h>
 
 /*
@@ -84,4 +85,19 @@ void
 unregister_shrinker(struct shrinker *s)
 {
 	WARN_NOT();
+}
+
+int
+backlight_register_notifier(struct notifier_block *nb)
+{
+
+	WARN_NOT();
+	return (0);
+}
+
+int
+backlight_unregister_notifier(struct notifier_block *nb)
+{
+	WARN_NOT();
+	return (0);
 }

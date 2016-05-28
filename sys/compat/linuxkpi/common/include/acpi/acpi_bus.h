@@ -513,10 +513,21 @@ void acpi_bus_unregister_driver(struct acpi_driver *driver);
 int acpi_bus_scan(acpi_handle handle);
 void acpi_bus_trim(struct acpi_device *start);
 acpi_status acpi_bus_get_ejd(acpi_handle handle, acpi_handle * ejd);
-int acpi_match_device_ids(struct acpi_device *device,
-			  const struct acpi_device_id *ids);
 int acpi_create_dir(struct acpi_device *);
 void acpi_remove_dir(struct acpi_device *);
+
+struct of_device_id;
+
+const struct acpi_device_id *linux_acpi_match_device(struct acpi_device *device, const struct acpi_device_id *ids,
+    const struct of_device_id *of_ids);
+	
+static inline int
+acpi_match_device_ids(struct acpi_device *device,
+			  const struct acpi_device_id *ids)
+{
+	return linux_acpi_match_device(device, ids, NULL) ? 0 : -ENOENT;
+}
+
 
 static inline bool acpi_device_enumerated(struct acpi_device *adev)
 {
@@ -669,13 +680,6 @@ struct acpi_device {
 };
 
 static inline int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device){
-	panic("IMPLEMENT ME");
-}
-
-static inline acpi_status
-acpi_evaluate_integer(acpi_handle handle,
-                      acpi_string pathname,
-                      struct acpi_object_list *arguments, unsigned long long *data){
 	panic("IMPLEMENT ME");
 }
 

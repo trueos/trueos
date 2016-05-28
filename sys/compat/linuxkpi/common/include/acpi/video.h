@@ -13,10 +13,6 @@ enum acpi_backlight_type {
         acpi_backlight_native,
 };
 
-static inline enum acpi_backlight_type acpi_video_get_backlight_type(void){
-	if(true) {panic("IMPLEMENT ME");}
-
-	return acpi_backlight_undef;
-}
+enum acpi_backlight_type acpi_video_get_backlight_type(void);
 
 #endif

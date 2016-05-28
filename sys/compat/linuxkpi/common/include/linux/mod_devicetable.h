@@ -48,6 +48,14 @@ struct dmi_system_id {
 	void *driver_data;
 };
 
+#define ACPI_ID_LEN	9
+
+struct acpi_device_id {
+	__u8 id[ACPI_ID_LEN];
+	u_long driver_data;
+	__u32 cls;
+	__u32 cls_msk;
+};
 
 
 #define dmi_device_id dmi_system_id

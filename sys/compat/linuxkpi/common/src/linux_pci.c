@@ -101,6 +101,22 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD_END
 };
 
+
+struct pci_dev *
+linux_bsddev_to_pci_dev(device_t dev)
+{
+	struct pci_dev *pdev;
+
+	spin_lock(&pci_lock);
+	list_for_each_entry(pdev, &pci_devices, links) {
+		if (pdev->dev.bsddev == dev)
+			break;
+	}
+	spin_unlock(&pci_lock);
+
+	return (pdev);
+}
+
 static struct pci_driver *
 linux_pci_find(device_t dev, const struct pci_device_id **idp)
 {
@@ -398,6 +414,9 @@ pci_get_bus_and_slot(unsigned int bus, unsigned int devfn)
 void
 pci_dev_put(struct pci_dev *pdev)
 {
+	if (pdev == NULL)
+		return;
+
 	MPASS(pdev->bus);
 	MPASS(pdev->bus->self == pdev);
 	free(pdev->bus, M_DEVBUF);
