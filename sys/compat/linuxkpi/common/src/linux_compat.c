@@ -515,12 +515,13 @@ linux_file_dtor(void *cdp)
 static int
 linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_page_t *mres, int count, int *rahead)
 {
-	vm_page_t page, oldpage;
+	vm_page_t page;
 	struct vm_fault vmf;
 	struct vm_area_struct *vmap, cvma;
 	vm_memattr_t memattr;
-	int rc, err, vma_flags, i;
+	int rc, err, fault_flags, i;
 	vm_object_t page_object;
+	unsigned long vma_flags;
 
 	memattr = vm_obj->memattr;
 
@@ -539,7 +540,7 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	 * inside of the vma that we pass in.
 	 */
 	vma_flags = VM_PFNINTERNAL;
-	oldpage = NULL;
+	fault_flags = (prot & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
 
 	trace_compat_cdev_pager_fault(vm_obj, offset, prot, mres);
 	vm_object_pip_add(vm_obj, 1);
@@ -549,7 +550,7 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	cvma.vm_pfn_count = 0;
 	cvma.vm_flags |= vma_flags;
 	vmf.virtual_address = (void *)(vmap->vm_start + offset);
-	vmf.flags = FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT;
+	vmf.flags = FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT | fault_flags;
 	err = vmap->vm_ops->fault(&cvma, &vmf);
 	if (__predict_false(err == VM_FAULT_RETRY)) {
 		MPASS(cvma.vm_pfn_count == 0);
@@ -636,8 +637,9 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	}
 	MPASS(cvma.vm_pfn_count >= count);
 
+	atomic_add_long(&linux_pager_prefaults, cvma.vm_pfn_count - 1);
 	if (rahead)
-		*rahead = min(cvma.vm_pfn_count, count) - 1;
+		*rahead = cvma.vm_pfn_count - 1;
 	vm_page_assert_xbusied(mres[0]);
 	vm_object_pip_wakeup(vm_obj);
 	return (VM_PAGER_OK);
