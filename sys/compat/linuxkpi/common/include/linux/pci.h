@@ -518,27 +518,33 @@ linux_pci_get_class(unsigned int class, struct pci_dev *from)
 	struct pci_dev *pdev;
 	struct pci_bus *pbus;
 
+	pdev = from;
 	if (class != (PCI_CLASS_BRIDGE_ISA << 8)) {
 		log(LOG_WARNING, "unrecognized class %d in %s\n", class, __FUNCTION__);
 		return (NULL);
 	}
-	if (from != NULL) {
-		/* we're expected to enumerate but FreeBSD doesn't appear to be able to do that */
-		return (NULL);
-	}
 
-	dev = pci_find_class(PCIC_BRIDGE, PCIS_BRIDGE_ISA);
+	if (pdev != NULL) {
+		dev = pdev->dev.bsddev;
+	} else
+		dev = NULL;
+
+	dev = pci_find_class(PCIC_BRIDGE, PCIS_BRIDGE_ISA, dev);
 	if (dev == NULL)
 		return (NULL);
 
-	pdev = malloc(sizeof(*pdev), M_DEVBUF, M_WAITOK|M_ZERO);
+	if (pdev == NULL)
+		pdev = malloc(sizeof(*pdev), M_DEVBUF, M_WAITOK|M_ZERO);
+
 	/* XXX do we need to initialize pdev more here ? */
 	pdev->vendor = pci_get_vendor(dev);
 	pdev->device = pci_get_device(dev);
 	pdev->dev.bsddev = dev;
-	pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK|M_ZERO);
-	pbus->self = pdev;
-	pdev->bus = pbus;
+	if (from == NULL) {
+		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK|M_ZERO);
+		pbus->self = pdev;
+		pdev->bus = pbus;
+	}
 	return (pdev);
 }
 
