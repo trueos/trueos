@@ -660,6 +660,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 			 get_gmbus_pin(dev_priv, pin)->name);
 
 		bus->adapter.dev.parent = &dev->pdev->dev;
+		MPASS(bus->adapter.dev.parent->bsddev != NULL);
 		bus->dev_priv = dev_priv;
 
 		/* needed by FreeBSD linux compat */
