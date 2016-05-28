@@ -59,12 +59,17 @@ typedef struct mutex {
 
 
 static inline void
-linux_mutex_init(mutex_t *m, char *name, int flags)
+linux_mutex_init(mutex_t *m, const char *name, int flags)
 {
 
 	memset(&m->sx, 0, sizeof(m->sx));
 	sx_init_flags(&m->sx, name,  flags);
 }
+
+struct ww_acquire_ctx;
+
+int linux_mutex_lock_common(struct mutex *m, int state, struct ww_acquire_ctx *ctx);
+
 
 static inline void
 linux_mutex_destroy(mutex_t *m)

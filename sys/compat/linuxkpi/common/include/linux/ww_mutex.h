@@ -20,12 +20,11 @@ struct ww_acquire_ctx {
 	unsigned long stamp;
 	unsigned acquired;
 };
-#ifdef __linux__
 struct ww_mutex {
-	struct sx base;
+	struct mutex base;
 	struct ww_acquire_ctx *ctx;
 };
-#endif
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 # define __WW_CLASS_MUTEX_INITIALIZER(lockname, ww_class) \
 		, .ww_class = &ww_class
@@ -49,51 +48,75 @@ struct ww_mutex {
 	struct ww_mutex mutexname = __WW_MUTEX_INITIALIZER(mutexname, ww_class)
 
 
-#define ww_mutex mutex
-#define ww_mutex_destroy(m) linux_mutex_destroy(m)
-
-#define	ww_mutex_is_locked(_m)		sx_xlocked(&(_m)->sx)
+#define	ww_mutex_is_locked(_m)		sx_xlocked(&(_m)->base.sx)
 #define ww_mutex_lock_slow(m, x)  ww_mutex_lock(m, x)
-#define ww_mutex_trylock mutex_trylock
-#define ww_mutex_lock_interruptible(m, x) mutex_lock_interruptible(m)
-#define ww_mutex_lock_slow_interruptible(m, x) mutex_lock_interruptible(m)
 
-
-#define ww_mutex_unlock(m)			\
-	do {					\
-		mutex_unlock(m);		\
-	} while (0)
-
+static inline int __must_check
+ww_mutex_trylock(struct ww_mutex *lock)
+{
+	return mutex_trylock(&lock->base);
+}
 
 static inline int
-ww_mutex_lock(struct ww_mutex *m, struct ww_acquire_ctx *ctx)
+ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
-	if (sx_xlocked(&m->sx))
+	if (mutex_is_locked(&lock->base))
 		return (-EALREADY);
-	sx_xlock(&m->sx);
+	if (ctx)
+		return (linux_mutex_lock_common(&lock->base, TASK_UNINTERRUPTIBLE, ctx));
+
+	mutex_lock_interruptible(&lock->base);
 	return (0);
 }
 
-/*
- * XXX FIX ME
- */
+static inline int
+ww_mutex_lock_interruptible(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
+{
+	if (mutex_is_locked(&lock->base))
+		return (-EALREADY);
+	if (ctx)
+		return (linux_mutex_lock_common(&lock->base, TASK_INTERRUPTIBLE, ctx));
 
+	mutex_lock_interruptible(&lock->base);
+	return (0);
+}
+
+static inline void
+ww_mutex_unlock(struct ww_mutex *lock)
+{
+
+	if (lock->ctx) {
+		if (lock->ctx->acquired > 0)
+			lock->ctx->acquired--;
+		lock->ctx = NULL;
+	}
+	mutex_unlock(&lock->base);
+}
+
+static inline void
+ww_mutex_destroy(struct ww_mutex *lock)
+{
+	mutex_destroy(&lock->base);
+}
+
+#define ww_mutex_lock_slow_interruptible(m, x) ww_mutex_lock_interruptible(m, x)
 
 static inline void
 ww_acquire_init(struct ww_acquire_ctx *ctx, struct ww_class *ww_class)
 {
+	ctx->task = current;
+	ctx->stamp = atomic_long_inc_return(&ww_class->stamp);
+	ctx->acquired = 0;
+}
+
+static inline void
+ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class)
+{
+	linux_mutex_init(&lock->base, ww_class->mutex_name, SX_NOWITNESS);
 }
 
 static inline void
 ww_acquire_fini(struct ww_acquire_ctx *ctx) { }
-
-static inline void
-__ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class, char *name)
-{
-	linux_mutex_init(lock, name, SX_DUPOK);
-}
-
-#define ww_mutex_init(l, w) __ww_mutex_init(l, w, #l)
 
 static inline void
 ww_acquire_done(struct ww_acquire_ctx *ctx) { }
