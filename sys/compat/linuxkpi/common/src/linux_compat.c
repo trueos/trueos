@@ -618,6 +618,10 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	vm_page_assert_xbusied(mres[0]);
 	for  (i = 0; i < cvma.vm_pfn_count; i++)  {
 		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
+
+		MPASS(page->object == NULL || page->object == vm_obj);
+		if (page->object == vm_obj && page->pindex == OFF_TO_IDX(offset + PAGE_SIZE*i))
+			continue;
 		/* Check if the page needs to be moved - there may be a cheaper way*/
 		if (page->object == vm_obj && page->pindex != OFF_TO_IDX(offset + PAGE_SIZE*i)) {
 			vm_page_lock(page);
