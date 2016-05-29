@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-SUBDIR_PARALLEL=
-
 SUBDIR=									\
 	carrizo_ce							\
 	carrizo_me							\
