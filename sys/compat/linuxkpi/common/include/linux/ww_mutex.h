@@ -65,7 +65,7 @@ ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 	if (ctx)
 		return (linux_mutex_lock_common(&lock->base, TASK_UNINTERRUPTIBLE, ctx));
 
-	mutex_lock_interruptible(&lock->base);
+	mutex_lock(&lock->base);
 	return (0);
 }
 
