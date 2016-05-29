@@ -33,9 +33,8 @@ _radeonkmsfw=	radeonkmsfw
 SUBDIR = \
 	drm2 \
 	amd \
-	${_i915kms} 
-
-#	${_amdgpukmsfw} \
+	${_i915kms} \
+	${_amdgpukmsfw}
 
 #${_radeonkms} \
 #	${_radeonkmsfw}
