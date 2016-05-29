@@ -34,8 +34,9 @@ SUBDIR = \
 	drm2 \
 	amd \
 	${_i915kms} \
-	${_amdgpukmsfw}
-
+	${_amdgpukmsfw} \
+	${_radeonkmsfw}
+	
 #${_radeonkms} \
 #	${_radeonkmsfw}
 
