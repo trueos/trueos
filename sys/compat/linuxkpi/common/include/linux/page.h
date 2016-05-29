@@ -138,4 +138,6 @@ void unmap_mapping_range(void *obj,
 			 loff_t const holebegin, loff_t const holelen, int even_cows);
 
 #define cpu_has_pat pat_works
+
+extern void linux_clflushopt(u_long addr);
 #endif	/* _LINUX_PAGE_H_ */
