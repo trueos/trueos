@@ -2627,15 +2627,15 @@ static inline uint32_t drm_color_lut_extract(uint32_t user_input,
  *
  * WARN_ON(not_holding(A) && not_holding(B)).
  */
-#define assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config) \
-	do {								\
+#define assert_drm_connector_list_read_locked(mode_config)		\
+	({								\
 		static int count = 0;					\
 		if ((count++ % 10) == 0) {				\
-			WARN_ON(!mutex_is_locked(&mode_config->mutex) && \
-				!drm_modeset_is_locked(&mode_config->connection_mutex)); \
+			WARN_ON(!mutex_is_locked(&(mode_config)->mutex) && \
+				!drm_modeset_is_locked(&(mode_config)->connection_mutex)); \
 			BACKTRACE();					\
 		}							\
-	} while (0)
+	})
 
 
 #define drm_for_each_connector(connector, dev) \

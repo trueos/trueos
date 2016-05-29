@@ -333,7 +333,11 @@ static inline int modeset_lock(struct drm_modeset_lock *lock,
 		ret = ww_mutex_lock(&lock->mutex, &ctx->ww_ctx);
 	}
 	if (!ret) {
-		WARN_ON(!list_empty(&lock->head));
+		static int warncount = 0;
+		if (warncount++ % 10 == 0) {
+			WARN_ON(!list_empty(&lock->head));
+			BACKTRACE();
+		}
 		list_add(&lock->head, &ctx->locked);
 	} else if (ret == -EALREADY) {
 		/* we already hold the lock.. this is fine.  For atomic
