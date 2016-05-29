@@ -114,6 +114,8 @@ extern u64 cpu_clock(int cpu);
 extern u64 running_clock(void);
 extern u64 sched_clock_cpu(int cpu);
 
+extern int sched_setscheduler(struct task_struct *, int,
+			      const struct sched_param *);
 
 static inline u64
 local_clock(void)
@@ -124,24 +126,6 @@ local_clock(void)
         return (ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
 }
 
-
-#define	schedule()							\
-do {									\
-	void *c;							\
-									\
-	if (cold || SCHEDULER_STOPPED())				\
-		break;							\
-	c = curthread;							\
-	sleepq_lock(c);							\
-	if (current->state == TASK_INTERRUPTIBLE ||			\
-	    current->state == TASK_UNINTERRUPTIBLE) {			\
-		sleepq_add(c, NULL, "task", SLEEPQ_SLEEP, 0);		\
-		sleepq_wait(c, 0);					\
-	} else {							\
-		sleepq_release(c);					\
-		sched_relinquish(curthread);				\
-	}								\
-} while (0)
 
 #define	cond_resched()	if (!cold)	sched_relinquish(curthread)
 
@@ -234,7 +218,7 @@ io_schedule(void)
 }
 
 static inline void
-linux_schedule(void)
+schedule(void)
 {
 
 	schedule_timeout(MAX_SCHEDULE_TIMEOUT);

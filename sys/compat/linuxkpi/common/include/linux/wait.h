@@ -223,7 +223,7 @@ __out:	__ret;								\
 
 #define __wait_event(wq, condition)					\
 	(void)___wait_event(wq, condition, TASK_UNINTERRUPTIBLE, 0, 0,	\
-			    linux_schedule())
+			    schedule())
 
 #define wait_event(wq, condition)					\
 do {									\
@@ -260,7 +260,7 @@ do {									\
 
 #define __wait_event_interruptible(wq, condition)			\
 	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,		\
-		      linux_schedule())
+		      schedule())
 
 #define wait_event_interruptible(wq, condition)				\
 ({									\
@@ -309,7 +309,7 @@ do {									\
 			spin_unlock_irq(&(wq).lock);			\
 		else							\
 			spin_unlock(&(wq).lock);			\
-		linux_schedule();					\
+		schedule();					\
 		if (irq)						\
 			spin_lock_irq(&(wq).lock);			\
 		else							\
@@ -331,7 +331,7 @@ do {									\
 ___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,			\
 		      spin_unlock_irq(&lock);				\
 		      cmd;						\
-		      linux_schedule();					\
+		      schedule();					\
 		      spin_lock_irq(&lock))
 #endif
 
