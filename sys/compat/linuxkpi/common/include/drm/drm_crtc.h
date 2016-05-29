@@ -2619,19 +2619,24 @@ static inline uint32_t drm_color_lut_extract(uint32_t user_input,
 #define drm_for_each_crtc(crtc, dev) \
 	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
 
-static inline void
-assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
-{
-	/*
-	 * The connector hotadd/remove code currently grabs both locks when
-	 * updating lists. Hence readers need only hold either of them to be
-	 * safe and the check amounts to
-	 *
-	 * WARN_ON(not_holding(A) && not_holding(B)).
-	 */
-	WARN_ON_ONCE(!mutex_is_locked(&mode_config->mutex) &&
-		!drm_modeset_is_locked(&mode_config->connection_mutex));
-}
+
+/*
+ * The connector hotadd/remove code currently grabs both locks when
+ * updating lists. Hence readers need only hold either of them to be
+ * safe and the check amounts to
+ *
+ * WARN_ON(not_holding(A) && not_holding(B)).
+ */
+#define assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config) \
+	do {								\
+		static int count = 0;					\
+		if ((count++ % 10) == 0) {				\
+			WARN_ON(!mutex_is_locked(&mode_config->mutex) && \
+				!drm_modeset_is_locked(&mode_config->connection_mutex)); \
+			BACKTRACE();					\
+		}							\
+	} while (0)
+
 
 #define drm_for_each_connector(connector, dev) \
 	for (assert_drm_connector_list_read_locked(&(dev)->mode_config),	\
