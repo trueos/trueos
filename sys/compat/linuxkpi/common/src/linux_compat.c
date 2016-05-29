@@ -516,7 +516,6 @@ linux_set_current(struct thread *td, struct task_struct *t)
 	task_struct_fill(td, t);
 	mm = t->mm;
 	init_rwsem(&mm->mmap_sem);
-	mm->interruptible = 1;
 	mm->mm_count.counter = 1;
 	mm->mm_users.counter = 1;
 	task_struct_set(td, t);
