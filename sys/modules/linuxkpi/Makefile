@@ -11,6 +11,7 @@ SRCS=	linux_acpi.c \
 	linux_i2c.c \
 	linux_idr.c \
 	linux_kmod.c \
+	linux_lock.c \
 	linux_mtrr.c \
 	linux_notifier.c \
 	linux_page.c \
