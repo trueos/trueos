@@ -49,7 +49,6 @@
 #include <asm/processor.h>
 #include <linux/completion.h>
 #include <linux/pid.h>
-#include <linux/wait.h>
 
 #include <asm/atomic.h>
 
@@ -161,22 +160,26 @@ send_sig(int signo, struct task_struct *t, int priv)
 	return (0);
 }
 
-static inline int signal_pending(struct task_struct *p)
+static inline int
+signal_pending(struct task_struct *p)
 {
 	return SIGPENDING(p->task_thread);
 }
 
-static inline int __fatal_signal_pending(struct task_struct *p)
+static inline int
+__fatal_signal_pending(struct task_struct *p)
 {
 	return (SIGISMEMBER(p->task_thread->td_siglist, SIGKILL));
 }
 
-static inline int fatal_signal_pending(struct task_struct *p)
+static inline int
+fatal_signal_pending(struct task_struct *p)
 {
 	return signal_pending(p) && __fatal_signal_pending(p);
 }
 
-static inline int signal_pending_state(long state, struct task_struct *p)
+static inline int
+signal_pending_state(long state, struct task_struct *p)
 {
 	if (!(state & (TASK_INTERRUPTIBLE | TASK_WAKEKILL)))
 		return 0;
@@ -186,42 +189,25 @@ static inline int signal_pending_state(long state, struct task_struct *p)
 	return (state & TASK_INTERRUPTIBLE) || __fatal_signal_pending(p);
 }
 
+long schedule_timeout(signed long timeout);
 
-static inline long
+static inline unsigned long
 schedule_timeout_uninterruptible(signed long timeout)
 {
-	if (timeout < 0)
-		return 0;
-	if (SCHEDULER_STOPPED())
-		return (0);
-
-	pause("lstim", timeout);
-
-	return 0;
+	MPASS(current);
+	current->state = TASK_UNINTERRUPTIBLE;
+	return (schedule_timeout(timeout));
 }
-#define need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
 
 static inline long
 schedule_timeout_interruptible(signed long timeout)
 {
-	int ret;
-	struct mtx *m;
-
-	if (timeout < 0)
-		return 0;
-	if (SCHEDULER_STOPPED())
-		return (0);
 	MPASS(current);
-	MPASS(current->sleep_wq != NULL);
-
-	m = &current->sleep_wq->lock.m;
-	mtx_lock(m);
-	ret = _sleep(&current->sleep_wq->wchan, &(m->lock_object), PCATCH | PDROP , "lstimi", tick_sbt * timeout, 0 , C_HARDCLOCK);
-	
-	return (ret);
+	current->state = TASK_INTERRUPTIBLE;
+	return (schedule_timeout(timeout));
 }
 
-#define schedule_timeout schedule_timeout_interruptible
+#define need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
 
 static inline signed long
 schedule_timeout_killable(signed long timeout)
@@ -234,15 +220,27 @@ schedule_timeout_killable(signed long timeout)
 static inline long
 io_schedule_timeout(long timeout)
 {
-	DODGY();
 	return (schedule_timeout(timeout));
 }
 
-static inline void io_schedule(void)
+static inline void
+io_schedule(void)
 {
-	/* XXX how am I supposed to signal I/O ? */
+#ifdef __notyet__
 	io_schedule_timeout(MAX_SCHEDULE_TIMEOUT);
+#endif
+	/* XXX not getting interrupts on skylake */
+	io_schedule_timeout(max(hz/100, 1));
 }
+
+static inline void
+linux_schedule(void)
+{
+
+	schedule_timeout(MAX_SCHEDULE_TIMEOUT);
+}
+
+
 
 
 #endif	/* _LINUX_SCHED_H_ */

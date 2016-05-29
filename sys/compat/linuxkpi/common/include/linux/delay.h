@@ -62,7 +62,7 @@ ndelay(unsigned long x)
 static inline void
 usleep_range(unsigned long min, unsigned long max)
 {
-	DELAY(min);
+	DELAY(max);
 }
 
 #endif	/* _LINUX_DELAY_H_ */

@@ -98,6 +98,15 @@ list_empty(const struct list_head *head)
 	return (head->next == head);
 }
 
+
+static inline int
+list_empty_careful(const struct list_head *head)
+{
+	struct list_head *next = head->next;
+
+	return ((next == head) && (next == head->prev));
+}
+
 static inline void
 list_del(struct list_head *entry)
 {

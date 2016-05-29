@@ -46,7 +46,6 @@
  * we've never had a chance to check the condition before the timeout.
  */
 
-#ifdef __linux__
 #define _wait_for(COND, MS, W) ({					\
 	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS) + 1;	\
 	int ret__ = 0;							\
@@ -70,65 +69,6 @@
 #define wait_for_atomic_us(COND, US) _wait_for((COND), \
 					       DIV_ROUND_UP((US), 1000), 0)
 
-#else
-
-#define _intel_wait_for(DEV, COND, MS, W, WMSG)				\
-({									\
-	int end, ret;							\
-									\
-	end = ticks + (MS) * hz / 1000;					\
-	ret = 0;							\
-									\
-	while (!(COND)) {						\
-		if (time_after(ticks, end)) {				\
-			ret = -ETIMEDOUT;				\
-			break;						\
-		}							\
-		if (W)							\
-			pause((WMSG), 1);				\
-		else							\
-			DELAY(1000);					\
-		if (cold)						\
-			end -= howmany(hz, 1000);			\
-	}								\
-									\
-	ret;								\
-})
-
-#define _wait_for(COND, MS, W) ({ \
-	int timeout__ = ticks + (MS) * hz / 1000;			\
-	int ret__ = 0;							\
-	while (!(COND)) {						\
-		if (time_after(ticks, timeout__)) {			\
-			ret__ = -ETIMEDOUT;				\
-			break;						\
-		}							\
-		if (W) {						\
-			pause("i915", 1);				\
-		} else {						\
-			DELAY(1000);					\
-		}							\
-		if (cold)						\
-			timeout__ -= howmany(hz, 1000);			\
-	}								\
-	ret__;								\
-})
-
-#define wait_for_atomic_us(COND, US) ({ \
-	int i, ret__ = -ETIMEDOUT;	\
-	for (i = 0; i < (US) + 1; i++) {\
-		if ((COND)) {		\
-			ret__ = 0;	\
-			break;		\
-		}			\
-		DELAY(1);		\
-	}				\
-	ret__;				\
-})
-
-#define wait_for(COND, MS) _intel_wait_for(NULL, COND, MS, 1, "915wfi")
-#define wait_for_atomic(COND, MS) _intel_wait_for(NULL, COND, MS, 0, "915wfa")
-#endif
 
 
 #define KHz(x) (1000 * (x))

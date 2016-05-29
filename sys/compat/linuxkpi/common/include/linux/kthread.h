@@ -58,6 +58,7 @@
 #define	TASK_SHOULD_STOP	1
 #define	TASK_STOPPED		2
 
+#define TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
 
 
 /*
@@ -76,6 +77,7 @@
 	(y)->comm = (x)->td_name;		\
 	(y)->pid = (x)->td_tid;			\
 	(y)->mm = &(y)->bsd_mm;			\
+	(y)->state = TASK_RUNNING;		\
 } while (0)
 
 struct wait_queue_head;
@@ -145,19 +147,22 @@ linux_kthread_create(int (*threadfn)(void *data), void *data)
 
 #define	kthread_should_stop()	current->should_stop
 
-#define	wake_up_process(x)						\
-do {									\
-	int wakeup_swapper;						\
-	void *c;							\
-									\
-	c = (x)->task_thread;						\
-	sleepq_lock(c);							\
-	(x)->state = TASK_RUNNING;					\
-	wakeup_swapper = sleepq_signal(c, SLEEPQ_SLEEP, 0, 0);		\
-	sleepq_release(c);						\
-	if (wakeup_swapper)						\
-		kick_proc0();						\
-} while (0)
+static inline int
+wake_up_process(struct task_struct *p)
+{
+	int rc;
+
+	rc = 0;
+	if ((p->state & TASK_NORMAL) == 0)
+		goto out;
+	rc = 1;
+	if (!TD_IS_RUNNING(p->task_thread)) {
+		p->state = TASK_WAKING;
+		wakeup_one(p);
+	}
+out:
+	return (rc);
+}
 
 static inline int
 kthread_stop(struct task_struct *task)

@@ -177,6 +177,39 @@ on_each_cpu(void callback(void *data), void *data, int wait)
 	return (0);
 }
 
+long
+schedule_timeout(signed long timeout)
+{
+	int ret, flags;
+	struct mtx *m;
+	struct mtx stackm;
+
+	if (timeout < 0)
+		return 0;
+	if (SCHEDULER_STOPPED())
+		return (0);
+	MPASS(current);
+	if (current->sleep_wq == NULL) {
+		m = &stackm;
+		bzero(m, sizeof(*m));
+		mtx_init(m, "stack", NULL, MTX_DEF|MTX_NOWITNESS);
+		mtx_lock(m);
+	} else {
+		m = &current->sleep_wq->lock.m;
+		mtx_lock(m);
+		if (current->state == TASK_WAKING) {
+			mtx_unlock(m);
+			set_current_state(TASK_RUNNING);
+			return (0);
+		}
+	}
+
+	flags = (current->state == TASK_INTERRUPTIBLE) ? PCATCH : 0;
+	ret = _sleep(current, &(m->lock_object), flags | PDROP , "lstimi", tick_sbt * timeout, 0 , C_HARDCLOCK);
+	set_current_state(TASK_RUNNING);
+
+	return (-ret);
+}
 
 /*
  * XXX this leaks right now, we need to track
@@ -483,6 +516,7 @@ linux_set_current(struct thread *td, struct task_struct *t)
 	task_struct_fill(td, t);
 	mm = t->mm;
 	init_rwsem(&mm->mmap_sem);
+	mm->interruptible = 1;
 	mm->mm_count.counter = 1;
 	mm->mm_users.counter = 1;
 	task_struct_set(td, t);
@@ -1881,7 +1915,6 @@ linux_compat_init(void *arg)
 	system_long_wq = alloc_workqueue("events_long", 0, 0);
 	system_wq = alloc_workqueue("events", 0, 0);
 	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
-	init_waitqueue_head(&async_done);
 	INIT_LIST_HEAD(&cdev_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");

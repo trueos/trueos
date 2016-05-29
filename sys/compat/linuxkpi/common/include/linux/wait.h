@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/jiffies.h>
+#include <linux/sched.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -48,6 +49,10 @@ typedef struct __wait_queue wait_queue_t;
 
 typedef int (*wait_queue_func_t)(wait_queue_t *wait, unsigned mode, int flags, void *key);
 
+
+#define WQ_FLAG_EXCLUSIVE	0x01
+#define WQ_FLAG_WOKEN		0x02
+
 struct __wait_queue {
 	unsigned int		flags;
 	void			*private;
@@ -55,143 +60,270 @@ struct __wait_queue {
 	struct list_head	task_list;
 };
 
-
 typedef struct wait_queue_head {
 	spinlock_t	lock;
-	unsigned int	wchan;
+	struct list_head	task_list;
 } wait_queue_head_t;
 
-#define DECLARE_WAITQUEUE(name, tsk)	\
-	wait_queue_t name
-#define DECLARE_WAIT_QUEUE_HEAD(name)    \
-        wait_queue_head_t name
+
+static inline int
+default_wake_function(wait_queue_t *curr, unsigned mode, int wake_flags,
+			  void *key)
+{
+	int success = 0;
+	struct task_struct *p;
+
+	p = curr->private;
+
+	if ((p->state & mode) == 0)
+		goto out;
+	p->state = TASK_WAKING;
+	success = 1;
+	wakeup_one(p);
+out:
+	return (success);
+}
+
+static inline int
+autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
+{
+	int ret = default_wake_function(wait, mode, sync, key);
+
+	if (ret)
+		list_del_init(&wait->task_list);
+	return ret;
+}
+#define DEFINE_WAIT_FUNC(name, function)				\
+	wait_queue_t name = {						\
+		.private	= current,				\
+		.func		= function,				\
+		.task_list	= LINUX_LIST_HEAD_INIT((name).task_list),	\
+	}
+
+#define DEFINE_WAIT(name) DEFINE_WAIT_FUNC(name, autoremove_wake_function)
+
+
+#define LINUX_WAITQUEUE_INITIALIZER(name, tsk) {			\
+	.private	= tsk,						\
+ 	.func		= default_wake_function,	                \
+	.task_list	= { NULL, NULL } }
+
+#define DECLARE_WAITQUEUE(name, tsk)				\
+	wait_queue_t name =  LINUX_WAITQUEUE_INITIALIZER(name, tsk)
+
+#define LINUX_WAIT_QUEUE_HEAD_INITIALIZER(name) {			\
+	.task_list	= { &(name).task_list, &(name).task_list } }
+
+
+#define DECLARE_WAIT_QUEUE_HEAD(name)		\
+        wait_queue_head_t name = LINUX_WAIT_QUEUE_HEAD_INITIALIZER(name);  \
+	MTX_SYSINIT(name, &(name).lock.m, "wqhead", MTX_DEF)
 
 #define	init_waitqueue_head(x) \
-	do { mtx_init(&((x)->lock.m), "wq", NULL, MTX_NOWITNESS); } while (0)
+	do { mtx_init(&((x)->lock.m), "wq", NULL, MTX_DEF|MTX_NOWITNESS);  INIT_LIST_HEAD(&(x)->task_list);  } while (0)
+
+
+#ifndef set_current_state
+#define	set_current_state(x)						\
+	atomic_store_rel_int((volatile int *)&current->state, (x))
+#define undef_set_current
+#endif
+
+#ifndef __set_current_state
+#define	__set_current_state(x)	current->state = (x)
+#define undef___set_current
+#endif
 
 static inline void
-__wake_up(wait_queue_head_t *q, int all)
+__wake_up_locked(wait_queue_head_t *q, int mode, int nr, void *key)
 {
+	struct task_struct *t;
+	wait_queue_t *curr, *next;
 
-	if (all == 0) {
-		wakeup_one(&q->wchan);
-	} else {
-		wakeup(&q->wchan);
+	list_for_each_entry_safe(curr, next, &q->task_list, task_list) {
+		t = curr->private;
+		/* note that we're ignoring exclusive wakeups here */
+		curr->func(curr, TASK_NORMAL, 0, key);
+		t->state = TASK_WAKING;
+		nr--;
+		if (nr == 0)
+			break;
 	}
 }
 
-#define	wake_up(q)				__wake_up(q, 0)
-#define	wake_up_nr(q, nr)			__wake_up(q, 1)
-#define	wake_up_all(q)				__wake_up(q, 1)
-#define	wake_up_all_locked(x)			__wake_up(q, 1)
-#define	wake_up_interruptible(q)		__wake_up(q, 0)
-#define	wake_up_interruptible_nr(q, nr)		__wake_up(q, 1)
-#define	wake_up_interruptible_all(q)		__wake_up(q, 1)
+static inline void
+__wake_up(wait_queue_head_t *q, int mode, int nr)
+{
 
-#define	wait_event(q, cond)						\
-do {									\
-	void *c = &(q).wchan;						\
-	if (!(cond)) {							\
-		for (;;) {						\
-			if (unlikely(SCHEDULER_STOPPED()))		\
-				break;					\
-			sleepq_lock(c);					\
-			if (cond) {					\
-				sleepq_release(c);			\
-				break;					\
+	spin_lock(&q->lock);
+	__wake_up_locked(q, mode, nr, NULL);
+	spin_unlock(&q->lock);
+}
+
+
+#define	wake_up(q)				__wake_up(q, TASK_NORMAL, 1)
+#define	wake_up_nr(q, nr)			__wake_up(q, TASK_NORMAL, nr)
+#define	wake_up_all(q)				__wake_up(q, TASK_NORMAL, 0)
+#define	wake_up_locked(x)			__wake_up_locked(q, TASK_NORMAL, 1, NULL)
+#define	wake_up_all_locked(x)			__wake_up_locked(q, TASK_NORMAL, 0, NULL)
+#define	wake_up_interruptible(q)		__wake_up(q, TASK_INTERRUPTIBLE, 1)
+#define	wake_up_interruptible_nr(q, nr)		__wake_up(q, TASK_INTERRUPTIBLE, nr)
+#define	wake_up_interruptible_all(q)		__wake_up(q, TASK_INTERRUPTIBLE, 0)
+
+#define __wake_up_locked_key(q, mode, key)	__wake_up_locked(q, mode, 0, key)
+
+
+#define might_sleep()
+
+#define ___wait_cond_timeout(condition)					\
+({									\
+	bool __cond = (condition);					\
+	if (__cond && !__ret)						\
+		__ret = 1;						\
+	__cond || !__ret;						\
+})
+
+#define ___wait_is_interruptible(state)					\
+	(!__builtin_constant_p(state) ||				\
+		state == TASK_INTERRUPTIBLE || state == TASK_KILLABLE)	\
+
+#define ___wait_event(wq, condition, state, exclusive, ret, cmd)	\
+({									\
+	__label__ __out;						\
+	wait_queue_t __wait;						\
+	long __ret = ret;	/* explicit shadow */			\
+									\
+	INIT_LIST_HEAD(&__wait.task_list);				\
+	if (exclusive)							\
+		__wait.flags = WQ_FLAG_EXCLUSIVE;			\
+	else								\
+		__wait.flags = 0;					\
+									\
+	for (;;) {							\
+		long __int = prepare_to_wait_event(&wq, &__wait, state);\
+									\
+		if (condition)						\
+			break;						\
+									\
+		if (___wait_is_interruptible(state) && __int) {		\
+			__ret = __int;					\
+			if (exclusive) {				\
+				abort_exclusive_wait(&wq, &__wait,	\
+						     state, NULL);	\
+				goto __out;				\
 			}						\
-			sleepq_add(c, NULL, "completion", SLEEPQ_SLEEP, 0); \
-			sleepq_wait(c, 0);				\
+			break;						\
 		}							\
+									\
+		cmd;							\
 	}								\
+	finish_wait(&wq, &__wait);					\
+__out:	__ret;								\
+})
+
+#define __wait_event(wq, condition)					\
+	(void)___wait_event(wq, condition, TASK_UNINTERRUPTIBLE, 0, 0,	\
+			    linux_schedule())
+
+#define wait_event(wq, condition)					\
+do {									\
+	might_sleep();							\
+	if (condition)							\
+		break;							\
+	__wait_event(wq, condition);					\
 } while (0)
 
-#define	wait_event_interruptible(q, cond)				\
-({									\
-	void *c = &(q).wchan;						\
-	int _error;							\
-									\
-	_error = 0;							\
-	if (!(cond)) {							\
-		for (; _error == 0;) {					\
-			if (unlikely(SCHEDULER_STOPPED()))		\
-				break;					\
-			sleepq_lock(c);					\
-			if (cond) {					\
-				sleepq_release(c);			\
-				break;					\
-			}						\
-			sleepq_add(c, NULL, "completion",		\
-			    SLEEPQ_SLEEP | SLEEPQ_INTERRUPTIBLE, 0);	\
-			if (sleepq_wait_sig(c, 0))			\
-				_error = -ERESTARTSYS;			\
-		}							\
-	}								\
-	-_error;							\
-})
 
-/* jiffies2ticks XXX ? */
-#define	wait_event_interruptible_timeout(q, cond, timeout)		\
-({									\
-	void *c = &(q).wchan;						\
-	int _error;							\
-									\
-	_error = 0;							\
-	if (!(cond)) {							\
-		for (; _error == 0;) {					\
-			if (unlikely(SCHEDULER_STOPPED()))		\
-				break;					\
-			sleepq_lock(c);					\
-			if (cond) {					\
-				sleepq_release(c);			\
-				break;					\
-			}						\
-			sleepq_add(c, NULL, "completion",		\
-				   SLEEPQ_SLEEP | SLEEPQ_INTERRUPTIBLE, 0); \
-			sleepq_set_timeout(c, timeout);			\
-			if (sleepq_timedwait_sig(c, 0))			\
-				_error = -ERESTARTSYS;			\
-		}							\
-	}								\
-	-_error;							\
-})
+#define io_wait_event(wq, condition)					\
+do {									\
+	might_sleep();							\
+	if (condition)							\
+		break;							\
+	__io_wait_event(wq, condition);					\
+} while (0)
 
 
-#define	__wait_event_timeout(q, cond, timeout)				\
-({									\
-	void *c = &(q).wchan;						\
-	int _error;							\
-									\
-	_error = 0;							\
-	if (!(cond)) {							\
-		for (; _error == 0;) {					\
-			if (SCHEDULER_STOPPED())			\
-				break;					\
-			sleepq_lock(c);					\
-			if (cond) {					\
-				sleepq_release(c);			\
-				break;					\
-			}						\
-			sleepq_add(c, NULL, "completion",		\
-				   SLEEPQ_SLEEP, 0); \
-			sleepq_set_timeout(c, timeout);			\
-			if (sleepq_timedwait(c, 0))			\
-				_error = -ERESTARTSYS;			\
-		}							\
-	}								\
-	-_error;							\
-})
-
-
+#define __wait_event_timeout(wq, condition, timeout)			\
+	___wait_event(wq, ___wait_cond_timeout(condition),		\
+		      TASK_UNINTERRUPTIBLE, 0, timeout,			\
+		      __ret = schedule_timeout(__ret))
 
 #define wait_event_timeout(wq, condition, timeout)			\
 ({									\
 	long __ret = timeout;						\
-	if (!(condition)) 						\
-		__wait_event_timeout(wq, condition, __ret);		\
- 	__ret;								\
+	might_sleep();							\
+	if (!___wait_cond_timeout(condition))				\
+		__ret = __wait_event_timeout(wq, condition, timeout);	\
+	__ret;								\
 })
 
+
+#define __wait_event_interruptible(wq, condition)			\
+	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,		\
+		      linux_schedule())
+
+#define wait_event_interruptible(wq, condition)				\
+({									\
+	int __ret = 0;							\
+	might_sleep();							\
+	if (!(condition))						\
+		__ret = __wait_event_interruptible(wq, condition);	\
+	__ret;								\
+})
+
+
+
+#define __wait_event_interruptible_timeout(wq, condition, timeout)	\
+	___wait_event(wq, ___wait_cond_timeout(condition),		\
+		      TASK_INTERRUPTIBLE, 0, timeout,			\
+		      __ret = schedule_timeout(__ret))
+
+
+
+#define wait_event_interruptible_timeout(wq, condition, timeout)	\
+({									\
+	long __ret = timeout;						\
+	might_sleep();							\
+	if (!___wait_cond_timeout(condition))				\
+		__ret = __wait_event_interruptible_timeout(wq,		\
+						condition, timeout);	\
+	__ret;								\
+})
+
+
+#define __wait_event_interruptible_locked(wq, condition, exclusive, irq) \
+({									\
+	int __ret = 0;							\
+	DEFINE_WAIT(__wait);						\
+	if (exclusive)							\
+		__wait.flags |= WQ_FLAG_EXCLUSIVE;			\
+	do {								\
+		if (likely(list_empty(&__wait.task_list)))		\
+			__add_wait_queue_tail(&(wq), &__wait);		\
+		set_current_state(TASK_INTERRUPTIBLE);			\
+		if (signal_pending(current)) {				\
+			__ret = -ERESTARTSYS;				\
+			break;						\
+		}							\
+		if (irq)						\
+			spin_unlock_irq(&(wq).lock);			\
+		else							\
+			spin_unlock(&(wq).lock);			\
+		linux_schedule();					\
+		if (irq)						\
+			spin_lock_irq(&(wq).lock);			\
+		else							\
+			spin_lock(&(wq).lock);				\
+	} while (!(condition));						\
+	__remove_wait_queue(&(wq), &__wait);				\
+	__set_current_state(TASK_RUNNING);				\
+	__ret;								\
+})
+
+
+#define wait_event_interruptible_locked(wq, condition)			\
+	((condition)							\
+	 ? 0 : __wait_event_interruptible_locked(wq, condition, 0, 0))
 
 
 #define __wait_event_interruptible_lock_irq(wq, condition, lock, cmd) ({panic("implement me!!! XXX"); 0;})
@@ -199,7 +331,7 @@ do {									\
 ___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,			\
 		      spin_unlock_irq(&lock);				\
 		      cmd;						\
-		      schedule();					\
+		      linux_schedule();					\
 		      spin_lock_irq(&lock))
 #endif
 
@@ -215,35 +347,70 @@ done:									\
 	__ret;								\
 })
 
-static inline void __add_wait_queue(wait_queue_head_t *head, wait_queue_t *new)
+
+static inline void
+__add_wait_queue(wait_queue_head_t *head, wait_queue_t *new)
 {
-#if 0
 	list_add(&new->task_list, &head->task_list);
-#endif
+}
+
+static inline void
+__add_wait_queue_tail(wait_queue_head_t *head, wait_queue_t *new)
+{
+	list_add_tail(&new->task_list, &head->task_list);
 }
 
 static inline void
 __remove_wait_queue(wait_queue_head_t *head, wait_queue_t *old)
 {
-#if 0	
 	list_del(&old->task_list);
-#endif	
 }
 	
 static inline int
 waitqueue_active(wait_queue_head_t *q)
 {
-	void *c = &(q)->wchan;
-	void *sq;
-
-	sleepq_lock(c);
-	sq = sleepq_lookup(c);
-	sleepq_release(c);
-	return (sq != NULL);
+	return (!list_empty(&q->task_list));
 }
 
-#define DEFINE_WAIT(name)	\
-	wait_queue_t name = {}
+
+static inline void
+abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait,
+			unsigned int mode, void *key)
+{
+	unsigned long flags;
+
+	__set_current_state(TASK_RUNNING);
+	spin_lock_irqsave(&q->lock, flags);
+	if (!list_empty(&wait->task_list))
+		list_del_init(&wait->task_list);
+	else if (waitqueue_active(q))
+		__wake_up_locked_key(q, mode, key);
+	spin_unlock_irqrestore(&q->lock, flags);
+}
+static inline long
+prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state)
+{
+	unsigned long flags;
+
+	if (signal_pending_state(state, current))
+		return -ERESTARTSYS;
+
+	current->sleep_wq = q;	
+	wait->private = current;
+	wait->func = autoremove_wake_function;
+
+	spin_lock_irqsave(&q->lock, flags);
+	if (list_empty(&wait->task_list)) {
+		if (wait->flags & WQ_FLAG_EXCLUSIVE)
+			__add_wait_queue_tail(q, wait);
+		else
+			__add_wait_queue(q, wait);
+	}
+	set_current_state(state);
+	spin_unlock_irqrestore(&q->lock, flags);
+
+	return 0;
+}
 
 static inline void
 prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
@@ -251,6 +418,11 @@ prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
 	MPASS(current != NULL);
 
 	current->sleep_wq = q;
+	spin_lock(&q->lock);
+	if (list_empty(&wait->task_list))
+		__add_wait_queue(q, wait);
+	set_current_state(state);
+	spin_unlock(&q->lock);
 }
 
 static inline void
@@ -258,11 +430,27 @@ finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 {
 	MPASS(current != NULL);
 	MPASS(current->sleep_wq == q);
+
 	current->sleep_wq = NULL;
+	__set_current_state(TASK_RUNNING);
+
+	if (!list_empty_careful(&wait->task_list)) {
+		spin_lock(&q->lock);
+		list_del_init(&wait->task_list);
+		spin_unlock(&q->lock);
+	}
 }
 
-#define wait_event_interruptible_locked(wq, condition) ({panic("implement me!!! XXX"); 0;})
+/*
+ * These are supposed to be defined by sched.h, so if we defined them
+ * we need to undo that.
+ */
+#ifdef undef_set_current
+#undef set_current_state
+#endif
 
-
+#ifdef undef___set_current
+#undef __set_current_state
+#endif
 
 #endif
