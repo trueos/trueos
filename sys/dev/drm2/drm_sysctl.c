@@ -35,6 +35,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/sysctl.h>
 
+
+static int drm_add_busid_modesetting(struct drm_device *dev, struct sysctl_ctx_list *ctx,
+	   struct sysctl_oid *top);
+
 SYSCTL_DECL(_hw_drm);
 
 #define DRM_SYSCTL_HANDLER_ARGS	(SYSCTL_HANDLER_ARGS)
@@ -65,7 +69,8 @@ struct drm_sysctl_info {
 	char		       name[2];
 };
 
-int drm_sysctl_init(struct drm_device *dev)
+int
+drm_sysctl_init(struct drm_device *dev)
 {
 	struct drm_sysctl_info *info;
 	struct sysctl_oid *oid;
@@ -125,8 +130,12 @@ int drm_sysctl_init(struct drm_device *dev)
 	SYSCTL_ADD_INT(&info->ctx, SYSCTL_CHILDREN(drioid), OID_AUTO, "debug",
 	    CTLFLAG_RW, &drm_debug, sizeof(drm_debug),
 		       "Enable debugging output");
+#ifdef notyet
 	if (dev->driver->sysctl_init != NULL)
 		dev->driver->sysctl_init(dev, &info->ctx, top);
+#endif	
+
+	drm_add_busid_modesetting(dev, &info->ctx, top);
 
 	SYSCTL_ADD_INT(&info->ctx, SYSCTL_CHILDREN(drioid), OID_AUTO,
 	    "vblank_offdelay", CTLFLAG_RW, &drm_vblank_offdelay,
@@ -155,6 +164,36 @@ int drm_sysctl_cleanup(struct drm_device *dev)
 
 	return (-error);
 }
+
+static int
+drm_add_busid_modesetting(struct drm_device *dev, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid *top)
+{
+	struct sysctl_oid *oid;
+	device_t bsddev;
+	int domain, bus, slot, func;
+
+	bsddev = dev->dev->bsddev;
+	domain = pci_get_domain(bsddev);
+	bus    = pci_get_bus(bsddev);
+	slot   = pci_get_slot(bsddev);
+	func   = pci_get_function(bsddev);
+
+	snprintf(dev->busid_str, sizeof(dev->busid_str),
+	    "pci:%04x:%02x:%02x.%d", domain, bus, slot, func);
+	oid = SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(top), OID_AUTO, "busid",
+	    CTLFLAG_RD, dev->busid_str, 0, NULL);
+	if (oid == NULL)
+		return (-ENOMEM);
+	dev->modesetting = (dev->driver->driver_features & DRIVER_MODESET) != 0;
+	oid = SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(top), OID_AUTO,
+	    "modesetting", CTLFLAG_RD, &dev->modesetting, 0, NULL);
+	if (oid == NULL)
+		return (-ENOMEM);
+
+	return (0);
+}
+
 
 #define DRM_SYSCTL_PRINT(fmt, arg...)				\
 do {								\
