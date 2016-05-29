@@ -35,10 +35,8 @@ SUBDIR = \
 	amd \
 	${_i915kms} \
 	${_amdgpukmsfw} \
-	${_radeonkmsfw}
-	
-#${_radeonkms} \
-#	${_radeonkmsfw}
+	${_radeonkmsfw} \
+	${_radeonkms}
 
 # Special target that causes drm2 code to printf error returns.  Useful for
 # determining the root cause of errors.  Depends on drmP.h macro DRM_ERR_RET.
