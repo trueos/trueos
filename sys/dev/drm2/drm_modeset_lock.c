@@ -334,7 +334,7 @@ static inline int modeset_lock(struct drm_modeset_lock *lock,
 	}
 	if (!ret) {
 		static int warncount = 0;
-		if (warncount++ % 10 == 0) {
+		if (warncount++ % 20 == 0) {
 			WARN_ON(!list_empty(&lock->head));
 			BACKTRACE();
 		}
