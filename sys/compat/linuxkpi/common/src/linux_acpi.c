@@ -52,6 +52,17 @@ acpi_status
 AcpiGetHandle(acpi_handle parent,
     acpi_string pathname, acpi_handle * ret_handle);
 
+acpi_status
+AcpiGetTableWithSize(char *signature,
+		     u32 instance, struct acpi_table_header **out_table,
+		     acpi_size *tbl_size);
+
+
+
+
+extern const char *
+AcpiFormatException(acpi_status status);
+
 static void
 acpi_util_eval_error(acpi_handle h, acpi_string p, acpi_status s)
 {
@@ -159,12 +170,27 @@ acpi_get_handle(acpi_handle parent,
 	return (AcpiGetHandle(parent, pathname, ret_handle));
 }
 
+acpi_status
+acpi_get_table_with_size(char *signature,
+	       u32 instance, struct acpi_table_header **out_table,
+	       acpi_size *tbl_size)
+{
+
+	return (AcpiGetTableWithSize(signature, instance, out_table, tbl_size));
+}
+
 bool
 acpi_has_method(acpi_handle handle, char *name)
 {
 	acpi_handle tmp;
 
 	return ACPI_SUCCESS(acpi_get_handle(handle, name, &tmp));
+}
+
+const char *
+acpi_format_exception(acpi_status status)
+{
+	return (AcpiFormatException(status));
 }
 
 union acpi_object *
