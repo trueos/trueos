@@ -521,6 +521,7 @@ linux_pci_get_class(unsigned int class, struct pci_dev *from)
 	pdev = from;
 	if (class != (PCI_CLASS_BRIDGE_ISA << 8)) {
 		log(LOG_WARNING, "unrecognized class %d in %s\n", class, __FUNCTION__);
+		BACKTRACE();
 		return (NULL);
 	}
 
