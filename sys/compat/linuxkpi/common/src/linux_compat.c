@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_map.h>
 #include "linux_trace.h"
 
 extern u_int cpu_clflush_line_size;
@@ -542,7 +543,45 @@ linux_file_dtor(void *cdp)
 	kfree(filp);
 }
 
+
 #define PFN_TO_VM_PAGE(pfn) PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT)
+
+static inline vm_map_entry_t
+vm_map_find_object_entry(vm_map_t map, vm_object_t obj)
+{
+	vm_map_entry_t entry;
+
+	MPASS(map->root != NULL);
+
+	entry = &map->header;
+	do {
+		if (entry->object.vm_object == obj)
+			return (entry);
+		entry = entry->next;
+	} while (entry != NULL);
+	MPASS(entry != NULL);
+
+	return (NULL);
+}
+
+static inline vm_offset_t
+vm_area_get_object_start(vm_map_t map, vm_object_t obj, struct vm_area_struct *vmap)
+{
+	vm_map_entry_t entry;
+	
+	if (__predict_true(vmap->vm_cached_map == map))
+		return (vmap->vm_cached_start);
+
+	vm_map_lock(map);
+	entry = vm_map_find_object_entry(map, obj);
+	vm_map_unlock(map);
+
+	MPASS(entry != NULL);
+	vmap->vm_cached_map = map;
+	vmap->vm_cached_start = entry->start;
+
+	return (entry->start);
+}
 
 static int
 linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_page_t *mres, int count, int *rahead)
@@ -554,6 +593,8 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	int rc, err, fault_flags, i;
 	vm_object_t page_object;
 	unsigned long vma_flags;
+	vm_offset_t start;
+	vm_map_t map;
 
 	memattr = vm_obj->memattr;
 
@@ -576,8 +617,10 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 
 	trace_compat_cdev_pager_fault(vm_obj, offset, prot, mres);
 	vm_object_pip_add(vm_obj, 1);
-
 	VM_OBJECT_WUNLOCK(vm_obj);
+
+	map = &curproc->p_vmspace->vm_map;
+	start = vm_area_get_object_start(map, vm_obj, vmap);
 	memcpy(&cvma, vmap, sizeof(cvma));
 	cvma.vm_pfn_count = 0;
 	cvma.vm_flags |= vma_flags;
@@ -654,15 +697,17 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 		MPASS(page->object == NULL || page->object == vm_obj);
 		if (page->object == vm_obj && page->pindex == OFF_TO_IDX(offset + PAGE_SIZE*i))
 			continue;
+
+		/* new page, add it to the list */
+		if (page->object == NULL)
+			TAILQ_INSERT_TAIL(&vm_obj->un_pager.devp.devp_pglist,
+			    page, plinks.q);
 		/* Check if the page needs to be moved - there may be a cheaper way*/
 		if (page->object == vm_obj && page->pindex != OFF_TO_IDX(offset + PAGE_SIZE*i)) {
 			vm_page_lock(page);
 			vm_page_remove(page);
 			vm_page_unlock(page);
 		}
-		if (cvma.vm_pfn_count > 1 && page->object == NULL)
-			TAILQ_INSERT_TAIL(&vm_obj->un_pager.devp.devp_pglist,
-			    page, plinks.q);
 
 		while (page->object == NULL && vm_page_insert(page, vm_obj, OFF_TO_IDX(offset + PAGE_SIZE*i))) {
 			VM_OBJECT_WUNLOCK(vm_obj);
@@ -671,14 +716,15 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 		}
 		page->valid = VM_PAGE_BITS_ALL;
 	}
+	if (cvma.vm_pfn_count > 1)
+		pmap_enter_object(map->pmap, start + offset, start + offset + (cvma.vm_pfn_count*PAGE_SIZE),
+				  PFN_TO_VM_PAGE(cvma.vm_pfn_array[0]), prot);
 	for (i = 0; i < min(cvma.vm_pfn_count, count); i++) {
 		if (!vm_page_xbusied(mres[i]))
 			vm_page_xbusy(mres[i]);
 	}
 	MPASS(cvma.vm_pfn_count >= count);
 
-	if (rahead)
-		*rahead = cvma.vm_pfn_count - 1;
 	vm_page_assert_xbusied(mres[0]);
 	vm_object_pip_wakeup(vm_obj);
 	return (VM_PAGER_OK);
@@ -708,6 +754,12 @@ linux_cdev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	struct vm_area_struct *vmap = handle;
 
 	vmap->vm_ops->open(vmap);
+	printf("%s: mapping starts at %zx, ends at %zx\n",
+	       __FUNCTION__, foff, vmap->vm_end + foff);
+
+	vmap->vm_start += foff;
+	vmap->vm_end += foff;
+	
 	*color = 0;
 	return (0);
 }
@@ -1031,12 +1083,13 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 			struct sglist *sg;
 
 			if (vma.vm_ops != NULL && vma.vm_ops->fault != NULL) {
+				BACKTRACE();
 				MPASS(vma.vm_ops->open != NULL);
 				MPASS(vma.vm_ops->close != NULL);
 				vmap = malloc(sizeof(*vmap), M_LCINT, M_WAITOK);
 				memcpy(vmap, &vma, sizeof(*vmap));
 				/* XXX note to self - audit vm_page_prot usage */
-				*object = cdev_pager_allocate(vmap, OBJT_MGTDEVICE, &linux_cdev_pager_ops, size, vma.vm_page_prot,
+				*object = cdev_pager_allocate(vmap, OBJT_SELFMGTDEVICE, &linux_cdev_pager_ops, size, vma.vm_page_prot,
 							      0, curthread->td_ucred);
 				if (*object != NULL)
 					vmap->vm_obj = *object;

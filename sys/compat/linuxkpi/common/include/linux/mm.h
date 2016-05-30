@@ -90,6 +90,8 @@ struct vm_area_struct {
 	 * device memory past 16TB - for the next decade this could
 	 * only be an issue with mapping SSDs
 	 */
+	vm_map_t vm_cached_map;
+	vm_offset_t vm_cached_start;
 	uint32_t vm_pfn_array[VMA_MAX_PREFAULT];
 };
 
