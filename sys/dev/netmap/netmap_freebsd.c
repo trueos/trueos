@@ -492,7 +492,7 @@ netmap_dev_pager_dtor(void *handle)
 
 static int
 netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
-	int prot, vm_page_t *mres, int count, int *rahead)
+    int prot, vm_page_t *mres)
 {
 	struct netmap_vm_handle_t *vmh = object->handle;
 	struct netmap_priv_d *priv = vmh->priv;
@@ -501,9 +501,6 @@ netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
 	vm_page_t page;
 	vm_memattr_t memattr;
 	vm_pindex_t pidx;
-
-	if (rahead)
-		*rahead = 0;
 
 	ND("object %p offset %jd prot %d mres %p",
 			object, (intmax_t)offset, prot, mres);
