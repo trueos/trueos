@@ -118,6 +118,7 @@ SRCS	= \
 	hwmgr.c \
 	pp_acpi.c \
 	ppatomctrl.c \
+	pppcielanes.c \
 	processpptables.c \
 	tonga_clockpowergating.c \
 	tonga_hwmgr.c \
