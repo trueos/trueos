@@ -26,6 +26,10 @@ trace_amdgpu_bo_create(void *bo)
 }
 
 static inline void
+trace_amdgpu_bo_list_set(void *a, void *b) {
+	CTR2(KTR_DRM, "amdgpu_bo_list_set %p %p", a, b);
+}
+static inline void
 trace_amdgpu_vm_grab_id(struct amdgpu_vm *vm, int idx, unsigned vm_id, uint64_t vm_pd_addr){
         CTR4(KTR_DRM, "amdgpu_vm_grab_id %p %u %u %x", vm, idx, vm_id, vm_pd_addr);
 }
