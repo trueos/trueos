@@ -584,7 +584,7 @@ vm_area_get_object_start(vm_map_t map, vm_object_t obj, struct vm_area_struct *v
 }
 
 static int
-linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_page_t *mres, int count, int *rahead)
+linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_page_t *mres)
 {
 	vm_page_t page;
 	struct vm_fault vmf;
@@ -603,10 +603,10 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	 * We can be fairly certain that these aren't 
 	 * the pages we're looking for.
 	 */
-	for (i = 0; i < count; i++) {
-		vm_page_lock(mres[i]);
-		vm_page_remove(mres[i]);
-		vm_page_unlock(mres[i]);
+	if (mres) {
+		vm_page_lock(*mres);
+		vm_page_remove(*mres);
+		vm_page_unlock(*mres);
 	}
 	/*
 	 * We minimize object lock acquisition by tracking the pfn
@@ -681,16 +681,14 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	 * actually use. We don't free them unless we succeed, so that 
 	 * there is still a valid result page on failure.
 	 */
-	for (i = 0; i < min(count, cvma.vm_pfn_count); i++) {
-		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
-		if (mres[i] == page)
-			continue;
-		vm_page_lock(mres[i]);
-		vm_page_free(mres[i]);
-		vm_page_unlock(mres[i]);
-		mres[i] = page;
+	page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[0]);
+	if (mres && *mres != page) {
+		vm_page_lock(page);
+		vm_page_free(page);
+		vm_page_unlock(page);
+		*mres = page;
 	}
-	vm_page_assert_xbusied(mres[0]);
+	vm_page_assert_xbusied(page);
 	for  (i = 0; i < cvma.vm_pfn_count; i++)  {
 		page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[i]);
 
@@ -698,10 +696,6 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 		if (page->object == vm_obj && page->pindex == OFF_TO_IDX(offset + PAGE_SIZE*i))
 			continue;
 
-		/* new page, add it to the list */
-		if (page->object == NULL)
-			TAILQ_INSERT_TAIL(&vm_obj->un_pager.devp.devp_pglist,
-			    page, plinks.q);
 		/* Check if the page needs to be moved - there may be a cheaper way*/
 		if (page->object == vm_obj && page->pindex != OFF_TO_IDX(offset + PAGE_SIZE*i)) {
 			vm_page_lock(page);
@@ -719,13 +713,9 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	if (cvma.vm_pfn_count > 1)
 		pmap_enter_object(map->pmap, start + offset, start + offset + (cvma.vm_pfn_count*PAGE_SIZE),
 				  PFN_TO_VM_PAGE(cvma.vm_pfn_array[0]), prot);
-	for (i = 0; i < min(cvma.vm_pfn_count, count); i++) {
-		if (!vm_page_xbusied(mres[i]))
-			vm_page_xbusy(mres[i]);
-	}
-	MPASS(cvma.vm_pfn_count >= count);
+	if (mres && !vm_page_xbusied(*mres))
+		vm_page_xbusy(*mres);
 
-	vm_page_assert_xbusied(mres[0]);
 	vm_object_pip_wakeup(vm_obj);
 	return (VM_PAGER_OK);
 err:
@@ -1077,13 +1067,12 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 			struct sglist *sg;
 
 			if (vma.vm_ops != NULL && vma.vm_ops->fault != NULL) {
-				BACKTRACE();
 				MPASS(vma.vm_ops->open != NULL);
 				MPASS(vma.vm_ops->close != NULL);
 				vmap = malloc(sizeof(*vmap), M_LCINT, M_WAITOK);
 				memcpy(vmap, &vma, sizeof(*vmap));
 				/* XXX note to self - audit vm_page_prot usage */
-				*object = cdev_pager_allocate(vmap, OBJT_SELFMGTDEVICE, &linux_cdev_pager_ops, size, vma.vm_page_prot,
+				*object = cdev_pager_allocate(vmap, OBJT_MGTDEVICE, &linux_cdev_pager_ops, size, vma.vm_page_prot,
 							      0, curthread->td_ucred);
 				if (*object != NULL)
 					vmap->vm_obj = *object;

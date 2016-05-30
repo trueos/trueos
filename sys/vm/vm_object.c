@@ -241,7 +241,6 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 		object->flags = OBJ_FICTITIOUS | OBJ_UNMANAGED;
 		break;
 	case OBJT_MGTDEVICE:
-	case OBJT_SELFMGTDEVICE:
 		object->flags = OBJ_FICTITIOUS;
 		break;
 	case OBJT_PHYS:
@@ -337,7 +336,6 @@ vm_object_set_memattr(vm_object_t object, vm_memattr_t memattr)
 	case OBJT_DEFAULT:
 	case OBJT_DEVICE:
 	case OBJT_MGTDEVICE:
-	case OBJT_SELFMGTDEVICE:
 	case OBJT_PHYS:
 	case OBJT_SG:
 	case OBJT_SWAP:
@@ -2362,7 +2360,6 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 			kvo.kvo_type = KVME_TYPE_SG;
 			break;
 		case OBJT_MGTDEVICE:
-		case OBJT_SELFMGTDEVICE:
 			kvo.kvo_type = KVME_TYPE_MGTDEVICE;
 			break;
 		default:

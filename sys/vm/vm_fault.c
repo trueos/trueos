@@ -129,7 +129,7 @@ struct faultstate {
 static void vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr,
 	    int ahead);
 static void vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
-            int backward, int forward, int fault_type);
+	    int backward, int forward);
 
 static inline void
 release_page(struct faultstate *fs)
@@ -384,7 +384,7 @@ RetryFault:;
 		    FALSE);
 		VM_OBJECT_RUNLOCK(fs.first_object);
 		if (!wired)
-			vm_fault_prefault(&fs, vaddr, PFBAK, PFFOR, fault_type);
+			vm_fault_prefault(&fs, vaddr, PFBAK, PFFOR);
 		vm_map_lookup_done(fs.map, fs.entry);
 		curthread->td_ru.ru_minflt++;
 		return (KERN_SUCCESS);
@@ -955,13 +955,12 @@ vnode_locked:
 	 * won't find it (yet).
 	 */
 	pmap_enter(fs.map->pmap, vaddr, fs.m, prot,
-		   fault_type | (wired ? PMAP_ENTER_WIRED : 0), 0);
+	    fault_type | (wired ? PMAP_ENTER_WIRED : 0), 0);
 	if (faultcount != 1 && (fault_flags & VM_FAULT_WIRE) == 0 &&
 	    wired == 0)
 		vm_fault_prefault(&fs, vaddr,
 		    faultcount > 0 ? behind : PFBAK,
-		    faultcount > 0 ? ahead : PFFOR,
-		    fault_type);
+		    faultcount > 0 ? ahead : PFFOR);
 	VM_OBJECT_WLOCK(fs.object);
 	vm_page_lock(fs.m);
 
@@ -1093,7 +1092,7 @@ vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
  */
 static void
 vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
-    int backward, int forward, int fault_type)
+    int backward, int forward)
 {
 	pmap_t pmap;
 	vm_map_entry_t entry;
@@ -1153,12 +1152,9 @@ vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 			VM_OBJECT_RUNLOCK(lobject);
 			break;
 		}
-		if (m->valid == VM_PAGE_BITS_ALL) {
-			if (m->flags & PG_FICTITIOUS)
-				pmap_enter_quick(pmap, addr, m, fault_type);
-			else
-				pmap_enter_quick(pmap, addr, m, entry->protection);
-		}
+		if (m->valid == VM_PAGE_BITS_ALL &&
+		    (m->flags & PG_FICTITIOUS) == 0)
+			pmap_enter_quick(pmap, addr, m, entry->protection);
 		VM_OBJECT_RUNLOCK(lobject);
 	}
 }
