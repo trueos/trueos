@@ -563,6 +563,14 @@ AcpiGetTableHeader (
 
 ACPI_EXTERNAL_RETURN_STATUS (
 ACPI_STATUS
+AcpiGetTableWithSize (
+    ACPI_STRING             Signature,
+    UINT32                  Instance,
+    ACPI_TABLE_HEADER       **OutTable,
+    ACPI_SIZE               *TblSize))
+
+ACPI_EXTERNAL_RETURN_STATUS (
+ACPI_STATUS
 AcpiGetTable (
     ACPI_STRING             Signature,
     UINT32                  Instance,
