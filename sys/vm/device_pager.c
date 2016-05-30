@@ -86,6 +86,14 @@ struct pagerops mgtdevicepagerops = {
 	.pgo_haspage =	dev_pager_haspage,
 };
 
+struct pagerops selfmgtdevicepagerops = {
+	.pgo_alloc =	dev_pager_alloc,
+	.pgo_dealloc =	dev_pager_dealloc,
+	.pgo_getpages =	dev_pager_getpages,
+	.pgo_putpages =	dev_pager_putpages,
+	.pgo_haspage =	dev_pager_haspage,
+};
+
 static int old_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred, u_short *color);
 static void old_dev_pager_dtor(void *handle);
@@ -125,7 +133,7 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 	vm_pindex_t pindex;
 	u_short color;
 
-	if (tp != OBJT_DEVICE && tp != OBJT_MGTDEVICE)
+	if (tp != OBJT_DEVICE && tp != OBJT_MGTDEVICE && tp != OBJT_SELFMGTDEVICE)
 		return (NULL);
 
 	/*
@@ -209,7 +217,7 @@ cdev_pager_free_page(vm_object_t object, vm_page_t m)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	if (object->type == OBJT_MGTDEVICE) {
+	if (object->type == OBJT_MGTDEVICE || object->type == OBJT_SELFMGTDEVICE) {
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("unmanaged %p", m));
 		pmap_remove_all(m);
 		vm_page_lock(m);
@@ -278,15 +286,17 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 		KASSERT((object->type == OBJT_DEVICE &&
 		     (ma[0]->oflags & VPO_UNMANAGED) != 0) ||
 		    (object->type == OBJT_MGTDEVICE &&
+		     (ma[0]->oflags & VPO_UNMANAGED) == 0) ||
+			(object->type == OBJT_SELFMGTDEVICE &&
 		     (ma[0]->oflags & VPO_UNMANAGED) == 0),
 		    ("Wrong page type %p %p", ma[0], object));
-		if (ahead == 0)
+		if (object->type != OBJT_SELFMGTDEVICE)
 			TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist,
 			    ma[0], plinks.q);
 		if (rbehind)
 			*rbehind = 0;
 		if (rahead)
-			*rahead = ahead;
+			*rahead = 0;
 	}
 
 	return (error);
