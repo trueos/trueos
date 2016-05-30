@@ -225,8 +225,6 @@ __get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages, int w
 		prot |= VM_PROT_WRITE;
 	len = nr_pages << PAGE_SHIFT;
 	count = vm_fault_quick_hold_pages(map, start, len, prot, pages, nr_pages);
-	BACKTRACE();
-	printf("%s count == %d\n", __FUNCTION__, count); 
 	return (count == -1 ? -EFAULT : count);
 }
 
@@ -236,7 +234,7 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 
 {
 	vm_map_t map;
-	vm_page_t *ma, *mp;
+	vm_page_t *mp;
 	vm_offset_t va, end;
 	int count;
 	vm_prot_t prot;
@@ -245,7 +243,6 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		return (0);
 
 	count = 0;
-	ma = pages;
 	va = start;
 	map = &curthread->td_proc->p_vmspace->vm_map;
 	end = start + (nr_pages << PAGE_SHIFT);
@@ -255,8 +252,7 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	if (write)
 		prot |= VM_PROT_WRITE;
 
-	BACKTRACE();
-	for (mp = ma, va = start; va < end; mp++, va += PAGE_SIZE) {
+	for (mp = pages, va = start; va < end; mp++, va += PAGE_SIZE) {
 		*mp = pmap_extract_and_hold(map->pmap, va, prot);
 		if (*mp != NULL)
 			count++;
@@ -288,6 +284,19 @@ get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 	map = &tsk->task_thread->td_proc->p_vmspace->vm_map;
 	return (__get_user_pages_internal(map, start, nr_pages, write, pages));
 }
+
+long
+get_user_pages(unsigned long start, unsigned long nr_pages,
+		int write, int force, struct page **pages,
+		    struct vm_area_struct **vmas)
+{
+	vm_map_t map;
+
+	map = &curthread->td_proc->p_vmspace->vm_map;
+	return (__get_user_pages_internal(map, start, nr_pages, write, pages));
+}
+
+
 
 #include <sys/mount.h>
 #include <fs/pseudofs/pseudofs.h>
