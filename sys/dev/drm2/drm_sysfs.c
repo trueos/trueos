@@ -645,6 +645,7 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 	MPASS(cdevp != NULL);
 	if (cdevp == NULL)
 		goto err_free;
+	minor->bsd_device = cdevp->cdev;
 	make_dev_alias(cdevp->cdev, minor_str, minor->index);
 	/* MESA needs the hw.dri sysctl tree */
 	drm_sysctl_init(minor->dev);
