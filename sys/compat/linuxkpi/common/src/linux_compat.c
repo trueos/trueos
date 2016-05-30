@@ -91,6 +91,7 @@ extern u_int cpu_id;
 struct workqueue_struct *system_long_wq;
 struct workqueue_struct *system_wq;
 struct workqueue_struct *system_unbound_wq;
+struct workqueue_struct *system_power_efficient_wq;
 
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 
@@ -121,7 +122,13 @@ struct sx linux_global_rcu_lock;
 
 unsigned long linux_timer_hz_mask;
 struct list_head cdev_list;
+struct ida *hwmon_idap;
+DEFINE_IDA(hwmon_ida);
 
+/*
+ * XXX need to define irq_idr and hwmon_ida
+ *
+ */
 
 struct rendezvous_state {
 	struct mtx rs_mtx;
@@ -1835,12 +1842,14 @@ linux_compat_init(void *arg)
 #if defined(__i386__) || defined(__amd64__)
 	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
 #endif
+	hwmon_idap = &hwmon_ida;
 	sx_init(&linux_global_rcu_lock, "LinuxGlobalRCU");
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	boot_cpu_data.x86 = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 
 	system_long_wq = alloc_workqueue("events_long", 0, 0);
 	system_wq = alloc_workqueue("events", 0, 0);
+	system_power_efficient_wq = alloc_workqueue("power efficient", 0, 0);
 	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
 	INIT_LIST_HEAD(&cdev_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
