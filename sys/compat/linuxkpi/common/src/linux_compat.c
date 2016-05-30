@@ -690,9 +690,9 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	 */
 	page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[0]);
 	if (mres && *mres != page) {
-		vm_page_lock(page);
-		vm_page_free(page);
-		vm_page_unlock(page);
+		vm_page_lock(*mres);
+		vm_page_free(*mres);
+		vm_page_unlock(*mres);
 		*mres = page;
 	}
 	vm_page_assert_xbusied(page);
