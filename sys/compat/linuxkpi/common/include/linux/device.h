@@ -460,10 +460,6 @@ device_del(struct device *dev)
 struct device *device_create(struct class *class, struct device *parent,
 	    dev_t devt, void *drvdata, const char *fmt, ...);
 
-struct device *device_create_with_groups(struct class *cls,
-			     struct device *parent, dev_t devt, void *drvdata,
-			     const struct attribute_group **groups,
-			     const char *fmt, ...);
 
 static inline void
 device_destroy(struct class *class, dev_t devt)
@@ -477,6 +473,95 @@ device_destroy(struct class *class, dev_t devt)
 		device_unregister(device_get_softc(bsddev));
 }
 
+#include <linux/idr.h>
+extern struct ida *hwmon_idap;
+
+static inline char *
+strpbrk(const char *s, const char *b)
+{
+	const char *p;
+
+	do {
+		for (p = b; *p != '\0' && *p != *s; ++p)
+			;
+		if (*p != '\0')
+			return ((char *)(uintptr_t)s);
+	} while (*s++);
+
+	return (NULL);
+}
+
+static struct class hwmon_class = {
+	.name = "hwmon",
+	.owner = THIS_MODULE,
+#ifdef __linux__	
+	.dev_groups = hwmon_dev_attr_groups,
+	.dev_release = hwmon_dev_release,
+#endif	
+};
+
+#define HWMON_ID_PREFIX "hwmon"
+#define HWMON_ID_FORMAT HWMON_ID_PREFIX "%d"
+
+struct hwmon_device {
+	const char *name;
+	struct device dev;
+};
+static inline struct device *
+hwmon_device_register_with_groups(struct device *dev, const char *name,
+				  void *drvdata,
+				  const struct attribute_group **groups)
+{
+	struct hwmon_device *hwdev;
+	int err, id;
+
+	/* Do not accept invalid characters in hwmon name attribute */
+	if (name && (!strlen(name) || strpbrk(name, "-* \t\n")))
+		return ERR_PTR(-EINVAL);
+
+	id = ida_simple_get(hwmon_idap, 0, 0, GFP_KERNEL);
+	if (id < 0)
+		return ERR_PTR(id);
+
+	hwdev = kzalloc(sizeof(*hwdev), GFP_KERNEL);
+	if (hwdev == NULL) {
+		err = -ENOMEM;
+		goto ida_remove;
+	}
+
+	hwdev->name = name;
+	hwdev->dev.class = &hwmon_class;
+	hwdev->dev.parent = dev;
+	hwdev->dev.groups = groups;
+	hwdev->dev.of_node = dev ? dev->of_node : NULL;
+	dev_set_drvdata(&hwdev->dev, drvdata);
+	dev_set_name(&hwdev->dev, HWMON_ID_FORMAT, id);
+	err = device_register(&hwdev->dev);
+	if (err)
+		goto free;
+
+	return &hwdev->dev;
+
+free:
+	kfree(hwdev);
+ida_remove:
+	ida_simple_remove(hwmon_idap, id);
+	return ERR_PTR(err);
+}
+
+
+static inline
+void hwmon_device_unregister(struct device *dev)
+{
+	int id;
+
+	if (likely(sscanf(dev_name(dev), HWMON_ID_FORMAT, &id) == 1)) {
+		device_unregister(dev);
+		ida_simple_remove(hwmon_idap, id);
+	} else
+		device_printf(dev->bsddev,
+			"hwmon_device_unregister() failed: bad class ID!\n");
+}
 
 static inline int
 driver_register(struct device_driver *drv)
