@@ -669,7 +669,7 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 		vm_page_lock(page);
 		vm_page_remove(page);
 		vm_page_unlock(page);
-		VM_OBJECT_WLOCK(page_object);
+		VM_OBJECT_WUNLOCK(page_object);
 	}
 
 	VM_OBJECT_WLOCK(vm_obj);
