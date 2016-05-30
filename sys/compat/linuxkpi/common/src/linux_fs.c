@@ -242,7 +242,7 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	if (nr_pages == 0)
 		return (0);
 
-	count = 0;
+	MPASS(pages != NULL);
 	va = start;
 	map = &curthread->td_proc->p_vmspace->vm_map;
 	end = start + (nr_pages << PAGE_SHIFT);
@@ -251,11 +251,10 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	prot = VM_PROT_READ;
 	if (write)
 		prot |= VM_PROT_WRITE;
-
-	for (mp = pages, va = start; va < end; mp++, va += PAGE_SIZE) {
+	for (count= 0, mp = pages, va = start; va < end; mp++, va += PAGE_SIZE, count++) {
 		*mp = pmap_extract_and_hold(map->pmap, va, prot);
-		if (*mp != NULL)
-			count++;
+		if (*mp == NULL)
+			break;
 		else if ((prot & VM_PROT_WRITE) != 0 &&
 		    (*mp)->dirty != VM_PAGE_BITS_ALL) {
 			/*
