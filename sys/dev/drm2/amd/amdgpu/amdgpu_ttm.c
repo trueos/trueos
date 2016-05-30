@@ -526,6 +526,8 @@ int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
 	unsigned pinned = 0;
 	int r;
 
+#ifdef __notyet__
+/* no userptr support yet */
 	if (gtt->userflags & AMDGPU_GEM_USERPTR_ANONONLY) {
 		/* check that we only use anonymous memory
 		   to prevent problems with writeback */
@@ -536,7 +538,7 @@ int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages)
 		if (!vma || vma->vm_file || vma->vm_end < end)
 			return -EPERM;
 	}
-
+#endif
 	do {
 		unsigned num_pages = ttm->num_pages - pinned;
 		uint64_t userptr = gtt->userptr + pinned * PAGE_SIZE;
