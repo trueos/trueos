@@ -460,7 +460,6 @@ const struct i2c_algorithm i2c_bit_algo = {
 	.functionality	= bit_func,
 };
 
-
 int
 i2c_add_adapter(struct i2c_adapter *adapter)
 {
@@ -498,7 +497,7 @@ i2c_del_adapter(struct i2c_adapter *adap)
 }
 
 static int
-__i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+linux_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	uint64_t orig_ticks;
 	int rc, iter;
@@ -524,7 +523,7 @@ i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 		return (-EOPNOTSUPP);
 
 	mutex_lock(&i2c_core);
-	rc = __i2c_transfer(adap, msgs, num);
+	rc = linux_i2c_transfer(adap, msgs, num);
 	mutex_unlock(&i2c_core);
 	return (rc);
 }
@@ -633,4 +632,17 @@ out_err:
 out_err_silent:
 	kfree(client);
 	return NULL;
+}
+
+int
+i2c_bit_add_bus(struct i2c_adapter *adap)
+{
+	int rc;
+
+	adap->algo = &i2c_bit_algo;
+	adap->retries = 3;
+	if ((rc = i2c_add_adapter(adap)) < 0)
+		return (rc);
+
+	return (0);
 }
