@@ -8,7 +8,6 @@ KMOD	= amdgpu
 #       amdgpu_acp.h \
 #       amdgpu_acp.c
 # XXX not ported yet
-#	amdgpu_vm.c : trace points, atomic, rbtree
 #	gpu_scheduler.c : kfifo
 # XXX not enabled:
 #	amdgpu_mn.c 
@@ -24,6 +23,7 @@ SRCS	= \
 	amdgpu_atpx_handler.c \
 	amdgpu_benchmark.c \
 	amdgpu_bios.c \
+	amdgpu_bo_list.c \
 	amdgpu_connectors.c \
 	amdgpu_cs.c \
 	amdgpu_ctx.c \
@@ -113,9 +113,11 @@ SRCS	= \
 	fiji_powertune.c \
 	fiji_thermal.c \
 	functiontables.c \
+	gpu_scheduler.c \
 	hardwaremanager.c \
 	hwmgr.c \
 	pp_acpi.c \
+	ppatomctrl.c \
 	processpptables.c \
 	tonga_clockpowergating.c \
 	tonga_hwmgr.c \
@@ -125,7 +127,7 @@ SRCS	= \
 	cz_smumgr.c \
 	tonga_smumgr.c \
 	fiji_smumgr.c
-	
+
 
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
@@ -151,6 +153,7 @@ CWARNFLAGS+=	-Wno-pointer-sign ${CWARNFLAGS.${.IMPSRC:T}}
 
 CWARNFLAGS.amdgpu_acpi.c=	-Wno-int-conversion -Wno-missing-prototypes -Wno-unused-variable
 CWARNFLAGS.amdgpu_amdkfd.c=	-Wno-missing-prototypes
+CWARNFLAGS.amdgpu_bo_list.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_cs.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_device.c=	-Wno-format -Wno-cast-qual
 CWARNFLAGS.amdgpu_fence.c=	-Wno-format
@@ -184,14 +187,15 @@ CWARNFLAGS.gfx_v8_0.c=	-Wno-missing-prototypes
 CWARNFLAGS.iceland_smc.c=	-Wno-missing-prototypes
 CWARNFLAGS.kv_dpm.c=	-Wno-unused-const-variable
 CWARNFLAGS.tonga_smc.c=	-Wno-cast-qual
-CWARNFLAGS.gpu_scheduler.c=	-Wno-format
+CWARNFLAGS.gpu_scheduler.c=	-Wno-format -Wno-missing-prototypes
 CWARNFLAGS.amd_powerplay.c=	-Wno-missing-prototypes
 CWARNFLAGS.eventtasks.c=	-Wno-missing-prototypes
 CWARNFLAGS.cz_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.cz_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.fiji_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.fiji_thermal.c=	-Wno-missing-prototypes
-CWARNFLAGS.pp_acpi.c=	-Wno-missing-prototypes
+CWARNFLAGS.pp_acpi.c=	-Wno-missing-prototypes 
+CWARNFLAGS.ppatomctrl.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.processpptables.c=	-Wno-missing-prototypes -Wno-sometimes-uninitialized
 CWARNFLAGS.tonga_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.tonga_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
