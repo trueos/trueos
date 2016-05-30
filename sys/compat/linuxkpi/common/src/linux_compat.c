@@ -754,12 +754,6 @@ linux_cdev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	struct vm_area_struct *vmap = handle;
 
 	vmap->vm_ops->open(vmap);
-	printf("%s: mapping starts at %zx, ends at %zx\n",
-	       __FUNCTION__, foff, vmap->vm_end + foff);
-
-	vmap->vm_start += foff;
-	vmap->vm_end += foff;
-	
 	*color = 0;
 	return (0);
 }
