@@ -269,29 +269,10 @@ vunmap(void *addr)
 	kfree(vmmap);
 }
 
-void *
-kmap_atomic_prot(vm_page_t page, pgprot_t prot)
-{
-
-	sched_pin();
-	return (vmap(&page, 1, 0, prot));
-}
-
-void *
-kmap_atomic(vm_page_t page)
-{
-
-	return kmap_atomic_prot(page, VM_PROT_READ|VM_PROT_WRITE);
-}
-
-void
-kunmap_atomic(void *vaddr)
-{
-	vunmap(vaddr);
-	sched_unpin();
-}
-
 #if defined(__LP64__)
+
+
+
 void *
 kmap(vm_page_t page)
 {
@@ -302,11 +283,33 @@ kmap(vm_page_t page)
 	return ((void *)daddr);
 }
 
+void *
+kmap_atomic_prot(vm_page_t page, pgprot_t prot)
+{
+
+	sched_pin();
+	return (kmap(page));
+}
+
+void *
+kmap_atomic(vm_page_t page)
+{
+
+	return (kmap_atomic_prot(page, VM_PROT_ALL));
+}
+
 void
 kunmap(vm_page_t page)
 {
 
 }
+
+void
+kunmap_atomic(void *vaddr)
+{
+	sched_unpin();
+}
+
 
 #else
 
