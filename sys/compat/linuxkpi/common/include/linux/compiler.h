@@ -59,6 +59,9 @@
 #define	__devexit
 #define __exit
 #define	__rcu
+
+#define ACCESS_PRIVATE(p, member) ((p)->member)
+
 #define	__attribute_const__		__attribute__((__const__))
 #undef __always_inline
 #define	__always_inline			inline
