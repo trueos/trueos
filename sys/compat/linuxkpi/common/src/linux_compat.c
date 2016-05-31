@@ -126,8 +126,7 @@ struct ida *hwmon_idap;
 DEFINE_IDA(hwmon_ida);
 
 /*
- * XXX need to define irq_idr and hwmon_ida
- *
+ * XXX need to define irq_idr 
  */
 
 struct rendezvous_state {
@@ -1050,7 +1049,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	vma.vm_end = size;
 	vma.vm_pgoff = *offset / PAGE_SIZE;
 	vma.vm_pfn = 0;
-	vma.vm_page_prot = VM_PROT_ALL;
+	vma.vm_page_prot = nprot;
 	vma.vm_ops = NULL;
 	if (filp->f_op->mmap) {
 		error = -filp->f_op->mmap(filp, &vma);
@@ -1073,7 +1072,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 				}
 				/* XXX note to self - audit vm_page_prot usage */
 				*object = cdev_pager_allocate(vmap, OBJT_MGTDEVICE, &linux_cdev_pager_ops,
-							      size, vma.vm_page_prot & VM_PROT_ALL,
+							      size, nprot,
 							      0, curthread->td_ucred);
 				if (*object != NULL)
 					vmap->vm_obj = *object;
