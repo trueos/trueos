@@ -60,6 +60,8 @@
 		} else {						\
 			cpu_relax();					\
 		}							\
+		if (cold)	/* FreeBSD FIX */			\
+			timeout__ -= howmany(hz, 1000);			\
 	}								\
 	ret__;								\
 })
