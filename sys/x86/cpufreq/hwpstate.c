@@ -415,6 +415,10 @@ hwpstate_get_info_from_msr(device_t dev)
 		did = AMD_10H_11H_CUR_DID(msr);
 		fid = AMD_10H_11H_CUR_FID(msr);
 		switch(family) {
+		case 0x15:
+			/* fid/did to frequency */
+                        hwpstate_set[i].freq = 100 * (fid + 0x08) / (1 << did);
+			break;
 		case 0x11:
 			/* fid/did to frequency */
 			hwpstate_set[i].freq = 100 * (fid + 0x08) / (1 << did);
