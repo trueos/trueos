@@ -171,7 +171,7 @@ on_each_cpu(void callback(void *data), void *data, int wait)
 
 	if (wait) {
 		rsp->rs_free = false;
-		mtx_init(&rsp->rs_mtx, "rs lock", NULL, MTX_DEF);
+		mtx_init(&rsp->rs_mtx, "rs lock", NULL, MTX_DEF|MTX_NOWITNESS);
 		smp_rendezvous(NULL, rendezvous_callback, rendezvous_wait, rsp);
 
 		mtx_lock(&rsp->rs_mtx);
@@ -1067,9 +1067,9 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 				 * VM_MIXEDMAP can only end up calling in to
 				 *  unimplemented functions on FreeBSD
 				 */
-				if (vma->vm_flags & VM_MIXEDMAP) {
-					vma->vm_flags &= ~VM_MIXEDMAP;
-					vma->vm_flags |= VM_PFNMAP;
+				if (vma.vm_flags & VM_MIXEDMAP) {
+					vma.vm_flags &= ~VM_MIXEDMAP;
+					vma.vm_flags |= VM_PFNMAP;
 				}
 				/* XXX note to self - audit vm_page_prot usage */
 				*object = cdev_pager_allocate(vmap, OBJT_MGTDEVICE, &linux_cdev_pager_ops,
