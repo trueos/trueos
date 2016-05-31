@@ -49,14 +49,17 @@ typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
 
+#define cachemode2protval(attr) (((pgprot_t)attr) << 3)
+#define pgprot2cachemode(prot) (((vm_memattr_t)((prot) >> 3) == 0) ? VM_MEMATTR_DEFAULT  : ((vm_memattr_t)((prot) >> 3)))
+
 #define	virt_to_page(x)		PHYS_TO_VM_PAGE(vtophys((x)))
 #define	page_to_pfn(pp)		(VM_PAGE_TO_PHYS((pp)) >> PAGE_SHIFT)
 #define	pfn_to_page(pfn)	(PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
 #define	nth_page(page,n)	pfn_to_page(page_to_pfn((page)) + (n))
 
 #define	clear_page(page)		memset((page), 0, PAGE_SIZE)
-#define	pgprot_noncached(prot)		((pgprot_t)VM_MEMATTR_UNCACHEABLE)
-#define	pgprot_writecombine(prot)	((pgprot_t)VM_MEMATTR_WRITE_COMBINING)
+#define	pgprot_noncached(prot)		((prot) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
+#define	pgprot_writecombine(prot)	((prot) | cachemode2protval(VM_MEMATTR_WRITE_COMBINING))
 
 #undef	PAGE_MASK
 #define	PAGE_MASK	(~(PAGE_SIZE-1))
