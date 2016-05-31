@@ -1063,6 +1063,14 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 				MPASS(vma.vm_ops->close != NULL);
 				vmap = malloc(sizeof(*vmap), M_LCINT, M_WAITOK);
 				memcpy(vmap, &vma, sizeof(*vmap));
+				/*
+				 * VM_MIXEDMAP can only end up calling in to
+				 *  unimplemented functions on FreeBSD
+				 */
+				if (vma->vm_flags & VM_MIXEDMAP) {
+					vma->vm_flags &= ~VM_MIXEDMAP;
+					vma->vm_flags |= VM_PFNMAP;
+				}
 				/* XXX note to self - audit vm_page_prot usage */
 				*object = cdev_pager_allocate(vmap, OBJT_MGTDEVICE, &linux_cdev_pager_ops,
 							      size, vma.vm_page_prot & VM_PROT_ALL,
