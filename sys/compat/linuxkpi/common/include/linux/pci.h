@@ -517,9 +517,16 @@ linux_pci_get_class(unsigned int class, struct pci_dev *from)
 	device_t dev;
 	struct pci_dev *pdev;
 	struct pci_bus *pbus;
+	int pcic, pcis;
 
 	pdev = from;
-	if (class != (PCI_CLASS_BRIDGE_ISA << 8)) {
+	if (class == (PCI_CLASS_BRIDGE_ISA << 8)) {
+		pcis = PCIS_BRIDGE_ISA;
+		pcic = PCIC_BRIDGE;
+	} else if (class == (PCI_CLASS_DISPLAY_VGA << 8)) {
+		pcis = PCIS_DISPLAY_VGA;
+		pcic = PCIC_DISPLAY;
+	} else {
 		log(LOG_WARNING, "unrecognized class %d in %s\n", class, __FUNCTION__);
 		BACKTRACE();
 		return (NULL);
@@ -530,7 +537,7 @@ linux_pci_get_class(unsigned int class, struct pci_dev *from)
 	} else
 		dev = NULL;
 
-	dev = pci_find_class(PCIC_BRIDGE, PCIS_BRIDGE_ISA, dev);
+	dev = pci_find_class(pcic, pcis, dev);
 	if (dev == NULL)
 		return (NULL);
 
