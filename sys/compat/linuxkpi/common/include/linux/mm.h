@@ -69,7 +69,7 @@
 
 #define VM_PFNINTERNAL	0x80000000	/* FreeBSD private flag to vm_insert_pfn */
 
-#define VMA_MAX_PREFAULT 32
+#define VMA_MAX_PREFAULT_RECORD 1
 struct vm_area_struct {
 	vm_offset_t	vm_start;
 	vm_offset_t	vm_end;
@@ -92,7 +92,7 @@ struct vm_area_struct {
 	 */
 	vm_map_t vm_cached_map;
 	vm_offset_t vm_cached_start;
-	uint32_t vm_pfn_array[VMA_MAX_PREFAULT];
+	uint32_t vm_pfn_array[VMA_MAX_PREFAULT_RECORD];
 };
 
 /*
@@ -194,7 +194,7 @@ extern struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long add
 static inline pgprot_t
 vm_get_page_prot(unsigned long vm_flags)
 {
-	panic("XXX implement me!!!");
+	return (vm_flags & VM_PROT_ALL);
 }
 
 static inline int

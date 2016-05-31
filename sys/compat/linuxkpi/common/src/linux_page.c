@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
+#include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
@@ -67,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 extern u_int	cpu_feature;
 extern u_int	cpu_stdext_feature;
+
 
 static void
 __wbinvd(void *arg)
@@ -86,48 +88,25 @@ vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long
 {
 	vm_object_t vm_obj;
 	vm_page_t page;
-	off_t off;
-	int owned, rc;
+	pmap_t pmap = vma->vm_cached_map->pmap;
+	vm_memattr_t attr = pgprot2cachemode(pgprot);
 
 	vm_obj = vma->vm_obj;
-	owned = VM_OBJECT_WOWNED(vm_obj);
 	page = PHYS_TO_VM_PAGE((pfn << PAGE_SHIFT));
-
+#if defined(__amd64__) || defined(__i386__)
+	MPASS(page->md.pat_mode == attr);
+	page->md.pat_mode = attr;
+#endif	
 	MPASS(vma->vm_flags & VM_PFNINTERNAL);
-	if (vma->vm_flags & VM_PFNINTERNAL) {
-		if (vma->vm_pfn_count == VMA_MAX_PREFAULT)
-			return (-EBUSY);
-		if (vm_page_tryxbusy(page) == 0) {
-			if (vma->vm_pfn_count > 0)
-				return (-EBUSY);
-			/* the first page isn't optional - so we sleep on it */
-			while (vm_page_tryxbusy(page) == 0) {
-				vm_page_lock(page);
-				vm_page_busy_sleep(page, "linuxvipp");
-			}
+	if ((vma->vm_flags & VM_PFNINTERNAL) && (vma->vm_pfn_count == 0)) {
+		while (vm_page_tryxbusy(page) == 0) {
+			vm_page_lock(page);
+			vm_page_busy_sleep(page, "linuxvipp");
 		}
 		vma->vm_pfn_array[vma->vm_pfn_count++] = pfn;
-		return (0);
-	}
-	panic("not yet supported");
-	if (page == NULL)
-		return (-EINVAL);
-	if (vm_page_busied(page))
-		return (-EBUSY);
-	off = addr - vma->vm_start;
-	rc = 0;
-	if (!owned) {
-		VM_OBJECT_WLOCK(vm_obj);
-		if (page->object != NULL) {
-			VM_OBJECT_WUNLOCK(vm_obj);
-			return (0);
-		}
-	}
-	if (vm_page_insert(page, vm_obj, OFF_TO_IDX(off)))
-		rc = -ENOMEM;
-	if (!owned)
-		VM_OBJECT_WUNLOCK(vm_obj);
-	return (rc);
+	} else
+		pmap_enter_quick(pmap, addr, page, pgprot & VM_PROT_ALL);
+	return (0);
 }
 
 int
