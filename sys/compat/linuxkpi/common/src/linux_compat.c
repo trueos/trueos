@@ -94,6 +94,9 @@ struct workqueue_struct *system_unbound_wq;
 struct workqueue_struct *system_power_efficient_wq;
 
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
+int linux_db_trace;
+SYSCTL_INT(_compat_linuxkpi, OID_AUTO, db_trace, CTLFLAG_RW, &linux_db_trace, 0, "enable backtrace instrumentation");
+
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 MALLOC_DEFINE(M_LCINT, "linuxint", "Linux compat internal");
@@ -600,7 +603,11 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	vm_object_t page_object;
 	unsigned long vma_flags;
 	vm_map_t map;
+	struct thread *td;
+	struct task_struct t;
 
+	td = curthread;
+	linux_set_current(td, &t);
 	memattr = vm_obj->memattr;
 
 	vmap  = vm_obj->handle;
@@ -706,6 +713,7 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 		vm_page_xbusy(*mres);
 
 	vm_object_pip_wakeup(vm_obj);
+	linux_clear_current(td);
 	return (VM_PAGER_OK);
 err:
 	panic("fault failed!");
@@ -722,6 +730,7 @@ err:
 		rc = VM_PAGER_ERROR;
 	}
 	vm_object_pip_wakeup(vm_obj);
+	linux_clear_current(td);
 	return (rc);
 }
 
@@ -1383,7 +1392,7 @@ linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
 {
 	long end = jiffies + timeout;
 
-	if (unlikely(SCHEDULER_STOPPED()))
+	if (SCHEDULER_STOPPED())
 		return (0);
 
 	if (flags != 0)
