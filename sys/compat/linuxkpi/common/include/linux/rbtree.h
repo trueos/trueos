@@ -32,6 +32,7 @@
 #define	_LINUX_RBTREE_H_
 
 #include <sys/stddef.h>
+#include <sys/types.h>
 #include <sys/tree.h>
 
 struct rb_node {
@@ -113,7 +114,53 @@ rb_replace_node(struct rb_node *victim, struct rb_node *new,
 
 
 
-#define rbtree_postorder_for_each_entry_safe(pos, n, root, field) panic("XXX implement me");
+static inline struct rb_node *
+rb_leftmost_leaf(const struct rb_node *node)
+{
+	for (;;) {
+		if (node->rb_left)
+			node = node->rb_left;
+		else if (node->rb_right)
+			node = node->rb_right;
+		else
+			return ((struct rb_node *)(uintptr_t)node);
+	}
+}
+
+static inline struct rb_node *
+rb_first_postorder(const struct rb_root *root)
+{
+	if (root->rb_node == NULL)
+		return (NULL);
+	return (rb_leftmost_leaf(root->rb_node));
+}
+
+static inline struct rb_node *
+rb_next_postorder(const struct rb_node *node)
+{
+	const struct rb_node *parent;
+
+	if (node == NULL)
+		return (NULL);
+
+	parent = rb_parent(node);
+	if (parent && node == parent->rb_left && parent->rb_right) {
+		return (rb_leftmost_leaf(parent->rb_right));
+	} else
+		return ((struct rb_node *)(uintptr_t)parent);
+}
+
+#define rb_entry_safe(ptr, type, member) \
+	({ typeof(ptr) ____ptr = (ptr); \
+	   ____ptr ? rb_entry(____ptr, type, member) : NULL; \
+	})
+
+#define rbtree_postorder_for_each_entry_safe(pos, n, root, field)	\
+	for (pos = rb_entry_safe(rb_first_postorder(root), typeof(*pos), field); \
+	     pos && ({ n = rb_entry_safe(rb_next_postorder(&pos->field), \
+			typeof(*pos), field); 1; }); \
+	     pos = n)
+
 
 
 #endif	/* _LINUX_RBTREE_H_ */
