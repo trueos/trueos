@@ -55,7 +55,10 @@
 				ret__ = -ETIMEDOUT;			\
 			break;						\
 		}							\
-		if ((W) && drm_can_sleep()) {				\
+		if (cold) {	/* FreeBSD FIX */			\
+			DELAY(1000);					\
+			timeout__ -= howmany(hz, 1000);			\
+		} else if ((W) && drm_can_sleep()) {			\
 			usleep_range((W)*1000, (W)*2000);		\
 		} else {						\
 			cpu_relax();					\
