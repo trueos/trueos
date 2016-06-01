@@ -4,7 +4,10 @@
 #include <linux/rbtree.h>
 
 struct interval_tree_node {
-	struct rb_node rb;
+	union {
+		RB_ENTRY(interval_tree_node) rb_entry;
+		struct rb_node rb;
+	};
 	unsigned long start;	/* Start of interval */
 	unsigned long last;	/* Last location _in_ interval */
 	unsigned long __subtree_last;
@@ -25,4 +28,3 @@ interval_tree_iter_next(struct interval_tree_node *node,
 			unsigned long start, unsigned long last);
 
 #endif
-
