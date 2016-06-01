@@ -5851,6 +5851,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 
 	intel_dp->pps_pipe = INVALID_PIPE;
 
+	if (connector->kdev != NULL)
+		MPASS(kdev->bsddev != NULL);
+
 	/* intel_dp vfuncs */
 	if (INTEL_INFO(dev)->gen >= 9)
 		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
@@ -5900,6 +5903,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	drm_connector_init(dev, connector, &intel_dp_connector_funcs, type);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
+	if (connector->kdev != NULL)
+		MPASS(kdev->bsddev != NULL);
+
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
@@ -5908,6 +5914,9 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 	drm_connector_register(connector);
+
+	if (connector->kdev != NULL)
+		MPASS(kdev->bsddev != NULL);
 
 	if (HAS_DDI(dev))
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;
