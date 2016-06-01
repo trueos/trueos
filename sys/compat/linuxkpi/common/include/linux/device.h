@@ -363,6 +363,7 @@ device_create_groups_vargs(struct class *class, struct device *parent,
 	dev->groups = groups;
 	dev->release = device_create_release;
 	dev->bsddev = devclass_get_device(dev->class->bsdclass, MINOR(devt));
+	MPASS(dev->bsddev != NULL);
 	dev_set_drvdata(dev, drvdata);
 
 	retval = kobject_set_name_vargs(&dev->kobj, fmt, args);
