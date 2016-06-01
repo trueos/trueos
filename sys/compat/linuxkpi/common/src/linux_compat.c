@@ -603,7 +603,11 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	vm_object_t page_object;
 	unsigned long vma_flags;
 	vm_map_t map;
+	struct thread *td;
+	struct task_struct t;
 
+	td = curthread;
+	linux_set_current(td, &t);
 	memattr = vm_obj->memattr;
 
 	vmap  = vm_obj->handle;
@@ -709,6 +713,7 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 		vm_page_xbusy(*mres);
 
 	vm_object_pip_wakeup(vm_obj);
+	linux_clear_current(td);
 	return (VM_PAGER_OK);
 err:
 	panic("fault failed!");
@@ -725,6 +730,7 @@ err:
 		rc = VM_PAGER_ERROR;
 	}
 	vm_object_pip_wakeup(vm_obj);
+	linux_clear_current(td);
 	return (rc);
 }
 
