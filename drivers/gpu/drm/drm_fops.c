@@ -371,7 +371,7 @@ static void drm_events_release(struct drm_file *file_priv)
 	/* Remove unconsumed events */
 	list_for_each_entry_safe(e, et, &file_priv->event_list, link) {
 		list_del(&e->link);
-		e->destroy(e);
+		kfree(e);
 	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -639,7 +639,7 @@ put_back_event:
 			}
 
 			ret += length;
-			e->destroy(e);
+			kfree(e);
 		}
 	}
 	mutex_unlock(&file_priv->event_read_lock);
@@ -716,9 +716,6 @@ int drm_event_reserve_init_locked(struct drm_device *dev,
 	list_add(&p->pending_link, &file_priv->pending_event_list);
 	p->file_priv = file_priv;
 
-	/* we *could* pass this in as arg, but everyone uses kfree: */
-	p->destroy = (void (*) (struct drm_pending_event *)) kfree;
-
 	return 0;
 }
 EXPORT_SYMBOL(drm_event_reserve_init_locked);
@@ -781,7 +778,7 @@ void drm_event_cancel_free(struct drm_device *dev,
 		list_del(&p->pending_link);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
-	p->destroy(p);
+	kfree(p);
 }
 EXPORT_SYMBOL(drm_event_cancel_free);
 
@@ -803,8 +800,13 @@ void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e)
 {
 	assert_spin_locked(&dev->event_lock);
 
+	if (e->fence) {
+		fence_signal(e->fence);
+		fence_put(e->fence);
+	}
+
 	if (!e->file_priv) {
-		e->destroy(e);
+		kfree(e);
 		return;
 	}
 
