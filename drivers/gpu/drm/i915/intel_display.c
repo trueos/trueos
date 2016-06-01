@@ -14737,7 +14737,6 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(VLV_DP_C) & DP_DETECTED || has_port)
 			has_edp &= intel_dp_init(dev, VLV_DP_C, PORT_C);
 		if ((I915_READ(VLV_HDMIC) & SDVO_DETECTED || has_port) && !has_edp)
-			intel_hdmi_init(dev, VLV_HDMIC, PORT_C);
 
 		if (IS_CHERRYVIEW(dev)) {
 			/*
