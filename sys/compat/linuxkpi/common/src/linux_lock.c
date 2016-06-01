@@ -29,6 +29,8 @@ linux_mutex_lock_common(struct mutex *lock, int state, struct ww_acquire_ctx *ct
 	int rc;
 
 	sx = &lock->sx;
+	if (SCHEDULER_STOPPED())
+		return (0);
 
 	if (ctx && ctx->acquired > 0) {
 		if ((rc = lock_check_stamp(lock, ctx)))
