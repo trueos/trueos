@@ -7,9 +7,11 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 
-static unsigned fence_counter = 0;
+static atomic64_t fence_context_counter = ATOMIC64_INIT(0);
 
-unsigned
-fence_context_alloc(unsigned num){
-	return atomic_fetchadd_int(&fence_counter, num);
+
+u64
+fence_context_alloc(unsigned num)
+{
+	return atomic64_add_return(num, &fence_context_counter) - num;
 }
