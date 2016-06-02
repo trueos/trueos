@@ -309,16 +309,26 @@ static inline void
 device_initialize(struct device *dev)
 {
 	device_t bsddev;
+	int unit;
 
 	bsddev = NULL;
+	unit = -1;
 	if (dev->devt) {
-		int unit = MINOR(dev->devt);
+		unit = MINOR(dev->devt);
 		bsddev = devclass_get_device(dev->class->bsdclass, unit);
+	} else if (dev->parent == NULL) {
+		bsddev = devclass_get_device(dev->class->bsdclass, 0);
 	}
+	if (bsddev == NULL && dev->parent != NULL) {
+		bsddev = device_add_child(dev->parent->bsddev,
+		    dev->class->kobj.name, unit);
+	}
+
 	if (bsddev != NULL)
 		device_set_softc(bsddev, dev);
 
 	dev->bsddev = bsddev;
+	MPASS(dev->bsddev != NULL);
 	kobject_init(&dev->kobj, &linux_dev_ktype);
 }
 
@@ -356,13 +366,13 @@ device_create_groups_vargs(struct class *class, struct device *parent,
 		goto error;
 	}
 
-	device_initialize(dev);
 	dev->devt = devt;
 	dev->class = class;
 	dev->parent = parent;
 	dev->groups = groups;
 	dev->release = device_create_release;
 	dev->bsddev = devclass_get_device(dev->class->bsdclass, MINOR(devt));
+	device_initialize(dev);
 	MPASS(dev->bsddev != NULL);
 	dev_set_drvdata(dev, drvdata);
 
@@ -405,6 +415,9 @@ device_register(struct device *dev)
 	bsddev = NULL;
 	unit = -1;
 
+	if (dev->bsddev != NULL)
+		goto done;
+
 	if (dev->devt) {
 		unit = MINOR(dev->devt);
 		bsddev = devclass_get_device(dev->class->bsdclass, unit);
@@ -421,6 +434,7 @@ device_register(struct device *dev)
 		device_set_softc(bsddev, dev);
 	}
 	dev->bsddev = bsddev;
+done:
 	kobject_init(&dev->kobj, &linux_dev_ktype);
 	kobject_add(&dev->kobj, &dev->class->kobj, dev_name(dev));
 
