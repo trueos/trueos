@@ -46,6 +46,9 @@
 
 #include "amdgpu_amdkfd.h"
 
+#define pci_restore_state linux_pci_restore_state
+#define pci_save_state	  linux_pci_save_state
+
 /*
  * KMS wrapper.
  * - 3.0.0 - initial driver
@@ -414,14 +417,12 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);
 
 	ret = amdgpu_suspend_kms(drm_dev, false, false);
-	linux_pci_save_state(pdev);
+	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_ignore_hotplug(pdev);
 	if (amdgpu_is_atpx_hybrid())
 		pci_set_power_state(pdev, PCI_D3cold);
-	else if (amdgpu_has_atpx_dgpu_power_cntl())
-		pci_set_power_state(pdev, PCI_D3cold);
-	else
+	else if (!amdgpu_has_atpx_dgpu_power_cntl())
 		pci_set_power_state(pdev, PCI_D3hot);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_DYNAMIC_OFF;
 
@@ -439,8 +440,10 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
-	pci_set_power_state(pdev, PCI_D0);
-	linux_pci_restore_state(pdev);
+	if (amdgpu_is_atpx_hybrid() ||
+	    !amdgpu_has_atpx_dgpu_power_cntl())
+		pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
 	ret = pci_enable_device(pdev);
 	if (ret)
 		return ret;
