@@ -624,12 +624,13 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 	if (!kdev)
 		return ERR_PTR(-ENOMEM);
 
-	device_initialize(kdev);
 	kdev->devt = MKDEV(DRM_MAJOR, minor->index);
 	kdev->class = drm_class;
 	kdev->type = &drm_sysfs_device_minor;
 	kdev->parent = minor->dev->dev;
 	kdev->release = drm_sysfs_release;
+	/* FreeBSD needs the class and parent to be set first */
+	device_initialize(kdev);
 	dev_set_drvdata(kdev, minor);
 
 	r = dev_set_name(kdev, minor_str, minor->index);
