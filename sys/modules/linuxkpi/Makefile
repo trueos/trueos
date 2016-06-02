@@ -2,7 +2,8 @@
 .PATH:	${.CURDIR}/../../compat/linuxkpi/common/src
 
 KMOD=	linuxkpi
-SRCS=	linux_acpi.c \
+SRCS=	interval_tree.c \
+	linux_acpi.c \
 	linux_compat.c \
 	linux_dmabuf.c \
 	linux_fence.c \
