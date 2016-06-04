@@ -34,6 +34,7 @@ SRCS	= \
 	amdgpu_encoders.c \
 	amdgpu_fb.c \
 	amdgpu_fence.c \
+	amdgpu_freebsd.c \
 	amdgpu_gart.c \
 	amdgpu_gem.c \
 	amdgpu_gfx.c \
