@@ -11,6 +11,7 @@ SRCS=	interval_tree.c \
 	linux_firmware.c \
 	linux_i2c.c \
 	linux_idr.c \
+	linux_irq.c \
 	linux_kmod.c \
 	linux_lock.c \
 	linux_mtrr.c \

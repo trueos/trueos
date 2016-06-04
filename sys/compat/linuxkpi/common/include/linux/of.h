@@ -19,10 +19,38 @@ struct device_node {
 
 };
 
-static inline struct device_node *of_node_get(struct device_node *node)
+static inline bool
+is_of_node(struct fwnode_handle *fwnode)
+{
+	return !IS_ERR_OR_NULL(fwnode) && fwnode->type == FWNODE_OF;
+}
+
+static inline struct device_node *
+to_of_node(struct fwnode_handle *fwnode)
+{
+	return is_of_node(fwnode) ?
+		container_of(fwnode, struct device_node, fwnode) : NULL;
+}
+
+static inline struct fwnode_handle
+*of_node_to_fwnode(struct device_node *node)
+{
+	return node ? &node->fwnode : NULL;
+}
+
+
+static inline struct device_node *
+of_node_get(struct device_node *node)
 {
 	return node;
 }
+
 static inline void of_node_put(struct device_node *node) { }
+
+static inline int
+of_node_to_nid(struct device_node *device)
+{
+	return (-1);
+}
 
 #endif

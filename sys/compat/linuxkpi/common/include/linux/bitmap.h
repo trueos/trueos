@@ -36,19 +36,6 @@
 #include <asm-generic/bitops/const_hweight.h>
 
 /*
- * bitmaps provide bit arrays that consume one or more unsigned
- * longs.  The bitmap interface and available operations are listed
- * here, in bitmap.h
- *
- * Function implementations generic to all architectures are in
- * lib/bitmap.c.  Functions implementations that are architecture
- * specific are in various include/asm-<arch>/bitops.h headers
- * and other arch/<arch> specific files.
- *
- * See lib/bitmap.c for more details.
- */
-
-/*
  * The available bitmap operations and their rough meaning in the
  * case that the bitmap is a single unsigned long are thus:
  *
@@ -182,12 +169,31 @@ bitmap_clear(unsigned long *map, int start, int nr)
 }
 
 
-extern unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
-						    unsigned long size,
-						    unsigned long start,
-						    unsigned int nr,
-						    unsigned long align_mask,
-						    unsigned long align_offset);
+static inline unsigned long
+bitmap_find_next_zero_area_off(unsigned long *map,
+			       unsigned long size,
+			       unsigned long start,
+			       unsigned int nr,
+			       unsigned long align_mask,
+			       unsigned long align_offset)
+{
+	unsigned long index, end, i;
+again:
+	index = find_next_zero_bit(map, size, start);
+
+	index = (((index + align_offset) + align_mask) & ~align_mask) - align_offset;
+
+
+	end = index + nr;
+	if (end > size)
+		return end;
+	i = find_next_bit(map, end, index);
+	if (i < end) {
+		start = i + 1;
+		goto again;
+	}
+	return index;
+}
 
 /**
  * bitmap_find_next_zero_area - find a contiguous aligned zero area
