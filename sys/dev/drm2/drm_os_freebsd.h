@@ -35,31 +35,40 @@ struct vt_kms_softc {
 #define	DRM_HZ			hz
 #define DRM_CURPROC		curthread
 #define	DRM_SUSER(p)		(priv_check(p, PRIV_DRIVER) == 0)
-#define	DRM_UDELAY(udelay)	DELAY(MAX(udelay, 2000))
+#define	DRM_UDELAY(udelay)	DELAY(MAX(udelay, 5))
 /* Ugly copy/paste from systm.h to work around conflicting Linux macro */
 #define	bsd_msleep(chan, mtx, pri, wmesg, timo)				\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg),		\
 	    tick_sbt * (timo), 0, C_HARDCLOCK)
 #define	drm_msleep(x, msg)	pause((msg), ((int64_t)(x)) * hz / 1000)
 #define	DRM_MSLEEP(msecs)	drm_msleep((msecs), "drm_msleep")
+
+
 #define DRM_WAIT_ON( ret, queue, timeout, condition )		\
-	do {							\
-	unsigned long end = ticks + (timeout);			\
+do {								\
+	DECLARE_WAITQUEUE(entry, current);			\
+	unsigned long end = ticks + (timeout);		\
+	add_wait_queue(&(queue), &entry);			\
 								\
 	for (;;) {						\
-		if (condition)						\
-			break;						\
-		if (ticks >= end) {					\
-			ret -EBUSY;					\
-			break;						\
-		}							\
-		pause("drm", (hz/100 > 1) ? hz/100 : 1);		\
-		if (SIGPENDING(curthread)) {				\
-			ret = -EINTR;					\
-			break;						\
-		}							\
-	}								\
-	} while (0)
+		__set_current_state(TASK_INTERRUPTIBLE);	\
+		if (condition)					\
+			break;					\
+		if (time_after_eq(ticks, end)) {		\
+			ret = -EBUSY;				\
+			break;					\
+		}						\
+		schedule_timeout((HZ/100 > 1) ? HZ/100 : 1);	\
+		if (signal_pending(current)) {			\
+			ret = -EINTR;				\
+			break;					\
+		}						\
+	}							\
+	__set_current_state(TASK_RUNNING);			\
+	remove_wait_queue(&(queue), &entry);			\
+} while (0)
+
+
 #define	DRM_READ8(map, offset)						\
 	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
 	    (vm_offset_t)(offset))
