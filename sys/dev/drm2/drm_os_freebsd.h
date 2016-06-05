@@ -35,7 +35,7 @@ struct vt_kms_softc {
 #define	DRM_HZ			hz
 #define DRM_CURPROC		curthread
 #define	DRM_SUSER(p)		(priv_check(p, PRIV_DRIVER) == 0)
-#define	DRM_UDELAY(udelay)	DELAY(udelay)
+#define	DRM_UDELAY(udelay)	DELAY(MAX(udelay, 2000))
 /* Ugly copy/paste from systm.h to work around conflicting Linux macro */
 #define	bsd_msleep(chan, mtx, pri, wmesg, timo)				\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg),		\
