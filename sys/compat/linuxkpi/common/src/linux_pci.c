@@ -167,6 +167,7 @@ linux_pci_attach(device_t dev)
 	struct pci_dev *pdev;
 	struct pci_driver *pdrv;
 	const struct pci_device_id *id;
+	struct pci_bus *pbus;
 	struct task_struct t;
 	devclass_t dc;
 	device_t parent;
@@ -185,6 +186,12 @@ linux_pci_attach(device_t dev)
 	pdev = device_get_softc(dev);
 	pdev->dev.parent = &linux_root_device;
 	pdev->dev.bsddev = dev;
+	if (pdev->bus == NULL) {
+		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK|M_ZERO);
+		pbus->self = pdev;
+		pdev->bus = pbus;
+
+	}
 	INIT_LIST_HEAD(&pdev->dev.irqents);
 	pdev->device = id->device;
 	pdev->vendor = id->vendor;
@@ -350,23 +357,27 @@ void *
 pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 {
 	struct resource *res;
-	int rid, len;
+	int rid, len, type;
 	void *regs;
 
+	type = 0;
 	if (pdev->pcir.r[bar] == NULL) {
 		rid = PCIR_BAR(bar);
-		if ((res = bus_alloc_resource_any(pdev->dev.bsddev, SYS_RES_MEMORY,
+		type = pci_resource_flags(pdev, bar);
+		if ((res = bus_alloc_resource_any(pdev->dev.bsddev, type,
 						  &rid, RF_ACTIVE)) == NULL)
 			return (NULL);
 		pdev->pcir.r[bar] = res;
 		pdev->pcir.rid[bar] = rid;
+		regs = (void *)rman_get_bushandle(pdev->pcir.r[bar]);
+		len = rman_get_end(pdev->pcir.r[bar])  - rman_get_start(pdev->pcir.r[bar]);
+
+		if (type == SYS_RES_MEMORY)
+			pmap_change_attr((vm_offset_t)regs, len >> PAGE_SHIFT, PAT_UNCACHED);
+		pdev->pcir.map[bar] = regs;
+
 	} 
-	regs = (void *)rman_get_bushandle(pdev->pcir.r[bar]);
-	len = rman_get_end(pdev->pcir.r[bar])  - rman_get_start(pdev->pcir.r[bar]);
-	/* XXX if NULL ? */
-	pmap_change_attr((vm_offset_t)regs, len >> PAGE_SHIFT, PAT_UNCACHED);
-	pdev->pcir.map[bar] = regs;
-	return (regs);
+	return (pdev->pcir.map[bar]);
 }
 
 
