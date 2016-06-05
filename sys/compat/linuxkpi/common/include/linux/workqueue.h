@@ -273,16 +273,22 @@ mod_delayed_work(struct workqueue_struct *wq, struct delayed_work *dwork,
 static inline bool
 flush_work(struct work_struct *work)
 {
-/* XXX */
+
+	if (work->taskqueue == NULL)
+		work->taskqueue = taskqueue_thread;
+
 	flush_taskqueue(work->taskqueue);
 	return (true);
 }
 
 static inline bool
-flush_delayed_work(struct delayed_work *dwork)
+flush_delayed_work(struct delayed_work *work)
 {
-	UNIMPLEMENTED();
-	return (false);
+	if (work->work.taskqueue == NULL)
+		work->work.taskqueue = taskqueue_thread;
+
+	flush_taskqueue(work->work.taskqueue);
+	return (true);
 }
 
 static inline unsigned int
