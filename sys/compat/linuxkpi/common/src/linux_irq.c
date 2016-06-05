@@ -9,7 +9,7 @@ DEFINE_MUTEX(irq_domain_mutex);
 struct irq_domain *irq_default_domain;
 
 DEFINE_MUTEX(revmap_trees_mutex);
-struct list_head irq_domain_list;
+LIST_HEAD(irq_domain_list);
 DEFINE_IDR(irq_idr);
 DEFINE_MUTEX(sparse_irq_lock);
 
