@@ -355,6 +355,17 @@ __add_wait_queue(wait_queue_head_t *head, wait_queue_t *new)
 }
 
 static inline void
+add_wait_queue(wait_queue_head_t *q, wait_queue_t *wait)
+{
+	unsigned long flags;
+
+	wait->flags &= ~WQ_FLAG_EXCLUSIVE;
+	spin_lock_irqsave(&q->lock, flags);
+	__add_wait_queue(q, wait);
+	spin_unlock_irqrestore(&q->lock, flags);
+}
+
+static inline void
 __add_wait_queue_tail(wait_queue_head_t *head, wait_queue_t *new)
 {
 	list_add_tail(&new->task_list, &head->task_list);
@@ -365,7 +376,17 @@ __remove_wait_queue(wait_queue_head_t *head, wait_queue_t *old)
 {
 	list_del(&old->task_list);
 }
-	
+
+static inline void
+remove_wait_queue(wait_queue_head_t *q, wait_queue_t *wait)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&q->lock, flags);
+	__remove_wait_queue(q, wait);
+	spin_unlock_irqrestore(&q->lock, flags);
+}
+
 static inline int
 waitqueue_active(wait_queue_head_t *q)
 {
