@@ -649,7 +649,8 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 	minor->bsd_device = cdevp->cdev;
 	make_dev_alias(cdevp->cdev, minor_str, minor->index);
 	/* MESA needs the hw.dri sysctl tree */
-	drm_sysctl_init(minor->dev);
+	if (minor->type != DRM_MINOR_CONTROL && minor->type != DRM_MINOR_RENDER)
+		drm_sysctl_init(minor->dev);
 	reset_debug_log();
 	return kdev;
 
