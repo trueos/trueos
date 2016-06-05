@@ -29,3 +29,14 @@ power_supply: power_supply_is_system_supplied()
 rcupdate: rcu_assign_pointer
 
 wait: wait_event_interruptible_locked, wake_up_all_locked
+
+
+
+
+  implicit declaration of function 'irq_get_irq_data' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      no member named 'domain' in 'struct irq_data'
+        irq_clear_status_flags(virq, IRQ_NOREQUEST);
+                data = irq_domain_get_irq_data(domain, hwirq);
+      implicit declaration of function 'irq_domain_alloc_descs' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      implicit declaration of function 'of_node_to_nid' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      implicit declaration of function 'irq_free_desc' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
