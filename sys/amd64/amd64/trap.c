@@ -832,7 +832,6 @@ trap_fatal(frame, eva)
 	    curproc->p_pid, curthread->td_name);
 
 #ifdef KDB
-	curthread->td_stopsched = 1;
 	if (debugger_on_panic || kdb_active)
 		if (kdb_trap(type, 0, frame))
 			return;
