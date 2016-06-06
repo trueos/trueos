@@ -35,14 +35,7 @@ struct vt_kms_softc {
 #define	DRM_HZ			hz
 #define DRM_CURPROC		curthread
 #define	DRM_SUSER(p)		(priv_check(p, PRIV_DRIVER) == 0)
-#define	DRM_UDELAY(udelay)	DELAY(MAX(udelay, 5))
-/* Ugly copy/paste from systm.h to work around conflicting Linux macro */
-#define	bsd_msleep(chan, mtx, pri, wmesg, timo)				\
-	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg),		\
-	    tick_sbt * (timo), 0, C_HARDCLOCK)
-#define	drm_msleep(x, msg)	pause((msg), ((int64_t)(x)) * hz / 1000)
-#define	DRM_MSLEEP(msecs)	drm_msleep((msecs), "drm_msleep")
-
+#define	DRM_UDELAY(udelay)	DELAY(MAX(udelay, 3))
 
 #define DRM_WAIT_ON( ret, queue, timeout, condition )		\
 do {								\
@@ -69,18 +62,7 @@ do {								\
 } while (0)
 
 
-#define	DRM_READ8(map, offset)						\
-	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
-	    (vm_offset_t)(offset))
-#define	DRM_READ16(map, offset)						\
-	le16toh(*(volatile u_int16_t *)(((vm_offset_t)(map)->handle) +	\
-	    (vm_offset_t)(offset)))
-#define	DRM_READ32(map, offset)						\
-	le32toh(*(volatile u_int32_t *)(((vm_offset_t)(map)->handle) +	\
-	    (vm_offset_t)(offset)))
-#define	DRM_READ64(map, offset)						\
-	le64toh(*(volatile u_int64_t *)(((vm_offset_t)(map)->handle) +	\
-	    (vm_offset_t)(offset)))
+
 #define	DRM_WRITE8(map, offset, val)					\
 	*(volatile u_int8_t *)(((vm_offset_t)(map)->handle) +		\
 	    (vm_offset_t)(offset)) = val
@@ -207,9 +189,6 @@ capable(enum __drm_capabilities cap)
 		return DRM_SUSER(curthread);
 	}
 }
-#if 0
-#define	to_user_ptr(x)		((void *)(uintptr_t)(x))
-#endif
 #define	sigemptyset(set)	SIGEMPTYSET(set)
 #define	sigaddset(set, sig)	SIGADDSET(set, sig)
 
@@ -270,13 +249,6 @@ extern const char *fb_mode_option;
 #undef	CONFIG_DEBUG_FS
 #undef	CONFIG_VGA_CONSOLE
 
-/* I2C compatibility. */
-#ifdef NO_3_9_TRANSITION
-#define	I2C_M_RD	IIC_M_RD
-#define	I2C_M_WR	IIC_M_WR
-#define	I2C_M_NOSTART	IIC_M_NOSTART
-#endif
-
 #define	console_lock()
 #define	console_unlock()
 #define	console_trylock()	true
@@ -334,16 +306,6 @@ static inline int vga_switcheroo_get_client_state(struct pci_dev *pdev) { return
 #define class_destroy_file(a, b)
 
 #define CONFIG_X86_PAT
-
-
-#define	DRM_GEM_MAPPING_MASK	(3ULL << 62)
-#define	DRM_GEM_MAPPING_KEY	(2ULL << 62) /* Non-canonical address form */
-#define	DRM_GEM_MAX_IDX		0x3fffff
-#define	DRM_GEM_MAPPING_IDX(o)	(((o) >> 40) & DRM_GEM_MAX_IDX)
-#define	DRM_GEM_MAPPING_OFF(i)	(((uint64_t)(i)) << 40)
-#define	DRM_GEM_MAPPING_MAPOFF(o) \
-    ((o) & ~(DRM_GEM_MAPPING_OFF(DRM_GEM_MAX_IDX) | DRM_GEM_MAPPING_KEY))
-
 extern	u_int	cpu_clflush_line_size;
 
 
