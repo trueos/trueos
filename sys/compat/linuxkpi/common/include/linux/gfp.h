@@ -98,7 +98,7 @@ __free_hot_cold_page(vm_page_t page)
 		VM_OBJECT_WLOCK(object);
 
 	vm_page_lock(page);
-	if (mem->flags & PG_UNHOLDFREE) {
+	if (page->flags & PG_UNHOLDFREE) {
 		vm_page_unhold(page);
 		goto done;
 	}
