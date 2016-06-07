@@ -71,5 +71,15 @@ trace_amdgpu_vm_bo_mapping(struct amdgpu_bo_va_mapping * mapping){
 #define trace_amdgpu_mm_wreg(dev, reg, x)	\
 	CTR3(KTR_DRM, "amdgpu_mm_wreg %p %x %x", (dev), (reg), (x))
 
+#define trace_amdgpu_cs_bo_status(entries, size)	\
+	CTR2(KTR_DRM, "amdgpu_cs_bo_status entries %d size %d", (entries), (size))
+
+#define trace_amdgpu_ttm_bo_move(bo, new, old)	\
+	do {					\
+		u32 old_mem_type;	\
+		old_mem_type = (old);					\
+		CTR3(KTR_DRM, "amdgpu_ttm_bo_move %p new %d old %d", (bo), (new), (old_mem_type)); \
+	} while (0)
+
 #endif
 
