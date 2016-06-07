@@ -1715,7 +1715,6 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 		len += 12;
 
 	ret = intel_ring_begin(request, len);
-
 	if (ret)
 		return ret;
 
