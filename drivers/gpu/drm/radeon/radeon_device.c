@@ -37,6 +37,9 @@
 #include "radeon.h"
 #include "atom.h"
 
+#define pci_save_state linux_pci_save_state
+#define pci_restore_state linux_pci_restore_state
+
 static const char radeon_family_name[][16] = {
 	"R100",
 	"RV100",
@@ -1630,10 +1633,10 @@ int radeon_suspend_kms(struct drm_device *dev, bool suspend,
 
 	radeon_agp_suspend(rdev);
 
-	linux_pci_save_state(dev->pdev);
-	if (freeze && rdev->family >= CHIP_R600) {
+	pci_save_state(dev->pdev);
+	if (freeze && rdev->family >= CHIP_CEDAR) {
 		rdev->asic->asic_reset(rdev, true);
-		linux_pci_restore_state(dev->pdev);
+		pci_restore_state(dev->pdev);
 	} else if (suspend) {
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
@@ -1672,7 +1675,7 @@ int radeon_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	}
 	if (resume) {
 		pci_set_power_state(dev->pdev, PCI_D0);
-		linux_pci_restore_state(dev->pdev);
+		pci_restore_state(dev->pdev);
 		if (pci_enable_device(dev->pdev)) {
 			if (fbcon)
 				console_unlock();
