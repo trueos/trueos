@@ -1110,7 +1110,7 @@ static int drm_vblank_enable(struct drm_device *dev, unsigned int pipe)
  * Returns:
  * Zero on success or a negative error code on failure.
  */
-int drm_vblank_get(struct drm_device *dev, unsigned int pipe)
+static int drm_vblank_get(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	unsigned long irqflags;
@@ -1136,7 +1136,6 @@ int drm_vblank_get(struct drm_device *dev, unsigned int pipe)
 
 	return ret;
 }
-EXPORT_SYMBOL(drm_vblank_get);
 
 /**
  * drm_crtc_vblank_get - get a reference count on vblank events
@@ -1144,8 +1143,6 @@ EXPORT_SYMBOL(drm_vblank_get);
  *
  * Acquire a reference count on vblank events to avoid having them disabled
  * while in use.
- *
- * This is the native kms version of drm_vblank_get().
  *
  * Returns:
  * Zero on success or a negative error code on failure.
@@ -1166,7 +1163,7 @@ EXPORT_SYMBOL(drm_crtc_vblank_get);
  *
  * This is the legacy version of drm_crtc_vblank_put().
  */
-void drm_vblank_put(struct drm_device *dev, unsigned int pipe)
+static void drm_vblank_put(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 
@@ -1187,7 +1184,6 @@ void drm_vblank_put(struct drm_device *dev, unsigned int pipe)
 				  jiffies + ((drm_vblank_offdelay * HZ)/1000));
 	}
 }
-EXPORT_SYMBOL(drm_vblank_put);
 
 /**
  * drm_crtc_vblank_put - give up ownership of vblank events
@@ -1195,8 +1191,6 @@ EXPORT_SYMBOL(drm_vblank_put);
  *
  * Release ownership of a given vblank counter, turning off interrupts
  * if possible. Disable interrupts after drm_vblank_offdelay milliseconds.
- *
- * This is the native kms version of drm_vblank_put().
  */
 void drm_crtc_vblank_put(struct drm_crtc *crtc)
 {
