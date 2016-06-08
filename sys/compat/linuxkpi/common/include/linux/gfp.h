@@ -150,13 +150,16 @@ free_pages(uintptr_t addr, unsigned int order)
 
 
 extern int linux_db_trace;
-#ifdef DDB
+#ifdef DDB_BUFR_SIZE
 extern void db_trace_self_depth(int);
 #define BACKTRACE()				\
 	do {					\
 		if (linux_db_trace)		\
 			db_trace_self_depth(5); \
 	} while (0);
+
+#else
+#define BACKTRACE()
 #endif
 /*
  * Alloc pages allocates directly from the buddy allocator on linux so
