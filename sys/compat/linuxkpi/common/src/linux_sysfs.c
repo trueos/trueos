@@ -70,17 +70,29 @@ sysfs_create_file(struct kobject *kobj, const struct attribute *attr)
 void
 sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
 {
+	int refcount;
 
-	if (kobj->oidp)
+	refcount = 0;
+	if (kobj->oidp) {
+		refcount = kobj->oidp->oid_refcnt;
 		sysctl_remove_name(kobj->oidp, attr->name, 1, 1);
+	}
+	if (refcount == 1)
+		kobj->oidp = NULL;
 }
 
 void
 sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp)
 {
+	int refcount;
 
-	if (kobj->oidp)
+	refcount = 0;
+	if (kobj->oidp) {
+		refcount = kobj->oidp->oid_refcnt;
 		sysctl_remove_name(kobj->oidp, grp->name, 1, 1);
+	}
+	if (refcount == 1)
+		kobj->oidp = NULL;
 }
 
 int
@@ -113,8 +125,13 @@ sysfs_create_dir(struct kobject *kobj)
 void
 sysfs_remove_dir(struct kobject *kobj)
 {
+	int refcount;
 
-	if (kobj->oidp == NULL)
-		return;
-	sysctl_remove_oid(kobj->oidp, 1, 1);
+	refcount = 0;
+	if (kobj->oidp != NULL && kobj->parent->oidp != NULL) {
+		refcount = kobj->oidp->oid_refcnt;
+		sysctl_remove_oid(kobj->oidp, 1, 1);
+	}
+	if (refcount == 1)
+		kobj->oidp = NULL;
 }
