@@ -150,7 +150,7 @@ free_pages(uintptr_t addr, unsigned int order)
 
 
 extern int linux_db_trace;
-#ifdef DDB_BUFR_SIZE
+#ifdef DDB
 extern void db_trace_self_depth(int);
 #define BACKTRACE()				\
 	do {					\
