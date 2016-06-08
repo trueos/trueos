@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-KMOD=	amdgpukmsfw_tonga_sdma
+KMOD=	amdgpu_tonga_sdma_bin
 NAME=	amdgpu/tonga_sdma.bin
 IMG=	tonga_sdma
 

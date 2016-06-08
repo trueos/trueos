@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-KMOD=	amdgpukmsfw_carrizo_ce
+KMOD=	amdgpu_carrizo_ce_bin
 NAME=	amdgpu/carrizo_ce.bin
 IMG=	carrizo_ce
 

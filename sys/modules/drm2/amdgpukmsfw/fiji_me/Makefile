@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-KMOD=	amdgpukmsfw_fiji_me
+KMOD=	amdgpu_fiji_me_bin
 NAME=	amdgpu/fiji_me.bin
 IMG=	fiji_me
 

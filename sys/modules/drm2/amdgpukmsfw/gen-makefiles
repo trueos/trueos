@@ -16,6 +16,7 @@ done
 for file in $fwdir/*.uu; do
 	base=$(basename $file)
 	img=${base%.bin.uu}
+        kmodname=amdgpu_$img"_bin"
 	name=amdgpu/$img".bin"
 	echo "Image: $img"
 
@@ -23,7 +24,7 @@ for file in $fwdir/*.uu; do
 	cat > $scriptdir/$img/Makefile <<EOF
 # \$FreeBSD$
 
-KMOD=	amdgpukmsfw_$img
+KMOD=	$kmodname
 NAME=	$name
 IMG=	$img
 

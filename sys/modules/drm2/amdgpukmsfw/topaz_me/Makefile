@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-KMOD=	amdgpukmsfw_topaz_me
+KMOD=	amdgpu_topaz_me_bin
 NAME=	amdgpu/topaz_me.bin
 IMG=	topaz_me
 

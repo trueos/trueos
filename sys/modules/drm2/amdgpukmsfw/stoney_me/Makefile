@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-KMOD=	amdgpukmsfw_stoney_me
+KMOD=	amdgpu_stoney_me_bin
 NAME=	amdgpu/stoney_me.bin
 IMG=	stoney_me
 

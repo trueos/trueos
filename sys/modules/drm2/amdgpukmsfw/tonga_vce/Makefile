@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-KMOD=	amdgpukmsfw_tonga_vce
+KMOD=	amdgpu_tonga_vce_bin
 NAME=	amdgpu/tonga_vce.bin
 IMG=	tonga_vce
 
