@@ -27,9 +27,9 @@
 
 
 SYSCTL_NODE(_dev, OID_AUTO, drm, CTLFLAG_RW, 0, "DRM args");
-SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug, CTLFLAG_RW, &drm_debug, 0, "drm debug flags");
+SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug, CTLFLAG_RWTUN, &drm_debug, 0, "drm debug flags");
 extern int skip_ddb;
-SYSCTL_INT(_dev_drm, OID_AUTO, skip_ddb, CTLFLAG_RW, &skip_ddb, 0, "go straight to dumping core");
+SYSCTL_INT(_dev_drm, OID_AUTO, skip_ddb, CTLFLAG_RWTUN, &skip_ddb, 0, "go straight to dumping core");
 #if defined(DRM_DEBUG_LOG_ALL)
 int drm_debug_persist = 1;
 #else
