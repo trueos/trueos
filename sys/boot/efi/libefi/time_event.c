@@ -1,5 +1,5 @@
 /*-
- * Copyright 2001 Mark R V Murray
+ * Copyright (c) 2016 Andrew Turner
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,36 +27,56 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <libgen.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <efi.h>
+#include <efilib.h>
 
-#include <security/pam_appl.h>
-#include <security/openpam.h>
-#include <security/pam_mod_misc.h>
+#include <time.h>
+#include <sys/time.h>
 
-/* Print a verbose error, including the function name and a
- * cleaned up filename.
- */
-void
-_pam_verbose_error(pam_handle_t *pamh, int flags,
-    const char *file, const char *function, const char *format, ...)
+static EFI_EVENT time_event;
+static uint64_t curtime;
+
+static void
+time_update(EFI_EVENT event, void *context)
 {
-	va_list ap;
-	char *fmtbuf, *modname, *period;
 
-	if (!(flags & PAM_SILENT) && !openpam_get_option(pamh, "no_warn")) {
-		modname = basename(file);
-		period = strchr(modname, '.');
-		if (period == NULL)
-			period = strchr(modname, '\0');
-		va_start(ap, format);
-		asprintf(&fmtbuf, "%.*s: %s: %s\n", (int)(period - modname),
-		    modname, function, format);
-		pam_verror(pamh, fmtbuf, ap);
-		free(fmtbuf);
-		va_end(ap);
-	}
+	curtime += 10;
+}
+
+void
+efi_time_init(void)
+{
+
+	/* Create a timer event */
+	BS->CreateEvent(EVT_TIMER | EVT_NOTIFY_SIGNAL, TPL_CALLBACK,
+	    time_update, 0, &time_event);
+	/* Use a 10ms timer */
+	BS->SetTimer(time_event, TimerPeriodic, 100000);
+}
+
+void
+efi_time_fini(void)
+{
+
+	/* Cancel the timer */
+	BS->SetTimer(time_event, TimerCancel, 0);
+	BS->CloseEvent(time_event);
+}
+
+time_t
+time(time_t *tloc)
+{
+	time_t t;
+
+	t = curtime / 1000;
+	if (tloc != NULL)
+		*tloc = t;
+
+	return (t);
+}
+
+time_t
+getsecs()
+{
+    return time(0);
 }

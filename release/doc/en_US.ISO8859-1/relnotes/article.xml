@@ -1517,6 +1517,13 @@
 	<acronym>TRIM</acronym>/<acronym>UNMAP</acronym> support on
 	<acronym>GELI</acronym>-backed <acronym>SSD</acronym> storage
 	providers.</para>
+
+      <para revision="300880" contrib="sponsor" sponsor="&spectralogic;">
+	Leading spaces are now stripped off <acronym>SCSI</acronym> disk serial
+	numbers when populating the CAM serial number. This affects the output of
+	&man.diskinfo.8; and the names of <filename>/dev/diskid/DISK-*</filename>
+	device nodes, among other things.</para>
+
     </sect2>
 
     <sect2 xml:id="storage-net">
@@ -1770,6 +1777,10 @@
 	  </tbody>
 	</tgroup>
       </informaltable>
+
+      <para revision="300779">Dummynet AQM, an independent implementation of
+      CoDel and FQ-CoDel for ipfw/dummynet has been imported to the base
+      system.</para>
 
     </sect2>
   </sect1>

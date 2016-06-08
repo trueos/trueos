@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2016 Michael Zhilin <mizhka@gmail.com>
+ * Copyright (c) 2013 Adrian Chadd <adrian@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,27 +25,90 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
- */
-
-/*
+ *
  * $FreeBSD$
  */
-#ifndef _BHND_SOC_BHND_SOC_H_
-#define _BHND_SOC_BHND_SOC_H_
 
-#define	BHND_SOC_MAXNUM_CORES	0x20
-#define	BHND_SOC_RAM_OFFSET	0x0
-#define	BHND_SOC_RAM_SIZE	0x20000000
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <err.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
-struct bhnd_soc_softc {
-	device_t dev;
-	device_t bridge;
-	device_t bus;
-	struct bhnd_chipid	chipid;	/* chip identification */
-};
+#include "ath3k_fw.h"
+#include "ath3k_dbg.h"
 
-struct bhnd_soc_devinfo {
-	struct resource_list resources;
-};
+int
+ath3k_fw_read(struct ath3k_firmware *fw, const char *fwname)
+{
+	int fd;
+	struct stat sb;
+	unsigned char *buf;
+	ssize_t r;
+	int i;
 
-#endif /* _BHND_SOC_BHND_SOC_H_ */
+	fd = open(fwname, O_RDONLY);
+	if (fd < 0) {
+		warn("%s: open: %s", __func__, fwname);
+		return (0);
+	}
+
+	if (fstat(fd, &sb) != 0) {
+		warn("%s: stat: %s", __func__, fwname);
+		close(fd);
+		return (0);
+	}
+	
+	buf = calloc(1, sb.st_size);
+	if (buf == NULL) {
+		warn("%s: calloc", __func__);
+		close(fd);
+		return (0);
+	}
+
+	i = 0;
+	/* XXX handle partial reads */
+	r = read(fd, buf, sb.st_size);
+	if (r < 0) {
+		warn("%s: read", __func__);
+		free(buf);
+		close(fd);
+		return (0);
+	}
+
+	if (r != sb.st_size) {
+		fprintf(stderr, "%s: read len %d != file size %d\n",
+		    __func__,
+		    (int) r,
+		    (int) sb.st_size);
+		free(buf);
+		close(fd);
+		return (0);
+	}
+
+	/* We have everything, so! */
+
+	bzero(fw, sizeof(*fw));
+
+	fw->fwname = strdup(fwname);
+	fw->len = sb.st_size;
+	fw->size = sb.st_size;
+	fw->buf = buf;
+
+	close(fd);
+	return (1);
+}
+
+void
+ath3k_fw_free(struct ath3k_firmware *fw)
+{
+	if (fw->fwname)
+		free(fw->fwname);
+	if (fw->buf)
+		free(fw->buf);
+	bzero(fw, sizeof(*fw));
+}
