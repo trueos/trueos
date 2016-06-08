@@ -53,7 +53,6 @@ SUBDIR=	\
 	bhnd \
 	bge \
 	bhnd \
-	${_bxe} \
 	${_bios} \
 	${_bktr} \
 	${_bm} \
