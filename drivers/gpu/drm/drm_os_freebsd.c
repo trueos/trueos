@@ -69,55 +69,6 @@ drm_probe_helper(device_t kdev, const drm_pci_id_list_t *idlist)
 }
 
 int
-drm_generic_suspend(device_t kdev)
-{
-	struct drm_device *dev;
-	int error;
-
-	DRM_DEBUG_KMS("Starting suspend\n");
-
-	dev = device_get_softc(kdev);
-	if (dev->driver->suspend) {
-		pm_message_t state;
-
-		state.event = PM_EVENT_SUSPEND;
-		error = -dev->driver->suspend(dev, state);
-		if (error)
-			goto out;
-	}
-
-	error = bus_generic_suspend(kdev);
-
-out:
-	DRM_DEBUG_KMS("Finished suspend: %d\n", error);
-
-	return error;
-}
-
-int
-drm_generic_resume(device_t kdev)
-{
-	struct drm_device *dev;
-	int error;
-
-	DRM_DEBUG_KMS("Starting resume\n");
-
-	dev = device_get_softc(kdev);
-	if (dev->driver->resume) {
-		error = -dev->driver->resume(dev);
-		if (error)
-			goto out;
-	}
-
-	error = bus_generic_resume(kdev);
-
-out:
-	DRM_DEBUG_KMS("Finished resume: %d\n", error);
-
-	return error;
-}
-
-int
 drm_generic_detach(device_t kdev)
 {
 	struct drm_device *dev;
@@ -322,6 +273,49 @@ static struct device_type drm_sysfs_device_minor = {
 static char *drm_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
+}
+
+#include <linux/pm_runtime.h>
+int
+drm_generic_suspend(device_t kdev)
+{
+	struct drm_device *dev;
+	int error;
+
+	DRM_DEBUG_KMS("Starting suspend\n");
+
+	dev = device_get_softc(kdev);
+	error = pm_generic_suspend(dev->dev);
+	if (error)
+		goto out;
+
+	error = bus_generic_suspend(kdev);
+
+out:
+	DRM_DEBUG_KMS("Finished suspend: %d\n", error);
+
+	return error;
+}
+
+int
+drm_generic_resume(device_t kdev)
+{
+	struct drm_device *dev;
+	int error;
+
+	DRM_DEBUG_KMS("Starting resume\n");
+
+	dev = device_get_softc(kdev);
+	error = pm_generic_resume(dev->dev);
+	if (error)
+		goto out;
+
+	error = bus_generic_resume(kdev);
+
+out:
+	DRM_DEBUG_KMS("Finished resume: %d\n", error);
+
+	return error;
 }
 
 static int
