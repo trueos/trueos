@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/compat.h>
+#include <linux/poll.h>
 
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
@@ -1013,6 +1014,7 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	struct file *file;
 	int revents;
 	int error;
+	struct poll_wqueues table;
 
 	file = td->td_fpop;
 	ldev = dev->si_drv1;
@@ -1021,11 +1023,16 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
-
+	if (filp->_file == NULL)
+		filp->_file = td->td_fpop;
 	linux_set_current(td, &t);
-	if (filp->f_op->poll)
-		revents = filp->f_op->poll(filp, NULL) & events;
-	else
+
+	if (filp->f_op->poll) {
+		/* XXX need to add support for bounded wait */
+		poll_initwait(&table);
+		revents = filp->f_op->poll(filp, &table.pt) & events;
+		poll_freewait(&table);
+	} else
 		revents = 0;
 	linux_clear_current(td);
 

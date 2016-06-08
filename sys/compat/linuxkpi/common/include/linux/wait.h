@@ -122,6 +122,22 @@ autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
 #define	init_waitqueue_head(x) \
 	do { mtx_init(&((x)->lock.m), "wq", NULL, MTX_DEF|MTX_NOWITNESS);  INIT_LIST_HEAD(&(x)->task_list);  } while (0)
 
+static inline void
+init_waitqueue_entry(wait_queue_t *q, struct task_struct *p)
+{
+	q->flags	= 0;
+	q->private	= p;
+	q->func		= default_wake_function;
+}
+
+static inline void
+init_waitqueue_func_entry(wait_queue_t *q, wait_queue_func_t func)
+{
+	q->flags	= 0;
+	q->private	= NULL;
+	q->func		= func;
+}
+
 
 #ifndef set_current_state
 #define	set_current_state(x)						\
