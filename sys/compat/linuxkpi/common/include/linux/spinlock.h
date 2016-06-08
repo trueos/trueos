@@ -95,13 +95,11 @@ static inline void spin_unlock_bh(spinlock_t *lock) {
 #define local_irq_save(flags)			\
 	do {					\
 		flags = 1;			\
-		critical_enter();		\
 	} while (0)
 
 #define local_irq_restore(flags)		\
 	do {					\
 		flags = 0;			\
-		critical_exit();		\
 	} while (0)
 
 #endif	/* _LINUX_SPINLOCK_H_ */
