@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-KMOD=	amdgpukmsfw_fiji_pfp
+KMOD=	amdgpu_fiji_pfp_bin
 NAME=	amdgpu/fiji_pfp.bin
 IMG=	fiji_pfp
 

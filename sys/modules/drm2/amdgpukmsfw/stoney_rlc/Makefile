@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-KMOD=	amdgpukmsfw_stoney_rlc
+KMOD=	amdgpu_stoney_rlc_bin
 NAME=	amdgpu/stoney_rlc.bin
 IMG=	stoney_rlc
 

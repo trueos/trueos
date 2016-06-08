@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-KMOD=	amdgpukmsfw_polaris11_sdma
+KMOD=	amdgpu_polaris11_sdma_bin
 NAME=	amdgpu/polaris11_sdma.bin
 IMG=	polaris11_sdma
 
