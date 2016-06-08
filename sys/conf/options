@@ -50,7 +50,7 @@ TWA_FLASH_FIRMWARE	opt_twa.h
 # Debugging options.
 ALT_BREAK_TO_DEBUGGER	opt_kdb.h
 BREAK_TO_DEBUGGER	opt_kdb.h
-DDB
+DDB		opt_global.h
 DDB_BUFR_SIZE	opt_ddb.h
 DDB_CAPTURE_DEFAULTBUFSIZE	opt_ddb.h
 DDB_CAPTURE_MAXBUFSIZE	opt_ddb.h
