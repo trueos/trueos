@@ -79,10 +79,14 @@
 #define LINUX_LIST_HEAD(name) \
 	struct list_head name = LINUX_LIST_HEAD_INIT(name)
 
+
+#ifndef LIST_HEAD_DEF
+#define  LIST_HEAD_DEF
 struct list_head {
 	struct list_head *next;
 	struct list_head *prev;
 };
+#endif
 
 static inline void
 INIT_LIST_HEAD(struct list_head *list)
@@ -107,12 +111,19 @@ list_empty_careful(const struct list_head *head)
 	return ((next == head) && (next == head->prev));
 }
 
+
+static inline void
+__list_del(struct list_head * prev, struct list_head * next)
+{
+	next->prev = prev;
+	WRITE_ONCE(prev->next, next);
+}
+
 static inline void
 list_del(struct list_head *entry)
 {
+	__list_del(entry->prev, entry->next);
 
-	entry->next->prev = entry->prev;
-	entry->prev->next = entry->next;
 }
 
 static inline void
