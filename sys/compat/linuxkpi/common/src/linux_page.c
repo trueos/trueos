@@ -443,6 +443,29 @@ set_memory_wc(unsigned long addr, int numpages)
 	return (pmap_change_attr(addr, numpages, PAT_WRITE_COMBINING));
 }
 
+int
+set_pages_wc(vm_page_t page, int numpages)
+{
+	unsigned long addr = (unsigned long)VM_PAGE_TO_PHYS(page);
+
+	return set_memory_wc(addr, numpages);
+}
+int
+set_memory_wb(unsigned long addr, int numpages)
+{
+
+	return (pmap_change_attr(addr, numpages, PAT_WRITE_BACK));
+}
+
+int
+set_pages_wb(vm_page_t page, int numpages)
+{
+	unsigned long addr = (unsigned long)VM_PAGE_TO_PHYS(page);
+
+	return set_memory_wb(addr, numpages);
+}
+
+
 /* look at actual flags e.g. GFP_KERNEL | GFP_DMA32 | __GFP_ZERO */
 vm_page_t
 alloc_page(gfp_t flags)
@@ -513,3 +536,38 @@ retry:
 		vm_object_deallocate(devobj);
 	}
 }
+
+#if defined(__i386__) || defined(__amd64__)
+
+int
+set_pages_array_wb(struct page **pages, int addrinarray)
+{
+	int i;
+
+	for (i = 0; i < addrinarray; i++)
+		set_pages_wb(pages[i], 1);
+	return (0);
+}
+
+int
+set_pages_array_wc(struct page **pages, int addrinarray)
+{
+	int i;
+
+	for (i = 0; i < addrinarray; i++)
+		set_pages_wc(pages[i], 1);
+	return (0);
+}
+
+int
+set_pages_array_uc(struct page **pages, int addrinarray)
+{
+	int i;
+
+	for (i = 0; i < addrinarray; i++)
+		set_pages_uc(pages[i], 1);
+	return (0);
+}
+#endif
+
+

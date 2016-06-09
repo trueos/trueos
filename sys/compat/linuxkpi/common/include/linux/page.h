@@ -57,7 +57,8 @@ typedef unsigned long pgprot_t;
 #define	pfn_to_page(pfn)	(PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
 #define	nth_page(page,n)	pfn_to_page(page_to_pfn((page)) + (n))
 
-#define	clear_page(page)		memset((page), 0, PAGE_SIZE)
+#define	clear_page(addr)		memset((addr), 0, PAGE_SIZE)
+#define clear_highpage(addr)	clear_page((addr))
 #define	pgprot_noncached(prot)		((prot) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
 #define	pgprot_writecombine(prot)	((prot) | cachemode2protval(VM_MEMATTR_WRITE_COMBINING))
 
@@ -110,29 +111,28 @@ io_mapping_unmap_atomic(void *vaddr)
 
 extern void *io_mapping_map_atomic_wc(struct io_mapping *mapping, unsigned long offset);
 extern void *io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset);
-extern int set_memory_wc(unsigned long addr, int numpages);
 
 static inline int
-set_memory_wb(unsigned long addr, int numpages)
+page_count(vm_page_t page __unused)
 {
-
-	return (pmap_change_attr(addr, numpages, PAT_WRITE_BACK));
+	return (1);
 }
 
-static inline int
-set_pages_wb(vm_page_t page, int numpages)
-{
-	unsigned long addr = (unsigned long)VM_PAGE_TO_PHYS(page);
-
-	return set_memory_wb(addr, numpages);
-}
-
+int set_pages_array_wb(struct page **pages, int addrinarray);
+int set_pages_array_uc(struct page **pages, int addrinarray);
+int set_pages_array_wc(struct page **pages, int addrinarray);
 vm_page_t alloc_page(gfp_t gfp);
 void __free_page(vm_page_t page);
 
 /* bump refcount */
+
+int set_pages_wb(vm_page_t page, int numpages);
+int set_memory_wb(unsigned long addr, int numpages);
 int set_pages_uc(vm_page_t page, int numpages);
 int set_memory_uc(unsigned long addr, int numpages);
+int set_pages_wc(vm_page_t page, int numpages);
+int set_memory_wc(unsigned long addr, int numpages);
+
 vm_paddr_t page_to_phys(vm_page_t page);
 
 void *acpi_os_ioremap(vm_paddr_t pa, vm_size_t size);
