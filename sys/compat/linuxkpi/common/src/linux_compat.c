@@ -96,7 +96,7 @@ struct workqueue_struct *system_power_efficient_wq;
 
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 int linux_db_trace;
-SYSCTL_INT(_compat_linuxkpi, OID_AUTO, db_trace, CTLFLAG_RW, &linux_db_trace, 0, "enable backtrace instrumentation");
+SYSCTL_INT(_compat_linuxkpi, OID_AUTO, db_trace, CTLFLAG_RWTUN, &linux_db_trace, 0, "enable backtrace instrumentation");
 
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
@@ -318,6 +318,8 @@ kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 			sysfs_remove_dir(kobj);
 		
 	}
+	if (error == 0)
+		kobj->state_in_sysfs = 1;
 	return (error);
 }
 
@@ -343,7 +345,10 @@ linux_kobject_release(struct kref *kref)
 	char *name;
 
 	kobj = container_of(kref, struct kobject, kref);
-	sysfs_remove_dir(kobj);
+	/* we need to work out how to do this in a way that it works */
+	if (kobj->state_in_sysfs) {
+		kobject_del(kobj);
+	}
 	name = kobj->name;
 	if (kobj->ktype && kobj->ktype->release)
 		kobj->ktype->release(kobj);
@@ -1167,14 +1172,19 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
 {
 	struct linux_file *filp;
 	struct task_struct t;
+	struct poll_wqueues table;
 	int revents;
 
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
+	if (filp->_file == NULL)
+		filp->_file = td->td_fpop;
 	linux_set_current(td, &t);
-	if (filp->f_op->poll)
-		revents = filp->f_op->poll(filp, NULL) & events;
-	else
+	if (filp->f_op->poll) {
+		poll_initwait(&table);
+		revents = filp->f_op->poll(filp, &table.pt) & events;
+		poll_freewait(&table);
+	} else
 		revents = 0;
 	linux_clear_current(td);
 
