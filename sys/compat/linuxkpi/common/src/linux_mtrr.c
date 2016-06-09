@@ -98,8 +98,9 @@ arch_phys_wc_add(unsigned long base, unsigned long size)
 	mi->base = base;
 	mi->size = size;
 	rc  = mtrr_add(base, size, MTRR_TYPE_WRCOMB);
-	if (rc > 0) {
+	if (rc >= 0) {
 		rc2 = idr_get_new(&mtrr_idr, mi, &id);
+		MPASS(idr_find(&mtrr_idr, id) == mi);
 		MPASS(rc2 == 0);
 	} else {
 		free(mi, M_LKMTRR);
