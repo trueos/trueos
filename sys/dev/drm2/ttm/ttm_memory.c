@@ -25,9 +25,6 @@
  *
  **************************************************************************/
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <drm/drmP.h>
 #include <drm/ttm/ttm_memory.h>
 #include <drm/ttm/ttm_module.h>

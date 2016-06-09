@@ -552,12 +552,7 @@ EXPORT_SYMBOL(ttm_object_device_release);
  */
 static bool __must_check get_dma_buf_unless_doomed(struct dma_buf *dmabuf)
 {
-#ifdef notyet
-	return atomic_long_inc_not_zero(&dmabuf->file->f_count) != 0L;
-#else
-	printf("must fix %s\n", __FUNCTION__);
-	return (1);
-#endif
+	return atomic_inc_not_zero((atomic_t *)&dmabuf->file->f_count) != 0L;
 }
 
 /**

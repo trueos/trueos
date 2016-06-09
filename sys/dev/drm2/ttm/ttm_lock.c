@@ -28,9 +28,6 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <drm/ttm/ttm_lock.h>
 #include <drm/ttm/ttm_module.h>
 #include <linux/atomic.h>
