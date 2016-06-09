@@ -8,7 +8,6 @@
 #include <linux/wait.h>
 #include <linux/timer.h>
 #include <linux/completion.h>
-#define CONFIG_PM
 
 extern const char power_group_name[];		/* = "power" */
 

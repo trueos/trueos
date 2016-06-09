@@ -29,7 +29,7 @@
  * IS_ENABLED(CONFIG_FOO).
  */
 #define IS_BUILTIN(option) config_enabled(option)
-
+ 
 /*
  * IS_MODULE(CONFIG_FOO) evaluates to 1 if CONFIG_FOO is set to 'm', 0
  * otherwise.

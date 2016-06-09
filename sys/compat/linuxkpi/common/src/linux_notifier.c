@@ -116,6 +116,29 @@ blocking_notifier_call_chain(struct blocking_notifier_head *nh,
 {
 	return (__blocking_notifier_call_chain(nh, val, v, -1, NULL));
 }
+
+int
+__atomic_notifier_call_chain(struct atomic_notifier_head *nh,
+				 unsigned long val, void *v,
+				 int nr_to_call, int *nr_calls)
+{
+	int ret;
+
+	rcu_read_lock();
+	ret = notifier_call_chain(&nh->head, val, v, nr_to_call, nr_calls);
+	rcu_read_unlock();
+	return ret;
+}
+
+int
+atomic_notifier_call_chain(struct atomic_notifier_head *nh,
+			       unsigned long val, void *v)
+{
+	return __atomic_notifier_call_chain(nh, val, v, -1, NULL);
+}
+
+
+
 int
 register_reboot_notifier(struct notifier_block *nb)
 {

@@ -31,7 +31,13 @@ __pm_runtime_suspend(struct device *dev, int rpmflags)
 	UNIMPLEMENTED_ONCE();
 	return (0);
 }
-extern int pm_runtime_get_if_in_use(struct device *dev);
+
+static inline int
+pm_runtime_get_if_in_use(struct device *dev)
+{
+	UNIMPLEMENTED();
+	return (1);
+}
 
 static inline void
 __pm_runtime_use_autosuspend(struct device *dev, bool use)
