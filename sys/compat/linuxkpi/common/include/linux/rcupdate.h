@@ -105,9 +105,9 @@ synchronize_rcu(void)
 
 #define rcu_dereference(p) rcu_dereference_protected(p, 0)
 
-#define rcu_assign_pointer(p, v) \
-({ \
-	panic("XXX implemented"); \
-})
+#define RCU_INITIALIZER(v) (typeof(*(v)) __force __rcu *)(v)
+#define smp_store_release(p, v) atomic_store_rel_ptr((volatile unsigned long *)(p), (unsigned long)v)
+#define rcu_assign_pointer(p, v) smp_store_release(&p, RCU_INITIALIZER(v))
+
 
 #endif					/* _LINUX_RCUPDATE_H_ */
