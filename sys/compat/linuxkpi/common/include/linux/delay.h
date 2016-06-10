@@ -44,7 +44,7 @@ linux_msleep(int ms)
 #undef msleep
 #define	msleep	linux_msleep
 
-#define	udelay(t)	DELAY(MAX(t, 5))
+#define	udelay(t)	DELAY(MAX(t, 3))
 
 static inline void
 mdelay(unsigned long msecs)
