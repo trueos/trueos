@@ -71,7 +71,7 @@ mtrr_add(unsigned long offset, unsigned long size, int flags)
 	rc = mem_range_attr_set(&mrdesc, &act);
 
 	/* there's no way to get the actual register without churning the interface */
-	return (rc ? -rc : (int)offset);
+	return (rc ? -rc : 0);
 }
 
 static int
