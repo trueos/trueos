@@ -344,7 +344,10 @@ pci_unregister_driver(struct pci_driver *pdrv)
 {
 	devclass_t bus;
 
-	bus = devclass_find("pci");
+	if (pdrv->busname != NULL)
+		bus = devclass_create(pdrv->busname);
+	else
+		bus = devclass_find("pci");
 
 	list_del(&pdrv->links);
 	mtx_lock(&Giant);
