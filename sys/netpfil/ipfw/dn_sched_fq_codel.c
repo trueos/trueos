@@ -45,6 +45,7 @@
 #include <netinet/ip_dummynet.h>
 
 #include <sys/proc.h>
+#include <sys/lock.h>
 #include <sys/rwlock.h>
 
 #include <netpfil/ipfw/ip_fw_private.h>
