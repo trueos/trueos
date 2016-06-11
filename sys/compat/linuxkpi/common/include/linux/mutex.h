@@ -43,20 +43,28 @@ typedef struct mutex {
 	struct sx sx;
 } mutex_t;
 
+
+#define	sx_is_owned(sx)							\
+	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK & ~SX_LOCK_SHARED)) ==	\
+	    (uintptr_t)curthread)
+
+#define	sx_is_xlocked(sx)							\
+	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK & ~SX_LOCK_SHARED)) !=	\
+	    (uintptr_t)NULL)
+
+
 #define	mutex_lock(_m)			sx_xlock(&(_m)->sx)
 #define	mutex_lock_nested(_m, _s)	mutex_lock(_m)
 #define mutex_lock_nest_lock(_m, _s)	mutex_lock(_m)
 #define	mutex_lock_interruptible(_m)	({ int ret = sx_xlock_sig(&(_m)->sx); ret ? -EINTR : 0; })
 #define	mutex_unlock(_m)		sx_xunlock(&(_m)->sx)
 #define	mutex_trylock(_m)		!!sx_try_xlock(&(_m)->sx)
-#define	mutex_is_locked(_m)		sx_xlocked(&(_m)->sx)
+#define	mutex_is_locked(_m)		sx_is_xlocked(&(_m)->sx)
+#define	mutex_is_owned(_m)		sx_is_owned(&(_m)->sx)
 
 #define DEFINE_MUTEX(lock)						\
 	mutex_t lock;							\
 	SX_SYSINIT_FLAGS(lock, &(lock).sx, #lock, SX_DUPOK)
-
-
-
 
 static inline void
 linux_mutex_init(mutex_t *m, const char *name, int flags)
@@ -74,10 +82,15 @@ int linux_mutex_lock_common(struct mutex *m, int state, struct ww_acquire_ctx *c
 static inline void
 linux_mutex_destroy(mutex_t *m)
 {
+	if (mutex_is_owned(m))
+		mutex_unlock(m);
+	DELAY(2500);
+	MPASS(!sx_is_xlocked(&m->sx));
 	sx_destroy(&m->sx);
 }
 
 #define	mutex_init(m)	linux_mutex_init(m, #m, SX_DUPOK)
+#define	mutex_init_nowitness(m)	linux_mutex_init(m, #m, SX_NOWITNESS)
 #define mutex_destroy(m) linux_mutex_destroy(m);
 
 #endif	/* _LINUX_MUTEX_H_ */

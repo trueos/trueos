@@ -60,7 +60,7 @@ ww_mutex_trylock(struct ww_mutex *lock)
 static inline int
 ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
-	if (mutex_is_locked(&lock->base))
+	if (mutex_is_owned(&lock->base))
 		return (-EALREADY);
 	if (ctx)
 		return (linux_mutex_lock_common(&lock->base, TASK_UNINTERRUPTIBLE, ctx));
