@@ -260,13 +260,14 @@ framebuffer_alloc(size_t size, struct device *dev)
 void
 framebuffer_release(struct linux_fb_info *info)
 {
+	struct vt_kms_softc *sc;
+
 	if (info == NULL)
 		return;
-	if (info->fbio.fb_fbd_dev != NULL) {
-		mtx_lock(&Giant);
-		device_delete_child(info->fb_bsddev, info->fbio.fb_fbd_dev);
-		mtx_unlock(&Giant);
-		info->fbio.fb_fbd_dev = NULL;
+	if (info->fbio.fb_priv) {
+		sc = info->fbio.fb_priv;
+		if (sc->fb_helper != NULL)
+			sc->fb_helper->fbdev = NULL;
 	}
 	kfree(info->apertures);
 	free(info, DRM_MEM_KMS);
@@ -279,8 +280,6 @@ put_fb_info(struct linux_fb_info *fb_info)
 	if (!atomic_dec_and_test(&fb_info->count))
 		return;
 
-	mutex_destroy(&fb_info->lock);
-	mutex_destroy(&fb_info->mm_lock);
 	if (fb_info->fbops->fb_destroy)
 		fb_info->fbops->fb_destroy(fb_info);
 }
@@ -498,8 +497,8 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 			break;
 	fb_info->node = i;
 	atomic_set(&fb_info->count, 1);
-	mutex_init(&fb_info->lock);
-	mutex_init(&fb_info->mm_lock);
+	mutex_init_nowitness(&fb_info->lock);
+	mutex_init_nowitness(&fb_info->mm_lock);
 
 	MPASS(fb_info->apertures->ranges[0].base);
 	MPASS(fb_info->apertures->ranges[0].size);
@@ -606,6 +605,7 @@ unlink_framebuffer(struct linux_fb_info *fb_info)
 static int
 __unregister_framebuffer(struct linux_fb_info *fb_info)
 {
+	struct vt_kms_softc *sc;
 	struct fb_event event;
 	int i, ret = 0;
 
@@ -613,15 +613,20 @@ __unregister_framebuffer(struct linux_fb_info *fb_info)
 	if (i < 0 || i >= FB_MAX || registered_fb[i] != fb_info)
 		return -EINVAL;
 
-
 	if (fb_info->fbio.fb_fbd_dev) {
 		mtx_lock(&Giant);
 		device_delete_child(fb_info->fb_bsddev, fb_info->fbio.fb_fbd_dev);
 		mtx_unlock(&Giant);
 		fb_info->fbio.fb_fbd_dev = NULL;
 	}
+	if (fb_info->fbio.fb_priv) {
+		sc = fb_info->fbio.fb_priv;
+		if (sc->fb_helper != NULL)
+			sc->fb_helper->fbdev = NULL;
+	}
 	if (num_registered_fb == 1)
 		vt_fb_detach(&fb_info->fbio);
+
 
 #if 0	
 	if (!lock_fb_info(fb_info))
@@ -650,7 +655,6 @@ __unregister_framebuffer(struct linux_fb_info *fb_info)
 	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
 	console_unlock();
 #endif
-	/* this may free fb info */
 	put_fb_info(fb_info);
 	return 0;
 }

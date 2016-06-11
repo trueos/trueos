@@ -1340,6 +1340,7 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	int i;
 	struct fb_info *info;
 	struct drm_fb_helper_surface_size sizes;
+	struct vt_kms_softc *sc;
 	int gamma_size = 0;
 
 	memset(&sizes, 0, sizeof(struct drm_fb_helper_surface_size));
@@ -1460,6 +1461,8 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 	info->var.pixclock = 0;
 	info->fbio.fb_bpp = preferred_bpp;
+	sc = (struct vt_kms_softc *)info->fbio.fb_priv;
+	sc->fb_helper = fb_helper;
 	if (register_framebuffer(info) < 0)
 		return -EINVAL;
 
@@ -1526,7 +1529,6 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 			    uint32_t fb_width, uint32_t fb_height)
 {
 	struct drm_framebuffer *fb = fb_helper->fb;
-	struct vt_kms_softc *sc;
 	info->pseudo_palette = fb_helper->pseudo_palette;
 	info->var.xres_virtual = fb->width;
 	info->var.yres_virtual = fb->height;
@@ -1599,9 +1601,6 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 	info->fbio.fb_width = fb->width;
 	info->fbio.fb_height = fb->height;
 	info->fbio.fb_depth = fb->bits_per_pixel;
-
-	sc = (struct vt_kms_softc *)info->fbio.fb_priv;
-	sc->fb_helper = fb_helper;
 }
 EXPORT_SYMBOL(drm_fb_helper_fill_var);
 
