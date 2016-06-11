@@ -196,7 +196,7 @@ schedule_timeout(signed long timeout)
 
 	if (timeout < 0)
 		return 0;
-	if (SCHEDULER_STOPPED())
+	if (SKIP_SLEEP())
 		return (0);
 	MPASS(current);
 	if (current->sleep_wq == NULL) {
@@ -1377,7 +1377,7 @@ long
 linux_wait_for_common(struct completion *c, int flags)
 {
 
-	if (unlikely(SCHEDULER_STOPPED()))
+	if (unlikely(SKIP_SLEEP()))
 		return (0);
 
 	if (flags != 0)
@@ -1409,7 +1409,7 @@ linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
 {
 	long end = jiffies + timeout;
 
-	if (SCHEDULER_STOPPED())
+	if (SKIP_SLEEP())
 		return (0);
 
 	if (flags != 0)

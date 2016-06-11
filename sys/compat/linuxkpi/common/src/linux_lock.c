@@ -1,5 +1,6 @@
 
 #include <linux/ww_mutex.h>
+#include <linux/wait.h>
 
 static inline int
 lock_check_stamp(struct mutex *lock, struct ww_acquire_ctx *ctx)
@@ -29,7 +30,7 @@ linux_mutex_lock_common(struct mutex *lock, int state, struct ww_acquire_ctx *ct
 	int rc;
 
 	sx = &lock->sx;
-	if (SCHEDULER_STOPPED())
+	if (SKIP_SLEEP())
 		return (0);
 
 	if (ctx && ctx->acquired > 0) {

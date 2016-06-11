@@ -43,6 +43,8 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 
+#define SKIP_SLEEP() (SCHEDULER_STOPPED() || kdb_active)
+
 
 struct __wait_queue;
 typedef struct __wait_queue wait_queue_t;
@@ -354,7 +356,7 @@ ___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,			\
 #define wait_event_interruptible_lock_irq(wq, condition, lock)		\
 ({									\
 	int __ret = 0;							\
-	if (SCHEDULER_STOPPED())					\
+	if (SKIP_SLEEP())						\
 		goto done;						\
 	if (!(condition))						\
 		__ret = __wait_event_interruptible_lock_irq(wq,		\
