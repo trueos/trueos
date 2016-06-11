@@ -45,6 +45,9 @@
 #include "vi.h"
 #include "bif/bif_4_1_d.h"
 
+#define pci_save_state linux_pci_save_state
+#define pci_restore_state linux_pci_restore_state
+
 static int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
 static void amdgpu_debugfs_regs_cleanup(struct amdgpu_device *adev);
 
@@ -1714,7 +1717,7 @@ int amdgpu_suspend_kms(struct drm_device *dev, bool suspend, bool fbcon)
 	/* evict remaining vram memory */
 	amdgpu_bo_evict_vram(adev);
 
-	linux_pci_save_state(dev->pdev);
+	pci_save_state(dev->pdev);
 	if (suspend) {
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
@@ -1753,7 +1756,7 @@ int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	}
 	if (resume) {
 		pci_set_power_state(dev->pdev, PCI_D0);
-		linux_pci_restore_state(dev->pdev);
+		pci_restore_state(dev->pdev);
 		if (pci_enable_device(dev->pdev)) {
 			if (fbcon)
 				console_unlock();
