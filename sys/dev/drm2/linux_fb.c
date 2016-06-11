@@ -262,8 +262,12 @@ framebuffer_release(struct linux_fb_info *info)
 {
 	if (info == NULL)
 		return;
-	if (info->fbio.fb_fbd_dev != NULL)
+	if (info->fbio.fb_fbd_dev != NULL) {
+		mtx_lock(&Giant);
 		device_delete_child(info->fb_bsddev, info->fbio.fb_fbd_dev);
+		mtx_unlock(&Giant);
+		info->fbio.fb_fbd_dev = NULL;
+	}
 	kfree(info->apertures);
 	free(info, DRM_MEM_KMS);
 	free(info->fbio.fb_priv, DRM_MEM_KMS);
@@ -610,9 +614,12 @@ __unregister_framebuffer(struct linux_fb_info *fb_info)
 		return -EINVAL;
 
 
-	if (fb_info->fbio.fb_fbd_dev)
+	if (fb_info->fbio.fb_fbd_dev) {
+		mtx_lock(&Giant);
 		device_delete_child(fb_info->fb_bsddev, fb_info->fbio.fb_fbd_dev);
-
+		mtx_unlock(&Giant);
+		fb_info->fbio.fb_fbd_dev = NULL;
+	}
 	if (num_registered_fb == 1)
 		vt_fb_detach(&fb_info->fbio);
 
