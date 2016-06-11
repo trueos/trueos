@@ -613,8 +613,8 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 
 	spin_lock_init(&dev->buf_lock);
 	spin_lock_init(&dev->event_lock);
-	mutex_init(&dev->struct_mutex);
-	mutex_init(&dev->ctxlist_mutex);
+	mutex_init_nowitness(&dev->struct_mutex);
+	mutex_init_nowitness(&dev->ctxlist_mutex);
 	mutex_init(&dev->master_mutex);
 
 	dev->anon_inode = drm_fs_inode_new();
@@ -678,8 +678,6 @@ err_free:
 	mutex_destroy(&dev->master_mutex);
 	spin_lock_destroy(&dev->buf_lock);
 	spin_lock_destroy(&dev->event_lock);
-	mutex_destroy(&dev->struct_mutex);
-	mutex_destroy(&dev->ctxlist_mutex);
 
 	kfree(dev);
 	return NULL;
@@ -703,8 +701,6 @@ static void drm_dev_release(struct kref *ref)
 
 	spin_lock_destroy(&dev->buf_lock);
 	spin_lock_destroy(&dev->event_lock);
-	mutex_destroy(&dev->struct_mutex);
-	mutex_destroy(&dev->ctxlist_mutex);
 	mutex_destroy(&dev->master_mutex);
 	kfree(dev->unique);
 	kfree(dev);
