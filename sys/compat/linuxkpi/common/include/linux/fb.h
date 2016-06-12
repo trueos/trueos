@@ -607,7 +607,6 @@ struct linux_fb_info {
 	struct fb_info fbio;
 	struct cdev *fb_cdev;
 	device_t fb_bsddev;
-	void *fb_helper;
 };
 
 
