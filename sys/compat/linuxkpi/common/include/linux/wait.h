@@ -170,6 +170,7 @@ __wake_up_locked(wait_queue_head_t *q, int mode, int nr, void *key)
 	struct task_struct *t;
 	wait_queue_t *curr, *next;
 
+	selwakeup(&q->wait_poll);
 	list_for_each_entry_safe(curr, next, &q->task_list, task_list) {
 		t = curr->private;
 		/* note that we're ignoring exclusive wakeups here */
