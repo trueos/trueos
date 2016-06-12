@@ -101,6 +101,7 @@ kobject_init(struct kobject *kobj, const struct kobj_type *ktype)
 	INIT_LIST_HEAD(&kobj->entry);
 	kobj->ktype = ktype;
 	kobj->oidp = NULL;
+	kobj->state_in_sysfs = 0;
 }
 
 void linux_kobject_release(struct kref *kref);
@@ -170,6 +171,8 @@ kobject_del(struct kobject *kobj)
 {
 	if (!kobj)
 		return;
+	sysfs_remove_dir(kobj);
+	kobj->state_in_sysfs = 0;
 	/* list removal? */
 	kobject_put(kobj->parent);
 	kobj->parent = NULL;
