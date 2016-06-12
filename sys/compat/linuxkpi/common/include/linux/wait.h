@@ -39,6 +39,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/selinfo.h>
 #include <sys/sleepqueue.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
@@ -64,6 +65,7 @@ struct __wait_queue {
 
 typedef struct wait_queue_head {
 	spinlock_t	lock;
+	struct selinfo	wait_poll;
 	struct list_head	task_list;
 } wait_queue_head_t;
 

@@ -1008,6 +1008,7 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 
 	file = td->td_fpop;
 	ldev = dev->si_drv1;
+	revents = 0;
 	if (ldev == NULL)
 		return (0);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
@@ -1022,8 +1023,7 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 		poll_initwait(&table);
 		revents = filp->f_op->poll(filp, &table.pt) & events;
 		poll_freewait(&table);
-	} else
-		revents = 0;
+	}
 
 	return (revents);
 }

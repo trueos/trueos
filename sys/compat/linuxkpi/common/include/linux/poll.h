@@ -146,6 +146,7 @@ linux_pollwait(struct file *filp, wait_queue_head_t *wait_address,
 	entry->key = p->_key;
 	init_waitqueue_func_entry(&entry->wait, linux_pollwake);
 	entry->wait.private = pwq;
+	selrecord(curthread, &wait_address->wait_poll);
 	add_wait_queue(wait_address, &entry->wait);
 }
 
