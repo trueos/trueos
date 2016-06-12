@@ -298,6 +298,31 @@ linux_pci_shutdown(device_t dev)
 	return (0);
 }
 
+int pci_default_suspend(struct pci_dev *dev,
+                        pm_message_t state __unused)
+{
+        int err;
+
+        if(dev->pdrv->linux_driver.pm->suspend != NULL)
+                err = -dev->pdrv->linux_driver.pm->suspend(&(dev->dev));
+        else
+                err = 0;
+
+        return (err);
+}
+
+int pci_default_resume(struct pci_dev *dev)
+{
+        int err;
+
+        if(dev->pdrv->linux_driver.pm->resume != NULL)
+                err = -dev->pdrv->linux_driver.pm->resume(&(dev->dev));
+        else
+                err = 0;
+
+        return (err);
+}
+
 int
 pci_register_driver(struct pci_driver *pdrv)
 {
@@ -368,7 +393,7 @@ pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 			pmap_change_attr((vm_offset_t)regs, len >> PAGE_SHIFT, PAT_UNCACHED);
 		pdev->pcir.map[bar] = regs;
 
-	} 
+	}
 	return (pdev->pcir.map[bar]);
 }
 
