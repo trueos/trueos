@@ -128,7 +128,7 @@ sysfs_remove_dir(struct kobject *kobj)
 	int refcount;
 
 	refcount = 0;
-	if (kobj->oidp != NULL && kobj->parent->oidp != NULL) {
+	if (kobj->oidp != NULL) {
 		refcount = kobj->oidp->oid_refcnt;
 		sysctl_remove_oid(kobj->oidp, 1, 1);
 	}
