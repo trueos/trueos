@@ -12,11 +12,10 @@ typedef int (*cpu_stop_fn_t)(void *arg);
 static inline int
 stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus)
 {
-	unsigned long flags;
 	int ret;
-	local_irq_save(flags);
+	critical_enter();
 	ret = fn(data);
-	local_irq_restore(flags);
+	critical_exit();
 	return (ret);
 }
 
