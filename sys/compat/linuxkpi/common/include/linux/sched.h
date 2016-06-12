@@ -95,20 +95,29 @@ mmput(struct mm_struct *mm)
 	}
 }
 
-#define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
-
 static inline void
 __put_task_struct(struct task_struct *t)
 {
-	DODGY();
+	panic("refcounting bug encountered");
 	kfree(t);
 }
 
+#ifdef __notyet__
+#define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
+
 static inline void put_task_struct(struct task_struct *t)
 {
+#ifdef notyet
 	if (atomic_dec_and_test(&t->usage))
 		__put_task_struct(t);
+#endif
 }
+#endif
+#define get_task_struct(tsk) PHOLD((tsk)->task_thread->td_proc)
+#define put_task_struct(tsk) PRELE((tsk)->task_thread->td_proc)
+
+
+
 
 extern u64 cpu_clock(int cpu);
 extern u64 running_clock(void);

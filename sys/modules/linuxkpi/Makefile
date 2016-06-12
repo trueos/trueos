@@ -24,7 +24,8 @@ SRCS=	interval_tree.c \
 	linux_string.c \
 	linux_sysfs.c \
 	linux_usb.c \
-	linux_video.c
+	linux_video.c \
+	linux_work.c
 
 SRCS+=	bus_if.h \
 	device_if.h \
@@ -35,8 +36,9 @@ SRCS+=	bus_if.h \
 
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
 
+#CFLAGS += -DPRINT_UNIMPLEMENTED
 # until stable
-
+#CFLAGS+= -O0
 
 .include <bsd.kmod.mk>
 CWARNFLAGS 		+= -Wno-pointer-arith

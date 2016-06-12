@@ -69,14 +69,14 @@
  */
 
 #define	current			task_struct_get(curthread)
-#define	task_struct_get(x)	((struct task_struct *)(uintptr_t)(x)->td_retval[1])
-#define	task_struct_set(x, y)	(x)->td_retval[1] = (uintptr_t)(y)
+#define	task_struct_get(x)	((struct task_struct *)(uintptr_t)(x)->td_lkpi_task)
 
 #define	task_struct_fill(x, y) do {		\
   	(y)->task_thread = (x);			\
 	(y)->comm = (x)->td_name;		\
 	(y)->pid = (x)->td_tid;			\
 	(y)->mm = &(y)->bsd_mm;			\
+	(y)->usage.counter = 1;			\
 	(y)->state = TASK_RUNNING;		\
 } while (0)
 
@@ -104,19 +104,24 @@ struct task_struct {
 static inline void
 linux_kthread_fn(void *arg)
 {
+	struct mm_struct *mm;
 	struct task_struct *task;
 	struct thread *td = curthread;
 
 	task = arg;
 	task_struct_fill(td, task);
-	task_struct_set(td, task);
+	mm = task->mm;
+	init_rwsem(&mm->mmap_sem);
+	mm->mm_count.counter = 1;
+	mm->mm_users.counter = 1;
+	td->td_lkpi_task = task;
 	if (task->should_stop == 0)
 		task->task_ret = task->task_fn(task->task_data);
 	PROC_LOCK(td->td_proc);
 	task->should_stop = TASK_STOPPED;
 	wakeup(task);
 	PROC_UNLOCK(td->td_proc);
-	task_struct_set(td, NULL);
+	td->td_lkpi_task = NULL;
 	kthread_exit();
 }
 

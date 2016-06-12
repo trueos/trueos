@@ -105,6 +105,16 @@ autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
 #define DEFINE_WAIT(name) DEFINE_WAIT_FUNC(name, autoremove_wake_function)
 
 
+#define init_wait(wait)							\
+	do {								\
+		(wait)->private = current;				\
+		(wait)->func = autoremove_wake_function;		\
+		INIT_LIST_HEAD(&(wait)->task_list);			\
+		(wait)->flags = 0;					\
+	} while (0)
+
+
+
 #define LINUX_WAITQUEUE_INITIALIZER(name, tsk) {			\
 	.private	= tsk,						\
  	.func		= default_wake_function,	                \
@@ -170,23 +180,23 @@ __wake_up_locked(wait_queue_head_t *q, int mode, int nr, void *key)
 }
 
 static inline void
-__wake_up(wait_queue_head_t *q, int mode, int nr)
+__wake_up(wait_queue_head_t *q, int mode, int nr, void *key)
 {
 
 	spin_lock(&q->lock);
-	__wake_up_locked(q, mode, nr, NULL);
+	__wake_up_locked(q, mode, nr, key);
 	spin_unlock(&q->lock);
 }
 
 
-#define	wake_up(q)				__wake_up(q, TASK_NORMAL, 1)
-#define	wake_up_nr(q, nr)			__wake_up(q, TASK_NORMAL, nr)
-#define	wake_up_all(q)				__wake_up(q, TASK_NORMAL, 0)
+#define	wake_up(q)				__wake_up(q, TASK_NORMAL, 1, NULL)
+#define	wake_up_nr(q, nr)			__wake_up(q, TASK_NORMAL, nr, NULL)
+#define	wake_up_all(q)				__wake_up(q, TASK_NORMAL, 0, NULL)
 #define	wake_up_locked(q)			__wake_up_locked(q, TASK_NORMAL, 1, NULL)
 #define	wake_up_all_locked(q)			__wake_up_locked(q, TASK_NORMAL, 0, NULL)
-#define	wake_up_interruptible(q)		__wake_up(q, TASK_INTERRUPTIBLE, 1)
-#define	wake_up_interruptible_nr(q, nr)		__wake_up(q, TASK_INTERRUPTIBLE, nr)
-#define	wake_up_interruptible_all(q)		__wake_up(q, TASK_INTERRUPTIBLE, 0)
+#define	wake_up_interruptible(q)		__wake_up(q, TASK_INTERRUPTIBLE, 1, NULL)
+#define	wake_up_interruptible_nr(q, nr)		__wake_up(q, TASK_INTERRUPTIBLE, nr, NULL)
+#define	wake_up_interruptible_all(q)		__wake_up(q, TASK_INTERRUPTIBLE, 0, NULL)
 
 #define __wake_up_locked_key(q, mode, key)	__wake_up_locked(q, mode, 0, key)
 
@@ -426,6 +436,20 @@ abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait,
 		__wake_up_locked_key(q, mode, key);
 	spin_unlock_irqrestore(&q->lock, flags);
 }
+
+static inline void
+prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state)
+{
+	unsigned long flags;
+
+	wait->flags |= WQ_FLAG_EXCLUSIVE;
+	spin_lock_irqsave(&q->lock, flags);
+	if (list_empty(&wait->task_list))
+		__add_wait_queue_tail(q, wait);
+	set_current_state(state);
+	spin_unlock_irqrestore(&q->lock, flags);
+}
+
 static inline long
 prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state)
 {

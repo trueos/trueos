@@ -49,7 +49,7 @@ typedef struct mutex {
 	    (uintptr_t)curthread)
 
 #define	sx_is_xlocked(sx)							\
-	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK & ~SX_LOCK_SHARED)) !=	\
+	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK)) !=	\
 	    (uintptr_t)NULL)
 
 
@@ -85,7 +85,6 @@ linux_mutex_destroy(mutex_t *m)
 	if (mutex_is_owned(m))
 		mutex_unlock(m);
 	DELAY(2500);
-	MPASS(!sx_is_xlocked(&m->sx));
 	sx_destroy(&m->sx);
 }
 

@@ -130,15 +130,13 @@ void
 linux_work_fn(void *context, int pending)
 {
 	struct work_struct *work;
-	struct task_struct t;
 
 	work = context;
 
-	linux_set_current(curthread, &t);
+	linux_set_current(curthread);
 	set_work_pool_and_clear_pending(work, 0);
 	work->taskqueue = NULL;
 	work->fn(work);
-	linux_clear_current(curthread);
 }
 
 void
