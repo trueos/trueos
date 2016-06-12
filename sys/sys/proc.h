@@ -339,7 +339,7 @@ struct thread {
 	void		*td_emuldata;	/* Emulator state data */
 	int		td_lastcpu;	/* (t) Last cpu we were on. */
 	int		td_oncpu;	/* (t) Which cpu we are on. */
-	void		td_lkpi_task;
+	void		*td_lkpi_task;
 };
 
 struct mtx *thread_lock_block(struct thread *);
