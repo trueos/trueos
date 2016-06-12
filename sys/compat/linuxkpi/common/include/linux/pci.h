@@ -246,7 +246,7 @@ extern unsigned long pci_mem_start;
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		(pci_mem_start)
 #endif
-	
+
 struct pci_bus {
 	struct list_head node;		/* node in list of buses */
 	struct pci_bus	*parent;	/* parent bus this bridge is on */
@@ -610,7 +610,7 @@ pci_read_config_dword(struct pci_dev *pdev, int where, u32 *val)
 
 	*val = (u32)pci_read_config(pdev->dev.bsddev, where, 4);
 	return (0);
-} 
+}
 
 static inline int
 pci_write_config_byte(struct pci_dev *pdev, int where, u8 val)
@@ -630,7 +630,7 @@ pci_write_config_word(struct pci_dev *pdev, int where, u16 val)
 
 static inline int
 pci_write_config_dword(struct pci_dev *pdev, int where, u32 val)
-{ 
+{
 
 	pci_write_config(pdev->dev.bsddev, where, val, 4);
 	return (0);
@@ -1005,6 +1005,9 @@ int pci_bus_write_config_dword(struct pci_bus *bus, unsigned int devfn,
 
 int pci_generic_config_read(struct pci_bus *bus, unsigned int devfn,
 			       int where, u32 val);
+
+int pci_default_suspend(struct pci_dev *dev, pm_message_t state);
+int pci_default_resume(struct pci_dev *dev);
 
 static inline bool pci_is_root_bus(struct pci_bus *pbus)
 {

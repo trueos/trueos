@@ -1718,7 +1718,7 @@ static struct drm_driver driver = {
 	 * deal with them for Intel hardware.
 	 */
 	.driver_features =
-	DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME | 
+	DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME |
 	    DRIVER_RENDER | DRIVER_MODESET,
 	.load = i915_driver_load,
 	.unload = i915_driver_unload,
@@ -1750,7 +1750,7 @@ static struct drm_driver driver = {
 	.sysctl_init	= i915_sysctl_init,
 	.sysctl_cleanup	= i915_sysctl_cleanup,
 #endif
-#endif	
+#endif
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
@@ -1765,6 +1765,8 @@ static struct pci_driver i915_pci_driver = {
 	.probe = i915_pci_probe,
 	.remove = i915_pci_remove,
 	.linux_driver.pm = &i915_pm_ops,
+        .suspend = pci_default_suspend,
+        .resume = pci_default_resume
 };
 
 static int __init i915_init(void)
