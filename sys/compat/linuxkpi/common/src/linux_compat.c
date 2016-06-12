@@ -523,13 +523,14 @@ kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 }
 
 void
-linux_set_current(struct thread *td)
+linux_alloc_current(void)
 {
 	struct mm_struct *mm;
 	struct task_struct *t;
+	struct thread *td;
 
-	if (__predict_true(td->td_lkpi_task != NULL))
-		return;
+	td = curthread;
+	MPASS(__predict_true(td->td_lkpi_task == NULL));
 
 	t = malloc(sizeof(*t), M_LCINT, M_WAITOK|M_ZERO);
 	task_struct_fill(td, t);
@@ -537,7 +538,7 @@ linux_set_current(struct thread *td)
 	init_rwsem(&mm->mmap_sem);
 	mm->mm_count.counter = 1;
 	mm->mm_users.counter = 1;
-	td->td_lkpi_task = t;
+	curthread->td_lkpi_task = t;
 }
 
 static void
@@ -545,7 +546,7 @@ linux_file_dtor(void *cdp)
 {
 	struct linux_file *filp;
 
-	linux_set_current(curthread);
+	linux_set_current();
 	filp = cdp;
 	filp->f_op->release(filp->f_vnode, filp);
 	vdrop(filp->f_vnode);
@@ -603,10 +604,8 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	vm_object_t page_object;
 	unsigned long vma_flags;
 	vm_map_t map;
-	struct thread *td;
 
-	td = curthread;
-	linux_set_current(td);
+	linux_set_current();
 	memattr = vm_obj->memattr;
 
 	vmap  = vm_obj->handle;
@@ -776,7 +775,7 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	filp->f_flags = file->f_flag;
 	vhold(file->f_vnode);
 	filp->f_vnode = file->f_vnode;
-	linux_set_current(td);
+	linux_set_current();
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
@@ -892,7 +891,7 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		return (error);
 	filp->f_flags = file->f_flag;
 
-	linux_set_current(td);
+	linux_set_current();
 	size = IOCPARM_LEN(cmd);
 	/* refer to logic in sys_ioctl() */
 	if (size > 0) {
@@ -942,7 +941,7 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
 		return (EOPNOTSUPP);
-	linux_set_current(td);
+	linux_set_current();
 	if (filp->f_op->read) {
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 					 uio->uio_iov->iov_len, &uio->uio_offset);
@@ -980,7 +979,7 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
 		return (EOPNOTSUPP);
-	linux_set_current(td);
+	linux_set_current();
 	if (filp->f_op->write) {
 		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
 					  uio->uio_iov->iov_len, &uio->uio_offset);
@@ -1016,7 +1015,7 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	filp->f_flags = file->f_flag;
 	if (filp->_file == NULL)
 		filp->_file = td->td_fpop;
-	linux_set_current(td);
+	linux_set_current();
 
 	if (filp->f_op->poll) {
 		/* XXX need to add support for bounded wait */
@@ -1049,7 +1048,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
-	linux_set_current(td);
+	linux_set_current();
 	vma.vm_start = 0;
 	vma.vm_end = size;
 	vma.vm_pgoff = *offset / PAGE_SIZE;
@@ -1130,7 +1129,7 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 	/* XXX no support for I/O vectors currently */
 	if (uio->uio_iovcnt != 1)
 		return (EOPNOTSUPP);
-	linux_set_current(td);
+	linux_set_current();
 	if (filp->f_op->read) {
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
@@ -1159,7 +1158,7 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
 	filp->f_flags = file->f_flag;
 	if (filp->_file == NULL)
 		filp->_file = td->td_fpop;
-	linux_set_current(td);
+	linux_set_current();
 	if (filp->f_op->poll) {
 		poll_initwait(&table);
 		revents = filp->f_op->poll(filp, &table.pt) & events;
@@ -1178,7 +1177,7 @@ linux_file_close(struct file *file, struct thread *td)
 
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
-	linux_set_current(td);
+	linux_set_current();
 	error = -filp->f_op->release(NULL, filp);
 	funsetown(&filp->f_sigio);
 	kfree(filp);
@@ -1197,7 +1196,7 @@ linux_file_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *cred,
 	filp->f_flags = fp->f_flag;
 	error = 0;
 
-	linux_set_current(td);
+	linux_set_current();
 	switch (cmd) {
 	case FIONBIO:
 		break;
@@ -1747,7 +1746,7 @@ async_run_entry_fn(struct work_struct *work)
 {
 	struct async_entry *entry; 	
 
-	linux_set_current(curthread);
+	linux_set_current();
 	entry  = container_of(work, struct async_entry, work);
 	entry->func(entry->data, entry->cookie);
 	kfree(entry);

@@ -30,6 +30,8 @@
  */
 #ifndef	_LINUX_COMPAT_H_
 #define	_LINUX_COMPAT_H_
+#include <sys/param.h>
+#include <sys/proc.h>
 
 #define oops_in_progress (panicstr != NULL)
 #define preempt_disable() critical_enter()
@@ -39,6 +41,13 @@ struct thread;
 struct task_struct;
 
 extern void *compat_alloc_user_space(unsigned long len);
-void linux_set_current(struct thread *td);
+void linux_alloc_current(void);
+
+static inline void
+linux_set_current(void)
+{
+	if (__predict_false(curthread->td_lkpi_task == NULL))
+		linux_alloc_current();
+}
 
 #endif	/* _LINUX_COMPAT_H_ */
