@@ -36,6 +36,7 @@
 #include <linux/hashtable.h>
 #include <linux/fence.h>
 
+#include <linux/io.h>
 #include <ttm/ttm_bo_api.h>
 #include <ttm/ttm_bo_driver.h>
 #include <ttm/ttm_placement.h>
