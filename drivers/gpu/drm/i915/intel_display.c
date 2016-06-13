@@ -13728,6 +13728,10 @@ static int intel_atomic_commit(struct drm_device *dev,
 	unsigned long put_domains[I915_MAX_PIPES] = {};
 	unsigned crtc_vblank_mask = 0;
 
+	ret = drm_atomic_helper_setup_commit(state, nonblock);
+	if (ret)
+		return ret;
+
 	ret = intel_atomic_prepare_commit(dev, state, nonblock);
 	if (ret) {
 		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
@@ -13738,6 +13742,8 @@ static int intel_atomic_commit(struct drm_device *dev,
 	dev_priv->wm.distrust_bios_wm = false;
 	dev_priv->wm.skl_results = intel_state->wm_results;
 	intel_shared_dpll_commit(state);
+
+	drm_atomic_helper_wait_for_dependencies(state);
 
 	if (intel_state->modeset) {
 		memcpy(dev_priv->min_pixclk, intel_state->min_pixclk,
@@ -13834,7 +13840,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 			crtc_vblank_mask |= 1 << i;
 	}
 
-	/* FIXME: add subpixel order */
+	drm_atomic_helper_commit_hw_done(state);
 
 	if (!state->legacy_cursor_update)
 		intel_atomic_wait_for_vblanks(dev, dev_priv, crtc_vblank_mask);
@@ -13868,6 +13874,8 @@ static int intel_atomic_commit(struct drm_device *dev,
 	mutex_lock(&dev->struct_mutex);
 	drm_atomic_helper_cleanup_planes(dev, state);
 	mutex_unlock(&dev->struct_mutex);
+
+	drm_atomic_helper_commit_cleanup_done(state);
 
 	drm_atomic_state_free(state);
 
