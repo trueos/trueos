@@ -115,6 +115,9 @@ linux_i2c_init(void *arg __unused)
 SYSINIT(linux_i2c, SI_SUB_DRIVERS, SI_ORDER_FIRST, linux_i2c_init, NULL);
 
 
+#define UDELAY(x) DELAY((x) + 2)
+
+
 
 static int
 i2c_register_adapter(struct i2c_adapter *adap)
@@ -165,21 +168,21 @@ static inline void
 sdalo(struct i2c_algo_bit_data *adap)
 {
 	setsda(adap, 0);
-	DELAY((adap->udelay + 1) / 2);
+	UDELAY((adap->udelay + 1) / 2);
 }
 
 static inline void
 sdahi(struct i2c_algo_bit_data *adap)
 {
 	setsda(adap, 1);
-	DELAY((adap->udelay + 1) / 2);
+	UDELAY((adap->udelay + 1) / 2);
 }
 
 static inline void
 scllo(struct i2c_algo_bit_data *adap)
 {
 	setscl(adap, 0);
-	DELAY(adap->udelay / 2);
+	UDELAY(adap->udelay / 2);
 }
 
 static int
@@ -205,7 +208,7 @@ sclhi(struct i2c_algo_bit_data *adap)
 
 
 end:
-	DELAY(adap->udelay);
+	UDELAY(adap->udelay);
 	return (0);
 }
 
@@ -229,7 +232,7 @@ static void
 i2c_txn_start(struct i2c_algo_bit_data *adap)
 {
 	setsda(adap, 0);
-	DELAY(adap->udelay);
+	UDELAY(adap->udelay);
 	scllo(adap);
 }
 
@@ -240,7 +243,7 @@ i2c_txn_restart(struct i2c_algo_bit_data *adap)
 	sdahi(adap);
 	sclhi(adap);
 	setsda(adap, 0);
-	DELAY(adap->udelay);
+	UDELAY(adap->udelay);
 	scllo(adap);
 }
 
@@ -250,7 +253,7 @@ i2c_txn_stop(struct i2c_algo_bit_data *adap)
 	sdalo(adap);
 	sclhi(adap);
 	setsda(adap, 1);
-	DELAY(adap->udelay);
+	UDELAY(adap->udelay);
 }
 
 static int
@@ -285,7 +288,7 @@ i2c_readbyte(struct i2c_algo_bit_data *adap)
 		if (getsda(adap))
 			data |= (1 << i);
 		setscl(adap, 0);
-		DELAY(i == 0 ? adap->udelay / 2 : adap->udelay);
+		UDELAY(i == 0 ? adap->udelay / 2 : adap->udelay);
 	}
 	return (data);
 }
@@ -301,7 +304,7 @@ test_addr(struct i2c_algo_bit_data *adap, unsigned char addr, int retries)
 		if (ret == 1 || i == retries)
 			break;
 		i2c_txn_stop(adap);
-		DELAY(adap->udelay);
+		UDELAY(adap->udelay);
 		i2c_txn_start(adap);
 	}
 	return (ret);
@@ -342,7 +345,7 @@ i2c_send_acknack(struct i2c_adapter *i2c_adap, int do_ack)
 
 	if (do_ack)
 		setsda(adap, 0);
-	DELAY((adap->udelay + 1) / 2);
+	UDELAY((adap->udelay + 1) / 2);
 	if (sclhi(adap) < 0)
 		return (-ETIMEDOUT);
 	scllo(adap);
