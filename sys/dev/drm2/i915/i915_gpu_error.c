@@ -1037,14 +1037,26 @@ static void i915_gem_record_rings(struct drm_device *dev,
 							     ring->scratch.obj);
 
 			if (request->pid) {
+#ifdef __linux__
 				struct task_struct *task;
+#else
+				struct thread *td;
+#endif
 
 				rcu_read_lock();
+#ifdef __linux__
 				task = pid_task(request->pid, PIDTYPE_PID);
 				if (task) {
 					strcpy(error->ring[i].comm, task->comm);
 					error->ring[i].pid = task->pid;
 				}
+#else
+				td = tdfind(request->pid, -1);
+				if (td) {
+					strcpy(error->ring[i].comm, td->td_proc->p_comm);
+					error->ring[i].pid = td->td_proc->p_pid;
+				}
+#endif
 				rcu_read_unlock();
 			}
 		}
