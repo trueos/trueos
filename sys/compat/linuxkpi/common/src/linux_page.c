@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 extern u_int	cpu_feature;
 extern u_int	cpu_stdext_feature;
+extern int	linux_skip_prefault;
 
 
 static void
@@ -97,6 +98,9 @@ vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long
 	MPASS(page->md.pat_mode == attr);
 	page->md.pat_mode = attr;
 #endif	
+	if (linux_skip_prefault && (vma->vm_pfn_count > 0))
+		return (-EBUSY);
+
 	MPASS(vma->vm_flags & VM_PFNINTERNAL);
 	if ((vma->vm_flags & VM_PFNINTERNAL) && (vma->vm_pfn_count == 0)) {
 		while (vm_page_tryxbusy(page) == 0) {
