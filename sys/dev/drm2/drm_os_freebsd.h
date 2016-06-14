@@ -35,7 +35,7 @@ struct vt_kms_softc {
 #define	DRM_HZ			hz
 #define DRM_CURPROC		curthread
 #define	DRM_SUSER(p)		(priv_check(p, PRIV_DRIVER) == 0)
-#define	DRM_UDELAY(udelay)	DELAY(MAX(udelay, 3))
+#define	DRM_UDELAY(n)		udelay(n);
 
 #define DRM_WAIT_ON( ret, queue, timeout, condition )		\
 do {								\
