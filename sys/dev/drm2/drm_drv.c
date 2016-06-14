@@ -88,9 +88,9 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	if (SCHEDULER_STOPPED()) {
+	if (SCHEDULER_STOPPED() || kdb_active) {
 		printf(" ");
-		if (stop_count++ == 12) {
+		if (stop_count++ == 2) {
 			BACKTRACE();
 			if (skip_ddb) {
 				spinlock_enter();
