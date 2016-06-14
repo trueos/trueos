@@ -482,7 +482,7 @@ alloc_page(gfp_t flags)
 	tries = 0;
 retry:
 	page = vm_page_alloc_contig(NULL, 0, req, 1, 0, 0xffffffff,
-	    PAGE_SIZE, 0, VM_MEMATTR_WEAK_UNCACHEABLE);
+	    PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
 	if (page == NULL) {
 		if (tries < 1) {
 			if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
