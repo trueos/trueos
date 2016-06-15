@@ -377,8 +377,6 @@ pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 		regs = (void *)rman_get_bushandle(pdev->pcir.r[bar]);
 		len = rman_get_end(pdev->pcir.r[bar])  - rman_get_start(pdev->pcir.r[bar]);
 
-		if (type == SYS_RES_MEMORY)
-			pmap_change_attr((vm_offset_t)regs, len >> PAGE_SHIFT, PAT_UNCACHED);
 		pdev->pcir.map[bar] = regs;
 
 	}
