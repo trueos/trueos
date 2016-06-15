@@ -981,6 +981,9 @@ int drm_connector_register(struct drm_connector *connector)
 {
 	int ret;
 
+	if (connector->registered)
+		return 0;
+
 	ret = drm_sysfs_connector_add(connector);
 	if (ret)
 		return ret;
@@ -998,6 +1001,7 @@ int drm_connector_register(struct drm_connector *connector)
 
 	drm_mode_object_register(connector->dev, &connector->base);
 
+	connector->registered = true;
 	return 0;
 
 err_debugfs:
@@ -1016,11 +1020,16 @@ EXPORT_SYMBOL(drm_connector_register);
  */
 void drm_connector_unregister(struct drm_connector *connector)
 {
+	if (!connector->registered)
+		return;
+
 	if (connector->funcs->early_unregister)
 		connector->funcs->early_unregister(connector);
 
 	drm_sysfs_connector_remove(connector);
 	drm_debugfs_connector_remove(connector);
+
+	connector->registered = false;
 }
 EXPORT_SYMBOL(drm_connector_unregister);
 
