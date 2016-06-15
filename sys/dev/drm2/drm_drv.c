@@ -90,8 +90,13 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 
 	if (SCHEDULER_STOPPED() || kdb_active) {
 		printf(" ");
+#ifdef DDB
+		if (stop_count == 0) {
+			db_trace_self_depth(10);
+			mdelay(1000);
+		}
+#endif
 		if (stop_count++ == 2) {
-			BACKTRACE();
 			if (skip_ddb) {
 				spinlock_enter();
 				doadump(0);
