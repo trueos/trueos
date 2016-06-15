@@ -13,9 +13,7 @@ static inline int
 stop_machine(cpu_stop_fn_t fn, void *data, const struct cpumask *cpus)
 {
 	int ret;
-	critical_enter();
 	ret = fn(data);
-	critical_exit();
 	return (ret);
 }
 
