@@ -53,7 +53,11 @@ init_rwsem(struct rw_semaphore *rw)
 {
 
 	memset(&rw->sx, 0, sizeof(rw->sx));
+#ifdef WITNESS_ALL
+	sx_init_flags(&rw->sx, "lnxrwsem", 0);
+#else
 	sx_init_flags(&rw->sx, "lnxrwsem", SX_NOWITNESS);
+#endif	
 }
 
 #endif	/* _LINUX_RWSEM_H_ */

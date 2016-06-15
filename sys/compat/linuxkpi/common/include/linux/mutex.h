@@ -89,7 +89,11 @@ linux_mutex_destroy(mutex_t *m)
 }
 
 #define	mutex_init(m)	linux_mutex_init(m, #m, SX_DUPOK)
+#ifdef WITNESS_ALL
+#define	mutex_init_nowitness(m)	linux_mutex_init(m, #m, 0)
+#else
 #define	mutex_init_nowitness(m)	linux_mutex_init(m, #m, SX_NOWITNESS)
+#endif
 #define mutex_destroy(m) linux_mutex_destroy(m);
 
 #endif	/* _LINUX_MUTEX_H_ */

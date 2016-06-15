@@ -112,7 +112,12 @@ ww_acquire_init(struct ww_acquire_ctx *ctx, struct ww_class *ww_class)
 static inline void
 ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class)
 {
+#ifdef WITNESS_ALL
+	linux_mutex_init(&lock->base, ww_class->mutex_name, 0);
+#else
 	linux_mutex_init(&lock->base, ww_class->mutex_name, SX_NOWITNESS);
+#endif	
+	
 }
 
 static inline void

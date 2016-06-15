@@ -61,7 +61,11 @@ rwlock_init(rwlock_t *lock)
 {
 
 	memset(&lock->rw, 0, sizeof(lock->rw));
+#ifdef WITNESS_ALL
+	rw_init_flags(&lock->rw, "lnxrw", 0);
+#else	
 	rw_init_flags(&lock->rw, "lnxrw", RW_NOWITNESS);
+#endif	
 }
 
 #endif	/* _LINUX_RWLOCK_H_ */

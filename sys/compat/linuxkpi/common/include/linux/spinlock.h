@@ -62,7 +62,11 @@ spin_lock_init(spinlock_t *lock)
 {
 
 	memset(&lock->m, 0, sizeof(lock->m));
+#ifdef WITNESS_ALL
+	mtx_init(&lock->m, "lnxspin", NULL, MTX_DEF);
+#else
 	mtx_init(&lock->m, "lnxspin", NULL, MTX_DEF | MTX_NOWITNESS);
+#endif	
 }
 
 static inline void
