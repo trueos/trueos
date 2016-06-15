@@ -48,15 +48,18 @@ struct rw_semaphore {
 #define	downgrade_write(_rw)		sx_downgrade(&(_rw)->sx)
 #define	down_read_nested(_rw, _sc)	down_read(_rw)
 
+
+#define init_rwsem(rw) _init_rwsem((rw), #rw)
+
 static inline void
-init_rwsem(struct rw_semaphore *rw)
+_init_rwsem(struct rw_semaphore *rw, char *name)
 {
 
 	memset(&rw->sx, 0, sizeof(rw->sx));
 #ifdef WITNESS_ALL
-	sx_init_flags(&rw->sx, "lnxrwsem", 0);
+	sx_init_flags(&rw->sx, name, 0);
 #else
-	sx_init_flags(&rw->sx, "lnxrwsem", SX_NOWITNESS);
+	sx_init_flags(&rw->sx, name, SX_NOWITNESS);
 #endif	
 }
 

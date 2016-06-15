@@ -109,13 +109,16 @@ ww_acquire_init(struct ww_acquire_ctx *ctx, struct ww_class *ww_class)
 	ctx->acquired = 0;
 }
 
+
+#define ww_mutex_init(lock, class) _ww_mutex_init((lock), (class), __FILE__, __LINE__)
+
 static inline void
-ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class)
+_ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class, char *file, int line)
 {
 #ifdef WITNESS_ALL
-	linux_mutex_init(&lock->base, ww_class->mutex_name, 0);
+	linux_mutex_init(&lock->base, ww_class->mutex_name, 0, file, line);
 #else
-	linux_mutex_init(&lock->base, ww_class->mutex_name, SX_NOWITNESS);
+	linux_mutex_init(&lock->base, ww_class->mutex_name, SX_NOWITNESS, NULL, 0);
 #endif	
 	
 }

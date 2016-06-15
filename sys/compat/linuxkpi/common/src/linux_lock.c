@@ -23,12 +23,11 @@ lock_check_stamp(struct mutex *lock, struct ww_acquire_ctx *ctx)
 }
 
 int
-linux_mutex_lock_common(struct mutex *lock, int state, struct ww_acquire_ctx *ctx)
+_linux_mutex_lock_common(struct mutex *lock, int state, struct ww_acquire_ctx *ctx, char *file, int line)
 {
 	struct sx *sx;
 	struct ww_mutex *ww;
 	int rc;
-
 	sx = &lock->sx;
 	if (SKIP_SLEEP())
 		return (0);
@@ -38,9 +37,9 @@ linux_mutex_lock_common(struct mutex *lock, int state, struct ww_acquire_ctx *ct
 			return (rc);
 	}
 	if (state == TASK_UNINTERRUPTIBLE)
-		mutex_lock(lock);
+		_sx_xlock(&lock->sx, 0, file, line);
 	else if (state == TASK_INTERRUPTIBLE)
-		mutex_lock_interruptible(lock);
+		_sx_xlock(&lock->sx, SX_INTERRUPTIBLE, file, line);
 	else
 		panic("unknown state %d", state);
 

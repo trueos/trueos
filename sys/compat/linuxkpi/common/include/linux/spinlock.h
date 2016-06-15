@@ -57,15 +57,21 @@ typedef struct {
 #define	spin_unlock_irqrestore(lock, flags)				\
     do { spin_unlock(lock); } while (0)
 
+#define spin_lock_init(lock) _spin_lock_init((lock), #lock, __FILE__, __LINE__)
+
 static inline void
-spin_lock_init(spinlock_t *lock)
+_spin_lock_init(spinlock_t *lock, char *name, char *file, int line)
 {
+#ifdef WITNESS_ALL
+	char buf[64];
+#endif
 
 	memset(&lock->m, 0, sizeof(lock->m));
 #ifdef WITNESS_ALL
-	mtx_init(&lock->m, "lnxspin", NULL, MTX_DEF);
+	snprintf(buf, 64, "%s:%s:%d", name, file, line);
+	mtx_init(&lock->m, strdup(buf, M_DEVBUF), NULL, MTX_DEF);
 #else
-	mtx_init(&lock->m, "lnxspin", NULL, MTX_DEF | MTX_NOWITNESS);
+	mtx_init(&lock->m, name, NULL, MTX_DEF | MTX_NOWITNESS);
 #endif	
 }
 
@@ -78,7 +84,7 @@ spin_lock_destroy(spinlock_t *lock)
 
 #define	DEFINE_SPINLOCK(lock)						\
 	spinlock_t lock;						\
-	MTX_SYSINIT(lock, &(lock).m, "lnxspin", MTX_DEF)
+	MTX_SYSINIT(lock, &(lock).m, #lock, MTX_DEF)
 
 
 static inline void
@@ -87,9 +93,11 @@ assert_spin_locked(spinlock_t *lock)
 	mtx_assert(&lock->m, MA_OWNED);
 }
 
-static inline void spin_lock_bh(spinlock_t *lock) {
+#define spin_lock_bh(lock) _spin_lock_bh((lock), __FILE__, __LINE__)
+
+static inline void _spin_lock_bh(spinlock_t *lock, char *file, int line) {
 	critical_enter();
-	spin_lock(lock);
+	_mtx_lock_flags(&lock->m, 0, file, line);
 }
 static inline void spin_unlock_bh(spinlock_t *lock) {
 	spin_unlock(lock);
