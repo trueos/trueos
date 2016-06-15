@@ -1803,9 +1803,8 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	if ((rv == KERN_SUCCESS) && (args->flags & I915_MMAP_WC)) {
 		VM_OBJECT_WLOCK(vmobj);
 		if (vm_object_set_memattr(vmobj, VM_MEMATTR_WRITE_COMBINING) != KERN_SUCCESS) {
-			for (vm_page_t page = vm_page_find_least(obj->base.vm_obj,
-				 OFF_TO_IDX(offset)); page != NULL; page = vm_page_next(page)) {
-				pmap_page_set_memattar(page, VM_MEMATTR_WRITE_COMBINING);
+			for (vm_page_t page = vm_page_find_least(vmobj, 0); page != NULL; page = vm_page_next(page)) {
+				pmap_page_set_memattr(page, VM_MEMATTR_WRITE_COMBINING);
 			}
 		}
 		VM_OBJECT_WUNLOCK(vmobj);
