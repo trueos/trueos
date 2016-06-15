@@ -105,10 +105,27 @@
 	}							\
 } while (0)
 
+extern int linux_db_trace;
+#ifdef DDB
+extern void db_trace_self_depth(int);
+#define BACKTRACE()				\
+	do {					\
+		if (linux_db_trace)		\
+			db_trace_self_depth(6); \
+	} while (0);
+
+#else
+#define BACKTRACE()
+#endif
+
 #define	WARN_ON(cond) ({					\
+      static bool __bt_on_once;				        \
       bool __ret = (cond);					\
       if (__ret) {						\
-		printf("WARNING %s failed at %s:%d\n",		\
+	      if (!__bt_on_once)				\
+		      BACKTRACE();				\
+	      __bt_on_once = 1;					\
+	      printf("WARNING %s failed at %s:%d\n",		\
 		    __stringify(cond), __FILE__, __LINE__);	\
       }								\
       unlikely(__ret);						\
@@ -121,6 +138,7 @@
       bool __ret = (cond);					\
       if (__ret && !__warn_on_once) {				\
 		__warn_on_once = 1;				\
+		BACKTRACE();					\
 		printf("WARNING %s failed at %s:%d\n",		\
 		    __stringify(cond), __FILE__, __LINE__);	\
       }								\
