@@ -601,11 +601,12 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	struct vm_fault vmf;
 	struct vm_area_struct *vmap, cvma;
 	vm_memattr_t memattr;
-	int rc, err, fault_flags;
+	int rc, err, fault_flags, attempts;
 	vm_object_t page_object;
 	unsigned long vma_flags;
 	vm_map_t map;
 
+	attempts = 0;
 	linux_set_current();
 	memattr = vm_obj->memattr;
 
@@ -619,16 +620,18 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 		vm_page_remove(*mres);
 		vm_page_unlock(*mres);
 	}
+
 	/*
 	 * We minimize object lock acquisition by tracking the pfn
 	 * inside of the vma that we pass in.
 	 */
-	vma_flags = VM_PFNINTERNAL;
-	fault_flags = (prot & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
 
 	trace_compat_cdev_pager_fault(vm_obj, offset, prot, mres);
 	vm_object_pip_add(vm_obj, 1);
 	VM_OBJECT_WUNLOCK(vm_obj);
+retry:
+	vma_flags = VM_PFNINTERNAL;
+	fault_flags = (prot & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
 
 	map = &curproc->p_vmspace->vm_map;
 	vmap->vm_start = vm_area_get_object_start(map, vm_obj, vmap);
@@ -653,13 +656,18 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	if (err != VM_FAULT_NOPAGE)
 		goto err;
 
+
 	/*
 	 * By contract vm_insert_pfn will wait until it can busy the first
-	 * page. So if we get here without at least one valid pfn there is
-	 * definitively a bug.
+	 * page. So if we get here without at least one valid pfn there may
+	 * be a bug - or maybe we lost a race.
 	 */
-	MPASS(cvma.vm_pfn_count > 0);
-
+	if (cvma.vm_pfn_count == 0) {
+		if (attempts > 2)
+			goto err;
+		attempts++;
+		goto retry;
+	}
 	/*
 	 * A device page can be mapped by multiple objects and this
 	 * page is currently in another object
@@ -723,6 +731,8 @@ err:
 	case VM_FAULT_SIGBUS:
 		rc = VM_PAGER_BAD;
 		break;
+	case VM_FAULT_NOPAGE:
+		rc = VM_PAGER_ERROR;
 	default:
 		panic("unexpected error %d\n", err);
 		rc = VM_PAGER_ERROR;
