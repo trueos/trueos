@@ -722,7 +722,6 @@ retry:
 	vm_object_pip_wakeup(vm_obj);
 	return (VM_PAGER_OK);
 err:
-	panic("fault failed!");
 	VM_OBJECT_WLOCK(vm_obj);
 	switch (err) {
 	case VM_FAULT_OOM:
