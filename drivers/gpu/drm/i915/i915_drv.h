@@ -62,6 +62,7 @@
 #include "i915_gem_render_state.h"
 
 #define resource linux_resource
+#include "intel_gvt.h"
 
 /* General customization:
  */
@@ -1746,6 +1747,8 @@ struct drm_i915_private {
 
 	struct i915_virtual_gpu vgpu;
 
+	struct intel_gvt gvt;
+
 	struct intel_guc guc;
 
 	struct intel_csr csr;
@@ -2960,6 +2963,12 @@ void intel_uncore_forcewake_put__locked(struct drm_i915_private *dev_priv,
 u64 intel_uncore_edram_size(struct drm_i915_private *dev_priv);
 
 void assert_forcewakes_inactive(struct drm_i915_private *dev_priv);
+
+static inline bool intel_gvt_active(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->gvt.initialized;
+}
+
 static inline bool intel_vgpu_active(struct drm_i915_private *dev_priv)
 {
 	return dev_priv->vgpu.active;
