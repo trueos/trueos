@@ -429,7 +429,7 @@ int
 set_memory_uc(unsigned long addr, int numpages)
 {
 
-	return (pmap_change_attr(addr, numpages, PAT_UNCACHEABLE));
+	return (pmap_change_attr(addr, numpages, VM_MEMATTR_UNCACHEABLE));
 }
 
 int
