@@ -45,7 +45,6 @@ unsigned int drm_debug = 0xffffffff;	/* bitmask of DRM_UT_x */
 unsigned int drm_debug = 0;	/* bitmask of DRM_UT_x */
 #endif
 
-int skip_ddb = 0;
 EXPORT_SYMBOL(drm_debug);
 
 MODULE_AUTHOR(CORE_AUTHOR);
@@ -76,8 +75,6 @@ void drm_err(const char *format, ...)
 }
 EXPORT_SYMBOL(drm_err);
 
-#include <sys/reboot.h>
-
 void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 {
 	struct va_format vaf;
@@ -90,19 +87,6 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 
 	if (SCHEDULER_STOPPED() || kdb_active) {
 		printf(" ");
-#ifdef DDB
-		if (stop_count == 0) {
-			db_trace_self_depth(10);
-			mdelay(1000);
-		}
-#endif
-		if (stop_count++ == 2) {
-			if (skip_ddb) {
-				spinlock_enter();
-				doadump(0);
-				EVENTHANDLER_INVOKE(shutdown_final, RB_NOSYNC);
-			}
-		}
 		return;
 	}
 	if (panicstr != NULL)

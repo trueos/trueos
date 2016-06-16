@@ -26,6 +26,10 @@ static int __unregister_framebuffer(struct linux_fb_info *fb_info);
 extern int vt_fb_attach(struct fb_info *info);
 extern void vt_fb_detach(struct fb_info *info);
 
+#include <sys/reboot.h>
+
+int skip_ddb;
+
 static void
 fb_info_print(struct fb_info *t)
 {
@@ -69,6 +73,15 @@ vt_kms_postswitch(void *arg)
 	if (!kdb_active && panicstr == NULL)
 		taskqueue_enqueue(taskqueue_thread, &sc->fb_mode_task);
 	else {
+#ifdef DDB
+		db_trace_self_depth(10);
+		mdelay(1000);
+#endif
+		if (skip_ddb) {
+			spinlock_enter();
+			doadump(0);
+			EVENTHANDLER_INVOKE(shutdown_final, RB_NOSYNC);
+		}
 		linux_set_current();
 		drm_fb_helper_restore_fbdev_mode_unlocked(sc->fb_helper);
 	}
