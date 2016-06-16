@@ -663,6 +663,16 @@ retry:
 	 * be a bug - or maybe we lost a race.
 	 */
 	if (cvma.vm_pfn_count == 0) {
+		VM_OBJECT_WLOCK(vm_obj);
+		page = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
+		if (page != NULL) {
+			while (vm_page_tryxbusy(page) == 0) {
+				vm_page_lock(page);
+				vm_page_busy_sleep(page, "linuxvipp");
+			}
+			goto done;
+		}
+		VM_OBJECT_WUNLOCK(vm_obj);
 		if (attempts > 2)
 			goto err;
 		attempts++;
@@ -683,7 +693,9 @@ retry:
 	}
 
 	VM_OBJECT_WLOCK(vm_obj);
-	vm_page_assert_xbusied(PFN_TO_VM_PAGE(cvma.vm_pfn_array[0]));
+	page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[0]);
+done:
+	vm_page_assert_xbusied(page);
 	/*
 	 * The VM has helpfully given us pages, but device memory
 	 * is not fungible. Thus we need to remove them from the object
@@ -691,7 +703,6 @@ retry:
 	 * actually use. We don't free them unless we succeed, so that 
 	 * there is still a valid result page on failure.
 	 */
-	page = PFN_TO_VM_PAGE(cvma.vm_pfn_array[0]);
 	if (mres && *mres != page) {
 		vm_page_lock(*mres);
 		vm_page_free(*mres);
