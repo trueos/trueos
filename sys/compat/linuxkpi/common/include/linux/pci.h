@@ -1042,8 +1042,8 @@ static inline void *
 pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
                      dma_addr_t *dma_handle)
 {
-	panic("implment me!!");
-	return NULL;
+
+	return dma_alloc_coherent(hwdev == NULL ? NULL : &hwdev->dev, size, dma_handle, GFP_ATOMIC);
 }
 
 static inline int
