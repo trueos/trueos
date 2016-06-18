@@ -228,7 +228,7 @@ i2c_get_adapdata(const struct i2c_adapter *dev)
 static inline void
 i2c_set_adapdata(struct i2c_adapter *dev, void *data)
 {
-	UNIMPLEMENTED();
+	dev_set_drvdata(&dev->dev, data);
 }
 
 #endif
