@@ -28,6 +28,7 @@ struct linux_resource {
 	struct linux_resource *parent, *sibling, *child;
 	struct resource *r;
 	int rid;
+	int type;
 	device_t bsddev;
 };
 
