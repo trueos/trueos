@@ -229,12 +229,24 @@ vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 {
 	vm_offset_t off;
 	size_t size;
+	int i, attr;
 
 	size = count * PAGE_SIZE;
 	off = kva_alloc(size);
 	if (off == 0)
 		return (NULL);
 	vmmap_add((void *)off, size);
+	attr = pgprot2cachemode(prot);
+	if (attr != VM_MEMATTR_DEFAULT) {
+		for (i = 0; i < count; i++) {
+			vm_page_lock(pages[i]);
+			pages[i]->flags |= PG_FICTITIOUS;
+			vm_page_unlock(pages[i]);
+			pmap_page_set_memattr(pages[i], attr);
+		}
+
+	}
+
 	pmap_qenter(off, pages, count);
 	return ((void *)off);
 }
@@ -269,8 +281,15 @@ kmap(vm_page_t page)
 void *
 kmap_atomic_prot(vm_page_t page, pgprot_t prot)
 {
+	vm_memattr_t attr = pgprot2cachemode(prot);
 
 	sched_pin();
+	if (attr != VM_MEMATTR_DEFAULT) {
+		vm_page_lock(page);
+		page->flags |= PG_FICTITIOUS;
+		vm_page_unlock(page);
+		pmap_page_set_memattr(page, attr);
+	}
 	return (kmap(page));
 }
 
