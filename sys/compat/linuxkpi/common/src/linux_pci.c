@@ -169,15 +169,25 @@ linux_pci_attach(device_t dev)
 	const struct pci_device_id *id;
 	struct pci_bus *pbus;
 	devclass_t dc;
-	device_t parent;
-	int error;
+	device_t ggparent, gparent, parent;
+	int error, isroot;
 
-	error = 0;
+	isroot = error = 0;
 	linux_set_current();
 	parent = device_get_parent(dev);
 	dc = device_get_devclass(parent);
-	if (strcmp(devclass_get_name(dc), "pci") != 0)
+	if (strcmp(devclass_get_name(dc), "pci") != 0) {
 		device_set_ivars(dev, device_get_ivars(parent));
+		gparent = device_get_parent(parent);
+		ggparent = device_get_parent(gparent);
+		if (ggparent != NULL)
+			gparent = ggparent;
+	} else
+		gparent = device_get_parent(parent);
+
+	dc = device_get_devclass(gparent);
+	if (strcmp(devclass_get_name(dc), "nexus") == 0)
+		isroot = 1;
 
 	pdrv = linux_pci_find(dev, &id);
 	pdev = device_get_softc(dev);
@@ -185,11 +195,14 @@ linux_pci_attach(device_t dev)
 	pdev->dev.bsddev = dev;
 	if (pdev->bus == NULL) {
 		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK|M_ZERO);
-		pbus->self = pdev;
+		if (isroot == 0)
+			pbus->self = pdev;
 		pdev->bus = pbus;
-
 	}
+
 	INIT_LIST_HEAD(&pdev->dev.irqents);
+	pdev->bus->number = pci_get_bus(dev);
+	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
 	pdev->device = id->device;
 	pdev->vendor = id->vendor;
 	pdev->dev.dma_mask = &pdev->dma_mask;
@@ -374,6 +387,7 @@ pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 			return (NULL);
 		pdev->pcir.r[bar] = res;
 		pdev->pcir.rid[bar] = rid;
+		pdev->pcir.type[bar] = type;
 		regs = (void *)rman_get_bushandle(pdev->pcir.r[bar]);
 		len = rman_get_end(pdev->pcir.r[bar])  - rman_get_start(pdev->pcir.r[bar]);
 
@@ -387,7 +401,7 @@ pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 void
 pci_iounmap(struct pci_dev *pdev, void *regs)
 {
-	int bar, rid;
+	int bar, rid, type;
 	struct resource *res;
 
 	res = NULL;
@@ -396,12 +410,13 @@ pci_iounmap(struct pci_dev *pdev, void *regs)
 			continue;
 		res = pdev->pcir.r[bar];
 		rid = pdev->pcir.rid[bar];
+		type = pdev->pcir.type[bar];
 	}
 
 	if (res == NULL)
 		return;
 
-	bus_release_resource(pdev->dev.bsddev, SYS_RES_MEMORY, rid, res);
+	bus_release_resource(pdev->dev.bsddev, type, rid, res);
 }
 
 
@@ -489,6 +504,7 @@ pci_bus_alloc_resource(struct pci_bus *bus,
 		res->rid = rle->rid;
 		res->start = rle->start;
 		res->end = rle->end;
+		res->type = type;
 		r = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &res->rid, RF_SHAREABLE);
 		if (r)
 			break;
@@ -505,10 +521,11 @@ release_resource(struct linux_resource *lr)
 {
 	int rc;
 
-	rc = bus_release_resource(lr->bsddev, SYS_RES_MEMORY, lr->rid, lr->r);
+	rc = bus_release_resource(lr->bsddev, lr->type, lr->rid, lr->r);
 	lr->bsddev = NULL;
 	lr->r = NULL;
 	lr->rid = -1;
+	lr->type = -1;
 	if (rc)
 		return (-EINVAL);
 
