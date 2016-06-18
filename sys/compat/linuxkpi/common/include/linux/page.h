@@ -49,8 +49,28 @@ typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
 
-#define cachemode2protval(attr) (((pgprot_t)attr) << 3)
-#define pgprot2cachemode(prot) (((vm_memattr_t)((prot) >> 3) == 0) ? VM_MEMATTR_DEFAULT  : ((vm_memattr_t)((prot) >> 3)))
+#define PROT_VALID (1 << 4)
+#define CACHE_MODE_SHIFT 3
+
+static inline pgprot_t
+cachemode2protval(vm_memattr_t attr)
+{
+
+	return ((attr | PROT_VALID) << CACHE_MODE_SHIFT);
+}
+
+static inline vm_memattr_t
+pgprot2cachemode(pgprot_t prot)
+{
+	int val;
+
+	val = prot >> CACHE_MODE_SHIFT;
+
+	if (val & PROT_VALID)
+		return (val & ~PROT_VALID);
+	else
+		return (VM_MEMATTR_DEFAULT);
+}
 
 #define	virt_to_page(x)		PHYS_TO_VM_PAGE(vtophys((x)))
 #define	page_to_pfn(pp)		(VM_PAGE_TO_PHYS((pp)) >> PAGE_SHIFT)
