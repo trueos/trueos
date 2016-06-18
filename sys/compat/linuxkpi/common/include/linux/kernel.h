@@ -96,6 +96,10 @@
 #define	S64_C(x) x ## LL
 #define	U64_C(x) x ## ULL
 
+#if !defined(__x86_64__) && defined(__amd64__)
+#define __x86_64__
+#endif
+
 
 #define	BUG()			panic("BUG at %s:%d", __FILE__, __LINE__)
 #define	BUG_ON(cond)		do {				\
