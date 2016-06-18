@@ -308,7 +308,6 @@ class_register(struct class *class)
 static inline void
 class_unregister(struct class *class)
 {
-	BACKTRACE();
 	kobject_put(&class->kobj);
 }
 
@@ -676,7 +675,6 @@ class_create(struct module *owner, const char *name)
 static inline void
 class_destroy(struct class *class)
 {
-	BACKTRACE();
 	if (class == NULL)
 		return;
 	class_unregister(class);
