@@ -528,7 +528,7 @@ linux_pci_get_class(unsigned int class, struct pci_dev *from)
 		pcis = PCIS_DISPLAY_VGA;
 		pcic = PCIC_DISPLAY;
 	} else {
-		log(LOG_WARNING, "unrecognized class %d in %s\n", class, __FUNCTION__);
+		log(LOG_WARNING, "unrecognized class %x in %s\n", (class >> 8), __FUNCTION__);
 		BACKTRACE();
 		return (NULL);
 	}
