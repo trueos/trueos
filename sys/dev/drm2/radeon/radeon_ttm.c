@@ -547,6 +547,7 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 	if (current->mm != gtt->usermm)
 		return -EPERM;
 
+#ifdef __notyet__
 	if (gtt->userflags & RADEON_GEM_USERPTR_ANONONLY) {
 		/* check that we only pin down anonymous memory
 		   to prevent problems with writeback */
@@ -556,7 +557,7 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 		if (!vma || vma->vm_file || vma->vm_end < end)
 			return -EPERM;
 	}
-
+#endif
 	do {
 		unsigned num_pages = ttm->num_pages - pinned;
 		uint64_t userptr = gtt->userptr + pinned * PAGE_SIZE;
