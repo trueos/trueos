@@ -19,6 +19,7 @@ request_firmware(const struct linux_firmware **lkfwp, const char *name,
 	struct linux_firmware *lkfw;
 	const struct firmware *fw;
 	char *mapped_name, *pindex;
+	linker_file_t result;
 	int rc;
 
 	*lkfwp = NULL;
@@ -26,7 +27,7 @@ request_firmware(const struct linux_firmware **lkfwp, const char *name,
 	if ((lkfw = malloc(sizeof(*lkfw), M_LKPI_FW, M_NOWAIT)) == NULL)
 		return (-ENOMEM);
 
-	device_printf(device->bsddev, "trying to load firmware image %s\n", name);
+
 	fw = firmware_get(name);
 	if (fw == NULL && ((index(name, '/') != NULL) || (index(name, '.') != NULL))) {
 		mapped_name = strdup(name, M_LKPI_FW);
@@ -38,10 +39,21 @@ request_firmware(const struct linux_firmware **lkfwp, const char *name,
 			*pindex = '_';
 		while ((pindex = index(mapped_name, '.')) != NULL)
 			*pindex = '_';
-		device_printf(device->bsddev, "trying to load firmware image %s\n", mapped_name);
-		fw = firmware_get(mapped_name);
+		if (linker_reference_module(mapped_name, NULL, &result)) {
+			device_printf(device->bsddev, "failed to load firmware image %s\n", mapped_name);
+			rc = -ENOENT;
+			goto fail;
+		}
+		fw = firmware_get(name);
+#ifdef __notyet__
+		/* XXX leave dangling ref */
+		linker_file_unload(result,  0);
+#endif
 	}
 	if (fw == NULL) {
+		device_printf(device->bsddev, "failed to load firmware image %s\n", name);
+		if (mapped_name)
+			device_printf(device->bsddev, "failed to load firmware image %s\n", mapped_name);
 		rc = -ENOENT;
 		goto fail;
 	}
