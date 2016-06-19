@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-KMOD=	radeonkmsfw_TAHITI_ce
+KMOD=	radeon_TAHITI_ce_bin
+NAME=	radeon/TAHITI_ce.bin
 IMG=	TAHITI_ce
 
 .include <bsd.kmod.mk>

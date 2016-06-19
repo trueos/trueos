@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-KMOD=	radeonkmsfw_REDWOOD_me
+KMOD=	radeon_REDWOOD_me_bin
+NAME=	radeon/REDWOOD_me.bin
 IMG=	REDWOOD_me
 
 .include <bsd.kmod.mk>
