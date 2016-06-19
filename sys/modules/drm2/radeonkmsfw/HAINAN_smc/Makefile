@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-KMOD=	radeonkmsfw_HAINAN_smc
+KMOD=	radeon_HAINAN_smc_bin
+NAME=	radeon/HAINAN_smc.bin
 IMG=	HAINAN_smc
 
 .include <bsd.kmod.mk>

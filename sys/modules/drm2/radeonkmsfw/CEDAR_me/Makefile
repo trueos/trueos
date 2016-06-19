@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-KMOD=	radeonkmsfw_CEDAR_me
+KMOD=	radeon_CEDAR_me_bin
+NAME=	radeon/CEDAR_me.bin
 IMG=	CEDAR_me
 
 .include <bsd.kmod.mk>

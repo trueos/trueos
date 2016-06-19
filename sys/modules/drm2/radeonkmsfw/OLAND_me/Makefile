@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-KMOD=	radeonkmsfw_OLAND_me
+KMOD=	radeon_OLAND_me_bin
+NAME=	radeon/OLAND_me.bin
 IMG=	OLAND_me
 
 .include <bsd.kmod.mk>
