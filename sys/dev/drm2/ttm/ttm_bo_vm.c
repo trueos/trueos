@@ -41,8 +41,6 @@
 #include <linux/uaccess.h>
 
 #define TTM_BO_VM_NUM_PREFAULT 16
-#define mapping object
-#define index pindex
 
 static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 				struct vm_area_struct *vma,
@@ -225,9 +223,11 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			} else if (unlikely(!page)) {
 				break;
 			}
+#ifdef __linux__
 			page->mapping = vma->vm_file->f_mapping;
 			page->index = drm_vma_node_start(&bo->vma_node) +
 				page_offset;
+#endif
 			pfn = page_to_pfn(page);
 		}
 
