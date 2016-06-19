@@ -120,6 +120,13 @@ vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
 	return (vm_insert_pfn_prot(vma, addr, pfn, vma->vm_page_prot));
 }
 
+int
+vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr, pfn_t pfn)
+{
+	return (vm_insert_pfn_prot(vma, addr, pfn.val, vma->vm_page_prot));
+}
+
+
 void
 linux_clflushopt(u_long addr)
 {

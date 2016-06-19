@@ -197,11 +197,8 @@ vm_get_page_prot(unsigned long vm_flags)
 	return (vm_flags & VM_PROT_ALL);
 }
 
-static inline int
-vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr, pfn_t pfn)
-{
-	panic("XXX implement me!!!");
-}
+
+int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr, pfn_t pfn);
 
 void vma_set_page_prot(struct vm_area_struct *vma);
 
