@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/vmalloc.h>
+#include <linux/pfn_t.h>
 
 
 #include <vm/vm.h>
@@ -123,7 +124,10 @@ vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
 int
 vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr, pfn_t pfn)
 {
-	return (vm_insert_pfn_prot(vma, addr, pfn.val, vma->vm_page_prot));
+	unsigned long pfnval;
+
+	pfnval = pfn.val & ~PFN_FLAGS_MASK;
+	return (vm_insert_pfn_prot(vma, addr, pfnval, vma->vm_page_prot));
 }
 
 
