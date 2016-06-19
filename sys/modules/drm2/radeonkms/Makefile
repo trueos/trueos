@@ -64,6 +64,7 @@ SRCS	= \
 	radeon_encoders.c \
 	radeon_fb.c \
 	radeon_fence.c \
+	radeon_freebsd.c \
 	radeon_gart.c \
 	radeon_gem.c \
 	radeon_i2c.c \
