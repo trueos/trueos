@@ -281,7 +281,8 @@ extern resource_size_t pcibios_align_resource(void *data, const struct linux_res
 
 extern int release_resource(struct linux_resource *old);
 
-#define LINUXKPI_MAX_PCI_RESOURCE 6
+#define LINUXKPI_BIOS 6
+#define LINUXKPI_MAX_PCI_RESOURCE 7
 
 struct pci_resources {
 	struct resource *r[LINUXKPI_MAX_PCI_RESOURCE];
@@ -980,18 +981,9 @@ pci_num_vf(struct pci_dev *dev)
 	return (0);
 }
 
-static inline void
-pci_unmap_rom(struct pci_dev *pdev, u8 *bios)
-{
-	vga_pci_unmap_bios(pdev->dev.bsddev, bios);
-}
+void pci_unmap_rom(struct pci_dev *pdev, u8 *bios);
 
-static inline void *
-pci_map_rom(struct pci_dev *pdev, size_t *size)
-{
-	return (vga_pci_map_bios(pdev->dev.bsddev, size));
-}
-
+void * pci_map_rom(struct pci_dev *pdev, size_t *size);
 
 int pci_bus_read_config_byte(struct pci_bus *bus, unsigned int devfn,
 			     int where, u8 *val);

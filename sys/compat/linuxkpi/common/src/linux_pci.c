@@ -531,3 +531,67 @@ release_resource(struct linux_resource *lr)
 
 	return (0);
 }
+
+void *
+pci_map_rom(struct pci_dev *pdev, size_t *size)
+{
+	int rid;
+	struct resource *res;
+	device_t dev;
+
+	dev = pdev->dev.bsddev;
+#if defined(__amd64__) || defined(__i386__)
+	if (vga_pci_is_boot_display(dev)) {
+		/*
+		 * On x86, the System BIOS copy the default display
+		 * device's Video BIOS at a fixed location in system
+		 * memory (0xC0000, 128 kBytes long) at boot time.
+		 *
+		 * We use this copy for the default boot device, because
+		 * the original ROM may not be valid after boot.
+		 */
+
+		*size = VGA_PCI_BIOS_SHADOW_SIZE;
+		return (pmap_mapbios(VGA_PCI_BIOS_SHADOW_ADDR, *size));
+	}
+#endif
+
+	rid = PCIR_BIOS;
+	if ((res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, RF_ACTIVE)) == NULL)
+		return (NULL);
+
+	pdev->pcir.r[LINUXKPI_BIOS] = res;
+	pdev->pcir.rid[LINUXKPI_BIOS] = rid;
+	pdev->pcir.type[LINUXKPI_BIOS] = SYS_RES_MEMORY;
+	pdev->pcir.map[LINUXKPI_BIOS] = rman_get_virtual(res);
+	device_printf(dev, "bios size %lx bios addr %p\n", rman_get_size(res), rman_get_virtual(res));
+	*size = rman_get_size(res);
+	return (rman_get_virtual(res));
+}
+
+void
+pci_unmap_rom(struct pci_dev *pdev, u8 *bios)
+{
+	device_t dev;
+	struct resource *res;
+
+	if (bios == NULL)
+		return;
+	dev = pdev->dev.bsddev;
+
+#if defined(__amd64__) || defined(__i386__)
+	if (vga_pci_is_boot_display(dev)) {
+		/* We mapped the BIOS shadow copy located at 0xC0000. */
+		pmap_unmapdev((vm_offset_t)bios, VGA_PCI_BIOS_SHADOW_SIZE);
+
+		return;
+	}
+#endif
+	res = pdev->pcir.r[LINUXKPI_BIOS];
+	pdev->pcir.r[LINUXKPI_BIOS] = NULL;
+	pdev->pcir.rid[LINUXKPI_BIOS] = -1;
+	pdev->pcir.type[LINUXKPI_BIOS] = -1;
+	pdev->pcir.map[LINUXKPI_BIOS] = NULL;
+	MPASS(res != NULL);
+	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BIOS, res);
+}
