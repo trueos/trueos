@@ -93,21 +93,22 @@ vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long
 	pmap_t pmap = vma->vm_cached_map->pmap;
 	vm_memattr_t attr = pgprot2cachemode(pgprot);
 
+	if (__predict_false(linux_skip_prefault) && (vma->vm_pfn_count > 0))
+		return (-EBUSY);
+
 	vm_obj = vma->vm_obj;
 	page = PHYS_TO_VM_PAGE((pfn << PAGE_SHIFT));
-#if defined(__amd64__) || defined(__i386__)
-	MPASS(page->md.pat_mode == attr);
-	page->md.pat_mode = attr;
-#endif	
-	if (linux_skip_prefault && (vma->vm_pfn_count > 0))
-		return (-EBUSY);
+
+#if defined(__i386__) || defined(__amd64__)
+	if (page->md.pat_mode != attr) {
+		MPASS(page->flags & PG_FICTITIOUS);
+		pmap_page_set_memattr(page, attr);
+	}
+#endif
 
 	MPASS(vma->vm_flags & VM_PFNINTERNAL);
 	if ((vma->vm_flags & VM_PFNINTERNAL) && (vma->vm_pfn_count == 0)) {
-		while (vm_page_tryxbusy(page) == 0) {
-			vm_page_lock(page);
-			vm_page_busy_sleep(page, "linuxvipp");
-		}
+		vm_page_tryxbusy(page);
 		vma->vm_pfn_array[vma->vm_pfn_count++] = pfn;
 	} else
 		pmap_enter_quick(pmap, addr, page, pgprot & VM_PROT_ALL);
