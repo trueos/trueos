@@ -41,8 +41,8 @@
  * be moved to FW_FAILED.
  */
 
-#define I915_CSR_SKL "skl_dmc_ver1.bin"
-#define I915_CSR_BXT "bxt_dmc_ver1.bin"
+#define I915_CSR_SKL "i915/skl_dmc_ver1.bin"
+#define I915_CSR_BXT "i915/bxt_dmc_ver1.bin"
 
 #define FIRMWARE_URL  "https://01.org/linuxgraphics/intel-linux-graphics-firmwares"
 
