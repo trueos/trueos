@@ -71,7 +71,7 @@ extern u_int	cpu_feature;
 extern u_int	cpu_stdext_feature;
 extern int	linux_skip_prefault;
 
-
+#if defined(__i386__) || defined(__amd64__)
 static void
 __wbinvd(void *arg)
 {
@@ -84,6 +84,24 @@ wbinvd_on_all_cpus(void)
 
 	return (on_each_cpu(__wbinvd, NULL, 1));
 }
+
+static int
+needs_set_memattr(vm_page_t m, vm_memattr_t attr)
+{
+	vm_memattr_t mode;
+
+	mode = m->md.pat_mode;
+
+	if ((mode == 0) && !(m->flags & PG_FICTITIOUS) &&
+	    (attr == VM_MEMATTR_DEFAULT))
+		return (0);
+
+	if (mode != attr)
+		return (1);
+	return (0);
+}
+#endif
+
 
 int
 vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn, pgprot_t pgprot)
@@ -100,8 +118,8 @@ vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long
 	page = PHYS_TO_VM_PAGE((pfn << PAGE_SHIFT));
 
 #if defined(__i386__) || defined(__amd64__)
-	if (page->md.pat_mode != attr) {
-		MPASS(page->flags & PG_FICTITIOUS);
+	if (needs_set_memattr(page, attr)) {
+		page->flags |= PG_FICTITIOUS;
 		pmap_page_set_memattr(page, attr);
 	}
 #endif
