@@ -344,11 +344,15 @@ pci_register_driver(struct pci_driver *pdrv)
 	pdrv->driver.name = pdrv->name;
 	pdrv->driver.methods = pci_methods;
 	pdrv->driver.size = sizeof(struct pci_dev);
+
 	mtx_lock(&Giant);
 	if (bus != NULL) {
 		error = devclass_add_driver(bus, &pdrv->driver, BUS_PASS_DEFAULT,
 		    pdrv->bsdclass);
-	}
+		if (error)
+			printf("devclass_add_driver failed with %d\n", error);
+	} else
+		error = -ENXIO;
 	mtx_unlock(&Giant);
 
 	return (-error);
@@ -532,6 +536,69 @@ release_resource(struct linux_resource *lr)
 	return (0);
 }
 
+struct pci_dev *
+linux_pci_get_class(unsigned int class, struct pci_dev *from)
+{
+	device_t dev;
+	struct pci_dev *pdev;
+	struct pci_bus *pbus;
+	int pcic, pcis;
+
+	pdev = from;
+	class >>= 8;
+	if (class == PCI_CLASS_BRIDGE_ISA) {
+		pcis = PCIS_BRIDGE_ISA;
+		pcic = PCIC_BRIDGE;
+	} else if (class == PCI_CLASS_DISPLAY_VGA) {
+		pcis = PCIS_DISPLAY_VGA;
+		pcic = PCIC_DISPLAY;
+	} else if (class == PCI_CLASS_DISPLAY_OTHER) {
+		pcis = PCIS_DISPLAY_OTHER;
+		pcic = PCIC_DISPLAY;
+	} else {
+		log(LOG_WARNING, "unrecognized class %x in %s\n", class, __FUNCTION__);
+		BACKTRACE();
+		return (NULL);
+	}
+
+	if (pdev != NULL) {
+		dev = pdev->dev.bsddev;
+	} else
+		dev = NULL;
+
+	dev = pci_find_class(pcic, pcis, dev);
+	if (dev == NULL)
+		return (NULL);
+
+	if (pdev == NULL)
+		pdev = malloc(sizeof(*pdev), M_DEVBUF, M_WAITOK|M_ZERO);
+
+	/* XXX do we need to initialize pdev more here ? */
+	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
+	pdev->vendor = pci_get_vendor(dev);
+	pdev->device = pci_get_device(dev);
+	pdev->dev.bsddev = dev;
+	if (from == NULL) {
+		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK|M_ZERO);
+		pbus->self = pdev;
+		pdev->bus = pbus;
+	}
+	pdev->bus->number = pci_get_bus(dev);
+	return (pdev);
+}
+
+static int
+is_vga(device_t dev)
+{
+	device_t parent;
+	devclass_t dc;
+
+	parent = device_get_parent(dev);
+	dc = device_get_devclass(parent);
+
+	return (strcmp(devclass_get_name(dc), "vgapci") == 0);
+}
+
 void *
 pci_map_rom(struct pci_dev *pdev, size_t *size)
 {
@@ -541,7 +608,7 @@ pci_map_rom(struct pci_dev *pdev, size_t *size)
 
 	dev = pdev->dev.bsddev;
 #if defined(__amd64__) || defined(__i386__)
-	if (vga_pci_is_boot_display(dev)) {
+	if (vga_pci_is_boot_display(dev) || is_vga(dev)) {
 		/*
 		 * On x86, the System BIOS copy the default display
 		 * device's Video BIOS at a fixed location in system
@@ -580,7 +647,7 @@ pci_unmap_rom(struct pci_dev *pdev, u8 *bios)
 	dev = pdev->dev.bsddev;
 
 #if defined(__amd64__) || defined(__i386__)
-	if (vga_pci_is_boot_display(dev)) {
+	if (vga_pci_is_boot_display(dev) || is_vga(dev)) {
 		/* We mapped the BIOS shadow copy located at 0xC0000. */
 		pmap_unmapdev((vm_offset_t)bios, VGA_PCI_BIOS_SHADOW_SIZE);
 

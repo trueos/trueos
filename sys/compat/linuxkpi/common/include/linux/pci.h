@@ -513,53 +513,8 @@ linux_pci_disable_msi(struct pci_dev *pdev)
 	/* pci_disable_msi(pdev->dev.bsddev); */
 }
 
-static inline struct pci_dev *
-linux_pci_get_class(unsigned int class, struct pci_dev *from)
-{
-	device_t dev;
-	struct pci_dev *pdev;
-	struct pci_bus *pbus;
-	int pcic, pcis;
 
-	pdev = from;
-	if (class == (PCI_CLASS_BRIDGE_ISA << 8)) {
-		pcis = PCIS_BRIDGE_ISA;
-		pcic = PCIC_BRIDGE;
-	} else if (class == (PCI_CLASS_DISPLAY_VGA << 8)) {
-		pcis = PCIS_DISPLAY_VGA;
-		pcic = PCIC_DISPLAY;
-	} else {
-		log(LOG_WARNING, "unrecognized class %x in %s\n", (class >> 8), __FUNCTION__);
-		BACKTRACE();
-		return (NULL);
-	}
-
-	if (pdev != NULL) {
-		dev = pdev->dev.bsddev;
-	} else
-		dev = NULL;
-
-	dev = pci_find_class(pcic, pcis, dev);
-	if (dev == NULL)
-		return (NULL);
-
-	if (pdev == NULL)
-		pdev = malloc(sizeof(*pdev), M_DEVBUF, M_WAITOK|M_ZERO);
-
-	/* XXX do we need to initialize pdev more here ? */
-	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
-	pdev->vendor = pci_get_vendor(dev);
-	pdev->device = pci_get_device(dev);
-	pdev->dev.bsddev = dev;
-	if (from == NULL) {
-		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK|M_ZERO);
-		pbus->self = pdev;
-		pdev->bus = pbus;
-	}
-	pdev->bus->number = pci_get_bus(dev);
-	return (pdev);
-}
-
+struct pci_dev *linux_pci_get_class(unsigned int class, struct pci_dev *from);
 
 struct pci_dev *linux_bsddev_to_pci_dev(device_t dev);
 
