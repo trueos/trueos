@@ -740,6 +740,7 @@ err:
 		break;
 	case VM_FAULT_NOPAGE:
 		rc = VM_PAGER_ERROR;
+		break;
 	default:
 		panic("unexpected error %d\n", err);
 		rc = VM_PAGER_ERROR;
