@@ -124,7 +124,7 @@ cdev_add_ext(struct linux_cdev *cdev, dev_t dev, uid_t uid, gid_t gid, int mode)
 	args.mda_gid = gid;
 	args.mda_mode = mode;
 	args.mda_si_drv1 = cdev;
-	args.mda_unit = dev;
+	args.mda_unit = MINOR(dev);
 
 	error = make_dev_s(&args, &cdev->cdev, "%s/%d",
 	    kobject_name(&cdev->kobj), MINOR(dev));
