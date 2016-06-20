@@ -157,6 +157,8 @@ __FBSDID("$FreeBSD$");
 #undef DRM_LINUX
 #define DRM_LINUX 0
 
+extern int drm_skipwc;
+
 struct drm_file;
 struct drm_device;
 struct drm_agp_head;

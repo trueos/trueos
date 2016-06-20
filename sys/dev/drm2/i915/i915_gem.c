@@ -1800,7 +1800,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 	    VM_PROT_READ | VM_PROT_WRITE, MAP_INHERIT_SHARE);
 
-	if ((rv == KERN_SUCCESS) && (args->flags & I915_MMAP_WC)) {
+	if ((rv == KERN_SUCCESS) && (args->flags & I915_MMAP_WC) && !drm_skipwc) {
 		VM_OBJECT_WLOCK(vmobj);
 		if (vm_object_set_memattr(vmobj, VM_MEMATTR_WRITE_COMBINING) != KERN_SUCCESS) {
 			for (vm_page_t page = vm_page_find_least(vmobj, 0); page != NULL; page = vm_page_next(page)) {
