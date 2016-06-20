@@ -600,15 +600,12 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	vm_page_t page;
 	struct vm_fault vmf;
 	struct vm_area_struct *vmap, cvma;
-	vm_memattr_t memattr;
-	int rc, err, fault_flags, attempts;
+	int rc, err, fault_flags;
 	vm_object_t page_object;
 	unsigned long vma_flags;
 	vm_map_t map;
 
-	attempts = 0;
 	linux_set_current();
-	memattr = vm_obj->memattr;
 
 	vmap  = vm_obj->handle;
 	/*
@@ -668,9 +665,7 @@ retry:
 		if (page != NULL)
 			goto done;
 		VM_OBJECT_WUNLOCK(vm_obj);
-		if (attempts > 2)
-			goto err;
-		attempts++;
+		kern_yield(0);
 		goto retry;
 	}
 	/*
