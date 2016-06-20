@@ -1720,7 +1720,7 @@ __register_chrdev_p(unsigned int major, unsigned int baseminor,
 		cdev_init(cdev, fops);
 		kobject_set_name(&cdev->kobj, name);
 
-		ret = cdev_add_ext(cdev, i, uid, gid, mode);
+		ret = cdev_add_ext(cdev, makedev(major, i), uid, gid, mode);
 		cdev->major = major;
 		cdev->baseminor = i;	
 		sx_xlock(&linux_global_rcu_lock);
