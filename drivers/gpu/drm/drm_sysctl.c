@@ -215,7 +215,7 @@ static int drm_name_info DRM_SYSCTL_HANDLER_ARGS
 	    (uintmax_t)dev2udev(minor->bsd_device));
 
 	mutex_lock(&dev->struct_mutex);
-	master = minor->master;
+	master = dev->master;
 	if (master != NULL && master->unique) {
 		snprintf(buf, sizeof(buf), " %s", master->unique);
 		hasunique = 1;
