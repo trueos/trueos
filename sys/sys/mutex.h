@@ -53,6 +53,7 @@
 #define	MTX_NOWITNESS	0x00000008	/* Don't do any witness checking. */
 #define MTX_NOPROFILE   0x00000020	/* Don't profile this lock */
 #define	MTX_NEW		0x00000040	/* Don't check for double-init */
+#define	MTX_INTEROP	0x00000080	/* allow to be treated as either a spin lock or a sleep lock */
 
 /*
  * Option flags passed to certain lock/unlock routines, through the use
