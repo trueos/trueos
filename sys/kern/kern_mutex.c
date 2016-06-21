@@ -138,6 +138,20 @@ struct lock_class lock_class_mtx_spin = {
 #endif
 };
 
+struct lock_class lock_class_mtx_interop = {
+	.lc_name = "interop mutex",
+	.lc_flags = LC_SPINLOCK | LC_SLEEPLOCK | LC_RECURSABLE,
+	.lc_assert = assert_mtx,
+#ifdef DDB
+	.lc_ddb_show = db_show_mtx,
+#endif
+	.lc_lock = lock_spin,
+	.lc_unlock = unlock_spin,
+#ifdef KDTRACE_HOOKS
+	.lc_owner = owner_mtx,
+#endif
+};
+
 /*
  * System-wide mutexes
  */
