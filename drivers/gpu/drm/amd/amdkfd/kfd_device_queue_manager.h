@@ -187,7 +187,7 @@ int init_pipelines(struct device_queue_manager *dqm,
 unsigned int get_first_pipe(struct device_queue_manager *dqm);
 unsigned int get_pipes_num(struct device_queue_manager *dqm);
 
-inline static unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
+static inline unsigned int get_sh_mem_bases_32(struct kfd_process_device *pdd)
 {
 	return (pdd->lds_base >> 16) & 0xFF;
 }
