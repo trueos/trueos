@@ -3,6 +3,7 @@
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
  * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2016 Matthew Macy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,12 +51,14 @@ typedef struct {
 #define	spin_unlock(_l)		mtx_unlock(&(_l)->m)
 #define	spin_trylock(_l)	mtx_trylock(&(_l)->m)
 #define	spin_lock_nested(_l, _n) mtx_lock_flags(&(_l)->m, MTX_DUPOK)
-#define	spin_lock_irq(lock)	spin_lock(lock)
-#define	spin_unlock_irq(lock)	spin_unlock(lock)
-#define	spin_lock_irqsave(lock, flags)   				\
-    do {(flags) = 0; spin_lock(lock); } while (0)
-#define	spin_unlock_irqrestore(lock, flags)				\
-    do { spin_unlock(lock); } while (0)
+
+
+
+void	_linux_mtx_init(volatile uintptr_t *c, const char *name, const char *type,
+	    int opts);
+
+#define	linux_mtx_init(m, n, t, o)			\
+	_linux_mtx_init(&(m)->mtx_lock, n, t, o)
 
 #define spin_lock_init(lock) _spin_lock_init((lock), #lock, __FILE__, __LINE__)
 
@@ -69,9 +72,9 @@ _spin_lock_init(spinlock_t *lock, char *name, char *file, int line)
 	memset(&lock->m, 0, sizeof(lock->m));
 #ifdef WITNESS_ALL
 	snprintf(buf, 64, "%s:%s:%d", name, file, line);
-	mtx_init(&lock->m, strdup(buf, M_DEVBUF), NULL, MTX_DEF);
+	linux_mtx_init(&lock->m, strdup(buf, M_DEVBUF), NULL, MTX_INTEROP);
 #else
-	mtx_init(&lock->m, name, NULL, MTX_DEF | MTX_NOWITNESS);
+	linux_mtx_init(&lock->m, name, NULL, MTX_INTEROP | MTX_NOWITNESS);
 #endif	
 }
 
@@ -81,10 +84,22 @@ spin_lock_destroy(spinlock_t *lock)
 	mtx_destroy(&lock->m);
 }
 
+void	linux_mtx_sysinit(void *arg);
+
+#define	LINUX_MTX_SYSINIT(name, mtx, desc, opts)				\
+	static struct mtx_args name##_args = {				\
+		(mtx),							\
+		(desc),							\
+		(opts)							\
+	};								\
+	SYSINIT(name##_mtx_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
+	    linux_mtx_sysinit, &name##_args);					\
+	SYSUNINIT(name##_mtx_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
+	    _mtx_destroy, __DEVOLATILE(void *, &(mtx)->mtx_lock))
 
 #define	DEFINE_SPINLOCK(lock)						\
 	spinlock_t lock;						\
-	MTX_SYSINIT(lock, &(lock).m, #lock, MTX_DEF)
+	LINUX_MTX_SYSINIT(lock, &(lock).m, #lock, MTX_INTEROP)
 
 
 static inline void
@@ -104,14 +119,20 @@ static inline void spin_unlock_bh(spinlock_t *lock) {
 	critical_exit();
 }
 
-#define local_irq_save(flags)			\
-	do {					\
-		flags = 1;			\
+
+#define	spin_lock_irq(_l)	mtx_lock_spin(&(_l)->m)
+#define	spin_unlock_irq(_l)	mtx_unlock_spin(&(_l)->m)
+
+#define spin_lock_irqsave(lock, flags) do {	\
+		flags = local_save_flags();	\
+		spin_lock_irq((lock));		\
 	} while (0)
 
-#define local_irq_restore(flags)		\
-	do {					\
-		flags = 0;			\
+/* is the local_irq_restore really necessary since we track interrupt nesting? */
+#define	spin_unlock_irqrestore(lock, flags) do {	\
+		spin_unlock_irq((lock));		\
+		flags = 0;				\
 	} while (0)
+
 
 #endif	/* _LINUX_SPINLOCK_H_ */

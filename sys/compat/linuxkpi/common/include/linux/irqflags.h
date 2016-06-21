@@ -1,50 +1,44 @@
-/*
- * Copyright (c) 2015 François Tigeot
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice unmodified, this list of conditions, and the following
- *    disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
 #ifndef _LINUX_IRQFLAGS_H_
 #define _LINUX_IRQFLAGS_H_
 
-/*
- * Dragonfly has the following:
- * Disabling interrupts, even on a single CPU core is crazy.
- * Don't even try to do such a thing
- * ...
- * we prefer to panic() for the time being
- */
 
 static inline void
 local_irq_disable(void)
 {
-	UNIMPLEMENTED();
+	spinlock_enter();
 }
 
 static inline void
 local_irq_enable(void)
 {
-	UNIMPLEMENTED();
+	spinlock_exit();
 }
+
+#if defined(__i386__) || defined(__amd64__)
+static inline unsigned long
+local_save_flags(void)
+{
+	return (read_rflags());
+}
+
+static inline unsigned long
+_local_irq_save(void)
+{
+	return (intr_disable());
+}
+
+static inline void
+local_irq_restore(unsigned long flags __unused)
+{
+	spinlock_exit();
+}
+#else
+#error "local_irq functions undefined"
+#endif
+
+#define local_irq_save(flags) do {		\
+		flags = local_save_flags();	\
+		spinlock_enter();		\
+	} while (0)
 
 #endif	/* _LINUX_IRQFLAGS_H_ */

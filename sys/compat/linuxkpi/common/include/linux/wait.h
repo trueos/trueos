@@ -43,6 +43,7 @@
 #include <sys/sleepqueue.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/taskqueue.h>
 
 #define SKIP_SLEEP() (SCHEDULER_STOPPED() || kdb_active)
 
@@ -67,6 +68,7 @@ typedef struct wait_queue_head {
 	spinlock_t	lock;
 	struct selinfo	wait_poll;
 	struct list_head	task_list;
+	struct task	wait_poll_task;
 } wait_queue_head_t;
 
 
@@ -131,10 +133,10 @@ autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
 
 #define DECLARE_WAIT_QUEUE_HEAD(name)		\
         wait_queue_head_t name = LINUX_WAIT_QUEUE_HEAD_INITIALIZER(name);  \
-	MTX_SYSINIT(name, &(name).lock.m, "wqhead", MTX_DEF)
+	LINUX_MTX_SYSINIT(name, &(name).lock.m, "wqhead", MTX_INTEROP)
 
 #define	init_waitqueue_head(x) \
-	do { mtx_init(&((x)->lock.m), "wq", NULL, MTX_DEF|MTX_NOWITNESS);  INIT_LIST_HEAD(&(x)->task_list);  } while (0)
+	do { linux_mtx_init(&((x)->lock.m), "wq", NULL, MTX_NOWITNESS|MTX_INTEROP);  INIT_LIST_HEAD(&(x)->task_list);  } while (0)
 
 static inline void
 init_waitqueue_entry(wait_queue_t *q, struct task_struct *p)
@@ -170,7 +172,6 @@ __wake_up_locked(wait_queue_head_t *q, int mode, int nr, void *key)
 	struct task_struct *t;
 	wait_queue_t *curr, *next;
 
-	selwakeup(&q->wait_poll);
 	list_for_each_entry_safe(curr, next, &q->task_list, task_list) {
 		t = curr->private;
 		/* note that we're ignoring exclusive wakeups here */
@@ -183,12 +184,30 @@ __wake_up_locked(wait_queue_head_t *q, int mode, int nr, void *key)
 }
 
 static inline void
+selwakeup_deferred(void *context, int pending)
+{
+	struct selinfo *sip;
+
+	sip = context;
+	selwakeup(sip);
+}
+
+static inline void
 __wake_up(wait_queue_head_t *q, int mode, int nr, void *key)
 {
+	int flags;
 
-	spin_lock(&q->lock);
+	if (q->wait_poll.si_mtx != NULL) {
+		if (curthread->td_critnest == 0) {
+			selwakeup(&q->wait_poll);
+		} else {
+			TASK_INIT(&q->wait_poll_task, 0, selwakeup_deferred, &q->wait_poll);
+			taskqueue_enqueue(taskqueue_fast, &q->wait_poll_task);
+		}
+	}
+	spin_lock_irqsave(&q->lock, flags);
 	__wake_up_locked(q, mode, nr, key);
-	spin_unlock(&q->lock);
+	spin_unlock_irqrestore(&q->lock, flags);
 }
 
 
@@ -481,19 +500,21 @@ prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state)
 static inline void
 prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
 {
+	int flags;
 	MPASS(current != NULL);
 
 	current->sleep_wq = q;
-	spin_lock(&q->lock);
+	spin_lock_irqsave(&q->lock, flags);
 	if (list_empty(&wait->task_list))
 		__add_wait_queue(q, wait);
 	set_current_state(state);
-	spin_unlock(&q->lock);
+	spin_unlock_irqrestore(&q->lock, flags);
 }
 
 static inline void
 finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 {
+	int flags;
 	MPASS(current != NULL);
 	MPASS(current->sleep_wq == q);
 
@@ -501,9 +522,9 @@ finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 	__set_current_state(TASK_RUNNING);
 
 	if (!list_empty_careful(&wait->task_list)) {
-		spin_lock(&q->lock);
+		spin_lock_irqsave(&q->lock, flags);
 		list_del_init(&wait->task_list);
-		spin_unlock(&q->lock);
+		spin_unlock_irqrestore(&q->lock, flags);
 	}
 }
 
