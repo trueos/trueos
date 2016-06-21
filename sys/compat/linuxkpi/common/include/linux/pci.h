@@ -965,11 +965,8 @@ static inline bool pci_is_root_bus(struct pci_bus *pbus)
 	return (pbus->self == NULL);
 }
 
-static inline void *pci_platform_rom(struct pci_dev *pdev, size_t *size){
-	panic("implment me!!");
-	UNIMPLEMENTED();
-        return (false);
-}
+void *pci_platform_rom(struct pci_dev *pdev, size_t *size);
+
 
 static inline void linux_pci_save_state(struct pci_dev *pdev){
 	panic("implment me!!");

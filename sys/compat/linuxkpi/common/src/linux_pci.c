@@ -662,3 +662,9 @@ pci_unmap_rom(struct pci_dev *pdev, u8 *bios)
 	MPASS(res != NULL);
 	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BIOS, res);
 }
+
+void *
+pci_platform_rom(struct pci_dev *pdev, size_t *size)
+{
+	return (NULL);
+}
