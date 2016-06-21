@@ -40,6 +40,7 @@
 #include <linux/module.h>
 #include "drm_legacy.h"
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 #define file linux_file
 
