@@ -242,12 +242,13 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 }
 
 int
-msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
+_msleep_spin_sbt(void *ident, struct mtx *mtx, int prio, const char *wmesg,
     sbintime_t sbt, sbintime_t pr, int flags)
 {
 	struct thread *td;
 	struct proc *p;
 	int rval;
+	int catch, pri;
 	WITNESS_SAVE_DECL(mtx);
 
 	td = curthread;
@@ -259,6 +260,8 @@ msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
 	if (SCHEDULER_STOPPED())
 		return (0);
 
+	catch = prio & PCATCH;
+	pri = prio & PRIMASK;
 	sleepq_lock(ident);
 	CTR5(KTR_PROC, "msleep_spin: thread %ld (pid %ld, %s) on %s (%p)",
 	    td->td_tid, p->p_pid, td->td_name, wmesg, ident);
@@ -295,21 +298,35 @@ msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
 	    wmesg);
 	sleepq_lock(ident);
 #endif
-	if (sbt != 0)
-		rval = sleepq_timedwait(ident, 0);
+	if (sbt != 0 && catch)
+		rval = sleepq_timedwait_sig(ident, pri);
+	else if (sbt != 0)
+		rval = sleepq_timedwait(ident, pri);
+	else if (catch)
+		rval = sleepq_wait_sig(ident, pri);
 	else {
-		sleepq_wait(ident, 0);
+		sleepq_wait(ident, pri);
 		rval = 0;
 	}
+
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(0, 0, wmesg);
 #endif
 	PICKUP_GIANT();
-	mtx_lock_spin(mtx);
+	if (!(prio & PDROP))
+		mtx_lock_spin(mtx);
 	WITNESS_RESTORE(&mtx->lock_object, mtx);
 	return (rval);
 }
+
+int
+msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
+		sbintime_t sbt, sbintime_t pr, int flags)
+{
+	return _msleep_spin_sbt(ident, mtx, 0, wmesg, sbt, pr, flags);
+}
+
 
 /*
  * pause() delays the calling thread by the given number of system ticks.
