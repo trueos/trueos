@@ -23,6 +23,7 @@ CFLAGS+= -DHAVE_PER_CQ_EVENT_PACKET
 
 CFLAGS+= -I${.CURDIR}/../../ofed/include
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
+CFLAGS+= -I${.CURDIR}/../../contrib/ck/include
 
 .include <bsd.kmod.mk>
 

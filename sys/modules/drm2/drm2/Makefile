@@ -81,12 +81,13 @@ SRCS	= \
 #ttm_page_alloc_dma.c
 
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
+CFLAGS+= -I${.CURDIR}/../../../contrib/ck/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
-
 
 # until stable
 #CFLAGS += -O0
 #CFLAGS += -DDRM_DEBUG_LOG_ALL
+#CFLAGS += -DPRINT_UNIMPLEMENTED
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
 SRCS	+= drm_ioc32.c
