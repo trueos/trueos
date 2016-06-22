@@ -1800,6 +1800,8 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 	    VM_PROT_READ | VM_PROT_WRITE, MAP_INHERIT_SHARE);
 
+#ifdef __notyet__
+	/* currently disabled as it causes artifacts on FreeBSD */
 	if ((rv == KERN_SUCCESS) && (args->flags & I915_MMAP_WC) && !drm_skipwc) {
 		VM_OBJECT_WLOCK(vmobj);
 		if (vm_object_set_memattr(vmobj, VM_MEMATTR_WRITE_COMBINING) != KERN_SUCCESS) {
@@ -1809,6 +1811,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		}
 		VM_OBJECT_WUNLOCK(vmobj);
 	}
+#endif
 	if (rv != KERN_SUCCESS) {
 		vm_object_deallocate(vmobj);
 		error = -vm_mmap_to_errno(rv);
