@@ -32,36 +32,60 @@
 
 #include <linux/list.h>
 
-struct hlist_node;
+#define hlist_first_rcu(head)	(*((struct hlist_node **)(&(head)->first)))
+#define hlist_next_rcu(node)	(*((struct hlist_node **)(&(node)->next)))
+#define hlist_pprev_rcu(node)	(*((struct hlist_node **)((node)->pprev)))
 
-static inline void hlist_add_behind_rcu(struct hlist_node *n,
-				        struct hlist_node *prev)
+
+static inline void
+hlist_add_behind_rcu(struct hlist_node *n, struct hlist_node *prev)
 {
-	hlist_add_after(prev, n);
+	n->next = prev->next;
+	n->pprev = &prev->next;
+	rcu_assign_pointer(hlist_next_rcu(prev), n);
+	if (n->next)
+		n->next->pprev = &n->next;
 }
 
 #define hlist_for_each_entry_rcu(pos, head, member)	\
 	hlist_for_each_entry(pos, head, member)
 
-#define	hlist_add_head_rcu(n, h)		\
-do {						\
-  	sx_xlock(&linux_global_rcu_lock);	\
-	hlist_add_head(n, h);			\
-	sx_xunlock(&linux_global_rcu_lock);	\
-} while (0)
+static inline void 
+linux_hlist_del(struct hlist_node *n)
+{
+	struct hlist_node *next = n->next;
+	struct hlist_node **pprev = n->pprev;
 
-#define	hlist_del_init_rcu(n)			\
-do {						\
-    	sx_xlock(&linux_global_rcu_lock);	\
-	hlist_del_init(n);			\
-	sx_xunlock(&linux_global_rcu_lock);	\
-} while (0)
+	WRITE_ONCE(*pprev, next);
+	if (next)
+		next->pprev = pprev;
+}
+
+
+static inline void
+hlist_add_head_rcu(struct hlist_node *n, struct hlist_head *h)
+{
+	struct hlist_node *first = h->first;
+
+	n->next = first;
+	n->pprev = &h->first;
+	rcu_assign_pointer(hlist_first_rcu(h), n);
+	if (first)
+		first->pprev = &n->next;
+}
+
+static inline void
+hlist_del_init_rcu(struct hlist_node *n)
+{
+	if (!hlist_unhashed(n)) {
+		linux_hlist_del(n);
+		n->pprev = NULL;
+	}
+}
 
 #define	hlist_del_rcu(n)			\
 do {						\
-    	sx_xlock(&linux_global_rcu_lock);	\
-	hlist_del(n);				\
-	sx_xunlock(&linux_global_rcu_lock);	\
+	linux_hlist_del(n);			\
 } while (0)
 
 

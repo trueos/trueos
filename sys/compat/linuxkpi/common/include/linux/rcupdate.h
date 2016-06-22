@@ -37,28 +37,32 @@
 #include <linux/ktime.h>
 
 
-extern struct sx linux_global_rcu_lock;
+void call_rcu(struct rcu_head *ptr, rcu_callback_t func);
+void rcu_barrier(void);
+void __rcu_read_lock(void);
+void __rcu_read_unlock(void);
+void synchronize_rcu(void);
 
-struct rcu_head {
-};
-
-typedef void (*rcu_callback_t)(struct rcu_head *);
 
 static inline void
-call_rcu(struct rcu_head *ptr, rcu_callback_t func)
-{
-	sx_xlock(&linux_global_rcu_lock);
-	func(ptr);
-	sx_xunlock(&linux_global_rcu_lock);
-}
-
-static inline void kfree_call_rcu(struct rcu_head *head,
-				  rcu_callback_t func)
+kfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
 	call_rcu(head, func);
 }
 
-#define __kfree_rcu(head, offset) \
+static inline void
+rcu_read_lock(void)
+{
+	__rcu_read_lock();
+}
+
+static inline void
+rcu_read_unlock(void)
+{
+	__rcu_read_unlock();
+}
+
+#define __kfree_rcu(head, offset)		\
 	do { \
 		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
 	} while (0)
@@ -66,31 +70,6 @@ static inline void kfree_call_rcu(struct rcu_head *head,
 #define kfree_rcu(ptr, rcu_head)					\
 	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
 
-static inline void
-rcu_read_lock(void)
-{
-	sx_slock(&linux_global_rcu_lock);
-}
-
-static inline void
-rcu_read_unlock(void)
-{
-	sx_sunlock(&linux_global_rcu_lock);
-}
-
-static inline void
-rcu_barrier(void)
-{
-	sx_xlock(&linux_global_rcu_lock);
-	sx_xunlock(&linux_global_rcu_lock);
-}
-
-static inline void
-synchronize_rcu(void)
-{
-	sx_xlock(&linux_global_rcu_lock);
-	sx_xunlock(&linux_global_rcu_lock);
-}
 #define RCU_INIT_POINTER(p, v) p=(v)
 
 

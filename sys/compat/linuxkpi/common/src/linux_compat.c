@@ -123,7 +123,7 @@ struct list_head pci_drivers;
 struct list_head pci_devices;
 struct net init_net;
 spinlock_t pci_lock;
-struct sx linux_global_rcu_lock;
+struct sx linux_global_lock;
 
 unsigned long linux_timer_hz_mask;
 struct list_head cdev_list;
@@ -1674,7 +1674,7 @@ find_cdev(const char *name, unsigned int major, int minor, int remove)
 	struct linux_cdev *cdev;
 	struct list_head *h;
 	
-	sx_xlock(&linux_global_rcu_lock);
+	sx_xlock(&linux_global_lock);
 	list_for_each(h, &cdev_list) {
 		cdev = __containerof(h, struct linux_cdev, list);
 		if ((strcmp(kobject_name(&cdev->kobj), name) == 0) &&
@@ -1682,11 +1682,11 @@ find_cdev(const char *name, unsigned int major, int minor, int remove)
 		    cdev->major == major) {
 			if (remove)
 				list_del(&cdev->list);
-			sx_xunlock(&linux_global_rcu_lock);
+			sx_xunlock(&linux_global_lock);
 			return (cdev);
 		}
 	}
-	sx_xunlock(&linux_global_rcu_lock);
+	sx_xunlock(&linux_global_lock);
 	return (NULL);
 }
 
@@ -1707,9 +1707,9 @@ __register_chrdev(unsigned int major, unsigned int baseminor,
 		ret = cdev_add(cdev, i, 1);
 		cdev->major = major;
 		cdev->baseminor = i;	
-		sx_xlock(&linux_global_rcu_lock);
+		sx_xlock(&linux_global_lock);
 		list_add(&cdev->list, &cdev_list);
-		sx_xunlock(&linux_global_rcu_lock);
+		sx_xunlock(&linux_global_lock);
 	}
 	return (ret);
 }
@@ -1731,9 +1731,9 @@ __register_chrdev_p(unsigned int major, unsigned int baseminor,
 		ret = cdev_add_ext(cdev, makedev(major, i), uid, gid, mode);
 		cdev->major = major;
 		cdev->baseminor = i;	
-		sx_xlock(&linux_global_rcu_lock);
+		sx_xlock(&linux_global_lock);
 		list_add(&cdev->list, &cdev_list);
-		sx_xunlock(&linux_global_rcu_lock);
+		sx_xunlock(&linux_global_lock);
 	}
 	return (ret);
 }
@@ -1787,9 +1787,9 @@ async_schedule(async_func_t func, void *data)
 	entry = kzalloc(sizeof(struct async_entry), GFP_ATOMIC);
 
 	if (entry == NULL) {
-		sx_xlock(&linux_global_rcu_lock);
+		sx_xlock(&linux_global_lock);
 		nextcookie++;
-		sx_xunlock(&linux_global_rcu_lock);
+		sx_xunlock(&linux_global_lock);
 		newcookie = nextcookie;
 		func(data, newcookie);
 		return (newcookie);
@@ -1798,10 +1798,10 @@ async_schedule(async_func_t func, void *data)
 	INIT_WORK(&entry->work, async_run_entry_fn);
 	entry->func = func;
 	entry->data = data;
-	sx_xlock(&linux_global_rcu_lock);
+	sx_xlock(&linux_global_lock);
 	atomic_inc(&entry_count);
 	newcookie = entry->cookie = nextcookie++;
-	sx_xunlock(&linux_global_rcu_lock);
+	sx_xunlock(&linux_global_lock);
 	curthread->td_pflags |= PF_USED_ASYNC;
 	queue_work(system_unbound_wq, &entry->work);
 	return (newcookie);
@@ -1816,7 +1816,7 @@ linux_compat_init(void *arg)
 	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
 #endif
 	hwmon_idap = &hwmon_ida;
-	sx_init(&linux_global_rcu_lock, "LinuxGlobalRCU");
+	sx_init(&linux_global_lock, "LinuxBKL");
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	boot_cpu_data.x86 = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 
@@ -1857,8 +1857,6 @@ linux_compat_uninit(void *arg)
 	destroy_workqueue(system_wq);
 	destroy_workqueue(system_unbound_wq);
 
-	synchronize_rcu();
-	sx_destroy(&linux_global_rcu_lock);
 	spin_lock_destroy(&pci_lock);
 }
 SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);

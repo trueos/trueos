@@ -20,6 +20,7 @@ SRCS=	interval_tree.c \
 	linux_pci.c \
 	linux_platform_device.c \
 	linux_radix.c \
+	linux_rcu.c \
 	linux_reservation.c \
 	linux_string.c \
 	linux_sysfs.c \
@@ -35,6 +36,7 @@ SRCS+=	bus_if.h \
 	opt_usb.h
 
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
+CFLAGS+= -I${.CURDIR}/../../contrib/ck/include
 
 #CFLAGS += -DPRINT_UNIMPLEMENTED
 # until stable
