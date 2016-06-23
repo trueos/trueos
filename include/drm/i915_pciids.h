@@ -325,7 +325,9 @@
 #define INTEL_KBL_GT3_IDS(info) \
 	INTEL_VGA_DEVICE(0x5923, info), /* ULT GT3 */ \
 	INTEL_VGA_DEVICE(0x5926, info), /* ULT GT3 */ \
-	INTEL_VGA_DEVICE(0x5927, info) /* ULT GT3 */
+	INTEL_VGA_DEVICE(0x5927, info) /* ULT GT3 */ \
+	INTEL_VGA_DEVICE(0x592B, info), /* Halo GT3 */ \
+	INTEL_VGA_DEVICE(0x592A, info) /* SRV GT3 */
 
 #define INTEL_KBL_GT4_IDS(info) \
 	INTEL_VGA_DEVICE(0x593B, info) /* Halo GT4 */
