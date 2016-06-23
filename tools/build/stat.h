@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Peter Grehan.
+ * Copyright (c) 2016 Jilles Tjoelker <jilles@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,25 +22,25 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-/*      $NetBSD: pipe.S,v 1.6 2000/09/28 08:38:54 kleink Exp $  */
 
-#include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+#ifndef _LEGACY_SYS_STAT_H_
+#define	_LEGACY_SYS_STAT_H_
 
-#include "SYS.h"
+#include_next <sys/stat.h>
 
-ENTRY(pipe)
-	mr	%r5,%r3		/* save pointer */
-	li	%r0,SYS_pipe
-	sc			/* r5 is preserved */
-	bso	1f
-	stw	%r3,0(%r5)	/* success, store fds */
-	stw	%r4,4(%r5)
-	li	%r3,0
-	blr			/* and return 0 */
-1:
-	b	PIC_PLT(HIDENAME(cerror))
-END(pipe)
+#ifndef	UTIME_NOW
+#define	UTIME_NOW	-1
+#define	UTIME_OMIT	-2
+#endif
 
-	.section .note.GNU-stack,"",%progbits
+__BEGIN_DECLS
+
+int futimens(int, const struct timespec *);
+int utimensat(int, const char *, const struct timespec *, int);
+
+__END_DECLS
+
+#endif /* !_LEGACY_SYS_STAT_H_ */

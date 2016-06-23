@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 2014 The FreeBSD Foundation
+ * Copyright (c) 2005-2006,2016 John H. Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
- *
- * This software was developed by Andrew Turner under
- * sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,26 +24,71 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "SYS.h"
+#include <sys/ioccom.h>
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sysdecode.h>
 
-ENTRY(__sys_pipe)
-	WEAK_REFERENCE(__sys_pipe, pipe)
+static void
+usage(char **av)
+{
+	fprintf(stderr, "%s: <ioctl> [ ... ]\n", av[0]);
+	exit(1);
+}
 
-	/* Backup the pointer passed to us */
-	mov	x2, x0
+int
+main(int ac, char **av)
+{
+	unsigned long cmd;
+	const char *name;
+	char *cp;
+	int group, i;
 
-	/* Make the syscall */
-	_SYSCALL(pipe)
-	b.cs	cerror
-
-	/* Store the result */
-	str	w0, [x2, #0]
-	str	w1, [x2, #4]
-
-	/* Return */
-	mov	x0, #0
-	ret
-END(__sys_pipe)
+	if (ac < 2)
+		usage(av);
+	printf("  command :  dir  group num  len name\n");
+	for (i = 1; i < ac; i++) {
+		errno = 0;
+		cmd = strtoul(av[i], &cp, 0);
+		if (*cp != '\0' || errno != 0) {
+			fprintf(stderr, "Invalid integer: %s\n", av[i]);
+			usage(av);
+		}
+		printf("0x%08lx: ", cmd);
+		switch (cmd & IOC_DIRMASK) {
+		case IOC_VOID:
+			printf("VOID ");
+			break;
+		case IOC_OUT:
+			printf("OUT  ");
+			break;
+		case IOC_IN:
+			printf("IN   ");
+			break;
+		case IOC_INOUT:
+			printf("INOUT");
+			break;
+		default:
+			printf("%01lx ???", (cmd & IOC_DIRMASK) >> 29);
+			break;
+		}
+		printf(" ");
+		group = IOCGROUP(cmd);
+		if (isprint(group))
+			printf(" '%c' ", group);
+		else
+			printf(" 0x%02x", group);
+		printf(" %3lu %4lu", cmd & 0xff, IOCPARM_LEN(cmd));
+		name = sysdecode_ioctlname(cmd);
+		if (name != NULL)
+			printf(" %s", name);
+		printf("\n");
+	}
+	return (0);
+}

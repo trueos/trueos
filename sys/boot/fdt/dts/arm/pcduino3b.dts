@@ -1,7 +1,5 @@
-/*	$NetBSD: pipe.S,v 1.5 2003/08/07 16:42:04 agc Exp $	*/
-
 /*-
- * Copyright (c) 1990 The Regents of the University of California.
+ * Copyright (c) 2016 Emmanuel Vadot <manu@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -12,14 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -28,26 +23,26 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)pipe.s	5.1 (Berkeley) 4/23/90
+ * $FreeBSD$
  */
 
-#include <machine/asm.h>
-__FBSDID("$FreeBSD$");
-#include "SYS.h"
+#include "sun7i-a20-pcduino3.dts"
+#include "sun7i-a20-hdmi.dtsi"
+#include "xpowers-axp209.dtsi"
 
-#ifdef WEAK_ALIAS
-WEAK_ALIAS(pipe, _pipe)
-WEAK_ALIAS(__sys_pipe, _pipe)
-#endif
+/ {
+	soc@01c00000 {
+		hdmi@01c16000 {
+			status = "okay";
+		};
 
-ENTRY(_pipe)
-	mov	r2, r0
-	SYSTRAP(pipe)
-	bcs	PIC_SYM(CERROR, PLT)
-	str	r0, [r2, #0x0000]
-	str	r1, [r2, #0x0004]
-	mov	r0, #0x00000000
-	RET
-END(_pipe)
+		hdmiaudio {
+			status = "okay";
+		};
+	};
+};
 
-	.section .note.GNU-stack,"",%progbits
+&gmac {
+      pinctrl-0 = <&gmac_pins_rgmii_a>;
+      phy-mode = "rgmii";
+};

@@ -42,9 +42,14 @@ __ENV_ONLY_OPTIONS:= \
 
 .include <bsd.mkopt.mk>
 
+# Disable MK_META_MODE with make -B
+.if ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B}
+MK_META_MODE=	no
+.endif
+
 .if ${MK_DIRDEPS_BUILD} == "yes"
 .sinclude <meta.sys.mk>
-.elif ${MK_META_MODE} == "yes" && defined(.MAKEFLAGS) && ${.MAKEFLAGS:M-B} == ""
+.elif ${MK_META_MODE} == "yes"
 # verbose will show .MAKE.META.PREFIX for each target.
 META_MODE+=	meta verbose
 .if !defined(NO_META_MISSING)
@@ -55,10 +60,6 @@ META_MODE+=	missing-meta=yes
 META_MODE+=	silent=yes
 .endif
 .if !exists(/dev/filemon)
-.if ${UPDATE_DEPENDFILE:Uyes:tl} != "no" && !defined(NO_FILEMON) && \
-    !make(showconfig)
-.error ${.newline}ERROR: The filemon module (/dev/filemon) is not loaded.
-.endif
 META_MODE+= nofilemon
 .endif
 # Require filemon data with bmake
@@ -74,6 +75,8 @@ META_MODE?= normal
 # buildworld -> installworld -> buildworld to rebuild everything.
 # Since the build is self-reliant and bootstraps everything it needs,
 # this should not be a real problem for incremental builds.
+# XXX: This relies on the existing host tools retaining ABI compatibility
+# through upgrades since they won't be rebuilt on header/library changes.
 # Note that these are prefix matching, so /lib matches /libexec.
 .MAKE.META.IGNORE_PATHS+= \
 	${__MAKE_SHELL} \
@@ -423,6 +426,10 @@ __MAKE_CONF?=/etc/make.conf
 
 # late include for customization
 .sinclude <local.sys.mk>
+
+.if defined(META_MODE)
+META_MODE:=	${META_MODE:O:u}
+.endif
 
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
 SHELL=	${__MAKE_SHELL}

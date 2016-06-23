@@ -721,6 +721,7 @@ iwm_dma_contig_alloc(bus_dma_tag_t tag, struct iwm_dma_info *dma,
 
 	dma->tag = NULL;
 	dma->size = size;
+	dma->vaddr = NULL;
 
 	error = bus_dma_tag_create(tag, alignment,
             0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
@@ -735,8 +736,11 @@ iwm_dma_contig_alloc(bus_dma_tag_t tag, struct iwm_dma_info *dma,
 
         error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr, size,
             iwm_dma_map_addr, &dma->paddr, BUS_DMA_NOWAIT);
-        if (error != 0)
+        if (error != 0) {
+		bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
+		dma->vaddr = NULL;
                 goto fail;
+	}
 
 	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
 
@@ -749,16 +753,12 @@ fail:	iwm_dma_contig_free(dma);
 static void
 iwm_dma_contig_free(struct iwm_dma_info *dma)
 {
-	if (dma->map != NULL) {
-		if (dma->vaddr != NULL) {
-			bus_dmamap_sync(dma->tag, dma->map,
-			    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(dma->tag, dma->map);
-			bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
-			dma->vaddr = NULL;
-		}
-		bus_dmamap_destroy(dma->tag, dma->map);
-		dma->map = NULL;
+	if (dma->vaddr != NULL) {
+		bus_dmamap_sync(dma->tag, dma->map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(dma->tag, dma->map);
+		bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
+		dma->vaddr = NULL;
 	}
 	if (dma->tag != NULL) {
 		bus_dma_tag_destroy(dma->tag);
@@ -866,10 +866,28 @@ iwm_alloc_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
                 goto fail;
         }
 
+	/* Allocate spare bus_dmamap_t for iwm_rx_addbuf() */
+	error = bus_dmamap_create(ring->data_dmat, 0, &ring->spare_map);
+	if (error != 0) {
+		device_printf(sc->sc_dev,
+		    "%s: could not create RX buf DMA map, error %d\n",
+		    __func__, error);
+		goto fail;
+	}
 	/*
 	 * Allocate and map RX buffers.
 	 */
 	for (i = 0; i < IWM_RX_RING_COUNT; i++) {
+		struct iwm_rx_data *data = &ring->data[i];
+		error = bus_dmamap_create(ring->data_dmat, 0, &data->map);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not create RX buf DMA map, error %d\n",
+			    __func__, error);
+			goto fail;
+		}
+		data->m = NULL;
+
 		if ((error = iwm_rx_addbuf(sc, IWM_RBUF_SIZE, i)) != 0) {
 			goto fail;
 		}
@@ -923,6 +941,10 @@ iwm_free_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 			data->map = NULL;
 		}
 	}
+	if (ring->spare_map != NULL) {
+		bus_dmamap_destroy(ring->data_dmat, ring->spare_map);
+		ring->spare_map = NULL;
+	}
 	if (ring->data_dmat != NULL) {
 		bus_dma_tag_destroy(ring->data_dmat);
 		ring->data_dmat = NULL;
@@ -934,6 +956,8 @@ iwm_alloc_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring, int qid)
 {
 	bus_addr_t paddr;
 	bus_size_t size;
+	size_t maxsize;
+	int nsegments;
 	int i, error;
 
 	ring->qid = qid;
@@ -966,9 +990,18 @@ iwm_alloc_tx_ring(struct iwm_softc *sc, struct iwm_tx_ring *ring, int qid)
 	}
 	ring->cmd = ring->cmd_dma.vaddr;
 
+	/* FW commands may require more mapped space than packets. */
+	if (qid == IWM_MVM_CMD_QUEUE) {
+		maxsize = IWM_RBUF_SIZE;
+		nsegments = 1;
+	} else {
+		maxsize = MCLBYTES;
+		nsegments = IWM_MAX_SCATTER - 2;
+	}
+
 	error = bus_dma_tag_create(sc->sc_dmat, 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-            IWM_MAX_SCATTER - 2, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, maxsize,
+            nsegments, maxsize, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create TX buf DMA tag\n");
 		goto fail;
@@ -1801,7 +1834,7 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 
 struct iwm_nvm_section {
 	uint16_t length;
-	const uint8_t *data;
+	uint8_t *data;
 };
 
 static int
@@ -1838,6 +1871,8 @@ iwm_nvm_init(struct iwm_softc *sc)
 	    "%s: Read NVM\n",
 	    __func__);
 
+	memset(nvm_sections, 0, sizeof(nvm_sections));
+
 	/* TODO: find correct NVM max size for a section */
 	nvm_buffer = malloc(IWM_OTP_LOW_IMAGE_SIZE, M_DEVBUF, M_NOWAIT);
 	if (nvm_buffer == NULL)
@@ -1861,10 +1896,15 @@ iwm_nvm_init(struct iwm_softc *sc)
 		nvm_sections[section].length = len;
 	}
 	free(nvm_buffer, M_DEVBUF);
-	if (error)
-		return error;
+	if (error == 0)
+		error = iwm_parse_nvm_sections(sc, nvm_sections);
 
-	return iwm_parse_nvm_sections(sc, nvm_sections);
+	for (i = 0; i < IWM_NVM_NUM_OF_SECTIONS; i++) {
+		if (nvm_sections[i].data != NULL)
+			free(nvm_sections[i].data, M_DEVBUF);
+	}
+
+	return error;
 }
 
 /*
@@ -2119,6 +2159,7 @@ iwm_rx_addbuf(struct iwm_softc *sc, int size, int idx)
 	struct iwm_rx_ring *ring = &sc->rxq;
 	struct iwm_rx_data *data = &ring->data[idx];
 	struct mbuf *m;
+	bus_dmamap_t dmamap = NULL;
 	int error;
 	bus_addr_t paddr;
 
@@ -2126,28 +2167,26 @@ iwm_rx_addbuf(struct iwm_softc *sc, int size, int idx)
 	if (m == NULL)
 		return ENOBUFS;
 
-	if (data->m != NULL)
-		bus_dmamap_unload(ring->data_dmat, data->map);
-
 	m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
-	error = bus_dmamap_create(ring->data_dmat, 0, &data->map);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not create RX buf DMA map, error %d\n",
-		    __func__, error);
-		goto fail;
-	}
-	data->m = m;
-	error = bus_dmamap_load(ring->data_dmat, data->map,
-	    mtod(data->m, void *), IWM_RBUF_SIZE, iwm_dma_map_addr,
+	error = bus_dmamap_load(ring->data_dmat, ring->spare_map,
+	    mtod(m, void *), IWM_RBUF_SIZE, iwm_dma_map_addr,
 	    &paddr, BUS_DMA_NOWAIT);
 	if (error != 0 && error != EFBIG) {
 		device_printf(sc->sc_dev,
-		    "%s: can't not map mbuf, error %d\n", __func__,
-		    error);
+		    "%s: can't map mbuf, error %d\n", __func__, error);
 		goto fail;
 	}
+
+	if (data->m != NULL)
+		bus_dmamap_unload(ring->data_dmat, data->map);
+
+	/* Swap ring->spare_map with data->map */
+	dmamap = data->map;
+	data->map = ring->spare_map;
+	ring->spare_map = dmamap;
+
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_PREREAD);
+	data->m = m;
 
 	/* Update RX descriptor. */
 	ring->desc[idx] = htole32(paddr >> 8);
@@ -2156,6 +2195,7 @@ iwm_rx_addbuf(struct iwm_softc *sc, int size, int idx)
 
 	return 0;
 fail:
+	m_free(m);
 	return error;
 }
 
@@ -4985,7 +5025,10 @@ iwm_detach_local(struct iwm_softc *sc, int do_net80211)
 	if (do_net80211)
 		ieee80211_ifdetach(&sc->sc_ic);
 
+	iwm_phy_db_free(sc);
+
 	/* Free descriptor rings */
+	iwm_free_rx_ring(sc, &sc->rxq);
 	for (i = 0; i < nitems(sc->txq); i++)
 		iwm_free_tx_ring(sc, &sc->txq[i]);
 
