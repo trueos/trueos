@@ -1961,8 +1961,7 @@ agp_intel_gtt_insert_pages(device_t dev, u_int first_entry, u_int num_entries,
 }
 
 void
-intel_gtt_get(size_t *gtt_total, size_t *stolen_size,
-		  bus_addr_t *mappable_base, unsigned long *mappable_end)
+_intel_gtt_get(size_t *gtt_total, size_t *stolen_size, unsigned long *mappable_end)
 {
 	struct agp_i810_softc *sc;
 
@@ -1970,7 +1969,6 @@ intel_gtt_get(size_t *gtt_total, size_t *stolen_size,
 	*stolen_size = sc->stolen_size;
 	*gtt_total = sc->gtt_total_entries << PAGE_SHIFT;
 	*mappable_end = sc->gtt_mappable_entries << PAGE_SHIFT;
-	*mappable_base = rman_get_start(sc->agp.as_aperture);
 }
 
 static int
@@ -2338,4 +2336,13 @@ intel_gtt_write(u_int entry, uint32_t val)
 
 	sc = device_get_softc(intel_agp);
 	return (sc->match->driver->write_gtt(intel_agp, entry, val));
+}
+
+void *
+intel_gtt_get_registers(void)
+{
+	struct agp_i810_softc *sc;
+
+	sc = device_get_softc(intel_agp);
+	return (sc->sc_res[0]);
 }
