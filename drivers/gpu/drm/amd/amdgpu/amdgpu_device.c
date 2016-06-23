@@ -1083,6 +1083,7 @@ int amdgpu_set_clockgating_state(struct amdgpu_device *adev,
 									    state);
 			if (r)
 				return r;
+			break;
 		}
 	}
 	return r;
@@ -1100,6 +1101,7 @@ int amdgpu_set_powergating_state(struct amdgpu_device *adev,
 									    state);
 			if (r)
 				return r;
+			break;
 		}
 	}
 	return r;
