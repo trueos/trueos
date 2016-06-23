@@ -525,6 +525,14 @@ pci_disable_msix(struct pci_dev *pdev)
 	pci_release_msi(pdev->dev.bsddev);
 }
 
+static inline bus_addr_t
+pci_bus_address(struct pci_dev *pdev, int bar)
+{
+	return (pci_resource_start(pdev, bar));
+
+}
+
+
 #define	PCI_CAP_ID_EXP	PCIY_EXPRESS
 #define	PCI_CAP_ID_PCIX	PCIY_PCIX
 #define PCI_CAP_ID_AGP  PCIY_AGP
