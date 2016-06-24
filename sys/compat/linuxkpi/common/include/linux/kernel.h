@@ -287,7 +287,7 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 
 #define container_of(ptr, type, member)				\
 ({								\
-	__typeof(((type *)0)->member) *_p = (ptr);		\
+	__typeof(((type *)0)->member) *_p = __DECONST(void *,(ptr));	\
 	(type *)((char *)_p - offsetof(type, member));		\
 })
   

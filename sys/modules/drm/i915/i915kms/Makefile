@@ -11,7 +11,6 @@ SRCS	= \
 	dvo_tfp410.c \
 	i915_cmd_parser.c \
 	i915_debugfs.c \
-	i915_dma.c \
 	i915_drv.c \
 	i915_gem.c \
 	i915_gem_batch_pool.c \
@@ -135,8 +134,7 @@ CWARNFLAGS.intel_sdvo.c=	-Wno-cast-qual -Wno-enum-conversion
 CWARNFLAGS.intel_tv.c=		-Wno-unused
 CWARNFLAGS.i915_debugfs.c=	-Wno-unused-function -Wno-cast-qual -Wno-format -Wno-dangling-else
 CWARNFLAGS.i915_gem.c=		-Wno-tautological-pointer-compare -Wno-pointer-arith -Wno-cast-qual -Wno-int-conversion
-CWARNFLAGS.i915_dma.c=		-Wno-cast-qual
-CWARNFLAGS.i915_drv.c=		-Wno-initializer-overrides
+CWARNFLAGS.i915_drv.c=		-Wno-initializer-overrides -Wno-cast-qual
 CWARNFLAGS.i915_gem_gtt.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.i915_gem_tiling.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.i915_gem_execbuffer.c=	-Wno-tautological-pointer-compare  -Wno-pointer-arith
