@@ -208,6 +208,10 @@ static struct ieee80211vap *urtwn_vap_create(struct ieee80211com *,
                     const uint8_t [IEEE80211_ADDR_LEN],
                     const uint8_t [IEEE80211_ADDR_LEN]);
 static void		urtwn_vap_delete(struct ieee80211vap *);
+static void		urtwn_vap_clear_tx(struct urtwn_softc *,
+			    struct ieee80211vap *);
+static void		urtwn_vap_clear_tx_queue(struct urtwn_softc *,
+			    urtwn_datahead *, struct ieee80211vap *);
 static struct mbuf *	urtwn_rx_copy_to_mbuf(struct urtwn_softc *,
 			    struct r92c_rx_stat *, int);
 static struct mbuf *	urtwn_report_intr(struct usb_xfer *,
@@ -373,6 +377,8 @@ static void		urtwn_set_chan(struct urtwn_softc *,
 static void		urtwn_iq_calib(struct urtwn_softc *);
 static void		urtwn_lc_calib(struct urtwn_softc *);
 static void		urtwn_temp_calib(struct urtwn_softc *);
+static void		urtwn_setup_static_keys(struct urtwn_softc *,
+			    struct urtwn_vap *);
 static int		urtwn_init(struct urtwn_softc *);
 static void		urtwn_stop(struct urtwn_softc *);
 static void		urtwn_abort_xfers(struct urtwn_softc *);
@@ -822,14 +828,57 @@ urtwn_vap_delete(struct ieee80211vap *vap)
 	struct urtwn_softc *sc = ic->ic_softc;
 	struct urtwn_vap *uvp = URTWN_VAP(vap);
 
+	/* Guarantee that nothing will go through this vap. */
+	ieee80211_new_state(vap, IEEE80211_S_INIT, -1);
+	ieee80211_draintask(ic, &vap->iv_nstate_task);
+
+	URTWN_LOCK(sc);
 	if (uvp->bcn_mbuf != NULL)
 		m_freem(uvp->bcn_mbuf);
+	/* Cancel any unfinished Tx. */
+	urtwn_vap_clear_tx(sc, vap);
+	URTWN_UNLOCK(sc);
 	if (vap->iv_opmode == IEEE80211_M_IBSS)
 		ieee80211_draintask(ic, &uvp->tsf_task_adhoc);
 	if (URTWN_CHIP_HAS_RATECTL(sc))
 		ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
 	free(uvp, M_80211_VAP);
+}
+
+static void
+urtwn_vap_clear_tx(struct urtwn_softc *sc, struct ieee80211vap *vap)
+{
+
+	URTWN_ASSERT_LOCKED(sc);
+
+	urtwn_vap_clear_tx_queue(sc, &sc->sc_tx_active, vap);
+	urtwn_vap_clear_tx_queue(sc, &sc->sc_tx_pending, vap);
+}
+
+static void
+urtwn_vap_clear_tx_queue(struct urtwn_softc *sc, urtwn_datahead *head,
+    struct ieee80211vap *vap)
+{
+	struct urtwn_data *dp, *tmp;
+
+	STAILQ_FOREACH_SAFE(dp, head, next, tmp) {
+		if (dp->ni != NULL) {
+			if (dp->ni->ni_vap == vap) {
+				ieee80211_free_node(dp->ni);
+				dp->ni = NULL;
+
+				if (dp->m != NULL) {
+					m_freem(dp->m);
+					dp->m = NULL;
+				}
+
+				STAILQ_REMOVE(head, dp, urtwn_data, next);
+				STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, dp,
+				    next);
+			}
+		}
+	}
 }
 
 static struct mbuf *
@@ -2340,10 +2389,26 @@ static int
 urtwn_key_set(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	struct urtwn_softc *sc = vap->iv_ic->ic_softc;
+	struct urtwn_vap *uvp = URTWN_VAP(vap);
 
 	if (k->wk_flags & IEEE80211_KEY_SWCRYPT) {
 		/* Not for us. */
 		return (1);
+	}
+
+	if (&vap->iv_nw_keys[0] <= k &&
+	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+		URTWN_LOCK(sc);
+		uvp->keys[k->wk_keyix] = k;
+		if ((sc->sc_flags & URTWN_RUNNING) == 0) {
+			/*
+			 * The device was not started;
+			 * the key will be installed later.
+			 */
+			URTWN_UNLOCK(sc);
+			return (1);
+		}
+		URTWN_UNLOCK(sc);
 	}
 
 	return (!urtwn_cmd_sleepable(sc, k, sizeof(*k), urtwn_key_set_cb));
@@ -2353,10 +2418,23 @@ static int
 urtwn_key_delete(struct ieee80211vap *vap, const struct ieee80211_key *k)
 {
 	struct urtwn_softc *sc = vap->iv_ic->ic_softc;
+	struct urtwn_vap *uvp = URTWN_VAP(vap);
 
 	if (k->wk_flags & IEEE80211_KEY_SWCRYPT) {
 		/* Not for us. */
 		return (1);
+	}
+
+	if (&vap->iv_nw_keys[0] <= k &&
+	    k < &vap->iv_nw_keys[IEEE80211_WEP_NKID]) {
+		URTWN_LOCK(sc);                  
+		uvp->keys[k->wk_keyix] = NULL;
+		if ((sc->sc_flags & URTWN_RUNNING) == 0) {
+			/* All keys are removed on device reset. */
+			URTWN_UNLOCK(sc);
+			return (1);
+		}
+		URTWN_UNLOCK(sc);
 	}
 
 	return (!urtwn_cmd_sleepable(sc, k, sizeof(*k), urtwn_key_del_cb));
@@ -2627,10 +2705,11 @@ urtwn_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (ic->ic_promisc == 0) {
 			reg = urtwn_read_4(sc, R92C_RCR);
 
-			if (vap->iv_opmode != IEEE80211_M_HOSTAP)
+			if (vap->iv_opmode != IEEE80211_M_HOSTAP) {
 				reg |= R92C_RCR_CBSSID_DATA;
-			if (vap->iv_opmode != IEEE80211_M_IBSS)
-				reg |= R92C_RCR_CBSSID_BCN;
+				if (vap->iv_opmode != IEEE80211_M_IBSS)
+					reg |= R92C_RCR_CBSSID_BCN;
+			}
 
 			urtwn_write_4(sc, R92C_RCR, reg);
 		}
@@ -2955,8 +3034,7 @@ urtwn_tx_data(struct urtwn_softc *sc, struct ieee80211_node *ni,
 				switch (ic->ic_protmode) {
 				case IEEE80211_PROT_CTSONLY:
 					txd->txdw4 |= htole32(
-					    R92C_TXDW4_CTS2SELF |
-					    R92C_TXDW4_HWRTSEN);
+					    R92C_TXDW4_CTS2SELF);
 					break;
 				case IEEE80211_PROT_RTSCTS:
 					txd->txdw4 |= htole32(
@@ -3117,11 +3195,10 @@ urtwn_tx_raw(struct urtwn_softc *sc, struct ieee80211_node *ni,
 		    params->ibp_try0));
 	}
 	if (params->ibp_flags & IEEE80211_BPF_RTS)
-		txd->txdw4 |= htole32(R92C_TXDW4_RTSEN);
+		txd->txdw4 |= htole32(R92C_TXDW4_RTSEN | R92C_TXDW4_HWRTSEN);
 	if (params->ibp_flags & IEEE80211_BPF_CTS)
 		txd->txdw4 |= htole32(R92C_TXDW4_CTS2SELF);
 	if (txd->txdw4 & htole32(R92C_TXDW4_RTSEN | R92C_TXDW4_CTS2SELF)) {
-		txd->txdw4 |= htole32(R92C_TXDW4_HWRTSEN);
 		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE,
 		    URTWN_RIDX_OFDM24));
 	}
@@ -4723,7 +4800,8 @@ urtwn_scan_start(struct ieee80211com *ic)
 
 	URTWN_LOCK(sc);
 	/* Receive beacons / probe responses from any BSSID. */
-	if (ic->ic_opmode != IEEE80211_M_IBSS)
+	if (ic->ic_opmode != IEEE80211_M_IBSS &&
+	    ic->ic_opmode != IEEE80211_M_HOSTAP)
 		urtwn_set_rx_bssid_all(sc, 1);
 
 	/* Set gain for scanning. */
@@ -4738,7 +4816,9 @@ urtwn_scan_end(struct ieee80211com *ic)
 
 	URTWN_LOCK(sc);
 	/* Restore limitations. */
-	if (ic->ic_promisc == 0 && ic->ic_opmode != IEEE80211_M_IBSS)
+	if (ic->ic_promisc == 0 &&
+	    ic->ic_opmode != IEEE80211_M_IBSS &&
+	    ic->ic_opmode != IEEE80211_M_HOSTAP)
 		urtwn_set_rx_bssid_all(sc, 0);
 
 	/* Set gain under link. */
@@ -4931,13 +5011,12 @@ urtwn_set_promisc(struct urtwn_softc *sc)
 	if (vap->iv_state == IEEE80211_S_RUN) {
 		switch (vap->iv_opmode) {
 		case IEEE80211_M_STA:
-			mask2 |= R92C_RCR_CBSSID_DATA;
-			/* FALLTHROUGH */
-		case IEEE80211_M_HOSTAP:
 			mask2 |= R92C_RCR_CBSSID_BCN;
-			break;
+			/* FALLTHROUGH */
 		case IEEE80211_M_IBSS:
 			mask2 |= R92C_RCR_CBSSID_DATA;
+			break;
+		case IEEE80211_M_HOSTAP:
 			break;
 		default:
 			device_printf(sc->sc_dev, "%s: undefined opmode %d\n",
@@ -5229,6 +5308,20 @@ urtwn_temp_calib(struct urtwn_softc *sc)
 	}
 }
 
+static void
+urtwn_setup_static_keys(struct urtwn_softc *sc, struct urtwn_vap *uvp)
+{
+	int i;
+
+	for (i = 0; i < IEEE80211_WEP_NKID; i++) {
+		const struct ieee80211_key *k = uvp->keys[i];
+		if (k != NULL) {
+			urtwn_cmd_sleepable(sc, k, sizeof(*k),
+			    urtwn_key_set_cb);
+		}
+	}
+}
+
 static int
 urtwn_init(struct urtwn_softc *sc)
 {
@@ -5417,12 +5510,6 @@ urtwn_init(struct urtwn_softc *sc)
 	    R92C_SECCFG_TXENC_ENA | R92C_SECCFG_RXDEC_ENA |
 	    R92C_SECCFG_TXBCKEY_DEF | R92C_SECCFG_RXBCKEY_DEF);
 
-	/*
-	 * Install static keys (if any).
-	 * Must be called after urtwn_cam_init().
-	 */
-	ieee80211_runtask(ic, &sc->cmdq_task);
-
 	/* Enable hardware sequence numbering. */
 	urtwn_write_1(sc, R92C_HWSEQ_CTRL, R92C_TX_QUEUE_ALL);
 
@@ -5457,6 +5544,13 @@ urtwn_init(struct urtwn_softc *sc)
 	usbd_transfer_start(sc->sc_xfer[URTWN_BULK_RX]);
 
 	sc->sc_flags |= URTWN_RUNNING;
+
+	/*
+	 * Install static keys (if any).
+	 * Must be called after urtwn_cam_init().
+	 */
+	if (vap != NULL)
+		urtwn_setup_static_keys(sc, URTWN_VAP(vap));
 
 	callout_reset(&sc->sc_watchdog_ch, hz, urtwn_watchdog, sc);
 fail:

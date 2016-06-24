@@ -26,6 +26,7 @@ arm64/arm64/dump_machdep.c	standard
 arm64/arm64/elf_machdep.c	standard
 arm64/arm64/exception.S		standard
 arm64/arm64/gic.c		optional	!intrng
+arm64/arm64/gicv3_its.c		optional	intrng
 arm64/arm64/gic_acpi.c		optional	!intrng acpi
 arm64/arm64/gic_fdt.c		optional	!intrng fdt
 arm64/arm64/gic_v3.c		standard
@@ -74,6 +75,8 @@ dev/psci/psci_arm64.S		optional	psci
 dev/uart/uart_cpu_fdt.c		optional	uart fdt
 dev/uart/uart_dev_pl011.c	optional	uart pl011
 dev/usb/controller/dwc_otg_hisi.c optional	dwcotg soc_hisi_hi6220
+dev/usb/controller/generic_ohci.c optional	ohci fdt
+dev/usb/controller/generic_usb_if.m optional	ohci fdt
 dev/vnic/mrml_bridge.c		optional	vnic fdt
 dev/vnic/nic_main.c		optional	vnic pci
 dev/vnic/nicvf_main.c		optional	vnic pci pci_iov

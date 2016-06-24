@@ -86,7 +86,7 @@ static const struct bhnd_core_desc {
 	BHND_CDESC(BCM, APHY,		WLAN_PHY,	"802.11a PHY"),
 	BHND_CDESC(BCM, BPHY,		WLAN_PHY,	"802.11b PHY"),
 	BHND_CDESC(BCM, GPHY,		WLAN_PHY,	"802.11g PHY"),
-	BHND_CDESC(BCM, MIPS33,		CPU,		"MIPS 3302 Core"),
+	BHND_CDESC(BCM, MIPS33,		CPU,		"MIPS3302 Core"),
 	BHND_CDESC(BCM, USB11H,		OTHER,		"USB 1.1 Host Controller"),
 	BHND_CDESC(BCM, USB11D,		OTHER,		"USB 1.1 Device Core"),
 	BHND_CDESC(BCM, USB20H,		OTHER,		"USB 2.0 Host Controller"),
@@ -108,7 +108,7 @@ static const struct bhnd_core_desc {
 	BHND_CDESC(BCM, SDIOD,		OTHER,		"SDIO Device Core"),
 	BHND_CDESC(BCM, ARMCM3,		CPU,		"ARM Cortex-M3 CPU"),
 	BHND_CDESC(BCM, HTPHY,		WLAN_PHY,	"802.11n 4x4 PHY"),
-	BHND_CDESC(BCM, MIPS74K,	CPU,		"MIPS74k CPU"),
+	BHND_CDESC(MIPS,MIPS74K,	CPU,		"MIPS74k CPU"),
 	BHND_CDESC(BCM, GMAC,		ENET_MAC,	"Gigabit MAC core"),
 	BHND_CDESC(BCM, DMEMC,		MEMC,		"DDR1/DDR2 Memory Controller"),
 	BHND_CDESC(BCM, PCIERC,		OTHER,		"PCIe Root Complex"),
@@ -1158,3 +1158,22 @@ bhnd_bus_generic_deactivate_resource(device_t dev, device_t child,
 
 	return (EINVAL);
 };
+
+/**
+ * Helper function for implementing BHND_BUS_GET_ATTACH_TYPE().
+ *
+ * This implementation of BHND_BUS_GET_ATTACH_TYPE() simply calls the
+ * BHND_BUS_GET_ATTACH_TYPE() method of the parent of @p dev.
+ */
+bhnd_attach_type
+bhnd_bus_generic_get_attach_type(device_t dev, device_t child)
+{
+	/* iterate from cores via bhnd to bridge or SoC */
+	if (device_get_parent(dev) != NULL)
+		return (BHND_BUS_GET_ATTACH_TYPE(device_get_parent(dev),
+		    child));
+
+	panic("bhnd_bus_get_attach_type unimplemented");
+	/* Unreachable */
+	return (BHND_ATTACH_ADAPTER);
+}
