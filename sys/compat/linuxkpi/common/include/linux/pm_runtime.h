@@ -94,6 +94,11 @@ pm_runtime_put(struct device *dev)
 	return (__pm_runtime_idle(dev, RPM_GET_PUT | RPM_ASYNC));
 }
 
+static inline void pm_runtime_put_noidle(struct device *dev)
+{
+	atomic_add_unless(&dev->power.usage_count, -1, 0);
+}
+
 static inline int
 pm_runtime_put_autosuspend(struct device *dev)
 {

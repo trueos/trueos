@@ -121,6 +121,7 @@ CWARNFLAGS.intel_csr.c=		-Wno-cast-qual
 CWARNFLAGS.intel_dp.c=		-Wno-enum-conversion -Wno-format -Wno-unused
 CWARNFLAGS.intel_ddi.c=		-Wno-compare-distinct-pointer-types		
 CWARNFLAGS.intel_dpll_mgr.c=	-Wno-compare-distinct-pointer-types
+CWARNFLAGS.intel_lrc.c=		-Wno-cast-qual
 CWARNFLAGS.intel_lvds.c=	-Wno-unused
 CWARNFLAGS.intel_display.c=	-Wno-tautological-pointer-compare -Wno-enum-conversion -Wno-cast-qual -Wno-incompatible-pointer-types-discards-qualifiers
 CWARNFLAGS.intel_dsi_panel_vbt.c= -Wno-cast-qual
