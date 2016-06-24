@@ -76,6 +76,16 @@ OBJCOPY?=	objcopy
 .include <bsd.compiler.mk>
 .include "config.mk"
 
+# Search for kernel source tree in standard places.
+.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
+.if !defined(SYSDIR) && exists(${_dir}/kern/)
+SYSDIR=	${_dir:tA}
+.endif
+.endfor
+.if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
+.error "can't find kernel source tree"
+.endif
+
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S .m
 
 # amd64 and mips use direct linking for kmod, all others use shared binaries
@@ -120,7 +130,7 @@ CFLAGS+=	${DEBUG_FLAGS}
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
-.if ${MACHINE_CPUARCH} == "aarch64"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv"
 CFLAGS+=	-fPIC
 .endif
 
@@ -266,16 +276,6 @@ ${OBJS}: ${_link}
 .endif
 .endfor
 
-# Search for kernel source tree in standard places.
-.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
-.if !defined(SYSDIR) && exists(${_dir}/kern/)
-SYSDIR=	${_dir}
-.endif
-.endfor
-.if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
-.error "can't find kernel source tree"
-.endif
-
 .NOPATH: ${_ILINKS}
 
 ${_ILINKS}:
@@ -287,7 +287,7 @@ ${_ILINKS}:
 	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET:T} "->" $$path ; \
-	ln -sf $$path ${.TARGET:T}
+	ln -fhs $$path ${.TARGET:T}
 
 CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 

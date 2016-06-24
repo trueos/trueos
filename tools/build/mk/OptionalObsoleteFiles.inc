@@ -431,6 +431,27 @@ OLD_FILES+=usr/share/man/man7/ldint.7.gz
 OLD_FILES+=usr/share/man/man7/binutils.7.gz
 .endif
 
+.if ${MK_BLACKLIST} == no
+OLD_FILES+=etc/rc.d/blacklistd
+OLD_FILES+=usr/include/blacklist.h
+OLD_FILES+=usr/lib/libblacklist.a
+OLD_FILES+=usr/lib/libblacklist_p.a
+OLD_FILES+=usr/lib/libblacklist.so
+OLD_LIBS+=usr/lib/libblacklist.so.0
+OLD_FILES+=usr/libexec/blacklistd-helper
+OLD_FILES+=usr/sbin/blacklistctl
+OLD_FILES+=usr/sbin/blacklistd
+OLD_FILES+=usr/share/man/man3/blacklist.3.gz
+OLD_FILES+=usr/share/man/man3/blacklist_close.3.gz
+OLD_FILES+=usr/share/man/man3/blacklist_open.3.gz
+OLD_FILES+=usr/share/man/man3/blacklist_r.3.gz
+OLD_FILES+=usr/share/man/man3/blacklist_sa.3.gz
+OLD_FILES+=usr/share/man/man3/blacklist_sa_r.3.gz
+OLD_FILES+=usr/share/man/man5/blacklistd.conf.5.gz
+OLD_FILES+=usr/share/man/man8/blacklistctl.8.gz
+OLD_FILES+=usr/share/man/man8/blacklistd.8.gz
+.endif
+
 .if ${MK_BLUETOOTH} == no
 OLD_FILES+=etc/bluetooth/hcsecd.conf
 OLD_FILES+=etc/bluetooth/hosts
@@ -1216,6 +1237,7 @@ OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 
 .if ${MK_CLANG_EXTRAS} == no
 OLD_FILES+=usr/bin/bugpoint
+OLD_FILES+=usr/bin/clang-format
 OLD_FILES+=usr/bin/llc
 OLD_FILES+=usr/bin/lli
 OLD_FILES+=usr/bin/llvm-ar
@@ -3188,9 +3210,9 @@ OLD_FILES+=usr/lib/libwind.so
 OLD_LIBS+=usr/lib/libwind.so.11
 OLD_FILES+=usr/lib/libwind_p.a
 OLD_FILES+=usr/lib/pam_krb5.so
-OLD_LIBS+=usr/lib/pam_krb5.so.5
+OLD_LIBS+=usr/lib/pam_krb5.so.6
 OLD_FILES+=usr/lib/pam_ksu.so
-OLD_LIBS+=usr/lib/pam_ksu.so.5
+OLD_LIBS+=usr/lib/pam_ksu.so.6
 OLD_FILES+=usr/lib/private/libheimipcc.a
 OLD_FILES+=usr/lib/private/libheimipcc.so
 OLD_LIBS+=usr/lib/private/libheimipcc.so.11
@@ -3265,9 +3287,9 @@ OLD_FILES+=usr/lib32/libwind.so
 OLD_LIBS+=usr/lib32/libwind.so.11
 OLD_FILES+=usr/lib32/libwind_p.a
 OLD_FILES+=usr/lib32/pam_krb5.so
-OLD_LIBS+=usr/lib32/pam_krb5.so.5
+OLD_LIBS+=usr/lib32/pam_krb5.so.6
 OLD_FILES+=usr/lib32/pam_ksu.so
-OLD_LIBS+=usr/lib32/pam_ksu.so.5
+OLD_LIBS+=usr/lib32/pam_ksu.so.6
 OLD_FILES+=usr/lib32/private/libheimipcc.a
 OLD_FILES+=usr/lib32/private/libheimipcc.so
 OLD_LIBS+=usr/lib32/private/libheimipcc.so.11
@@ -6376,14 +6398,14 @@ OLD_FILES+=usr/bin/ssh-copy-id
 OLD_FILES+=usr/bin/ssh-keygen
 OLD_FILES+=usr/bin/ssh-keyscan
 OLD_FILES+=usr/lib/pam_ssh.so
-OLD_LIBS+=usr/lib/pam_ssh.so.5
+OLD_LIBS+=usr/lib/pam_ssh.so.6
 OLD_FILES+=usr/lib/private/libssh.a
 OLD_FILES+=usr/lib/private/libssh.so
 OLD_LIBS+=usr/lib/private/libssh.so.5
 OLD_FILES+=usr/lib/private/libssh_p.a
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/pam_ssh.so
-OLD_LIBS+=usr/lib32/pam_ssh.so.5
+OLD_LIBS+=usr/lib32/pam_ssh.so.6
 OLD_FILES+=usr/lib32/private/libssh.a
 OLD_FILES+=usr/lib32/private/libssh.so
 OLD_LIBS+=usr/lib32/private/libssh.so.5

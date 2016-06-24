@@ -101,7 +101,7 @@ static int zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp);
 static void zfs_objset_close(zfsvfs_t *zfsvfs);
 static void zfs_freevfs(vfs_t *vfsp);
 
-static struct vfsops zfs_vfsops = {
+struct vfsops zfs_vfsops = {
 	.vfs_mount =		zfs_mount,
 	.vfs_unmount =		zfs_umount,
 	.vfs_root =		zfs_root,
@@ -1780,11 +1780,13 @@ zfs_root(vfs_t *vfsp, int flags, vnode_t **vpp)
 
 	ZFS_EXIT(zfsvfs);
 
-	if (error == 0)
+	if (error == 0) {
 		error = vn_lock(*vpp, flags);
-	if (error != 0)
-		*vpp = NULL;
-
+		if (error != 0) {
+			VN_RELE(*vpp);
+			*vpp = NULL;
+		}
+	}
 	return (error);
 }
 
