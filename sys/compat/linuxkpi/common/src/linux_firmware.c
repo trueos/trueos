@@ -29,6 +29,10 @@ request_firmware(const struct linux_firmware **lkfwp, const char *name,
 
 
 	fw = firmware_get(name);
+	if (fw == NULL) {
+		pause("fwwait", hz/2);
+		fw = firmware_get(name);
+	}
 	if (fw == NULL && ((index(name, '/') != NULL) || (index(name, '.') != NULL))) {
 		mapped_name = strdup(name, M_LKPI_FW);
 		if (mapped_name == NULL) {
@@ -44,6 +48,7 @@ request_firmware(const struct linux_firmware **lkfwp, const char *name,
 			rc = -ENOENT;
 			goto fail;
 		}
+		pause("fwwait", hz/2);
 		fw = firmware_get(name);
 #ifdef __notyet__
 		/* XXX leave dangling ref */
