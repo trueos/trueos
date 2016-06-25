@@ -1737,9 +1737,10 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	int error, rv;
 #endif
 
+#ifdef __notyet__
 /*
- * This is another example of the antique xf86-intel driver passing in
- * bad values.
+ * This is another example of the antique xf86-intel ddx passing in
+ * bad values. Accomodate users still using 2.2 for now.
  */
 	if (args->flags & ~(I915_MMAP_WC)) {
 		DRM_DEBUG("Attempting to mmap with flag other than WC set\n");
@@ -1749,6 +1750,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		DRM_DEBUG("Attempting to mmap WC without pat\n");
 		return -ENODEV;
 	}
+#endif
 	obj = drm_gem_object_lookup(dev, file, args->handle);
 	if (obj == NULL)
 		return -ENOENT;
@@ -1800,9 +1802,8 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 	    VM_PROT_READ | VM_PROT_WRITE, MAP_INHERIT_SHARE);
 
-#ifdef __notyet__
 	/* currently disabled as it causes artifacts on FreeBSD */
-	if ((rv == KERN_SUCCESS) && (args->flags & I915_MMAP_WC) && !drm_skipwc) {
+	if ((rv == KERN_SUCCESS) && (args->flags & I915_MMAP_WC)) {
 		VM_OBJECT_WLOCK(vmobj);
 		if (vm_object_set_memattr(vmobj, VM_MEMATTR_WRITE_COMBINING) != KERN_SUCCESS) {
 			for (vm_page_t page = vm_page_find_least(vmobj, 0); page != NULL; page = vm_page_next(page)) {
@@ -1811,7 +1812,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		}
 		VM_OBJECT_WUNLOCK(vmobj);
 	}
-#endif
+
 	if (rv != KERN_SUCCESS) {
 		vm_object_deallocate(vmobj);
 		error = -vm_mmap_to_errno(rv);
