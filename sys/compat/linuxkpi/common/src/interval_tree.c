@@ -8,13 +8,17 @@
 #undef RB_ROOT
 #define	RB_ROOT(head)	(head)->rbh_root
 
+#define INTERVAL_MAGIC  0xCAFEBABEDEADF00D
+
 static void
 interval_tree_augment_entry(struct interval_tree_node *entry)
 {
 	unsigned long max, subtree_last;
 	struct interval_tree_node *l, *r;
-	
+
+	MPASS(entry->it_magic == INTERVAL_MAGIC);
 	for (max = entry->last; entry != NULL; entry = RB_PARENT(entry, rb_entry)) {
+		MPASS(entry->it_magic == INTERVAL_MAGIC);
 		if ((l = RB_LEFT(entry, rb_entry))) {
 			subtree_last = l->__subtree_last;
 			max = MAX(subtree_last, max);
@@ -32,6 +36,8 @@ interval_tree_augment_entry(struct interval_tree_node *entry)
 static int
 it_cmp(struct interval_tree_node *a, struct interval_tree_node *b)
 {
+	MPASS(a->it_magic == INTERVAL_MAGIC);
+	MPASS(b->it_magic == INTERVAL_MAGIC);
 
 	if (a->start < b->start)
 		return (-1);
@@ -49,7 +55,9 @@ interval_tree_sub_find(struct interval_tree_node *node, unsigned long start,
 {
 	struct interval_tree_node *l, *r;
 
+	MPASS(node->it_magic == INTERVAL_MAGIC);
 	while (true) {
+		MPASS(node->it_magic == INTERVAL_MAGIC);
 		if ((l = RB_LEFT(node, rb_entry))) {
 			if (start <= l->__subtree_last) {
 				node = l;
@@ -73,11 +81,14 @@ void
 interval_tree_insert(struct interval_tree_node *node, struct rb_root *root)
 {
 	struct rb_node **link = &root->rb_node;
-	struct interval_tree_node *entry =  (struct interval_tree_node *)root;
+	struct interval_tree_node *entry =  (struct interval_tree_node *)root->rb_node;
 	unsigned long start = node->start, last = node->last;
-	struct interval_tree_node *parent;
+	struct interval_tree_node *parent = NULL;
+
+	node->it_magic = INTERVAL_MAGIC;
 
 	while (entry != NULL) {
+		MPASS(entry->it_magic == INTERVAL_MAGIC);
 		parent = RB_PARENT(entry, rb_entry);
 		if (parent->__subtree_last < last)
 			parent->__subtree_last = last;
@@ -95,7 +106,13 @@ interval_tree_insert(struct interval_tree_node *node, struct rb_root *root)
 void
 interval_tree_remove(struct interval_tree_node *entry, struct rb_root *root)
 {
-	interval_tree_RB_REMOVE((struct interval_tree *)root, entry);
+	struct interval_tree_node *it_root = (struct interval_tree_node *)root->rb_node;
+
+	MPASS(entry->it_magic == INTERVAL_MAGIC);
+	interval_tree_RB_REMOVE((struct interval_tree *)it_root, entry);
+	if ((it_root == entry) && (RB_LEFT(entry, rb_entry) == NULL) &&
+	    (RB_RIGHT(entry, rb_entry) == NULL))
+		root->rb_node = NULL;
 }
 
 struct interval_tree_node *
@@ -105,7 +122,8 @@ interval_tree_iter_first(struct rb_root *root, uint64_t start, uint64_t end)
 
 	if (!root->rb_node)
 		return (NULL);
-	node = RB_ROOT((struct interval_tree *)root);
+	node = RB_ROOT((struct interval_tree *)root->rb_node);
+	MPASS(node->it_magic == INTERVAL_MAGIC);
 	if (node->__subtree_last < start)
 		return (NULL);
 	return (interval_tree_sub_find(node, start, end));
@@ -119,6 +137,7 @@ interval_tree_iter_next(struct interval_tree_node *node,
 
 	cur = RB_RIGHT(node, rb_entry);
 	do {
+		MPASS(cur->it_magic == INTERVAL_MAGIC);
 		if (cur) {
 			r = cur;
 			if (start <= r->__subtree_last)
