@@ -134,12 +134,16 @@ vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long
 		vm_page_unlock(page);
 		VM_OBJECT_WUNLOCK(page_object);
 	}
+
 	VM_OBJECT_WLOCK(vm_obj);
 	while (page->object == NULL && vm_page_insert(page, vm_obj, off)) {
 		VM_OBJECT_WUNLOCK(vm_obj);
 		VM_WAIT;
 		VM_OBJECT_WLOCK(vm_obj);
 	}
+	/* XXX -- needed for clFFT calls */
+	if (page->oflags & VPO_UNMANAGED)
+		page->oflags &= ~VPO_UNMANAGED;
 	page->valid = VM_PAGE_BITS_ALL;
 	VM_OBJECT_WUNLOCK(vm_obj);
 
