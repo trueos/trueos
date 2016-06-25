@@ -178,10 +178,11 @@ __wake_up_locked(wait_queue_head_t *q, int mode, int nr, void *key)
 	wait_queue_t *curr, *next;
 
 	list_for_each_entry_safe(curr, next, &q->task_list, task_list) {
-		t = curr->private;
+
 		/* note that we're ignoring exclusive wakeups here */
 		curr->func(curr, TASK_NORMAL, 0, key);
-		t->state = TASK_WAKING;
+		if ((t = curr->private) != NULL)
+			t->state = TASK_WAKING;
 		nr--;
 		if (nr == 0)
 			break;
