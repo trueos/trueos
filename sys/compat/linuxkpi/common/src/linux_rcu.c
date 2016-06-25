@@ -56,15 +56,21 @@ CK_EPOCH_CONTAINER(struct rcu_head, epoch_entry, rcu_head_container)
 static void
 linux_rcu_runtime_init(void *arg __unused)
 {
-	ck_epoch_record_t *record;
+	ck_epoch_record_t *record, **pcpu_record;
 	int i;
 
 	ck_epoch_init(&lr_epoch);
 
+	CPU_FOREACH(i) {
+		record = malloc(sizeof *record, M_LRCU, M_WAITOK|M_ZERO);
+		ck_epoch_register(&lr_epoch, record);
+		pcpu_record = DPCPU_ID_PTR(i, epoch_record);
+		*pcpu_record = record;
+	}
 	/*
-	 * Populate the epoch with 2*ncpus # of records
+	 * Populate the epoch with 5*ncpus # of records
 	 */
-	for (i = 0; i < 3*mp_ncpus; i++) {
+	for (i = 0; i < 5*mp_ncpus; i++) {
 		record = malloc(sizeof *record, M_LRCU, M_WAITOK|M_ZERO);
 		ck_epoch_register(&lr_epoch, record);
 		ck_epoch_unregister(record);
@@ -91,9 +97,13 @@ rcu_get_record(int canblock)
 static void
 rcu_destroy_object(ck_epoch_entry_t *e)
 {
+	ck_epoch_record_t *record;
 	struct rcu_head *rcu = rcu_head_container(e);
 
+	record = rcu->epoch_record;
+	rcu->epoch_record = NULL;
 	rcu->func(rcu);
+	ck_epoch_unregister(record);
 }
 
 static void
@@ -102,7 +112,6 @@ rcu_cleaner_func(void *context, int pending __unused)
 	struct rcu_head *rcu = context;
 	ck_epoch_record_t *record = rcu->epoch_record;
 
-	rcu->epoch_record = NULL;
 	ck_epoch_barrier(record);
 }
 
@@ -112,8 +121,7 @@ __rcu_read_lock(void)
 	ck_epoch_record_t *record;
 
 	critical_enter();
-	record = ck_epoch_recycle(&lr_epoch);
-	DPCPU_SET(epoch_record, record);
+	record = DPCPU_GET(epoch_record);
 	MPASS(record != NULL);
 
 	ck_epoch_begin(record, NULL);
@@ -126,7 +134,6 @@ __rcu_read_unlock(void)
 
 	record = DPCPU_GET(epoch_record);
 	ck_epoch_end(record, NULL);
-	ck_epoch_unregister(record);
 	critical_exit();
 }
 
@@ -135,7 +142,7 @@ rcu_barrier(void)
 {
 	ck_epoch_record_t *record;
 
-	record = rcu_get_record(1);
+	record = rcu_get_record(0);
 	ck_epoch_barrier(record);
 }
 
@@ -161,7 +168,7 @@ init_srcu_struct(struct srcu_struct *srcu)
 {
 	ck_epoch_record_t *record;
 	
-	record = rcu_get_record(1);
+	record = rcu_get_record(0);
 	srcu->ss_epoch_record = record;
 	return (0);
 }
