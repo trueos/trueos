@@ -83,7 +83,6 @@ struct vm_area_struct {
 	const struct vm_operations_struct *vm_ops;
 	struct linux_file *vm_file;
 	/* internal operation */
-	int vm_pfn_count;
 	vm_object_t vm_obj;
 	/*
 	 * this will need to be revisited if we ever have to map
@@ -92,7 +91,6 @@ struct vm_area_struct {
 	 */
 	vm_map_t vm_cached_map;
 	vm_offset_t vm_cached_start;
-	uint32_t vm_pfn_array[VMA_MAX_PREFAULT_RECORD];
 };
 
 /*

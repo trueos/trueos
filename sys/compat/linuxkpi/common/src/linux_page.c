@@ -106,29 +106,45 @@ needs_set_memattr(vm_page_t m, vm_memattr_t attr)
 int
 vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn, pgprot_t pgprot)
 {
-	vm_object_t vm_obj;
+	vm_object_t vm_obj, page_object;
 	vm_page_t page;
 	pmap_t pmap = vma->vm_cached_map->pmap;
 	vm_memattr_t attr = pgprot2cachemode(pgprot);
-
-	if (__predict_false(linux_skip_prefault) && (vma->vm_pfn_count > 0))
-		return (-EBUSY);
+	vm_offset_t off;
 
 	vm_obj = vma->vm_obj;
 	page = PHYS_TO_VM_PAGE((pfn << PAGE_SHIFT));
+	off = OFF_TO_IDX(addr - vma->vm_start);
 
+	MPASS(off <= OFF_TO_IDX(vma->vm_end));
 #if defined(__i386__) || defined(__amd64__)
 	if (needs_set_memattr(page, attr)) {
 		page->flags |= PG_FICTITIOUS;
 		pmap_page_set_memattr(page, attr);
 	}
 #endif
+	if (page->object == vm_obj && page->pindex == off)
+		goto done;
 
-	MPASS(vma->vm_flags & VM_PFNINTERNAL);
-	if ((vma->vm_flags & VM_PFNINTERNAL) && (vma->vm_pfn_count == 0)) {
-		vm_page_tryxbusy(page);
-		vma->vm_pfn_array[vma->vm_pfn_count++] = pfn;
-	} else
+	if (__predict_false(page->object != NULL) && ((page->object != vm_obj) || (page->pindex != off))) {
+		page_object = page->object;
+		VM_OBJECT_WLOCK(page_object);
+		vm_page_lock(page);
+		vm_page_remove(page);
+		vm_page_unlock(page);
+		VM_OBJECT_WUNLOCK(page_object);
+	}
+	VM_OBJECT_WLOCK(vm_obj);
+	while (page->object == NULL && vm_page_insert(page, vm_obj, off)) {
+		VM_OBJECT_WUNLOCK(vm_obj);
+		VM_WAIT;
+		VM_OBJECT_WLOCK(vm_obj);
+	}
+	page->valid = VM_PAGE_BITS_ALL;
+	VM_OBJECT_WUNLOCK(vm_obj);
+
+done:
+	if (__predict_true(linux_skip_prefault == 0))
 		pmap_enter_quick(pmap, addr, page, pgprot & VM_PROT_ALL);
 	return (0);
 }
