@@ -83,7 +83,7 @@ interval_tree_insert(struct interval_tree_node *node, struct rb_root *root)
 	struct rb_node **link = &root->rb_node;
 	struct interval_tree_node *entry =  (struct interval_tree_node *)root->rb_node;
 	unsigned long start = node->start, last = node->last;
-	struct interval_tree_node *parent = NULL;
+	struct interval_tree_node *parent = node;
 
 	node->it_magic = INTERVAL_MAGIC;
 
@@ -106,12 +106,9 @@ interval_tree_insert(struct interval_tree_node *node, struct rb_root *root)
 void
 interval_tree_remove(struct interval_tree_node *entry, struct rb_root *root)
 {
-	struct interval_tree_node *it_root = (struct interval_tree_node *)root->rb_node;
-
 	MPASS(entry->it_magic == INTERVAL_MAGIC);
-	interval_tree_RB_REMOVE((struct interval_tree *)it_root, entry);
-	if ((it_root == entry) && (RB_LEFT(entry, rb_entry) == NULL) &&
-	    (RB_RIGHT(entry, rb_entry) == NULL))
+	interval_tree_RB_REMOVE((struct interval_tree *)root, entry);
+	if ((uintptr_t)root->rb_node == (uintptr_t)entry)
 		root->rb_node = NULL;
 }
 
@@ -120,9 +117,9 @@ interval_tree_iter_first(struct rb_root *root, uint64_t start, uint64_t end)
 {
 	struct interval_tree_node *node;
 
-	if (!root->rb_node)
+	if (root->rb_node == NULL)
 		return (NULL);
-	node = RB_ROOT((struct interval_tree *)root->rb_node);
+	node =(struct interval_tree_node *)root->rb_node;
 	MPASS(node->it_magic == INTERVAL_MAGIC);
 	if (node->__subtree_last < start)
 		return (NULL);
