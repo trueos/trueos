@@ -11,6 +11,7 @@ struct interval_tree_node {
 	unsigned long start;	/* Start of interval */
 	unsigned long last;	/* Last location _in_ interval */
 	unsigned long __subtree_last;
+	unsigned long it_magic;
 };
 
 extern void
