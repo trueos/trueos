@@ -538,6 +538,11 @@ pci_bus_address(struct pci_dev *pdev, int bar)
 #define PCI_CAP_ID_AGP  PCIY_AGP
 #define PCI_CAP_ID_PM   PCIY_PMG
 
+#define PCI_EXP_DEVCTL		PCIER_DEVICE_CTL
+#define PCI_EXP_DEVCTL_PAYLOAD	PCIEM_CTL_MAX_PAYLOAD
+#define PCI_EXP_DEVCTL_READRQ	PCIEM_CTL_MAX_READ_REQUEST
+#define PCI_EXP_LNKCTL		PCIER_LINK_CTL
+#define PCI_EXP_LNKSTA		PCIER_LINK_STA
 
 static inline int
 pci_find_capability(struct pci_dev *pdev, int capid)
@@ -908,7 +913,8 @@ static bool pcie_capability_reg_implemented(struct pci_dev *dev, int pos)
         }
 }
 
-static inline int pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *dst)
+static inline int
+pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *dst)
 {
         if (pos & 3)
                 return -EINVAL;
@@ -919,7 +925,22 @@ static inline int pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *
         return pci_read_config_dword(dev, pci_pcie_cap(dev) + pos, dst);
 }
 
-static inline int pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
+
+static inline int
+pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *dst)
+{
+        if (pos & 3)
+                return -EINVAL;
+
+        if (!pcie_capability_reg_implemented(dev, pos))
+                return -EINVAL;
+
+        return pci_read_config_word(dev, pci_pcie_cap(dev) + pos, dst);
+}
+
+
+static inline int
+pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
 {
         if (pos & 1)
                 return -EINVAL;
@@ -999,9 +1020,13 @@ pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
 }
 
 static inline int
-pcie_get_readrq(struct pci_dev *dev){
-	panic("implment me!!");
-	return (0);
+pcie_get_readrq(struct pci_dev *dev)
+{
+	u16 ctl;
+
+	pcie_capability_read_word(dev, PCI_EXP_DEVCTL, &ctl);
+
+	return 128 << ((ctl & PCI_EXP_DEVCTL_READRQ) >> 12);
 }
 
 #define PCI_DEVICE_ID_ATI_RADEON_QY     0x5159
