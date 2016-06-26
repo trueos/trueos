@@ -88,17 +88,7 @@ wbinvd_on_all_cpus(void)
 static int
 needs_set_memattr(vm_page_t m, vm_memattr_t attr)
 {
-	vm_memattr_t mode;
-
-	mode = m->md.pat_mode;
-
-	if ((mode == 0) && !(m->flags & PG_FICTITIOUS) &&
-	    (attr == VM_MEMATTR_DEFAULT))
-		return (0);
-
-	if (mode != attr)
-		return (1);
-	return (0);
+	return (m->md.pat_mode != attr);
 }
 #endif
 
@@ -118,10 +108,8 @@ vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long
 
 	MPASS(off <= OFF_TO_IDX(vma->vm_end));
 #if defined(__i386__) || defined(__amd64__)
-	if (needs_set_memattr(page, attr)) {
-		page->flags |= PG_FICTITIOUS;
+	if (needs_set_memattr(page, attr))
 		pmap_page_set_memattr(page, attr);
-	}
 #endif
 	if (page->object == vm_obj && page->pindex == off)
 		goto done;
