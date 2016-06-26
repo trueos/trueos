@@ -619,9 +619,9 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 	int r;
 
 	if (minor->type == DRM_MINOR_CONTROL)
-		minor_str = "dri/control%d";
+		minor_str = "dri/controlD%d";
 	else if (minor->type == DRM_MINOR_RENDER)
-		minor_str = "dri/render%d";
+		minor_str = "dri/renderD%d";
 	else
 		minor_str = "dri/card%d";
 
