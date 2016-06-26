@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <vm/uma.h>
 
 #include <linux/types.h>
@@ -41,7 +42,6 @@
 
 MALLOC_DECLARE(M_KMALLOC);
 
-#define	kmalloc(size, flags)		malloc((size), M_KMALLOC, (flags) ? (flags) : M_NOWAIT)
 #define	kvmalloc(size)			kmalloc((size), 0)
 #define	kzalloc(size, flags)		kmalloc((size), M_ZERO |((flags) ? (flags) : M_NOWAIT)) 
 #define	kzalloc_node(size, flags, node)	kzalloc(size, flags)
@@ -62,12 +62,6 @@ MALLOC_DECLARE(M_KMALLOC);
  * @size: element size.
  * @flags: the type of memory to allocate (see kmalloc).
  */
-static inline void *kmalloc_array(size_t n, size_t size, gfp_t flags)
-{
-	if (size != 0 && n > SIZE_MAX / size)
-		return NULL;
-	return __kmalloc(n * size, flags);
-}
 
 struct kmem_cache {
 	uma_zone_t	cache_zone;
@@ -76,11 +70,39 @@ struct kmem_cache {
 
 #define	SLAB_HWCACHE_ALIGN	0x0001
 
+void *kmalloc_cached(int size, gfp_t flags);
+void kfree_cached(void *ptr);
+
+static inline void *
+kmalloc(int size, gfp_t flags)
+{
+	void *ptr;
+
+	if (__predict_false(curthread->td_intr_nesting_level))
+		ptr = kmalloc_cached(size, flags);
+	else
+		ptr = malloc(size, M_KMALLOC, flags ? flags : M_NOWAIT);
+
+	return (ptr);
+}
+
+
+static inline void *
+kmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+	if (size != 0 && n > SIZE_MAX / size)
+		return NULL;
+	return kmalloc(n * size, flags);
+}
+
+
 static inline void
 kfree(const void *ptr)
 {
-
-	free(__DECONST(void *, ptr), M_KMALLOC);
+	if (__predict_false(ptr && ((((uintptr_t)ptr) & (PAGE_SIZE-1)) == 0)))
+		kfree_cached(__DECONST(void *, ptr));
+	else
+		free(__DECONST(void *, ptr), M_KMALLOC);
 }
 
 static inline int
