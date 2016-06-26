@@ -4,6 +4,6 @@
 #include <linux/linkage.h>
 #include <linux/list.h>
 
-#define in_interrupt() (TD_IS_IDLETHREAD(curthread))
+#define in_interrupt() 	(curthread->td_intr_nesting_level)
 
 #endif

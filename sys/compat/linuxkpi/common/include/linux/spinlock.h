@@ -58,7 +58,7 @@ static inline void
 _spin_lock(spinlock_t *lock, char *file, int line)
 {
 
-	if (TD_IS_IDLETHREAD(curthread))
+	if (curthread->td_intr_nesting_level)
 		mtx_lock_spin_flags_(&(lock->m), 0, file, line);
 	else
 		mtx_lock_flags_(&(lock->m), 0, file, line);
@@ -68,7 +68,7 @@ static inline void
 _spin_unlock(spinlock_t *lock, char *file, int line)
 {
 
-	if (TD_IS_IDLETHREAD(curthread))
+	if (curthread->td_intr_nesting_level)
 		mtx_unlock_spin_flags_(&(lock->m), 0, file, line);
 	else
 		mtx_unlock_flags_(&(lock->m), 0, file, line);
