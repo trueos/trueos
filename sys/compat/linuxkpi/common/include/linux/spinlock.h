@@ -47,12 +47,32 @@ typedef struct {
 } spinlock_t;
 
 
-#define	spin_lock(_l)		mtx_lock(&(_l)->m)
-#define	spin_unlock(_l)		mtx_unlock(&(_l)->m)
+#define	spin_lock(_l)		_spin_lock((_l), __FILE__, __LINE__)
+#define	spin_unlock(_l)		_spin_unlock((_l), __FILE__, __LINE__)
 #define	spin_trylock(_l)	mtx_trylock(&(_l)->m)
 #define	spin_lock_nested(_l, _n) mtx_lock_flags(&(_l)->m, MTX_DUPOK)
 
 
+
+static inline void
+_spin_lock(spinlock_t *lock, char *file, int line)
+{
+
+	if (TD_IS_IDLETHREAD(curthread))
+		mtx_lock_spin_flags_(&(lock->m), 0, file, line);
+	else
+		mtx_lock_flags_(&(lock->m), 0, file, line);
+}
+
+static inline void
+_spin_unlock(spinlock_t *lock, char *file, int line)
+{
+
+	if (TD_IS_IDLETHREAD(curthread))
+		mtx_unlock_spin_flags_(&(lock->m), 0, file, line);
+	else
+		mtx_unlock_flags_(&(lock->m), 0, file, line);
+}
 
 void	_linux_mtx_init(volatile uintptr_t *c, const char *name, const char *type,
 	    int opts);

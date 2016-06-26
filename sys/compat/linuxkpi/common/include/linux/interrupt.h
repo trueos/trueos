@@ -77,7 +77,7 @@ linux_irq_rid(struct device *dev, int irq)
 	return irq - dev->msix + 1;
 }
 
-extern void linux_irq_handler(void *);
+extern int linux_irq_handler(void *);
 
 static inline struct irq_ent *
 linux_irq_ent(struct device *dev, int irq)
@@ -116,7 +116,7 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 	irqe->handler = handler;
 	irqe->irq = irq;
 	error = bus_setup_intr(dev->bsddev, res, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, linux_irq_handler, irqe, &irqe->tag);
+	    linux_irq_handler, NULL, irqe, &irqe->tag);
 	if (error) {
 		bus_release_resource(dev->bsddev, SYS_RES_IRQ, rid, irqe->res);
 		kfree(irqe);

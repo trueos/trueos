@@ -1610,13 +1610,14 @@ list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 	free(ar, M_KMALLOC);
 }
 
-void
+int
 linux_irq_handler(void *ent)
 {
 	struct irq_ent *irqe;
 
 	irqe = ent;
 	irqe->handler(irqe->irq, irqe->arg);
+	return (FILTER_HANDLED);
 }
 
 int
