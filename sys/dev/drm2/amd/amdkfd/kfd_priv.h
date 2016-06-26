@@ -33,6 +33,9 @@
 #include <linux/kfd_ioctl.h>
 #include <kgd_kfd_interface.h>
 
+#define	lower_32_bits(n)	((u32)(n))
+#define	upper_32_bits(n)	((u32)(((n) >> 16) >> 16))
+
 #define KFD_SYSFS_FILE_MODE 0444
 
 #define KFD_MMAP_DOORBELL_MASK 0x8000000000000

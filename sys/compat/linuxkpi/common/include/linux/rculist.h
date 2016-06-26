@@ -31,6 +31,7 @@
 #define _LINUX_RCULIST_H_
 
 #include <linux/list.h>
+#include <linux/rcupdate.h>
 
 #define hlist_first_rcu(head)	(*((struct hlist_node **)(&(head)->first)))
 #define hlist_next_rcu(node)	(*((struct hlist_node **)(&(node)->next)))
