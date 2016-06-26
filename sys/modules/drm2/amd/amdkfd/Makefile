@@ -17,7 +17,6 @@ KMOD	= amdkfd
 #	kfd_topology.c : rwsems
 
 SRCS	= \
-	kfd_dbgmgr.c \
 	kfd_dbgdev.c \
 	kfd_dbgmgr.c \
 	kfd_device_queue_manager.c \
