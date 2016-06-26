@@ -125,12 +125,13 @@ extern void db_trace_self_depth(int);
 #define	WARN_ON(cond) ({					\
       static bool __bt_on_once;				        \
       bool __ret = (cond);					\
+      struct thread *td = curthread;				\
       if (__ret) {						\
 	      if (!__bt_on_once)				\
 		      BACKTRACE();				\
 	      __bt_on_once = 1;					\
-	      printf("WARNING %s failed at %s:%d\n",		\
-		    __stringify(cond), __FILE__, __LINE__);	\
+	      printf("%s:%d WARNING %s failed at %s:%d\n",	\
+		     td->td_name, td->td_tid, __stringify(cond), __FILE__, __LINE__); \
       }								\
       unlikely(__ret);						\
 })
@@ -140,13 +141,15 @@ extern void db_trace_self_depth(int);
 #define	WARN_ON_ONCE(cond) ({					\
       static bool __warn_on_once;				\
       bool __ret = (cond);					\
+      struct thread *td = curthread;				\
       if (__ret && !__warn_on_once) {				\
 		__warn_on_once = 1;				\
-		BACKTRACE();					\
-		printf("WARNING %s failed at %s:%d\n",		\
-		    __stringify(cond), __FILE__, __LINE__);	\
-      }								\
-      unlikely(__ret);						\
+		BACKTRACE();						\
+		printf("%s:%d WARNING %s failed at %s:%d\n",		\
+		     td->td_name, td->td_tid, __stringify(cond), __FILE__, __LINE__); \
+									\
+      }									\
+      unlikely(__ret);							\
 })
 
 #undef	ALIGN
