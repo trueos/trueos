@@ -83,14 +83,9 @@ struct vm_area_struct {
 	const struct vm_operations_struct *vm_ops;
 	struct linux_file *vm_file;
 	/* internal operation */
+	int vm_pfn_count;
 	vm_object_t vm_obj;
-	/*
-	 * this will need to be revisited if we ever have to map
-	 * device memory past 16TB - for the next decade this could
-	 * only be an issue with mapping SSDs
-	 */
 	vm_map_t vm_cached_map;
-	vm_offset_t vm_cached_start;
 };
 
 /*
