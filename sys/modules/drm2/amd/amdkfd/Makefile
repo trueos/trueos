@@ -6,32 +6,33 @@ KMOD	= amdkfd
 
 # XXX NOT PORTED YET:
 #	kfd_device.c : amd_iommu 
-#	kfd_chardev.c : 
-#	kfd_device_queue_manager_cik.c :
-#	kfd_device_queue_manager_vi.c :
-#	kfd_doorbell.c :
-#	kfd_events.c :
-#	kfd_interrupt.c :
-#	kfd_kernel_queue_cik.c :
-#	kfd_kernel_queue_vi.c :
-#	kfd_module.c :
-#	kfd_mqd_manager.c :
-#	kfd_mqd_manager_cik.c :
-#	kfd_mqd_manager_vi.c :
-#	kfd_packet_manager.c :
-#	kfd_pasid.c :
-#	kfd_process.c :
-#	kfd_process_queue_manager.c :
-#	kfd_queue.c :
-#	kfd_topology.c :
+#	kfd_chardev.c : lots of missing stuff
+#	kfd_device_queue_manager_cik.c : memset declaration missing in rwsem
+#	kfd_device_queue_manager_vi.c : memset declaration missing in rwsem
+#	kfd_events.c : incomplete mm struct
+#	kfd_module.c : module version macros
+#	kfd_mqd_manager_cik.c : we seem to be missing an include w/ basic types
+#	kfd_mqd_manager_vi.c : we seem to be missing an include w/ basic types
+#	kfd_process.c : srcu
+#	kfd_topology.c : rwsems
 
 SRCS	= \
 	kfd_dbgmgr.c \
 	kfd_dbgdev.c \
 	kfd_dbgmgr.c \
 	kfd_device_queue_manager.c \
+	kfd_doorbell.c \
 	kfd_flat_memory.c \
-	kfd_kernel_queue.c
+	kfd_interrupt.c \
+	kfd_kernel_queue.c \
+	kfd_kernel_queue_cik.c \
+	kfd_kernel_queue_vi.c \
+	kfd_mqd_manager.c \
+	kfd_packet_manager.c \
+	kfd_pasid.c \
+	kfd_process_queue_manager.c \
+	kfd_queue.c #\
+#	kfd_topology.c
 
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
@@ -42,6 +43,7 @@ CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/acp/include
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/powerplay/inc
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/scheduler
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/include/asic_reg
+CFLAGS+=	-I${.CURDIR}/../../../../contrib/ck/include
 CFLAGS+=	'-DKBUILD_MODNAME="${KMOD}"'
 
 SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.h \
@@ -52,5 +54,9 @@ SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.
 CWARNFLAGS+=	-Wno-pointer-arith
 CWARNFLAGS+=	-Wno-pointer-sign ${CWARNFLAGS.${.IMPSRC:T}}
 
+CWARNFLAGS.kfd_chardev.c=	-Wno-format
 CWARNFLAGS.kfd_dbgdev.c=	-Wno-format
 CWARNFLAGS.kfd_device_queue_manager.c=	-Wno-format
+CWARNFLAGS.kfd_doorbell.c=	-Wno-format
+CWARNFLAGS.kfd_packet_manager.c=	-Wno-format
+CWARNFLAGS.kfd_queue.c=	-Wno-format

@@ -251,6 +251,9 @@ show_class_attr_string(struct class *class,
 #define	dev_printk(lvl, dev, fmt, ...)					\
 	    device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 
+#define dev_err_ratelimited(dev, fmt, ...)				\
+	    dev_err(dev, fmt, ##__VA_ARGS__)
+
 static inline void *
 dev_get_drvdata(const struct device *dev)
 {
