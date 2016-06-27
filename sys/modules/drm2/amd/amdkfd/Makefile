@@ -17,7 +17,7 @@ KMOD	= amdkfd
 #	kfd_topology.c : rwsems
 
 SRCS	= \
-	kfd_dbgmgr.c \
+	cik_event_interrupt.c \
 	kfd_dbgdev.c \
 	kfd_dbgmgr.c \
 	kfd_device_queue_manager.c \
@@ -37,6 +37,7 @@ SRCS	= \
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/uapi
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/amdkfd
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/amdgpu
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/include
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/acp/include

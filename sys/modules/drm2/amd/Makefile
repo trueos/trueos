@@ -5,7 +5,7 @@ SYSDIR?=${.CURDIR}/../../..
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _amdgpu=	amdgpu
-#_amdkfd=	amdkfd
+_amdkfd=	amdkfd
 .endif
 
 SUBDIR = \
