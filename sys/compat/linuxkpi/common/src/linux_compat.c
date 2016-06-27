@@ -1041,6 +1041,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	vma.vm_pfn = 0;
 	vma.vm_flags = vma.vm_page_prot = nprot;
 	vma.vm_ops = NULL;
+	vma.vm_file = filp;
 	if (filp->f_op->mmap) {
 		error = -filp->f_op->mmap(filp, &vma);
 		if (error == 0) {
