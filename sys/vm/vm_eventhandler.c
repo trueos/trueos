@@ -83,7 +83,6 @@ vme_get_record(void)
 	return (record);
 }
 
-
 void
 vm_eventhandler_register(vm_map_t map, struct vm_eventhandler *ve)
 {

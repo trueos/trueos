@@ -209,7 +209,8 @@ cdev_pager_free_page(vm_object_t object, vm_page_t m)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	if (object->type == OBJT_MGTDEVICE) {
+	if (object->type == OBJT_MGTDEVICE &&
+	    !(object->flags2 & OBJ2_GRAPHICS)) {
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("unmanaged %p", m));
 		pmap_remove_all(m);
 		vm_page_lock(m);
@@ -272,11 +273,14 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 
 	if (error == VM_PAGER_OK) {
 		KASSERT((object->type == OBJT_DEVICE &&
-		     (ma[0]->oflags & VPO_UNMANAGED) != 0) ||
-		    (object->type == OBJT_MGTDEVICE &&
-		     (ma[0]->oflags & VPO_UNMANAGED) == 0),
+			 (ma[0]->oflags & VPO_UNMANAGED) != 0) ||
+			(object->type == OBJT_MGTDEVICE &&
+			 ((object->flags2 & OBJ2_GRAPHICS) == 0) &&
+			 (ma[0]->oflags & VPO_UNMANAGED) == 0) ||
+			(object->type == OBJT_MGTDEVICE &&
+			 (object->flags2 & OBJ2_GRAPHICS)),
 		    ("Wrong page type %p %p", ma[0], object));
-		if (object->type == OBJT_DEVICE) {
+		if (object->type == OBJT_MGTDEVICE && (object->flags2 & OBJ2_GRAPHICS) == 0) {
 			TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist,
 			    ma[0], plinks.q);
 		}

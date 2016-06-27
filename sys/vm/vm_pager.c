@@ -293,6 +293,9 @@ vm_pager_get_pages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	if (r != VM_PAGER_OK)
 		return (r);
 
+	if (object->flags2 & OBJ2_GRAPHICS)
+		return (VM_PAGER_OK);
+
 	for (int i = 0; i < count; i++) {
 		/*
 		 * If pager has replaced a page, assert that it had

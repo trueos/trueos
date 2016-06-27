@@ -175,6 +175,7 @@ struct vm_object {
 	struct ucred *cred;
 	vm_ooffset_t charge;
 	void *umtx_data;
+	uint64_t flags2;
 };
 
 /*
@@ -193,6 +194,8 @@ struct vm_object {
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
 #define	OBJ_DISCONNECTWNT 0x4000	/* disconnect from vnode wanted */
 #define	OBJ_TMPFS	0x8000		/* has tmpfs vnode allocated */
+
+#define	OBJ2_GRAPHICS	0x0001		/* device pager for graphics */
 
 #define IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
 #define OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
