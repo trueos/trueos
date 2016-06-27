@@ -14,6 +14,7 @@ SRCS=	interval_tree.c \
 	linux_irq.c \
 	linux_kmod.c \
 	linux_lock.c \
+	linux_malloc.c \
 	linux_mtrr.c \
 	linux_notifier.c \
 	linux_page.c \
@@ -40,7 +41,7 @@ CFLAGS+= -I${.CURDIR}/../../contrib/ck/include
 
 #CFLAGS += -DPRINT_UNIMPLEMENTED
 # until stable
-#CFLAGS+= -O0
+CFLAGS+= -O0
 
 .include <bsd.kmod.mk>
 CWARNFLAGS 		+= -Wno-pointer-arith
