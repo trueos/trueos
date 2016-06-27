@@ -92,11 +92,10 @@ needs_set_memattr(vm_page_t m, vm_memattr_t attr)
 }
 #endif
 
-
 int
 vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn, pgprot_t pgprot)
 {
-	vm_object_t vm_obj, page_object;
+	vm_object_t vm_obj;
 	vm_page_t page;
 	pmap_t pmap = vma->vm_cached_map->pmap;
 	vm_memattr_t attr = pgprot2cachemode(pgprot);
@@ -111,33 +110,16 @@ vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long
 	if (needs_set_memattr(page, attr))
 		pmap_page_set_memattr(page, attr);
 #endif
-	if (page->object == vm_obj && page->pindex == off)
-		goto done;
+	if (vma->vm_pfn_count == 0)
+		*(vma->vm_ret_ppage) = page;
+	else if (__predict_false(linux_skip_prefault))
+		 return (-EBUSY);
 
-	if (__predict_false(page->object != NULL) && ((page->object != vm_obj) || (page->pindex != off))) {
-		page_object = page->object;
-		VM_OBJECT_WLOCK(page_object);
-		vm_page_lock(page);
-		vm_page_remove(page);
-		vm_page_unlock(page);
-		VM_OBJECT_WUNLOCK(page_object);
-	}
-
-	VM_OBJECT_WLOCK(vm_obj);
-	while (page->object == NULL && vm_page_insert(page, vm_obj, off)) {
-		VM_OBJECT_WUNLOCK(vm_obj);
-		VM_WAIT;
-		VM_OBJECT_WLOCK(vm_obj);
-	}
-	/* XXX -- needed for clFFT calls */
-	if (page->oflags & VPO_UNMANAGED)
-		page->oflags &= ~VPO_UNMANAGED;
+	if ((page->flags & PG_FICTITIOUS) && ((page->oflags & VPO_UNMANAGED) == 0))
+		page->oflags |= VPO_UNMANAGED;
+	vma->vm_pfn_count++;
 	page->valid = VM_PAGE_BITS_ALL;
-	VM_OBJECT_WUNLOCK(vm_obj);
-
-done:
-	if (__predict_true(linux_skip_prefault == 0))
-		pmap_enter_quick(pmap, addr, page, pgprot & VM_PROT_ALL);
+	pmap_enter_quick(pmap, addr, page, pgprot & VM_PROT_ALL);
 	return (0);
 }
 

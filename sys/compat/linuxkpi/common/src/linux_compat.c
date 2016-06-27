@@ -591,19 +591,22 @@ static inline void
 vm_area_set_object_bounds(vm_map_t map, vm_object_t obj, struct vm_area_struct *vmap)
 {
 	vm_map_entry_t entry;
+	int needunlock = 0;
 	
 	if (__predict_true(vmap->vm_cached_map == map))
 		return;
-
-	vm_map_lock(map);
+	if (!sx_xlocked(&map->lock)) {
+		vm_map_lock_read(map);
+		needunlock = 1;
+	}
 	entry = vm_map_find_object_entry(map, obj);
-	vm_map_unlock(map);
+	if (needunlock)
+		vm_map_unlock_read(map);
 
 	MPASS(entry != NULL);
 	vmap->vm_cached_map = map;
-	vmap->vm_cached_start = entry->start;
-	vmap->vm_start = entry->start;
-	vmap->vm_end = entry->end;
+	vmap->vm_start = entry->start & ~(PAGE_SIZE-1);
+	vmap->vm_end = entry->end & ~(PAGE_SIZE-1);
 }
 
 static int
@@ -640,6 +643,9 @@ retry:
 	memcpy(&cvma, vmap, sizeof(cvma));
 	vmf.virtual_address = (void *)(vmap->vm_start + offset);
 	vmf.flags = FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT | fault_flags;
+	cvma.vm_pfn_count = 0;
+	cvma.vm_ret_page = NULL;
+	cvma.vm_ret_ppage = &cvma.vm_ret_page;
 	err = vmap->vm_ops->fault(&cvma, &vmf);
 	if (__predict_false(err == VM_FAULT_RETRY)) {
 		vmf.flags = FAULT_FLAG_ALLOW_RETRY;
@@ -661,7 +667,7 @@ retry:
 	 * page. So if we get here without at least one valid pfn there may
 	 * be a bug - or maybe we lost a race.
 	 */
-	page = vm_page_lookup(vm_obj, OFF_TO_IDX(offset));
+	page = cvma.vm_ret_page;
 	if (page == NULL) {
 		atomic_add_int(&cdev_nopfn_count, 1);
 		VM_OBJECT_WUNLOCK(vm_obj);
@@ -1046,18 +1052,13 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 				MPASS(vma.vm_ops->close != NULL);
 				vmap = malloc(sizeof(*vmap), M_LCINT, M_WAITOK);
 				memcpy(vmap, &vma, sizeof(*vmap));
-				/*
-				 * VM_MIXEDMAP can only end up calling in to
-				 *  unimplemented functions on FreeBSD
-				 */
-				if (vma.vm_flags & VM_MIXEDMAP) {
-					vma.vm_flags &= ~VM_MIXEDMAP;
-					vma.vm_flags |= VM_PFNMAP;
-				}
-				/* XXX note to self - audit vm_page_prot usage */
 				*object = cdev_pager_allocate(vmap, OBJT_MGTDEVICE, &linux_cdev_pager_ops,
 							      size, nprot,
 							      0, curthread->td_ucred);
+
+				VM_OBJECT_WLOCK(*object);
+				(*object)->flags2 |= OBJ2_GRAPHICS;
+				VM_OBJECT_WUNLOCK(*object);
 				if (*object != NULL)
 					vmap->vm_obj = *object;
 			} else {
