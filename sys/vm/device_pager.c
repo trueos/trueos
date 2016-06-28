@@ -269,7 +269,8 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 	error = object->un_pager.devp.ops->cdev_pg_fault(object,
 	    IDX_TO_OFF(ma[0]->pindex), PROT_READ, &ma[0]);
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	if ((object->flags2 & OBJ2_GRAPHICS) == 0)
+		VM_OBJECT_ASSERT_WLOCKED(object);
 
 	if (error == VM_PAGER_OK) {
 		KASSERT((object->type == OBJT_DEVICE &&
@@ -280,7 +281,7 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 			(object->type == OBJT_MGTDEVICE &&
 			 (object->flags2 & OBJ2_GRAPHICS)),
 		    ("Wrong page type %p %p", ma[0], object));
-		if (object->type == OBJT_MGTDEVICE && (object->flags2 & OBJ2_GRAPHICS) == 0) {
+		if (object->type == OBJT_DEVICE) {
 			TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist,
 			    ma[0], plinks.q);
 		}
