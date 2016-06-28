@@ -5,7 +5,7 @@
 
 _FIRM=	${IMG}.bin
 
-CLEANFILES+=	${_FIRM}
+CLEANFILES+=	${_FIRM} ${_FIRM}.fwo ${_FIRM}.ko.debug ${_FIRM}.ko.full
 
 FIRMWS=	${_FIRM}:${NAME}
 
@@ -14,5 +14,5 @@ FIRMWS=	${_FIRM}:${NAME}
 #
 #FIRMWARE_LICENSE=
 
-${_FIRM}: ${.CURDIR}/../../../../contrib/dev/drm2/i915kmsfw/${_FIRM}.uu
+${_FIRM}: ${.CURDIR}/../../../../../contrib/dev/drm2/i915kmsfw/${_FIRM}.uu
 	uudecode -p $? > ${.TARGET}

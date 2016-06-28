@@ -81,11 +81,11 @@ SRCS	= \
 
 #
 
-
+CLEANFILES += ${KMOD}.ko.full ${KMOD}.ko.debug
 CFLAGS+= -I${.CURDIR}/../../../../contrib/ck/include
 CFLAGS+= -I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
-#CFLAGS += -O0
+CFLAGS += -O0
 #CFLAGS += -DPRINT_UNIMPLEMENTED
 
 .if ${MACHINE_CPUARCH} == "amd64"

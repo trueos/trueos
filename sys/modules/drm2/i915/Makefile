@@ -5,13 +5,12 @@ SYSDIR?=${.CURDIR}/../../..
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _i915kms=	i915kms
-_sklguc=	sklguc
-_skldmc=	skldmc
+_i915kmsfw=	i915kmsfw
 .endif
 
 SUBDIR = \
         ${_i915kms} \
-	${_sklguc} \
-	${_skldmc}
+        ${_i915kmsfw}
+
 
 .include <bsd.subdir.mk>
