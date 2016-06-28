@@ -615,7 +615,7 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	vm_page_t page;
 	struct vm_fault vmf;
 	struct vm_area_struct *vmap, cvma;
-	int rc, err, fault_flags;
+	int rc, err;
 	vm_map_t map;
 
 	linux_set_current();
@@ -635,28 +635,16 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	vm_object_pip_add(vm_obj, 1);
 	VM_OBJECT_WUNLOCK(vm_obj);
 retry:
-	fault_flags = (prot & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
-
 	map = &curproc->p_vmspace->vm_map;
 	vm_area_set_object_bounds(map, vm_obj, vmap);
 
 	memcpy(&cvma, vmap, sizeof(cvma));
 	vmf.virtual_address = (void *)(vmap->vm_start + offset);
-	vmf.flags = FAULT_FLAG_ALLOW_RETRY|FAULT_FLAG_RETRY_NOWAIT | fault_flags;
+	vmf.flags = (prot & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
 	cvma.vm_pfn_count = 0;
 	cvma.vm_ret_page = NULL;
 	cvma.vm_ret_ppage = &cvma.vm_ret_page;
 	err = vmap->vm_ops->fault(&cvma, &vmf);
-	if (__predict_false(err == VM_FAULT_RETRY)) {
-		vmf.flags = FAULT_FLAG_ALLOW_RETRY;
-		err = vmap->vm_ops->fault(&cvma, &vmf);
-	}
-	if (__predict_false(err == VM_FAULT_RETRY)) {
-		kern_yield(0);
-		vmf.flags = 0;
-		err = vmap->vm_ops->fault(&cvma, &vmf);
-	}
-
 	VM_OBJECT_WLOCK(vm_obj);
 	if (__predict_false(err != VM_FAULT_NOPAGE))
 		goto err;
