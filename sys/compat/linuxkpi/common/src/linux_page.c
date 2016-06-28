@@ -110,16 +110,20 @@ vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long
 	if (needs_set_memattr(page, attr))
 		pmap_page_set_memattr(page, attr);
 #endif
+	if ((page->flags & PG_FICTITIOUS) && ((page->oflags & VPO_UNMANAGED) == 0))
+		page->oflags |= VPO_UNMANAGED;
+	page->valid = VM_PAGE_BITS_ALL;
+
 	if (vma->vm_pfn_count == 0)
 		*(vma->vm_ret_ppage) = page;
 	else if (__predict_false(linux_skip_prefault))
 		 return (-EBUSY);
+	pmap_enter(pmap, addr, page, pgprot & VM_PROT_ALL, (pgprot & VM_PROT_ALL) | PMAP_ENTER_NOSLEEP, 0);
 
-	if ((page->flags & PG_FICTITIOUS) && ((page->oflags & VPO_UNMANAGED) == 0))
-		page->oflags |= VPO_UNMANAGED;
+	if (vma->vm_pfn_count == 0)
+		page->valid = VM_PAGE_BITS_ALL;
+
 	vma->vm_pfn_count++;
-	page->valid = VM_PAGE_BITS_ALL;
-	pmap_enter_quick(pmap, addr, page, pgprot & VM_PROT_ALL);
 	return (0);
 }
 
@@ -521,7 +525,7 @@ alloc_page(gfp_t flags)
 	tries = 0;
 retry:
 	page = vm_page_alloc_contig(NULL, 0, req, 1, 0, 0xffffffff,
-	    PAGE_SIZE, 0, VM_MEMATTR_UNCACHEABLE);
+	    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 	if (page == NULL) {
 		if (tries < 1) {
 			if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
