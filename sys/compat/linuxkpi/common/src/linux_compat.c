@@ -224,9 +224,9 @@ schedule_timeout(signed long timeout)
 	flags = (current->state == TASK_INTERRUPTIBLE) ? PCATCH : 0;
 	if (sleepable)
 		ret = _sleep(current, &(m->lock_object), flags | PDROP ,
-			     "lstimi", tick_sbt * timeout, 0 , C_HARDCLOCK);
+			     "lsti", tick_sbt * timeout, 0 , C_HARDCLOCK);
 	else 
-		ret = _msleep_spin_sbt(current, m, flags | PDROP, "lstimispin",
+		ret = _msleep_spin_sbt(current, m, flags | PDROP, "lstisp",
 				      tick_sbt * timeout, 0, C_HARDCLOCK);
 
 	set_current_state(TASK_RUNNING);
