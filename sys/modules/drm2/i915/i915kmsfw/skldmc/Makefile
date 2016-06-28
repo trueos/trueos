@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../../dev/drm2/i915
 KMOD	= i915_skl_dmc_ver1_bin
-FIRMWS= skl_dmc_ver1_26.bin:skl_dmc_ver1.bin:1.0.0.0
+NAME	= i915/skl_dmc_ver1.bin
+IMG	= skl_dmv_ver1.bin
+
 .include <bsd.kmod.mk>
