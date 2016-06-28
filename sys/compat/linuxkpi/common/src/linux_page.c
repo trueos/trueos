@@ -113,17 +113,8 @@ vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long
 	if ((page->flags & PG_FICTITIOUS) && ((page->oflags & VPO_UNMANAGED) == 0))
 		page->oflags |= VPO_UNMANAGED;
 	page->valid = VM_PAGE_BITS_ALL;
-
-	if (vma->vm_pfn_count == 0)
-		*(vma->vm_ret_ppage) = page;
-	else if (__predict_false(linux_skip_prefault))
-		 return (-EBUSY);
 	pmap_enter(pmap, addr, page, pgprot & VM_PROT_ALL, (pgprot & VM_PROT_ALL) | PMAP_ENTER_NOSLEEP, 0);
-
-	if (vma->vm_pfn_count == 0)
-		page->valid = VM_PAGE_BITS_ALL;
-
-	vma->vm_pfn_count++;
+	(*vma->vm_pfn_pcount)++;
 	return (0);
 }
 

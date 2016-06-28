@@ -84,10 +84,9 @@ struct vm_area_struct {
 	struct linux_file *vm_file;
 	/* internal operation */
 	int vm_pfn_count;
+	int *vm_pfn_pcount;
 	vm_object_t vm_obj;
 	vm_map_t vm_cached_map;
-	vm_page_t vm_ret_page;
-	vm_page_t *vm_ret_ppage;
 };
 
 /*

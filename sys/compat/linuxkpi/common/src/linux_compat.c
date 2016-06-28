@@ -612,7 +612,6 @@ vm_area_set_object_bounds(vm_map_t map, vm_object_t obj, struct vm_area_struct *
 static int
 linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_page_t *mres)
 {
-	vm_page_t page;
 	struct vm_fault vmf;
 	struct vm_area_struct *vmap, cvma;
 	int rc, err;
@@ -634,34 +633,26 @@ linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot, vm_pag
 	trace_compat_cdev_pager_fault(vm_obj, offset, prot, mres);
 	vm_object_pip_add(vm_obj, 1);
 	VM_OBJECT_WUNLOCK(vm_obj);
-retry:
 	map = &curproc->p_vmspace->vm_map;
 	vm_area_set_object_bounds(map, vm_obj, vmap);
-
+retry:
 	memcpy(&cvma, vmap, sizeof(cvma));
 	vmf.virtual_address = (void *)(vmap->vm_start + offset);
 	vmf.flags = (prot & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
 	cvma.vm_pfn_count = 0;
-	cvma.vm_ret_page = NULL;
-	cvma.vm_ret_ppage = &cvma.vm_ret_page;
+	cvma.vm_pfn_pcount = &cvma.vm_pfn_count;
 	err = vmap->vm_ops->fault(&cvma, &vmf);
-	VM_OBJECT_WLOCK(vm_obj);
-	if (__predict_false(err != VM_FAULT_NOPAGE))
-		goto err;
-
-
-	/*
-	 * By contract vm_insert_pfn will wait until it can busy the first
-	 * page. So if we get here without at least one valid pfn there may
-	 * be a bug - or maybe we lost a race.
-	 */
-	page = cvma.vm_ret_page;
-	if (page == NULL) {
-		atomic_add_int(&cdev_nopfn_count, 1);
-		VM_OBJECT_WUNLOCK(vm_obj);
+	if (cvma.vm_pfn_count == 0) {
 		kern_yield(0);
 		goto retry;
 	}
+
+	VM_OBJECT_WLOCK(vm_obj);
+	if (__predict_false(err != VM_FAULT_NOPAGE))
+		goto err;
+	vm_object_pip_wakeup(vm_obj);
+	VM_OBJECT_WUNLOCK(vm_obj);
+
 	atomic_add_int(&cdev_pfn_found_count, 1);
 
 	/*
@@ -671,20 +662,10 @@ retry:
 	 * actually use. We don't free them unless we succeed, so that 
 	 * there is still a valid result page on failure.
 	 */
-	if (mres && *mres != page) {
-		vm_page_lock(*mres);
-		vm_page_free(*mres);
-		vm_page_unlock(*mres);
-		*mres = page;
-	}
-	if (!vm_page_xbusied(page))
-		while (vm_page_tryxbusy(page) == 0) {
-			vm_page_lock(page);
-			vm_page_busy_sleep(page, "linuxvipp");
-		}
-
-	vm_object_pip_wakeup(vm_obj);
-	return (VM_PAGER_OK);
+	vm_page_lock(*mres);
+	vm_page_free(*mres);
+	vm_page_unlock(*mres);
+	return (VM_PAGER_NOPAGE);
 err:
 	switch (err) {
 	case VM_FAULT_OOM:
