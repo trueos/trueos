@@ -19,6 +19,8 @@ __FBSDID("$FreeBSD$");
 
 void *intel_gtt_get_registers(void);
 void _intel_gtt_get(size_t *gtt_total, size_t *stolen_size, unsigned long *mappable_end);
+void _intel_gtt_install_pte(unsigned int index, vm_paddr_t addr, unsigned int flags);
+uint32_t intel_gtt_read_pte(unsigned int entry);
 
 #define AGP_I810_PGTBL_CTL	0x2020
 #define	AGP_I810_PGTBL_ENABLED	0x00000001
@@ -135,7 +137,7 @@ intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 		 struct agp_bridge_data *bridge)
 {
 	DRM_DEBUG("entering %s\n", __func__);
-	intel_private.registers = intel_gtt_get_registers(); 
+	intel_private.registers = intel_gtt_get_registers();
 	intel_private.gma_bus_addr = pci_bus_address(gpu_pdev, I915_GMADR_BAR);
 	DRM_DEBUG("bus_addr %lx\n", intel_private.gma_bus_addr);
 	INTEL_GTT_GEN = 4;
@@ -155,6 +157,25 @@ void
 intel_gmch_remove(void)
 {
 
+}
+
+void
+intel_gtt_insert_sg_entries(struct sg_table *st, unsigned int pg_start,
+    unsigned int flags)
+{
+	struct sg_page_iter sg_iter;
+	unsigned int i;
+	vm_paddr_t addr;
+
+	i = 0;
+	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0) {
+		addr = sg_page_iter_dma_address(&sg_iter);
+		_intel_gtt_install_pte(pg_start + i, addr, flags);
+
+		++i;
+	}
+
+	intel_gtt_read_pte(pg_start + i - 1);
 }
 
 void

@@ -2232,27 +2232,14 @@ agp_intel_gtt_map_memory(device_t dev, vm_page_t *pages, u_int num_entries,
 	return (0);
 }
 
-void
-agp_intel_gtt_insert_sg_entries(device_t dev, struct sglist *sg_list,
-    u_int first_entry, u_int flags)
+static void
+agp_intel_gtt_install_pte(device_t dev, unsigned int index, vm_paddr_t addr,
+    unsigned int flags)
 {
 	struct agp_i810_softc *sc;
-	vm_paddr_t spaddr;
-	size_t slen;
-	u_int i, j;
 
 	sc = device_get_softc(dev);
-	for (i = j = 0; j < sg_list->sg_nseg; j++) {
-		spaddr = sg_list->sg_segs[i].ss_paddr;
-		slen = sg_list->sg_segs[i].ss_len;
-		for (; slen > 0; i++) {
-			sc->match->driver->install_gtt_pte(dev, first_entry + i,
-			    spaddr, flags);
-			spaddr += AGP_PAGE_SIZE;
-			slen -= AGP_PAGE_SIZE;
-		}
-	}
-	sc->match->driver->read_gtt_pte(dev, first_entry + i - 1);
+	sc->match->driver->install_gtt_pte(dev, index, addr, flags);
 }
 
 void
@@ -2294,12 +2281,16 @@ intel_gtt_map_memory(vm_page_t *pages, u_int num_entries,
 	    sg_list));
 }
 
+/*
+ * The _intel_gtt_install_pte() helper is internal and used by
+ * intel_agp_freebsd.c in DRM.
+ */
 void
-intel_gtt_insert_sg_entries(struct sglist *sg_list, u_int first_entry,
-    u_int flags)
+_intel_gtt_install_pte(unsigned int index, vm_paddr_t addr,
+    unsigned int flags)
 {
 
-	agp_intel_gtt_insert_sg_entries(intel_agp, sg_list, first_entry, flags);
+	agp_intel_gtt_install_pte(intel_agp, index, addr, flags);
 }
 
 device_t
