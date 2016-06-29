@@ -318,7 +318,6 @@ ttm_bo_reference(struct ttm_buffer_object *bo)
 extern int ttm_bo_wait(struct ttm_buffer_object *bo,
 		       bool interruptible, bool no_wait);
 
-
 /**
  * ttm_bo_mem_compat - Check if proposed placement is compatible with a bo
  *
