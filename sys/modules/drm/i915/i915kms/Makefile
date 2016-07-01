@@ -41,6 +41,7 @@ SRCS	= \
 	intel_atomic_plane.c \
 	intel_audio.c \
 	intel_bios.c \
+	intel_breadcrumbs.c \
 	intel_color.c \
 	intel_crt.c \
 	intel_csr.c \
