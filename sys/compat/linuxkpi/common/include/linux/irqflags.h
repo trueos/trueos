@@ -5,13 +5,13 @@
 static inline void
 local_irq_disable(void)
 {
-	critical_enter();
+	spinlock_enter();
 }
 
 static inline void
 local_irq_enable(void)
 {
-	critical_exit();
+	spinlock_exit();
 }
 
 #if defined(__i386__) || defined(__amd64__)
