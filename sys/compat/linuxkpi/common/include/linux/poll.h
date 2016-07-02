@@ -143,34 +143,11 @@ linux_pollwait(struct file *filp, wait_queue_head_t *wa,
 {
 	struct poll_wqueues *pwq = container_of(p, struct poll_wqueues, pt);
 	struct poll_table_entry *entry = poll_get_entry(pwq);
-	struct selinfo_task *st;
-	int needunlock, idx;
 
 	if (!entry)
 		return;
 
-	needunlock = 0;
-	spin_lock_irq(&wa->lock);
-	st = wa->wqh_st;
-	if (st) {
-		idx = srcu_read_lock(&st->st_ss);
-		needunlock = 1;
-	}
-	spin_unlock_irq(&wa->lock);
-	if (st == NULL) {
-		if ((st = malloc(sizeof(*st), M_KMALLOC, M_NOWAIT|M_ZERO)) != NULL) {
-			TASK_INIT(&st->st_task, 0, selwakeup_deferred, st);
-			init_srcu_struct(&st->st_ss);
-		}
-	}
-	/* need refcount or RCU to make this safe */
-	if (st) {
-		selrecord(curthread, &st->st_si);
-		if (needunlock)
-			srcu_read_unlock(&st->st_ss, idx);
-		else
-			wa->wqh_st = st;
-	}
+	selrecord(curthread, &wa->wqh_si);
 
 	entry->filp = get_file(filp);
 	entry->wait_address = wa;

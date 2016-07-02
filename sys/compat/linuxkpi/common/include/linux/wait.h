@@ -58,12 +58,6 @@ typedef int (*wait_queue_func_t)(wait_queue_t *wait, unsigned mode, int flags, v
 #define WQ_FLAG_EXCLUSIVE	0x01
 #define WQ_FLAG_WOKEN		0x02
 
-struct selinfo_task {
-	struct selinfo st_si;
-	struct task st_task;
-	struct srcu_struct st_ss;
-};
-
 struct __wait_queue {
 	unsigned int		flags;
 	void			*private;
@@ -74,7 +68,7 @@ struct __wait_queue {
 typedef struct wait_queue_head {
 	spinlock_t	lock;
 	struct list_head	task_list;
-	struct selinfo_task	*wqh_st;
+	struct selinfo		wqh_si;
 } wait_queue_head_t;
 
 
@@ -190,28 +184,12 @@ __wake_up_locked(wait_queue_head_t *q, int mode, int nr, void *key)
 }
 
 static inline void
-selwakeup_deferred(void *context, int pending)
-{
-	struct selinfo_task *st;
-
-	st = context;
-	selwakeup(&st->st_si);
-	synchronize_srcu(&st->st_ss);
-	cleanup_srcu_struct(&st->st_ss);
-	free(st, M_KMALLOC);
-}
-
-static inline void
 __wake_up(wait_queue_head_t *q, int mode, int nr, void *key)
 {
 	int flags;
-	struct selinfo_task *st;
 
 	spin_lock_irqsave(&q->lock, flags);
-	if ((st = q->wqh_st) != NULL) {
-		q->wqh_st = NULL;
-		taskqueue_enqueue(taskqueue_fast, &st->st_task);
-	}
+	selwakeup(&q->wqh_si);
 	__wake_up_locked(q, mode, nr, key);
 	spin_unlock_irqrestore(&q->lock, flags);
 }
