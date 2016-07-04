@@ -50,7 +50,7 @@ struct vnode;
 /*
  * Limits and constants
  */
-#define PFS_NAMELEN		24
+#define PFS_NAMELEN		64
 #define PFS_FSNAMELEN		16	/* equal to MFSNAMELEN */
 #define PFS_DELEN		(8 + PFS_NAMELEN)
 
