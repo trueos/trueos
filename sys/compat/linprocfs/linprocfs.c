@@ -747,10 +747,13 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	struct thread *td2;
 	struct sigacts *ps;
 	l_sigset_t siglist, sigignore, sigcatch;
-	int i;
+	int i, thread_count;
 
+	thread_count = 0;
 	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
+	FOREACH_THREAD_IN_PROC(p, td2)
+		thread_count++;
 	td2 = FIRST_THREAD_IN_PROC(p); /* XXXKSE pretend only one thread */
 
 	if (P_SHOULDSTOP(p)) {
@@ -796,9 +799,20 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	/*
 	 * Credentials
 	 */
+	sbuf_printf(sb, "Tgid:\t%d\n",		p->p_pid);
+	sbuf_printf(sb, "Ngid:\t0\n");
 	sbuf_printf(sb, "Pid:\t%d\n",		p->p_pid);
-	sbuf_printf(sb, "PPid:\t%d\n",		p->p_pptr ?
-						p->p_pptr->p_pid : 0);
+	if (p->p_pptr) {
+		sbuf_printf(sb, "PPid:\t%d\n",
+			    p->p_flag & P_TRACED ?
+			    p->p_oppid : p->p_pptr->p_pid);
+		sbuf_printf(sb, "TracerPid:\t%d\n",
+			    p->p_flag & P_TRACED ? p->p_pptr->p_pid :
+			    0);
+	} else {
+		sbuf_printf(sb, "PPid:\t1\n");
+		sbuf_printf(sb, "TracerPid:\t0\n");
+	}
 	sbuf_printf(sb, "Uid:\t%d %d %d %d\n",	p->p_ucred->cr_ruid,
 						p->p_ucred->cr_uid,
 						p->p_ucred->cr_svuid,
@@ -809,11 +823,18 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 						p->p_ucred->cr_svgid,
 						/* FreeBSD doesn't have fsgid */
 						p->p_ucred->cr_gid);
+	/* XXX FDSize */
 	sbuf_cat(sb, "Groups:\t");
 	for (i = 0; i < p->p_ucred->cr_ngroups; i++)
 		sbuf_printf(sb, "%d ",		p->p_ucred->cr_groups[i]);
 	PROC_UNLOCK(p);
 	sbuf_putc(sb, '\n');
+	/* XXX
+	 * NStgid
+	 * NSpid
+	 * NSpgid
+	 * NSsid
+	 */
 
 	/*
 	 * Memory
@@ -826,8 +847,14 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	 * could also compute VmLck, but I don't really care enough to
 	 * implement it. Submissions are welcome.
 	 */
+	/* XXX VmPeak */
 	sbuf_printf(sb, "VmSize:\t%8ju kB\n",	B2K((uintmax_t)kp.ki_size));
 	sbuf_printf(sb, "VmLck:\t%8u kB\n",	P2K(0)); /* XXX */
+	/*
+	 * XXX
+	 * VmPin
+	 * VmHWM
+	 */
 	sbuf_printf(sb, "VmRSS:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_rssize));
 	sbuf_printf(sb, "VmData:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_dsize));
 	sbuf_printf(sb, "VmStk:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_ssize));
@@ -835,6 +862,13 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	lsize = B2P(kp.ki_size) - kp.ki_dsize -
 	    kp.ki_ssize - kp.ki_tsize - 1;
 	sbuf_printf(sb, "VmLib:\t%8ju kB\n",	P2K((uintmax_t)lsize));
+	/*
+	 * XXX
+	 * VmPTE
+	 * VmPMD
+	 * VmSwap
+	 */
+	sbuf_printf(sb, "Threads:\t%d\n",		thread_count);
 
 	/*
 	 * Signal masks
@@ -848,6 +882,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	mtx_unlock(&ps->ps_mtx);
 	PROC_UNLOCK(p);
 
+	/* XXX SigQ */
 	sbuf_printf(sb, "SigPnd:\t%016jx\n",	siglist.__mask);
 	/*
 	 * XXX. SigBlk - target thread's signal mask, td_sigmask.
@@ -865,7 +900,18 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	sbuf_printf(sb, "CapInh:\t%016x\n",	0);
 	sbuf_printf(sb, "CapPrm:\t%016x\n",	0);
 	sbuf_printf(sb, "CapEff:\t%016x\n",	0);
+	/* XXX CapBnd */
 
+
+	/* XXX
+	 * Seccomp
+	 * Cpus_allowed
+	 * Cpus_allowed_list
+	 * Mems_allowed
+	 * Mems_allowed_list
+	 * voluntary_ctxt_switches
+	 * nonvoluntary_ctxt_switches
+	 */
 	return (0);
 }
 
