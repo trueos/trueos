@@ -511,6 +511,7 @@ amd64/ia32/ia32_syscall.c	optional	compat_freebsd32
 amd64/ia32/ia32_misc.c		optional	compat_freebsd32
 compat/ia32/ia32_sysvec.c	optional	compat_freebsd32
 compat/linprocfs/linprocfs.c	optional	linprocfs
+compat/linprocfs/linprocfs_vm.c	optional	linprocfs
 compat/linsysfs/linsysfs.c	optional	linsysfs
 #
 # Linux/i386 binary support

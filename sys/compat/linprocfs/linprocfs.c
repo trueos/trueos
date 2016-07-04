@@ -109,6 +109,8 @@ __FBSDID("$FreeBSD$");
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
+#include <compat/linprocfs/linprocfs.h>
+
 /*
  * Various conversion macros
  */
@@ -1741,6 +1743,10 @@ linprocfs_init(PFS_INIT_ARGS)
 
 	/* /proc/sys/... */
 	dir = pfs_create_dir(root, "sys", NULL, NULL, NULL, 0);
+
+	/* /proc/sys/vm/... */
+	linprocfs_vm_init(dir);
+
 	/* /proc/sys/kernel/... */
 	dir = pfs_create_dir(dir, "kernel", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "osrelease", &linprocfs_doosrelease,
