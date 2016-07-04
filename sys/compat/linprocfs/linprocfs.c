@@ -45,9 +45,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/blist.h>
+#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -1351,17 +1353,151 @@ linprocfs_domodules(PFS_FILL_ARGS)
 }
 #endif
 
+
+struct fdinfo {
+	struct proc *fdi_p;
+	struct file *fdi_fp;
+};
+
+static int
+linprocfs_fddestroy(PFS_DESTROY_ARGS)
+{
+	struct fdinfo *fdi;
+	struct thread *td;
+
+	fdi = pn->pn_data;
+	td = FIRST_THREAD_IN_PROC(fdi->fdi_p);
+	fdrop(fdi->fdi_fp, td);
+	free(fdi, M_TEMP);
+	return (0);
+}
+
+
+
+static int
+linprocfs_sofill(struct sbuf *sb, struct socket *so)
+{
+	sbuf_printf(sb, "[socket]");
+	return (0);
+}
+
+static int
+linprocfs_vnfill(struct sbuf *sb, struct thread *td, struct vnode *vp)
+{
+	char *fullpath = "unknown";
+	char *freepath = NULL;
+
+	if (vp == NULL) {
+		sbuf_printf(sb, "");
+		return (0);
+	}
+
+	if (vp->v_type == VNON) {
+		sbuf_printf(sb, "VNON");
+		return (0);
+	}
+	VREF(vp);
+
+	vn_fullpath(td, vp, &fullpath, &freepath);
+	if (vp != NULL)
+		vrele(vp);
+	sbuf_printf(sb, "%s", fullpath);
+	if (freepath)
+		free(freepath, M_TEMP);
+	return (0);
+}
+
+static char *type2name[] = {
+	"invalid",
+	"vnode",
+	"socket",
+	"pipe",
+	"fifo",
+	"kqueue",
+	"crypto",
+	"mqueue",
+	"shm",
+	"sem",
+	"pts",
+	"dev",
+	"linuxefd",
+	"dmabuf"
+};
+	
+static int
+linprocfs_fdfill(PFS_FILL_ARGS)
+{
+	struct fdinfo *fdi;
+	struct file *fp;
+	struct thread *fpthread;
+
+	fdi = pn->pn_data;
+	fp = fdi->fdi_fp;
+	fpthread = FIRST_THREAD_IN_PROC(fdi->fdi_p);
+	if (fp == NULL)
+		return (ENOENT);
+	MPASS(fp->f_type > 0 && fp->f_type <= DTYPE_DMABUF);
+
+	switch (fp->f_type) {
+	case DTYPE_VNODE:
+		return (linprocfs_vnfill(sb, fpthread, fp->f_data));
+	case DTYPE_SOCKET:
+		return (linprocfs_sofill(sb, fp->f_data));
+	case DTYPE_PIPE:
+	case DTYPE_FIFO:
+	case DTYPE_KQUEUE:
+	case DTYPE_CRYPTO:
+	case DTYPE_MQUEUE:
+	case DTYPE_SHM:
+	case DTYPE_SEM:
+	case DTYPE_PTS:
+	case DTYPE_DEV:
+	case DTYPE_LINUXEFD:
+	case DTYPE_DMABUF:
+		sbuf_printf(sb, "[%s]", type2name[fp->f_type]);
+		return (0);
+	default:
+		sbuf_printf(sb, "invalid");
+		return (0);
+	}
+	return (0);
+}
+
+
 /*
  * Filler function for proc/pid/fd
  */
 static int
-linprocfs_dofdescfs(PFS_FILL_ARGS)
+linprocfs_dirfill(PFS_FILL_ARGS)
 {
+	int i, lastfile;
+	struct fdinfo *fdi;
+	struct filedesc *fdp;
+	struct file *fp;
+	struct pfs_node *pnnew;
+	cap_rights_t rights;
+	char buf[10];
 
-	if (p == curproc)
-		sbuf_printf(sb, "/dev/fd");
-	else
-		sbuf_printf(sb, "unknown");
+	fdp = p->p_fd;
+	if (fdp == NULL || fdp->fd_files->fdt_nfiles == 0)
+		return (0);
+
+	lastfile = fdp->fd_lastfile;
+	for (i = 0; i < lastfile; i++) {
+		if (fget(td, i,  cap_rights_init(&rights, CAP_FSTAT), &fp))
+			continue;
+		if ((fdi = malloc(sizeof(struct fdinfo), M_TEMP, M_NOWAIT)) == NULL) {
+			fdrop(fp, td);
+			break;
+		}
+		MPASS(fp->f_type > 0 && fp->f_type <= DTYPE_DMABUF);
+		fdi->fdi_p = p;
+		fdi->fdi_fp = fp;
+		snprintf(buf, 9, "%d", i);
+		pnnew = pfs_create_link(pn, buf, linprocfs_fdfill, NULL, NULL,
+					linprocfs_fddestroy, 0);
+		pnnew->pn_data = fdi;
+	}
 	return (0);
 }
 
@@ -1590,8 +1726,7 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "status", &linprocfs_doprocstatus,
 	    NULL, NULL, NULL, PFS_RD);
-	pfs_create_link(dir, "fd", &linprocfs_dofdescfs,
-	    NULL, NULL, NULL, 0);
+	pfs_create_dyndir(dir, "fd", linprocfs_dirfill, NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "auxv", &linprocfs_doauxv,
 	    NULL, &procfs_candebug, NULL, PFS_RD|PFS_RAWRD);
 	pfs_create_file(dir, "limits", &linprocfs_doproclimits,
