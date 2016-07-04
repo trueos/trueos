@@ -1097,9 +1097,8 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			struct i915_address_space *vm;
 			struct intel_ringbuffer *rb;
 
-			vm = request->ctx && request->ctx->ppgtt ?
-				&request->ctx->ppgtt->base :
-				&ggtt->base;
+			vm = request->ctx->ppgtt ?
+				&request->ctx->ppgtt->base : &ggtt->base;
 
 			/* We need to copy these to an anonymous buffer
 			 * as the simplest method to avoid being overwritten
@@ -1133,6 +1132,9 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 				}
 #endif
 			}
+
+			error->simulated |=
+				request->ctx->flags & CONTEXT_NO_ERROR_CAPTURE;
 
 			rb = request->ringbuf;
 			error->ring[i].cpu_ring_head = rb->head;
@@ -1433,12 +1435,14 @@ void i915_capture_error_state(struct drm_i915_private *dev_priv,
 	i915_error_capture_msg(dev_priv, error, engine_mask, error_msg);
 	DRM_INFO("%s\n", error->error_msg);
 
-	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
-	if (dev_priv->gpu_error.first_error == NULL) {
-		dev_priv->gpu_error.first_error = error;
-		error = NULL;
+	if (!error->simulated) {
+		spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
+		if (!dev_priv->gpu_error.first_error) {
+			dev_priv->gpu_error.first_error = error;
+			error = NULL;
+		}
+		spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
 	}
-	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
 
 	if (error) {
 		i915_error_state_free(&error->ref);
