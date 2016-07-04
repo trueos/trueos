@@ -62,7 +62,8 @@ typedef enum {
 	pfstype_parent,
 	pfstype_file,
 	pfstype_symlink,
-	pfstype_procdir
+	pfstype_procdir,
+	pfstype_dyndir
 } pfs_type_t;
 
 /*
@@ -186,6 +187,8 @@ typedef int (*pfs_close_t)(PFS_CLOSE_ARGS);
 	int name(PFS_DESTROY_ARGS);
 typedef int (*pfs_destroy_t)(PFS_DESTROY_ARGS);
 
+
+
 /*
  * pfs_info: describes a pseudofs instance
  *
@@ -258,7 +261,15 @@ int		 pfs_uninit	(struct pfs_info *pi, struct vfsconf *vfc);
 struct pfs_node	*pfs_create_dir	(struct pfs_node *parent, const char *name,
 				 pfs_attr_t attr, pfs_vis_t vis,
 				 pfs_destroy_t destroy, int flags);
+struct pfs_node	*pfs_create_dyndir(struct pfs_node *parent, const char *name,
+				 pfs_fill_t fill, pfs_attr_t attr,
+				 pfs_vis_t vis, pfs_destroy_t destroy,
+				 int flags);
 struct pfs_node	*pfs_create_file(struct pfs_node *parent, const char *name,
+				 pfs_fill_t fill, pfs_attr_t attr,
+				 pfs_vis_t vis, pfs_destroy_t destroy,
+				 int flags);
+struct pfs_node	*pfs_create_link(struct pfs_node *parent, const char *name,
 				 pfs_fill_t fill, pfs_attr_t attr,
 				 pfs_vis_t vis, pfs_destroy_t destroy,
 				 int flags);

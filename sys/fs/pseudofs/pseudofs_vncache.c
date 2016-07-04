@@ -166,6 +166,7 @@ retry:
 #endif
 		/* fall through */
 	case pfstype_dir:
+	case pfstype_dyndir:
 	case pfstype_this:
 	case pfstype_parent:
 	case pfstype_procdir:
