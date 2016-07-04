@@ -2739,7 +2739,6 @@ static int intel_runtime_suspend(struct device *device)
 
 	intel_guc_suspend(dev);
 
-	intel_suspend_gt_powersave(dev_priv);
 	intel_runtime_pm_disable_interrupts(dev_priv);
 
 	ret = 0;
@@ -2853,8 +2852,6 @@ static int intel_runtime_resume(struct device *device)
 	 */
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
 		intel_hpd_init(dev_priv);
-
-	intel_enable_gt_powersave(dev_priv);
 
 	enable_rpm_wakeref_asserts(dev_priv);
 
