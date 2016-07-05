@@ -947,8 +947,8 @@ EXPORT_SYMBOL(drm_crtc_vblank_count);
  *
  * This is the legacy version of drm_crtc_vblank_count_and_time().
  */
-u32 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
-			      struct timeval *vblanktime)
+static u32 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
+				     struct timeval *vblanktime)
 {
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 	u32 vblank_count;
@@ -965,7 +965,6 @@ u32 drm_vblank_count_and_time(struct drm_device *dev, unsigned int pipe,
 
 	return vblank_count;
 }
-EXPORT_SYMBOL(drm_vblank_count_and_time);
 
 /**
  * drm_crtc_vblank_count_and_time - retrieve "cooked" vblank counter value
@@ -977,8 +976,6 @@ EXPORT_SYMBOL(drm_vblank_count_and_time);
  * vblank events since the system was booted, including lost events due to
  * modesetting activity. Returns corresponding system timestamp of the time
  * of the vblank interval that corresponds to the current vblank counter value.
- *
- * This is the native KMS version of drm_vblank_count_and_time().
  */
 u32 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
 				   struct timeval *vblanktime)
