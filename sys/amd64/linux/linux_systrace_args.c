@@ -2076,7 +2076,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* linux_timerfd */
+	/* linux_timerfd_create */
 	case 283: {
 		*n_args = 0;
 		break;
@@ -2248,23 +2248,28 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* linux_process_vm_readv */
+	/* linux_getcpu */
 	case 309: {
 		*n_args = 0;
 		break;
 	}
-	/* linux_process_vm_writev */
+	/* linux_process_vm_readv */
 	case 310: {
 		*n_args = 0;
 		break;
 	}
-	/* linux_kcmp */
+	/* linux_process_vm_writev */
 	case 311: {
 		*n_args = 0;
 		break;
 	}
-	/* linux_finit_module */
+	/* linux_kcmp */
 	case 312: {
+		*n_args = 0;
+		break;
+	}
+	/* linux_finit_module */
+	case 313: {
 		*n_args = 0;
 		break;
 	}
@@ -5415,7 +5420,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* linux_signalfd */
 	case 282:
 		break;
-	/* linux_timerfd */
+	/* linux_timerfd_create */
 	case 283:
 		break;
 	/* linux_eventfd */
@@ -5630,17 +5635,20 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* linux_setns */
 	case 308:
 		break;
-	/* linux_process_vm_readv */
+	/* linux_getcpu */
 	case 309:
 		break;
-	/* linux_process_vm_writev */
+	/* linux_process_vm_readv */
 	case 310:
 		break;
-	/* linux_kcmp */
+	/* linux_process_vm_writev */
 	case 311:
 		break;
-	/* linux_finit_module */
+	/* linux_kcmp */
 	case 312:
+		break;
+	/* linux_finit_module */
+	case 313:
 		break;
 	default:
 		break;
@@ -6784,7 +6792,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_signalfd */
 	case 282:
-	/* linux_timerfd */
+	/* linux_timerfd_create */
 	case 283:
 	/* linux_eventfd */
 	case 284:
@@ -6869,14 +6877,16 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_setns */
 	case 308:
-	/* linux_process_vm_readv */
+	/* linux_getcpu */
 	case 309:
-	/* linux_process_vm_writev */
+	/* linux_process_vm_readv */
 	case 310:
-	/* linux_kcmp */
+	/* linux_process_vm_writev */
 	case 311:
-	/* linux_finit_module */
+	/* linux_kcmp */
 	case 312:
+	/* linux_finit_module */
+	case 313:
 	default:
 		break;
 	};
