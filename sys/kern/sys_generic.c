@@ -160,6 +160,8 @@ struct selfd {
 
 static uma_zone_t selfd_zone;
 static struct mtx_pool *mtxpool_select;
+static struct mtx seldeferred_mtx;
+static struct selfdlist global_deferred;
 
 #ifdef __LP64__
 size_t
@@ -1741,6 +1743,7 @@ selrecord(struct thread *selector, struct selinfo *sip)
 	struct selfd *sfp;
 	struct seltd *stp;
 	struct mtx *mtxp;
+	struct selfdlist trash;
 
 	stp = selector->td_sel;
 	/*
@@ -1748,6 +1751,7 @@ selrecord(struct thread *selector, struct selinfo *sip)
 	 */
 	if (stp->st_flags & SELTD_RESCAN)
 		return;
+
 	/*
 	 * Grab one of the preallocated descriptors.
 	 */
@@ -1781,6 +1785,17 @@ selrecord(struct thread *selector, struct selinfo *sip)
 	 */
 	TAILQ_INSERT_TAIL(&sip->si_tdlist, sfp, sf_threads);
 	mtx_unlock_spin(sip->si_mtx);
+
+	if (!TAILQ_EMPTY(&global_deferred)) {
+		TAILQ_INIT(&trash);
+		mtx_lock_spin(&seldeferred_mtx);
+		TAILQ_CONCAT(&trash, &global_deferred, sf_threads);
+		mtx_unlock_spin(&seldeferred_mtx);
+		while ((sfp = TAILQ_FIRST(&trash)) != NULL) {
+			TAILQ_REMOVE(&trash, sfp, sf_threads);
+			uma_zfree(selfd_zone, sfp);
+		}
+	}
 }
 
 /* Wake up a selecting thread. */
@@ -1806,12 +1821,14 @@ doselwakeup(struct selinfo *sip, int pri)
 	struct selfd *sfp;
 	struct selfd *sfn;
 	struct seltd *stp;
+	struct thread *td;
 	struct selfdlist trash;
 
 	/* If it's not initialized there can't be any waiters. */
 	if (sip->si_mtx == NULL)
 		return;
 	TAILQ_INIT(&trash);
+	td = curthread;
 	/*
 	 * Locking the selinfo locks all selfds associated with it.
 	 */
@@ -1832,6 +1849,12 @@ doselwakeup(struct selinfo *sip, int pri)
 			TAILQ_INSERT_HEAD(&trash, sfp, sf_threads);
 	}
 	mtx_unlock_spin(sip->si_mtx);
+	if (td->td_critnest || td->td_intr_nesting_level) {
+		mtx_lock_spin(&seldeferred_mtx);
+		TAILQ_CONCAT(&global_deferred, &trash, sf_threads);
+		mtx_unlock_spin(&seldeferred_mtx);
+		return;
+	}
 	while ((sfp = TAILQ_FIRST(&trash)) != NULL) {
 		TAILQ_REMOVE(&trash, sfp, sf_threads);
 		uma_zfree(selfd_zone, sfp);
@@ -1927,6 +1950,8 @@ selectinit(void *dummy __unused)
 	selfd_zone = uma_zcreate("selfd", sizeof(struct selfd), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtxpool_select = mtx_pool_create("select mtxpool", 128, MTX_SPIN);
+	TAILQ_INIT(&global_deferred);
+	mtx_init(&seldeferred_mtx, "seltrash", NULL, MTX_SPIN);
 }
 
 /*
