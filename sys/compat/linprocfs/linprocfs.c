@@ -1404,7 +1404,7 @@ linprocfs_domodules(PFS_FILL_ARGS)
 
 struct fdinfo {
 	struct proc *fdi_p;
-	struct file *fdi_fp;
+	int fdi_fd;
 };
 
 static int
@@ -1415,7 +1415,6 @@ linprocfs_fddestroy(PFS_DESTROY_ARGS)
 
 	fdi = pn->pn_data;
 	td = FIRST_THREAD_IN_PROC(fdi->fdi_p);
-	fdrop(fdi->fdi_fp, td);
 	free(fdi, M_TEMP);
 	return (0);
 }
@@ -1478,19 +1477,25 @@ linprocfs_fdfill(PFS_FILL_ARGS)
 	struct fdinfo *fdi;
 	struct file *fp;
 	struct thread *fpthread;
+	cap_rights_t rights;
+	int rc;
 
 	fdi = pn->pn_data;
-	fp = fdi->fdi_fp;
+	if (fget(td, fdi->fdi_fd,  cap_rights_init(&rights, CAP_FSTAT), &fp)) {
+		sbuf_printf(sb, "unknown");
+		return (0);
+	}
+	rc = 0;
 	fpthread = FIRST_THREAD_IN_PROC(fdi->fdi_p);
-	if (fp == NULL)
-		return (ENOENT);
 	MPASS(fp->f_type > 0 && fp->f_type <= DTYPE_DMABUF);
 
 	switch (fp->f_type) {
 	case DTYPE_VNODE:
-		return (linprocfs_vnfill(sb, fpthread, fp->f_data));
+		rc = linprocfs_vnfill(sb, fpthread, fp->f_data);
+		break;
 	case DTYPE_SOCKET:
-		return (linprocfs_sofill(sb, fp->f_data));
+		rc = linprocfs_sofill(sb, fp->f_data);
+		break;
 	case DTYPE_PIPE:
 	case DTYPE_FIFO:
 	case DTYPE_KQUEUE:
@@ -1503,12 +1508,14 @@ linprocfs_fdfill(PFS_FILL_ARGS)
 	case DTYPE_LINUXEFD:
 	case DTYPE_DMABUF:
 		sbuf_printf(sb, "[%s]", type2name[fp->f_type]);
-		return (0);
+		break;
 	default:
 		sbuf_printf(sb, "invalid");
-		return (0);
+		break;
 	}
-	return (0);
+	fdrop(fp, fpthread);
+
+	return (rc);
 }
 
 
@@ -1521,9 +1528,7 @@ linprocfs_dirfill(PFS_FILL_ARGS)
 	int i, lastfile;
 	struct fdinfo *fdi;
 	struct filedesc *fdp;
-	struct file *fp;
 	struct pfs_node *pnnew;
-	cap_rights_t rights;
 	char buf[10];
 
 	fdp = p->p_fd;
@@ -1532,15 +1537,13 @@ linprocfs_dirfill(PFS_FILL_ARGS)
 
 	lastfile = fdp->fd_lastfile;
 	for (i = 0; i < lastfile; i++) {
-		if (fget(td, i,  cap_rights_init(&rights, CAP_FSTAT), &fp))
+		if (fdp->fd_ofiles[i].fde_file == NULL)
 			continue;
 		if ((fdi = malloc(sizeof(struct fdinfo), M_TEMP, M_NOWAIT)) == NULL) {
-			fdrop(fp, td);
 			break;
 		}
-		MPASS(fp->f_type > 0 && fp->f_type <= DTYPE_DMABUF);
 		fdi->fdi_p = p;
-		fdi->fdi_fp = fp;
+		fdi->fdi_fd = i;
 		snprintf(buf, 9, "%d", i);
 		pnnew = pfs_create_link(pn, buf, linprocfs_fdfill, NULL, NULL,
 					linprocfs_fddestroy, 0);
