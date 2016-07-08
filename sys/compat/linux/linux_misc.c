@@ -623,22 +623,18 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 	args->old_len = round_page(args->old_len);
 
 	if (args->new_len > args->old_len) {
-		if ((args->flags & LINUX_MREMAP_MAYMOVE) == 0) {
-			td->td_retval[0] = 0;
-			return (ENOMEM);
-		}
-		bsd_args.addr = (caddr_t)args->addr;
-		bsd_args.len = args->old_len;
-		error = sys_munmap(td, &bsd_args);
-		if (error)
-			return (error);
-		bsd_map_args.addr = (caddr_t)args->addr;
-		bsd_map_args.len = args->new_len;
+		if ((args->flags & LINUX_MREMAP_MAYMOVE) == 0)
+			goto fail;
+
+		bsd_map_args.addr = (caddr_t)args->addr + args->old_len;
+		bsd_map_args.len = (args->new_len - args->old_len);
 		bsd_map_args.prot = PROT_READ|PROT_WRITE;
 		bsd_map_args.flags = MAP_ANON;
 		bsd_map_args.fd = -1;
 		bsd_map_args.pos = 0;
-		return (sys_mmap(td, &bsd_map_args));
+		error = sys_mmap(td, &bsd_map_args);
+		if (error)
+			goto fail;
 	}
 
 	if (args->new_len < args->old_len) {
@@ -650,6 +646,9 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 
 	td->td_retval[0] = error ? 0 : (uintptr_t)args->addr;
 	return (error);
+fail:
+	td->td_retval[0] = 0;
+	return (ENOMEM);
 }
 
 #define LINUX_MS_ASYNC       0x0001
