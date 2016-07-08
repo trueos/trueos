@@ -1401,26 +1401,6 @@ linprocfs_domodules(PFS_FILL_ARGS)
 }
 #endif
 
-
-struct fdinfo {
-	struct proc *fdi_p;
-	int fdi_fd;
-};
-
-static int
-linprocfs_fddestroy(PFS_DESTROY_ARGS)
-{
-	struct fdinfo *fdi;
-	struct thread *td;
-
-	fdi = pn->pn_data;
-	td = FIRST_THREAD_IN_PROC(fdi->fdi_p);
-	free(fdi, M_TEMP);
-	return (0);
-}
-
-
-
 static int
 linprocfs_sofill(struct sbuf *sb, struct socket *so)
 {
@@ -1474,19 +1454,18 @@ static char *type2name[] = {
 static int
 linprocfs_fdfill(PFS_FILL_ARGS)
 {
-	struct fdinfo *fdi;
 	struct file *fp;
 	struct thread *fpthread;
 	cap_rights_t rights;
-	int rc;
+	int rc, fd;
 
-	fdi = pn->pn_data;
-	if (fget(td, fdi->fdi_fd,  cap_rights_init(&rights, CAP_FSTAT), &fp)) {
+	fd = (int)pn->pn_data;
+	if (fget(td, fd,  cap_rights_init(&rights, CAP_FSTAT), &fp)) {
 		sbuf_printf(sb, "unknown");
 		return (0);
 	}
 	rc = 0;
-	fpthread = FIRST_THREAD_IN_PROC(fdi->fdi_p);
+	fpthread = FIRST_THREAD_IN_PROC(p);
 	MPASS(fp->f_type > 0 && fp->f_type <= DTYPE_DMABUF);
 
 	switch (fp->f_type) {
@@ -1526,7 +1505,6 @@ static int
 linprocfs_dirfill(PFS_FILL_ARGS)
 {
 	int i, lastfile;
-	struct fdinfo *fdi;
 	struct filedesc *fdp;
 	struct pfs_node *pnnew;
 	char buf[10];
@@ -1539,15 +1517,10 @@ linprocfs_dirfill(PFS_FILL_ARGS)
 	for (i = 0; i < lastfile; i++) {
 		if (fdp->fd_ofiles[i].fde_file == NULL)
 			continue;
-		if ((fdi = malloc(sizeof(struct fdinfo), M_TEMP, M_NOWAIT)) == NULL) {
-			break;
-		}
-		fdi->fdi_p = p;
-		fdi->fdi_fd = i;
 		snprintf(buf, 9, "%d", i);
 		pnnew = pfs_create_link(pn, buf, linprocfs_fdfill, NULL, NULL,
-					linprocfs_fddestroy, 0);
-		pnnew->pn_data = fdi;
+					NULL, 0);
+		pnnew->pn_data = (void *)(uintptr_t)i;
 	}
 	return (0);
 }
