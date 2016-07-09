@@ -76,8 +76,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/swap_pager.h>
 
+#ifdef COMPAT_LINUX32
+#include <machine/../linux32/linux.h>
+#include <machine/../linux32/linux32_proto.h>
+#else
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
+#endif
 
 #include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_file.h>
@@ -101,7 +106,6 @@ __FBSDID("$FreeBSD$");
  *      amd64, 32bit emulation  = linuxulator32
  */
 LIN_SDT_PROVIDER_DEFINE(LINUX_DTRACE);
-
 int stclohz;				/* Statistics clock frequency */
 
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
@@ -626,7 +630,7 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 		if ((args->flags & LINUX_MREMAP_MAYMOVE) == 0)
 			goto fail;
 
-		bsd_map_args.addr = (caddr_t)args->addr + args->old_len;
+		bsd_map_args.addr = (caddr_t)(uintptr_t)args->addr + args->old_len;
 		bsd_map_args.len = (args->new_len - args->old_len);
 		bsd_map_args.prot = PROT_READ|PROT_WRITE;
 		bsd_map_args.flags = MAP_ANON;
