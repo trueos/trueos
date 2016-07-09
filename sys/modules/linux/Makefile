@@ -13,7 +13,7 @@ KMOD=	linux
 SRCS=	linux_fork.c linux${SFX}_dummy.c linux_file.c linux_event.c \
 	linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
 	linux${SFX}_machdep.c linux_misc.c linux_misc32.c linux_signal.c \
-	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
+	linux_socket.c linux_socket32.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
 	linux${SFX}_sysvec.c linux_uid16.c linux_time.c \
 	linux_timer.c linux_vdso.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
