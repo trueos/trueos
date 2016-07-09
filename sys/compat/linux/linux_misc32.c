@@ -90,7 +90,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_misc.h>
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-LIN_SDT_PROVIDER_DEFINE(LINUX_DTRACE);
 
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
 	RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
