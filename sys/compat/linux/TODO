@@ -1,0 +1,20 @@
+features:
+chrome & steam:
+udev		- implement sys/dev/char 
+
+chrome:
+AF_NETLINK	- available from illumos-joyent or https://github.com/luigirizzo/netlink-freebsd 
+inotify		- (re-)implement /dev/inotify device as wrapper around EVFILT_VNODE 
+name_to_handle_at - wrapper around getfh, with extra validation	
+/proc/modules
+
+IGT:
+debugfs		- simple linsysfs subtree, basically a wrapper around pfs
+
+general:
+ptrace		- {GET,SET}SIGINFO, properly identify syscall stop (strace)
+mremap		- MAYMOVE handling
+recvfrom	- ipv6 or netlink (unclear) needed for in chroot name resolution
+coredump	- need linux specific note generation with the correct brand
+soft links	- linuxemu only follows one level of soft links
+
