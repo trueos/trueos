@@ -2141,7 +2141,8 @@ static const struct engine_info {
 	unsigned guc_id;
 	u32 mmio_base;
 	unsigned irq_shift;
-	int (*init)(struct intel_engine_cs *engine);
+	int (*init_legacy)(struct intel_engine_cs *engine);
+	int (*init_execlists)(struct intel_engine_cs *engine);
 } intel_engines[] = {
 	[RCS] = {
 		.name = "render ring",
@@ -2149,7 +2150,8 @@ static const struct engine_info {
 		.guc_id = GUC_RENDER_ENGINE,
 		.mmio_base = RENDER_RING_BASE,
 		.irq_shift = GEN8_RCS_IRQ_SHIFT,
-		.init = logical_render_ring_init,
+		.init_execlists = logical_render_ring_init,
+		.init_legacy = intel_init_render_ring_buffer,
 	},
 	[BCS] = {
 		.name = "blitter ring",
@@ -2157,7 +2159,8 @@ static const struct engine_info {
 		.guc_id = GUC_BLITTER_ENGINE,
 		.mmio_base = BLT_RING_BASE,
 		.irq_shift = GEN8_BCS_IRQ_SHIFT,
-		.init = logical_xcs_ring_init,
+		.init_execlists = logical_xcs_ring_init,
+		.init_legacy = intel_init_blt_ring_buffer,
 	},
 	[VCS] = {
 		.name = "bsd ring",
@@ -2165,7 +2168,8 @@ static const struct engine_info {
 		.guc_id = GUC_VIDEO_ENGINE,
 		.mmio_base = GEN6_BSD_RING_BASE,
 		.irq_shift = GEN8_VCS1_IRQ_SHIFT,
-		.init = logical_xcs_ring_init,
+		.init_execlists = logical_xcs_ring_init,
+		.init_legacy = intel_init_bsd_ring_buffer,
 	},
 	[VCS2] = {
 		.name = "bsd2 ring",
@@ -2173,7 +2177,8 @@ static const struct engine_info {
 		.guc_id = GUC_VIDEO_ENGINE2,
 		.mmio_base = GEN8_BSD2_RING_BASE,
 		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
-		.init = logical_xcs_ring_init,
+		.init_execlists = logical_xcs_ring_init,
+		.init_legacy = intel_init_bsd2_ring_buffer,
 	},
 	[VECS] = {
 		.name = "video enhancement ring",
@@ -2181,7 +2186,8 @@ static const struct engine_info {
 		.guc_id = GUC_VIDEOENHANCE_ENGINE,
 		.mmio_base = VEBOX_RING_BASE,
 		.irq_shift = GEN8_VECS_IRQ_SHIFT,
-		.init = logical_xcs_ring_init,
+		.init_execlists = logical_xcs_ring_init,
+		.init_legacy = intel_init_vebox_ring_buffer,
 	},
 };
 
@@ -2204,20 +2210,16 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_logical_rings_init() - allocate, populate and init the Engine Command Streamers
+ * intel_engines_init() - allocate, populate and init the Engine Command Streamers
  * @dev: DRM device.
- *
- * This function inits the engines for an Execlists submission style (the
- * equivalent in the legacy ringbuffer submission world would be
- * i915_gem_init_engines). It does it only for those engines that are present in
- * the hardware.
  *
  * Return: non-zero if the initialization failed.
  */
-int intel_logical_rings_init(struct drm_device *dev)
+int intel_engines_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned int mask = 0;
+	int (*init)(struct intel_engine_cs *engine);
 	unsigned int i;
 	int ret;
 
@@ -2228,10 +2230,15 @@ int intel_logical_rings_init(struct drm_device *dev)
 		if (!HAS_ENGINE(dev_priv, i))
 			continue;
 
-		if (!intel_engines[i].init)
+		if (i915.enable_execlists)
+			init = intel_engines[i].init_execlists;
+		else
+			init = intel_engines[i].init_legacy;
+
+		if (!init)
 			continue;
 
-		ret = intel_engines[i].init(intel_engine_setup(dev_priv, i));
+		ret = init(intel_engine_setup(dev_priv, i));
 		if (ret)
 			goto cleanup;
 
@@ -2252,8 +2259,12 @@ int intel_logical_rings_init(struct drm_device *dev)
 	return 0;
 
 cleanup:
-	for (i = 0; i < I915_NUM_ENGINES; i++)
-		intel_logical_ring_cleanup(&dev_priv->engine[i]);
+	for (i = 0; i < I915_NUM_ENGINES; i++) {
+		if (i915.enable_execlists)
+			intel_logical_ring_cleanup(&dev_priv->engine[i]);
+		else
+			intel_cleanup_engine(&dev_priv->engine[i]);
+	}
 
 	return ret;
 }
