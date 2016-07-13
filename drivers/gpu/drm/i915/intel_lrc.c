@@ -2005,6 +2005,46 @@ lrc_setup_hws(struct intel_engine_cs *engine,
 	return 0;
 }
 
+static void
+logical_ring_setup(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	enum forcewake_domains fw_domains;
+
+	/* Intentionally left blank. */
+	engine->buffer = NULL;
+
+	fw_domains = intel_uncore_forcewake_for_reg(dev_priv,
+						    RING_ELSP(engine),
+						    FW_REG_WRITE);
+
+	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
+						     RING_CONTEXT_STATUS_PTR(engine),
+						     FW_REG_READ | FW_REG_WRITE);
+
+	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
+						     RING_CONTEXT_STATUS_BUF_BASE(engine),
+						     FW_REG_READ);
+
+	engine->fw_domains = fw_domains;
+
+	INIT_LIST_HEAD(&engine->active_list);
+	INIT_LIST_HEAD(&engine->request_list);
+	INIT_LIST_HEAD(&engine->buffers);
+	INIT_LIST_HEAD(&engine->execlist_queue);
+	spin_lock_init(&engine->execlist_lock);
+
+	tasklet_init(&engine->irq_tasklet,
+		     intel_lrc_irq_handler, (unsigned long)engine);
+
+	logical_ring_init_platform_invariants(engine);
+	logical_ring_default_vfuncs(engine);
+	logical_ring_default_irqs(engine);
+
+	intel_engine_init_hangcheck(engine);
+	i915_gem_batch_pool_init(&dev_priv->drm, &engine->batch_pool);
+}
+
 static int
 logical_ring_init(struct intel_engine_cs *engine)
 {
@@ -2050,6 +2090,8 @@ static int logical_render_ring_init(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	int ret;
 
+	logical_ring_setup(engine);
+
 	if (HAS_L3_DPF(dev_priv))
 		engine->irq_keep_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
@@ -2086,6 +2128,13 @@ static int logical_render_ring_init(struct intel_engine_cs *engine)
 	return ret;
 }
 
+static int logical_xcs_ring_init(struct intel_engine_cs *engine)
+{
+	logical_ring_setup(engine);
+
+	return logical_ring_init(engine);
+}
+
 static const struct engine_info {
 	const char *name;
 	unsigned exec_id;
@@ -2108,7 +2157,7 @@ static const struct engine_info {
 		.guc_id = GUC_BLITTER_ENGINE,
 		.mmio_base = BLT_RING_BASE,
 		.irq_shift = GEN8_BCS_IRQ_SHIFT,
-		.init = logical_ring_init,
+		.init = logical_xcs_ring_init,
 	},
 	[VCS] = {
 		.name = "bsd ring",
@@ -2116,7 +2165,7 @@ static const struct engine_info {
 		.guc_id = GUC_VIDEO_ENGINE,
 		.mmio_base = GEN6_BSD_RING_BASE,
 		.irq_shift = GEN8_VCS1_IRQ_SHIFT,
-		.init = logical_ring_init,
+		.init = logical_xcs_ring_init,
 	},
 	[VCS2] = {
 		.name = "bsd2 ring",
@@ -2124,7 +2173,7 @@ static const struct engine_info {
 		.guc_id = GUC_VIDEO_ENGINE2,
 		.mmio_base = GEN8_BSD2_RING_BASE,
 		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
-		.init = logical_ring_init,
+		.init = logical_xcs_ring_init,
 	},
 	[VECS] = {
 		.name = "video enhancement ring",
@@ -2132,7 +2181,7 @@ static const struct engine_info {
 		.guc_id = GUC_VIDEOENHANCE_ENGINE,
 		.mmio_base = VEBOX_RING_BASE,
 		.irq_shift = GEN8_VECS_IRQ_SHIFT,
-		.init = logical_ring_init,
+		.init = logical_xcs_ring_init,
 	},
 };
 
@@ -2150,50 +2199,6 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	engine->hw_id = engine->guc_id = info->guc_id;
 	engine->mmio_base = info->mmio_base;
 	engine->irq_shift = info->irq_shift;
-
-	return engine;
-}
-
-static struct intel_engine_cs *
-logical_ring_setup(struct drm_i915_private *dev_priv, enum intel_engine_id id)
-{
-	struct intel_engine_cs *engine;
-	enum forcewake_domains fw_domains;
-
-	engine = intel_engine_setup(dev_priv, id);
-
-	/* Intentionally left blank. */
-	engine->buffer = NULL;
-
-	fw_domains = intel_uncore_forcewake_for_reg(dev_priv,
-						    RING_ELSP(engine),
-						    FW_REG_WRITE);
-
-	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
-						     RING_CONTEXT_STATUS_PTR(engine),
-						     FW_REG_READ | FW_REG_WRITE);
-
-	fw_domains |= intel_uncore_forcewake_for_reg(dev_priv,
-						     RING_CONTEXT_STATUS_BUF_BASE(engine),
-						     FW_REG_READ);
-
-	engine->fw_domains = fw_domains;
-
-	INIT_LIST_HEAD(&engine->active_list);
-	INIT_LIST_HEAD(&engine->request_list);
-	INIT_LIST_HEAD(&engine->buffers);
-	INIT_LIST_HEAD(&engine->execlist_queue);
-	spin_lock_init(&engine->execlist_lock);
-
-	tasklet_init(&engine->irq_tasklet,
-		     intel_lrc_irq_handler, (unsigned long)engine);
-
-	logical_ring_init_platform_invariants(engine);
-	logical_ring_default_vfuncs(engine);
-	logical_ring_default_irqs(engine);
-
-	intel_engine_init_hangcheck(engine);
-	i915_gem_batch_pool_init(&dev_priv->drm, &engine->batch_pool);
 
 	return engine;
 }
@@ -2226,7 +2231,7 @@ int intel_logical_rings_init(struct drm_device *dev)
 		if (!intel_engines[i].init)
 			continue;
 
-		ret = intel_engines[i].init(logical_ring_setup(dev_priv, i));
+		ret = intel_engines[i].init(intel_engine_setup(dev_priv, i));
 		if (ret)
 			goto cleanup;
 
