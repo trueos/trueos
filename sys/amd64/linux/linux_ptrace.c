@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #define PTRACE_ATTACH		16
 #define PTRACE_DETACH		17
 
-#define	PTRACE_SYSCALL		24
+#define	LINUX_PTRACE_SYSCALL	24
 
 #define PTRACE_GETREGS		12
 #define PTRACE_SETREGS		13
@@ -557,7 +557,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 
 		break;
 	}
-	case PTRACE_SYSCALL:
+	case LINUX_PTRACE_SYSCALL:
 		error = kern_ptrace(td, PT_SYSCALL, pid, 0, 0);
 		break;
 	case PTRACE_SETOPTIONS:
