@@ -499,8 +499,7 @@ native_lapic_init(vm_paddr_t addr)
 	ver = lapic_read32(LAPIC_VERSION);
 	if ((ver & APIC_VER_EOI_SUPPRESSION) != 0) {
 		lapic_eoi_suppression = 1;
-		if (vm_guest == VM_GUEST_VM &&
-		    !strcmp(hv_vendor, "KVMKVMKVM")) {
+		if (vm_guest == VM_GUEST_KVM) {
 			if (bootverbose)
 				printf(
 		       "KVM -- disabling lapic eoi suppression\n");
@@ -511,7 +510,7 @@ native_lapic_init(vm_paddr_t addr)
 	}
 
 #ifdef SMP
-#define	LOOPS	1000000
+#define	LOOPS	100000
 	/*
 	 * Calibrate the busy loop waiting for IPI ack in xAPIC mode.
 	 * lapic_ipi_wait_mult contains the number of iterations which
@@ -706,7 +705,7 @@ native_lapic_setup(int boot)
 		lapic_write32(LAPIC_LVT_CMCI, lvt_mode(la, APIC_LVT_CMCI,
 		    lapic_read32(LAPIC_LVT_CMCI)));
 	}
-	    
+
 	intr_restore(saveintr);
 }
 
@@ -1725,7 +1724,7 @@ static void
 apic_setup_local(void *dummy __unused)
 {
 	int retval;
- 
+
 	if (best_enum == NULL)
 		return;
 

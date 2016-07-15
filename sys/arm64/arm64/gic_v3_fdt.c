@@ -116,9 +116,7 @@ gic_v3_fdt_attach(device_t dev)
 {
 	struct gic_v3_softc *sc;
 	pcell_t redist_regions;
-#ifdef INTRNG
 	intptr_t xref;
-#endif
 	int err;
 
 	sc = device_get_softc(dev);
@@ -137,18 +135,19 @@ gic_v3_fdt_attach(device_t dev)
 	if (err != 0)
 		goto error;
 
-#ifdef INTRNG
 	xref = OF_xref_from_node(ofw_bus_get_node(dev));
-	if (intr_pic_register(dev, xref) == NULL) {
+	sc->gic_pic = intr_pic_register(dev, xref);
+	if (sc->gic_pic == NULL) {
 		device_printf(dev, "could not register PIC\n");
+		err = ENXIO;
 		goto error;
 	}
 
 	if (intr_pic_claim_root(dev, xref, arm_gic_v3_intr, sc,
 	    GIC_LAST_SGI - GIC_FIRST_SGI + 1) != 0) {
+		err = ENXIO;
 		goto error;
 	}
-#endif
 
 	/*
 	 * Try to register ITS to this GIC.
@@ -162,6 +161,9 @@ gic_v3_fdt_attach(device_t dev)
 		}
 	}
 
+	if (device_get_children(dev, &sc->gic_children, &sc->gic_nchildren) != 0)
+		sc->gic_nchildren = 0;
+
 	return (err);
 
 error:
@@ -172,7 +174,7 @@ error:
 	/* Failure so free resources */
 	gic_v3_detach(dev);
 
-	return (ENXIO);
+	return (err);
 }
 
 /* OFW bus interface */
@@ -294,37 +296,3 @@ gic_v3_ofw_bus_attach(device_t dev)
 
 	return (bus_generic_attach(dev));
 }
-
-#ifndef INTRNG
-static int gic_v3_its_fdt_probe(device_t dev);
-
-static device_method_t gic_v3_its_fdt_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		gic_v3_its_fdt_probe),
-
-	/* End */
-	DEVMETHOD_END
-};
-
-DEFINE_CLASS_1(its, gic_v3_its_fdt_driver, gic_v3_its_fdt_methods,
-    sizeof(struct gic_v3_its_softc), gic_v3_its_driver);
-
-static devclass_t gic_v3_its_fdt_devclass;
-
-EARLY_DRIVER_MODULE(its, gic, gic_v3_its_fdt_driver,
-    gic_v3_its_fdt_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-
-static int
-gic_v3_its_fdt_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (!ofw_bus_is_compatible(dev, GIC_V3_ITS_COMPSTR))
-		return (ENXIO);
-
-	device_set_desc(dev, GIC_V3_ITS_DEVSTR);
-	return (BUS_PROBE_DEFAULT);
-}
-#endif

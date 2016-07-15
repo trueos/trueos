@@ -942,6 +942,7 @@ int
 sys_openat(struct thread *td, struct openat_args *uap)
 {
 
+	AUDIT_ARG_FD(uap->fd);
 	return (kern_openat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
 	    uap->mode));
 }
@@ -962,7 +963,6 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 
 	AUDIT_ARG_FFLAGS(flags);
 	AUDIT_ARG_MODE(mode);
-	/* XXX: audit dirfd */
 	cap_rights_init(&rights, CAP_LOOKUP);
 	flags_to_rights(flags, &rights);
 	/*
@@ -2068,6 +2068,7 @@ cvtstat(st, ost)
 	struct ostat *ost;
 {
 
+	bzero(ost, sizeof(*ost));
 	ost->st_dev = st->st_dev;
 	ost->st_ino = st->st_ino;
 	ost->st_mode = st->st_mode;
