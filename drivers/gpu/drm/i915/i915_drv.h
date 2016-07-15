@@ -3398,6 +3398,7 @@ void i915_gem_cleanup_engines(struct drm_device *dev);
 int __must_check i915_gem_wait_for_idle(struct drm_i915_private *dev_priv);
 int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_suspend(struct drm_device *dev);
+void i915_gem_resume(struct drm_device *dev);
 void __i915_add_request(struct drm_i915_gem_request *req,
 			struct drm_i915_gem_object *batch_obj,
 			bool flush_caches);
