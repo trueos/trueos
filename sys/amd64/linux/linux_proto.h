@@ -499,7 +499,7 @@ struct linux_mknod_args {
 	char dev_l_[PADL_(l_dev_t)]; l_dev_t dev; char dev_r_[PADR_(l_dev_t)];
 };
 struct linux_personality_args {
-	char per_l_[PADL_(l_ulong)]; l_ulong per; char per_r_[PADR_(l_ulong)];
+	char per_l_[PADL_(l_uint)]; l_uint per; char per_r_[PADR_(l_uint)];
 };
 struct linux_ustat_args {
 	char dev_l_[PADL_(l_dev_t)]; l_dev_t dev; char dev_r_[PADR_(l_dev_t)];

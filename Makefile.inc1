@@ -82,7 +82,7 @@ MK_CROSS_COMPILER=	no
 # Check if there is a local compiler that can satisfy as an external compiler.
 .if ${MK_SYSTEM_COMPILER} == "yes" && ${MK_CROSS_COMPILER} == "yes" && \
     (${MK_CLANG_BOOTSTRAP} == "yes" || ${MK_GCC_BOOTSTRAP} == "yes") && \
-    !make(showconfig)
+    !make(showconfig) && !make(native-xtools) && !make(xdev*)
 # Which compiler is expected to be used?
 .if ${MK_CLANG_BOOTSTRAP} == "yes"
 _expected_compiler_type=	clang
@@ -549,11 +549,13 @@ TARGET_ABI=	gnueabi
 XCFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
 # Force using libc++ for external GCC.
 # XXX: This should be checking MK_GNUCXX == no
+.if ${X_COMPILER_VERSION} >= 40800
 XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
 		-nostdinc++ -L${WORLDTMP}/../lib/libc++
+.endif
 .else
 TARGET_ABI?=	unknown
-TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd11.0
+TARGET_TRIPLE?=	${TARGET_ARCH:C/amd64/x86_64/}-${TARGET_ABI}-freebsd12.0
 XCFLAGS+=	-target ${TARGET_TRIPLE}
 .endif
 XCFLAGS+=	--sysroot=${WORLDTMP}

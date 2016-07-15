@@ -149,6 +149,7 @@ CWARNFLAGS.ni_dpm.c=		-Wno-missing-prototypes
 CWARNFLAGS.r600.c=		-Wno-missing-prototypes -Wno-cast-qual -Wno-format
 CWARNFLAGS.r600_cs.c=		-Wno-format -Wno-missing-prototypes
 CWARNFLAGS.r600_hdmi.c=		-Wno-missing-prototypes
+CWARNFLAGS.radeon_acpi.c=	-Wno-implicit-function-declaration
 CWARNFLAGS.radeon_agp.c=	-Wno-format
 CWARNFLAGS.radeon_atombios.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_atpx_handler.c=	-Wno-missing-prototypes
