@@ -126,6 +126,34 @@ static const struct vm_operations_struct vgem_gem_vm_ops = {
 	.close = drm_gem_vm_close,
 };
 
+static int vgem_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct vgem_file *vfile;
+	int ret;
+
+	vfile = kzalloc(sizeof(*vfile), GFP_KERNEL);
+	if (!vfile)
+		return -ENOMEM;
+
+	file->driver_priv = vfile;
+
+	ret = vgem_fence_open(vfile);
+	if (ret) {
+		kfree(vfile);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void vgem_preclose(struct drm_device *dev, struct drm_file *file)
+{
+	struct vgem_file *vfile = file->driver_priv;
+
+	vgem_fence_close(vfile);
+	kfree(vfile);
+}
+
 /* ioctls */
 
 static struct drm_gem_object *vgem_gem_create(struct drm_device *dev,
@@ -221,6 +249,8 @@ unref:
 }
 
 static struct drm_ioctl_desc vgem_ioctls[] = {
+	DRM_IOCTL_DEF_DRV(VGEM_FENCE_ATTACH, vgem_fence_attach_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VGEM_FENCE_SIGNAL, vgem_fence_signal_ioctl, DRM_AUTH|DRM_RENDER_ALLOW),
 };
 
 static const struct file_operations vgem_driver_fops = {
@@ -234,10 +264,18 @@ static const struct file_operations vgem_driver_fops = {
 };
 
 static struct drm_driver vgem_driver = {
+<<<<<<< HEAD
 	.driver_features		= DRIVER_GEM,
 	.gem_free_object		= vgem_gem_free_object,
+=======
+	.driver_features		= DRIVER_GEM | DRIVER_PRIME,
+	.open				= vgem_open,
+	.preclose			= vgem_preclose,
+	.gem_free_object_unlocked	= vgem_gem_free_object,
+>>>>>>> 4077798... drm/vgem: Attach sw fences to exported vGEM dma-buf (ioctl)
 	.gem_vm_ops			= &vgem_gem_vm_ops,
 	.ioctls				= vgem_ioctls,
+	.num_ioctls 			= ARRAY_SIZE(vgem_ioctls),
 	.fops				= &vgem_driver_fops,
 	.dumb_create			= vgem_gem_dumb_create,
 	.dumb_map_offset		= vgem_gem_dumb_map,
@@ -285,5 +323,6 @@ module_init(vgem_init);
 module_exit(vgem_exit);
 
 MODULE_AUTHOR("Red Hat, Inc.");
+MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");
