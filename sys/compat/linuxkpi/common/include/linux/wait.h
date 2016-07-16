@@ -132,10 +132,10 @@ autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
 
 #define DECLARE_WAIT_QUEUE_HEAD(name)		\
         wait_queue_head_t name = LINUX_WAIT_QUEUE_HEAD_INITIALIZER(name);  \
-	LINUX_MTX_SYSINIT(name, &(name).lock.m, "wqhead", MTX_INTEROP)
+	LINUX_MTX_SYSINIT(name, &(name).lock.m, "wqhead", 0)
 
 #define	init_waitqueue_head(x) \
-	do { linux_mtx_init(&((x)->lock.m), "wq", NULL, MTX_NOWITNESS|MTX_INTEROP);  INIT_LIST_HEAD(&(x)->task_list);  } while (0)
+	do { lkpi_mtx_init(&((x)->lock.m), "wq", NULL, MTX_NOWITNESS);  INIT_LIST_HEAD(&(x)->task_list);  } while (0)
 
 static inline void
 init_waitqueue_entry(wait_queue_t *q, struct task_struct *p)

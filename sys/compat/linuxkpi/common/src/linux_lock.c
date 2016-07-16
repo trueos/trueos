@@ -15,7 +15,7 @@ linux_mtx_sysinit(void *arg)
 {
 	struct mtx_args *margs = arg;
 
-	linux_mtx_init((struct mtx *)margs->ma_mtx, margs->ma_desc, NULL,
+	lkpi_mtx_init((struct mtx *)margs->ma_mtx, margs->ma_desc, NULL,
 	    margs->ma_opts);
 }
 
@@ -67,45 +67,4 @@ _linux_mutex_lock_common(struct mutex *lock, int state, struct ww_acquire_ctx *c
 	}
 
 	return (0);
-}
-
-void
-_linux_mtx_init(volatile uintptr_t *c, const char *name, const char *type, int opts)
-{
-	struct mtx *m;
-	struct lock_class *class;
-	int flags;
-
-	m = mtxlock2mtx(c);
-
-	MPASS((opts & ~(MTX_QUIET | MTX_RECURSE |
-	    MTX_NOWITNESS | MTX_DUPOK | MTX_NOPROFILE | MTX_NEW | MTX_INTEROP)) == 0);
-	ASSERT_ATOMIC_LOAD_PTR(m->mtx_lock,
-	    ("%s: mtx_lock not aligned for %s: %p", __func__, name,
-	    &m->mtx_lock));
-
-	/* Determine lock class and lock flags. */
-
-	MPASS(opts & MTX_INTEROP);
-	class = &lock_class_mtx_interop;
-
-	flags = 0;
-	if (opts & MTX_QUIET)
-		flags |= LO_QUIET;
-	if (opts & MTX_RECURSE)
-		flags |= LO_RECURSABLE;
-	if ((opts & MTX_NOWITNESS) == 0)
-		flags |= LO_WITNESS;
-	if (opts & MTX_DUPOK)
-		flags |= LO_DUPOK;
-	if (opts & MTX_NOPROFILE)
-		flags |= LO_NOPROFILE;
-	if (opts & MTX_NEW)
-		flags |= LO_NEW;
-
-	/* Initialize mutex. */
-	lock_init(&m->lock_object, class, name, type, flags);
-
-	m->mtx_lock = MTX_UNOWNED;
-	m->mtx_recurse = 0;
 }

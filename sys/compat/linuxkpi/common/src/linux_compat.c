@@ -192,48 +192,6 @@ on_each_cpu(void callback(void *data), void *data, int wait)
 	return (0);
 }
 
-long
-schedule_timeout(signed long timeout)
-{
-	int ret, flags, sleepable;
-	struct mtx *m;
-	struct mtx stackm;
-
-	if (timeout < 0)
-		return 0;
-	if (SKIP_SLEEP())
-		return (0);
-	MPASS(current);
-	sleepable = 0;
-	if (current->sleep_wq == NULL) {
-		m = &stackm;
-		bzero(m, sizeof(*m));
-		mtx_init(m, "stack", NULL, MTX_DEF|MTX_NOWITNESS);
-		mtx_lock(m);
-		sleepable = 1;
-	} else {
-		m = &current->sleep_wq->lock.m;
-		mtx_lock_spin(m);
-		if (current->state == TASK_WAKING) {
-			mtx_unlock_spin(m);
-			set_current_state(TASK_RUNNING);
-			return (0);
-		}
-	}
-
-	flags = (current->state == TASK_INTERRUPTIBLE) ? PCATCH : 0;
-	if (sleepable)
-		ret = _sleep(current, &(m->lock_object), flags | PDROP ,
-			     "lsti", tick_sbt * timeout, 0 , C_HARDCLOCK);
-	else 
-		ret = _msleep_spin_sbt(current, m, flags | PDROP, "lstisp",
-				      tick_sbt * timeout, 0, C_HARDCLOCK);
-
-	set_current_state(TASK_RUNNING);
-
-	return (-ret);
-}
-
 /*
  * XXX this leaks right now, we need to track
  * this memory so that it's freed on return from

@@ -41,44 +41,20 @@
 #include <linux/irqflags.h>
 #include <linux/kernel.h>
 #include <linux/rwlock.h>
+#include <linux/lkpi_mutex.h>
 
 typedef struct {
 	struct mtx m;
 } spinlock_t;
 
 
-#define	spin_lock(_l)		_spin_lock((_l), __FILE__, __LINE__)
-#define	spin_unlock(_l)		_spin_unlock((_l), __FILE__, __LINE__)
+#define	spin_lock(_l)		lkpi_mtx_lock(&(_l)->m)
+#define	spin_unlock(_l)		lkpi_mtx_unlock(&(_l)->m)
 #define	spin_trylock(_l)	mtx_trylock(&(_l)->m)
 #define	spin_lock_nested(_l, _n) mtx_lock_flags(&(_l)->m, MTX_DUPOK)
 
-
-
-static inline void
-_spin_lock(spinlock_t *lock, char *file, int line)
-{
-
-	if (curthread->td_intr_nesting_level)
-		mtx_lock_spin_flags_(&(lock->m), 0, file, line);
-	else
-		mtx_lock_flags_(&(lock->m), 0, file, line);
-}
-
-static inline void
-_spin_unlock(spinlock_t *lock, char *file, int line)
-{
-
-	if (curthread->td_intr_nesting_level)
-		mtx_unlock_spin_flags_(&(lock->m), 0, file, line);
-	else
-		mtx_unlock_flags_(&(lock->m), 0, file, line);
-}
-
 void	_linux_mtx_init(volatile uintptr_t *c, const char *name, const char *type,
 	    int opts);
-
-#define	linux_mtx_init(m, n, t, o)			\
-	_linux_mtx_init(&(m)->mtx_lock, n, t, o)
 
 #define spin_lock_init(lock) _spin_lock_init((lock), #lock, __FILE__, __LINE__)
 
@@ -92,9 +68,9 @@ _spin_lock_init(spinlock_t *lock, char *name, char *file, int line)
 	memset(&lock->m, 0, sizeof(lock->m));
 #ifdef WITNESS_ALL
 	snprintf(buf, 64, "%s:%s:%d", name, file, line);
-	linux_mtx_init(&lock->m, strdup(buf, M_DEVBUF), NULL, MTX_INTEROP);
+	lkpi_mtx_init(&lock->m, strdup(buf, M_DEVBUF), NULL, 0);
 #else
-	linux_mtx_init(&lock->m, name, NULL, MTX_INTEROP | MTX_NOWITNESS);
+	lkpi_mtx_init(&lock->m, name, NULL, MTX_NOWITNESS);
 #endif	
 }
 
@@ -119,7 +95,7 @@ void	linux_mtx_sysinit(void *arg);
 
 #define	DEFINE_SPINLOCK(lock)						\
 	spinlock_t lock;						\
-	LINUX_MTX_SYSINIT(lock, &(lock).m, #lock, MTX_INTEROP)
+	LINUX_MTX_SYSINIT(lock, &(lock).m, #lock, 0)
 
 
 static inline void
@@ -140,8 +116,8 @@ static inline void spin_unlock_bh(spinlock_t *lock) {
 }
 
 
-#define	spin_lock_irq(_l)	mtx_lock_spin(&(_l)->m)
-#define	spin_unlock_irq(_l)	mtx_unlock_spin(&(_l)->m)
+#define	spin_lock_irq(_l)	lkpi_mtx_lock_spin(&(_l)->m)
+#define	spin_unlock_irq(_l)	lkpi_mtx_unlock_spin(&(_l)->m)
 
 #define spin_lock_irqsave(lock, flags) do {	\
 		flags = local_save_flags();	\
