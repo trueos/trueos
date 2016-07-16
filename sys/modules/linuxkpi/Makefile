@@ -23,11 +23,13 @@ SRCS=	interval_tree.c \
 	linux_radix.c \
 	linux_rcu.c \
 	linux_reservation.c \
+	linux_schedule.c \
 	linux_string.c \
 	linux_sysfs.c \
 	linux_usb.c \
 	linux_video.c \
-	linux_work.c
+	linux_work.c \
+	lkpi_kern_mutex.c
 
 SRCS+=	bus_if.h \
 	device_if.h \
