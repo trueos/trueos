@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #endif
 
+#define        SO_PASSCRED     0x1017          /* name to pass credentials */
+
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -1504,6 +1506,8 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	case SOL_SOCKET:
 		name = linux_to_bsd_so_sockopt(args->optname);
 		switch (name) {
+		case SO_PASSCRED:
+			return (0);
 		case SO_RCVTIMEO:
 			/* FALLTHROUGH */
 		case SO_SNDTIMEO:
