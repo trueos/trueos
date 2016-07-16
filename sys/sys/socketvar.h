@@ -126,7 +126,6 @@ struct socket {
 	 */
 	int so_fibnum;		/* routing domain for this socket */
 	uint32_t so_user_cookie;
-	int so_options2;
 
 	void *so_pspare[2];	/* packet pacing / general use */
 	int so_ispare[2];	/* packet pacing / general use */

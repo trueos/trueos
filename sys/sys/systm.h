@@ -388,9 +388,6 @@ int	_sleep(void *chan, struct lock_object *lock, int pri, const char *wmesg,
 	    (flags))
 int	msleep_spin_sbt(void *chan, struct mtx *mtx, const char *wmesg,
 	    sbintime_t sbt, sbintime_t pr, int flags) __nonnull(1);
-int	_msleep_spin_sbt(void *chan, struct mtx *mtx, int prio, const char *wmesg,
-	    sbintime_t sbt, sbintime_t pr, int flags) __nonnull(1);
-
 #define	msleep_spin(chan, mtx, wmesg, timo)				\
 	msleep_spin_sbt((chan), (mtx), (wmesg), tick_sbt * (timo),	\
 	    0, C_HARDCLOCK)

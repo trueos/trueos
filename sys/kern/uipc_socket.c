@@ -2551,18 +2551,6 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				so->so_options &= ~sopt->sopt_name;
 			SOCK_UNLOCK(so);
 			break;
-		case SO_PASSCRED:
-			error = sooptcopyin(sopt, &optval, sizeof optval,
-			    sizeof optval);
-			if (error)
-				goto bad;
-			SOCK_LOCK(so);
-			if (optval)
-				so->so_options2 |= SOCK_PASSCRED;
-			else
-				so->so_options &= SOCK_PASSCRED;
-			SOCK_UNLOCK(so);
-			break;
 
 		case SO_SETFIB:
 			error = sooptcopyin(sopt, &optval, sizeof optval,

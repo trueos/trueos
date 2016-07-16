@@ -137,13 +137,6 @@ typedef	__uintptr_t	uintptr_t;
 #define	SO_NO_OFFLOAD	0x4000		/* socket cannot be offloaded */
 #define	SO_NO_DDP	0x8000		/* disable direct data placement */
 
-
-/*
- * secondary option flags per-socket.
- */
-#define	SOCK_PASSCRED	0x000000001	/* pass credentials in datagram sockets */
-
-
 /*
  * Additional options, not kept in so_options.
  */
@@ -164,8 +157,6 @@ typedef	__uintptr_t	uintptr_t;
 #define	SO_SETFIB	0x1014		/* use this FIB to route */
 #define	SO_USER_COOKIE	0x1015		/* user cookie (dummynet etc.) */
 #define	SO_PROTOCOL	0x1016		/* get socket protocol (Linux name) */
-#define	SO_PASSCRED	0x1017		/* name to pass credentials */
-
 #define	SO_PROTOTYPE	SO_PROTOCOL	/* alias for SO_PROTOCOL (SunOS name) */
 #endif
 
@@ -500,7 +491,6 @@ struct sockcred {
  */
 #define	SOCKCREDSIZE(ngrps) \
 	(sizeof(struct sockcred) + (sizeof(gid_t) * ((ngrps) - 1)))
-
 
 #endif /* __BSD_VISIBLE */
 
