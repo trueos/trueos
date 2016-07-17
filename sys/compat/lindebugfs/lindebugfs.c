@@ -94,7 +94,7 @@ debugfs_fill(PFS_FILL_ARGS)
 	buf = uio->uio_iov[0].iov_base;
 	len = min(uio->uio_iov[0].iov_len, uio->uio_resid);
 	off = uio->uio_offset;
-	lf->private_data = NULL;
+	lf.private_data = NULL;
 	rc = d->dm_fops->open(&vn, &lf);
 	if (rc < 0)
 		return (-rc);
