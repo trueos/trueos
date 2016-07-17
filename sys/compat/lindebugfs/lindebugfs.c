@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/compat.h>
 
 MALLOC_DEFINE(M_DFSINT, "debugfsint", "Linux debugfs internal");
 
@@ -90,6 +91,8 @@ debugfs_fill(PFS_FILL_ARGS)
 
 	d = pn->pn_data;
 
+	if ((rc = linux_set_current_flags(M_NOWAIT)))
+		return (rc);
 	vn.v_data = d->dm_data;
 	buf = uio->uio_iov[0].iov_base;
 	len = min(uio->uio_iov[0].iov_len, uio->uio_resid);
