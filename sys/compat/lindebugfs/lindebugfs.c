@@ -94,6 +94,7 @@ debugfs_fill(PFS_FILL_ARGS)
 	buf = uio->uio_iov[0].iov_base;
 	len = min(uio->uio_iov[0].iov_len, uio->uio_resid);
 	off = uio->uio_offset;
+	lf->private_data = NULL;
 	rc = d->dm_fops->open(&vn, &lf);
 	if (rc < 0)
 		return (-rc);
@@ -105,7 +106,8 @@ debugfs_fill(PFS_FILL_ARGS)
 		rc = d->dm_fops->write(&lf, buf, len, &off);
 	if (d->dm_fops->release)
 		d->dm_fops->release(&vn, &lf);
-	single_release(&vn, &lf);
+	else
+		single_release(&vn, &lf);
 	
 	if (rc < 0)
 		return (-rc);

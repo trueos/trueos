@@ -8,8 +8,9 @@ linux_seq_read(struct file *f, char __user *ubuf, size_t size, loff_t *ppos)
 	struct seq_file *m = f->private_data;
 	void *p;
 	int rc;
+	loff_t pos = 0;
 
-	p = m->op->start(m, 0);
+	p = m->op->start(m, &pos);
 	rc = m->op->show(m, p);		
 	if (rc)
 		return (rc);
