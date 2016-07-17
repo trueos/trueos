@@ -93,15 +93,19 @@ debugfs_fill(PFS_FILL_ARGS)
 	vn.v_data = d->dm_data;
 	buf = uio->uio_iov[0].iov_base;
 	len = min(uio->uio_iov[0].iov_len, uio->uio_resid);
-	off = uio->uio_offset;
+	off = 0;
 	lf.private_data = NULL;
 	rc = d->dm_fops->open(&vn, &lf);
-	if (rc < 0)
+	if (rc < 0) {
+#ifdef INVARIANTS
+		printf("open failed with %d\n", rc);
+#endif
 		return (-rc);
+	}
 	sf = lf.private_data;
 	sf->buf = sb;
 	if (uio->uio_rw == UIO_READ)
-		rc = d->dm_fops->read(&lf, buf, len, &off);
+		rc = d->dm_fops->read(&lf, NULL, len, &off);
 	else
 		rc = d->dm_fops->write(&lf, buf, len, &off);
 	if (d->dm_fops->release)
@@ -109,10 +113,12 @@ debugfs_fill(PFS_FILL_ARGS)
 	else
 		single_release(&vn, &lf);
 	
-	if (rc < 0)
+	if (rc < 0) {
+#ifdef INVARIANTS
+		printf("read/write return %d\n", rc);
+#endif
 		return (-rc);
-	uio->uio_resid -= rc;
-	uio->uio_offset = off;
+	}
 	return (0);
 }
 
