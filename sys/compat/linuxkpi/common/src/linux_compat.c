@@ -528,8 +528,8 @@ kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 	return kobject_add_complete(kobj, parent);
 }
 
-void
-linux_alloc_current(void)
+int
+linux_alloc_current(int flags)
 {
 	struct mm_struct *mm;
 	struct task_struct *t;
@@ -538,13 +538,15 @@ linux_alloc_current(void)
 	td = curthread;
 	MPASS(__predict_true(td->td_lkpi_task == NULL));
 
-	t = malloc(sizeof(*t), M_LCINT, M_WAITOK|M_ZERO);
+	if ((t = malloc(sizeof(*t), M_LCINT, flags|M_ZERO)) == NULL)
+		return (ENOMEM);
 	task_struct_fill(td, t);
 	mm = t->mm;
 	init_rwsem(&mm->mmap_sem);
 	mm->mm_count.counter = 1;
 	mm->mm_users.counter = 1;
 	curthread->td_lkpi_task = t;
+	return (0);
 }
 
 static void
