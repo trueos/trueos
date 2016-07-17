@@ -116,8 +116,16 @@ static inline void put_task_struct(struct task_struct *t)
 #define get_task_struct(tsk) PHOLD((tsk)->task_thread->td_proc)
 #define put_task_struct(tsk) PRELE((tsk)->task_thread->td_proc)
 
+static inline struct task_struct *
+get_pid_task(pid_t pid, enum pid_type type)
+{
+	struct task_struct *result;
 
-
+	result = pid_task(pid, type);
+	if (result)
+		get_task_struct(result);
+	return (result);
+}
 
 extern u64 cpu_clock(int cpu);
 extern u64 running_clock(void);

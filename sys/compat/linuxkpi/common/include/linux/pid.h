@@ -19,9 +19,12 @@ pid_task(pid_t pid, enum pid_type type)
 
 	/* pid corresponds to a thread in this context */
 	td = tdfind(pid, -1);
+	if (td == NULL)
+		return (NULL);
 	return (task_struct_get(td));
 }
-extern struct task_struct *get_pid_task(pid_t pid, enum pid_type);
 
-
+#define pid_nr(n) (n)
+#define pid_vnr(n) (n)
+#define from_kuid_munged(a, uid) (uid)
 #endif

@@ -12,7 +12,8 @@
 struct inode;
 struct dentry;
 struct path;
- #define HASH_LEN_DECLARE u32 hash; u32 len
+struct pfs_node;
+#define HASH_LEN_DECLARE u32 hash; u32 len
 
 extern char *simple_dname(struct dentry *, char *, int);
 struct qstr {
@@ -24,6 +25,16 @@ struct qstr {
 	};
 	const unsigned char *name;
 };
+struct dentry {
+	struct inode	*d_inode;
+	struct dentry *d_parent;	/* parent directory */
+	struct qstr d_name;
+	/* FreeBSD */
+	struct pfs_node *d_pfs_node;
+};
+
+
+
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_weak_revalidate)(struct dentry *, unsigned int);

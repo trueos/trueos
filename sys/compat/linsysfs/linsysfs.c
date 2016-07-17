@@ -220,6 +220,13 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi, char
 	return (1);
 }
 
+static int
+debugfs_attr(PFS_ATTR_ARGS)
+{
+	vap->va_mode = 0700;
+	return (0);
+}
+
 /*
  * Constructor
  */
@@ -241,6 +248,10 @@ linsysfs_init(PFS_INIT_ARGS)
 	scsi = pfs_create_dir(root, "class", NULL, NULL, NULL, 0);
 	scsi = pfs_create_dir(scsi, "scsi_host", NULL, NULL, NULL, 0);
 
+	/* /sys/kernel/... */
+	dir = pfs_create_dir(root, "kernel", NULL, NULL, NULL, 0);
+	pfs_create_dir(dir, "debug", debugfs_attr, NULL, NULL, 0);
+	
 	/* /sys/device */
 	dir = pfs_create_dir(root, "devices", NULL, NULL, NULL, 0);
 

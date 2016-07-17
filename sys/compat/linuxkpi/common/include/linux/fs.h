@@ -46,6 +46,8 @@
 #include <linux/list.h>
 #include <linux/atomic.h>
 #include <linux/shrinker.h>
+#include <linux/dcache.h>
+#include <linux/mutex.h>
 
 struct module;
 struct kiocb;
@@ -91,10 +93,6 @@ void kill_anon_super(struct super_block *sb);
 
 typedef struct files_struct *fl_owner_t;
 
-struct dentry {
-	struct inode	*d_inode;
-};
-
 
 struct file_operations;
 
@@ -102,6 +100,8 @@ struct file_operations;
 #define i_mapping v_bufobj.bo_object
 #define i_private v_data
 #define file_inode(f) ((f)->f_vnode)
+/* this value isn't needed by the compat layer */
+static inline void i_size_write(void *inode, off_t i_size) { ; }
 
 
 struct linux_file {
@@ -118,7 +118,7 @@ struct linux_file {
 	atomic_long_t		f_count;
 	vm_object_t	f_mapping;
 };
-
+#define f_inode		f_vnode
 #define	file		linux_file
 #define	fasync_struct	sigio *
 
@@ -339,6 +339,20 @@ void shmem_truncate_range(struct vnode *, loff_t, loff_t);
 extern loff_t generic_file_llseek(struct file *file, loff_t offset, int whence);
 
 extern struct inode *alloc_anon_inode(struct super_block *);
+
+
+struct simple_attr {
+	int (*get)(void *, u64 *);
+	int (*set)(void *, u64);
+	char get_buf[24];	/* enough to store a u64 and "\n\0" */
+	char set_buf[24];
+	void *data;
+	const char *fmt;	/* format for read operation */
+	struct mutex mutex;	/* protects access to these buffers */
+};
+
+
+
 extern ssize_t simple_read_from_buffer(void __user *to, size_t count,
 			loff_t *ppos, const void *from, size_t available);
 extern ssize_t simple_write_to_buffer(void *to, size_t available, loff_t *ppos,

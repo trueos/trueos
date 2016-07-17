@@ -204,6 +204,41 @@ compat_alloc_user_space(unsigned long len)
 	return (malloc(len, M_LCINT, M_NOWAIT));
 }
 
+void *
+memdup_user(const void *ubuf, size_t len)
+{
+	void *kbuf;
+	int rc;
+
+	kbuf = malloc(len, M_KMALLOC, M_WAITOK);
+	rc = copyin(ubuf, kbuf, len);
+	if (rc) {
+		free(kbuf, M_KMALLOC);
+		return ERR_PTR(-EFAULT);
+	}
+	return (kbuf);
+}
+
+unsigned long
+clear_user(void *uptr, unsigned long len)
+{
+	int i, iter, rem;
+
+	rem = len % 8;
+	iter = len / 8;
+
+	for (i = 0; i < iter; i++) {
+		if (suword64(((uint64_t *)uptr) + iter, 0))
+			return (len);
+	}
+	for (i = 0; i < rem; i++) {
+		if (subyte(((uint8_t *)uptr) + iter*8 + i , 0))
+			return (len);
+	}
+	return (0);
+}
+
+
 int
 panic_cmp(struct rb_node *one, struct rb_node *two)
 {

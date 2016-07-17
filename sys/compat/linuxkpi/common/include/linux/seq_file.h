@@ -32,14 +32,24 @@
 #include <linux/fs.h>
 #include <sys/sbuf.h>
 
+struct seq_operations;
+
 struct seq_file {
 	struct sbuf	*buf;
 
+	const struct seq_operations *op;
+	const struct linux_file *file;
 	void *private;
 };
 
+struct seq_operations {
+	void * (*start) (struct seq_file *m, loff_t *pos);
+	void (*stop) (struct seq_file *m, void *v);
+	void * (*next) (struct seq_file *m, void *v, loff_t *pos);
+	int (*show) (struct seq_file *m, void *v);
+};
 
-ssize_t seq_read(struct file *, char __user *, size_t, loff_t *);
+ssize_t linux_seq_read(struct file *, char __user *, size_t, loff_t *);
 int seq_write(struct seq_file *seq, const void *data, size_t len);
 
 loff_t seq_lseek(struct file *file, loff_t offset, int whence);
@@ -48,13 +58,12 @@ int single_release(struct inode *, struct file *);
 
 
 
-loff_t seq_lseek(struct file *, loff_t, int);
-
 #define seq_printf(m, fmt, ...) sbuf_printf((m)->buf, (fmt), ##__VA_ARGS__)
 //#define seq_printf(m, args...) sbuf_printf(((m)->buf, args...)
 
 #define seq_puts(m, str)	sbuf_printf((m)->buf, str)
 #define seq_putc(m, str)	sbuf_putc((m)->buf, str)
+#define seq_read linux_seq_read
 
 
 #endif	/* _LINUX_SEQ_FILE_H_ */

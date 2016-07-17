@@ -31,6 +31,8 @@
 #ifndef	_LINUX_STRING_H_
 #define	_LINUX_STRING_H_
 
+#include <sys/ctype.h>
+
 #include <linux/types.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
@@ -38,6 +40,9 @@
 #include <sys/libkern.h>
 
 #define	strnicmp(...) strncasecmp(__VA_ARGS__)
+
+extern void *memdup_user(const void __user *, size_t);
+
 
 static inline int
 match_string(const char * const *table, size_t n, const char *key)
@@ -81,9 +86,13 @@ kstrdup_const(const char *src, gfp_t gfp)
 }
 
 void *memchr_inv(const void *start, int c, size_t bytes);
-extern char * __must_check skip_spaces(const char *);
 
-
-
+static inline char *
+skip_spaces(const char *str)
+{
+	while (isspace(*str))
+		++str;
+	return __DECONST(char *, str);
+}
 
 #endif	/* _LINUX_STRING_H_ */

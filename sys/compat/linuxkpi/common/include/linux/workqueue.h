@@ -170,6 +170,9 @@ do {									\
 #define work_pending(work) \
 	test_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(work))
 
+#define delayed_work_pending(w) \
+	work_pending(&(w)->work)
+
 static inline int
 queue_work(struct workqueue_struct *wq, struct work_struct *work)
 {

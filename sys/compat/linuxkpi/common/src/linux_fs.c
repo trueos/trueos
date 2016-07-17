@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/mount.h>
+#include <asm/uaccess.h>
 
 
 #include <vm/vm.h>
@@ -113,6 +114,171 @@ simple_statfs(struct dentry *dentry, struct kstatfs *buf)
 	UNIMPLEMENTED();
 	return (0);
 }
+
+long long
+simple_strtoll(const char *cp, char **endp, unsigned int base)
+{
+	if (*cp == '-')
+		return -strtouq(cp + 1, endp, base);
+
+	return strtouq(cp, endp, base);
+}
+
+ssize_t
+simple_read_from_buffer(void __user *to, size_t count,
+			loff_t *ppos, const void *from, size_t available)
+{
+	loff_t pos = *ppos;
+	size_t ret;
+
+	if (pos < 0)
+		return (-EINVAL);
+	if (pos >= available || !count)
+		return 0;
+	if (count > available - pos)
+		count = available - pos;
+	ret = copy_to_user(to, from + pos, count);
+	if (ret == count)
+		return (-EFAULT);
+	count -= ret;
+	*ppos = pos + count;
+	return (count);
+}
+
+ssize_t
+simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
+		       const void __user *from, size_t count)
+{
+	loff_t pos = *ppos;
+	size_t res;
+
+	if (pos < 0)
+		return (-EINVAL);
+	if (pos >= available || !count)
+		return 0;
+	if (count > available - pos)
+		count = available - pos;
+	res = copy_from_user(to + pos, from, count);
+	if (res == count)
+		return (-EFAULT);
+	count -= res;
+	*ppos = pos + count;
+	return (count);	
+}
+
+int
+simple_attr_open(struct inode *inode, struct file *file,
+		     int (*get)(void *, u64 *), int (*set)(void *, u64),
+		     const char *fmt)
+{
+	struct simple_attr *attr;
+
+	attr = kmalloc(sizeof(*attr), GFP_KERNEL);
+	if (!attr)
+		return -ENOMEM;
+
+	attr->get = get;
+	attr->set = set;
+	attr->data = inode->i_private;
+	attr->fmt = fmt;
+	mutex_init(&attr->mutex);
+
+	file->private_data = attr;
+
+	return (nonseekable_open(inode, file));
+}
+
+int
+simple_attr_release(struct inode *inode, struct file *file)
+{
+	kfree(file->private_data);
+	return (0);
+}
+
+ssize_t
+simple_attr_read(struct file *file, char __user *buf,
+			 size_t len, loff_t *ppos)
+{
+	struct simple_attr *attr;
+	size_t size;
+	ssize_t ret;
+
+	attr = file->private_data;
+
+	if (!attr->get)
+		return -EACCES;
+
+	ret = mutex_lock_interruptible(&attr->mutex);
+	if (ret)
+		return ret;
+
+	if (*ppos)
+		size = strlen(attr->get_buf);
+	else {
+		u64 val;
+		ret = attr->get(attr->data, &val);
+		if (ret)
+			goto out;
+
+		size = scnprintf(attr->get_buf, sizeof(attr->get_buf),
+				 attr->fmt, (unsigned long long)val);
+	}
+
+	ret = simple_read_from_buffer(buf, len, ppos, attr->get_buf, size);
+out:
+	mutex_unlock(&attr->mutex);
+	return ret;
+}
+
+
+ssize_t
+simple_attr_write(struct file *file, const char __user *buf,
+		  size_t len, loff_t *ppos)
+{
+	struct simple_attr *attr;
+	u64 val;
+	size_t size;
+	ssize_t ret;
+
+	attr = file->private_data;
+	if (!attr->set)
+		return -EACCES;
+
+	ret = mutex_lock_interruptible(&attr->mutex);
+	if (ret)
+		return ret;
+
+	ret = -EFAULT;
+	size = min(sizeof(attr->set_buf) - 1, len);
+	if (copy_from_user(attr->set_buf, buf, size))
+		goto out;
+
+	attr->set_buf[size] = '\0';
+	val = simple_strtoll(attr->set_buf, NULL, 0);
+	ret = attr->set(attr->data, val);
+	if (ret == 0)
+		ret = len; /* on success, claim we got the whole input */
+out:
+	mutex_unlock(&attr->mutex);
+	return (ret);
+}
+
+loff_t
+generic_file_llseek(struct file *file, loff_t offset, int whence)
+{
+
+	panic("%s not supported/implemented \n", __FUNCTION__);
+	return (0);
+}
+
+loff_t
+default_llseek(struct file *file, loff_t offset, int whence)
+{
+
+	panic("%s not supported/implemented \n", __FUNCTION__);
+	return (0);
+}
+
 
 struct page *
 shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
