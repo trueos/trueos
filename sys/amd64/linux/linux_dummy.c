@@ -58,7 +58,6 @@ DUMMY(init_module);
 DUMMY(kexec_load);
 DUMMY(kcmp);
 DUMMY(lookup_dcookie);
-DUMMY(mincore);
 DUMMY(mbind);
 DUMMY(mq_open);
 DUMMY(mq_unlink);

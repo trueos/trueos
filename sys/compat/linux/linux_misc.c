@@ -2468,3 +2468,15 @@ linux_to_bsd_waitopts(int options, int *bsdopts)
 	if (options & __WCLONE)
 		*bsdopts |= WLINUXCLONE;
 }
+
+int
+linux_mincore(struct thread *td, struct linux_mincore_args *args)
+{
+	struct mincore_args bsd_args;
+
+	bsd_args.addr = (void *)(uintptr_t)args->start;
+	bsd_args.len = args->len;
+	bsd_args.vec = args->vec;
+
+	return (sys_mincore(td, &bsd_args));
+}
