@@ -733,4 +733,9 @@ int drm_vma_info(struct seq_file *m, void *data)
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
+#else
+int drm_vma_info(struct seq_file *m, void *data)
+{
+	return (0);
+}
 #endif

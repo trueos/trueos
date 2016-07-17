@@ -197,3 +197,4 @@ MODULE_DEPEND(i915kms, drmn, 1, 1, 1);
 MODULE_DEPEND(i915kms, agp, 1, 1, 1);
 MODULE_DEPEND(i915kms, linuxkpi, 1, 1, 1);
 MODULE_DEPEND(i915kms, firmware, 1, 1, 1);
+MODULE_DEPEND(i915kms, debugfs, 1, 1, 1);

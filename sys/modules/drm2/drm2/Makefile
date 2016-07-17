@@ -14,6 +14,7 @@ SRCS	= \
 	drm_context.c \
 	drm_crtc.c \
 	drm_crtc_helper.c \
+	drm_debugfs.c \
 	drm_dma.c \
 	drm_dp_helper.c \
 	drm_dp_mst_topology.c \
@@ -31,6 +32,7 @@ SRCS	= \
 	drm_global.c \
 	drm_hashtab.c \
 	drm_ioctl.c \
+	drm_info.c \
 	drm_irq.c \
 	drm_kms_helper_common.c \
 	drm_lock.c \
@@ -83,6 +85,7 @@ SRCS	= \
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
 CFLAGS+= -I${.CURDIR}/../../../contrib/ck/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
+CFLAGS+= -include ${.CURDIR}/../../../dev/drm2/drm_os_config.h
 
 # until stable
 #CFLAGS += -O0
@@ -100,9 +103,11 @@ SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.
 .if ${MACHINE_CPUARCH} == "powerpc"
 CWARNFLAGS+=-Wno-cast-qual
 .endif
-CWARNFLAGS += -Wno-pointer-arith -Wno-pointer-sign
+CWARNFLAGS += -Wno-pointer-arith -Wno-pointer-sign -Wno-format
 
 CWARNFLAGS.drm_mipi_dsi.c+=	-Wno-incompatible-pointer-types-discards-qualifiers -Wno-int-conversion
 CWARNFLAGS.drm_cache.c+=	-Wno-int-conversion
+CWARNFLAGS.drm_info.c+=		-Wno-tautological-compare
+CWARNFLAGS.drm_debugfs.c+=	-Wno-format-security
 CWARNFLAGS.drm_scatter.c+=	-Wno-int-conversion
 .include <bsd.kmod.mk>

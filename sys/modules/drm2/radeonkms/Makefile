@@ -126,13 +126,15 @@ CFLAGS+= -I${.CURDIR}/../../../dev/drm2/amd/include
 CFLAGS+= -I${.CURDIR}/../../../contrib/ck/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 CFLAGS+= -O0
+CFLAGS+= -include ${.CURDIR}/../../../dev/drm2/drm_os_config.h
 
 SRCS    +=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.h \
         opt_vm.h opt_compat.h opt_syscons.h
 
 .include <bsd.kmod.mk>
 
-CWARNFLAGS.atombios_dp.c=	-Wno-format
+CWARNFLAGS+= -Wno-format
+
 CWARNFLAGS.atombios_encoders.c=	-Wno-missing-prototypes
 CWARNFLAGS.atombios_i2c.c=	-Wno-missing-prototypes
 CWARNFLAGS.ci_dpm.c=		-Wno-unused-const-variable
@@ -141,40 +143,32 @@ CWARNFLAGS.cik_sdma.c=		-Wno-missing-prototypes
 CWARNFLAGS.dce3_1_afmt.c=	-Wno-missing-prototypes
 CWARNFLAGS.dce6_afmt.c=		-Wno-missing-prototypes
 CWARNFLAGS.evergreen.c=		-Wno-missing-prototypes -Wno-cast-qual
-CWARNFLAGS.evergreen_cs.c=	-Wno-format -Wno-missing-prototypes
+CWARNFLAGS.evergreen_cs.c=	-Wno-missing-prototypes
 CWARNFLAGS.evergreen_hdmi.c=	-Wno-missing-prototypes
 CWARNFLAGS.kv_dpm.c=		-Wno-unused-const-variable
 CWARNFLAGS.ni.c=		-Wno-cast-qual -Wno-missing-prototypes
 CWARNFLAGS.ni_dpm.c=		-Wno-missing-prototypes
-CWARNFLAGS.r600.c=		-Wno-missing-prototypes -Wno-cast-qual -Wno-format
+CWARNFLAGS.r600.c=		-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.r600_cs.c=		-Wno-format -Wno-missing-prototypes
 CWARNFLAGS.r600_hdmi.c=		-Wno-missing-prototypes
 CWARNFLAGS.radeon_acpi.c=	-Wno-implicit-function-declaration
-CWARNFLAGS.radeon_agp.c=	-Wno-format
 CWARNFLAGS.radeon_atombios.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_atpx_handler.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_clocks.c=	-Wno-missing-prototypes
-CWARNFLAGS.radeon_device.c=	-Wno-format -Wno-cast-qual
-CWARNFLAGS.radeon_display.c=	-Wno-format
+CWARNFLAGS.radeon_device.c=	-Wno-cast-qual -Wno-missing-prototypes
 CWARNFLAGS.radeon_dp_mst.c=	-Wno-missing-prototypes
-CWARNFLAGS.radeon_fence.c=	-Wno-format
 CWARNFLAGS.radeon_gem.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_ioc32.c=	-Wno-missing-prototypes -Wno-int-conversion
 CWARNFLAGS.radeon_irq_kms.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_kms.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_legacy_encoders.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_mn.c=		-Wno-unused-variable
-CWARNFLAGS.radeon_object.c=	-Wno-format
 CWARNFLAGS.radeon_pm.c=		-Wno-missing-prototypes
 CWARNFLAGS.radeon_prime.c=	-Wno-missing-prototypes
-CWARNFLAGS.radeon_ring.c=	-Wno-cast-qual -Wno-format
-CWARNFLAGS.radeon_test.c=	-Wno-format
+CWARNFLAGS.radeon_ring.c=	-Wno-cast-qual
 CWARNFLAGS.radeon_ttm.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_ucode.c=	-Wno-incompatible-pointer-types-discards-qualifiers
-CWARNFLAGS.radeon_uvd.c=	-Wno-format
-CWARNFLAGS.radeon_vce.c=	-Wno-format
-CWARNFLAGS.radeon_vm.c=	-Wno-format
-CWARNFLAGS.rv770.c=		-Wno-missing-prototypes -Wno-format
+CWARNFLAGS.rv770.c=		-Wno-missing-prototypes
 CWARNFLAGS.rv770_dpm.c=		-Wno-missing-prototypes
 CWARNFLAGS.si.c=		-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.si_dpm.c=		-Wno-missing-prototypes -Wno-unused-const-variable

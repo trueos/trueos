@@ -24,6 +24,7 @@ SRCS=	interval_tree.c \
 	linux_rcu.c \
 	linux_reservation.c \
 	linux_schedule.c \
+	linux_seq_file.c \
 	linux_string.c \
 	linux_sysfs.c \
 	linux_usb.c \

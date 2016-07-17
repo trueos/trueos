@@ -146,42 +146,35 @@ CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/scheduler
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/include/asic_reg
 CFLAGS+=	'-DKBUILD_MODNAME="${KMOD}"'
 #CFLAGS+=	-O0
+CFLAGS+=	-include ${.CURDIR}/../../../../dev/drm2/drm_os_config.h
+
 
 SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.h \
         opt_vm.h opt_compat.h opt_syscons.h
 
 .include <bsd.kmod.mk>
 
-CWARNFLAGS+=	-Wno-pointer-arith
+CWARNFLAGS+=	-Wno-pointer-arith -Wno-format
 CWARNFLAGS+=	-Wno-pointer-sign ${CWARNFLAGS.${.IMPSRC:T}}
 
 CWARNFLAGS.amdgpu_acpi.c=	-Wno-int-conversion -Wno-missing-prototypes -Wno-unused-variable
 CWARNFLAGS.amdgpu_amdkfd.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_bo_list.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_cs.c=	-Wno-missing-prototypes
-CWARNFLAGS.amdgpu_device.c=	-Wno-format -Wno-cast-qual
-CWARNFLAGS.amdgpu_fence.c=	-Wno-format
+CWARNFLAGS.amdgpu_device.c=	 -Wno-cast-qual
 CWARNFLAGS.amdgpu_gfx.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_amdkfd_gfx_v7.c=	-Wno-cast-qual
 CWARNFLAGS.amdgpu_amdkfd_gfx_v8.c=	-Wno-cast-qual
 CWARNFLAGS.amdgpu_atpx_handler.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_ih.c=	-Wno-cast-qual
 CWARNFLAGS.amdgpu_ioc32.c=	-Wno-missing-prototypes
-CWARNFLAGS.amdgpu_object.c=	-Wno-format
 CWARNFLAGS.amdgpu_mn.c=		-Wno-unused-variable
 CWARNFLAGS.amdgpu_pll.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_pm.c=		-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.amdgpu_ring.c=	-Wno-cast-qual
 CWARNFLAGS.amdgpu_ttm.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_ucode.c=	-Wno-incompatible-pointer-types-discards-qualifiers -Wno-cast-qual
-CWARNFLAGS.amdgpu_uvd.c=	-Wno-format
-CWARNFLAGS.amdgpu_vce.c=	-Wno-format
-CWARNFLAGS.amdgpu_vce.c=	-Wno-format
-CWARNFLAGS.amdgpu_vm.c=		-Wno-format
-CWARNFLAGS.amdgpu_test.c=	-Wno-format
-CWARNFLAGS.amdgpu_vm.c=		-Wno-format
 CWARNFLAGS.atombios_crtc.c=	-Wno-missing-prototypes
-CWARNFLAGS.atombios_dp.c=	-Wno-format
 CWARNFLAGS.atombios_i2c.c=	-Wno-missing-prototypes
 CWARNFLAGS.ci_dpm.c=	-Wno-unused-const-variable
 CWARNFLAGS.cz_smc.c=	-Wno-missing-prototypes
@@ -191,7 +184,7 @@ CWARNFLAGS.gfx_v8_0.c=	-Wno-missing-prototypes
 CWARNFLAGS.iceland_smc.c=	-Wno-missing-prototypes
 CWARNFLAGS.kv_dpm.c=	-Wno-unused-const-variable
 CWARNFLAGS.tonga_smc.c=	-Wno-cast-qual
-CWARNFLAGS.gpu_scheduler.c=	-Wno-format -Wno-missing-prototypes
+CWARNFLAGS.gpu_scheduler.c=	-Wno-missing-prototypes
 CWARNFLAGS.amd_powerplay.c=	-Wno-missing-prototypes
 CWARNFLAGS.eventtasks.c=	-Wno-missing-prototypes
 CWARNFLAGS.cz_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
