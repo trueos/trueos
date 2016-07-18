@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2006 IronPort Systems
+ * Copyright (c) 2016 Matthew Macy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
