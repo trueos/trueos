@@ -7,7 +7,10 @@ __FBSDID("$FreeBSD$");
 
 #include <drm/drm_crtc_helper.h>
 
-MODULE_DEPEND(i915kms, drmn, 1, 1, 1);
-MODULE_DEPEND(i915kms, agp, 1, 1, 1);
-MODULE_DEPEND(i915kms, linuxkpi, 1, 1, 1);
-MODULE_DEPEND(i915kms, firmware, 1, 1, 1);
+MODULE_DEPEND(radeonkms, drmn, 1, 1, 1);
+MODULE_DEPEND(radeonkms, agp, 1, 1, 1);
+MODULE_DEPEND(radeonkms, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(radeonkms, firmware, 1, 1, 1);
+#ifdef CONFIG_DEBUG_FS
+MODULE_DEPEND(radeonkms, debugfs, 1, 1, 1);
+#endif
