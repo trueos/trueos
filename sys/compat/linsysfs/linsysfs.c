@@ -67,6 +67,16 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <fs/pseudofs/pseudofs.h>
 
+#define SCSI_HOST_CLASS     0
+#define GRAPHICS_CLASS      1
+#define IEEE80211_CLASS     2
+#define I2C_DEV_CLASS       3
+#define I2C_ADAPTER_CLASS   4
+
+#define SYS_CLASS_MAX (I2C_ADAPTER_CLASS+1)
+struct pfs_node *classes[SYS_CLASS_MAX];
+struct pfs_node *pci_devices;
+
 struct scsi_host_queue {
 	TAILQ_ENTRY(scsi_host_queue) scsi_host_next;
 	char *path;
@@ -133,13 +143,70 @@ linsysfs_link_scsi_host(PFS_FILL_ARGS)
 	return (0);
 }
 
+
+static void
+linsysfs_create_scsi_class_entry(device_t dev, struct pfs_node *dir, char *host, char *new_path)
+{
+	struct pfs_node *sub_dir, *scsi;
+	struct scsi_host_queue *scsi_host;
+
+	scsi = classes[SCSI_HOST_CLASS];
+	sprintf(host, "host%d", host_number++);
+	strcat(new_path, "/");
+	strcat(new_path, host);
+	pfs_create_dir(dir, host, NULL, NULL, NULL, 0);
+	scsi_host = malloc(sizeof(struct scsi_host_queue),
+			   M_DEVBUF, M_NOWAIT);
+	scsi_host->path = malloc(
+		strlen(new_path) + 1,
+		M_DEVBUF, M_NOWAIT);
+	scsi_host->path[0] = '\000';
+	bcopy(new_path, scsi_host->path,
+	      strlen(new_path) + 1);
+	scsi_host->name = "unknown";
+
+	sub_dir = pfs_create_dir(scsi, host, NULL, NULL, NULL, 0);
+	pfs_create_link(sub_dir, "device",
+			&linsysfs_link_scsi_host,
+			NULL, NULL, NULL, 0);
+	pfs_create_file(sub_dir, "proc_name", &linsysfs_scsiname,
+			NULL, NULL, NULL, PFS_RD);
+	scsi_host->name = linux_driver_get_name_dev(dev);
+	TAILQ_INSERT_TAIL(&scsi_host_q, scsi_host, scsi_host_next);
+}
+
+static int
+linsysfs_link_destroy(PFS_DESTROY_ARGS)
+{
+
+	free(pn->pn_data, M_TEMP);
+	return (0);
+}
+
+static int
+linsysfs_link_fill(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "%s", (char *)pn->pn_data);
+	return (0);
+}
+
+static void
+linsysfs_create_pci_link(char *device, char *new_path)
+{
+	struct pfs_node *link_node;
+	char *link_path;
+
+	link_path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	sprintf(link_path, "../../../devices%s", new_path);
+	link_node = pfs_create_link(pci_devices, device, linsysfs_link_fill, NULL, NULL, linsysfs_link_destroy, PFS_RD);
+	link_node->pn_data = link_path;
+}
+
 #define PCI_DEV "pci"
 static int
-linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi, char *path,
-   char *prefix)
+linsysfs_run_bus(device_t dev, struct pfs_node *dir, char *path, char *prefix)
 {
-	struct scsi_host_queue *scsi_host;
-	struct pfs_node *sub_dir;
 	int i, nchildren;
 	device_t *children, parent;
 	devclass_t devclass;
@@ -169,39 +236,10 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi, char
 				    dinfo->cfg.func);
 				strcat(new_path, "/");
 				strcat(new_path, device);
-				dir = pfs_create_dir(dir, device,
-				    NULL, NULL, NULL, 0);
-
+				dir = pfs_create_dir(dir, device, NULL, NULL, NULL, 0);
+				linsysfs_create_pci_link(device, new_path);
 				if (dinfo->cfg.baseclass == PCIC_STORAGE) {
-					/* DJA only make this if needed */
-					sprintf(host, "host%d", host_number++);
-					strcat(new_path, "/");
-					strcat(new_path, host);
-					pfs_create_dir(dir, host,
-					    NULL, NULL, NULL, 0);
-					scsi_host = malloc(sizeof(
-					    struct scsi_host_queue),
-					    M_DEVBUF, M_NOWAIT);
-					scsi_host->path = malloc(
-					    strlen(new_path) + 1,
-					    M_DEVBUF, M_NOWAIT);
-					scsi_host->path[0] = '\000';
-					bcopy(new_path, scsi_host->path,
-					    strlen(new_path) + 1);
-					scsi_host->name = "unknown";
-
-					sub_dir = pfs_create_dir(scsi, host,
-					    NULL, NULL, NULL, 0);
-					pfs_create_link(sub_dir, "device",
-					    &linsysfs_link_scsi_host,
-					    NULL, NULL, NULL, 0);
-					pfs_create_file(sub_dir, "proc_name",
-					    &linsysfs_scsiname,
-					    NULL, NULL, NULL, PFS_RD);
-					scsi_host->name
-					    = linux_driver_get_name_dev(dev);
-					TAILQ_INSERT_TAIL(&scsi_host_q,
-					    scsi_host, scsi_host_next);
+					linsysfs_create_scsi_class_entry(dev, dir, host, new_path);
 				}
 				free(device, M_TEMP);
 				free(host, M_TEMP);
@@ -212,7 +250,7 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi, char
 	device_get_children(dev, &children, &nchildren);
 	for (i = 0; i < nchildren; i++) {
 		if (children[i])
-			linsysfs_run_bus(children[i], dir, scsi, new_path, prefix);
+			linsysfs_run_bus(children[i], dir, new_path, prefix);
 	}
 	if (new_path != path)
 		free(new_path, M_TEMP);
@@ -227,6 +265,28 @@ debugfs_attr(PFS_ATTR_ARGS)
 	return (0);
 }
 
+
+
+static void
+linsysfs_populate_pci(struct pfs_node *root)
+{
+	struct pfs_node *driversdir, *slotsdir;
+
+	pci_devices = pfs_create_dir(root, "devices", NULL, NULL, NULL, 0);
+	driversdir = pfs_create_dir(root, "drivers", NULL, NULL, NULL, 0);
+	slotsdir = pfs_create_dir(root, "slots", NULL, NULL, NULL, 0);
+
+}
+
+static void
+linsysfs_populate_udev(struct pfs_node *root)
+{
+	struct pfs_node *blockdir, *chardir;
+
+	blockdir = pfs_create_dir(root, "block", NULL, NULL, NULL, 0);
+	chardir = pfs_create_dir(root, "char", NULL, NULL, NULL, 0);
+}
+
 /*
  * Constructor
  */
@@ -235,8 +295,7 @@ linsysfs_init(PFS_INIT_ARGS)
 {
 	struct pfs_node *root;
 	struct pfs_node *dir;
-	struct pfs_node *pci;
-	struct pfs_node *scsi;
+	struct pfs_node *pci00;
 	devclass_t devclass;
 	device_t dev;
 
@@ -245,8 +304,13 @@ linsysfs_init(PFS_INIT_ARGS)
 	root = pi->pi_root;
 
 	/* /sys/class/... */
-	scsi = pfs_create_dir(root, "class", NULL, NULL, NULL, 0);
-	scsi = pfs_create_dir(scsi, "scsi_host", NULL, NULL, NULL, 0);
+	dir = pfs_create_dir(root, "class", NULL, NULL, NULL, 0);
+	classes[SCSI_HOST_CLASS] = pfs_create_dir(dir, "scsi_host", NULL, NULL, NULL, 0);
+	classes[GRAPHICS_CLASS] = pfs_create_dir(dir, "graphics", NULL, NULL, NULL, 0);
+	classes[IEEE80211_CLASS] = pfs_create_dir(dir, "ieee80211", NULL, NULL, NULL, 0);
+	classes[I2C_DEV_CLASS] = pfs_create_dir(dir, "i2c-dev", NULL, NULL, NULL, 0);
+	classes[I2C_ADAPTER_CLASS] = pfs_create_dir(dir, "i2c-adapter", NULL, NULL, NULL, 0);
+
 
 	/* /sys/kernel/... */
 	dir = pfs_create_dir(root, "kernel", NULL, NULL, NULL, 0);
@@ -256,7 +320,16 @@ linsysfs_init(PFS_INIT_ARGS)
 	dir = pfs_create_dir(root, "devices", NULL, NULL, NULL, 0);
 
 	/* /sys/device/pci0000:00 */
-	pci = pfs_create_dir(dir, "pci0000:00", NULL, NULL, NULL, 0);
+	pci00 = pfs_create_dir(dir, "pci0000:00", NULL, NULL, NULL, 0);
+
+	/* /sys/dev/... */
+	dir = pfs_create_dir(root, "dev", NULL, NULL, NULL, 0);
+	linsysfs_populate_udev(dir);
+
+	/* /sys/bus/pci/... */
+	dir = pfs_create_dir(root, "bus", NULL, NULL, NULL, 0);
+	dir = pfs_create_dir(dir, "pci", NULL, NULL, NULL, 0);
+	linsysfs_populate_pci(dir);
 
 	devclass = devclass_find("root");
 	if (devclass == NULL) {
@@ -264,7 +337,7 @@ linsysfs_init(PFS_INIT_ARGS)
 	}
 
 	dev = devclass_get_device(devclass, 0);
-	linsysfs_run_bus(dev, pci, scsi, "/pci0000:00", "0000");
+	linsysfs_run_bus(dev, pci00, "/pci0000:00", "0000");
 	return (0);
 }
 
