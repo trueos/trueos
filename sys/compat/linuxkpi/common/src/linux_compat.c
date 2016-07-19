@@ -310,7 +310,7 @@ kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 	int error;
 
 	kobj->parent = kobject_get(parent);
-	error = sysfs_create_dir(kobj);
+	error = sysfs_create_dir_ns(kobj, NULL);
 	if (error == 0 && kobj->ktype && kobj->ktype->default_attrs) {
 		struct attribute **attr;
 		t = kobj->ktype;
@@ -1769,7 +1769,7 @@ linux_compat_init(void *arg)
 	spin_lock_init(&pci_lock);
 }
 
-SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);
+SYSINIT(linux_compat, SI_SUB_VFS, SI_ORDER_ANY, linux_compat_init, NULL);
 
 static void
 linux_compat_uninit(void *arg)
@@ -1784,7 +1784,7 @@ linux_compat_uninit(void *arg)
 
 	spin_lock_destroy(&pci_lock);
 }
-SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
+SYSUNINIT(linux_compat, SI_SUB_VFS, SI_ORDER_ANY, linux_compat_uninit, NULL);
 
 /*
  * NOTE: Linux frequently uses "unsigned long" for pointer to integer

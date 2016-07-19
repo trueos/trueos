@@ -166,14 +166,13 @@ int drm_sysfs_init(void)
 		return PTR_ERR(drm_class);
 #ifdef __linux__
 	drm_class->pm = &drm_class_dev_pm_ops;
-
+#endif
 	err = class_create_file(drm_class, &class_attr_version.attr);
 	if (err) {
 		class_destroy(drm_class);
 		drm_class = NULL;
 		return err;
 	}
-#endif
 	drm_class->devnode = drm_devnode;
 	return 0;
 }
@@ -482,9 +481,7 @@ static struct bin_attribute edid_attr = {
 	.attr.name = "edid",
 	.attr.mode = 0444,
 	.size = 0,
-#if 0	
 	.read = edid_show,
-#endif	
 };
 
 static struct bin_attribute *connector_bin_attrs[] = {
@@ -597,6 +594,32 @@ static void drm_sysfs_release(struct device *dev)
 	kfree(dev);
 }
 
+static int
+drm_dev_alias(struct drm_minor *minor, const char *minor_str)
+{
+	struct linux_cdev *cdevp;
+	char buf[20];
+
+	/*
+	 * FreeBSD won't automaticaly create the corresponding device
+	 * node as linux must so we find the corresponding one created by
+	 * register_chrdev in drm_drv.c and alias it.
+	 */
+	sprintf(buf, "dri/%s", minor_str);
+	cdevp = find_cdev("drm", DRM_MAJOR, minor->index, false);
+	MPASS(cdevp != NULL);
+	if (cdevp == NULL)
+		return (-ENXIO);
+	minor->bsd_device = cdevp->cdev;
+	make_dev_alias(cdevp->cdev, buf, minor->index);
+	/* MESA needs the hw.dri sysctl tree */
+	if (minor->type != DRM_MINOR_CONTROL && minor->type != DRM_MINOR_RENDER)
+		drm_sysctl_init(minor->dev);
+	reset_debug_log();	
+	return (0);
+}
+	
+
 /**
  * drm_sysfs_minor_alloc() - Allocate sysfs device for given minor
  * @minor: minor to allocate sysfs device for
@@ -615,15 +638,14 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 {
 	const char *minor_str;
 	struct device *kdev;
-	struct linux_cdev *cdevp;
 	int r;
 
 	if (minor->type == DRM_MINOR_CONTROL)
-		minor_str = "dri/controlD%d";
+		minor_str = "controlD%d";
 	else if (minor->type == DRM_MINOR_RENDER)
-		minor_str = "dri/renderD%d";
+		minor_str = "renderD%d";
 	else
-		minor_str = "dri/card%d";
+		minor_str = "card%d";
 
 	kdev = kzalloc(sizeof(*kdev), GFP_KERNEL);
 	if (!kdev)
@@ -641,22 +663,9 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 	r = dev_set_name(kdev, minor_str, minor->index);
 	if (r < 0)
 		goto err_free;
-
-	/*
-	 * FreeBSD won't automaticaly create the corresponding device
-	 * node as linux must so we find the corresponding one created by
-	 * register_chrdev in drm_drv.c and alias it.
-	 */
-	cdevp = find_cdev("drm", DRM_MAJOR, minor->index, false);
-	MPASS(cdevp != NULL);
-	if (cdevp == NULL)
-		goto err_free;
-	minor->bsd_device = cdevp->cdev;
-	make_dev_alias(cdevp->cdev, minor_str, minor->index);
-	/* MESA needs the hw.dri sysctl tree */
-	if (minor->type != DRM_MINOR_CONTROL && minor->type != DRM_MINOR_RENDER)
-		drm_sysctl_init(minor->dev);
-	reset_debug_log();
+	r = drm_dev_alias(minor, minor_str);
+	if (r < 0)
+		goto err_free;	
 	return kdev;
 
 err_free:

@@ -202,7 +202,6 @@ SUBDIR=	\
 	libmchain \
 	${_lindebugfs} \
 	${_linprocfs} \
-	${_linsysfs} \
 	${_linux} \
 	${_linux_common} \
 	${_linux64} \
@@ -565,7 +564,6 @@ _ix=		ix
 _ixv=		ixv
 _lindebugfs=	lindebugfs
 _linprocfs=	linprocfs
-_linsysfs=	linsysfs
 _linux=		linux
 _nctgpio=	nctgpio
 _ndis=		ndis

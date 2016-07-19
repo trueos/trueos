@@ -54,6 +54,7 @@ typedef enum irqreturn	irqreturn_t;
 
 struct device;
 
+
 struct class {
 	const char	*name;
 	struct module	*owner;
@@ -304,7 +305,7 @@ class_register(struct class *class)
 	kobject_init(&class->kobj, &linux_class_ktype);
 	kobject_set_name(&class->kobj, class->name);
 	kobject_add(&class->kobj, &linux_class_root, class->name);
-
+	class->kobj.sd = linsysfs_create_class_dir(&class->kobj, class->name);
 	return (0);
 }
 

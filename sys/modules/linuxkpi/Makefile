@@ -1,5 +1,6 @@
 # $FreeBSD$
 .PATH:	${.CURDIR}/../../compat/linuxkpi/common/src
+.PATH:	${.CURDIR}/../../compat/linsysfs/
 
 KMOD=	linuxkpi
 SRCS=	interval_tree.c \
@@ -38,6 +39,11 @@ SRCS+=	bus_if.h \
 	vnode_if.h \
 	usb_if.h \
 	opt_usb.h
+
+
+SRCS+= linsysfs_init.c \
+	linsysfs_extern.c
+
 
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
 CFLAGS+= -I${.CURDIR}/../../contrib/ck/include

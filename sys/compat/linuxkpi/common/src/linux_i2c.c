@@ -112,7 +112,7 @@ linux_i2c_init(void *arg __unused)
 
 	return (i2c_class == NULL ? ENOMEM : 0);
 }
-SYSINIT(linux_i2c, SI_SUB_DRIVERS, SI_ORDER_FIRST, linux_i2c_init, NULL);
+SYSINIT(linux_i2c, SI_SUB_VFS, SI_ORDER_ANY, linux_i2c_init, NULL);
 
 
 #define UDELAY(x) DELAY((x) + 2)

@@ -220,7 +220,6 @@ fbd_init(struct linux_fb_info *fb_info, int unit)
 static int
 fb_init(void)
 {
-
 	fb_class = class_create(THIS_MODULE, "graphics");
 
 	return (fb_class == NULL ? ENOMEM : 0);

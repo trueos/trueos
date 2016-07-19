@@ -38,6 +38,7 @@
 
 struct vm_area_struct;
 
+struct linux_file;
 struct kobject;
 struct module;
 struct bin_attribute;
@@ -53,11 +54,11 @@ struct bin_attribute {
 	struct attribute	attr;
 	size_t			size;
 	void			*private;
-	ssize_t (*read)(struct file *, struct kobject *, struct bin_attribute *,
+	ssize_t (*read)(struct linux_file *, struct kobject *, struct bin_attribute *,
 			char *, loff_t, size_t);
-	ssize_t (*write)(struct file *, struct kobject *, struct bin_attribute *,
+	ssize_t (*write)(struct linux_file *, struct kobject *, struct bin_attribute *,
 			 char *, loff_t, size_t);
-	int (*mmap)(struct file *, struct kobject *, struct bin_attribute *attr,
+	int (*mmap)(struct linux_file *, struct kobject *, struct bin_attribute *attr,
 		    struct vm_area_struct *vma);
 };
 
@@ -76,6 +77,36 @@ struct attribute_group {
 	struct attribute	**attrs;
 	struct bin_attribute	**bin_attrs;
 };
+
+#define __BIN_ATTR(_name, _mode, _read, _write, _size) {		\
+	.attr = { .name = __stringify(_name), .mode = _mode },		\
+	.read	= _read,						\
+	.write	= _write,						\
+	.size	= _size,						\
+}
+
+#define __BIN_ATTR_RO(_name, _size) {					\
+	.attr	= { .name = __stringify(_name), .mode = S_IRUGO },	\
+	.read	= _name##_read,						\
+	.size	= _size,						\
+}
+
+#define __BIN_ATTR_RW(_name, _size) __BIN_ATTR(_name,			\
+				   (S_IWUSR | S_IRUGO), _name##_read,	\
+				   _name##_write, _size)
+
+#define __BIN_ATTR_NULL __ATTR_NULL
+
+#define BIN_ATTR(_name, _mode, _read, _write, _size)			\
+struct bin_attribute bin_attr_##_name = __BIN_ATTR(_name, _mode, _read,	\
+					_write, _size)
+
+#define BIN_ATTR_RO(_name, _size)					\
+struct bin_attribute bin_attr_##_name = __BIN_ATTR_RO(_name, _size)
+
+#define BIN_ATTR_RW(_name, _size)					\
+struct bin_attribute bin_attr_##_name = __BIN_ATTR_RW(_name, _size)
+
 
 #define	__ATTR(_name, _mode, _show, _store) {				\
 	.attr = { .name = __stringify(_name), .mode = _mode },		\
@@ -99,24 +130,43 @@ struct attribute_group {
 
 #define	__ATTR_NULL	{ .attr = { .name = NULL } }
 
+#define sysfs_attr_init(attr) do {} while(0)
+
+
+extern int sysfs_create_bin_file(struct kobject *kobj, const struct bin_attribute *attr);
+extern void sysfs_remove_bin_file(struct kobject *kobj, const struct bin_attribute *attr);
+
+
+extern int sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
+extern void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);	
+
+extern int sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp);
+extern void sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp);
+extern int sysfs_create_dir_ns(struct kobject *kobj, const void *ns);
+extern void sysfs_remove_dir(struct kobject *kobj);
+extern int __must_check sysfs_create_link(struct kobject *kobj, struct kobject *target,
+				   const char *name);
+extern void sysfs_remove_link(struct kobject *kobj, const char *name);
+
+
+
+extern int lkpi_sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
+extern void lkpi_sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);	
+
+extern int lkpi_sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp);
+extern void lkpi_sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp);
+extern int lkpi_sysfs_create_dir(struct kobject *kobj);
+extern void lkpi_sysfs_remove_dir(struct kobject *kobj);
+
+
+struct pfs_node *linsysfs_create_class_dir(struct kobject *kobj, const char *name);
+
 /*
  * Handle our generic '\0' terminated 'C' string.
  * Two cases:
  *      a variable string:  point arg1 at it, arg2 is max length.
  *      a constant string:  point arg1 at it, arg2 is zero.
  */
-
-
-#define sysfs_attr_init(attr) do {} while(0)
-
-extern int sysctl_handle_attr(SYSCTL_HANDLER_ARGS);
-extern int sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
-extern void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);	
-extern int sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp);
-extern void sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp);
-extern int sysfs_create_dir(struct kobject *kobj);
-extern void sysfs_remove_dir(struct kobject *kobj);
-
 
 static inline bool
 sysfs_streq(const char *s1, const char *s2)
@@ -135,7 +185,5 @@ sysfs_streq(const char *s1, const char *s2)
 	return false;
 }
 
-/* XXX not implemented yet */
-#define sysfs_remove_link(a, b)
-#define sysfs_create_link(a, b, c) 0
+extern int sysctl_handle_attr(SYSCTL_HANDLER_ARGS);
 #endif	/* _LINUX_SYSFS_H_ */

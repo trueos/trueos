@@ -57,7 +57,7 @@ out:
 }
 
 int
-sysfs_create_file(struct kobject *kobj, const struct attribute *attr)
+lkpi_sysfs_create_file(struct kobject *kobj, const struct attribute *attr)
 {
 
 	sysctl_add_oid(NULL, SYSCTL_CHILDREN(kobj->oidp), OID_AUTO,
@@ -68,7 +68,7 @@ sysfs_create_file(struct kobject *kobj, const struct attribute *attr)
 }
 
 void
-sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
+lkpi_sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
 {
 	int refcount;
 
@@ -82,7 +82,7 @@ sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
 }
 
 void
-sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp)
+lkpi_sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp)
 {
 	int refcount;
 
@@ -96,7 +96,7 @@ sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp)
 }
 
 int
-sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp)
+lkpi_sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp)
 {
 	struct attribute **attr;
 	struct sysctl_oid *oidp;
@@ -113,7 +113,7 @@ sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp)
 }
 
 int
-sysfs_create_dir(struct kobject *kobj)
+lkpi_sysfs_create_dir(struct kobject *kobj)
 {
 
 	kobj->oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(kobj->parent->oidp),
@@ -123,7 +123,7 @@ sysfs_create_dir(struct kobject *kobj)
 }
 
 void
-sysfs_remove_dir(struct kobject *kobj)
+lkpi_sysfs_remove_dir(struct kobject *kobj)
 {
 	int refcount;
 
