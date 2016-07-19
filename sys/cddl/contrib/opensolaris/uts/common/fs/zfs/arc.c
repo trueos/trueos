@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
- * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
  * Copyright (c) 2014 by Saso Kiselkov. All rights reserved.
  * Copyright 2015 Nexenta Systems, Inc.  All rights reserved.
  */
@@ -238,10 +238,15 @@ int zfs_disable_dup_eviction = 0;
 uint64_t zfs_arc_average_blocksize = 8 * 1024; /* 8KB */
 u_int zfs_arc_free_target = 0;
 
+/* Absolute min for arc min / max is 16MB. */
+static uint64_t arc_abs_min = 16 << 20;
+
 static int sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS);
 static int sysctl_vfs_zfs_arc_meta_limit(SYSCTL_HANDLER_ARGS);
+static int sysctl_vfs_zfs_arc_max(SYSCTL_HANDLER_ARGS);
+static int sysctl_vfs_zfs_arc_min(SYSCTL_HANDLER_ARGS);
 
-#ifdef _KERNEL
+#if defined(__FreeBSD__) && defined(_KERNEL)
 static void
 arc_free_target_init(void *unused __unused)
 {
@@ -255,10 +260,10 @@ TUNABLE_QUAD("vfs.zfs.arc_meta_limit", &zfs_arc_meta_limit);
 TUNABLE_QUAD("vfs.zfs.arc_meta_min", &zfs_arc_meta_min);
 TUNABLE_INT("vfs.zfs.arc_shrink_shift", &zfs_arc_shrink_shift);
 SYSCTL_DECL(_vfs_zfs);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_max, CTLFLAG_RDTUN, &zfs_arc_max, 0,
-    "Maximum ARC size");
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_min, CTLFLAG_RDTUN, &zfs_arc_min, 0,
-    "Minimum ARC size");
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_max, CTLTYPE_U64 | CTLFLAG_RWTUN,
+    0, sizeof(uint64_t), sysctl_vfs_zfs_arc_max, "QU", "Maximum ARC size");
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_min, CTLTYPE_U64 | CTLFLAG_RWTUN,
+    0, sizeof(uint64_t), sysctl_vfs_zfs_arc_min, "QU", "Minimum ARC size");
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_average_blocksize, CTLFLAG_RDTUN,
     &zfs_arc_average_blocksize, 0,
     "ARC average blocksize");
@@ -779,6 +784,7 @@ typedef struct arc_write_callback arc_write_callback_t;
 struct arc_write_callback {
 	void		*awcb_private;
 	arc_done_func_t	*awcb_ready;
+	arc_done_func_t	*awcb_children_ready;
 	arc_done_func_t	*awcb_physdone;
 	arc_done_func_t	*awcb_done;
 	arc_buf_t	*awcb_buf;
@@ -884,7 +890,7 @@ struct arc_buf_hdr {
 	l1arc_buf_hdr_t		b_l1hdr;
 };
 
-#ifdef _KERNEL
+#if defined(__FreeBSD__) && defined(_KERNEL)
 static int
 sysctl_vfs_zfs_arc_meta_limit(SYSCTL_HANDLER_ARGS)
 {
@@ -900,6 +906,82 @@ sysctl_vfs_zfs_arc_meta_limit(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 
 	arc_meta_limit = val;
+	return (0);
+}
+
+static int
+sysctl_vfs_zfs_arc_max(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t val;
+	int err;
+
+	val = zfs_arc_max;
+	err = sysctl_handle_64(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (zfs_arc_max == 0) {
+		/* Loader tunable so blindly set */
+		zfs_arc_max = val;
+		return (0);
+	}
+
+	if (val < arc_abs_min || val > kmem_size())
+		return (EINVAL);
+	if (val < arc_c_min)
+		return (EINVAL);
+	if (zfs_arc_meta_limit > 0 && val < zfs_arc_meta_limit)
+		return (EINVAL);
+
+	arc_c_max = val;
+
+	arc_c = arc_c_max;
+        arc_p = (arc_c >> 1);
+
+	if (zfs_arc_meta_limit == 0) {
+		/* limit meta-data to 1/4 of the arc capacity */
+		arc_meta_limit = arc_c_max / 4;
+	}
+
+	/* if kmem_flags are set, lets try to use less memory */
+	if (kmem_debugging())
+		arc_c = arc_c / 2;
+
+	zfs_arc_max = arc_c;
+
+	return (0);
+}
+
+static int
+sysctl_vfs_zfs_arc_min(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t val;
+	int err;
+
+	val = zfs_arc_min;
+	err = sysctl_handle_64(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (zfs_arc_min == 0) {
+		/* Loader tunable so blindly set */
+		zfs_arc_min = val;
+		return (0);
+	}
+
+	if (val < arc_abs_min || val > arc_c_max)
+		return (EINVAL);
+
+	arc_c_min = val;
+
+	if (zfs_arc_meta_min == 0)
+                arc_meta_min = arc_c_min / 2;
+
+	if (arc_c < arc_c_min)
+                arc_c = arc_c_min;
+
+	zfs_arc_min = arc_c_min;
+
 	return (0);
 }
 #endif
@@ -5025,6 +5107,15 @@ arc_write_ready(zio_t *zio)
 	hdr->b_flags |= ARC_FLAG_IO_IN_PROGRESS;
 }
 
+static void
+arc_write_children_ready(zio_t *zio)
+{
+	arc_write_callback_t *callback = zio->io_private;
+	arc_buf_t *buf = callback->awcb_buf;
+
+	callback->awcb_children_ready(zio, buf, callback->awcb_private);
+}
+
 /*
  * The SPA calls this callback for each physical write that happens on behalf
  * of a logical write.  See the comment in dbuf_write_physdone() for details.
@@ -5121,7 +5212,8 @@ arc_write_done(zio_t *zio)
 zio_t *
 arc_write(zio_t *pio, spa_t *spa, uint64_t txg,
     blkptr_t *bp, arc_buf_t *buf, boolean_t l2arc, boolean_t l2arc_compress,
-    const zio_prop_t *zp, arc_done_func_t *ready, arc_done_func_t *physdone,
+    const zio_prop_t *zp, arc_done_func_t *ready,
+    arc_done_func_t *children_ready, arc_done_func_t *physdone,
     arc_done_func_t *done, void *private, zio_priority_t priority,
     int zio_flags, const zbookmark_phys_t *zb)
 {
@@ -5141,13 +5233,16 @@ arc_write(zio_t *pio, spa_t *spa, uint64_t txg,
 		hdr->b_flags |= ARC_FLAG_L2COMPRESS;
 	callback = kmem_zalloc(sizeof (arc_write_callback_t), KM_SLEEP);
 	callback->awcb_ready = ready;
+	callback->awcb_children_ready = children_ready;
 	callback->awcb_physdone = physdone;
 	callback->awcb_done = done;
 	callback->awcb_private = private;
 	callback->awcb_buf = buf;
 
 	zio = zio_write(pio, spa, txg, bp, buf->b_data, hdr->b_size, zp,
-	    arc_write_ready, arc_write_physdone, arc_write_done, callback,
+	    arc_write_ready,
+	    (children_ready != NULL) ? arc_write_children_ready : NULL,
+	    arc_write_physdone, arc_write_done, callback,
 	    priority, zio_flags, zb);
 
 	return (zio);
@@ -5385,8 +5480,8 @@ arc_init(void)
 	arc_c = MIN(arc_c, vmem_size(heap_arena, VMEM_ALLOC | VMEM_FREE) / 8);
 #endif
 #endif	/* illumos */
-	/* set min cache to 1/32 of all memory, or 16MB, whichever is more */
-	arc_c_min = MAX(arc_c / 4, 16 << 20);
+	/* set min cache to 1/32 of all memory, or arc_abs_min, whichever is more */
+	arc_c_min = MAX(arc_c / 4, arc_abs_min);
 	/* set max to 1/2 of all memory, or all but 1GB, whichever is more */
 	if (arc_c * 8 >= 1 << 30)
 		arc_c_max = (arc_c * 8) - (1 << 30);
@@ -5407,11 +5502,11 @@ arc_init(void)
 #ifdef _KERNEL
 	/*
 	 * Allow the tunables to override our calculations if they are
-	 * reasonable (ie. over 16MB)
+	 * reasonable.
 	 */
-	if (zfs_arc_max > 16 << 20 && zfs_arc_max < kmem_size())
+	if (zfs_arc_max > arc_abs_min && zfs_arc_max < kmem_size())
 		arc_c_max = zfs_arc_max;
-	if (zfs_arc_min > 16 << 20 && zfs_arc_min <= arc_c_max)
+	if (zfs_arc_min > arc_abs_min && zfs_arc_min <= arc_c_max)
 		arc_c_min = zfs_arc_min;
 #endif
 
