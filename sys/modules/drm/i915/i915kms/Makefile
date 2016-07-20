@@ -22,6 +22,7 @@ SRCS	= \
 	i915_gem_fence.c \
 	i915_gem_gtt.c \
 	i915_gem_render_state.c \
+	i915_gem_request.c \
 	i915_gem_stolen.c \
 	i915_gem_shrinker.c \
 	i915_gem_tiling.c \
