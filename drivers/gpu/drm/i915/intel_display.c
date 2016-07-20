@@ -10509,7 +10509,7 @@ intel_framebuffer_create_for_mode(struct drm_device *dev,
 
 	fb = intel_framebuffer_create(dev, &mode_cmd, obj);
 	if (IS_ERR(fb))
-		drm_gem_object_unreference_unlocked(&obj->base);
+		i915_gem_object_put_unlocked(obj);
 
 	return fb;
 }
@@ -11823,7 +11823,7 @@ cleanup:
 	crtc->primary->fb = old_fb;
 	update_state_fb(crtc->primary);
 
-	drm_gem_object_unreference_unlocked(&obj->base);
+	i915_gem_object_put_unlocked(obj);
 	drm_framebuffer_unreference(work->old_fb);
 
 	spin_lock_irq(&dev->event_lock);
@@ -15162,7 +15162,7 @@ intel_user_framebuffer_create(struct drm_device *dev,
 
 	fb = intel_framebuffer_create(dev, &mode_cmd, obj);
 	if (IS_ERR(fb))
-		drm_gem_object_unreference_unlocked(&obj->base);
+		i915_gem_object_put_unlocked(obj);
 
 	return fb;
 }
