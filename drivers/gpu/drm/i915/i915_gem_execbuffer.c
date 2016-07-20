@@ -178,7 +178,7 @@ err:
 				       struct drm_i915_gem_object,
 				       obj_exec_link);
 		list_del_init(&obj->obj_exec_link);
-		drm_gem_object_unreference(&obj->base);
+		i915_gem_object_put(obj);
 	}
 	/*
 	 * Objects already transfered to the vmas list will be unreferenced by
@@ -266,7 +266,7 @@ static void eb_destroy(struct eb_vmas *eb)
 				       exec_list);
 		list_del_init(&vma->exec_list);
 		i915_gem_execbuffer_unreserve_vma(vma);
-		drm_gem_object_unreference(&vma->obj->base);
+		i915_gem_object_put(vma->obj);
 	}
 	kfree(eb);
 }
@@ -879,7 +879,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 		vma = list_first_entry(&eb->vmas, struct i915_vma, exec_list);
 		list_del_init(&vma->exec_list);
 		i915_gem_execbuffer_unreserve_vma(vma);
-		drm_gem_object_unreference(&vma->obj->base);
+		i915_gem_object_put(vma->obj);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
