@@ -1362,7 +1362,7 @@ static int gen8_rcs_signal(struct drm_i915_gem_request *signaller_req,
 					   PIPE_CONTROL_CS_STALL);
 		intel_ring_emit(signaller, lower_32_bits(gtt_offset));
 		intel_ring_emit(signaller, upper_32_bits(gtt_offset));
-		intel_ring_emit(signaller, signaller_req->seqno);
+		intel_ring_emit(signaller, signaller_req->fence.seqno);
 		intel_ring_emit(signaller, 0);
 		intel_ring_emit(signaller, MI_SEMAPHORE_SIGNAL |
 					   MI_SEMAPHORE_TARGET(waiter->hw_id));
@@ -1400,7 +1400,7 @@ static int gen8_xcs_signal(struct drm_i915_gem_request *signaller_req,
 		intel_ring_emit(signaller, lower_32_bits(gtt_offset) |
 					   MI_FLUSH_DW_USE_GTT);
 		intel_ring_emit(signaller, upper_32_bits(gtt_offset));
-		intel_ring_emit(signaller, signaller_req->seqno);
+		intel_ring_emit(signaller, signaller_req->fence.seqno);
 		intel_ring_emit(signaller, MI_SEMAPHORE_SIGNAL |
 					   MI_SEMAPHORE_TARGET(waiter->hw_id));
 		intel_ring_emit(signaller, 0);
@@ -1433,7 +1433,7 @@ static int gen6_signal(struct drm_i915_gem_request *signaller_req,
 		if (i915_mmio_reg_valid(mbox_reg)) {
 			intel_ring_emit(signaller, MI_LOAD_REGISTER_IMM(1));
 			intel_ring_emit_reg(signaller, mbox_reg);
-			intel_ring_emit(signaller, signaller_req->seqno);
+			intel_ring_emit(signaller, signaller_req->fence.seqno);
 		}
 	}
 
@@ -1469,7 +1469,7 @@ gen6_add_request(struct drm_i915_gem_request *req)
 	intel_ring_emit(engine, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(engine,
 			I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(engine, req->seqno);
+	intel_ring_emit(engine, req->fence.seqno);
 	intel_ring_emit(engine, MI_USER_INTERRUPT);
 	__intel_ring_advance(engine);
 
@@ -1718,7 +1718,7 @@ i9xx_add_request(struct drm_i915_gem_request *req)
 	intel_ring_emit(engine, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(engine,
 			I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(engine, req->seqno);
+	intel_ring_emit(engine, req->fence.seqno);
 	intel_ring_emit(engine, MI_USER_INTERRUPT);
 	__intel_ring_advance(engine);
 
