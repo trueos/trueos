@@ -1195,7 +1195,6 @@ struct intel_gen6_power_mgmt {
 	bool client_boost;
 
 	bool enabled;
-	struct delayed_work autoenable_work;
 	unsigned boosts;
 
 	/* manual wa residency calculations */
