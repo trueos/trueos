@@ -1138,7 +1138,7 @@ void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring)
  */
 int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
-	struct fence *fence;
+	struct fence *fence = NULL;
 	long r;
 
 	r = amdgpu_uvd_get_create_msg(ring, 1, NULL);
