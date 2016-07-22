@@ -307,7 +307,8 @@ sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp)
 	lkpi_sysfs_remove_group(kobj, grp);
 	for (attr = grp->attrs; *attr != NULL; attr++) {
 		pn = pfs_find_node(kobj->sd, (*attr)->name);
-		pfs_destroy(pn);
+		if (pn)
+			pfs_destroy(pn);
 	}
 }
 
@@ -335,7 +336,8 @@ sysfs_remove_dir(struct kobject *kobj)
 	struct pfs_node *pn = kobj->sd;
 
 	lkpi_sysfs_remove_dir(kobj);
-	pfs_destroy(pn);
+	if (pn)
+		pfs_destroy(pn);
 }
 
 int
