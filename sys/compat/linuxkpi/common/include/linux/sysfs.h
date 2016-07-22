@@ -50,6 +50,8 @@ struct attribute {
 	mode_t		mode;
 };
 
+#define sysfs_attr_init(attr) do {} while(0)
+
 struct bin_attribute {
 	struct attribute	attr;
 	size_t			size;
@@ -77,6 +79,8 @@ struct attribute_group {
 	struct attribute	**attrs;
 	struct bin_attribute	**bin_attrs;
 };
+
+#define sysfs_bin_attr_init(bin_attr) sysfs_attr_init(&(bin_attr)->attr)
 
 #define __BIN_ATTR(_name, _mode, _read, _write, _size) {		\
 	.attr = { .name = __stringify(_name), .mode = _mode },		\
@@ -130,7 +134,6 @@ struct bin_attribute bin_attr_##_name = __BIN_ATTR_RW(_name, _size)
 
 #define	__ATTR_NULL	{ .attr = { .name = NULL } }
 
-#define sysfs_attr_init(attr) do {} while(0)
 
 
 extern int sysfs_create_bin_file(struct kobject *kobj, const struct bin_attribute *attr);
@@ -147,6 +150,12 @@ extern void sysfs_remove_dir(struct kobject *kobj);
 extern int __must_check sysfs_create_link(struct kobject *kobj, struct kobject *target,
 				   const char *name);
 extern void sysfs_remove_link(struct kobject *kobj, const char *name);
+
+struct pci_bus;
+struct pci_dev;
+
+void pci_create_legacy_files(struct pci_bus *b);
+void pci_remove_legacy_files(struct pci_bus *b);
 
 
 

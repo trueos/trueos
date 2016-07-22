@@ -180,22 +180,6 @@ __copy_from_user_inatomic(void *to, const void __user *from,
     __copy_from_user_inatomic((to), (from), (n))
 
 
-enum __drm_capabilities {
-	CAP_SYS_ADMIN
-};
-
-static inline bool
-capable(enum __drm_capabilities cap)
-{
-
-	switch (cap) {
-	case CAP_SYS_ADMIN:
-		return DRM_SUSER(curthread);
-	default:
-		panic("%s: unhandled capability: %0x", __func__, cap);
-		return (false);
-	}
-}
 #define	sigemptyset(set)	SIGEMPTYSET(set)
 #define	sigaddset(set, sig)	SIGADDSET(set, sig)
 

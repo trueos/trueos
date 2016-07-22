@@ -365,4 +365,6 @@ sign_extend64(uint64_t value, int index)
 	return ((int64_t)(value << shift) >> shift);
 }
 
+#define fls64 flsll
+
 #endif	/* _LINUX_BITOPS_H_ */

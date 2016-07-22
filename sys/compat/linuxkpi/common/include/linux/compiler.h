@@ -60,6 +60,9 @@
 #define __exit
 #define	__rcu
 
+#define __weak		__attribute__((weak))
+
+
 #define ACCESS_PRIVATE(p, member) ((p)->member)
 
 #define	__attribute_const__		__attribute__((__const__))

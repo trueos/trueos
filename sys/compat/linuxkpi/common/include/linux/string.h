@@ -79,6 +79,16 @@ kstrdup(const char *string, gfp_t gfp)
 	return (copy);
 }
 
+static inline char *
+kstrndup(const char *string, size_t len, gfp_t gfp)
+{
+	char *copy;
+
+	copy = malloc(len + 1, M_KMALLOC, gfp);
+	strncpy(copy, string, len);
+	return (copy);
+}
+
 static inline const char *
 kstrdup_const(const char *src, gfp_t gfp)
 {

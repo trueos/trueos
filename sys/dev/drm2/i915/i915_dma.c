@@ -51,7 +51,6 @@
 #include <linux/oom.h>
 
 
-#undef resource
 #define pci_disable_msi linux_pci_disable_msi
 #define pci_enable_msi linux_pci_enable_msi
 

@@ -48,6 +48,7 @@
 #include <linux/shrinker.h>
 #include <linux/dcache.h>
 #include <linux/mutex.h>
+#include <linux/capability.h>
 
 struct module;
 struct kiocb;

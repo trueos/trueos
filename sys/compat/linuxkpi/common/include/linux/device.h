@@ -176,12 +176,17 @@ struct device {
 	struct class	*class;
 	void		(*release)(struct device *dev);
 	struct kobject	kobj;
-	uint64_t	*dma_mask;
 	void		*driver_data;
 	unsigned int	irq;
 	unsigned int	msix;
 	unsigned int	msix_max;
 	struct device_type *type;
+	uint64_t	*dma_mask;
+	u64		coherent_dma_mask;/* Like dma_mask, but for
+					     alloc_coherent mappings as
+					     not all hardware supports
+					     64 bit addresses for consistent
+					     allocations such descriptors. */
 	struct device_node	*of_node; /* associated device tree node */	
 	struct fwnode_handle	*fwnode;
 	struct device_driver *driver;	/* which driver has allocated this device */
@@ -699,6 +704,17 @@ device_remove_file(struct device *dev, const struct device_attribute *attr)
 
 	if (dev)
 		sysfs_remove_file(&dev->kobj, &attr->attr);
+}
+
+static inline bool
+device_remove_file_self(struct device *dev, const struct device_attribute *attr)
+{
+
+	if (dev) {
+		sysfs_remove_file(&dev->kobj, &attr->attr);
+		return (true);
+	}
+	return (false);
 }
 
 static inline int

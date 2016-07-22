@@ -34,10 +34,9 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 
-#include <sys/bus.h>
-#include <sys/rman.h>
 #include <linux/hardirq.h>
 
+#undef resource
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
 #define	IRQ_RETVAL(x)	((x) != IRQ_NONE)
@@ -164,4 +163,5 @@ free_irq(unsigned int irq, void *device)
 	kfree(irqe);
 }
 
+#define resource linux_resource
 #endif	/* _LINUX_INTERRUPT_H_ */

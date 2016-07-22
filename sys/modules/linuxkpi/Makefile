@@ -31,18 +31,22 @@ SRCS=	interval_tree.c \
 	linux_usb.c \
 	linux_video.c \
 	linux_work.c \
-	lkpi_kern_mutex.c
+	lkpi_kern_mutex.c \
+	lkpi_stubs.c
 
 SRCS+=	bus_if.h \
 	device_if.h \
 	pci_if.h \
 	vnode_if.h \
 	usb_if.h \
+	opt_ddb.h \
+	opt_ktrace.h \
+	opt_sched.h \
 	opt_usb.h
 
-
-SRCS+= linsysfs_init.c \
-	linsysfs_extern.c
+SRCS+= 	linsysfs_init.c \
+	linsysfs_extern.c \
+	pci-sysfs.c
 
 
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include

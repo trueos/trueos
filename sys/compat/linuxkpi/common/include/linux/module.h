@@ -89,6 +89,7 @@ _module_run(void *arg)
 
 
 #define postcore_initcall(fn)		module_init(fn)
+#define late_initcall(fn)		module_init(fn)
 
 #define MODULE_INFO(tag, info) /*__MODULE_INFO(tag, tag, info) */
 #define MODULE_FIRMWARE(_firmware) MODULE_INFO(firmware, _firmware)

@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/ioport.h>
 #include <linux/compat.h>
 
+#undef resource
 #define IO_SPACE_LIMIT 0xffff
 
 /* XXX asumes x86 */

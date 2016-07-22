@@ -36,9 +36,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_adaptive_mutexes.h"
 #include "opt_ddb.h"
-#include "opt_hwpmc_hooks.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -75,11 +73,6 @@ __FBSDID("$FreeBSD$");
 
 #if defined(SMP)
 #define	ADAPTIVE_MUTEXES
-#endif
-
-#ifdef HWPMC_HOOKS
-#include <sys/pmckern.h>
-PMC_SOFT_DEFINE( , , lock, failed);
 #endif
 
 static void lkpi_interop_init(void *arg __unused);
