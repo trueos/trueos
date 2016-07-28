@@ -395,6 +395,7 @@ swap_map(struct ip_fw_chain *chain, struct ip_fw **new_map, int new_len)
 static void
 export_cntr1_base(struct ip_fw *krule, struct ip_fw_bcounter *cntr)
 {
+	struct timeval boottime;
 
 	cntr->size = sizeof(*cntr);
 
@@ -403,21 +404,26 @@ export_cntr1_base(struct ip_fw *krule, struct ip_fw_bcounter *cntr)
 		cntr->bcnt = counter_u64_fetch(krule->cntr + 1);
 		cntr->timestamp = krule->timestamp;
 	}
-	if (cntr->timestamp > 0)
+	if (cntr->timestamp > 0) {
+		getboottime(&boottime);
 		cntr->timestamp += boottime.tv_sec;
+	}
 }
 
 static void
 export_cntr0_base(struct ip_fw *krule, struct ip_fw_bcounter0 *cntr)
 {
+	struct timeval boottime;
 
 	if (krule->cntr != NULL) {
 		cntr->pcnt = counter_u64_fetch(krule->cntr);
 		cntr->bcnt = counter_u64_fetch(krule->cntr + 1);
 		cntr->timestamp = krule->timestamp;
 	}
-	if (cntr->timestamp > 0)
+	if (cntr->timestamp > 0) {
+		getboottime(&boottime);
 		cntr->timestamp += boottime.tv_sec;
+	}
 }
 
 /*
@@ -1679,6 +1685,10 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 		switch (cmd->opcode) {
 		case O_PROBE_STATE:
 		case O_KEEP_STATE:
+			if (cmdlen != F_INSN_SIZE(ipfw_insn))
+				goto bad_size;
+			ci->object_opcodes++;
+			break;
 		case O_PROTO:
 		case O_IP_SRC_ME:
 		case O_IP_DST_ME:
@@ -1776,6 +1786,7 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 		case O_LIMIT:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_limit))
 				goto bad_size;
+			ci->object_opcodes++;
 			break;
 
 		case O_LOG:
@@ -1906,8 +1917,10 @@ check_ipfw_rule_body(ipfw_insn *cmd, int cmd_len, struct rule_check_info *ci)
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_nat))
  				goto bad_size;		
  			goto check_action;
-		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_CHECK_STATE:
+			ci->object_opcodes++;
+			/* FALLTHROUGH */
+		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_COUNT:
 		case O_ACCEPT:
 		case O_DENY:
@@ -2048,11 +2061,13 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 	char *ep = bp + space;
 	struct ip_fw *rule;
 	struct ip_fw_rule0 *dst;
+	struct timeval boottime;
 	int error, i, l, warnflag;
 	time_t	boot_seconds;
 
 	warnflag = 0;
 
+	getboottime(&boottime);
         boot_seconds = boottime.tv_sec;
 	for (i = 0; i < chain->n_rules; i++) {
 		rule = chain->map[i];

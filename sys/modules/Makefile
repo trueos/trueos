@@ -165,6 +165,7 @@ SUBDIR=	\
 	${_ipfilter} \
 	${_ipfw} \
 	ipfw_nat \
+	${_ipfw_nptv6} \
 	${_ipmi} \
 	ip6_mroute_mod \
 	ip_mroute_mod \
@@ -276,7 +277,7 @@ SUBDIR=	\
 	${_nxge} \
 	oce \
 	otus \
-	otusfw \
+	${_otusfw} \
 	ow \
 	${_padlock} \
 	${_padlock_rng} \
@@ -458,6 +459,10 @@ _ipdivert=	ipdivert
 _ipfw=		ipfw
 .endif
 
+.if ${MK_INET6_SUPPORT} != "no" || defined(ALL_MODULES)
+_ipfw_nptv6=	ipfw_nptv6
+.endif
+
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
 .endif
@@ -491,6 +496,7 @@ _fatm=		fatm
 _fxp=		fxp
 _ispfw=		ispfw
 _mwlfw=		mwlfw
+_otusfw=	otusfw
 _ralfw=		ralfw
 _rtwnfw=	rtwnfw
 _urtwnfw=	urtwnfw

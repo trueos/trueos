@@ -433,7 +433,6 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 	} while (0);
 
 	vm_map_unlock_read(map);
-	vmspace_free(vm);
 
 	pve->pve_fsid = VNOVAL;
 	pve->pve_fileid = VNOVAL;
@@ -478,6 +477,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 				free(freepath, M_TEMP);
 		}
 	}
+	vmspace_free(vm);
 	if (error == 0)
 		CTR3(KTR_PTRACE, "PT_VM_ENTRY: pid %d, entry %d, start %p",
 		    p->p_pid, pve->pve_entry, pve->pve_start);
@@ -993,7 +993,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 		tmp = *(int *)addr;
 		if ((tmp & ~(PTRACE_EXEC | PTRACE_SCE | PTRACE_SCX |
-		    PTRACE_FORK | PTRACE_LWP)) != 0) {
+		    PTRACE_FORK | PTRACE_LWP | PTRACE_VFORK)) != 0) {
 			error = EINVAL;
 			break;
 		}
@@ -1303,7 +1303,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		if (td2->td_dbgflags & TDB_FORK) {
 			pl->pl_flags |= PL_FLAG_FORKED;
 			pl->pl_child_pid = td2->td_dbg_forked;
-		}
+			if (td2->td_dbgflags & TDB_VFORK)
+				pl->pl_flags |= PL_FLAG_VFORKED;
+		} else if ((td2->td_dbgflags & (TDB_SCX | TDB_VFORK)) ==
+		    TDB_VFORK)
+			pl->pl_flags |= PL_FLAG_VFORK_DONE;
 		if (td2->td_dbgflags & TDB_CHILD)
 			pl->pl_flags |= PL_FLAG_CHILD;
 		if (td2->td_dbgflags & TDB_BORN)
