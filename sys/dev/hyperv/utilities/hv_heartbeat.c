@@ -35,6 +35,8 @@
 #include <sys/syscallsubr.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
+#include <dev/hyperv/utilities/hv_utilreg.h>
 #include "hv_util.h"
 #include "vmbus_if.h"
 
@@ -47,11 +49,10 @@ static const struct hyperv_guid service_guid = { .hv_guid =
  * Process heartbeat message
  */
 static void
-hv_heartbeat_cb(void *context)
+hv_heartbeat_cb(struct vmbus_channel *channel, void *context)
 {
 	uint8_t*		buf;
-	hv_vmbus_channel*	channel;
-	uint32_t		recvlen;
+	int			recvlen;
 	uint64_t		requestid;
 	int			ret;
 
@@ -61,10 +62,11 @@ hv_heartbeat_cb(void *context)
 
 	softc = (hv_util_sc*)context;
 	buf = softc->receive_buffer;
-	channel = softc->channel;
 
-	ret = hv_vmbus_channel_recv_packet(channel, buf, PAGE_SIZE, &recvlen,
-					    &requestid);
+	recvlen = PAGE_SIZE;
+	ret = vmbus_chan_recv(channel, buf, &recvlen, &requestid);
+	KASSERT(ret != ENOBUFS, ("hvheartbeat recvbuf is not large enough"));
+	/* XXX check recvlen to make sure that it contains enough data */
 
 	if ((ret == 0) && recvlen > 0) {
 
@@ -86,8 +88,8 @@ hv_heartbeat_cb(void *context)
 	    icmsghdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION |
 				 HV_ICMSGHDRFLAG_RESPONSE;
 
-	    hv_vmbus_channel_send_packet(channel, buf, recvlen, requestid,
-		HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+	    vmbus_chan_send(channel, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	        buf, recvlen, requestid);
 	}
 }
 

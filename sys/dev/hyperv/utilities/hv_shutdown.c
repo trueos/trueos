@@ -40,6 +40,8 @@
 #include <sys/syscallsubr.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
+#include <dev/hyperv/utilities/hv_utilreg.h>
 #include "hv_util.h"
 #include "vmbus_if.h"
 
@@ -51,10 +53,9 @@ static const struct hyperv_guid service_guid = { .hv_guid =
  * Shutdown
  */
 static void
-hv_shutdown_cb(void *context)
+hv_shutdown_cb(struct vmbus_channel *channel, void *context)
 {
 	uint8_t*			buf;
-	hv_vmbus_channel*		channel;
 	uint8_t				execute_shutdown = 0;
 	hv_vmbus_icmsg_hdr*		icmsghdrp;
 	uint32_t			recv_len;
@@ -65,9 +66,11 @@ hv_shutdown_cb(void *context)
 
 	softc = (hv_util_sc*)context;
 	buf = softc->receive_buffer;
-	channel = softc->channel;
-	ret = hv_vmbus_channel_recv_packet(channel, buf, PAGE_SIZE,
-					    &recv_len, &request_id);
+
+	recv_len = PAGE_SIZE;
+	ret = vmbus_chan_recv(channel, buf, &recv_len, &request_id);
+	KASSERT(ret != ENOBUFS, ("hvshutdown recvbuf is not large enough"));
+	/* XXX check recv_len to make sure that it contains enough data */
 
 	if ((ret == 0) && recv_len > 0) {
 
@@ -104,9 +107,8 @@ hv_shutdown_cb(void *context)
 	icmsghdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION |
 				 HV_ICMSGHDRFLAG_RESPONSE;
 
-	    hv_vmbus_channel_send_packet(channel, buf,
-					recv_len, request_id,
-					HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+	    vmbus_chan_send(channel, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	        buf, recv_len, request_id);
 	}
 
 	if (execute_shutdown)

@@ -120,9 +120,6 @@ __FBSDID("$FreeBSD$");
 #include "hv_rndis_filter.h"
 #include "vmbus_if.h"
 
-#define hv_chan_rxr	hv_chan_priv1
-#define hv_chan_txr	hv_chan_priv2
-
 /* Short for Hyper-V network interface */
 #define NETVSC_DEVNAME    "hn"
 
@@ -154,7 +151,7 @@ __FBSDID("$FreeBSD$");
 #define HN_TX_DATA_MAXSIZE		IP_MAXPACKET
 #define HN_TX_DATA_SEGSIZE		PAGE_SIZE
 #define HN_TX_DATA_SEGCNT_MAX		\
-    (NETVSC_PACKET_MAXPAGE - HV_RF_NUM_TX_RESERVED_PAGE_BUFS)
+    (VMBUS_CHAN_SGLIST_MAX - HV_RF_NUM_TX_RESERVED_PAGE_BUFS)
 
 #define HN_DIRECT_TX_SIZE_DEF		128
 
@@ -343,8 +340,8 @@ static int hn_encap(struct hn_tx_ring *, struct hn_txdesc *, struct mbuf **);
 static void hn_create_rx_data(struct hn_softc *sc, int);
 static void hn_destroy_rx_data(struct hn_softc *sc);
 static void hn_set_tx_chimney_size(struct hn_softc *, int);
-static void hn_channel_attach(struct hn_softc *, struct hv_vmbus_channel *);
-static void hn_subchan_attach(struct hn_softc *, struct hv_vmbus_channel *);
+static void hn_channel_attach(struct hn_softc *, struct vmbus_channel *);
+static void hn_subchan_attach(struct hn_softc *, struct vmbus_channel *);
 static void hn_subchan_setup(struct hn_softc *);
 
 static int hn_transmit(struct ifnet *, struct mbuf *);
@@ -544,7 +541,8 @@ netvsc_attach(device_t dev)
 	    IFCAP_LRO;
 	ifp->if_hwassist = sc->hn_tx_ring[0].hn_csum_assist | CSUM_TSO;
 
-	error = hv_rf_on_device_add(sc, &device_info, ring_cnt);
+	error = hv_rf_on_device_add(sc, &device_info, ring_cnt,
+	    &sc->hn_rx_ring[0]);
 	if (error)
 		goto failed;
 	KASSERT(sc->net_dev->num_channel > 0 &&
@@ -782,7 +780,7 @@ hn_txeof(struct hn_tx_ring *txr)
 }
 
 static void
-hn_tx_done(struct hv_vmbus_channel *chan, void *xpkt)
+hn_tx_done(struct vmbus_channel *chan, void *xpkt)
 {
 	netvsc_packet *packet = xpkt;
 	struct hn_txdesc *txd;
@@ -793,9 +791,8 @@ hn_tx_done(struct hv_vmbus_channel *chan, void *xpkt)
 
 	txr = txd->txr;
 	KASSERT(txr->hn_chan == chan,
-	    ("channel mismatch, on channel%u, should be channel%u",
-	     chan->ch_subidx,
-	     txr->hn_chan->ch_subidx));
+	    ("channel mismatch, on chan%u, should be chan%u",
+	     vmbus_chan_subidx(chan), vmbus_chan_subidx(txr->hn_chan)));
 
 	txr->hn_has_txeof = 1;
 	hn_txdesc_put(txr, txd);
@@ -809,12 +806,9 @@ hn_tx_done(struct hv_vmbus_channel *chan, void *xpkt)
 }
 
 void
-netvsc_channel_rollup(struct hv_vmbus_channel *chan)
+netvsc_channel_rollup(struct hn_rx_ring *rxr, struct hn_tx_ring *txr)
 {
-	struct hn_tx_ring *txr = chan->hv_chan_txr;
 #if defined(INET) || defined(INET6)
-	struct hn_rx_ring *rxr = chan->hv_chan_rxr;
-
 	tcp_lro_flush_all(&rxr->hn_lro);
 #endif
 
@@ -998,7 +992,7 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 			packet->send_buf_section_idx = send_buf_section_idx;
 			packet->send_buf_section_size =
 			    packet->tot_data_buf_len;
-			packet->page_buf_count = 0;
+			packet->gpa_cnt = 0;
 			txr->hn_tx_chimney++;
 			goto done;
 		}
@@ -1024,24 +1018,24 @@ hn_encap(struct hn_tx_ring *txr, struct hn_txdesc *txd, struct mbuf **m_head0)
 	}
 	*m_head0 = m_head;
 
-	packet->page_buf_count = nsegs + HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
+	packet->gpa_cnt = nsegs + HV_RF_NUM_TX_RESERVED_PAGE_BUFS;
 
 	/* send packet with page buffer */
-	packet->page_buffers[0].pfn = atop(txd->rndis_msg_paddr);
-	packet->page_buffers[0].offset = txd->rndis_msg_paddr & PAGE_MASK;
-	packet->page_buffers[0].length = rndis_msg_size;
+	packet->gpa[0].gpa_page = atop(txd->rndis_msg_paddr);
+	packet->gpa[0].gpa_ofs = txd->rndis_msg_paddr & PAGE_MASK;
+	packet->gpa[0].gpa_len = rndis_msg_size;
 
 	/*
 	 * Fill the page buffers with mbuf info starting at index
 	 * HV_RF_NUM_TX_RESERVED_PAGE_BUFS.
 	 */
 	for (i = 0; i < nsegs; ++i) {
-		hv_vmbus_page_buffer *pb = &packet->page_buffers[
+		struct vmbus_gpa *gpa = &packet->gpa[
 		    i + HV_RF_NUM_TX_RESERVED_PAGE_BUFS];
 
-		pb->pfn = atop(segs[i].ds_addr);
-		pb->offset = segs[i].ds_addr & PAGE_MASK;
-		pb->length = segs[i].ds_len;
+		gpa->gpa_page = atop(segs[i].ds_addr);
+		gpa->gpa_ofs = segs[i].ds_addr & PAGE_MASK;
+		gpa->gpa_len = segs[i].ds_len;
 	}
 
 	packet->send_buf_section_idx =
@@ -1279,12 +1273,11 @@ hn_lro_rx(struct lro_ctrl *lc, struct mbuf *m)
  * Note:  This is no longer used as a callback
  */
 int
-netvsc_recv(struct hv_vmbus_channel *chan, netvsc_packet *packet,
+netvsc_recv(struct hn_rx_ring *rxr, netvsc_packet *packet,
     const rndis_tcp_ip_csum_info *csum_info,
     const struct rndis_hash_info *hash_info,
     const struct rndis_hash_value *hash_value)
 {
-	struct hn_rx_ring *rxr = chan->hv_chan_rxr;
 	struct ifnet *ifp = rxr->hn_ifp;
 	struct mbuf *m_new;
 	int size, do_lro = 0, do_csum = 1;
@@ -1586,10 +1579,10 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		/* Wait for subchannels to be destroyed */
-		vmbus_drain_subchan(sc->hn_prichan);
+		vmbus_subchan_drain(sc->hn_prichan);
 
 		error = hv_rf_on_device_add(sc, &device_info,
-		    sc->hn_rx_ring_inuse);
+		    sc->hn_rx_ring_inuse, &sc->hn_rx_ring[0]);
 		if (error) {
 			NV_LOCK(sc);
 			sc->temp_unusable = FALSE;
@@ -2223,6 +2216,9 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 		if (hn_trust_hostip)
 			rxr->hn_trust_hcsum |= HN_TRUST_HCSUM_IP;
 		rxr->hn_ifp = sc->hn_ifp;
+		if (i < sc->hn_tx_ring_cnt)
+			rxr->hn_txr = &sc->hn_tx_ring[i];
+		rxr->hn_rdbuf = malloc(NETVSC_PACKET_SIZE, M_NETVSC, M_WAITOK);
 		rxr->hn_rx_idx = i;
 
 		/*
@@ -2335,17 +2331,19 @@ hn_create_rx_data(struct hn_softc *sc, int ring_cnt)
 static void
 hn_destroy_rx_data(struct hn_softc *sc)
 {
-#if defined(INET) || defined(INET6)
 	int i;
-#endif
 
 	if (sc->hn_rx_ring_cnt == 0)
 		return;
 
+	for (i = 0; i < sc->hn_rx_ring_cnt; ++i) {
+		struct hn_rx_ring *rxr = &sc->hn_rx_ring[i];
+
 #if defined(INET) || defined(INET6)
-	for (i = 0; i < sc->hn_rx_ring_cnt; ++i)
-		tcp_lro_free(&sc->hn_rx_ring[i].hn_lro);
+		tcp_lro_free(&rxr->hn_lro);
 #endif
+		free(rxr->hn_rdbuf, M_NETVSC);
+	}
 	free(sc->hn_rx_ring, M_NETVSC);
 	sc->hn_rx_ring = NULL;
 
@@ -2913,12 +2911,12 @@ hn_xmit_txeof_taskfunc(void *xtxr, int pending __unused)
 }
 
 static void
-hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
+hn_channel_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 {
 	struct hn_rx_ring *rxr;
 	int idx;
 
-	idx = chan->ch_subidx;
+	idx = vmbus_chan_subidx(chan);
 
 	KASSERT(idx >= 0 && idx < sc->hn_rx_ring_inuse,
 	    ("invalid channel index %d, should > 0 && < %d",
@@ -2928,10 +2926,9 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 	    ("RX ring %d already attached", idx));
 	rxr->hn_rx_flags |= HN_RX_FLAG_ATTACHED;
 
-	chan->hv_chan_rxr = rxr;
 	if (bootverbose) {
 		if_printf(sc->hn_ifp, "link RX ring %d to channel%u\n",
-		    idx, chan->ch_id);
+		    idx, vmbus_chan_id(chan));
 	}
 
 	if (idx < sc->hn_tx_ring_inuse) {
@@ -2941,49 +2938,48 @@ hn_channel_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
 		    ("TX ring %d already attached", idx));
 		txr->hn_tx_flags |= HN_TX_FLAG_ATTACHED;
 
-		chan->hv_chan_txr = txr;
 		txr->hn_chan = chan;
 		if (bootverbose) {
 			if_printf(sc->hn_ifp, "link TX ring %d to channel%u\n",
-			    idx, chan->ch_id);
+			    idx, vmbus_chan_id(chan));
 		}
 	}
 
 	/* Bind channel to a proper CPU */
-	vmbus_channel_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
+	vmbus_chan_cpu_set(chan, (sc->hn_cpu + idx) % mp_ncpus);
 }
 
 static void
-hn_subchan_attach(struct hn_softc *sc, struct hv_vmbus_channel *chan)
+hn_subchan_attach(struct hn_softc *sc, struct vmbus_channel *chan)
 {
 
-	KASSERT(!VMBUS_CHAN_ISPRIMARY(chan),
+	KASSERT(!vmbus_chan_is_primary(chan),
 	    ("subchannel callback on primary channel"));
-	KASSERT(chan->ch_subidx > 0,
-	    ("invalid channel subidx %u",
-	     chan->ch_subidx));
 	hn_channel_attach(sc, chan);
 }
 
 static void
 hn_subchan_setup(struct hn_softc *sc)
 {
-	struct hv_vmbus_channel **subchan;
+	struct vmbus_channel **subchans;
 	int subchan_cnt = sc->net_dev->num_channel - 1;
 	int i;
 
 	/* Wait for sub-channels setup to complete. */
-	subchan = vmbus_get_subchan(sc->hn_prichan, subchan_cnt);
+	subchans = vmbus_subchan_get(sc->hn_prichan, subchan_cnt);
 
 	/* Attach the sub-channels. */
 	for (i = 0; i < subchan_cnt; ++i) {
+		struct vmbus_channel *subchan = subchans[i];
+
 		/* NOTE: Calling order is critical. */
-		hn_subchan_attach(sc, subchan[i]);
-		hv_nv_subchan_attach(subchan[i]);
+		hn_subchan_attach(sc, subchan);
+		hv_nv_subchan_attach(subchan,
+		    &sc->hn_rx_ring[vmbus_chan_subidx(subchan)]);
 	}
 
 	/* Release the sub-channels */
-	vmbus_rel_subchan(subchan, subchan_cnt);
+	vmbus_subchan_rel(subchans, subchan_cnt);
 	if_printf(sc->hn_ifp, "%d sub-channels setup done\n", subchan_cnt);
 }
 

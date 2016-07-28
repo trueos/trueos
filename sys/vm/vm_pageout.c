@@ -157,7 +157,7 @@ SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp);
 
 
 int vm_pageout_deficit;		/* Estimated number of pages deficit */
-int vm_pageout_wakeup_thresh;
+u_int vm_pageout_wakeup_thresh;
 static int vm_pageout_oom_seq = 12;
 bool vm_pageout_wanted;		/* Event on which pageout daemon sleeps */
 bool vm_pages_needed;		/* Are threads waiting for free pages? */
@@ -267,7 +267,7 @@ vm_pageout_init_marker(vm_page_t marker, u_short queue)
  * 
  * Lock vm object currently associated with `m'. VM_OBJECT_TRYWLOCK is
  * known to have failed and page queue must be either PQ_ACTIVE or
- * PQ_INACTIVE.  To avoid lock order violation, unlock the page queues
+ * PQ_INACTIVE.  To avoid lock order violation, unlock the page queue
  * while locking the vm object.  Use marker page to detect page queue
  * changes and maintain notion of next page on page queue.  Return
  * TRUE if no changes were detected, FALSE otherwise.  vm object is
@@ -885,7 +885,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	int act_delta, addl_page_shortage, deficit, error, maxlaunder, maxscan;
 	int page_shortage, scan_tick, scanned, starting_page_shortage;
 	int vnodes_skipped;
-	boolean_t pageout_ok, queues_locked;
+	boolean_t pageout_ok, queue_locked;
 
 	/*
 	 * If we need to reclaim memory ask kernel caches to return
@@ -952,12 +952,12 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	pq = &vmd->vmd_pagequeues[PQ_INACTIVE];
 	maxscan = pq->pq_cnt;
 	vm_pagequeue_lock(pq);
-	queues_locked = TRUE;
+	queue_locked = TRUE;
 	for (m = TAILQ_FIRST(&pq->pq_pl);
 	     m != NULL && maxscan-- > 0 && page_shortage > 0;
 	     m = next) {
 		vm_pagequeue_assert_locked(pq);
-		KASSERT(queues_locked, ("unlocked queues"));
+		KASSERT(queue_locked, ("unlocked inactive queue"));
 		KASSERT(m->queue == PQ_INACTIVE, ("Inactive queue %p", m));
 
 		PCPU_INC(cnt.v_pdpages);
@@ -1027,7 +1027,7 @@ unlock_page:
 		 */
 		TAILQ_INSERT_AFTER(&pq->pq_pl, m, &vmd->vmd_marker, plinks.q);
 		vm_pagequeue_unlock(pq);
-		queues_locked = FALSE;
+		queue_locked = FALSE;
 
 		/*
 		 * Invalid pages can be easily freed. They cannot be
@@ -1072,10 +1072,9 @@ unlock_page:
 		/*
 		 * If the page appears to be clean at the machine-independent
 		 * layer, then remove all of its mappings from the pmap in
-		 * anticipation of placing it onto the cache queue.  If,
-		 * however, any of the page's mappings allow write access,
-		 * then the page may still be modified until the last of those
-		 * mappings are removed.
+		 * anticipation of freeing it.  If, however, any of the page's
+		 * mappings allow write access, then the page may still be
+		 * modified until the last of those mappings are removed.
 		 */
 		if (object->ref_count != 0) {
 			vm_page_test_dirty(m);
@@ -1116,7 +1115,7 @@ free_page:
 			m->flags |= PG_WINATCFLS;
 requeue_page:
 			vm_pagequeue_lock(pq);
-			queues_locked = TRUE;
+			queue_locked = TRUE;
 			vm_page_requeue_locked(m);
 		} else if (maxlaunder > 0) {
 			/*
@@ -1154,15 +1153,15 @@ requeue_page:
 				addl_page_shortage++;
 			}
 			vm_page_lock_assert(m, MA_NOTOWNED);
-			goto relock_queues;
+			goto relock_queue;
 		}
 drop_page:
 		vm_page_unlock(m);
 		VM_OBJECT_WUNLOCK(object);
-relock_queues:
-		if (!queues_locked) {
+relock_queue:
+		if (!queue_locked) {
 			vm_pagequeue_lock(pq);
-			queues_locked = TRUE;
+			queue_locked = TRUE;
 		}
 		next = TAILQ_NEXT(&vmd->vmd_marker, plinks.q);
 		TAILQ_REMOVE(&pq->pq_pl, &vmd->vmd_marker, plinks.q);

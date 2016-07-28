@@ -40,6 +40,8 @@
 #include <sys/syscallsubr.h>
 
 #include <dev/hyperv/include/hyperv.h>
+#include <dev/hyperv/include/vmbus.h>
+#include <dev/hyperv/utilities/hv_utilreg.h>
 #include "hv_util.h"
 #include "vmbus_if.h"
 
@@ -128,9 +130,8 @@ void hv_adj_guesttime(hv_timesync_sc *sc, uint64_t hosttime, uint8_t flags)
  * Time Sync Channel message handler
  */
 static void
-hv_timesync_cb(void *context)
+hv_timesync_cb(struct vmbus_channel *channel, void *context)
 {
-	hv_vmbus_channel*	channel;
 	hv_vmbus_icmsg_hdr*	icmsghdrp;
 	uint32_t		recvlen;
 	uint64_t		requestId;
@@ -140,11 +141,12 @@ hv_timesync_cb(void *context)
 	hv_timesync_sc		*softc;
 
 	softc = (hv_timesync_sc*)context;
-	channel = softc->util_sc.channel;
 	time_buf = softc->util_sc.receive_buffer;
 
-	ret = hv_vmbus_channel_recv_packet(channel, time_buf,
-		PAGE_SIZE, &recvlen, &requestId);
+	recvlen = PAGE_SIZE;
+	ret = vmbus_chan_recv(channel, time_buf, &recvlen, &requestId);
+	KASSERT(ret != ENOBUFS, ("hvtimesync recvbuf is not large enough"));
+	/* XXX check recvlen to make sure that it contains enough data */
 
 	if ((ret == 0) && recvlen > 0) {
 	    icmsghdrp = (struct hv_vmbus_icmsg_hdr *) &time_buf[
@@ -162,9 +164,8 @@ hv_timesync_cb(void *context)
 	    icmsghdrp->icflags = HV_ICMSGHDRFLAG_TRANSACTION
 		| HV_ICMSGHDRFLAG_RESPONSE;
 
-	    hv_vmbus_channel_send_packet(channel, time_buf,
-		recvlen, requestId,
-		HV_VMBUS_PACKET_TYPE_DATA_IN_BAND, 0);
+	    vmbus_chan_send(channel, VMBUS_CHANPKT_TYPE_INBAND, 0,
+	        time_buf, recvlen, requestId);
 	}
 }
 
