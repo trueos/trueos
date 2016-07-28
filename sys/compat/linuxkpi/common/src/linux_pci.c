@@ -206,6 +206,8 @@ linux_pci_attach(device_t dev)
 	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
 	pdev->device = id->device;
 	pdev->vendor = id->vendor;
+	pdev->revision = pci_get_revid(dev);
+	pdev->class = pci_get_class(dev);
 	pdev->dev.dma_mask = &pdev->dma_mask;
 	/* XXX how do we check this ? assume true */
 	pdev->msix_enabled = 1;
