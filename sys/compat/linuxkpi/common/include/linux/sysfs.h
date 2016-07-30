@@ -52,17 +52,6 @@ struct attribute {
 
 #define sysfs_attr_init(attr) do {} while(0)
 
-struct bin_attribute {
-	struct attribute	attr;
-	size_t			size;
-	void			*private;
-	ssize_t (*read)(struct linux_file *, struct kobject *, struct bin_attribute *,
-			char *, loff_t, size_t);
-	ssize_t (*write)(struct linux_file *, struct kobject *, struct bin_attribute *,
-			 char *, loff_t, size_t);
-	int (*mmap)(struct linux_file *, struct kobject *, struct bin_attribute *attr,
-		    struct vm_area_struct *vma);
-};
 
 struct sysfs_ops {
 	ssize_t (*show)(struct kobject *, struct attribute *, char *);
@@ -134,8 +123,29 @@ struct bin_attribute bin_attr_##_name = __BIN_ATTR_RW(_name, _size)
 
 #define	__ATTR_NULL	{ .attr = { .name = NULL } }
 
+#define __ATTRIBUTE_GROUPS(_name)				\
+static const struct attribute_group *_name##_groups[] = {	\
+	&_name##_group,						\
+	NULL,							\
+}
 
+#define ATTRIBUTE_GROUPS(_name)					\
+static const struct attribute_group _name##_group = {		\
+	.attrs = _name##_attrs,					\
+};								\
+__ATTRIBUTE_GROUPS(_name)
 
+struct bin_attribute {
+	struct attribute	attr;
+	size_t			size;
+	void			*private;
+	ssize_t (*read)(struct linux_file *, struct kobject *, struct bin_attribute *,
+			char *, loff_t, size_t);
+	ssize_t (*write)(struct linux_file *, struct kobject *, struct bin_attribute *,
+			 char *, loff_t, size_t);
+	int (*mmap)(struct linux_file *, struct kobject *, struct bin_attribute *attr,
+		    struct vm_area_struct *vma);
+};
 extern int sysfs_create_bin_file(struct kobject *kobj, const struct bin_attribute *attr);
 extern void sysfs_remove_bin_file(struct kobject *kobj, const struct bin_attribute *attr);
 

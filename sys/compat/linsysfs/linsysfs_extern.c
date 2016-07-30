@@ -102,6 +102,27 @@ done:
 	return (path);
 }
 
+static void
+pfs_remove_by_name(struct pfs_node *parent, const char *name)
+{
+	struct pfs_node *pn;
+
+	pn = pfs_find_node(parent, name);
+	if (pn)
+		pfs_destroy(pn);
+}
+static struct pfs_node	*
+pfs_find_and_get_node(struct pfs_node *parent, const char *name)
+{
+	return (pfs_find_node(parent, name));
+}
+
+static void
+pfs_put(struct pfs_node *pn)
+{
+	/* NO-OP */
+}
+
 static int
 sysfs_file_attr(PFS_ATTR_ARGS)
 {
@@ -243,6 +264,8 @@ sysfs_add_file(struct pfs_node *parent, const struct attribute *attr,
 	}
 
 	pn = pfs_create_file(parent, attr->name, sysfs_file_fill, sysfs_file_attr, NULL, sysfs_file_destroy, flags);
+	if (pn == NULL)
+		return (-ENOMEM);
 	pn->pn_data = se;
 	return (0);
 }
@@ -274,6 +297,20 @@ sysfs_create_file(struct kobject *kobj, const struct attribute *attr)
 	return (sysfs_add_file(kobj->sd, attr, false));
 }
 
+int
+sysfs_create_files(struct kobject *kobj, const struct attribute **ptr)
+{
+	int rc = 0;
+	int i;
+
+	for (i = 0; ptr[i] && rc == 0; i++)
+		rc = sysfs_create_file(kobj, ptr[i]);
+	if (rc)
+		while (--i >= 0)
+			sysfs_remove_file(kobj, ptr[i]);
+	return (rc);
+}
+
 void
 sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
 {
@@ -286,15 +323,31 @@ sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
 		pfs_destroy(pn);
 }
 
+void
+sysfs_remove_files(struct kobject *kobj, const struct attribute **ptr)
+{
+	int i;
+	for (i = 0; ptr[i]; i++)
+		sysfs_remove_file(kobj, ptr[i]);
+}
+
 int
 sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp)
 {
 	struct attribute **attr;
+	struct pfs_node *pn;
 
 	lkpi_sysfs_create_group(kobj, grp);
 
+	if (grp->name) {
+		pn = pfs_create_dir(kobj->sd, grp->name, NULL, NULL, NULL, 0);
+		pn->pn_data = kobj;
+	} else
+		pn = kobj->sd;
+
+	/* XXX check failure handling :-\ */
 	for (attr = grp->attrs; *attr != NULL; attr++)
-		sysfs_add_file(kobj->sd, *attr, 0);
+		sysfs_add_file(pn, *attr, 0);
 	return (0);
 }
 
@@ -309,6 +362,56 @@ sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp)
 		pn = pfs_find_node(kobj->sd, (*attr)->name);
 		if (pn)
 			pfs_destroy(pn);
+	}
+}
+
+/*
+ * Temporary hack to warkaround kobj->sd not having been set yet
+ *
+ */
+static void
+kobj_fixup(struct kobject *kobj)
+{
+	if (kobj->sd == NULL)
+		sysfs_create_dir_ns(kobj, NULL);
+}
+
+int
+sysfs_merge_group(struct kobject *kobj,
+		  const struct attribute_group *grp)
+{
+	struct pfs_node *parent;
+	int rc = 0;
+	struct attribute *const *attr;
+	int i;
+
+	kobj_fixup(kobj);
+	parent = pfs_find_and_get_node(kobj->sd, grp->name);
+	if (!parent)
+		return (-ENOENT);
+
+	for ((i = 0, attr = grp->attrs); *attr && rc == 0; (++i, ++attr))
+		rc = sysfs_add_file(parent, *attr, false);
+	if (rc) {
+		while (--i >= 0)
+			pfs_remove_by_name(parent, (*--attr)->name);
+	}
+	pfs_put(parent);
+	return (rc);
+}
+
+void
+sysfs_unmerge_group(struct kobject *kobj,
+		       const struct attribute_group *grp)
+{
+	struct pfs_node *parent;
+	struct attribute *const *attr;
+
+	parent = pfs_find_and_get_node(kobj->sd, grp->name);
+	if (parent) {
+		for (attr = grp->attrs; *attr; ++attr)
+			pfs_remove_by_name(parent, (*attr)->name);
+		pfs_put(parent);
 	}
 }
 
@@ -327,6 +430,7 @@ sysfs_create_dir_ns(struct kobject *kobj, const void *ns)
 		return (-ENOENT);
 	pn = pfs_create_dir(parent, kobject_name(kobj), NULL, NULL, NULL, 0);
 	pn->pn_data = kobj;
+	kobj->sd = pn;
 	return (0);
 }
 
@@ -361,3 +465,11 @@ sysfs_remove_link(struct kobject *kobj, const char *name)
 	if (pn)
 		pfs_destroy(pn);
 }
+
+void
+sysfs_notify(struct kobject *kobj, const char *dir, const char *attr)
+{
+	/* PFS needs a kevent handler or the like */
+}
+
+const char power_group_name[] = "power";

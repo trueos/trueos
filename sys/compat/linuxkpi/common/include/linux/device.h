@@ -60,9 +60,11 @@ struct class {
 	struct module	*owner;
 	struct kobject	kobj;
 	devclass_t	bsdclass;
+	const struct attribute_group	**dev_groups;
 	void		(*class_release)(struct class *class);
 	void		(*dev_release)(struct device *dev);
 	char *		(*devnode)(struct device *dev, umode_t *mode);
+	const struct dev_pm_ops *pm;
 };
 
 struct device_driver {
@@ -109,7 +111,6 @@ struct devres_group {
 	void				*id;
 	int				color;
 };
-
 
 #define DEVICE_ATTR(_name, _mode, _show, _store) \
 	struct device_attribute dev_attr_##_name = __ATTR(_name, _mode, _show, _store)
@@ -198,6 +199,24 @@ struct device {
 	spinlock_t		devres_lock;
 	struct list_head	devres_head;
 };
+
+extern void *devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp,
+			       int nid);
+
+static inline void *devres_alloc(dr_release_t release, size_t size, gfp_t gfp)
+{
+	return devres_alloc_node(release, size, gfp, NUMA_NO_NODE);
+}
+
+
+extern void devres_free(void *res);
+extern void devres_add(struct device *dev, void *res);
+extern void *devres_remove(struct device *dev, dr_release_t release,
+			   dr_match_t match, void *match_data);
+extern int devres_release(struct device *dev, dr_release_t release,
+			  dr_match_t match, void *match_data);
+
+
 
 extern struct device linux_root_device;
 extern struct kobject linux_class_root;

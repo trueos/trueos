@@ -72,6 +72,12 @@ rcu_read_unlock(void)
 
 #define RCU_INIT_POINTER(p, v) p=(v)
 
+#define __rcu_access_pointer(p) \
+({ \
+	((typeof(*p) __force __kernel *)(READ_ONCE(p)));	\
+})
+
+#define rcu_access_pointer __rcu_access_pointer
 
 #define __rcu_dereference_protected(p, c, space) \
 ({ \

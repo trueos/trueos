@@ -5,7 +5,9 @@
 KMOD=	linuxkpi
 SRCS=	interval_tree.c \
 	linux_acpi.c \
+	linux_backlight.c \
 	linux_compat.c \
+	linux_device.c \
 	linux_dmabuf.c \
 	linux_fence.c \
 	linux_fs.c \
@@ -34,7 +36,6 @@ SRCS=	interval_tree.c \
 	lkpi_kern_mutex.c \
 	lkpi_stubs.c
 
-#	linux_backlight.c \
 
 SRCS+=	bus_if.h \
 	device_if.h \
@@ -53,6 +54,7 @@ SRCS+= 	linsysfs_init.c \
 
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
 CFLAGS+= -I${.CURDIR}/../../contrib/ck/include
+CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 
 #CFLAGS += -DPRINT_UNIMPLEMENTED
 # until stable
