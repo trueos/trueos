@@ -37,4 +37,5 @@
 
 #undef	CONFIG_VGA_CONSOLE
 
+#define CONFIG_BACKLIGHT_CLASS_DEVICE
 #endif

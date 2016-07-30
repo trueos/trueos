@@ -1,11 +1,13 @@
 #ifndef __LINUX_FB_H_
 #define __LINUX_FB_H_
 #include <sys/fbio.h>
+#include <uapi/linux/fb.h>
 
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/workqueue.h>
 #include <linux/list.h>
+#include <linux/backlight.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <asm/io.h>
@@ -16,9 +18,6 @@
 struct linux_fb_info;
 struct videomode;
 struct vm_area_struct;
-
-
-#define FB_MAX			32	/* sufficient for now */
 
 #define FB_TYPE_PACKED_PIXELS		0	/* Packed Pixels	*/
 #define FB_TYPE_PLANES			1	/* Non interleaved planes */

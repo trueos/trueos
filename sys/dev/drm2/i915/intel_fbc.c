@@ -596,7 +596,7 @@ static int intel_fbc_alloc_cfb(struct intel_crtc *crtc)
 			   dev_priv->mm.stolen_base + compressed_llb->start);
 	}
 
-	DRM_DEBUG_KMS("reserved %zu bytes of contiguous stolen space for FBC, threshold: %d\n",
+	DRM_DEBUG_KMS("reserved %llu bytes of contiguous stolen space for FBC, threshold: %d\n",
 		      fbc->compressed_fb.size, fbc->threshold);
 
 	return 0;
@@ -823,8 +823,7 @@ static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
 	struct intel_fbc *fbc = &dev_priv->fbc;
-	bool enable_by_default = IS_HASWELL(dev_priv) ||
-				 IS_BROADWELL(dev_priv);
+	bool enable_by_default = IS_BROADWELL(dev_priv);
 
 	if (intel_vgpu_active(dev_priv->dev)) {
 		fbc->no_fbc_reason = "VGPU is active";

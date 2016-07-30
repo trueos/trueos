@@ -2309,6 +2309,12 @@ static void intel_ddi_pre_enable(struct intel_encoder *intel_encoder)
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
 
+	if (type == INTEL_OUTPUT_HDMI) {
+		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+
+		intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
+	}
+
 	intel_prepare_ddi_buffer(intel_encoder);
 
 	if (type == INTEL_OUTPUT_EDP) {
@@ -2375,6 +2381,12 @@ static void intel_ddi_post_disable(struct intel_encoder *intel_encoder)
 					DPLL_CTRL2_DDI_CLK_OFF(port)));
 	else if (INTEL_INFO(dev)->gen < 9)
 		I915_WRITE(PORT_CLK_SEL(port), PORT_CLK_SEL_NONE);
+
+	if (type == INTEL_OUTPUT_HDMI) {
+		struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+
+		intel_dp_dual_mode_set_tmds_output(intel_hdmi, false);
+	}
 }
 
 static void intel_enable_ddi(struct intel_encoder *intel_encoder)
@@ -3106,23 +3118,6 @@ void intel_ddi_fdi_disable(struct drm_crtc *crtc)
 	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
 }
 
-bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
-				 struct intel_crtc *intel_crtc)
-{
-	u32 temp;
-
-	if (intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
-		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
-
-		intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
-
-		if (temp & AUDIO_OUTPUT_ENABLE(intel_crtc->pipe))
-			return true;
-	}
-
-	return false;
-}
-
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config)
 {
@@ -3183,8 +3178,11 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	}
 
-	pipe_config->has_audio =
-		intel_ddi_is_audio_enabled(dev_priv, intel_crtc);
+	if (intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO)) {
+		temp = I915_READ(HSW_AUD_PIN_ELD_CP_VLD);
+		if (temp & AUDIO_OUTPUT_ENABLE(intel_crtc->pipe))
+			pipe_config->has_audio = true;
+	}
 
 	if (encoder->type == INTEL_OUTPUT_EDP && dev_priv->vbt.edp_bpp &&
 	    pipe_config->pipe_bpp > dev_priv->vbt.edp_bpp) {

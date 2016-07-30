@@ -16,6 +16,7 @@ SRCS	= \
 	drm_crtc_helper.c \
 	drm_debugfs.c \
 	drm_dma.c \
+	drm_dp_dual_mode_helper.c \
 	drm_dp_helper.c \
 	drm_dp_mst_topology.c \
 	drm_drv.c \
@@ -83,6 +84,7 @@ SRCS	= \
 #ttm_page_alloc_dma.c
 
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
+CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include/uapi
 CFLAGS+= -I${.CURDIR}/../../../contrib/ck/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 CFLAGS+= -include ${.CURDIR}/../../../dev/drm2/drm_os_config.h

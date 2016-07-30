@@ -31,6 +31,7 @@ SRCS	= \
 	i915_params.c \
 	i915_irq.c \
 	i915_suspend.c \
+	i915_sysfs.c \
 	i915_trace_points.c \
 	i915_vgpu.c \
 	intel_acpi.c \
@@ -84,8 +85,8 @@ SRCS	= \
 CLEANFILES += ${KMOD}.ko.full ${KMOD}.ko.debug
 CFLAGS+= -I${.CURDIR}/../../../../contrib/ck/include
 CFLAGS+= -I${.CURDIR}/../../../../compat/linuxkpi/common/include
+CFLAGS+= -I${.CURDIR}/../../../../compat/linuxkpi/common/include/uapi
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
-CFLAGS += -O0
 #CFLAGS += -DPRINT_UNIMPLEMENTED
 
 .if ${MACHINE_CPUARCH} == "amd64"
@@ -105,7 +106,7 @@ SRCS	+=								\
 	vnode_if.h
 
 .include <bsd.kmod.mk>
-CWARNFLAGS += -Wno-pointer-arith
+CWARNFLAGS += -Wno-pointer-arith -Wno-format
 
 CWARNFLAGS.intel_audio.c=	-Wno-cast-qual
 CWARNFLAGS.intel_bios.c=	-Wno-cast-qual
@@ -130,4 +131,3 @@ CWARNFLAGS.i915_drv.c=		-Wno-initializer-overrides
 CWARNFLAGS.i915_gem_gtt.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.i915_gem_tiling.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.i915_gem_execbuffer.c=	-Wno-tautological-pointer-compare  -Wno-pointer-arith
-CWARNFLAGS.i915_gpu_error.c=	-Wno-format

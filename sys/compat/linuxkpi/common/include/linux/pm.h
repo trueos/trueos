@@ -10,6 +10,8 @@
 #include <linux/completion.h>
 #define CONFIG_PM
 
+extern const char power_group_name[];		/* = "power" */
+
 struct dev_pm_info {
 	pm_message_t		power_state;
 	unsigned int		can_wakeup:1;
