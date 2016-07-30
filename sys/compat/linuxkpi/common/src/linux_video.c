@@ -276,14 +276,6 @@ acpi_video_backlight_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-bool
-backlight_device_registered(enum backlight_type type)
-{
-	/* XXX FIXME */
-	return (FALSE);
-}
-
-
 enum acpi_backlight_type
 acpi_video_get_backlight_type(void)
 {

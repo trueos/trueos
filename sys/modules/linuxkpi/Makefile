@@ -34,6 +34,8 @@ SRCS=	interval_tree.c \
 	lkpi_kern_mutex.c \
 	lkpi_stubs.c
 
+#	linux_backlight.c \
+
 SRCS+=	bus_if.h \
 	device_if.h \
 	pci_if.h \
@@ -54,7 +56,7 @@ CFLAGS+= -I${.CURDIR}/../../contrib/ck/include
 
 #CFLAGS += -DPRINT_UNIMPLEMENTED
 # until stable
-CFLAGS+= -O0
+#CFLAGS+= -O0
 
 .include <bsd.kmod.mk>
 CWARNFLAGS 		+= -Wno-pointer-arith

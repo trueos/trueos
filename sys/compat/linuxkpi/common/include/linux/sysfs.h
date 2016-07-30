@@ -143,6 +143,9 @@ extern void sysfs_remove_bin_file(struct kobject *kobj, const struct bin_attribu
 extern int sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
 extern void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);	
 
+extern int __must_check sysfs_create_files(struct kobject *kobj, const struct attribute **attr);
+extern void sysfs_remove_files(struct kobject *kobj, const struct attribute **attr);
+
 extern int sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp);
 extern void sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp);
 extern int sysfs_create_dir_ns(struct kobject *kobj, const void *ns);
@@ -150,6 +153,11 @@ extern void sysfs_remove_dir(struct kobject *kobj);
 extern int __must_check sysfs_create_link(struct kobject *kobj, struct kobject *target,
 				   const char *name);
 extern void sysfs_remove_link(struct kobject *kobj, const char *name);
+
+
+void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
+
+
 
 struct pci_bus;
 struct pci_dev;
@@ -164,6 +172,9 @@ extern void lkpi_sysfs_remove_file(struct kobject *kobj, const struct attribute 
 
 extern int lkpi_sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp);
 extern void lkpi_sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp);
+extern int sysfs_merge_group(struct kobject *kobj, const struct attribute_group *grp);
+extern void sysfs_unmerge_group(struct kobject *kobj, const struct attribute_group *grp);
+
 extern int lkpi_sysfs_create_dir(struct kobject *kobj);
 extern void lkpi_sysfs_remove_dir(struct kobject *kobj);
 

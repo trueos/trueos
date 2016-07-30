@@ -3847,6 +3847,8 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		hw->wm_linetime[pipe] = I915_READ(PIPE_WM_LINETIME(pipe));
 
+	memset(active, 0, sizeof(*active));
+
 	active->pipe_enabled = intel_crtc->active;
 
 	if (active->pipe_enabled) {
@@ -6036,6 +6038,8 @@ ips_ping_for_i915_load(void)
 		symbol_put(ips_link_to_i915_driver);
 	}
 }
+#else
+#define ips_ping_for_i915_load()
 #endif
 
 void intel_gpu_ips_init(struct drm_i915_private *dev_priv)
@@ -6045,9 +6049,8 @@ void intel_gpu_ips_init(struct drm_i915_private *dev_priv)
 	spin_lock_irq(&mchdev_lock);
 	i915_mch_dev = dev_priv;
 	spin_unlock_irq(&mchdev_lock);
-#ifdef __linux__
+
 	ips_ping_for_i915_load();
-#endif	
 }
 
 void intel_gpu_ips_teardown(void)

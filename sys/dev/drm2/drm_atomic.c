@@ -28,7 +28,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
-#include <uapi/drm/drm_mode.h>
+#include <drm/drm_mode.h>
 #include <drm/drm_plane_helper.h>
 
 /**
@@ -139,7 +139,7 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 	for (i = 0; i < state->num_connector; i++) {
 		struct drm_connector *connector = state->connectors[i];
 
-		if (!connector)
+		if (!connector || !connector->funcs)
 			continue;
 
 		/*
@@ -354,6 +354,8 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 	drm_property_unreference_blob(state->mode_blob);
 	state->mode_blob = NULL;
 
+	memset(&state->mode, 0, sizeof(state->mode));
+
 	if (blob) {
 		if (blob->length != sizeof(struct drm_mode_modeinfo) ||
 		    drm_mode_convert_umode(&state->mode,
@@ -366,7 +368,6 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 		DRM_DEBUG_ATOMIC("Set [MODE:%s] for CRTC state %p\n",
 				 state->mode.name, state);
 	} else {
-		memset(&state->mode, 0, sizeof(state->mode));
 		state->enable = false;
 		DRM_DEBUG_ATOMIC("Set [NOMODE] for CRTC state %p\n",
 				 state);
@@ -1287,14 +1288,39 @@ EXPORT_SYMBOL(drm_atomic_add_affected_planes);
  */
 void drm_atomic_legacy_backoff(struct drm_atomic_state *state)
 {
+	struct drm_device *dev = state->dev;
+	unsigned crtc_mask = 0;
+	struct drm_crtc *crtc;
 	int ret;
+	bool global = false;
+
+	drm_for_each_crtc(crtc, dev) {
+		if (crtc->acquire_ctx != state->acquire_ctx)
+			continue;
+
+		crtc_mask |= drm_crtc_mask(crtc);
+		crtc->acquire_ctx = NULL;
+	}
+
+	if (WARN_ON(dev->mode_config.acquire_ctx == state->acquire_ctx)) {
+		global = true;
+
+		dev->mode_config.acquire_ctx = NULL;
+	}
 
 retry:
 	drm_modeset_backoff(state->acquire_ctx);
 
-	ret = drm_modeset_lock_all_ctx(state->dev, state->acquire_ctx);
+	ret = drm_modeset_lock_all_ctx(dev, state->acquire_ctx);
 	if (ret)
 		goto retry;
+
+	drm_for_each_crtc(crtc, dev)
+		if (drm_crtc_mask(crtc) & crtc_mask)
+			crtc->acquire_ctx = state->acquire_ctx;
+
+	if (global)
+		dev->mode_config.acquire_ctx = state->acquire_ctx;
 }
 EXPORT_SYMBOL(drm_atomic_legacy_backoff);
 

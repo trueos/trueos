@@ -2908,11 +2908,9 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 		drm_dp_port_teardown_pdt(port, port->pdt);
 
 		if (!port->input && port->vcpi.vcpi > 0) {
-			if (mgr->mst_state) {
-				drm_dp_mst_reset_vcpi_slots(mgr, port);
-				drm_dp_update_payload_part1(mgr);
-				drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
-			}
+			drm_dp_mst_reset_vcpi_slots(mgr, port);
+			drm_dp_update_payload_part1(mgr);
+			drm_dp_mst_put_payload_id(mgr, port->vcpi.vcpi);
 		}
 
 		kref_put(&port->kref, drm_dp_free_mst_port);
@@ -3089,7 +3087,6 @@ static int drm_dp_mst_register_i2c_bus(struct drm_dp_aux *aux)
 	aux->ddc.class = I2C_CLASS_DDC;
 	aux->ddc.owner = THIS_MODULE;
 	aux->ddc.dev.parent = aux->dev;
-	MPASS(aux->dev->bsddev != NULL);
 	aux->ddc.dev.of_node = aux->dev->of_node;
 
 	strlcpy(aux->ddc.name, aux->name ? aux->name : dev_name(aux->dev),

@@ -57,4 +57,12 @@ struct notifier_block {
 	eventhandler_tag tags[LINUX_NOTIFY_TAGS];
 };
 
+struct blocking_notifier_head {
+#if 0	
+	struct rw_semaphore rwsem;
+	struct notifier_block __rcu *head;
+#endif	
+};
+
+
 #endif					/* _LINUX_NOTIFIER_H_ */

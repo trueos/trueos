@@ -698,10 +698,27 @@ device_create_file(struct device *dev, const struct device_attribute *attr)
 	return -EINVAL;
 }
 
+
 static inline void
 device_remove_file(struct device *dev, const struct device_attribute *attr)
 {
 
+	if (dev)
+		sysfs_remove_file(&dev->kobj, &attr->attr);
+}
+
+static inline int __must_check
+device_create_bin_file(struct device *dev, const struct bin_attribute *attr)
+{
+	if (dev)
+		return sysfs_create_file(&dev->kobj, &attr->attr);
+	return -EINVAL;
+}
+
+
+static inline void
+device_remove_bin_file(struct device *dev, const struct bin_attribute *attr)
+{
 	if (dev)
 		sysfs_remove_file(&dev->kobj, &attr->attr);
 }
