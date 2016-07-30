@@ -1205,6 +1205,8 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	intel_dp->aux.dev = connector->base.kdev;
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 
+	/* linuxkpi needs class to be set */
+	intel_dp->aux.ddc.dev.class = drm_class;
 	DRM_DEBUG_KMS("registering %s bus for %s\n",
 		      intel_dp->aux.name,
 		      connector->base.kdev->kobj.name);
