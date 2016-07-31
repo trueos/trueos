@@ -110,7 +110,7 @@ linux_udelay(unsigned long usecs)
 			if ((n) / 20000 >= 1)				\
 				 linux_bad_udelay();			\
 			else						\
-				linux_const_udelay((n) * 0x10c7ul);	\
+				linux_const_udelay(max(2, (n)) * 0x10c7ul); \
 		} else {						\
 			linux_udelay(n);				\
 		}							\

@@ -99,7 +99,10 @@ kmalloc_array(size_t n, size_t size, gfp_t flags)
 static inline void
 kfree(const void *ptr)
 {
-	if (__predict_false(ptr && ((((uintptr_t)ptr) & (PAGE_SIZE-1)) == 0)))
+	struct thread *td = curthread;
+
+	if (__predict_false((ptr && ((((uintptr_t)ptr) & (PAGE_SIZE-1)) == 0)) ||
+			    td->td_intr_nesting_level || td->td_critnest))
 		kfree_cached(__DECONST(void *, ptr));
 	else
 		free(__DECONST(void *, ptr), M_KMALLOC);
