@@ -1732,6 +1732,17 @@ async_schedule(async_func_t func, void *data)
 	return (newcookie);
 }
 
+#ifdef __notyet__
+/*
+ * XXX
+ * The rather broken taskqueue API doesn't allow us to serialize 
+ * on a particular thread's queue if we use more than 1 thread
+ */
+#define MAX_WQ_CPUS mp_ncpus
+#else
+#define MAX_WQ_CPUS 1
+#endif
+
 static void
 linux_compat_init(void *arg)
 {
@@ -1745,10 +1756,10 @@ linux_compat_init(void *arg)
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	boot_cpu_data.x86 = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 
-	system_long_wq = alloc_workqueue("events_long", 0, mp_ncpus);
-	system_wq = alloc_workqueue("events", 0, mp_ncpus);
-	system_power_efficient_wq = alloc_workqueue("power efficient", 0, mp_ncpus);
-	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, WQ_UNBOUND_MAX_ACTIVE);
+	system_long_wq = alloc_workqueue("events_long", 0, MAX_WQ_CPUS);
+	system_wq = alloc_workqueue("events", 0, MAX_WQ_CPUS);
+	system_power_efficient_wq = alloc_workqueue("power efficient", 0, MAX_WQ_CPUS);
+	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, MAX_WQ_CPUS);
 	INIT_LIST_HEAD(&cdev_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");

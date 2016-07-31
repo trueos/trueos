@@ -135,7 +135,6 @@ linux_work_fn(void *context, int pending)
 
 	linux_set_current();
 	set_work_pool_and_clear_pending(work, 0);
-	work->taskqueue = NULL;
 	work->fn(work);
 }
 
