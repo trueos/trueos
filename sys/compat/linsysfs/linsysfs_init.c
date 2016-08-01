@@ -278,6 +278,7 @@ linsysfs_create_class_dir(struct kobject *kobj, const char *name)
 
 	pn = pfs_create_dir(classdir, name, NULL, NULL, NULL, 0);
 	pn->pn_data = kobj;
+	kobj->sd = pn;
 	return (pn);
 }
 

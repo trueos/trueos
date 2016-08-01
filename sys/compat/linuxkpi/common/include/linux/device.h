@@ -329,7 +329,7 @@ class_register(struct class *class)
 	kobject_init(&class->kobj, &linux_class_ktype);
 	kobject_set_name(&class->kobj, class->name);
 	kobject_add(&class->kobj, &linux_class_root, class->name);
-	class->kobj.sd = linsysfs_create_class_dir(&class->kobj, class->name);
+	linsysfs_create_class_dir(&class->kobj, class->name);
 	return (0);
 }
 
@@ -730,7 +730,7 @@ static inline int __must_check
 device_create_bin_file(struct device *dev, const struct bin_attribute *attr)
 {
 	if (dev)
-		return sysfs_create_file(&dev->kobj, &attr->attr);
+		return sysfs_create_bin_file(&dev->kobj, attr);
 	return -EINVAL;
 }
 
