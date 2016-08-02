@@ -998,7 +998,7 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 	i915_gem_chipset_flush(req->engine->i915);
 
 	/* Unconditionally invalidate GPU caches and TLBs. */
-	return req->engine->emit_flush(req, I915_GEM_GPU_DOMAINS, 0);
+	return req->engine->emit_flush(req, EMIT_INVALIDATE);
 }
 
 static bool
