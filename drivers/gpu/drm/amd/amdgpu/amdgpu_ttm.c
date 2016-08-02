@@ -993,6 +993,10 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	unsigned i, j;
 	int r;
 
+	r = amdgpu_ttm_global_init(adev);
+	if (r) {
+		return r;
+	}
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&adev->mman.bdev,
 			       adev->mman.bo_global_ref.ref.object,
@@ -1012,10 +1016,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 			lru->lru[j] = &adev->mman.bdev.man[j].lru;
 		lru->swap_lru = &adev->mman.bdev.glob->swap_lru;
 	}
-
-	for (j = 0; j < TTM_NUM_MEM_TYPES; ++j)
-		adev->mman.guard.lru[j] = NULL;
-	adev->mman.guard.swap_lru = NULL;
 
 	adev->mman.initialized = true;
 	r = ttm_bo_init_mm(&adev->mman.bdev, TTM_PL_VRAM,
