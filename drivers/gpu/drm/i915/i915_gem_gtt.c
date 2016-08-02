@@ -1669,7 +1669,8 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	int ret;
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
-	ret = engine->flush(req, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+	ret = engine->emit_flush(req,
+				 I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
 	if (ret)
 		return ret;
 
@@ -1696,7 +1697,8 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	int ret;
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
-	ret = engine->flush(req, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+	ret = engine->emit_flush(req,
+				 I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
 	if (ret)
 		return ret;
 
@@ -1714,8 +1716,9 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 
 	/* XXX: RCS is the only one to auto invalidate the TLBs? */
 	if (engine->id != RCS) {
-		ret = engine->flush(req,
-				    I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+		ret = engine->emit_flush(req,
+					 I915_GEM_GPU_DOMAINS,
+					 I915_GEM_GPU_DOMAINS);
 		if (ret)
 			return ret;
 	}
