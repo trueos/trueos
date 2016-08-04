@@ -354,6 +354,15 @@ RetryFault:;
 		KASSERT((fault_flags & VM_FAULT_WIRE) == 0,
 		    ("!wired && VM_FAULT_WIRE"));
 
+	/*
+	 * Try to avoid lock contention on the top-level object through
+	 * special-case handling of some types of page faults, specifically,
+	 * those that are both (1) mapping an existing page from the top-
+	 * level object and (2) not having to mark that object as containing
+	 * dirty pages.  Under these conditions, a read lock on the top-level
+	 * object suffices, allowing multiple page faults of a similar type to
+	 * run in parallel on the same top-level object.
+	 */
 	if (fs.vp == NULL /* avoid locked vnode leak */ &&
 	    (fault_flags & (VM_FAULT_WIRE | VM_FAULT_DIRTY)) == 0 &&
 	    /* avoid calling vm_object_set_writeable_dirty() */
@@ -694,7 +703,9 @@ vnode_locked:
 				ahead = ulmin(ahead, atop(e_end - vaddr) - 1);
 			}
 			rv = vm_pager_get_pages(fs.object, &fs.m, 1,
-			    &behind, &ahead);
+			     &behind, &ahead, fault_type);
+			if (rv == VM_PAGER_NOPAGE)
+				return (KERN_SUCCESS);
 			if (rv == VM_PAGER_OK) {
 				faultcount = behind + 1 + ahead;
 				hardfault++;

@@ -164,4 +164,14 @@ ktime_get(void)
 	return (timespec_to_ktime(ts));
 }
 
+static inline ktime_t
+ns_to_ktime(u64 ns)
+{
+	UNIMPLEMENTED();
+	ktime_t ktime_zero = { .tv64 = 0 };
+	return ktime_add_ns(ktime_zero, ns);
+}
+
+#include <linux/timekeeping.h>
+
 #endif	/* _LINUX_KTIME_H */

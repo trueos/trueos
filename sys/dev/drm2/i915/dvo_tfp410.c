@@ -25,9 +25,6 @@
  *
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "dvo.h"
 
 /* register definitions according to the TFP410 data sheet */
@@ -96,19 +93,19 @@ struct tfp410_priv {
 static bool tfp410_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 {
 	struct tfp410_priv *tfp = dvo->dev_priv;
-	device_t adapter = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
 	u8 out_buf[2];
 	u8 in_buf[2];
 
-	struct iic_msg msgs[] = {
+	struct i2c_msg msgs[] = {
 		{
-			.slave = dvo->slave_addr << 1,
+			.addr = dvo->slave_addr,
 			.flags = 0,
 			.len = 1,
 			.buf = out_buf,
 		},
 		{
-			.slave = dvo->slave_addr << 1,
+			.addr = dvo->slave_addr,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = in_buf,
@@ -118,14 +115,14 @@ static bool tfp410_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 	out_buf[0] = addr;
 	out_buf[1] = 0;
 
-	if (-iicbus_transfer(adapter, msgs, 2) == 0) {
+	if (i2c_transfer(adapter, msgs, 2) == 2) {
 		*ch = in_buf[0];
 		return true;
 	}
 
 	if (!tfp->quiet) {
 		DRM_DEBUG_KMS("Unable to read register 0x%02x from %s:%02x.\n",
-			  addr, device_get_nameunit(adapter), dvo->slave_addr);
+			  addr, adapter->name, dvo->slave_addr);
 	}
 	return false;
 }
@@ -133,10 +130,10 @@ static bool tfp410_readb(struct intel_dvo_device *dvo, int addr, uint8_t *ch)
 static bool tfp410_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 {
 	struct tfp410_priv *tfp = dvo->dev_priv;
-	device_t adapter = dvo->i2c_bus;
+	struct i2c_adapter *adapter = dvo->i2c_bus;
 	uint8_t out_buf[2];
-	struct iic_msg msg = {
-		.slave = dvo->slave_addr << 1,
+	struct i2c_msg msg = {
+		.addr = dvo->slave_addr,
 		.flags = 0,
 		.len = 2,
 		.buf = out_buf,
@@ -145,12 +142,12 @@ static bool tfp410_writeb(struct intel_dvo_device *dvo, int addr, uint8_t ch)
 	out_buf[0] = addr;
 	out_buf[1] = ch;
 
-	if (-iicbus_transfer(adapter, &msg, 1) == 0)
+	if (i2c_transfer(adapter, &msg, 1) == 1)
 		return true;
 
 	if (!tfp->quiet) {
 		DRM_DEBUG_KMS("Unable to write register 0x%02x to %s:%d.\n",
-			  addr, device_get_nameunit(adapter), dvo->slave_addr);
+			  addr, adapter->name, dvo->slave_addr);
 	}
 
 	return false;
@@ -169,13 +166,13 @@ static int tfp410_getid(struct intel_dvo_device *dvo, int addr)
 
 /* Ti TFP410 driver for chip on i2c bus */
 static bool tfp410_init(struct intel_dvo_device *dvo,
-			device_t adapter)
+			struct i2c_adapter *adapter)
 {
 	/* this will detect the tfp410 chip on the specified i2c bus */
 	struct tfp410_priv *tfp;
 	int id;
 
-	tfp = malloc(sizeof(struct tfp410_priv), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	tfp = kzalloc(sizeof(struct tfp410_priv), GFP_KERNEL);
 	if (tfp == NULL)
 		return false;
 
@@ -186,20 +183,20 @@ static bool tfp410_init(struct intel_dvo_device *dvo,
 	if ((id = tfp410_getid(dvo, TFP410_VID_LO)) != TFP410_VID) {
 		DRM_DEBUG_KMS("tfp410 not detected got VID %X: from %s "
 				"Slave %d.\n",
-			  id, device_get_nameunit(adapter), dvo->slave_addr);
+			  id, adapter->name, dvo->slave_addr);
 		goto out;
 	}
 
 	if ((id = tfp410_getid(dvo, TFP410_DID_LO)) != TFP410_DID) {
 		DRM_DEBUG_KMS("tfp410 not detected got DID %X: from %s "
 				"Slave %d.\n",
-			  id, device_get_nameunit(adapter), dvo->slave_addr);
+			  id, adapter->name, dvo->slave_addr);
 		goto out;
 	}
 	tfp->quiet = false;
 	return true;
 out:
-	free(tfp, DRM_MEM_KMS);
+	kfree(tfp);
 	return false;
 }
 
@@ -225,8 +222,8 @@ static enum drm_mode_status tfp410_mode_valid(struct intel_dvo_device *dvo,
 }
 
 static void tfp410_mode_set(struct intel_dvo_device *dvo,
-			    struct drm_display_mode *mode,
-			    struct drm_display_mode *adjusted_mode)
+			    const struct drm_display_mode *mode,
+			    const struct drm_display_mode *adjusted_mode)
 {
 	/* As long as the basics are set up, since we don't have clock dependencies
 	* in the mode setup, we can just leave the registers alone and everything
@@ -270,33 +267,33 @@ static void tfp410_dump_regs(struct intel_dvo_device *dvo)
 	uint8_t val, val2;
 
 	tfp410_readb(dvo, TFP410_REV, &val);
-	DRM_LOG_KMS("TFP410_REV: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_REV: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_CTL_1, &val);
-	DRM_LOG_KMS("TFP410_CTL1: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_CTL1: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_CTL_2, &val);
-	DRM_LOG_KMS("TFP410_CTL2: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_CTL2: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_CTL_3, &val);
-	DRM_LOG_KMS("TFP410_CTL3: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_CTL3: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_USERCFG, &val);
-	DRM_LOG_KMS("TFP410_USERCFG: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_USERCFG: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_DE_DLY, &val);
-	DRM_LOG_KMS("TFP410_DE_DLY: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_DE_DLY: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_DE_CTL, &val);
-	DRM_LOG_KMS("TFP410_DE_CTL: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_DE_CTL: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_DE_TOP, &val);
-	DRM_LOG_KMS("TFP410_DE_TOP: 0x%02X\n", val);
+	DRM_DEBUG_KMS("TFP410_DE_TOP: 0x%02X\n", val);
 	tfp410_readb(dvo, TFP410_DE_CNT_LO, &val);
 	tfp410_readb(dvo, TFP410_DE_CNT_HI, &val2);
-	DRM_LOG_KMS("TFP410_DE_CNT: 0x%02X%02X\n", val2, val);
+	DRM_DEBUG_KMS("TFP410_DE_CNT: 0x%02X%02X\n", val2, val);
 	tfp410_readb(dvo, TFP410_DE_LIN_LO, &val);
 	tfp410_readb(dvo, TFP410_DE_LIN_HI, &val2);
-	DRM_LOG_KMS("TFP410_DE_LIN: 0x%02X%02X\n", val2, val);
+	DRM_DEBUG_KMS("TFP410_DE_LIN: 0x%02X%02X\n", val2, val);
 	tfp410_readb(dvo, TFP410_H_RES_LO, &val);
 	tfp410_readb(dvo, TFP410_H_RES_HI, &val2);
-	DRM_LOG_KMS("TFP410_H_RES: 0x%02X%02X\n", val2, val);
+	DRM_DEBUG_KMS("TFP410_H_RES: 0x%02X%02X\n", val2, val);
 	tfp410_readb(dvo, TFP410_V_RES_LO, &val);
 	tfp410_readb(dvo, TFP410_V_RES_HI, &val2);
-	DRM_LOG_KMS("TFP410_V_RES: 0x%02X%02X\n", val2, val);
+	DRM_DEBUG_KMS("TFP410_V_RES: 0x%02X%02X\n", val2, val);
 }
 
 static void tfp410_destroy(struct intel_dvo_device *dvo)
@@ -304,12 +301,12 @@ static void tfp410_destroy(struct intel_dvo_device *dvo)
 	struct tfp410_priv *tfp = dvo->dev_priv;
 
 	if (tfp) {
-		free(tfp, DRM_MEM_KMS);
+		kfree(tfp);
 		dvo->dev_priv = NULL;
 	}
 }
 
-struct intel_dvo_dev_ops tfp410_ops = {
+const struct intel_dvo_dev_ops tfp410_ops = {
 	.init = tfp410_init,
 	.detect = tfp410_detect,
 	.mode_valid = tfp410_mode_valid,

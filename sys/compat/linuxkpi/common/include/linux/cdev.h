@@ -49,7 +49,10 @@ struct linux_cdev {
 	struct module	*owner;
 	struct cdev	*cdev;
 	dev_t		dev;
+	uint32_t	major;
+	uint32_t	baseminor;
 	const struct file_operations *ops;
+	struct list_head list;
 };
 
 static inline void
@@ -95,7 +98,7 @@ cdev_add(struct linux_cdev *cdev, dev_t dev, unsigned count)
 	args.mda_gid = 0;
 	args.mda_mode = 0700;
 	args.mda_si_drv1 = cdev;
-	args.mda_unit = MINOR(dev);
+	args.mda_unit = dev;
 
 	error = make_dev_s(&args, &cdev->cdev, "%s",
 	    kobject_name(&cdev->kobj));
@@ -142,6 +145,7 @@ cdev_del(struct linux_cdev *cdev)
 	kobject_put(&cdev->kobj);
 }
 
+struct linux_cdev* find_cdev(const char *name, unsigned int major, int minor, int remove);
 #define	cdev	linux_cdev
 
 #endif	/* _LINUX_CDEV_H_ */

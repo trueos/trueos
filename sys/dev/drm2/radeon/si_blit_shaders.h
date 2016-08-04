@@ -25,9 +25,6 @@
 #ifndef SI_BLIT_SHADERS_H
 #define SI_BLIT_SHADERS_H
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 extern const u32 si_default_state[];
 
 extern const u32 si_default_size;

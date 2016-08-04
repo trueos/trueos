@@ -138,6 +138,22 @@ struct lock_class lock_class_mtx_spin = {
 #endif
 };
 
+struct lock_class lock_class_mtx_interop = {
+       .lc_name = "interop mutex",
+       .lc_flags = LC_SPINLOCK | LC_SLEEPLOCK | LC_RECURSABLE,
+       .lc_assert = assert_mtx,
+#ifdef DDB
+       .lc_ddb_show = db_show_mtx,
+#endif
+       .lc_lock = lock_spin,
+       .lc_unlock = unlock_spin,
+#ifdef KDTRACE_HOOKS
+       .lc_owner = owner_mtx,
+#endif
+};
+
+
+
 /*
  * System-wide mutexes
  */
@@ -162,7 +178,7 @@ void
 lock_spin(struct lock_object *lock, uintptr_t how)
 {
 
-	panic("spin locks can only use msleep_spin");
+	mtx_lock_spin((struct mtx*)lock);
 }
 
 uintptr_t
@@ -179,8 +195,12 @@ unlock_mtx(struct lock_object *lock)
 uintptr_t
 unlock_spin(struct lock_object *lock)
 {
+	struct mtx *m;
 
-	panic("spin locks can only use msleep_spin");
+	m = (struct mtx *)lock;
+	mtx_assert(m, MA_OWNED | MA_NOTRECURSED);
+	mtx_unlock_spin(m);
+	return (0);
 }
 
 #ifdef KDTRACE_HOOKS
@@ -279,6 +299,34 @@ __mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
+}
+
+int
+__mtx_trylock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
+    int line)
+{
+	struct mtx *m;
+
+	if (SCHEDULER_STOPPED())
+		return (1);
+
+	m = mtxlock2mtx(c);
+
+	KASSERT(m->mtx_lock != MTX_DESTROYED,
+	    ("mtx_trylock_spin() of destroyed mutex @ %s:%d", file, line));
+	KASSERT(LOCK_CLASS(&m->lock_object) == &lock_class_mtx_spin,
+	    ("mtx_trylock_spin() of sleep mutex %s @ %s:%d",
+	    m->lock_object.lo_name, file, line));
+	KASSERT((opts & MTX_RECURSE) == 0,
+	    ("mtx_trylock_spin: unsupp. opt MTX_RECURSE on mutex %s @ %s:%d\n",
+	    m->lock_object.lo_name, file, line));
+	if (__mtx_trylock_spin(m, curthread, opts, file, line)) {
+		LOCK_LOG_TRY("LOCK", &m->lock_object, opts, 1, file, line);
+		WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE, file, line);
+		return (1);
+	}
+	LOCK_LOG_TRY("LOCK", &m->lock_object, opts, 0, file, line);
+	return (0);
 }
 
 void

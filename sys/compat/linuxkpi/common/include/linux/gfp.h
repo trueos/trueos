@@ -35,6 +35,8 @@
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
 
 #include <linux/page.h>
 
@@ -64,7 +66,7 @@
 #define	GFP_IOFS	M_NOWAIT
 #define	GFP_NOIO	M_NOWAIT
 #define	GFP_DMA32	0
-#define	GFP_TEMPORARY	0
+#define	GFP_TEMPORARY	M_NOWAIT
 
 static inline void *
 page_address(struct page *page)
@@ -84,30 +86,37 @@ linux_get_page(gfp_t mask)
 }
 
 #define	get_zeroed_page(mask)	linux_get_page((mask) | M_ZERO)
-#define	alloc_page(mask)	virt_to_page(linux_get_page((mask)))
 #define	__get_free_page(mask)	linux_get_page((mask))
 
 static inline void
-free_page(unsigned long page)
+__free_hot_cold_page(vm_page_t page)
 {
+	vm_object_t object;
 
-	if (page == 0)
-		return;
-	kmem_free(kmem_arena, page, PAGE_SIZE);
+	/* XXX unsafe */
+	if ((object = page->object))
+		VM_OBJECT_WLOCK(object);
+
+	vm_page_lock(page);
+	if (page->flags & PG_UNHOLDFREE) {
+		vm_page_unhold(page);
+		goto done;
+	}
+	if (page->wire_count) {
+		MPASS(page->wire_count == 1);
+		vm_page_unwire(page, PQ_INACTIVE);
+	}
+	if (pmap_page_is_mapped(page))
+		pmap_remove_all(page);
+	vm_page_free(page);
+done:
+	vm_page_unlock(page);
+	if (object)
+		VM_OBJECT_WUNLOCK(object);
 }
 
 static inline void
-__free_page(struct page *m)
-{
-
-	if (m->object != kmem_object)
-		panic("__free_page:  Freed page %p not allocated via wrappers.",
-		    m);
-	kmem_free(kmem_arena, (vm_offset_t)page_address(m), PAGE_SIZE);
-}
-
-static inline void
-__free_pages(struct page *m, unsigned int order)
+__free_pages_ok(struct page *m, unsigned int order)
 {
 	size_t size;
 
@@ -117,12 +126,27 @@ __free_pages(struct page *m, unsigned int order)
 	kmem_free(kmem_arena, (vm_offset_t)page_address(m), size);
 }
 
-static inline void free_pages(uintptr_t addr, unsigned int order)
+static inline void
+__free_pages(struct page *page, unsigned int order)
+{
+	if (order == 0)
+		__free_hot_cold_page(page);
+	else
+		__free_pages_ok(page, order);
+}
+
+static inline void
+free_pages(uintptr_t addr, unsigned int order)
 {
 	if (addr == 0)
 		return;
 	__free_pages(virt_to_page((void *)addr), order);
 }
+
+
+#define __free_page(page) __free_pages((page), 0)
+#define free_page(addr) free_pages((addr), 0)
+
 
 /*
  * Alloc pages allocates directly from the buddy allocator on linux so
@@ -157,6 +181,13 @@ static inline uintptr_t __get_free_pages(gfp_t gfp_mask, unsigned int order)
 
 #define kmalloc_node(chunk, mask, node)         kmalloc(chunk, mask)
 
+/*
+ * XXX this actually translates to wired
+ *
+ * PG_reserved is set for special pages, which can never be swapped out. Some
+ * of them might not even exist (eg empty_bad_page)...
+ *
+ */
 #define	SetPageReserved(page)	do { } while (0)	/* NOP */
 #define	ClearPageReserved(page)	do { } while (0)	/* NOP */
 

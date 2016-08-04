@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-KMOD=	radeonkmsfw_CEDAR_pfp
+KMOD=	radeon_CEDAR_pfp_bin
+NAME=	radeon/CEDAR_pfp.bin
 IMG=	CEDAR_pfp
 
 .include <bsd.kmod.mk>

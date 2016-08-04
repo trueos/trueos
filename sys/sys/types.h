@@ -258,8 +258,8 @@ typedef	__vm_size_t	vm_size_t;
 typedef __rman_res_t    rman_res_t;
 
 #ifdef _KERNEL
+typedef	struct device_	*device_t;
 typedef	int		boolean_t;
-typedef	struct device	*device_t;
 typedef	__intfptr_t	intfptr_t;
 
 /*

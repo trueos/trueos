@@ -1,85 +1,63 @@
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #if !defined(_RADEON_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _RADEON_TRACE_H_
 
-#include <linux/stringify.h>
-#include <linux/types.h>
-#include <linux/tracepoint.h>
-
 #include <drm/drmP.h>
 
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM radeon
-#define TRACE_SYSTEM_STRING __stringify(TRACE_SYSTEM)
-#define TRACE_INCLUDE_FILE radeon_trace
+static inline void
+trace_radeon_cs(struct radeon_cs_parser * parser){
+	CTR1(KTR_DRM, "radeon_cs %p", parser);
+}
 
-TRACE_EVENT(radeon_bo_create,
-	    TP_PROTO(struct radeon_bo *bo),
-	    TP_ARGS(bo),
-	    TP_STRUCT__entry(
-			     __field(struct radeon_bo *, bo)
-			     __field(u32, pages)
-			     ),
+static inline void
+trace_radeon_semaphore_signale(int ridx, struct radeon_semaphore * semaphore){
+	CTR2(KTR_DRM, "radeon_semaphore_signale %d %p", ridx, semaphore);
+}
 
-	    TP_fast_assign(
-			   __entry->bo = bo;
-			   __entry->pages = bo->tbo.num_pages;
-			   ),
-	    TP_printk("bo=%p, pages=%u", __entry->bo, __entry->pages)
-);
+static inline void
+trace_radeon_semaphore_wait(int ridx, struct radeon_semaphore * semaphore){
+	CTR2(KTR_DRM, "radeon_semaphore_wait %d %p", ridx, semaphore);
+}
 
-DECLARE_EVENT_CLASS(radeon_fence_request,
+static inline void
+trace_radeon_bo_create(void *bo)
+{
+        CTR1(KTR_DRM, "radeon_bo_create %p", bo);
+}
 
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
+static inline void
+trace_radeon_fence_emit(void* ddev, int ring, int seq){
+	CTR3(KTR_DRM, "radeon_fence_emit %p %d %d", ddev, ring, seq);
+}
 
-	    TP_ARGS(dev, seqno),
+static inline void
+trace_radeon_fence_wait_begin(void* ddev, int i, int seq){
+	CTR3(KTR_DRM, "radeon_fence_wait_begin %p %d %d", ddev, i, seq);
+}
 
-	    TP_STRUCT__entry(
-			     __field(u32, dev)
-			     __field(u32, seqno)
-			     ),
+static inline void
+trace_radeon_fence_wait_end(void* ddev, int i, int seq){
+	CTR3(KTR_DRM, "radeon_fence_wait_end %p %d %d", ddev, i, seq);
+}
 
-	    TP_fast_assign(
-			   __entry->dev = dev->primary->index;
-			   __entry->seqno = seqno;
-			   ),
+static inline void
+trace_radeon_vm_grab_id(int i, int ring){
+	CTR2(KTR_DRM, "radeon_vm_grab_idi %d %d", i, ring);
+}
 
-	    TP_printk("dev=%u, seqno=%u", __entry->dev, __entry->seqno)
-);
+static inline void
+trace_radeon_vm_flush(uint64_t pd_addr, int ring, int id){
+	CTR3(KTR_DRM, "radeon_vm_flush %x %d %d", pd_addr, ring, id);
+}
 
-DEFINE_EVENT(radeon_fence_request, radeon_fence_emit,
+static inline void
+trace_radeon_vm_set_page(uint64_t pe, uint64_t addr, unsigned count, uint32_t incr, uint32_t flags){
+	CTR5(KTR_DRM, "radeon_vm_set_page %x %x %d %d %d", pe, addr, count, incr, flags);
+	
+}
 
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
-
-	    TP_ARGS(dev, seqno)
-);
-
-DEFINE_EVENT(radeon_fence_request, radeon_fence_retire,
-
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
-
-	    TP_ARGS(dev, seqno)
-);
-
-DEFINE_EVENT(radeon_fence_request, radeon_fence_wait_begin,
-
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
-
-	    TP_ARGS(dev, seqno)
-);
-
-DEFINE_EVENT(radeon_fence_request, radeon_fence_wait_end,
-
-	    TP_PROTO(struct drm_device *dev, u32 seqno),
-
-	    TP_ARGS(dev, seqno)
-);
+static inline void
+trace_radeon_vm_bo_update(void* bo_va){
+	CTR1(KTR_DRM, "radeon_vm_bo_update %p", bo_va);
+}
 
 #endif
-
-/* This part must be outside protection */
-#undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
-#include <trace/define_trace.h>

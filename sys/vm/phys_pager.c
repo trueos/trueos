@@ -140,7 +140,7 @@ phys_pager_dealloc(vm_object_t object)
  */
 static int
 phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
-    int *rahead)
+    int *rahead, int prot)
 {
 	int i;
 

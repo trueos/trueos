@@ -34,6 +34,7 @@
 #include <machine/vm.h>
 #include <sys/endian.h>
 #include <sys/types.h>
+#include <linux/types.h>
 
 #include <linux/compiler.h>
 

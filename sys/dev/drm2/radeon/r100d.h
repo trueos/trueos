@@ -28,9 +28,6 @@
 #ifndef __R100D_H__
 #define __R100D_H__
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #define CP_PACKET0			0x00000000
 #define		PACKET0_BASE_INDEX_SHIFT	0
 #define		PACKET0_BASE_INDEX_MASK		(0x1ffff << 0)
@@ -66,17 +63,6 @@ __FBSDID("$FreeBSD$");
 #define PACKET3(op, n)	(CP_PACKET3 |					\
 			 REG_SET(PACKET3_IT_OPCODE, (op)) |		\
 			 REG_SET(PACKET3_COUNT, (n)))
-
-#define	PACKET_TYPE0	0
-#define	PACKET_TYPE1	1
-#define	PACKET_TYPE2	2
-#define	PACKET_TYPE3	3
-
-#define CP_PACKET_GET_TYPE(h) (((h) >> 30) & 3)
-#define CP_PACKET_GET_COUNT(h) (((h) >> 16) & 0x3FFF)
-#define CP_PACKET0_GET_REG(h) (((h) & 0x1FFF) << 2)
-#define CP_PACKET0_GET_ONE_REG_WR(h) (((h) >> 15) & 1)
-#define CP_PACKET3_GET_OPCODE(h) (((h) >> 8) & 0xFF)
 
 /* Registers */
 #define R_0000F0_RBBM_SOFT_RESET                     0x0000F0

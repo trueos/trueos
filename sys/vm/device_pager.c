@@ -59,7 +59,7 @@ static void dev_pager_init(void);
 static vm_object_t dev_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 static void dev_pager_dealloc(vm_object_t);
-static int dev_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
+static int dev_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *, int);
 static void dev_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
 static boolean_t dev_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static void dev_pager_free_page(vm_object_t object, vm_page_t m);
@@ -209,7 +209,8 @@ cdev_pager_free_page(vm_object_t object, vm_page_t m)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	if (object->type == OBJT_MGTDEVICE) {
+	if (object->type == OBJT_MGTDEVICE &&
+	    !(object->flags2 & OBJ2_GRAPHICS)) {
 		KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("unmanaged %p", m));
 		pmap_remove_all(m);
 		vm_page_lock(m);
@@ -258,7 +259,7 @@ dev_pager_dealloc(vm_object_t object)
 
 static int
 dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
-    int *rahead)
+    int *rahead, int prot)
 {
 	int error;
 
@@ -268,13 +269,17 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 	error = object->un_pager.devp.ops->cdev_pg_fault(object,
 	    IDX_TO_OFF(ma[0]->pindex), PROT_READ, &ma[0]);
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	if ((object->flags2 & OBJ2_GRAPHICS) == 0)
+		VM_OBJECT_ASSERT_WLOCKED(object);
 
 	if (error == VM_PAGER_OK) {
 		KASSERT((object->type == OBJT_DEVICE &&
-		     (ma[0]->oflags & VPO_UNMANAGED) != 0) ||
-		    (object->type == OBJT_MGTDEVICE &&
-		     (ma[0]->oflags & VPO_UNMANAGED) == 0),
+			 (ma[0]->oflags & VPO_UNMANAGED) != 0) ||
+			(object->type == OBJT_MGTDEVICE &&
+			 ((object->flags2 & OBJ2_GRAPHICS) == 0) &&
+			 (ma[0]->oflags & VPO_UNMANAGED) == 0) ||
+			(object->type == OBJT_MGTDEVICE &&
+			 (object->flags2 & OBJ2_GRAPHICS)),
 		    ("Wrong page type %p %p", ma[0], object));
 		if (object->type == OBJT_DEVICE) {
 			TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist,

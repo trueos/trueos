@@ -34,9 +34,9 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 
-#include <sys/bus.h>
-#include <sys/rman.h>
+#include <linux/hardirq.h>
 
+#undef resource
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
 #define	IRQ_RETVAL(x)	((x) != IRQ_NONE)
@@ -53,6 +53,21 @@ struct irq_ent {
 	int		 irq;
 };
 
+struct irqaction {
+	irq_handler_t		handler;
+	void			*dev_id;
+	struct irqaction	*next;
+	irq_handler_t		thread_fn;
+	struct task_struct	*thread;
+	struct irqaction	*secondary;
+	unsigned int		irq;
+	unsigned int		flags;
+	unsigned long		thread_flags;
+	unsigned long		thread_mask;
+	const char		*name;
+};
+
+
 static inline int
 linux_irq_rid(struct device *dev, int irq)
 {
@@ -61,7 +76,7 @@ linux_irq_rid(struct device *dev, int irq)
 	return irq - dev->msix + 1;
 }
 
-extern void linux_irq_handler(void *);
+extern int linux_irq_handler(void *);
 
 static inline struct irq_ent *
 linux_irq_ent(struct device *dev, int irq)
@@ -100,7 +115,7 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 	irqe->handler = handler;
 	irqe->irq = irq;
 	error = bus_setup_intr(dev->bsddev, res, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, linux_irq_handler, irqe, &irqe->tag);
+	    linux_irq_handler, NULL, irqe, &irqe->tag);
 	if (error) {
 		bus_release_resource(dev->bsddev, SYS_RES_IRQ, rid, irqe->res);
 		kfree(irqe);
@@ -148,4 +163,5 @@ free_irq(unsigned int irq, void *device)
 	kfree(irqe);
 }
 
+#define resource linux_resource
 #endif	/* _LINUX_INTERRUPT_H_ */

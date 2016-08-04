@@ -125,9 +125,18 @@ typedef uint32_t vm_page_bits_t;
 typedef uint64_t vm_page_bits_t;
 #endif
 
+#ifndef LIST_HEAD_DEF
+#define  LIST_HEAD_DEF
+struct list_head {
+	struct list_head *next;
+	struct list_head *prev;
+};
+#endif
+
 struct vm_page {
 	union {
 		TAILQ_ENTRY(vm_page) q; /* page queue or free list (Q) */
+		struct list_head lq;
 		struct {
 			SLIST_ENTRY(vm_page) ss; /* private slists */
 			void *pv;
@@ -248,7 +257,7 @@ vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 	vm_pagequeue_assert_locked(pq);
 #endif
 	pq->pq_cnt += addend;
-	atomic_add_int(pq->pq_vcnt, addend);
+	atomic_add_int((volatile u_int *)pq->pq_vcnt, addend);
 }
 #define	vm_pagequeue_cnt_inc(pq)	vm_pagequeue_cnt_add((pq), 1)
 #define	vm_pagequeue_cnt_dec(pq)	vm_pagequeue_cnt_add((pq), -1)

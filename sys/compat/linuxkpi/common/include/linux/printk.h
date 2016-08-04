@@ -38,4 +38,23 @@
 					htons(((u16 *)gid_raw)[4]), htons(((u16 *)gid_raw)[5]),\
 					htons(((u16 *)gid_raw)[6]), htons(((u16 *)gid_raw)[7])
 
+
+enum {
+	DUMP_PREFIX_NONE,
+	DUMP_PREFIX_ADDRESS,
+	DUMP_PREFIX_OFFSET
+};
+
+static inline void print_hex_dump(const char *level, const char *prefix_str,
+				  int prefix_type, int rowsize, int groupsize,
+				  const void *buf, size_t len, bool ascii)
+{
+}
+static inline void print_hex_dump_bytes(const char *prefix_str, int prefix_type,
+					const void *buf, size_t len)
+{
+}
+
+#define printk_ratelimited printk
+
 #endif					/* _FBSD_PRINTK_H */

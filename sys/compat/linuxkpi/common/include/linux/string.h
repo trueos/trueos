@@ -31,6 +31,8 @@
 #ifndef	_LINUX_STRING_H_
 #define	_LINUX_STRING_H_
 
+#include <sys/ctype.h>
+
 #include <linux/types.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
@@ -38,6 +40,21 @@
 #include <sys/libkern.h>
 
 #define	strnicmp(...) strncasecmp(__VA_ARGS__)
+
+extern void *memdup_user(const void __user *, size_t);
+
+
+static inline int
+match_string(const char * const *table, size_t n, const char *key)
+{
+	int i;
+
+	for (i = 0; i < n && table[i] != NULL; i++) {
+		if (strcmp(table[i], key) == 0)
+			return (i);
+	}
+	return (-EINVAL);
+}
 
 static inline void *
 kmemdup(const void *src, size_t len, gfp_t gfp)
@@ -50,10 +67,42 @@ kmemdup(const void *src, size_t len, gfp_t gfp)
 	return (dst);
 }
 
+static inline char *
+kstrdup(const char *string, gfp_t gfp)
+{
+	size_t len;
+	char *copy;
+
+	len = strlen(string) + 1;
+	copy = malloc(len, M_KMALLOC, gfp);
+	bcopy(string, copy, len);
+	return (copy);
+}
+
+static inline char *
+kstrndup(const char *string, size_t len, gfp_t gfp)
+{
+	char *copy;
+
+	copy = malloc(len + 1, M_KMALLOC, gfp);
+	strncpy(copy, string, len);
+	return (copy);
+}
+
 static inline const char *
 kstrdup_const(const char *src, gfp_t gfp)
 {
 	return (kmemdup(src, strlen(src) + 1, gfp));
+}
+
+void *memchr_inv(const void *start, int c, size_t bytes);
+
+static inline char *
+skip_spaces(const char *str)
+{
+	while (isspace(*str))
+		++str;
+	return __DECONST(char *, str);
 }
 
 #endif	/* _LINUX_STRING_H_ */

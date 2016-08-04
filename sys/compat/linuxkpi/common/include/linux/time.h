@@ -32,8 +32,30 @@
 #define	NSEC_PER_MSEC	1000000L
 #define	NSEC_PER_SEC	1000000000L
 
+#define tsc_khz tsc_freq/1000L
+
 #include <sys/time.h>
+#include <machine/clock.h>
 #include <sys/stdint.h>
+# include <linux/math64.h>
+
+typedef unsigned long cycles_t;
+#define USEC_PER_SEC	1000000L
+extern int hz;
+
+static inline u64 nsecs_to_jiffies64(u64 n)
+{
+	if (NSEC_PER_SEC % hz == 0)
+		return div_u64(n, NSEC_PER_SEC / hz);
+	else 
+		return div_u64(n * 9, (9ull * NSEC_PER_SEC + hz / 2) / hz);
+}
+
+static inline unsigned int
+jiffies_to_usecs(const unsigned long j)
+{
+	return (USEC_PER_SEC / hz) * j;
+}
 
 static inline struct timeval
 ns_to_timeval(const int64_t nsec)
@@ -126,7 +148,7 @@ timespec_valid(const struct timespec *ts)
 static inline unsigned long
 get_seconds(void)
 {
-	return time_uptime;
+	return time_second;
 }
 
 #endif /* _LINUX_TIME_H_ */

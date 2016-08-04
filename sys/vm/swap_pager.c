@@ -358,7 +358,7 @@ static vm_object_t
 		    vm_prot_t prot, vm_ooffset_t offset, struct ucred *);
 static void	swap_pager_dealloc(vm_object_t object);
 static int	swap_pager_getpages(vm_object_t, vm_page_t *, int, int *,
-    int *);
+    int *, int prot);
 static int	swap_pager_getpages_async(vm_object_t, vm_page_t *, int, int *,
     int *, pgo_getpages_iodone_t, void *);
 static void	swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
@@ -1097,7 +1097,7 @@ swap_pager_unswapped(vm_page_t m)
  */
 static int
 swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
-    int *rahead)
+    int *rahead, int prot)
 {
 	struct buf *bp;
 	daddr_t blk;
@@ -1223,7 +1223,7 @@ swap_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
 {
 	int r, error;
 
-	r = swap_pager_getpages(object, m, count, rbehind, rahead);
+	r = swap_pager_getpages(object, m, count, rbehind, rahead, VM_PROT_READ);
 	VM_OBJECT_WUNLOCK(object);
 	switch (r) {
 	case VM_PAGER_OK:
@@ -1639,7 +1639,7 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 		return;
 	}
 
-	if (swap_pager_getpages(object, &m, 1, NULL, NULL) != VM_PAGER_OK)
+	if (swap_pager_getpages(object, &m, 1, NULL, NULL, VM_PROT_READ) != VM_PAGER_OK)
 		panic("swap_pager_force_pagein: read from swap failed");/*XXX*/
 	vm_object_pip_wakeup(object);
 	vm_page_dirty(m);

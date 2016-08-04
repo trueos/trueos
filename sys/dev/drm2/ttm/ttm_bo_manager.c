@@ -28,14 +28,13 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/ttm/ttm_module.h>
-#include <dev/drm2/ttm/ttm_bo_driver.h>
-#include <dev/drm2/ttm/ttm_placement.h>
-#include <dev/drm2/drm_mm.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/drm_mm.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/module.h>
 
 /**
  * Currently we use a spinlock for the lock, but a mutex *may* be
@@ -45,47 +44,49 @@ __FBSDID("$FreeBSD$");
 
 struct ttm_range_manager {
 	struct drm_mm mm;
-	struct mtx lock;
+	spinlock_t lock;
 };
-
-MALLOC_DEFINE(M_TTM_RMAN, "ttm_rman", "TTM Range Manager");
 
 static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 			       struct ttm_buffer_object *bo,
-			       struct ttm_placement *placement,
+			       const struct ttm_place *place,
 			       struct ttm_mem_reg *mem)
 {
 	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
 	struct drm_mm *mm = &rman->mm;
 	struct drm_mm_node *node = NULL;
+	enum drm_mm_search_flags sflags = DRM_MM_SEARCH_BEST;
+	enum drm_mm_allocator_flags aflags = DRM_MM_CREATE_DEFAULT;
 	unsigned long lpfn;
 	int ret;
 
-	lpfn = placement->lpfn;
+	lpfn = place->lpfn;
 	if (!lpfn)
 		lpfn = man->size;
-	do {
-		ret = drm_mm_pre_get(mm);
-		if (unlikely(ret))
-			return ret;
 
-		mtx_lock(&rman->lock);
-		node = drm_mm_search_free_in_range(mm,
-					mem->num_pages, mem->page_alignment,
-					placement->fpfn, lpfn, 1);
-		if (unlikely(node == NULL)) {
-			mtx_unlock(&rman->lock);
-			return 0;
-		}
-		node = drm_mm_get_block_atomic_range(node, mem->num_pages,
-						     mem->page_alignment,
-						     placement->fpfn,
-						     lpfn);
-		mtx_unlock(&rman->lock);
-	} while (node == NULL);
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
 
-	mem->mm_node = node;
-	mem->start = node->start;
+	if (place->flags & TTM_PL_FLAG_TOPDOWN) {
+		sflags = DRM_MM_SEARCH_BELOW;
+		aflags = DRM_MM_CREATE_TOP;
+	}
+
+	spin_lock(&rman->lock);
+	ret = drm_mm_insert_node_in_range_generic(mm, node, mem->num_pages,
+					  mem->page_alignment, 0,
+					  place->fpfn, lpfn,
+					  sflags, aflags);
+	spin_unlock(&rman->lock);
+
+	if (unlikely(ret)) {
+		kfree(node);
+	} else {
+		mem->mm_node = node;
+		mem->start = node->start;
+	}
+
 	return 0;
 }
 
@@ -95,9 +96,11 @@ static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
 	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
 
 	if (mem->mm_node) {
-		mtx_lock(&rman->lock);
-		drm_mm_put_block(mem->mm_node);
-		mtx_unlock(&rman->lock);
+		spin_lock(&rman->lock);
+		drm_mm_remove_node(mem->mm_node);
+		spin_unlock(&rman->lock);
+
+		kfree(mem->mm_node);
 		mem->mm_node = NULL;
 	}
 }
@@ -106,16 +109,13 @@ static int ttm_bo_man_init(struct ttm_mem_type_manager *man,
 			   unsigned long p_size)
 {
 	struct ttm_range_manager *rman;
-	int ret;
 
-	rman = malloc(sizeof(*rman), M_TTM_RMAN, M_ZERO | M_WAITOK);
-	ret = drm_mm_init(&rman->mm, 0, p_size);
-	if (ret) {
-		free(rman, M_TTM_RMAN);
-		return ret;
-	}
+	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
+	if (!rman)
+		return -ENOMEM;
 
-	mtx_init(&rman->lock, "ttmrman", NULL, MTX_DEF);
+	drm_mm_init(&rman->mm, 0, p_size);
+	spin_lock_init(&rman->lock);
 	man->priv = rman;
 	return 0;
 }
@@ -125,16 +125,15 @@ static int ttm_bo_man_takedown(struct ttm_mem_type_manager *man)
 	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
 	struct drm_mm *mm = &rman->mm;
 
-	mtx_lock(&rman->lock);
+	spin_lock(&rman->lock);
 	if (drm_mm_clean(mm)) {
 		drm_mm_takedown(mm);
-		mtx_unlock(&rman->lock);
-		mtx_destroy(&rman->lock);
-		free(rman, M_TTM_RMAN);
+		spin_unlock(&rman->lock);
+		kfree(rman);
 		man->priv = NULL;
 		return 0;
 	}
-	mtx_unlock(&rman->lock);
+	spin_unlock(&rman->lock);
 	return -EBUSY;
 }
 
@@ -143,9 +142,9 @@ static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
 {
 	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
 
-	mtx_lock(&rman->lock);
+	spin_lock(&rman->lock);
 	drm_mm_debug_table(&rman->mm, prefix);
-	mtx_unlock(&rman->lock);
+	spin_unlock(&rman->lock);
 }
 
 const struct ttm_mem_type_manager_func ttm_bo_manager_func = {
@@ -155,3 +154,4 @@ const struct ttm_mem_type_manager_func ttm_bo_manager_func = {
 	ttm_bo_man_put_node,
 	ttm_bo_man_debug
 };
+EXPORT_SYMBOL(ttm_bo_manager_func);

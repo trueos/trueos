@@ -28,9 +28,6 @@
 #ifndef __RS600D_H__
 #define __RS600D_H__
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* Registers */
 #define R_000040_GEN_INT_CNTL                        0x000040
 #define   S_000040_SCRATCH_INT_MASK(x)                 (((x) & 0x1) << 18)

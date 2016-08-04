@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vnode_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/uma.h>
+#include <vm/vm_eventhandler.h>
 
 /*
  *	Virtual memory maps provide for the mapping, protection,
@@ -388,6 +389,7 @@ vmspace_exit(struct thread *td)
 
 	p = td->td_proc;
 	vm = p->p_vmspace;
+	vme_exit(&vm->vm_map);
 	atomic_add_int(&vmspace0.vm_refcnt, 1);
 	do {
 		refcnt = vm->vm_refcnt;
@@ -2080,9 +2082,13 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		if ((old_prot & ~current->protection) != 0) {
 #define MASK(entry)	(((entry)->eflags & MAP_ENTRY_COW) ? ~VM_PROT_WRITE : \
 							VM_PROT_ALL)
+			if ((current->protection & MASK(current)) == VM_PROT_NONE)
+				vme_invalidate_range_start(map, current->start, current->end);
 			pmap_protect(map->pmap, current->start,
 			    current->end,
 			    current->protection & MASK(current));
+			if ((current->protection & MASK(current)) == VM_PROT_NONE)
+				vme_invalidate_range_start(map, current->start, current->end);
 #undef	MASK
 		}
 		vm_map_simplify_entry(map, current);
@@ -2823,8 +2829,11 @@ vm_map_sync(
 		}
 	}
 
-	if (invalidate)
+	if (invalidate) {
+		vme_invalidate_range_start(map, start, end);
 		pmap_remove(map->pmap, start, end);
+		vme_invalidate_range_end(map, start, end);
+	}
 	failed = FALSE;
 
 	/*
@@ -3046,8 +3055,9 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		if (entry->wired_count != 0) {
 			vm_map_entry_unwire(map, entry);
 		}
-
+		vme_invalidate_range_start(map, entry->start, entry->end);
 		pmap_remove(map->pmap, entry->start, entry->end);
+		vme_invalidate_range_end(map, entry->start, entry->end);
 
 		/*
 		 * Delete the entry only after removing all pmap

@@ -1,0 +1,42 @@
+### Stubbed implementations:
+
+efi: everything
+
+kthread:
+in_atomic
+
+fence: fence_wait_any_timeout, fence_context_alloc, fence_add_callback, fence_init, fence_default_wait, fence_is_later
+
+ktime: ns_to_ktime
+
+i2c: i2c_set_adapdata
+
+pwm, acexcep, acpi_bus, actypes, fdtable: 
+everything
+
+pm, interval_tree: stub structs
+
+pm_runtime: pm_runtime_forbid, pm_runtime_autosuspend, pm_runtime_set_active, pm_runtime_allow
+
+pci: pci_is_root_bus, pci_platform_rom, pci_dev struct: d3_delay, pci_ignore_hotplug, pci_alloc_consistent, pcie_get_readrq, max_bus_speed (field in pci_bus struct)
+
+gcd: gcd
+
+module: symbol_put
+
+power_supply: power_supply_is_system_supplied()
+
+rcupdate: rcu_assign_pointer
+
+wait: wait_event_interruptible_locked, wake_up_all_locked
+
+
+
+
+  implicit declaration of function 'irq_get_irq_data' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      no member named 'domain' in 'struct irq_data'
+        irq_clear_status_flags(virq, IRQ_NOREQUEST);
+                data = irq_domain_get_irq_data(domain, hwirq);
+      implicit declaration of function 'irq_domain_alloc_descs' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      implicit declaration of function 'of_node_to_nid' is invalid in C99 [-Werror,-Wimplicit-function-declaration]
+      implicit declaration of function 'irq_free_desc' is invalid in C99 [-Werror,-Wimplicit-function-declaration]

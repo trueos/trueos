@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_util.h>
 #include <compat/linux/linux_misc.h>
 
 struct linux_prison {
@@ -61,6 +62,9 @@ static struct linux_prison lprison0 = {
 static unsigned linux_osd_jail_slot;
 
 SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW, 0, "Linux mode");
+
+SYSCTL_STRING(_compat_linux, OID_AUTO, linux_emul_path, 
+	      CTLFLAG_RW, &linux_emul_path, 0, "prefix for linux emulation");
 
 static int	linux_set_osname(struct thread *td, char *osname);
 static int	linux_set_osrelease(struct thread *td, char *osrelease);

@@ -30,11 +30,35 @@
  */
 #ifndef	_LINUX_COMPAT_H_
 #define	_LINUX_COMPAT_H_
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/malloc.h>
+
+
+
+#define oops_in_progress (panicstr != NULL)
+#define preempt_disable() critical_enter()
+#define preempt_enable() critical_exit()
 
 struct thread;
 struct task_struct;
 
-void linux_set_current(struct thread *td, struct task_struct *t);
-void linux_clear_current(struct thread *td);
+extern void *compat_alloc_user_space(unsigned long len);
+int linux_alloc_current(int flags);
+
+static inline void
+linux_set_current(void)
+{
+	if (__predict_false(curthread->td_lkpi_task == NULL))
+		linux_alloc_current(M_WAITOK);
+}
+
+static inline int
+linux_set_current_flags(int flags)
+{
+	if (__predict_false(curthread->td_lkpi_task == NULL))
+		return (linux_alloc_current(flags));
+	return (0);
+}
 
 #endif	/* _LINUX_COMPAT_H_ */

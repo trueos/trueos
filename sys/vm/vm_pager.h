@@ -50,7 +50,7 @@ typedef void pgo_init_t(void);
 typedef vm_object_t pgo_alloc_t(void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t,
     struct ucred *);
 typedef void pgo_dealloc_t(vm_object_t);
-typedef int pgo_getpages_t(vm_object_t, vm_page_t *, int, int *, int *);
+typedef int pgo_getpages_t(vm_object_t, vm_page_t *, int, int *, int *, int);
 typedef void pgo_getpages_iodone_t(void *, vm_page_t *, int, int);
 typedef int pgo_getpages_async_t(vm_object_t, vm_page_t *, int, int *, int *,
     pgo_getpages_iodone_t, void *);
@@ -76,22 +76,26 @@ extern struct pagerops devicepagerops;
 extern struct pagerops physpagerops;
 extern struct pagerops sgpagerops;
 extern struct pagerops mgtdevicepagerops;
+extern struct pagerops selfmgtdevicepagerops;
 
 /*
  * get/put return values
- * OK	 operation was successful
- * BAD	 specified data was out of the accepted range
+ * OK	  operation was successful
+ * BAD	  specified data was out of the accepted range
  * FAIL	 specified data was in range, but doesn't exist
  * PEND	 operations was initiated but not completed
- * ERROR error while accessing data that is in range and exists
- * AGAIN temporary resource shortage prevented operation from happening
+ * ERROR  error while accessing data that is in range and exists
+ * AGAIN  temporary resource shortage prevented operation from happening
+  * NOPAGE device pager performed all requisite fault handling
  */
 #define	VM_PAGER_OK	0
 #define	VM_PAGER_BAD	1
 #define	VM_PAGER_FAIL	2
 #define	VM_PAGER_PEND	3
 #define	VM_PAGER_ERROR	4
-#define VM_PAGER_AGAIN	5
+#define	VM_PAGER_AGAIN	5
+#define	VM_PAGER_NOPAGE	6
+
 
 #define	VM_PAGER_PUT_SYNC		0x0001
 #define	VM_PAGER_PUT_INVAL		0x0002
@@ -106,7 +110,7 @@ vm_object_t vm_pager_allocate(objtype_t, void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 void vm_pager_bufferinit(void);
 void vm_pager_deallocate(vm_object_t);
-int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int *, int *);
+int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int *, int *, int);
 int vm_pager_get_pages_async(vm_object_t, vm_page_t *, int, int *, int *,
     pgo_getpages_iodone_t, void *);
 static __inline boolean_t vm_pager_has_page(vm_object_t, vm_pindex_t, int *, int *);

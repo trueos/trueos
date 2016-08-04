@@ -34,12 +34,28 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <machine/atomic.h>
+#include <asm/atomic64.h>
 
-#define	ATOMIC_LONG_INIT(x)	{ .counter = (x) }
+#if BITS_PER_LONG == 64
 
-typedef struct {
-	volatile long counter;
-} atomic_long_t;
+typedef atomic64_t atomic_long_t;
+
+#define ATOMIC_LONG_INIT(i)	ATOMIC64_INIT(i)
+#define ATOMIC_LONG_PFX(x)	atomic64 ## x
+
+#define atomic_long_cmpxchg atomic64_cmpxchg
+
+#else
+
+typedef atomic_t atomic_long_t;
+
+#define ATOMIC_LONG_INIT(i)	ATOMIC_INIT(i)
+#define ATOMIC_LONG_PFX(x)	atomic ## x
+
+#define atomic_long_cmpxchg atomic_cmpxchg
+
+#endif
+
 
 #define	atomic_long_add(i, v)		atomic_long_add_return((i), (v))
 #define	atomic_long_inc_return(v)	atomic_long_add_return(1, (v))

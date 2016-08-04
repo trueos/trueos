@@ -63,6 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #endif
 
+#define        SO_PASSCRED     0x1017          /* name to pass credentials */
+
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -70,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
+
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_timer.h>
@@ -372,6 +375,10 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_OOBINLINE);
 	case LINUX_SO_LINGER:
 		return (SO_LINGER);
+#ifndef COMPAT_LINUX32
+	case LINUX_SO_PASSCRED:
+		return (SO_PASSCRED);
+#endif
 	case LINUX_SO_PEERCRED:
 		return (LOCAL_PEERCRED);
 	case LINUX_SO_RCVLOWAT:
@@ -969,64 +976,6 @@ linux_socketpair(struct thread *td, struct linux_socketpair_args *args)
 	return (sys_socketpair(td, &bsd_args));
 }
 
-#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-struct linux_send_args {
-	int s;
-	l_uintptr_t msg;
-	int len;
-	int flags;
-};
-
-static int
-linux_send(struct thread *td, struct linux_send_args *args)
-{
-	struct sendto_args /* {
-		int s;
-		caddr_t buf;
-		int len;
-		int flags;
-		caddr_t to;
-		int tolen;
-	} */ bsd_args;
-
-	bsd_args.s = args->s;
-	bsd_args.buf = (caddr_t)PTRIN(args->msg);
-	bsd_args.len = args->len;
-	bsd_args.flags = args->flags;
-	bsd_args.to = NULL;
-	bsd_args.tolen = 0;
-	return (sys_sendto(td, &bsd_args));
-}
-
-struct linux_recv_args {
-	int s;
-	l_uintptr_t msg;
-	int len;
-	int flags;
-};
-
-static int
-linux_recv(struct thread *td, struct linux_recv_args *args)
-{
-	struct recvfrom_args /* {
-		int s;
-		caddr_t buf;
-		int len;
-		int flags;
-		struct sockaddr *from;
-		socklen_t fromlenaddr;
-	} */ bsd_args;
-
-	bsd_args.s = args->s;
-	bsd_args.buf = (caddr_t)PTRIN(args->msg);
-	bsd_args.len = args->len;
-	bsd_args.flags = linux_to_bsd_msg_flags(args->flags);
-	bsd_args.from = NULL;
-	bsd_args.fromlenaddr = 0;
-	return (sys_recvfrom(td, &bsd_args));
-}
-#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
-
 int
 linux_sendto(struct thread *td, struct linux_sendto_args *args)
 {
@@ -1133,6 +1082,7 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		return (error);
 
 #ifdef COMPAT_LINUX32
+	/* We need to set up a different sysent for 32-bit if we want compat */
 	error = linux32_copyiniov(PTRIN(msg.msg_iov), msg.msg_iovlen,
 	    &iov, EMSGSIZE);
 #else
@@ -1548,12 +1498,16 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	struct timeval tv;
 	int error, name;
 
+	if (args->optlen < sizeof(int))
+		return (EINVAL);
 	bsd_args.s = args->s;
 	bsd_args.level = linux_to_bsd_sockopt_level(args->level);
 	switch (bsd_args.level) {
 	case SOL_SOCKET:
 		name = linux_to_bsd_so_sockopt(args->optname);
 		switch (name) {
+		case SO_PASSCRED:
+			return (0);
 		case SO_RCVTIMEO:
 			/* FALLTHROUGH */
 		case SO_SNDTIMEO:
@@ -1698,86 +1652,3 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 	return (error);
 }
 
-#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-
-/* Argument list sizes for linux_socketcall */
-
-#define LINUX_AL(x) ((x) * sizeof(l_ulong))
-
-static const unsigned char lxs_args[] = {
-	LINUX_AL(0) /* unused*/,	LINUX_AL(3) /* socket */,
-	LINUX_AL(3) /* bind */,		LINUX_AL(3) /* connect */,
-	LINUX_AL(2) /* listen */,	LINUX_AL(3) /* accept */,
-	LINUX_AL(3) /* getsockname */,	LINUX_AL(3) /* getpeername */,
-	LINUX_AL(4) /* socketpair */,	LINUX_AL(4) /* send */,
-	LINUX_AL(4) /* recv */,		LINUX_AL(6) /* sendto */,
-	LINUX_AL(6) /* recvfrom */,	LINUX_AL(2) /* shutdown */,
-	LINUX_AL(5) /* setsockopt */,	LINUX_AL(5) /* getsockopt */,
-	LINUX_AL(3) /* sendmsg */,	LINUX_AL(3) /* recvmsg */,
-	LINUX_AL(4) /* accept4 */,	LINUX_AL(5) /* recvmmsg */,
-	LINUX_AL(4) /* sendmmsg */
-};
-
-#define	LINUX_AL_SIZE	(nitems(lxs_args) - 1)
-
-int
-linux_socketcall(struct thread *td, struct linux_socketcall_args *args)
-{
-	l_ulong a[6];
-	void *arg;
-	int error;
-
-	if (args->what < LINUX_SOCKET || args->what > LINUX_AL_SIZE)
-		return (EINVAL);
-	error = copyin(PTRIN(args->args), a, lxs_args[args->what]);
-	if (error)
-		return (error);
-
-	arg = a;
-	switch (args->what) {
-	case LINUX_SOCKET:
-		return (linux_socket(td, arg));
-	case LINUX_BIND:
-		return (linux_bind(td, arg));
-	case LINUX_CONNECT:
-		return (linux_connect(td, arg));
-	case LINUX_LISTEN:
-		return (linux_listen(td, arg));
-	case LINUX_ACCEPT:
-		return (linux_accept(td, arg));
-	case LINUX_GETSOCKNAME:
-		return (linux_getsockname(td, arg));
-	case LINUX_GETPEERNAME:
-		return (linux_getpeername(td, arg));
-	case LINUX_SOCKETPAIR:
-		return (linux_socketpair(td, arg));
-	case LINUX_SEND:
-		return (linux_send(td, arg));
-	case LINUX_RECV:
-		return (linux_recv(td, arg));
-	case LINUX_SENDTO:
-		return (linux_sendto(td, arg));
-	case LINUX_RECVFROM:
-		return (linux_recvfrom(td, arg));
-	case LINUX_SHUTDOWN:
-		return (linux_shutdown(td, arg));
-	case LINUX_SETSOCKOPT:
-		return (linux_setsockopt(td, arg));
-	case LINUX_GETSOCKOPT:
-		return (linux_getsockopt(td, arg));
-	case LINUX_SENDMSG:
-		return (linux_sendmsg(td, arg));
-	case LINUX_RECVMSG:
-		return (linux_recvmsg(td, arg));
-	case LINUX_ACCEPT4:
-		return (linux_accept4(td, arg));
-	case LINUX_RECVMMSG:
-		return (linux_recvmmsg(td, arg));
-	case LINUX_SENDMMSG:
-		return (linux_sendmmsg(td, arg));
-	}
-
-	uprintf("LINUX: 'socket' typ=%d not implemented\n", args->what);
-	return (ENOSYS);
-}
-#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */

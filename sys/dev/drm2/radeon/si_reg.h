@@ -24,9 +24,6 @@
 #ifndef __SI_REG_H__
 #define __SI_REG_H__
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* SI */
 #define SI_DC_GPIO_HPD_MASK                      0x65b0
 #define SI_DC_GPIO_HPD_A                         0x65b4

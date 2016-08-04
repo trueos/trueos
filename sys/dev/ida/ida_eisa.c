@@ -334,6 +334,7 @@ ida_eisa_attach(device_t dev)
 	}
 
 	error = ida_setup(ida);
+
 	if (error) {
 		ida_free(ida);
 		return (error);

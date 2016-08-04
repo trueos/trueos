@@ -31,8 +31,6 @@
 #ifndef	__SYS_VM_DOMAIN_H__
 #define	__SYS_VM_DOMAIN_H__
 
-#include <sys/seq.h>
-
 typedef enum {
 	VM_POLICY_NONE,
 	VM_POLICY_ROUND_ROBIN,
@@ -49,7 +47,7 @@ struct vm_domain_policy_entry {
 };
 
 struct vm_domain_policy {
-	seq_t seq;
+	int seq;
 	struct vm_domain_policy_entry p;
 };
 

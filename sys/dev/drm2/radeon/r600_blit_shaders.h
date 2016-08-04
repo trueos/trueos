@@ -26,9 +26,6 @@
 #ifndef R600_BLIT_SHADERS_H
 #define R600_BLIT_SHADERS_H
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 extern const u32 r6xx_ps[];
 extern const u32 r6xx_vs[];
 extern const u32 r7xx_default_state[];
@@ -38,5 +35,4 @@ extern const u32 r6xx_default_state[];
 extern const u32 r6xx_ps_size, r6xx_vs_size;
 extern const u32 r6xx_default_size, r7xx_default_size;
 
-__pure uint32_t int2float(uint32_t x);
 #endif

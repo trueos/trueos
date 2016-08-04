@@ -42,30 +42,102 @@
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pci_private.h>
+#include <sys/resourcevar.h>
 
 #include <machine/resource.h>
+
+#include <linux/mod_devicetable.h>
 
 #include <linux/list.h>
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
 #include <linux/compiler.h>
 #include <linux/errno.h>
+#include <linux/kobject.h>
+
 #include <asm/atomic.h>
 #include <linux/device.h>
+#include <linux/ioport.h>
+
+
+
+struct bus_attribute {
+	struct attribute	attr;
+	ssize_t (*show)(struct bus_type *bus, char *buf);
+	ssize_t (*store)(struct bus_type *bus, const char *buf, size_t count);
+};
+
+#define BUS_ATTR(_name, _mode, _show, _store)	\
+	struct bus_attribute bus_attr_##_name = __ATTR(_name, _mode, _show, _store)
+#define BUS_ATTR_RW(_name) \
+	struct bus_attribute bus_attr_##_name = __ATTR_RW(_name)
+#define BUS_ATTR_RO(_name) \
+	struct bus_attribute bus_attr_##_name = __ATTR_RO(_name)
+
+extern int __must_check bus_create_file(struct bus_type *,
+					struct bus_attribute *);
+extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
+
+
+#define PCI_BASE_CLASS_DISPLAY		0x03
+#define PCI_CLASS_DISPLAY_VGA		0x0300
+#define PCI_CLASS_DISPLAY_XGA		0x0301
+#define PCI_CLASS_DISPLAY_3D		0x0302
+#define PCI_CLASS_DISPLAY_OTHER		0x0380
+
+#define PCI_BASE_CLASS_BRIDGE		0x06
+#define PCI_CLASS_BRIDGE_HOST		0x0600
+#define PCI_CLASS_BRIDGE_ISA		0x0601
+#define PCI_CLASS_BRIDGE_EISA		0x0602
+#define PCI_CLASS_BRIDGE_MC		0x0603
+#define PCI_CLASS_BRIDGE_PCI		0x0604
+#define PCI_CLASS_BRIDGE_PCMCIA		0x0605
+#define PCI_CLASS_BRIDGE_NUBUS		0x0606
+#define PCI_CLASS_BRIDGE_CARDBUS	0x0607
+#define PCI_CLASS_BRIDGE_RACEWAY	0x0608
+#define PCI_CLASS_BRIDGE_OTHER		0x0680
+
+#define PCI_HEADER_TYPE		0x0e	/* 8 bits */
+#define  PCI_HEADER_TYPE_NORMAL		0
+#define  PCI_HEADER_TYPE_BRIDGE		1
+#define  PCI_HEADER_TYPE_CARDBUS	2
+
+#define PCI_CFG_SPACE_SIZE	256
+#define PCI_CFG_SPACE_EXP_SIZE	4096
+
+
+int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev);
+void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
+static inline void pci_create_firmware_label_files(struct pci_dev *pdev)
+{ return; }
+static inline void pci_remove_firmware_label_files(struct pci_dev *pdev)
+{ return; }
+
 
 struct pci_device_id {
 	uint32_t	vendor;
 	uint32_t	device;
         uint32_t	subvendor;
 	uint32_t	subdevice;
+	uint32_t	class;
 	uint32_t	class_mask;
 	uintptr_t	driver_data;
 };
 
 #define	MODULE_DEVICE_TABLE(bus, table)
 #define	PCI_ANY_ID		(-1)
+#define	PCI_VENDOR_ID_APPLE		0x106b
+#define	PCI_VENDOR_ID_ASUSTEK		0x1043
+#define	PCI_VENDOR_ID_ATI		0x1002
+#define	PCI_VENDOR_ID_DELL		0x1028
+#define	PCI_VENDOR_ID_HP		0x103c
+#define	PCI_VENDOR_ID_IBM		0x1014
+#define	PCI_VENDOR_ID_INTEL		0x8086
 #define	PCI_VENDOR_ID_MELLANOX			0x15b3
+#define	PCI_VENDOR_ID_SERVERWORKS	0x1166
+#define	PCI_VENDOR_ID_SONY		0x104d
 #define	PCI_VENDOR_ID_TOPSPIN			0x1867
+#define	PCI_VENDOR_ID_VIA		0x1106
 #define	PCI_DEVICE_ID_MELLANOX_TAVOR		0x5a44
 #define	PCI_DEVICE_ID_MELLANOX_TAVOR_BRIDGE	0x5a46
 #define	PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT	0x6278
@@ -85,6 +157,13 @@ struct pci_device_id {
 	    .subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID
 
 #define	to_pci_dev(n)	container_of(n, struct pci_dev, dev)
+
+struct pci_dev *linux_pci_get_device(unsigned int vendor, unsigned int device,
+				struct pci_dev *from);
+
+
+#define for_each_pci_dev(d) while ((d = linux_pci_get_device(PCI_ANY_ID, PCI_ANY_ID, d)) != NULL)
+
 
 #define	PCI_VENDOR_ID		PCIR_DEVVENDOR
 #define	PCI_COMMAND		PCIR_COMMAND
@@ -121,9 +200,9 @@ struct pci_device_id {
 #define	PCI_EXP_LNKCAP2_SLS_5_0GB 0x04	/* Supported Link Speed 5.0GT/s */
 #define	PCI_EXP_LNKCAP2_SLS_8_0GB 0x08	/* Supported Link Speed 8.0GT/s */
 
-#define	IORESOURCE_MEM	SYS_RES_MEMORY
-#define	IORESOURCE_IO	SYS_RES_IOPORT
-#define	IORESOURCE_IRQ	SYS_RES_IRQ
+#define PCI_EXP_LNKCTL_HAWD	PCIEM_LINK_CTL_HAWD
+#define PCI_EXP_LNKCAP_CLKPM	0x00040000
+#define PCI_EXP_DEVSTA_TRPND	0x0020
 
 enum pci_bus_speed {
 	PCI_SPEED_UNKNOWN = -1,
@@ -132,9 +211,58 @@ enum pci_bus_speed {
 	PCIE_SPEED_8_0GT,
 };
 
-enum pcie_link_width {
-	PCIE_LNK_WIDTH_UNKNOWN = -1,
+typedef unsigned short __bitwise pci_bus_flags_t;
+enum pci_bus_flags {
+	PCI_BUS_FLAGS_NO_MSI   = (__force pci_bus_flags_t) 1,
+	PCI_BUS_FLAGS_NO_MMRBC = (__force pci_bus_flags_t) 2,
 };
+
+enum pcie_link_width {
+	PCIE_LNK_WIDTH_UNKNOWN = 0xFF,
+};
+
+
+/*
+ *  For PCI devices, the region numbers are assigned this way:
+ */
+enum {
+	/* #0-5: standard PCI resources */
+	PCI_STD_RESOURCES,
+	PCI_STD_RESOURCE_END = 5,
+
+	/* #6: expansion ROM resource */
+	PCI_ROM_RESOURCE,
+
+	/* device specific resources */
+#ifdef CONFIG_PCI_IOV
+	PCI_IOV_RESOURCES,
+	PCI_IOV_RESOURCE_END = PCI_IOV_RESOURCES + PCI_SRIOV_NUM_BARS - 1,
+#endif
+
+	/* resources assigned to buses behind the bridge */
+#define PCI_BRIDGE_RESOURCE_NUM 4
+
+	PCI_BRIDGE_RESOURCES,
+	PCI_BRIDGE_RESOURCE_END = PCI_BRIDGE_RESOURCES +
+				  PCI_BRIDGE_RESOURCE_NUM - 1,
+
+	/* total resources associated with a PCI device */
+	PCI_NUM_RESOURCES,
+
+	/* preserve this for compatibility */
+	DEVICE_COUNT_RESOURCE = PCI_NUM_RESOURCES,
+};
+
+
+typedef int pci_power_t;
+
+#define PCI_D0	PCI_POWERSTATE_D0
+#define PCI_D1	PCI_POWERSTATE_D1
+#define PCI_D2	PCI_POWERSTATE_D2
+#define PCI_D3hot	PCI_POWERSTATE_D3
+#define PCI_D3cold	4
+
+#define PCI_POWER_ERROR	PCI_POWERSTATE_UNKNOWN
 
 struct pci_dev;
 
@@ -148,7 +276,9 @@ struct pci_driver {
 	int  (*resume) (struct pci_dev *dev);		/* Device woken up */
 	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
 	driver_t			driver;
-	devclass_t			bsdclass;
+	devclass_t			*bsdclass;
+	char				*busname;
+	struct device_driver	linux_driver;
         const struct pci_error_handlers       *err_handler;
 };
 
@@ -158,17 +288,120 @@ extern spinlock_t pci_lock;
 
 #define	__devexit_p(x)	x
 
-struct pci_dev {
+#define PCI_BRIDGE_RESOURCE_NUM 4
+#if defined(__i386__) || defined(__amd64__)
+extern unsigned long pci_mem_start;
+#define PCIBIOS_MIN_IO		0x1000
+#define PCIBIOS_MIN_MEM		(pci_mem_start)
+#endif
+
+struct pci_bus {
+	struct list_head node;		/* node in list of buses */
+	struct pci_bus	*parent;	/* parent bus this bridge is on */
+	struct list_head children;	/* list of child buses */
+	struct list_head devices;	/* list of devices on this bus */
+	struct pci_dev	*self;		/* bridge device as seen by parent */
+	struct list_head slots;		/* list of slots on this bus */
+	struct linux_resource *linux_resource[PCI_BRIDGE_RESOURCE_NUM];
+	struct list_head resources;	/* address space routed to this bus */
+	struct resource busn_res;	/* bus numbers routed to this bus */
+
+	struct pci_ops	*ops;		/* configuration access functions */
+	void		*sysdata;	/* hook for sys-specific extension */
+
+	unsigned char	number;		/* bus number */
+	unsigned char   max_bus_speed;  /* enum pci_bus_speed */
+	pci_bus_flags_t bus_flags;	/* inherited by child buses */
 	struct device		dev;
+};
+
+#define to_pci_bus(n)	container_of(n, struct pci_bus, dev)
+
+
+int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
+			struct linux_resource *res, resource_size_t size,
+			resource_size_t align, resource_size_t min,
+			unsigned int type_mask,
+			resource_size_t (*alignf)(void *,
+						  const struct linux_resource *,
+						  resource_size_t,
+						  resource_size_t),
+			void *alignf_data);
+
+
+extern resource_size_t pcibios_align_resource(void *data, const struct linux_resource *res,
+		       resource_size_t size, resource_size_t align);
+
+extern int release_resource(struct linux_resource *old);
+
+#define LINUXKPI_BIOS 6
+#define LINUXKPI_MAX_PCI_RESOURCE 7
+
+struct pci_resources {
+	struct resource *r[LINUXKPI_MAX_PCI_RESOURCE];
+	int rid[LINUXKPI_MAX_PCI_RESOURCE];
+	void *map[LINUXKPI_MAX_PCI_RESOURCE];
+	int type[LINUXKPI_MAX_PCI_RESOURCE];
+};
+
+
+struct pci_vpd_ops {
+	ssize_t (*read)(struct pci_dev *dev, loff_t pos, size_t count, void *buf);
+	ssize_t (*write)(struct pci_dev *dev, loff_t pos, size_t count, const void *buf);
+	int (*set_size)(struct pci_dev *dev, size_t len);
+};
+
+struct pci_vpd {
+	const struct pci_vpd_ops *ops;
+	struct bin_attribute *attr; /* descriptor for sysfs VPD entry */
+	struct mutex	lock;
+	unsigned int	len;
+	u16		flag;
+	u8		cap;
+	u8		busy:1;
+	u8		valid:1;
+};
+
+
+struct pci_dev {
+	struct list_head bus_list;	/* node in per-bus list */
+	struct pci_bus	*bus;		/* bus this device is on */
+	struct pci_bus	*subordinate;	/* bus this device bridges to */
+
+	struct device		dev;
+	int			cfg_size;	/* Size of configuration space */
+
 	struct list_head	links;
 	struct pci_driver	*pdrv;
+	struct pci_resources	pcir;
 	uint64_t		dma_mask;
-	uint16_t		device;
-	uint16_t		vendor;
-	unsigned int		irq;
 	unsigned int		devfn;
+	uint16_t		vendor;
+	uint16_t		device;
+	uint16_t		subsystem_vendor;
+	uint16_t		subsystem_device;
+	unsigned int		class;
 	u8			revision;
+	u8			hdr_type;	/* PCI header type (`multi' flag masked out) */
+
+	unsigned int		msi_enabled:1;
+	unsigned int		msix_enabled:1;
+	unsigned int		no_msi:1;	/* device may not use msi */
+	unsigned int		no_64bit_msi:1;
+	unsigned int		broken_parity_status:1;	/* Device generates false positive parity */
+	unsigned int		is_physfn:1;
+	unsigned int		is_virtfn:1;
+	unsigned int		reset_fn:1;
+	unsigned int		irq;
+	atomic_t		enable_cnt;	/* pci_enable_device has been called */
+	struct bin_attribute	*rom_attr; /* attribute descriptor for sysfs ROM entry */
+	int			rom_attr_enabled; /* has display of the rom attribute been enabled? */
+	struct linux_resource linux_resource[DEVICE_COUNT_RESOURCE]; /* I/O and memory regions + expansion ROMs */
+	unsigned int		d3_delay;
+	char *driver_override; /* Driver name to force a match */
+	struct pci_vpd *vpd;
 };
+
 
 static inline struct resource_list_entry *
 _pci_get_rle(struct pci_dev *pdev, int type, int rid)
@@ -243,12 +476,14 @@ pci_resource_flags(struct pci_dev *pdev, int bar)
 	return rle->type;
 }
 
+
 static inline const char *
 pci_name(struct pci_dev *d)
 {
 
 	return device_get_desc(d->dev.bsddev);
 }
+
 
 static inline void *
 pci_get_drvdata(struct pci_dev *pdev)
@@ -283,6 +518,14 @@ pci_set_master(struct pci_dev *pdev)
 {
 
 	pci_enable_busmaster(pdev->dev.bsddev);
+	return (0);
+}
+
+static inline int
+pci_set_power_state(struct pci_dev *pdev, int state)
+{
+
+	pci_set_powerstate(pdev->dev.bsddev, state);
 	return (0);
 }
 
@@ -345,6 +588,26 @@ pci_request_regions(struct pci_dev *pdev, const char *res_name)
 	return (0);
 }
 
+
+static inline int
+linux_pci_enable_msi(struct pci_dev *pdev)
+{
+	/*  not clear what address to use - ignore for now*/
+	return (0);
+}
+
+static inline void
+linux_pci_disable_msi(struct pci_dev *pdev)
+{
+	/* disable until clear how to do enable */
+	/* pci_disable_msi(pdev->dev.bsddev); */
+}
+
+
+struct pci_dev *linux_pci_get_class(unsigned int class, struct pci_dev *from);
+
+struct pci_dev *linux_bsddev_to_pci_dev(device_t dev);
+
 static inline void
 pci_disable_msix(struct pci_dev *pdev)
 {
@@ -352,9 +615,24 @@ pci_disable_msix(struct pci_dev *pdev)
 	pci_release_msi(pdev->dev.bsddev);
 }
 
+static inline bus_addr_t
+pci_bus_address(struct pci_dev *pdev, int bar)
+{
+	return (pci_resource_start(pdev, bar));
+
+}
+
+
 #define	PCI_CAP_ID_EXP	PCIY_EXPRESS
 #define	PCI_CAP_ID_PCIX	PCIY_PCIX
+#define PCI_CAP_ID_AGP  PCIY_AGP
+#define PCI_CAP_ID_PM   PCIY_PMG
 
+#define PCI_EXP_DEVCTL		PCIER_DEVICE_CTL
+#define PCI_EXP_DEVCTL_PAYLOAD	PCIEM_CTL_MAX_PAYLOAD
+#define PCI_EXP_DEVCTL_READRQ	PCIEM_CTL_MAX_READ_REQUEST
+#define PCI_EXP_LNKCTL		PCIER_LINK_CTL
+#define PCI_EXP_LNKSTA		PCIER_LINK_STA
 
 static inline int
 pci_find_capability(struct pci_dev *pdev, int capid)
@@ -394,7 +672,7 @@ pci_read_config_dword(struct pci_dev *pdev, int where, u32 *val)
 
 	*val = (u32)pci_read_config(pdev->dev.bsddev, where, 4);
 	return (0);
-} 
+}
 
 static inline int
 pci_write_config_byte(struct pci_dev *pdev, int where, u8 val)
@@ -414,14 +692,47 @@ pci_write_config_word(struct pci_dev *pdev, int where, u16 val)
 
 static inline int
 pci_write_config_dword(struct pci_dev *pdev, int where, u32 val)
-{ 
+{
 
 	pci_write_config(pdev->dev.bsddev, where, val, 4);
 	return (0);
 }
 
+static inline int
+pci_bus_read_config(struct pci_bus *bus, unsigned int devfn,
+		    int where, uint32_t *val, int size)
+{
+	device_t dev;
+	int dom, busid, slot, func;
+
+	dom = pci_get_domain(bus->self->dev.bsddev);
+	busid = pci_get_bus(bus->self->dev.bsddev);
+	slot = ((devfn >> 3) & 0x1f);
+	func = devfn & 0x7;
+	dev = pci_find_dbsf(dom, busid, slot, func);
+	*val = pci_read_config(dev, where, size);
+	return (0);
+}
+
+static inline int
+pci_bus_read_config_word(struct pci_bus *bus, unsigned int devfn, int where, u16 *val)
+{
+	return (pci_bus_read_config(bus, devfn, where, (uint32_t *)val, 2));
+}
+
+static inline int
+pci_bus_read_config_byte(struct pci_bus *bus, unsigned int devfn, int where, u8 *val)
+{
+	return (pci_bus_read_config(bus, devfn, where, (uint32_t *)val, 1));
+}
+
+extern struct pci_dev *pci_get_bus_and_slot(unsigned int bus, unsigned int devfn);
+
+void pci_dev_put(struct pci_dev *pdev);
 extern int pci_register_driver(struct pci_driver *pdrv);
 extern void pci_unregister_driver(struct pci_driver *pdrv);
+extern void *pci_iomap(struct pci_dev *pdev, int bar, unsigned long max);
+extern void pci_iounmap(struct pci_dev *pdev, void *regs);
 
 struct msix_entry {
 	int entry;
@@ -692,7 +1003,8 @@ static bool pcie_capability_reg_implemented(struct pci_dev *dev, int pos)
         }
 }
 
-static inline int pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *dst)
+static inline int
+pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *dst)
 {
         if (pos & 3)
                 return -EINVAL;
@@ -703,7 +1015,22 @@ static inline int pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *
         return pci_read_config_dword(dev, pci_pcie_cap(dev) + pos, dst);
 }
 
-static inline int pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
+
+static inline int
+pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *dst)
+{
+        if (pos & 3)
+                return -EINVAL;
+
+        if (!pcie_capability_reg_implemented(dev, pos))
+                return -EINVAL;
+
+        return pci_read_config_word(dev, pci_pcie_cap(dev) + pos, dst);
+}
+
+
+static inline int
+pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
 {
         if (pos & 1)
                 return -EINVAL;
@@ -727,5 +1054,144 @@ pci_num_vf(struct pci_dev *dev)
 {
 	return (0);
 }
+
+void pci_unmap_rom(struct pci_dev *pdev, u8 *bios);
+
+void * pci_map_rom(struct pci_dev *pdev, size_t *size);
+
+int pci_bus_read_config_byte(struct pci_bus *bus, unsigned int devfn,
+			     int where, u8 *val);
+int pci_bus_read_config_word(struct pci_bus *bus, unsigned int devfn,
+			     int where, u16 *val);
+int pci_bus_read_config_dword(struct pci_bus *bus, unsigned int devfn,
+			      int where, u32 *val);
+int pci_bus_write_config_byte(struct pci_bus *bus, unsigned int devfn,
+			      int where, u8 val);
+int pci_bus_write_config_word(struct pci_bus *bus, unsigned int devfn,
+			      int where, u16 val);
+int pci_bus_write_config_dword(struct pci_bus *bus, unsigned int devfn,
+			       int where, u32 val);
+
+int pci_generic_config_read(struct pci_bus *bus, unsigned int devfn,
+			       int where, u32 val);
+
+
+/* user-space driven config access */
+/* From Linux:
+ * 
+ * The following routines are to prevent the user from accessing PCI config
+ * space when it's unsafe to do so.  Some devices require this during BIST and
+ * we're required to prevent it during D-state transitions.
+ *
+ * We have a bit per device to indicate it's blocked and a global wait queue
+ * for callers to sleep on until devices are unblocked.
+ *
+ * I don't expect user space access during this time so ignoring for now
+ */
+#define pci_user_read_config_byte  pci_read_config_byte
+#define pci_user_read_config_word  pci_read_config_word
+#define pci_user_read_config_dword pci_read_config_dword
+
+#define pci_user_write_config_byte  pci_write_config_byte
+#define pci_user_write_config_word  pci_write_config_word
+#define pci_user_write_config_dword pci_write_config_dword 
+
+
+/* Functions for PCI Hotplug drivers to use */
+int pci_bus_find_capability(struct pci_bus *bus, unsigned int devfn, int cap);
+unsigned int pci_rescan_bus_bridge_resize(struct pci_dev *bridge);
+unsigned int pci_rescan_bus(struct pci_bus *bus);
+void pci_lock_rescan_remove(void);
+void pci_unlock_rescan_remove(void);
+
+/* Vital product data routines */
+
+static inline ssize_t
+pci_read_vpd(struct pci_dev *dev, loff_t pos, size_t count, void *buf)
+{
+	if (!dev->vpd || !dev->vpd->ops)
+		return -ENODEV;
+	return dev->vpd->ops->read(dev, pos, count, buf);
+}
+
+static inline ssize_t
+pci_write_vpd(struct pci_dev *dev, loff_t pos, size_t count, const void *buf)
+{
+	if (!dev->vpd || !dev->vpd->ops)
+		return -ENODEV;
+	return dev->vpd->ops->write(dev, pos, count, buf);
+}
+
+int pci_set_vpd_size(struct pci_dev *dev, size_t len);
+
+int pci_probe_reset_function(struct pci_dev *dev);
+int pci_reset_function(struct pci_dev *dev);
+struct pci_bus *pci_find_next_bus(const struct pci_bus *from);
+void pci_stop_and_remove_bus_device(struct pci_dev *dev);
+void pci_stop_and_remove_bus_device_locked(struct pci_dev *dev);
+
+int pci_default_suspend(struct pci_dev *dev, pm_message_t state);
+int pci_default_resume(struct pci_dev *dev);
+
+static inline bool pci_is_root_bus(struct pci_bus *pbus)
+{
+
+	return (pbus->self == NULL);
+}
+
+void *pci_platform_rom(struct pci_dev *pdev, size_t *size);
+
+
+static inline void linux_pci_save_state(struct pci_dev *pdev){
+	panic("implment me!!");
+	UNIMPLEMENTED();
+}
+
+static inline void linux_pci_restore_state(struct pci_dev *pdev){
+	panic("implment me!!");
+	UNIMPLEMENTED();
+}
+
+static inline void pci_ignore_hotplug(struct pci_dev *pdev){
+	UNIMPLEMENTED();
+}
+
+static inline void *
+pci_alloc_consistent(struct pci_dev *hwdev, size_t size,
+                     dma_addr_t *dma_handle)
+{
+
+	return dma_alloc_coherent(hwdev == NULL ? NULL : &hwdev->dev, size, dma_handle, GFP_ATOMIC);
+}
+
+static inline int
+pcie_get_readrq(struct pci_dev *dev)
+{
+	u16 ctl;
+
+	pcie_capability_read_word(dev, PCI_EXP_DEVCTL, &ctl);
+
+	return 128 << ((ctl & PCI_EXP_DEVCTL_READRQ) >> 12);
+}
+
+static inline void
+pci_resource_to_user(const struct pci_dev *dev, int bar,
+		const struct linux_resource *rsrc, resource_size_t *start,
+		resource_size_t *end)
+{
+	*start = rsrc->start;
+	*end = rsrc->end;
+}
+
+#define PCI_DEVICE_ID_ATI_RADEON_QY     0x5159
+#define pci_enable_msi linux_pci_enable_msi
+#define pci_disable_msi linux_pci_disable_msi
+#define pci_is_enabled(dev) (1)
+#define resource linux_resource
+
+
+#define pci_config_pm_runtime_get(dev)
+#define pci_config_pm_runtime_put(dev)
+
 
 #endif	/* _LINUX_PCI_H_ */

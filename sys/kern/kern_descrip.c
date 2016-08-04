@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/kdb.h>
 #include <sys/stat.h>
+#include <sys/seq.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
@@ -4049,6 +4050,13 @@ invfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 {
 
 	return (EINVAL);
+}
+
+bool
+fd_modified(struct filedesc *fdp, int fd, uint32_t seq)
+{
+
+	return (!seq_consistent(fd_seq(fdp->fd_files, fd), seq));
 }
 
 /*-------------------------------------------------------------------*/

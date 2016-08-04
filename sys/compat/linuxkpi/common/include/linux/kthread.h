@@ -32,6 +32,8 @@
 #define	_LINUX_KTHREAD_H_
 
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
@@ -39,24 +41,87 @@
 #include <sys/sleepqueue.h>
 
 #include <linux/slab.h>
-#include <linux/sched.h>
+
+#include <linux/mm_types.h>
+
+
+#define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
+
+#define	TASK_RUNNING		0
+#define	TASK_INTERRUPTIBLE	1
+#define	TASK_UNINTERRUPTIBLE	2
+#define	TASK_KILLABLE           3
+#define	TASK_DEAD		64
+#define	TASK_WAKEKILL		128
+#define	TASK_WAKING		256
+
+#define	TASK_SHOULD_STOP	1
+#define	TASK_STOPPED		2
+
+#define TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
+
+
+/*
+ * A task_struct is only provided for those tasks created with kthread.
+ * Using these routines with threads not started via kthread will cause
+ * panics because no task_struct is allocated and td_retval[1] is
+ * overwritten by syscalls which kernel threads will not make use of.
+ */
+
+#define	current			task_struct_get(curthread)
+#define	task_struct_get(x)	((struct task_struct *)(uintptr_t)(x)->td_lkpi_task)
+
+#define	task_struct_fill(x, y) do {		\
+  	(y)->task_thread = (x);			\
+	(y)->comm = (x)->td_name;		\
+	(y)->pid = (x)->td_tid;			\
+	(y)->mm = &(y)->bsd_mm;			\
+	(y)->usage.counter = 1;			\
+	(y)->state = TASK_RUNNING;		\
+} while (0)
+
+struct wait_queue_head;
+
+struct task_struct {
+	struct	thread *task_thread;
+	struct mm_struct *mm;
+	int	(*task_fn)(void *data);
+	atomic_t usage;
+	void	*task_data;
+	int	task_ret;
+	int	state;
+	int	should_stop;
+	char	*comm;
+	int	flags;
+	pid_t	pid;
+	struct wait_queue_head	*sleep_wq;
+	void	*bsd_ioctl_data;
+	unsigned	bsd_ioctl_len;
+	struct mm_struct bsd_mm;
+};
+
 
 static inline void
 linux_kthread_fn(void *arg)
 {
+	struct mm_struct *mm;
 	struct task_struct *task;
 	struct thread *td = curthread;
 
 	task = arg;
 	task_struct_fill(td, task);
-	task_struct_set(td, task);
+	mm = task->mm;
+	init_rwsem(&mm->mmap_sem);
+	mm->mm_count.counter = 1;
+	mm->mm_users.counter = 1;
+	td->td_lkpi_task = task;
 	if (task->should_stop == 0)
 		task->task_ret = task->task_fn(task->task_data);
 	PROC_LOCK(td->td_proc);
 	task->should_stop = TASK_STOPPED;
 	wakeup(task);
 	PROC_UNLOCK(td->td_proc);
-	task_struct_set(td, NULL);
+	td->td_lkpi_task = NULL;
 	kthread_exit();
 }
 
@@ -88,6 +153,23 @@ linux_kthread_create(int (*threadfn)(void *data), void *data)
 #define	kthread_should_stop()	current->should_stop
 
 static inline int
+wake_up_process(struct task_struct *p)
+{
+	int rc;
+
+	rc = 0;
+	if ((p->state & TASK_NORMAL) == 0)
+		goto out;
+	rc = 1;
+	if (!TD_IS_RUNNING(p->task_thread)) {
+		p->state = TASK_WAKING;
+		wakeup_one(p);
+	}
+out:
+	return (rc);
+}
+
+static inline int
 kthread_stop(struct task_struct *task)
 {
 
@@ -100,5 +182,7 @@ kthread_stop(struct task_struct *task)
 	PROC_UNLOCK(task->task_thread->td_proc);
 	return task->task_ret;
 }
+
+extern int in_atomic(void);
 
 #endif	/* _LINUX_KTHREAD_H_ */

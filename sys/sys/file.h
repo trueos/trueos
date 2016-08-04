@@ -68,6 +68,7 @@ struct socket;
 #define	DTYPE_DEV	11	/* Device specific fd type */
 #define	DTYPE_PROCDESC	12	/* process descriptor */
 #define	DTYPE_LINUXEFD	13	/* emulation eventfd type */
+#define DTYPE_DMABUF	14	/* dma_buf compatibility */
 
 #ifdef _KERNEL
 

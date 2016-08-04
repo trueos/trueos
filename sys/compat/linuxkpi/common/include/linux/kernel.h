@@ -41,16 +41,26 @@
 #include <sys/smp.h>
 #include <sys/stddef.h>
 #include <sys/syslog.h>
+#include <sys/kdb.h>
 
-#include <linux/bitops.h>
-#include <linux/compiler.h>
+
+#include <linux/bug.h>
 #include <linux/errno.h>
 #include <linux/kthread.h>
 #include <linux/types.h>
+#include <linux/compiler.h>
+#include <linux/bitops.h>
 #include <linux/jiffies.h>
-#include <linux/wait.h>
-#include <linux/log2.h> 
+#include <linux/log2.h>
+#include <linux/kconfig.h>
+#include <linux/printk.h>
+#include <linux/stringify.h> 
+
 #include <asm/byteorder.h>
+#include <asm-generic/bitops/const_hweight.h>
+#include <asm/cpufeature.h>
+
+#include <machine/stdarg.h>
 
 #include <machine/stdarg.h>
 
@@ -86,7 +96,10 @@
 #define	S64_C(x) x ## LL
 #define	U64_C(x) x ## ULL
 
-#define	BUILD_BUG_ON(x)		CTASSERT(!(x))
+#if !defined(__x86_64__) && defined(__amd64__)
+#define __x86_64__
+#endif
+
 
 #define	BUG()			panic("BUG at %s:%d", __FILE__, __LINE__)
 #define	BUG_ON(cond)		do {				\
@@ -96,11 +109,34 @@
 	}							\
 } while (0)
 
+extern int linux_db_trace;
+#ifdef DDB
+extern void db_trace_self_depth(int);
+#define BACKTRACE()				\
+	do {					\
+		if (linux_db_trace)		\
+			db_trace_self_depth(6); \
+	} while (0)
+
+#define COND_BACKTRACE(cond)			\
+	do {					\
+		if ((cond))			\
+			BACKTRACE();		\
+	} while (0)
+#else
+#define BACKTRACE()
+#define COND_BACKTRACE(cord)
+#endif
+
 #define	WARN_ON(cond) ({					\
+      static bool __bt_on_once;				        \
       bool __ret = (cond);					\
+      struct thread *td = curthread;				\
       if (__ret) {						\
-		printf("WARNING %s failed at %s:%d\n",		\
-		    __stringify(cond), __FILE__, __LINE__);	\
+	      COND_BACKTRACE(!__bt_on_once);			\
+	      __bt_on_once = 1;					\
+	      printf("%s:%d WARNING %s failed at %s:%d\n",	\
+		     td->td_name, td->td_tid, __stringify(cond), __FILE__, __LINE__); \
       }								\
       unlikely(__ret);						\
 })
@@ -110,12 +146,15 @@
 #define	WARN_ON_ONCE(cond) ({					\
       static bool __warn_on_once;				\
       bool __ret = (cond);					\
+      struct thread *td = curthread;				\
       if (__ret && !__warn_on_once) {				\
 		__warn_on_once = 1;				\
-		printf("WARNING %s failed at %s:%d\n",		\
-		    __stringify(cond), __FILE__, __LINE__);	\
-      }								\
-      unlikely(__ret);						\
+		BACKTRACE();						\
+		printf("%s:%d WARNING %s failed at %s:%d\n",		\
+		     td->td_name, td->td_tid, __stringify(cond), __FILE__, __LINE__); \
+									\
+      }									\
+      unlikely(__ret);							\
 })
 
 #undef	ALIGN
@@ -155,8 +194,11 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 	i = vscnprintf(buf, size, fmt, args);
 	va_end(args);
 
-	return (i);
+	return i;
 }
+
+#define	irqs_disabled() (curthread->td_critnest >= 1)
+
 
 /*
  * The "pr_debug()" and "pr_devel()" macros should produce zero code
@@ -256,6 +298,12 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 #define	kstrtol(a,b,c) ({*(c) = strtol(a,0,b); 0;})
 #define	kstrtoint(a,b,c) ({*(c) = strtol(a,0,b); 0;})
 #define	kstrtouint(a,b,c) ({*(c) = strtol(a,0,b); 0;})
+#define	kstrtou32(a,b,c) ({*(c) = strtol(a,0,b); 0;})
+#define	kstrtoul(a,b,c) ({*(c) = strtoul(a,0,b); 0;})
+
+long long simple_strtoll(const char *cp, char **endp, unsigned int base);
+
+
 
 #define min(x, y)	((x) < (y) ? (x) : (y))
 #define max(x, y)	((x) > (y) ? (x) : (y))
@@ -330,5 +378,10 @@ abs64(int64_t x)
 {
 	return (x < 0 ? -x : x);
 }
+
+
+/* XXX move me */
+#define rdmsrl(msr, val)			\
+	((val) = rdmsr((msr)))
 
 #endif	/* _LINUX_KERNEL_H_ */

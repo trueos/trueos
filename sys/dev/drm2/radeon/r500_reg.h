@@ -28,9 +28,6 @@
 #ifndef __R500_REG_H__
 #define __R500_REG_H__
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* pipe config regs */
 #define R300_GA_POLY_MODE				0x4288
 #       define R300_FRONT_PTYPE_POINT                   (0 << 4)
@@ -88,7 +85,7 @@ __FBSDID("$FreeBSD$");
 #       define R300_SUBPIXEL_1_12       (0 << 16)
 #       define R300_SUBPIXEL_1_16       (1 << 16)
 #define R300_DST_PIPE_CONFIG            0x170c
-#       define R300_PIPE_AUTO_CONFIG    (1U << 31)
+#       define R300_PIPE_AUTO_CONFIG    (1 << 31)
 #define R300_RB2D_DSTCACHE_MODE         0x3428
 #       define R300_DC_AUTOFLUSH_ENABLE (1 << 8)
 #       define R300_DC_DC_DISABLE_IGNORE_PE (1 << 17)
@@ -144,7 +141,7 @@ __FBSDID("$FreeBSD$");
 #	define RS480_GTW_LAC_EN	        (1 << 25)
 #	define RS480_2LEVEL_GART	(0 << 30)
 #	define RS480_1LEVEL_GART	(1 << 30)
-#	define RS480_PDC_EN	        (1U << 31)
+#	define RS480_PDC_EN	        (1 << 31)
 #define RS480_GART_BASE                 0x2c
 #define RS480_GART_CACHE_CNTRL          0x2e
 #	define RS480_GART_CACHE_INVALIDATE (1 << 0) /* wait for it to clear */
@@ -358,6 +355,7 @@ __FBSDID("$FreeBSD$");
 #       define AVIVO_D1CRTC_V_BLANK                             (1 << 0)
 #define AVIVO_D1CRTC_STATUS_POSITION                            0x60a0
 #define AVIVO_D1CRTC_FRAME_COUNT                                0x60a4
+#define AVIVO_D1CRTC_STATUS_HV_COUNT                            0x60ac
 #define AVIVO_D1CRTC_STEREO_CONTROL                             0x60c4
 
 #define AVIVO_D1MODE_MASTER_UPDATE_LOCK                         0x60e0
@@ -404,6 +402,7 @@ __FBSDID("$FreeBSD$");
  * block and vice versa.  This applies to GRPH, CUR, etc.
  */
 #define AVIVO_D1GRPH_LUT_SEL                                    0x6108
+#       define AVIVO_LUT_10BIT_BYPASS_EN                        (1 << 8)
 #define AVIVO_D1GRPH_PRIMARY_SURFACE_ADDRESS                    0x6110
 #define R700_D1GRPH_PRIMARY_SURFACE_ADDRESS_HIGH                0x6914
 #define R700_D2GRPH_PRIMARY_SURFACE_ADDRESS_HIGH                0x6114
@@ -637,7 +636,7 @@ __FBSDID("$FreeBSD$");
 #       define AVIVO_TMDSA_TRANSMITTER_CONTROL_CLK_PATTERN_SHIFT (16)
 #	define AVIVO_TMDSA_TRANSMITTER_CONTROL_BYPASS_PLL	(1 << 28)
 #       define AVIVO_TMDSA_TRANSMITTER_CONTROL_USE_CLK_DATA     (1 << 29)
-#	define AVIVO_TMDSA_TRANSMITTER_CONTROL_INPUT_TEST_CLK_SEL	(1U << 31)
+#	define AVIVO_TMDSA_TRANSMITTER_CONTROL_INPUT_TEST_CLK_SEL	(1 << 31)
 
 #define AVIVO_LVTMA_CNTL					0x7a80
 #   define AVIVO_LVTMA_CNTL_ENABLE               (1 << 0)
@@ -703,7 +702,7 @@ __FBSDID("$FreeBSD$");
 #       define AVIVO_LVTMA_TRANSMITTER_CONTROL_CLK_PATTERN_SHIFT  (16)
 #	define AVIVO_LVTMA_TRANSMITTER_CONTROL_BYPASS_PLL	  (1 << 28)
 #       define AVIVO_LVTMA_TRANSMITTER_CONTROL_USE_CLK_DATA       (1 << 29)
-#	define AVIVO_LVTMA_TRANSMITTER_CONTROL_INPUT_TEST_CLK_SEL (1U << 31)
+#	define AVIVO_LVTMA_TRANSMITTER_CONTROL_INPUT_TEST_CLK_SEL (1 << 31)
 
 #define R500_LVTMA_PWRSEQ_CNTL						0x7af0
 #define R600_LVTMA_PWRSEQ_CNTL						0x7af4

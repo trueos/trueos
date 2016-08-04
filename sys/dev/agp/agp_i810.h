@@ -71,31 +71,29 @@ struct intel_gtt {
 	bus_addr_t gma_bus_addr;
 };
 
-struct intel_gtt agp_intel_gtt_get(device_t dev);
 int agp_intel_gtt_chipset_flush(device_t dev);
 void agp_intel_gtt_unmap_memory(device_t dev, struct sglist *sg_list);
 void agp_intel_gtt_clear_range(device_t dev, u_int first_entry,
     u_int num_entries);
 int agp_intel_gtt_map_memory(device_t dev, vm_page_t *pages, u_int num_entries,
     struct sglist **sg_list);
-void agp_intel_gtt_insert_sg_entries(device_t dev, struct sglist *sg_list,
-    u_int pg_start, u_int flags);
 void agp_intel_gtt_insert_pages(device_t dev, u_int first_entry,
     u_int num_entries, vm_page_t *pages, u_int flags);
-
-struct intel_gtt *intel_gtt_get(void);
+void _intel_gtt_get(size_t *gtt_total, size_t *stolen_size, unsigned long *mappable_end);
 int intel_gtt_chipset_flush(void);
 void intel_gtt_unmap_memory(struct sglist *sg_list);
 void intel_gtt_clear_range(u_int first_entry, u_int num_entries);
 int intel_gtt_map_memory(vm_page_t *pages, u_int num_entries,
     struct sglist **sg_list);
-void intel_gtt_insert_sg_entries(struct sglist *sg_list, u_int pg_start,
-    u_int flags);
+void _intel_gtt_install_pte(unsigned int index, vm_paddr_t addr,
+    unsigned int flags);
 void intel_gtt_insert_pages(u_int first_entry, u_int num_entries,
     vm_page_t *pages, u_int flags);
 vm_paddr_t intel_gtt_read_pte_paddr(u_int entry);
 u_int32_t intel_gtt_read_pte(u_int entry);
 device_t intel_gtt_get_bridge_device(void);
 void intel_gtt_write(u_int entry, uint32_t val);
+
+void *intel_gtt_get_registers(void);
 
 #endif

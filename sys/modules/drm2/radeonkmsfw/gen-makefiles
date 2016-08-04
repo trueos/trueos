@@ -14,15 +14,18 @@ for dir in $scriptdir/*; do
 done
 
 for file in $fwdir/*.uu; do
-	img=$(basename $file)
-	img=${img%.bin.uu}
+	base=$(basename $file)
+	img=${base%.bin.uu}
+	kmodname=radeon_$img"_bin"
+	name=radeon/$img".bin"
 	echo "Image: $img"
 
 	mkdir -p $scriptdir/$img
 	cat > $scriptdir/$img/Makefile <<EOF
 # \$FreeBSD$
 
-KMOD=	radeonkmsfw_$img
+KMOD=	$kmodname
+NAME=	$name
 IMG=	$img
 
 .include <bsd.kmod.mk>

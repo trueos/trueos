@@ -32,7 +32,16 @@
 #ifndef	_LINUX_UACCESS_H_
 #define	_LINUX_UACCESS_H_
 
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/proc.h>
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <linux/compiler.h>
+
+#define	VERIFY_READ	VM_PROT_READ
+#define	VERIFY_WRITE	VM_PROT_WRITE
 
 #define	__get_user(_x, _p) ({					\
 	int __err;						\
@@ -49,24 +58,37 @@
 #define	get_user(_x, _p)	linux_copyin((_p), &(_x), sizeof(*(_p)))
 #define	put_user(_x, _p)	linux_copyout(&(_x), (_p), sizeof(*(_p)))
 
+unsigned long clear_user(void *uptr, unsigned long len);
+
 extern int linux_copyin(const void *uaddr, void *kaddr, size_t len);
 extern int linux_copyout(const void *kaddr, void *uaddr, size_t len);
 
-/*
- * NOTE: The returned value from pagefault_disable() must be stored
- * and passed to pagefault_enable(). Else possible recursion on the
- * state can be lost.
- */
-static inline int __must_check
-pagefault_disable(void)
+static inline int
+access_ok(int rw, void *addr, int len)
 {
-	return (vm_fault_disable_pagefaults());
+	if (len == 0)
+		return (TRUE);
+	return (useracc(addr, len, rw));
 }
 
 static inline void
-pagefault_enable(int save)
+pagefault_disable(void)
 {
-	vm_fault_enable_pagefaults(save);
+	/*
+	 * Use vm_fault_disable_pagefaults if we need to
+	 * recurse
+	 */
+	MPASS((curthread->td_pflags & (TDP_NOFAULTING|TDP_RESETSPUR)) == 0);
+	curthread->td_pflags |= (TDP_NOFAULTING | TDP_RESETSPUR);
 }
+
+static inline void
+pagefault_enable(void)
+{
+	curthread->td_pflags &= ~(TDP_NOFAULTING|TDP_RESETSPUR);
+}
+
+#define pagefault_disabled() (curthread->td_pflags & TDP_NOFAULTING)
+
 
 #endif	/* _LINUX_UACCESS_H_ */

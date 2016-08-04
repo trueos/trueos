@@ -25,9 +25,6 @@
  *
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include "dvo.h"
 
 #define CH7017_TV_DISPLAY_MODE		0x00
@@ -170,44 +167,44 @@ static void ch7017_dpms(struct intel_dvo_device *dvo, bool enable);
 
 static bool ch7017_read(struct intel_dvo_device *dvo, u8 addr, u8 *val)
 {
-	struct iic_msg msgs[] = {
+	struct i2c_msg msgs[] = {
 		{
-			.slave = dvo->slave_addr << 1,
+			.addr = dvo->slave_addr,
 			.flags = 0,
 			.len = 1,
 			.buf = &addr,
 		},
 		{
-			.slave = dvo->slave_addr << 1,
+			.addr = dvo->slave_addr,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = val,
 		}
 	};
-	return -iicbus_transfer(dvo->i2c_bus, msgs, 2) == 0;
+	return i2c_transfer(dvo->i2c_bus, msgs, 2) == 2;
 }
 
 static bool ch7017_write(struct intel_dvo_device *dvo, u8 addr, u8 val)
 {
 	uint8_t buf[2] = { addr, val };
-	struct iic_msg msg = {
-		.slave = dvo->slave_addr << 1,
+	struct i2c_msg msg = {
+		.addr = dvo->slave_addr,
 		.flags = 0,
 		.len = 2,
 		.buf = buf,
 	};
-	return -iicbus_transfer(dvo->i2c_bus, &msg, 1) == 0;
+	return i2c_transfer(dvo->i2c_bus, &msg, 1) == 1;
 }
 
 /** Probes for a CH7017 on the given bus and slave address. */
 static bool ch7017_init(struct intel_dvo_device *dvo,
-			device_t adapter)
+			struct i2c_adapter *adapter)
 {
 	struct ch7017_priv *priv;
 	const char *str;
 	u8 val;
 
-	priv = malloc(sizeof(struct ch7017_priv), DRM_MEM_KMS, M_NOWAIT | M_ZERO);
+	priv = kzalloc(sizeof(struct ch7017_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return false;
 
@@ -230,17 +227,16 @@ static bool ch7017_init(struct intel_dvo_device *dvo,
 	default:
 		DRM_DEBUG_KMS("ch701x not detected, got %d: from %s "
 			      "slave %d.\n",
-		              val, device_get_nameunit(adapter),
-		              dvo->slave_addr);
+			      val, adapter->name, dvo->slave_addr);
 		goto fail;
 	}
 
 	DRM_DEBUG_KMS("%s detected on %s, addr %d\n",
-	    	      str, device_get_nameunit(adapter), dvo->slave_addr);
+		      str, adapter->name, dvo->slave_addr);
 	return true;
 
 fail:
-	free(priv, DRM_MEM_KMS);
+	kfree(priv);
 	return false;
 }
 
@@ -259,8 +255,8 @@ static enum drm_mode_status ch7017_mode_valid(struct intel_dvo_device *dvo,
 }
 
 static void ch7017_mode_set(struct intel_dvo_device *dvo,
-			    struct drm_display_mode *mode,
-			    struct drm_display_mode *adjusted_mode)
+			    const struct drm_display_mode *mode,
+			    const struct drm_display_mode *adjusted_mode)
 {
 	uint8_t lvds_pll_feedback_div, lvds_pll_vco_control;
 	uint8_t outputs_enable, lvds_control_2, lvds_power_down;
@@ -360,7 +356,7 @@ static void ch7017_dpms(struct intel_dvo_device *dvo, bool enable)
 	}
 
 	/* XXX: Should actually wait for update power status somehow */
-	drm_msleep(20, "ch7017");
+	msleep(20);
 }
 
 static bool ch7017_get_hw_state(struct intel_dvo_device *dvo)
@@ -401,12 +397,12 @@ static void ch7017_destroy(struct intel_dvo_device *dvo)
 	struct ch7017_priv *priv = dvo->dev_priv;
 
 	if (priv) {
-		free(priv, DRM_MEM_KMS);
+		kfree(priv);
 		dvo->dev_priv = NULL;
 	}
 }
 
-struct intel_dvo_dev_ops ch7017_ops = {
+const struct intel_dvo_dev_ops ch7017_ops = {
 	.init = ch7017_init,
 	.detect = ch7017_detect,
 	.mode_valid = ch7017_mode_valid,

@@ -29,15 +29,12 @@
  *          Keith Packard.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/ttm/ttm_module.h>
-#include <dev/drm2/ttm/ttm_bo_driver.h>
-#include <dev/drm2/ttm/ttm_page_alloc.h>
+#include <drm/drmP.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_page_alloc.h>
 #ifdef TTM_HAS_AGP
-#include <dev/drm2/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_placement.h>
 
 struct ttm_agp_backend {
 	struct ttm_tt ttm;
@@ -68,7 +65,7 @@ static int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 	ret = -agp_bind_pages(agp_be->bridge, agp_be->pages,
 			      ttm->num_pages << PAGE_SHIFT, agp_be->offset);
 	if (ret)
-		printf("[TTM] AGP Bind memory failed\n");
+		pr_err("AGP Bind memory failed\n");
 
 	return ret;
 }
@@ -86,8 +83,8 @@ static void ttm_agp_destroy(struct ttm_tt *ttm)
 	struct ttm_agp_backend *agp_be = container_of(ttm, struct ttm_agp_backend, ttm);
 
 	ttm_tt_fini(ttm);
-	free(agp_be->pages, M_TTM_AGP);
-	free(agp_be, M_TTM_AGP);
+	kfree(agp_be->pages);
+	kfree(agp_be);
 }
 
 static struct ttm_backend_func ttm_agp_func = {
@@ -103,22 +100,24 @@ struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
 {
 	struct ttm_agp_backend *agp_be;
 
-	agp_be = malloc(sizeof(*agp_be), M_TTM_AGP, M_WAITOK | M_ZERO);
+	agp_be = kmalloc(sizeof(*agp_be), GFP_KERNEL);
+	if (!agp_be)
+		return NULL;
 
 	agp_be->bridge = bridge;
 	agp_be->ttm.func = &ttm_agp_func;
 
 	if (ttm_tt_init(&agp_be->ttm, bdev, size, page_flags, dummy_read_page)) {
-		free(agp_be, M_TTM_AGP);
 		return NULL;
 	}
 
 	agp_be->offset = 0;
-	agp_be->pages = malloc(agp_be->ttm.num_pages * sizeof(*agp_be->pages),
-			       M_TTM_AGP, M_WAITOK);
+	agp_be->pages = kmalloc(agp_be->ttm.num_pages * sizeof(*agp_be->pages),
+			       GFP_KERNEL);
 
 	return &agp_be->ttm;
 }
+EXPORT_SYMBOL(ttm_agp_tt_create);
 
 int ttm_agp_tt_populate(struct ttm_tt *ttm)
 {
@@ -127,10 +126,12 @@ int ttm_agp_tt_populate(struct ttm_tt *ttm)
 
 	return ttm_pool_populate(ttm);
 }
+EXPORT_SYMBOL(ttm_agp_tt_populate);
 
 void ttm_agp_tt_unpopulate(struct ttm_tt *ttm)
 {
 	ttm_pool_unpopulate(ttm);
 }
+EXPORT_SYMBOL(ttm_agp_tt_unpopulate);
 
 #endif

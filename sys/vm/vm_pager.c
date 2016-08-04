@@ -88,7 +88,7 @@ int cluster_pbuf_freecnt = -1;	/* unlimited to begin with */
 
 struct buf *swbuf;
 
-static int dead_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *);
+static int dead_pager_getpages(vm_object_t, vm_page_t *, int, int *, int *, int);
 static vm_object_t dead_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
     vm_ooffset_t, struct ucred *);
 static void dead_pager_putpages(vm_object_t, vm_page_t *, int, int, int *);
@@ -97,7 +97,7 @@ static void dead_pager_dealloc(vm_object_t);
 
 static int
 dead_pager_getpages(vm_object_t obj, vm_page_t *ma, int count, int *rbehind,
-    int *rahead)
+    int *rahead, int prot)
 {
 
 	return (VM_PAGER_FAIL);
@@ -279,7 +279,7 @@ vm_pager_assert_in(vm_object_t object, vm_page_t *m, int count)
  */
 int
 vm_pager_get_pages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
-    int *rahead)
+    int *rahead, int prot)
 {
 #ifdef INVARIANTS
 	vm_pindex_t pindex = m[0]->pindex;
@@ -289,9 +289,12 @@ vm_pager_get_pages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	vm_pager_assert_in(object, m, count);
 
 	r = (*pagertab[object->type]->pgo_getpages)(object, m, count, rbehind,
-	    rahead);
+	     rahead, prot);
 	if (r != VM_PAGER_OK)
 		return (r);
+
+	if (object->flags2 & OBJ2_GRAPHICS)
+		return (VM_PAGER_OK);
 
 	for (int i = 0; i < count; i++) {
 		/*

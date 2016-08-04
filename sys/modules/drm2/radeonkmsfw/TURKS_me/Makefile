@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-KMOD=	radeonkmsfw_TURKS_me
+KMOD=	radeon_TURKS_me_bin
+NAME=	radeon/TURKS_me.bin
 IMG=	TURKS_me
 
 .include <bsd.kmod.mk>

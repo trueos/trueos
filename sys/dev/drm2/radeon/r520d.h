@@ -28,9 +28,6 @@
 #ifndef __R520D_H__
 #define __R520D_H__
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 /* Registers */
 #define R_0000F8_CONFIG_MEMSIZE                      0x0000F8
 #define   S_0000F8_CONFIG_MEMSIZE(x)                   (((x) & 0xFFFFFFFF) << 0)

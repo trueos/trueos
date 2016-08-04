@@ -6,7 +6,7 @@
  * \author Gareth Hughes <gareth@valinux.com>
  */
 
-/*-
+/*
  * Created: Fri Mar 19 14:30:16 1999 by faith@valinux.com
  *
  * Copyright 1999, 2000 Precision Insight, Inc., Cedar Park, Texas.
@@ -33,10 +33,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <dev/drm2/drmP.h>
+#include <linux/export.h>
+#include <drm/drmP.h>
+#include "drm_legacy.h"
 
 /**
  * Initialize the DMA data.
@@ -46,11 +45,19 @@ __FBSDID("$FreeBSD$");
  *
  * Allocate and initialize a drm_device_dma structure.
  */
-int drm_dma_setup(struct drm_device *dev)
+int drm_legacy_dma_setup(struct drm_device *dev)
 {
 	int i;
 
-	dev->dma = malloc(sizeof(*dev->dma), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
+	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA) ||
+	    drm_core_check_feature(dev, DRIVER_MODESET)) {
+		return 0;
+	}
+
+	dev->buf_use = 0;
+	atomic_set(&dev->buf_alloc, 0);
+
+	dev->dma = kzalloc(sizeof(*dev->dma), GFP_KERNEL);
 	if (!dev->dma)
 		return -ENOMEM;
 
@@ -68,10 +75,15 @@ int drm_dma_setup(struct drm_device *dev)
  * Free all pages associated with DMA buffers, the buffers and pages lists, and
  * finally the drm_device::dma structure itself.
  */
-void drm_dma_takedown(struct drm_device *dev)
+void drm_legacy_dma_takedown(struct drm_device *dev)
 {
 	struct drm_device_dma *dma = dev->dma;
 	int i, j;
+
+	if (!drm_core_check_feature(dev, DRIVER_HAVE_DMA) ||
+	    drm_core_check_feature(dev, DRIVER_MODESET)) {
+		return;
+	}
 
 	if (!dma)
 		return;
@@ -89,20 +101,19 @@ void drm_dma_takedown(struct drm_device *dev)
 					drm_pci_free(dev, dma->bufs[i].seglist[j]);
 				}
 			}
-			free(dma->bufs[i].seglist, DRM_MEM_SEGS);
+			kfree(dma->bufs[i].seglist);
 		}
 		if (dma->bufs[i].buf_count) {
 			for (j = 0; j < dma->bufs[i].buf_count; j++) {
-				free(dma->bufs[i].buflist[j].dev_private,
-				    DRM_MEM_BUFS);
+				kfree(dma->bufs[i].buflist[j].dev_private);
 			}
-			free(dma->bufs[i].buflist, DRM_MEM_BUFS);
+			kfree(dma->bufs[i].buflist);
 		}
 	}
 
-	free(dma->buflist, DRM_MEM_BUFS);
-	free(dma->pagelist, DRM_MEM_PAGES);
-	free(dev->dma, DRM_MEM_DRIVER);
+	kfree(dma->buflist);
+	kfree(dma->pagelist);
+	kfree(dev->dma);
 	dev->dma = NULL;
 }
 
@@ -114,7 +125,7 @@ void drm_dma_takedown(struct drm_device *dev)
  *
  * Resets the fields of \p buf.
  */
-void drm_free_buffer(struct drm_device *dev, struct drm_buf * buf)
+void drm_legacy_free_buffer(struct drm_device *dev, struct drm_buf * buf)
 {
 	if (!buf)
 		return;
@@ -132,8 +143,8 @@ void drm_free_buffer(struct drm_device *dev, struct drm_buf * buf)
  *
  * Frees each buffer associated with \p file_priv not already on the hardware.
  */
-void drm_core_reclaim_buffers(struct drm_device *dev,
-			      struct drm_file *file_priv)
+void drm_legacy_reclaim_buffers(struct drm_device *dev,
+				struct drm_file *file_priv)
 {
 	struct drm_device_dma *dma = dev->dma;
 	int i;
@@ -144,7 +155,7 @@ void drm_core_reclaim_buffers(struct drm_device *dev,
 		if (dma->buflist[i]->file_priv == file_priv) {
 			switch (dma->buflist[i]->list) {
 			case DRM_LIST_NONE:
-				drm_free_buffer(dev, dma->buflist[i]);
+				drm_legacy_free_buffer(dev, dma->buflist[i]);
 				break;
 			case DRM_LIST_WAIT:
 				dma->buflist[i]->list = DRM_LIST_RECLAIM;
@@ -156,5 +167,3 @@ void drm_core_reclaim_buffers(struct drm_device *dev,
 		}
 	}
 }
-
-EXPORT_SYMBOL(drm_core_reclaim_buffers);

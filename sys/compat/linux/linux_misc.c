@@ -106,7 +106,6 @@ __FBSDID("$FreeBSD$");
  *      amd64, 32bit emulation  = linuxulator32
  */
 LIN_SDT_PROVIDER_DEFINE(LINUX_DTRACE);
-
 int stclohz;				/* Statistics clock frequency */
 
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
@@ -589,6 +588,16 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 		void *addr;
 		size_t len;
 	} */ bsd_args;
+	struct mmap_args /* {
+		caddr_t addr;
+		size_t len;
+		int prot;
+		int flags;
+		int fd;
+		long pad;
+		off_t pos;
+	} */ bsd_map_args;
+
 	int error = 0;
 
 #ifdef DEBUG
@@ -618,8 +627,18 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 	args->old_len = round_page(args->old_len);
 
 	if (args->new_len > args->old_len) {
-		td->td_retval[0] = 0;
-		return (ENOMEM);
+		if ((args->flags & LINUX_MREMAP_MAYMOVE) == 0)
+			goto fail;
+
+		bsd_map_args.addr = (caddr_t)(uintptr_t)args->addr + args->old_len;
+		bsd_map_args.len = (args->new_len - args->old_len);
+		bsd_map_args.prot = PROT_READ|PROT_WRITE;
+		bsd_map_args.flags = MAP_ANON;
+		bsd_map_args.fd = -1;
+		bsd_map_args.pos = 0;
+		error = sys_mmap(td, &bsd_map_args);
+		if (error)
+			goto fail;
 	}
 
 	if (args->new_len < args->old_len) {
@@ -631,6 +650,9 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 
 	td->td_retval[0] = error ? 0 : (uintptr_t)args->addr;
 	return (error);
+fail:
+	td->td_retval[0] = 0;
+	return (ENOMEM);
 }
 
 #define LINUX_MS_ASYNC       0x0001
@@ -983,27 +1005,6 @@ linux_common_wait(struct thread *td, int pid, int *status,
 	return (error);
 }
 
-#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-int
-linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
-{
-	struct linux_wait4_args wait4_args;
-
-#ifdef DEBUG
-	if (ldebug(waitpid))
-		printf(ARGS(waitpid, "%d, %p, %d"),
-		    args->pid, (void *)args->status, args->options);
-#endif
-
-	wait4_args.pid = args->pid;
-	wait4_args.status = args->status;
-	wait4_args.options = args->options;
-	wait4_args.rusage = NULL;
-
-	return (linux_wait4(td, &wait4_args));
-}
-#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
-
 int
 linux_wait4(struct thread *td, struct linux_wait4_args *args)
 {
@@ -1287,19 +1288,6 @@ linux_getitimer(struct thread *td, struct linux_getitimer_args *uap)
 	return (copyout(&ls, uap->itv, sizeof(ls)));
 }
 
-#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-int
-linux_nice(struct thread *td, struct linux_nice_args *args)
-{
-	struct setpriority_args bsd_args;
-
-	bsd_args.which = PRIO_PROCESS;
-	bsd_args.who = 0;		/* current process */
-	bsd_args.prio = args->inc;
-	return (sys_setpriority(td, &bsd_args));
-}
-#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
-
 int
 linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 {
@@ -1429,48 +1417,6 @@ linux_setrlimit(struct thread *td, struct linux_setrlimit_args *args)
 	bsd_rlim.rlim_max = (rlim_t)rlim.rlim_max;
 	return (kern_setrlimit(td, which, &bsd_rlim));
 }
-
-#if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
-int
-linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
-{
-	struct l_rlimit rlim;
-	struct rlimit bsd_rlim;
-	u_int which;
-
-#ifdef DEBUG
-	if (ldebug(old_getrlimit))
-		printf(ARGS(old_getrlimit, "%d, %p"),
-		    args->resource, (void *)args->rlim);
-#endif
-
-	if (args->resource >= LINUX_RLIM_NLIMITS)
-		return (EINVAL);
-
-	which = linux_to_bsd_resource[args->resource];
-	if (which == -1)
-		return (EINVAL);
-
-	lim_rlimit(td, which, &bsd_rlim);
-
-#ifdef COMPAT_LINUX32
-	rlim.rlim_cur = (unsigned int)bsd_rlim.rlim_cur;
-	if (rlim.rlim_cur == UINT_MAX)
-		rlim.rlim_cur = INT_MAX;
-	rlim.rlim_max = (unsigned int)bsd_rlim.rlim_max;
-	if (rlim.rlim_max == UINT_MAX)
-		rlim.rlim_max = INT_MAX;
-#else
-	rlim.rlim_cur = (unsigned long)bsd_rlim.rlim_cur;
-	if (rlim.rlim_cur == ULONG_MAX)
-		rlim.rlim_cur = LONG_MAX;
-	rlim.rlim_max = (unsigned long)bsd_rlim.rlim_max;
-	if (rlim.rlim_max == ULONG_MAX)
-		rlim.rlim_max = LONG_MAX;
-#endif
-	return (copyout(&rlim, args->rlim, sizeof(rlim)));
-}
-#endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
 int
 linux_getrlimit(struct thread *td, struct linux_getrlimit_args *args)
@@ -2521,4 +2467,16 @@ linux_to_bsd_waitopts(int options, int *bsdopts)
 
 	if (options & __WCLONE)
 		*bsdopts |= WLINUXCLONE;
+}
+
+int
+linux_mincore(struct thread *td, struct linux_mincore_args *args)
+{
+	struct mincore_args bsd_args;
+
+	bsd_args.addr = (void *)(uintptr_t)args->start;
+	bsd_args.len = args->len;
+	bsd_args.vec = args->vec;
+
+	return (sys_mincore(td, &bsd_args));
 }

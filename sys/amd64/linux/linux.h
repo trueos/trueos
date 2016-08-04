@@ -267,6 +267,7 @@ typedef struct l_siginfo {
 	l_int		lsi_signo;
 	l_int		lsi_errno;
 	l_int		lsi_code;
+	int		__pad0;
 	union {
 		l_int	_pad[LINUX_SI_PAD_SIZE];
 
@@ -305,6 +306,13 @@ typedef struct l_siginfo {
 			l_long		_band;	/* POLL_IN,POLL_OUT,POLL_MSG */
 			l_int		_fd;
 		} _sigpoll;
+
+		/* SIGSYS */
+		struct {
+			void *_call_addr; /* calling user insn */
+			int _syscall;	/* triggering system call number */
+			unsigned int _arch;	/* AUDIT_ARCH_* of syscall */
+		} _sigsys;
 	} _sifields;
 } l_siginfo_t;
 

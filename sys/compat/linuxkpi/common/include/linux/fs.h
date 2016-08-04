@@ -38,9 +38,17 @@
 #include <sys/vnode.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <linux/dcache.h>
 #include <linux/semaphore.h>
+#include <linux/list.h>
+#include <linux/atomic.h>
+#include <linux/shrinker.h>
+#include <linux/dcache.h>
+#include <linux/mutex.h>
+#include <linux/capability.h>
 
 struct module;
 struct kiocb;
@@ -52,6 +60,8 @@ struct pipe_inode_info;
 struct vm_area_struct;
 struct poll_table_struct;
 struct files_struct;
+struct kstatfs;
+
 
 #define	inode	vnode
 #define	i_cdev	v_rdev
@@ -60,13 +70,40 @@ struct files_struct;
 #define	S_IWUGO	(S_IWUSR | S_IWGRP | S_IWOTH)
 
 
-typedef struct files_struct *fl_owner_t;
-
-struct dentry {
-	struct inode	*d_inode;
+struct super_block {
 };
 
+struct super_operations {
+	int (*statfs) (struct dentry *, struct kstatfs *);
+};
+struct file_system_type {
+		const char *name;
+	struct module *owner;
+	struct dentry *(*mount) (struct file_system_type *, int,
+				 const char *, void *);
+	void (*kill_sb) (struct super_block *);
+
+};
+
+extern struct dentry *mount_pseudo(struct file_system_type *, char *,
+	const struct super_operations *ops,
+	const struct dentry_operations *dops,
+	unsigned long);
+void kill_anon_super(struct super_block *sb);
+
+
+typedef struct files_struct *fl_owner_t;
+
+
 struct file_operations;
+
+#define address_space vm_object
+#define i_mapping v_bufobj.bo_object
+#define i_private v_data
+#define file_inode(f) ((f)->f_vnode)
+/* this value isn't needed by the compat layer */
+static inline void i_size_write(void *inode, off_t i_size) { ; }
+
 
 struct linux_file {
 	struct file	*_file;
@@ -79,8 +116,10 @@ struct linux_file {
 	struct selinfo	f_selinfo;
 	struct sigio	*f_sigio;
 	struct vnode	*f_vnode;
+	atomic_long_t		f_count;
+	vm_object_t	f_mapping;
 };
-
+#define f_inode		f_vnode
 #define	file		linux_file
 #define	fasync_struct	sigio *
 
@@ -151,6 +190,49 @@ struct file_operations {
 #define	FMODE_WRITE	FWRITE
 #define	FMODE_EXEC	FEXEC
 
+extern int __register_chrdev(unsigned int major, unsigned int baseminor,
+			     unsigned int count, const char *name,
+			     const struct file_operations *fops);
+extern int __register_chrdev_p(unsigned int major, unsigned int baseminor,
+			     unsigned int count, const char *name,
+			       const struct file_operations *fops, uid_t, gid_t, int);
+extern void __unregister_chrdev(unsigned int major, unsigned int baseminor,
+				unsigned int count, const char *name);
+
+static inline int register_chrdev(unsigned int major, const char *name,
+				  const struct file_operations *fops)
+{
+	return __register_chrdev(major, 0, 256, name, fops);
+}
+
+static inline int register_chrdev_p(unsigned int major, const char *name,
+				    const struct file_operations *fops, uid_t uid,
+				    gid_t gid, int mode)
+{
+	return __register_chrdev_p(major, 0, 256, name, fops, uid, gid, mode);
+}
+
+/* Alas, no aliases. Too much hassle with bringing module.h everywhere */
+#define fops_put(fops) \
+	do { if (fops) module_put((fops)->owner); } while(0)
+/*
+ * This one is to be used *ONLY* from ->open() instances.
+ * fops must be non-NULL, pinned down *and* module dependencies
+ * should be sufficient to pin the caller down as well.
+ */
+#define replace_fops(f, fops) \
+	do {	\
+		struct file *__file = (f); \
+		fops_put(__file->f_op); \
+		BUG_ON(!(__file->f_op = (fops))); \
+	} while(0)
+
+
+static inline void unregister_chrdev(unsigned int major, const char *name)
+{
+	__unregister_chrdev(major, 0, 256, name);
+}
+
 static inline int
 register_chrdev_region(dev_t dev, unsigned range, const char *name)
 {
@@ -206,10 +288,110 @@ iput(struct inode *inode)
 	vrele(inode);
 }
 
+static inline struct linux_file *
+get_file(struct linux_file *f)
+{
+	fhold(f->_file);
+	return (f);
+}
+
+extern loff_t default_llseek(struct file *file, loff_t offset, int whence);
+
 static inline loff_t 
 no_llseek(struct file *file, loff_t offset, int whence)
 {
         return -ESPIPE;
+}
+
+static inline loff_t 
+noop_llseek(struct file *file, loff_t offset, int whence)
+{
+        return file->_file->f_offset;
+}
+
+
+unsigned long invalidate_mapping_pages(struct address_space *mapping,
+					pgoff_t start, pgoff_t end);
+
+struct page *shmem_read_mapping_page_gfp(struct address_space *as, int idx, gfp_t gfp);
+static inline struct page *
+shmem_read_mapping_page(struct address_space *as, int idx)
+{
+
+	return (shmem_read_mapping_page_gfp(as, idx, 0));
+}
+
+extern struct linux_file *shmem_file_setup(char *name, int size, int flags);
+
+static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask) {}
+static inline gfp_t mapping_gfp_mask(struct address_space *m)
+{
+	return (0);
+}
+void shmem_truncate_range(struct vnode *, loff_t, loff_t);
+/*
+  void shmem_truncate_range(struct vnode *, int, loff_t) =>
+  	vm_obj = obj->base.i_mapping.vm_obj;
+	VM_OBJECT_WLOCK(vm_obj);
+	vm_object_page_remove(vm_obj, 0, 0, false);
+	VM_OBJECT_WUNLOCK(vm_obj);
+ */
+
+extern loff_t generic_file_llseek(struct file *file, loff_t offset, int whence);
+
+extern struct inode *alloc_anon_inode(struct super_block *);
+
+
+struct simple_attr {
+	int (*get)(void *, u64 *);
+	int (*set)(void *, u64);
+	char get_buf[24];	/* enough to store a u64 and "\n\0" */
+	char set_buf[24];
+	void *data;
+	const char *fmt;	/* format for read operation */
+	struct mutex mutex;	/* protects access to these buffers */
+};
+
+
+
+extern ssize_t simple_read_from_buffer(void __user *to, size_t count,
+			loff_t *ppos, const void *from, size_t available);
+extern ssize_t simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
+		const void __user *from, size_t count);
+extern int simple_statfs(struct dentry *, struct kstatfs *);
+extern int simple_pin_fs(struct file_system_type *, struct vfsmount **mount, int *count);
+extern void simple_release_fs(struct vfsmount **mount, int *count);
+
+
+static inline __printf(1, 2)
+void __simple_attr_check_format(const char *fmt, ...)
+{
+	/* don't do anything, just let the compiler check the arguments; */
+}
+
+int simple_attr_open(struct inode *inode, struct file *file,
+		     int (*get)(void *, u64 *), int (*set)(void *, u64),
+		     const char *fmt);
+int simple_attr_release(struct inode *inode, struct file *file);
+ssize_t simple_attr_read(struct file *file, char __user *buf,
+			 size_t len, loff_t *ppos);
+ssize_t simple_attr_write(struct file *file, const char __user *buf,
+			  size_t len, loff_t *ppos);
+
+
+#define DEFINE_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt)		\
+static int __fops ## _open(struct inode *inode, struct file *file)	\
+{									\
+	__simple_attr_check_format(__fmt, 0ull);			\
+	return simple_attr_open(inode, file, __get, __set, __fmt);	\
+}									\
+static const struct file_operations __fops = {				\
+	.owner	 = THIS_MODULE,						\
+	.open	 = __fops ## _open,					\
+	.release = simple_attr_release,					\
+	.read	 = simple_attr_read,					\
+	.write	 = simple_attr_write,					\
+	.llseek	 = generic_file_llseek,					\
 }
 
 #endif /* _LINUX_FS_H_ */

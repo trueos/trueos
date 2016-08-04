@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-KMOD=	radeonkmsfw_CAICOS_pfp
+KMOD=	radeon_CAICOS_pfp_bin
+NAME=	radeon/CAICOS_pfp.bin
 IMG=	CAICOS_pfp
 
 .include <bsd.kmod.mk>

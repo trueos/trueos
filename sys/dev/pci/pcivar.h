@@ -174,7 +174,7 @@ struct pcicfg_ea {
 
 /* config header information common to all header types */
 typedef struct pcicfg {
-    struct device *dev;		/* device which owns this */
+    device_t	dev;		/* device which owns this */
 
     STAILQ_HEAD(, pci_map) maps; /* BARs */
 
@@ -574,7 +574,7 @@ pci_child_added(device_t dev)
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_dbsf(uint32_t, uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
-device_t pci_find_class(uint8_t class, uint8_t subclass);
+device_t pci_find_class(uint8_t class, uint8_t subclass, device_t dev);
 
 /* Can be used by drivers to manage the MSI-X table. */
 int	pci_pending_msix(device_t dev, u_int index);

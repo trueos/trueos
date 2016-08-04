@@ -23,14 +23,13 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/drm_edid.h>
-#include <dev/drm2/i915/intel_drv.h>
-#include <dev/drm2/i915/i915_drv.h>
-#include <dev/iicbus/iiconf.h>
+#include <linux/slab.h>
+#include <linux/i2c.h>
+#include <linux/fb.h>
+#include <drm/drm_edid.h>
+#include <drm/drmP.h>
+#include "intel_drv.h"
+#include "i915_drv.h"
 
 /**
  * intel_connector_update_modes - update connector from edid
@@ -57,7 +56,7 @@ int intel_connector_update_modes(struct drm_connector *connector,
  * Fetch the EDID information from @connector using the DDC bus.
  */
 int intel_ddc_get_modes(struct drm_connector *connector,
-			device_t adapter)
+			struct i2c_adapter *adapter)
 {
 	struct edid *edid;
 	int ret;
@@ -67,7 +66,7 @@ int intel_ddc_get_modes(struct drm_connector *connector,
 		return 0;
 
 	ret = intel_connector_update_modes(connector, edid);
-	free(edid, DRM_MEM_KMS);
+	kfree(edid);
 
 	return ret;
 }
@@ -101,8 +100,9 @@ intel_attach_force_audio_property(struct drm_connector *connector)
 }
 
 static const struct drm_prop_enum_list broadcast_rgb_names[] = {
-	{ 0, "Full" },
-	{ 1, "Limited 16:235" },
+	{ INTEL_BROADCAST_RGB_AUTO, "Automatic" },
+	{ INTEL_BROADCAST_RGB_FULL, "Full" },
+	{ INTEL_BROADCAST_RGB_LIMITED, "Limited 16:235" },
 };
 
 void
@@ -125,4 +125,13 @@ intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 	}
 
 	drm_object_attach_property(&connector->base, prop, 0);
+}
+
+void
+intel_attach_aspect_ratio_property(struct drm_connector *connector)
+{
+	if (!drm_mode_create_aspect_ratio_property(connector->dev))
+		drm_object_attach_property(&connector->base,
+			connector->dev->mode_config.aspect_ratio_property,
+			DRM_MODE_PICTURE_ASPECT_NONE);
 }

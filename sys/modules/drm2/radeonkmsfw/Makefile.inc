@@ -7,7 +7,7 @@ _FIRM=	${IMG}.bin
 
 CLEANFILES+=	${_FIRM}
 
-FIRMWS=	${_FIRM}:${KMOD}
+FIRMWS=	${_FIRM}:${NAME}
 
 #
 # Note that a license ack is not needed for iwn.

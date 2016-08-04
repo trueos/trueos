@@ -35,8 +35,12 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
 #include <linux/compiler.h>
 #include <asm/types.h>
+
+#include <ck_epoch.h>
+
 
 #ifndef __bitwise__
 #ifdef __CHECKER__
@@ -62,5 +66,26 @@ typedef u64 phys_addr_t;
 
 #define	DECLARE_BITMAP(n, bits)						\
 	unsigned long n[howmany(bits, sizeof(long) * 8)]
+
+typedef unsigned long irq_hw_number_t;
+
+typedef struct {
+	int counter;
+} atomic_t;
+
+#define pgoff_t unsigned long
+
+struct callback_head {
+	struct callback_head *next;
+	void (*func)(struct callback_head *head);
+	ck_epoch_record_t *epoch_record;
+	ck_epoch_entry_t epoch_entry;
+	struct task task;
+} __attribute__((aligned(sizeof(void *))));
+#define rcu_head callback_head
+
+typedef void (*rcu_callback_t)(struct rcu_head *head);
+typedef void (*call_rcu_func_t)(struct rcu_head *head, rcu_callback_t func);
+
 
 #endif	/* _LINUX_TYPES_H_ */

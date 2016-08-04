@@ -89,6 +89,7 @@ pfs_fileno_alloc(struct pfs_node *pn)
 		pn->pn_fileno = 2;
 		break;
 	case pfstype_dir:
+	case pfstype_dyndir:
 	case pfstype_file:
 	case pfstype_symlink:
 	case pfstype_procdir:
@@ -142,6 +143,7 @@ pfs_fileno_free(struct pfs_node *pn)
 		/* not allocated from unrhdr */
 		return;
 	case pfstype_dir:
+	case pfstype_dyndir:
 	case pfstype_file:
 	case pfstype_symlink:
 	case pfstype_procdir:

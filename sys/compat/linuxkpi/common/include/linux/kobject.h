@@ -33,20 +33,56 @@
 
 #include <machine/stdarg.h>
 
-#include <linux/kernel.h>
+#include <linux/types.h>
+#include <linux/list.h>
+#include <linux/sysfs.h>
+#include <linux/compiler.h>
+#include <linux/spinlock.h>
 #include <linux/kref.h>
-#include <linux/slab.h>
+#include <linux/kobject_ns.h>
+#include <linux/kernel.h>
+#include <linux/wait.h>
+#include <linux/atomic.h>
+#include <linux/workqueue.h>
 
 struct kobject;
 struct sysctl_oid;
+struct pfs_node;
+
+enum kobject_action {
+	KOBJ_ADD,
+	KOBJ_REMOVE,
+	KOBJ_CHANGE,
+	KOBJ_MOVE,
+	KOBJ_ONLINE,
+	KOBJ_OFFLINE,
+	KOBJ_MAX
+};
+
+enum kobj_ns_type {
+	KOBJ_NS_TYPE_NONE = 0,
+	KOBJ_NS_TYPE_NET,
+	KOBJ_NS_TYPES
+};
+
+struct kobj_ns_type_operations {
+	enum kobj_ns_type type;
+	bool (*current_may_mount)(void);
+	void *(*grab_current_ns)(void);
+	const void *(*initial_ns)(void);
+	void (*drop_ns)(void *);
+};
 
 struct kobj_type {
 	void (*release)(struct kobject *kobj);
 	const struct sysfs_ops *sysfs_ops;
 	struct attribute **default_attrs;
+	const struct kobj_ns_type_operations *(*child_ns_type)(struct kobject *kobj);
+	const void *(*namespace)(struct kobject *kobj);	
 };
 
 extern const struct kobj_type linux_kfree_type;
+
 
 struct kobject {
 	struct kobject		*parent;
@@ -55,15 +91,16 @@ struct kobject {
 	const struct kobj_type	*ktype;
 	struct list_head	entry;
 	struct sysctl_oid	*oidp;
+	struct pfs_node		*sd;
+	unsigned int state_initialized:1;
+	unsigned int state_in_sysfs:1;
+	unsigned int state_add_uevent_sent:1;
+	unsigned int state_remove_uevent_sent:1;
+	unsigned int uevent_suppress:1;	
 };
 
 extern struct kobject *mm_kobj;
 
-struct attribute {
-	const char 	*name;
-	struct module	*owner;
-	mode_t		mode;
-};
 
 struct kobj_attribute {
         struct attribute attr;
@@ -73,6 +110,23 @@ struct kobj_attribute {
                          const char *buf, size_t count);
 };
 
+static inline const struct kobj_ns_type_operations *
+kobj_child_ns_ops(struct kobject *parent)
+{
+	const struct kobj_ns_type_operations *ops = NULL;
+
+	if (parent && parent->ktype && parent->ktype->child_ns_type)
+		ops = parent->ktype->child_ns_type(parent);
+
+	return ops;
+}
+
+static inline const struct kobj_ns_type_operations *
+kobj_ns_ops(struct kobject *kobj)
+{
+	return kobj_child_ns_ops(kobj->parent);
+}
+
 static inline void
 kobject_init(struct kobject *kobj, const struct kobj_type *ktype)
 {
@@ -81,6 +135,7 @@ kobject_init(struct kobject *kobj, const struct kobj_type *ktype)
 	INIT_LIST_HEAD(&kobj->entry);
 	kobj->ktype = ktype;
 	kobj->oidp = NULL;
+	kobj->state_in_sysfs = 0;
 }
 
 void linux_kobject_release(struct kref *kref);
@@ -144,5 +199,20 @@ kobject_name(const struct kobject *kobj)
 int	kobject_set_name(struct kobject *kobj, const char *fmt, ...);
 int	kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 	    struct kobject *parent, const char *fmt, ...);
+
+static inline void
+kobject_del(struct kobject *kobj)
+{
+	if (!kobj)
+		return;
+	sysfs_remove_dir(kobj);
+	kobj->state_in_sysfs = 0;
+	/* list removal? */
+	kobject_put(kobj->parent);
+	kobj->parent = NULL;
+}
+
+static inline void
+kobject_uevent_env(struct kobject *kobj, enum kobject_action action, char *envp_ext[]) {}
 
 #endif /* _LINUX_KOBJECT_H_ */

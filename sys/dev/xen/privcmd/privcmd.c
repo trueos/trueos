@@ -90,7 +90,7 @@ static int privcmd_pg_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred, u_short *color);
 static void privcmd_pg_dtor(void *handle);
 static int privcmd_pg_fault(vm_object_t object, vm_ooffset_t offset,
-    int prot, vm_page_t *mres);
+			    int prot, vm_page_t *mres);
 
 static struct cdev_pager_ops privcmd_pg_ops = {
 	.cdev_pg_fault = privcmd_pg_fault,
@@ -151,7 +151,7 @@ retry:
 
 static int
 privcmd_pg_fault(vm_object_t object, vm_ooffset_t offset,
-    int prot, vm_page_t *mres)
+		 int prot, vm_page_t *mres)
 {
 	struct privcmd_map *map = object->handle;
 	vm_pindex_t pidx;

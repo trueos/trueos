@@ -32,66 +32,67 @@
 #include <sys/lock.h>
 #include <sys/sx.h>
 
-extern struct sx linux_global_rcu_lock;
+#include <linux/bug.h>
+#include <linux/compiler.h>
+#include <linux/ktime.h>
 
-struct rcu_head {
-};
 
-typedef void (*rcu_callback_t)(struct rcu_head *);
+void call_rcu(struct rcu_head *ptr, rcu_callback_t func);
+void rcu_barrier(void);
+void __rcu_read_lock(void);
+void __rcu_read_unlock(void);
+void synchronize_rcu(void);
+
 
 static inline void
-call_rcu(struct rcu_head *ptr, rcu_callback_t func)
+kfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
-	sx_xlock(&linux_global_rcu_lock);
-	func(ptr);
-	sx_xunlock(&linux_global_rcu_lock);
+	call_rcu(head, func);
 }
 
 static inline void
 rcu_read_lock(void)
 {
-	sx_slock(&linux_global_rcu_lock);
+	__rcu_read_lock();
 }
 
 static inline void
 rcu_read_unlock(void)
 {
-	sx_sunlock(&linux_global_rcu_lock);
+	__rcu_read_unlock();
 }
 
-static inline void
-rcu_barrier(void)
-{
-	sx_xlock(&linux_global_rcu_lock);
-	sx_xunlock(&linux_global_rcu_lock);
-}
+#define __kfree_rcu(head, offset)		\
+	do { \
+		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
+	} while (0)
 
-static inline void
-synchronize_rcu(void)
-{
-	sx_xlock(&linux_global_rcu_lock);
-	sx_xunlock(&linux_global_rcu_lock);
-}
+#define kfree_rcu(ptr, rcu_head)					\
+	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
 
-#define	hlist_add_head_rcu(n, h)		\
-do {						\
-  	sx_xlock(&linux_global_rcu_lock);	\
-	hlist_add_head(n, h);			\
-	sx_xunlock(&linux_global_rcu_lock);	\
-} while (0)
+#define RCU_INIT_POINTER(p, v) p=(v)
 
-#define	hlist_del_init_rcu(n)			\
-do {						\
-    	sx_xlock(&linux_global_rcu_lock);	\
-	hlist_del_init(n);			\
-	sx_xunlock(&linux_global_rcu_lock);	\
-} while (0)
+#define __rcu_access_pointer(p) \
+({ \
+	((typeof(*p) __force __kernel *)(READ_ONCE(p)));	\
+})
 
-#define	hlist_del_rcu(n)			\
-do {						\
-    	sx_xlock(&linux_global_rcu_lock);	\
-	hlist_del(n);				\
-	sx_xunlock(&linux_global_rcu_lock);	\
-} while (0)
+#define rcu_access_pointer __rcu_access_pointer
+
+#define __rcu_dereference_protected(p, c, space) \
+({ \
+	((typeof(*p) __force __kernel *)(p)); \
+})
+
+#define rcu_dereference_protected(p, c) \
+	__rcu_dereference_protected((p), (c), __rcu)
+
+
+#define rcu_dereference(p) rcu_dereference_protected(p, 0)
+
+#define RCU_INITIALIZER(v) (typeof(*(v)) __force __rcu *)(v)
+#define smp_store_release(p, v) atomic_store_rel_ptr((volatile unsigned long *)(p), (unsigned long)v)
+#define rcu_assign_pointer(p, v) smp_store_release(&p, RCU_INITIALIZER(v))
+
 
 #endif					/* _LINUX_RCUPDATE_H_ */

@@ -1,0 +1,33 @@
+#!/bin/sh
+# $FreeBSD$
+
+set -e
+
+scriptdir=$(cd $(dirname $0) && pwd)
+fwdir=$scriptdir/../../../contrib/dev/drm2/amdgpukmsfw
+
+for dir in $scriptdir/*; do
+	if [ ! -d $dir ]; then
+		continue
+	fi
+	rm -rf $dir
+done
+
+for file in $fwdir/*.uu; do
+	base=$(basename $file)
+	img=${base%.bin.uu}
+        kmodname=amdgpu_$img"_bin"
+	name=amdgpu/$img".bin"
+	echo "Image: $img"
+
+	mkdir -p $scriptdir/$img
+	cat > $scriptdir/$img/Makefile <<EOF
+# \$FreeBSD$
+
+KMOD=	$kmodname
+NAME=	$name
+IMG=	$img
+
+.include <bsd.kmod.mk>
+EOF
+done

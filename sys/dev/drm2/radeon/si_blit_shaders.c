@@ -24,10 +24,9 @@
  *     Alex Deucher <alexander.deucher@amd.com>
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <dev/drm2/drmP.h>
+#include <linux/types.h>
+#include <linux/bug.h>
+#include <linux/kernel.h>
 
 const u32 si_default_state[] =
 {

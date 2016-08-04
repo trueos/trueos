@@ -38,6 +38,7 @@
 #ifndef _SYS_BUF_H_
 #define	_SYS_BUF_H_
 
+#include <sys/systm.h>
 #include <sys/bufobj.h>
 #include <sys/queue.h>
 #include <sys/lock.h>

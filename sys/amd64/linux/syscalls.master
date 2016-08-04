@@ -473,7 +473,7 @@
 281     AUE_NULL        STD     { int linux_epoll_pwait(l_int epfd, struct epoll_event *events, \
                                         l_int maxevents, l_int timeout, l_sigset_t *mask); }
 282	AUE_NULL	STD	{ int linux_signalfd(void); }
-283	AUE_NULL	STD	{ int linux_timerfd(void); }
+283	AUE_NULL	STD	{ int linux_timerfd_create(void); }
 284	AUE_NULL	STD	{ int linux_eventfd(l_uint initval); }
 285	AUE_NULL	STD	{ int linux_fallocate(l_int fd, l_int mode, \
 				    l_loff_t offset, l_loff_t len); }
@@ -507,9 +507,10 @@
 				    struct l_mmsghdr *msg, l_uint vlen,		\
 				    l_uint flags); }
 308	AUE_NULL	STD	{ int linux_setns(void); }
-309	AUE_NULL	STD	{ int linux_process_vm_readv(void); }
-310	AUE_NULL	STD	{ int linux_process_vm_writev(void); }
-311	AUE_NULL	STD	{ int linux_kcmp(void); }
-312	AUE_NULL	STD	{ int linux_finit_module(void); }
+309	AUE_NULL	STD	{ int linux_getcpu(void); }
+310	AUE_NULL	STD	{ int linux_process_vm_readv(void); }
+311	AUE_NULL	STD	{ int linux_process_vm_writev(void); }
+312	AUE_NULL	STD	{ int linux_kcmp(void); }
+313	AUE_NULL	STD	{ int linux_finit_module(void); }
 ; please, keep this line at the end.
-313	AUE_NULL	UNIMPL	nosys
+314	AUE_NULL	UNIMPL	nosys

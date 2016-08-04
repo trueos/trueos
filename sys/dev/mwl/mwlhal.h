@@ -32,6 +32,7 @@
 
 #ifndef _MWL_HAL_H_
 #define	_MWL_HAL_H_
+#include <sys/bus.h>
 /*
  * Hardware Access Layer for Marvell Wireless Devices.
  */

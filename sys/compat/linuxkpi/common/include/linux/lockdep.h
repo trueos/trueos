@@ -30,6 +30,7 @@
  */
 #ifndef	_LINUX_LOCKDEP_H_
 #define	_LINUX_LOCKDEP_H_
+#include <linux/list.h>
 
 struct lock_class_key {
 };
@@ -37,5 +38,16 @@ struct lock_class_key {
 #define lockdep_set_class(lock, key)
 
 #define lockdep_set_class_and_name(lock, key, name)
+
+#define might_lock(lock) do { } while (0)
+#define might_lock_read(lock) do { } while (0)
+
+#define lockdep_assert_held_once(m) sx_assert(&(m)->sx, SA_XLOCKED | SA_NOTRECURSED)
+#define lockdep_assert_held(m)
+
+/* XXX */
+#define lockdep_is_held(m) 
+
+#define task_pid_nr(task) ((task)->task_thread->td_tid)
 
 #endif  /* _LINUX_LOCKDEP_H_ */

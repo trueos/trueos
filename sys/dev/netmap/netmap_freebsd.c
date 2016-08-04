@@ -492,7 +492,7 @@ netmap_dev_pager_dtor(void *handle)
 
 static int
 netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
-	int prot, vm_page_t *mres)
+    int prot, vm_page_t *mres)
 {
 	struct netmap_vm_handle_t *vmh = object->handle;
 	struct netmap_priv_d *priv = vmh->priv;

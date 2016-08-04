@@ -332,6 +332,7 @@ struct pmap {
 typedef struct pmap	*pmap_t;
 
 #ifdef _KERNEL
+extern int pat_works;
 extern struct pmap	kernel_pmap_store;
 #define kernel_pmap	(&kernel_pmap_store)
 

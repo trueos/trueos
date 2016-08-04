@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <vm/uma.h>
 
 #include <linux/types.h>
@@ -41,11 +42,9 @@
 
 MALLOC_DECLARE(M_KMALLOC);
 
-#define	kmalloc(size, flags)		malloc((size), M_KMALLOC, (flags))
 #define	kvmalloc(size)			kmalloc((size), 0)
-#define	kzalloc(size, flags)		kmalloc((size), (flags) | M_ZERO)
+#define	kzalloc(size, flags)		kmalloc((size), M_ZERO |((flags) ? (flags) : M_NOWAIT)) 
 #define	kzalloc_node(size, flags, node)	kzalloc(size, flags)
-#define	kfree(ptr)			free(__DECONST(void *, (ptr)), M_KMALLOC)
 #define	kfree_const(ptr)		kfree(ptr)
 #define	krealloc(ptr, size, flags)	realloc((ptr), (size), M_KMALLOC, (flags))
 #define	kcalloc(n, size, flags)	        kmalloc((n) * (size), flags | M_ZERO)
@@ -54,6 +53,15 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	kvfree(arg)			kfree(arg)
 #define	vmalloc(size)                   kmalloc(size, GFP_KERNEL)
 #define	vmalloc_node(size, node)        kmalloc(size, GFP_KERNEL)
+#define	vmalloc_user(size)              kmalloc(size, GFP_KERNEL | __GFP_ZERO)
+#define __kmalloc			kmalloc
+
+/**
+ * kmalloc_array - allocate memory for an array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
 
 struct kmem_cache {
 	uma_zone_t	cache_zone;
@@ -61,6 +69,44 @@ struct kmem_cache {
 };
 
 #define	SLAB_HWCACHE_ALIGN	0x0001
+
+void *kmalloc_cached(int size, gfp_t flags);
+void kfree_cached(void *ptr);
+
+static inline void *
+kmalloc(int size, gfp_t flags)
+{
+	void *ptr;
+
+	if (__predict_false(curthread->td_intr_nesting_level))
+		ptr = kmalloc_cached(size, flags);
+	else
+		ptr = malloc(size, M_KMALLOC, flags ? flags : M_NOWAIT);
+
+	return (ptr);
+}
+
+
+static inline void *
+kmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+	if (size != 0 && n > SIZE_MAX / size)
+		return NULL;
+	return kmalloc(n * size, flags);
+}
+
+
+static inline void
+kfree(const void *ptr)
+{
+	struct thread *td = curthread;
+
+	if (__predict_false((ptr && ((((uintptr_t)ptr) & (PAGE_SIZE-1)) == 0)) ||
+			    td->td_intr_nesting_level || td->td_critnest))
+		kfree_cached(__DECONST(void *, ptr));
+	else
+		free(__DECONST(void *, ptr), M_KMALLOC);
+}
 
 static inline int
 kmem_ctor(void *mem, int size, void *arg, int flags)
@@ -94,7 +140,13 @@ kmem_cache_create(char *name, size_t size, size_t align, u_long flags,
 static inline void *
 kmem_cache_alloc(struct kmem_cache *c, int flags)
 {
-	return uma_zalloc_arg(c->cache_zone, c->cache_ctor, flags);
+	return uma_zalloc_arg(c->cache_zone, c->cache_ctor, (flags ? flags : M_NOWAIT));
+}
+
+static inline void *
+kmem_cache_zalloc(struct kmem_cache *c, int flags)
+{
+	return uma_zalloc_arg(c->cache_zone, c->cache_ctor, (flags ? flags : M_NOWAIT) |M_ZERO);
 }
 
 static inline void

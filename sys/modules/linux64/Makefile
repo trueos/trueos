@@ -7,7 +7,7 @@ VDSO=	linux_vdso
 KMOD=	linux64
 SRCS=	linux_fork.c linux_dummy.c linux_file.c linux_event.c \
 	linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
-	linux_machdep.c linux_misc.c linux_signal.c \
+	linux_machdep.c linux_misc.c linux_ptrace.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux_sysent.c \
 	linux_sysvec.c linux_time.c linux_vdso.c linux_timer.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h \
@@ -16,7 +16,10 @@ SRCS=	linux_fork.c linux_dummy.c linux_file.c linux_event.c \
 DPSRCS=	linux_genassym.c
 
 # XXX: for assym.s
-SRCS+=  opt_kstack_pages.h opt_nfs.h opt_apic.h opt_hwpmc_hooks.h
+SRCS+=  opt_kstack_pages.h opt_nfs.h opt_hwpmc_hooks.h
+.if ${MACHINE_CPUARCH} == "i386"
+SRCS+=	opt_apic.h
+.endif
 
 CLEANFILES=	linux_assym.h linux_genassym.o linux_locore.o
 

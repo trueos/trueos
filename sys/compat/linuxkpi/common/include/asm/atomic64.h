@@ -32,9 +32,12 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 
+
 typedef struct {
 	volatile int64_t counter;
 } atomic64_t;
+
+#define	ATOMIC64_INIT(x)	{ .counter = (x) }
 
 /*------------------------------------------------------------------------*
  *	64-bit atomic operations

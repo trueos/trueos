@@ -151,21 +151,7 @@ int fbd_list(void);
 int fbd_register(struct fb_info *);
 int fbd_unregister(struct fb_info *);
 
-static inline int
-register_framebuffer(struct fb_info *info)
-{
 
-	EVENTHANDLER_INVOKE(register_framebuffer, info);
-	return (0);
-}
-
-static inline int
-unregister_framebuffer(struct fb_info *info)
-{
-
-	EVENTHANDLER_INVOKE(unregister_framebuffer, info);
-	return (0);
-}
 #endif
 
 #ifdef notdef

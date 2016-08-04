@@ -34,11 +34,13 @@
 
 #include <linux/page.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 
 struct scatterlist {
 	union {
 		struct page *page;
 		struct scatterlist *sg;
+		unsigned long page_link;
 	}	sl_un;
 	dma_addr_t address;
 	unsigned long offset;
@@ -56,9 +58,17 @@ struct sg_page_iter {
 	struct scatterlist *sg;
 	unsigned int sg_pgoffset;
 	unsigned int maxents;
+	unsigned int		__nents;	
+	int			__pg_advance;
 };
 
 #define	SG_MAX_SINGLE_ALLOC	(PAGE_SIZE / sizeof(struct scatterlist))
+
+
+#define sg_is_chain(sg)		((sg)->sl_un.page_link & 0x01)
+#define sg_is_last(sg)		((sg)->sl_un.page_link & 0x02)
+#define sg_chain_ptr(sg)	\
+	((struct scatterlist *) ((sg)->sl_un.page_link & ~0x03))
 
 #define	sg_dma_address(sg)	(sg)->address
 #define	sg_dma_len(sg)		(sg)->length
@@ -67,6 +77,13 @@ struct sg_page_iter {
 
 #define	SG_END		0x01
 #define	SG_CHAIN	0x02
+
+#define	for_each_sg_page(sgl, iter, nents, pgoffset)			\
+	for (_sg_iter_init(sgl, iter, nents, pgoffset);			\
+	     (iter)->sg; _sg_iter_next(iter))
+
+#define	for_each_sg(sglist, sg, sgmax, _itr)				\
+	for (_itr = 0, sg = (sglist); _itr < (sgmax); _itr++, sg = sg_next(sg))
 
 static inline void
 sg_set_page(struct scatterlist *sg, struct page *page, unsigned int len,
@@ -226,6 +243,67 @@ sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
 	return ret;
 }
 
+
+
+static inline int
+sg_alloc_table_from_pages(struct sg_table *sgt,
+	struct page **pages, unsigned int count,
+	unsigned long off, unsigned long size,
+	gfp_t gfp_mask)
+{
+	unsigned int i, segs, cur;
+	int rc;
+	struct scatterlist *s;
+
+	for (segs = i = 1; i < count; ++i) {
+		if (page_to_pfn(pages[i]) != page_to_pfn(pages[i - 1]) + 1)
+			++segs;
+	}
+	if (__predict_false((rc = sg_alloc_table(sgt, segs, gfp_mask))))
+		return (rc);
+
+	cur = 0;
+	for_each_sg(sgt->sgl, s, sgt->orig_nents, i) {
+		unsigned long seg_size;
+		unsigned int j;
+
+		for (j = cur + 1; j < count; ++j)
+			if (page_to_pfn(pages[j]) !=
+			    page_to_pfn(pages[j - 1]) + 1)
+				break;
+
+		seg_size = ((j - cur) << PAGE_SHIFT) - off;
+		sg_set_page(s, pages[cur], min(size, seg_size), off);
+		size -= seg_size;
+		off = 0;
+		cur = j;
+	}
+
+	return (0);
+}
+
+
+static inline int
+sg_nents(struct scatterlist *sg)
+{
+	int nents;
+	for (nents = 0; sg; sg = sg_next(sg))
+		nents++;
+	return nents;
+}
+
+static inline void
+__sg_page_iter_start(struct sg_page_iter *piter,
+			  struct scatterlist *sglist, unsigned int nents,
+			  unsigned long pgoffset)
+{
+	piter->__pg_advance = 0;
+	piter->__nents = nents;
+
+	piter->sg = sglist;
+	piter->sg_pgoffset = pgoffset;
+}
+
 static inline void
 _sg_iter_next(struct sg_page_iter *iter)
 {
@@ -245,6 +323,34 @@ _sg_iter_next(struct sg_page_iter *iter)
 		pgcount = (sg->offset + sg->length + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	}
 	iter->sg = sg;
+}
+
+static inline int
+sg_page_count(struct scatterlist *sg)
+{
+	return PAGE_ALIGN(sg->offset + sg->length) >> PAGE_SHIFT;
+}
+
+static inline bool
+__sg_page_iter_next(struct sg_page_iter *piter)
+{
+	if (piter->__nents == 0)
+		return (false);
+	if (piter->sg == NULL)
+		return (false);
+
+	piter->sg_pgoffset += piter->__pg_advance;
+	piter->__pg_advance = 1;
+
+	while (piter->sg_pgoffset >= sg_page_count(piter->sg)) {
+		piter->sg_pgoffset -= sg_page_count(piter->sg);
+		piter->sg = sg_next(piter->sg);
+		if (--piter->__nents == 0) 
+			return (false);
+		if (piter->sg == NULL)
+			return (false);
+	}
+	return (true);
 }
 
 static inline void
@@ -269,11 +375,102 @@ sg_page_iter_dma_address(struct sg_page_iter *spi)
 	return spi->sg->address + (spi->sg_pgoffset << PAGE_SHIFT);
 }
 
-#define	for_each_sg_page(sgl, iter, nents, pgoffset)			\
-	for (_sg_iter_init(sgl, iter, nents, pgoffset);			\
-	     (iter)->sg; _sg_iter_next(iter))
+static inline struct page *sg_page_iter_page(struct sg_page_iter *piter)
+{
+	return nth_page(sg_page(piter->sg), piter->sg_pgoffset);
+}
 
-#define	for_each_sg(sglist, sg, sgmax, _itr)				\
-	for (_itr = 0, sg = (sglist); _itr < (sgmax); _itr++, sg = sg_next(sg))
+/*
+ *
+ * XXX please review these
+ */
+static inline size_t
+sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
+		      const void *buf, size_t buflen, off_t skip)
+{
+	off_t off;
+	int len, curlen, curoff;
+	struct sg_page_iter iter;
+	struct scatterlist *sg;
+	struct page *page;
+	void *vaddr;
+
+	off = 0;
+	for_each_sg_page(sgl, &iter, nents, 0) {
+		sg = iter.sg;
+		curlen = sg->length;
+		curoff = sg->offset;
+		if (skip && curlen >= skip) {
+			skip -= curlen;
+			continue;
+		}
+		if (skip) {
+			curlen -= skip;
+			curoff += skip;
+			skip = 0;
+		}
+		len = min(curlen, buflen - off);
+		page = sg_page_iter_page(&iter);
+		vaddr = kmap(page) + sg->offset;
+		memcpy(vaddr, buf + off, len);
+		off += len;
+		kunmap(page);
+	}
+
+	return (off);
+}
+
+
+static inline size_t
+sg_copy_from_buffer(struct scatterlist *sgl, unsigned int nents,
+		     const void *buf, size_t buflen)
+{
+	return (sg_pcopy_from_buffer(sgl, nents, buf, buflen, 0));
+}
+
+static inline size_t
+sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
+		   void *buf, size_t buflen, off_t skip)
+{
+	off_t off;
+	int len, curlen, curoff;
+	struct sg_page_iter iter;
+	struct scatterlist *sg;
+	struct page *page;
+	void *vaddr;
+
+	off = 0;
+	for_each_sg_page(sgl, &iter, nents, 0) {
+		sg = iter.sg;
+		curlen = sg->length;
+		curoff = sg->offset;
+		if (skip && curlen >= skip) {
+			skip -= curlen;
+			continue;
+		}
+		if (skip) {
+			curlen -= skip;
+			curoff += skip;
+			skip = 0;
+		}
+		len = min(curlen, buflen - off);
+		page = sg_page_iter_page(&iter);
+		vaddr = kmap(page) + sg->offset;
+		memcpy(buf + off, vaddr, len);
+		off += len;
+		kunmap(page);
+	}
+
+	return (off);
+}
+
+static inline size_t
+sg_copy_to_buffer(struct scatterlist *sgl, unsigned int nents,
+		  void *buf, size_t buflen)
+{
+
+	return (sg_pcopy_to_buffer(sgl, nents, buf, buflen, 0));
+}
+
 
 #endif					/* _LINUX_SCATTERLIST_H_ */

@@ -27,72 +27,78 @@
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
-/*
- * Copyright (c) 2013 The FreeBSD Foundation
- * All rights reserved.
- *
- * Portions of this software were developed by Konstantin Belousov
- * <kib@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
- */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#define pr_fmt(fmt) "[TTM] " fmt
 
-#include <dev/drm2/drmP.h>
-#include <dev/drm2/ttm/ttm_module.h>
-#include <dev/drm2/ttm/ttm_bo_driver.h>
-#include <dev/drm2/ttm/ttm_placement.h>
-#include <dev/drm2/ttm/ttm_page_alloc.h>
+#include <linux/sched.h>
+#include <linux/highmem.h>
+#include <linux/pagemap.h>
+#include <linux/shmem_fs.h>
+#include <linux/file.h>
+#include <linux/swap.h>
+#include <linux/slab.h>
+#include <linux/export.h>
+#include <drm/drm_cache.h>
+#include <drm/drm_mem_util.h>
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_page_alloc.h>
 
-MALLOC_DEFINE(M_TTM_PD, "ttm_pd", "TTM Page Directories");
+#define file linux_file
 
 /**
  * Allocates storage for pointers to the pages that back the ttm.
  */
 static void ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	ttm->pages = malloc(ttm->num_pages * sizeof(void *),
-	    M_TTM_PD, M_WAITOK | M_ZERO);
+	ttm->pages = drm_calloc_large(ttm->num_pages, sizeof(void*));
 }
 
 static void ttm_dma_tt_alloc_page_directory(struct ttm_dma_tt *ttm)
 {
-	ttm->ttm.pages = malloc(ttm->ttm.num_pages * sizeof(void *),
-	    M_TTM_PD, M_WAITOK | M_ZERO);
-	ttm->dma_address = malloc(ttm->ttm.num_pages *
-	    sizeof(*ttm->dma_address), M_TTM_PD, M_WAITOK);
+	ttm->ttm.pages = drm_calloc_large(ttm->ttm.num_pages,
+					  sizeof(*ttm->ttm.pages) +
+					  sizeof(*ttm->dma_address) +
+					  sizeof(*ttm->cpu_address));
+	ttm->cpu_address = (void *) (ttm->ttm.pages + ttm->ttm.num_pages);
+	ttm->dma_address = (void *) (ttm->cpu_address + ttm->ttm.num_pages);
 }
 
-#if defined(__i386__) || defined(__amd64__)
-static inline int ttm_tt_set_page_caching(vm_page_t p,
+#ifdef CONFIG_X86
+static inline int ttm_tt_set_page_caching(struct page *p,
 					  enum ttm_caching_state c_old,
 					  enum ttm_caching_state c_new)
 {
+	int ret = 0;
 
-	/* XXXKIB our VM does not need this. */
-#if 0
+	if (PageHighMem(p))
+		return 0;
+
 	if (c_old != tt_cached) {
 		/* p isn't in the default caching state, set it to
 		 * writeback first to free its current memtype. */
-		pmap_page_set_memattr(p, VM_MEMATTR_WRITE_BACK);
+
+		ret = set_pages_wb(p, 1);
+		if (ret)
+			return ret;
 	}
-#endif
 
 	if (c_new == tt_wc)
-		pmap_page_set_memattr(p, VM_MEMATTR_WRITE_COMBINING);
+		ret = set_memory_wc((unsigned long) page_address(p), 1);
 	else if (c_new == tt_uncached)
-		pmap_page_set_memattr(p, VM_MEMATTR_UNCACHEABLE);
+		ret = set_pages_uc(p, 1);
 
-	return (0);
+	return ret;
 }
-#else
-static inline int ttm_tt_set_page_caching(vm_page_t p,
+#else /* CONFIG_X86 */
+static inline int ttm_tt_set_page_caching(struct page *p,
 					  enum ttm_caching_state c_old,
 					  enum ttm_caching_state c_new)
 {
 	return 0;
 }
-#endif
+#endif /* CONFIG_X86 */
 
 /*
  * Change caching policy for the linear kernel map
@@ -103,7 +109,7 @@ static int ttm_tt_set_caching(struct ttm_tt *ttm,
 			      enum ttm_caching_state c_state)
 {
 	int i, j;
-	vm_page_t cur_page;
+	struct page *cur_page;
 	int ret;
 
 	if (ttm->caching_state == c_state)
@@ -136,7 +142,7 @@ static int ttm_tt_set_caching(struct ttm_tt *ttm,
 out_err:
 	for (j = 0; j < i; ++j) {
 		cur_page = ttm->pages[j];
-		if (cur_page != NULL) {
+		if (likely(cur_page != NULL)) {
 			(void)ttm_tt_set_page_caching(cur_page, c_state,
 						      ttm->caching_state);
 		}
@@ -158,6 +164,7 @@ int ttm_tt_set_placement_caching(struct ttm_tt *ttm, uint32_t placement)
 
 	return ttm_tt_set_caching(ttm, state);
 }
+EXPORT_SYMBOL(ttm_tt_set_placement_caching);
 
 void ttm_tt_destroy(struct ttm_tt *ttm)
 {
@@ -168,13 +175,12 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 		ttm_tt_unbind(ttm);
 	}
 
-	if (likely(ttm->pages != NULL)) {
-		ttm->bdev->driver->ttm_tt_unpopulate(ttm);
-	}
+	if (ttm->state == tt_unbound)
+		ttm_tt_unpopulate(ttm);
 
 	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP) &&
 	    ttm->swap_storage)
-		vm_object_deallocate(ttm->swap_storage);
+		fput(ttm->swap_storage);
 
 	ttm->swap_storage = NULL;
 	ttm->func->destroy(ttm);
@@ -182,7 +188,7 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
 		unsigned long size, uint32_t page_flags,
-		vm_page_t dummy_read_page)
+		struct page *dummy_read_page)
 {
 	ttm->bdev = bdev;
 	ttm->glob = bdev->glob;
@@ -196,21 +202,23 @@ int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
 	ttm_tt_alloc_page_directory(ttm);
 	if (!ttm->pages) {
 		ttm_tt_destroy(ttm);
-		printf("Failed allocating page table\n");
+		pr_err("Failed allocating page table\n");
 		return -ENOMEM;
 	}
 	return 0;
 }
+EXPORT_SYMBOL(ttm_tt_init);
 
 void ttm_tt_fini(struct ttm_tt *ttm)
 {
-	free(ttm->pages, M_TTM_PD);
+	drm_free_large(ttm->pages);
 	ttm->pages = NULL;
 }
+EXPORT_SYMBOL(ttm_tt_fini);
 
 int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
 		unsigned long size, uint32_t page_flags,
-		vm_page_t dummy_read_page)
+		struct page *dummy_read_page)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 
@@ -225,23 +233,25 @@ int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
 
 	INIT_LIST_HEAD(&ttm_dma->pages_list);
 	ttm_dma_tt_alloc_page_directory(ttm_dma);
-	if (!ttm->pages || !ttm_dma->dma_address) {
+	if (!ttm->pages) {
 		ttm_tt_destroy(ttm);
-		printf("Failed allocating page table\n");
+		pr_err("Failed allocating page table\n");
 		return -ENOMEM;
 	}
 	return 0;
 }
+EXPORT_SYMBOL(ttm_dma_tt_init);
 
 void ttm_dma_tt_fini(struct ttm_dma_tt *ttm_dma)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 
-	free(ttm->pages, M_TTM_PD);
+	drm_free_large(ttm->pages);
 	ttm->pages = NULL;
-	free(ttm_dma->dma_address, M_TTM_PD);
+	ttm_dma->cpu_address = NULL;
 	ttm_dma->dma_address = NULL;
 }
+EXPORT_SYMBOL(ttm_dma_tt_fini);
 
 void ttm_tt_unbind(struct ttm_tt *ttm)
 {
@@ -249,7 +259,7 @@ void ttm_tt_unbind(struct ttm_tt *ttm)
 
 	if (ttm->state == tt_bound) {
 		ret = ttm->func->unbind(ttm);
-		MPASS(ret == 0);
+		BUG_ON(ret);
 		ttm->state = tt_unbound;
 	}
 }
@@ -276,95 +286,121 @@ int ttm_tt_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 
 	return 0;
 }
+EXPORT_SYMBOL(ttm_tt_bind);
 
 int ttm_tt_swapin(struct ttm_tt *ttm)
 {
-	vm_object_t obj;
-	vm_page_t from_page, to_page;
-	int i, ret, rv;
+	struct address_space *swap_space;
+	struct file *swap_storage;
+	struct page *from_page;
+	struct page *to_page;
+	int i;
+	int ret = -ENOMEM;
 
-	obj = ttm->swap_storage;
+	swap_storage = ttm->swap_storage;
+	BUG_ON(swap_storage == NULL);
 
-	VM_OBJECT_WLOCK(obj);
-	vm_object_pip_add(obj, 1);
+	swap_space = file_inode(swap_storage)->i_mapping;
+
 	for (i = 0; i < ttm->num_pages; ++i) {
-		from_page = vm_page_grab(obj, i, VM_ALLOC_NORMAL);
-		if (from_page->valid != VM_PAGE_BITS_ALL) {
-			if (vm_pager_has_page(obj, i, NULL, NULL)) {
-				rv = vm_pager_get_pages(obj, &from_page, 1,
-				    NULL, NULL);
-				if (rv != VM_PAGER_OK) {
-					vm_page_lock(from_page);
-					vm_page_free(from_page);
-					vm_page_unlock(from_page);
-					ret = -EIO;
-					goto err_ret;
-				}
-			} else
-				vm_page_zero_invalid(from_page, TRUE);
+		from_page = shmem_read_mapping_page(swap_space, i);
+		if (IS_ERR(from_page)) {
+			ret = PTR_ERR(from_page);
+			goto out_err;
 		}
-		vm_page_xunbusy(from_page);
 		to_page = ttm->pages[i];
-		if (unlikely(to_page == NULL)) {
-			ret = -ENOMEM;
-			goto err_ret;
-		}
-		pmap_copy_page(from_page, to_page);
+		if (unlikely(to_page == NULL))
+			goto out_err;
+
+		copy_highpage(to_page, from_page);
+		put_page(from_page);
 	}
-	vm_object_pip_wakeup(obj);
-	VM_OBJECT_WUNLOCK(obj);
 
 	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP))
-		vm_object_deallocate(obj);
+		fput(swap_storage);
 	ttm->swap_storage = NULL;
 	ttm->page_flags &= ~TTM_PAGE_FLAG_SWAPPED;
-	return (0);
 
-err_ret:
-	vm_object_pip_wakeup(obj);
-	VM_OBJECT_WUNLOCK(obj);
-	return (ret);
+	return 0;
+out_err:
+	return ret;
 }
 
-int ttm_tt_swapout(struct ttm_tt *ttm, vm_object_t persistent_swap_storage)
+int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 {
-	vm_object_t obj;
-	vm_page_t from_page, to_page;
+	struct address_space *swap_space;
+	struct file *swap_storage;
+	struct page *from_page;
+	struct page *to_page;
 	int i;
+	int ret = -ENOMEM;
 
-	MPASS(ttm->state == tt_unbound || ttm->state == tt_unpopulated);
-	MPASS(ttm->caching_state == tt_cached);
+	BUG_ON(ttm->state != tt_unbound && ttm->state != tt_unpopulated);
+	BUG_ON(ttm->caching_state != tt_cached);
 
-	if (persistent_swap_storage == NULL) {
-		obj = vm_pager_allocate(OBJT_SWAP, NULL,
-		    IDX_TO_OFF(ttm->num_pages), VM_PROT_DEFAULT, 0,
-		    curthread->td_ucred);
-		if (obj == NULL) {
-			printf("[TTM] Failed allocating swap storage\n");
-			return (-ENOMEM);
+	if (!persistent_swap_storage) {
+		swap_storage = shmem_file_setup("ttm swap",
+						ttm->num_pages << PAGE_SHIFT,
+						0);
+		if (IS_ERR(swap_storage)) {
+			pr_err("Failed allocating swap storage\n");
+			return PTR_ERR(swap_storage);
 		}
 	} else
-		obj = persistent_swap_storage;
+		swap_storage = persistent_swap_storage;
 
-	VM_OBJECT_WLOCK(obj);
-	vm_object_pip_add(obj, 1);
+	swap_space = file_inode(swap_storage)->i_mapping;
+
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = ttm->pages[i];
 		if (unlikely(from_page == NULL))
 			continue;
-		to_page = vm_page_grab(obj, i, VM_ALLOC_NORMAL);
-		pmap_copy_page(from_page, to_page);
-		to_page->valid = VM_PAGE_BITS_ALL;
-		vm_page_dirty(to_page);
-		vm_page_xunbusy(to_page);
+		to_page = shmem_read_mapping_page(swap_space, i);
+		if (IS_ERR(to_page)) {
+			ret = PTR_ERR(to_page);
+			goto out_err;
+		}
+		copy_highpage(to_page, from_page);
+		set_page_dirty(to_page);
+		mark_page_accessed(to_page);
+		put_page(to_page);
 	}
-	vm_object_pip_wakeup(obj);
-	VM_OBJECT_WUNLOCK(obj);
 
-	ttm->bdev->driver->ttm_tt_unpopulate(ttm);
-	ttm->swap_storage = obj;
+	ttm_tt_unpopulate(ttm);
+	ttm->swap_storage = swap_storage;
 	ttm->page_flags |= TTM_PAGE_FLAG_SWAPPED;
-	if (persistent_swap_storage != NULL)
+	if (persistent_swap_storage)
 		ttm->page_flags |= TTM_PAGE_FLAG_PERSISTENT_SWAP;
-	return (0);
+
+	return 0;
+out_err:
+	if (!persistent_swap_storage)
+		fput(swap_storage);
+
+	return ret;
+}
+
+static void ttm_tt_clear_mapping(struct ttm_tt *ttm)
+{
+	pgoff_t i;
+	struct page **page = ttm->pages;
+
+	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
+		return;
+
+#ifdef notyet	
+	for (i = 0; i < ttm->num_pages; ++i) {
+		(*page)->mapping = NULL;
+		(*page++)->index = 0;
+	}
+#endif	
+}
+
+void ttm_tt_unpopulate(struct ttm_tt *ttm)
+{
+	if (ttm->state == tt_unpopulated)
+		return;
+
+	ttm_tt_clear_mapping(ttm);
+	ttm->bdev->driver->ttm_tt_unpopulate(ttm);
 }
