@@ -164,7 +164,7 @@ i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 {
 	trace_i915_gem_request_retire(request);
-	list_del_init(&request->list);
+	list_del_init(&request->link);
 
 	/* We know the GPU must have read the request to have
 	 * sent us the seqno + interrupt, so use the position
@@ -195,12 +195,12 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 
 	lockdep_assert_held(&req->i915->drm.struct_mutex);
 
-	if (list_empty(&req->list))
+	if (list_empty(&req->link))
 		return;
 
 	do {
 		tmp = list_first_entry(&engine->request_list,
-				       typeof(*tmp), list);
+				       typeof(*tmp), link);
 
 		i915_gem_request_retire(tmp);
 	} while (tmp != req);
@@ -321,7 +321,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 
 	/* Move the oldest request to the slab-cache (if not in use!) */
 	req = list_first_entry_or_null(&engine->request_list,
-				       typeof(*req), list);
+				       typeof(*req), link);
 	if (req && i915_gem_request_completed(req))
 		i915_gem_request_retire(req);
 
@@ -454,7 +454,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	request->emitted_jiffies = jiffies;
 	request->previous_seqno = engine->last_submitted_seqno;
 	smp_store_mb(engine->last_submitted_seqno, request->fence.seqno);
-	list_add_tail(&request->list, &engine->request_list);
+	list_add_tail(&request->link, &engine->request_list);
 
 	/* Record the position of the start of the request so that
 	 * should we detect the updated seqno part-way through the
@@ -574,7 +574,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 
 	might_sleep();
 
-	if (list_empty(&req->list))
+	if (list_empty(&req->link))
 		return 0;
 
 	if (i915_gem_request_completed(req))
