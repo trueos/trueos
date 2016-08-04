@@ -22,6 +22,8 @@
  *
  */
 
+#include <linux/prefetch.h>
+
 #include "i915_drv.h"
 
 static const char *i915_fence_get_driver_name(struct fence *fence)
@@ -161,8 +163,16 @@ i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 #endif	
 }
 
+void i915_gem_retire_noop(struct i915_gem_active *active,
+			  struct drm_i915_gem_request *request)
+{
+	/* Space left intentionally blank */
+}
+
 static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 {
+	struct i915_gem_active *active, *next;
+
 	trace_i915_gem_request_retire(request);
 	list_del_init(&request->link);
 
@@ -175,6 +185,33 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	 * completion order.
 	 */
 	request->ring->last_retired_head = request->postfix;
+
+	/* Walk through the active list, calling retire on each. This allows
+	 * objects to track their GPU activity and mark themselves as idle
+	 * when their *last* active request is completed (updating state
+	 * tracking lists for eviction, active references for GEM, etc).
+	 *
+	 * As the ->retire() may free the node, we decouple it first and
+	 * pass along the auxiliary information (to avoid dereferencing
+	 * the node after the callback).
+	 */
+	list_for_each_entry_safe(active, next, &request->active_list, link) {
+		/* In microbenchmarks or focusing upon time inside the kernel,
+		 * we may spend an inordinate amount of time simply handling
+		 * the retirement of requests and processing their callbacks.
+		 * Of which, this loop itself is particularly hot due to the
+		 * cache misses when jumping around the list of i915_gem_active.
+		 * So we try to keep this loop as streamlined as possible and
+		 * also prefetch the next i915_gem_active to try and hide
+		 * the likely cache miss.
+		 */
+		prefetchw(next);
+
+		INIT_LIST_HEAD(&active->link);
+		active->request = NULL;
+
+		active->retire(active, request);
+	}
 
 	i915_gem_request_remove_from_client(request);
 
@@ -204,8 +241,6 @@ void i915_gem_request_retire_upto(struct drm_i915_gem_request *req)
 
 		i915_gem_request_retire(tmp);
 	} while (tmp != req);
-
-	WARN_ON(i915_verify_lists(engine->dev));
 }
 
 static int i915_gem_check_wedge(unsigned int reset_counter, bool interruptible)
@@ -340,6 +375,7 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		   engine->fence_context,
 		   seqno);
 
+	INIT_LIST_HEAD(&req->active_list);
 	req->i915 = dev_priv;
 	req->engine = engine;
 	req->ctx = i915_gem_context_get(ctx);
@@ -574,9 +610,6 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 
 	might_sleep();
 
-	if (list_empty(&req->link))
-		return 0;
-
 	if (i915_gem_request_completed(req))
 		return 0;
 
@@ -709,10 +742,13 @@ int i915_wait_request(struct drm_i915_gem_request *req)
 {
 	int ret;
 
-	GEM_BUG_ON(!req);
 	lockdep_assert_held(&req->i915->drm.struct_mutex);
+	GEM_BUG_ON(list_empty(&req->link));
 
-	ret = __i915_wait_request(req, req->i915->mm.interruptible, NULL, NULL);
+	ret = __i915_wait_request(req,
+				  req->i915->mm.interruptible,
+				  NULL,
+				  NULL);
 	if (ret)
 		return ret;
 
