@@ -2871,7 +2871,7 @@ static void __i915_vma_iounmap(struct i915_vma *vma)
 	vma->iomap = NULL;
 }
 
-static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
+int i915_vma_unbind(struct i915_vma *vma)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 	unsigned long active;
@@ -2881,7 +2881,7 @@ static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 	 * have side-effects such as unpinning or even unbinding this vma.
 	 */
 	active = i915_vma_get_active(vma);
-	if (active && wait) {
+	if (active) {
 		int idx;
 
 		/* When a closed VMA is retired, it is unbound - eek.
@@ -2959,47 +2959,6 @@ static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 destroy:
 	if (unlikely(vma->closed))
 		i915_vma_destroy(vma);
-
-	return 0;
-}
-
-int i915_vma_unbind(struct i915_vma *vma)
-{
-	return __i915_vma_unbind(vma, true);
-}
-
-int __i915_vma_unbind_no_wait(struct i915_vma *vma)
-{
-	return __i915_vma_unbind(vma, false);
-}
-
-int i915_gpu_idle(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_engine_cs *engine;
-	int ret;
-
-	for_each_engine(engine, dev_priv) {
-		if (engine->last_context == NULL)
-			continue;
-
-		if (!i915.enable_execlists) {
-			struct drm_i915_gem_request *req;
-
-			req = i915_gem_request_alloc(engine, NULL);
-			if (IS_ERR(req))
-				return PTR_ERR(req);
-
-			ret = i915_switch_context(req);
-			i915_add_request_no_flush(req);
-			if (ret)
-				return ret;
-		}
-
-		ret = intel_engine_idle(engine);
-		if (ret)
-			return ret;
-	}
 
 	return 0;
 }
