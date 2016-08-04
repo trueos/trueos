@@ -4655,7 +4655,10 @@ int i915_gem_init(struct drm_device *dev)
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	i915_gem_init_userptr(dev_priv);
-	i915_gem_init_ggtt(dev_priv);
+
+	ret = i915_gem_init_ggtt(dev_priv);
+	if (ret)
+		goto out_unlock;
 
 	ret = i915_gem_context_init(dev);
 	if (ret)
@@ -4746,7 +4749,6 @@ i915_gem_load_init(struct drm_device *dev)
 				  SLAB_HWCACHE_ALIGN,
 				  NULL);
 
-	INIT_LIST_HEAD(&dev_priv->vm_list);
 	INIT_LIST_HEAD(&dev_priv->context_list);
 	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.bound_list);
