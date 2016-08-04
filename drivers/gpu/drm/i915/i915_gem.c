@@ -154,10 +154,10 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 	pinned = 0;
 	mutex_lock(&dev->struct_mutex);
 	list_for_each_entry(vma, &ggtt->base.active_list, vm_link)
-		if (vma->pin_count)
+		if (i915_vma_is_pinned(vma))
 			pinned += vma->node.size;
 	list_for_each_entry(vma, &ggtt->base.inactive_list, vm_link)
-		if (vma->pin_count)
+		if (i915_vma_is_pinned(vma))
 			pinned += vma->node.size;
 	mutex_unlock(&dev->struct_mutex);
 
@@ -2874,7 +2874,7 @@ static void i915_gem_object_finish_gtt(struct drm_i915_gem_object *obj)
 
 static void __i915_vma_iounmap(struct i915_vma *vma)
 {
-	GEM_BUG_ON(vma->pin_count);
+	GEM_BUG_ON(i915_vma_is_pinned(vma));
 
 	if (vma->iomap == NULL)
 		return;
@@ -2901,7 +2901,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 		 * take a pin on the vma so that the second unbind is
 		 * aborted.
 		 */
-		vma->pin_count++;
+		__i915_vma_pin(vma);
 
 		for_each_active(active, idx) {
 			ret = i915_gem_active_retire(&vma->last_read[idx],
@@ -2910,14 +2910,14 @@ int i915_vma_unbind(struct i915_vma *vma)
 				break;
 		}
 
-		vma->pin_count--;
+		__i915_vma_unpin(vma);
 		if (ret)
 			return ret;
 
 		GEM_BUG_ON(i915_vma_is_active(vma));
 	}
 
-	if (vma->pin_count)
+	if (i915_vma_is_pinned(vma))
 		return -EBUSY;
 
 	if (!drm_mm_node_allocated(&vma->node))
@@ -3362,7 +3362,7 @@ restart:
 		if (!drm_mm_node_allocated(&vma->node))
 			continue;
 
-		if (vma->pin_count) {
+		if (i915_vma_is_pinned(vma)) {
 			DRM_DEBUG("can not change the cache level of pinned objects\n");
 			return -EBUSY;
 		}
@@ -3799,11 +3799,11 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 			  i915_gem_obj_to_vma(obj, vm);
 
 	if (vma) {
-		if (WARN_ON(vma->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT))
+		if (WARN_ON(i915_vma_pin_count(vma) == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT))
 			return -EBUSY;
 
 		if (i915_vma_misplaced(vma, size, alignment, flags)) {
-			WARN(vma->pin_count,
+			WARN(i915_vma_is_pinned(vma),
 			     "bo is already pinned in %s with incorrect alignment:"
 			     " offset=%08x %08x, req.alignment=%llx, req.map_and_fenceable=%d,"
 			     " obj->map_and_fenceable=%d\n",
@@ -3841,7 +3841,7 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 
 	GEM_BUG_ON(i915_vma_misplaced(vma, size, alignment, flags));
 
-	vma->pin_count++;
+	__i915_vma_pin(vma);
 	return 0;
 }
 
@@ -3880,10 +3880,10 @@ i915_gem_object_ggtt_unpin_view(struct drm_i915_gem_object *obj,
 {
 	struct i915_vma *vma = i915_gem_obj_to_ggtt_view(obj, view);
 
-	WARN_ON(vma->pin_count == 0);
+	WARN_ON(!i915_vma_is_pinned(vma));
 	WARN_ON(!i915_gem_obj_ggtt_bound_view(obj, view));
 
-	--vma->pin_count;
+	__i915_vma_unpin(vma);
 }
 
 int
@@ -4751,7 +4751,7 @@ bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
 	list_for_each_entry(vma, &obj->vma_list, obj_link)
-		if (vma->pin_count > 0)
+		if (i915_vma_is_pinned(vma))
 			return true;
 
 	return false;
