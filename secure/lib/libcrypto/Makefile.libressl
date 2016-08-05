@@ -6,7 +6,6 @@ SHLIBDIR?=      /lib
 
 LIB=            crypto
 SHLIB_MAJOR=    38
-ALLOW_SHARED_TEXTREL=
 
 NO_LINT=
 
