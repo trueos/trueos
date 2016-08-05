@@ -2015,7 +2015,6 @@ struct drm_i915_private {
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct {
 		void (*cleanup_engine)(struct intel_engine_cs *engine);
-		void (*stop_engine)(struct intel_engine_cs *engine);
 
 		/**
 		 * Is the GPU currently considered idle, or busy executing
