@@ -77,6 +77,7 @@ SRCS	= \
 	dce_v10_0.c \
 	dce_v11_0.c \
 	dce_v8_0.c \
+	dce_virtual.c \
 	fiji_dpm.c \
 	fiji_smc.c \
 	gfx_v7_0.c \
