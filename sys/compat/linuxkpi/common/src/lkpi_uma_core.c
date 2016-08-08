@@ -2332,7 +2332,7 @@ zone_import(uma_zone_t zone, void **bucket, int max, int flags)
 	UMA_ENTER();
 	slab = NULL;
 	keg = NULL;
-	if (td->td_critnest > 1 || td->td_intr_nest_level)
+	if (td->td_critnest > 1 || td->td_intr_nesting_level)
 		flags |= M_NOVM;
 
 	    /* Try to keep the buckets totally full */
