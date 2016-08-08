@@ -194,7 +194,7 @@ lkpi_mallocinit(void *dummy __unused)
 
 		for (subzone = 0; subzone < numzones; subzone++) {
 			lkpi_kmemzones[indx].kz_zone[subzone] =
-			    uma_zcreate(name, size,
+				lkpi_uma_zcreate(name, size,
 #ifdef INVARIANTS
 			    mtrash_ctor, mtrash_dtor, mtrash_init, mtrash_fini,
 #else
@@ -283,7 +283,7 @@ lkpi_malloc(unsigned long size, struct malloc_type *mtp, int flags)
 #ifdef MALLOC_PROFILE
 		krequests[size >> KMEM_ZSHIFT]++;
 #endif
-		va = uma_zalloc(zone, flags);
+		va = lkpi_uma_zalloc(zone, flags);
 		if (va != NULL)
 			size = zone->uz_size;
 		malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
@@ -366,7 +366,7 @@ lkpi_free(void *addr, struct malloc_type *mtp)
 		    sizeof(struct malloc_type *);
 		*mtpp = mtp;
 #endif
-		uma_zfree_arg(LIST_FIRST(&slab->us_keg->uk_zones), addr, slab);
+		lkpi_uma_zfree_arg(LIST_FIRST(&slab->us_keg->uk_zones), addr, slab);
 	} else {
 		size = slab->us_size;
 		uma_large_free(slab);
