@@ -35,7 +35,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/page.h>
-
+#include <linux/slab.h>
 
 struct vm_area_struct;
 

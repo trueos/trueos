@@ -1048,7 +1048,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 	slab->us_keg = keg;
 	slab->us_data = mem;
 	slab->us_freecount = keg->uk_ipers;
-	slab->us_flags = flags;
+	slab->us_flags = flags | UMA_SLAB_LKPI;
 	BIT_FILL(SLAB_SETSIZE, &slab->us_free);
 #ifdef INVARIANTS
 	BIT_ZERO(SLAB_SETSIZE, &slab->us_debugfree);
@@ -1824,7 +1824,7 @@ lkpi_uma_startup(void *arg __unused)
 	for (i = 0; i < boot_pages; i++) {
 		slab = (uma_slab_t)((uint8_t *)bootmem + (i * UMA_SLAB_SIZE));
 		slab->us_data = (uint8_t *)slab;
-		slab->us_flags = UMA_SLAB_BOOT;
+		slab->us_flags = UMA_SLAB_BOOT|UMA_SLAB_LKPI;
 		LIST_INSERT_HEAD(&uma_boot_pages, slab, us_link);
 	}
 	mtx_init(&uma_boot_pages_mtx, "UMA boot pages", NULL, MTX_SPIN);

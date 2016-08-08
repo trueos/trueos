@@ -366,7 +366,10 @@ lkpi_free(void *addr, struct malloc_type *mtp)
 		    sizeof(struct malloc_type *);
 		*mtpp = mtp;
 #endif
-		lkpi_uma_zfree_arg(LIST_FIRST(&slab->us_keg->uk_zones), addr, slab);
+		if (slab->us_flags & UMA_SLAB_LKPI)
+			lkpi_uma_zfree_arg(LIST_FIRST(&slab->us_keg->uk_zones), addr, slab);
+		else
+			uma_zfree_arg(LIST_FIRST(&slab->us_keg->uk_zones), addr, slab);
 	} else {
 		size = slab->us_size;
 		uma_large_free(slab);
