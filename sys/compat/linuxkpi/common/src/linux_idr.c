@@ -316,17 +316,17 @@ __free_list_get(struct idr *idp)
 	return (il);
 }
 
-
 static inline struct idr_layer *
 idr_get(struct idr *idp)
 {
 	struct idr_layer *il;
 
-	if ((il = __free_list_get(idp)))
-		goto done;
+	if ((il = __free_list_get(idp))) {
+		MPASS(ffsl(il->bitmap) != 0);
+		return (il);
+	}
 	if ((il = lkpi_malloc(sizeof(*il), M_IDR, M_ZERO | M_NOWAIT)) != NULL)
 		goto done;
-
 	if (!in_interrupt()) {
 		if ((il = DPCPU_GET(idr_preload_head)) != NULL) {
 			DPCPU_SET(idr_preload_head, il->ary[0]);
