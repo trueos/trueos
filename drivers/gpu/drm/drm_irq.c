@@ -1828,6 +1828,7 @@ EXPORT_SYMBOL(drm_crtc_handle_vblank);
  */
 u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe)
 {
+	WARN_ON_ONCE(dev->max_vblank_count != 0);
 	return 0;
 }
 EXPORT_SYMBOL(drm_vblank_no_hw_counter);
