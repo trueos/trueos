@@ -54,6 +54,7 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	vfree(arg)			kfree(arg)
 #define	kvfree(arg)			kfree(arg)
 #define	vmalloc(size)                   kmalloc(size, GFP_KERNEL)
+#define	__vmalloc(size, flags, other)                   kmalloc(size, (flags))
 #define	vmalloc_node(size, node)        kmalloc(size, GFP_KERNEL)
 #define	vmalloc_user(size)              kmalloc(size, GFP_KERNEL | __GFP_ZERO)
 #define __kmalloc			kmalloc
