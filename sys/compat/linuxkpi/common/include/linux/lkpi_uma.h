@@ -105,7 +105,7 @@ static __inline void *lkpi_uma_zalloc(uma_zone_t zone, int flags);
 static __inline void *
 lkpi_uma_zalloc(uma_zone_t zone, int flags)
 {
-	return uma_zalloc_arg(zone, NULL, flags);
+	return (lkpi_uma_zalloc_arg(zone, NULL, flags));
 }
 
 /*
