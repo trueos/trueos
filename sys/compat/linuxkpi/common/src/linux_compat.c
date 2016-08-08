@@ -210,10 +210,10 @@ memdup_user(const void *ubuf, size_t len)
 	void *kbuf;
 	int rc;
 
-	kbuf = malloc(len, M_KMALLOC, M_WAITOK);
+	kbuf = lkpi_malloc(len, M_KMALLOC, M_WAITOK);
 	rc = copyin(ubuf, kbuf, len);
 	if (rc) {
-		free(kbuf, M_KMALLOC);
+		lkpi_free(kbuf, M_KMALLOC);
 		return ERR_PTR(-EFAULT);
 	}
 	return (kbuf);
@@ -1563,7 +1563,7 @@ list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 	count = 0;
 	list_for_each(le, head)
 		count++;
-	ar = malloc(sizeof(struct list_head *) * count, M_KMALLOC, M_WAITOK);
+	ar = lkpi_malloc(sizeof(struct list_head *) * count, M_KMALLOC, M_WAITOK);
 	i = 0;
 	list_for_each(le, head)
 		ar[i++] = le;
@@ -1573,7 +1573,7 @@ list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 	INIT_LIST_HEAD(head);
 	for (i = 0; i < count; i++)
 		list_add_tail(ar[i], head);
-	free(ar, M_KMALLOC);
+	lkpi_free(ar, M_KMALLOC);
 }
 
 int
