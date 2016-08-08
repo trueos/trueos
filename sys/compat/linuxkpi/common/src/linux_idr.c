@@ -73,7 +73,7 @@ idr_preload(gfp_t gfp_mask)
 	critical_enter();
 	while (DPCPU_GET(idr_preload_cnt) < MAX_IDR_FREE) {
 		critical_exit();
-		cacheval = malloc(sizeof(*cacheval), M_IDR, gfp_mask|M_ZERO);
+		cacheval = lkpi_malloc(sizeof(*cacheval), M_IDR, gfp_mask|M_ZERO);
 		critical_enter();
 		if (cacheval == NULL)
 			break;
@@ -118,7 +118,7 @@ idr_destroy(struct idr *idr)
 	idr_remove_all(idr);
 	for (il = idr->free; il != NULL; il = iln) {
 		iln = il->ary[0];
-		free(il, M_IDR);
+		lkpi_free(il, M_IDR);
 	}
 	mtx_destroy(&idr->lock);
 }
@@ -131,7 +131,7 @@ idr_remove_layer(struct idr_layer *il, int layer)
 	if (il == NULL)
 		return;
 	if (layer == 0) {
-		free(il, M_IDR);
+		lkpi_free(il, M_IDR);
 		return;
 	}
 	for (i = 0; i < IDR_SIZE; i++)
@@ -283,7 +283,7 @@ idr_pre_get(struct idr *idr, gfp_t gfp_mask)
 		if (need <= 0)
 			break;
 		for (head = NULL; need; need--) {
-			iln = malloc(sizeof(*il), M_IDR, M_ZERO | gfp_mask);
+			iln = lkpi_malloc(sizeof(*il), M_IDR, M_ZERO | gfp_mask);
 			if (iln == NULL)
 				break;
 			bitmap_fill(&iln->bitmap, IDR_SIZE);
@@ -302,25 +302,38 @@ idr_pre_get(struct idr *idr, gfp_t gfp_mask)
 	return (1);
 }
 
-static inline struct idr_layer *
-idr_get(struct idr *idr)
+static struct idr_layer *
+__free_list_get(struct idr *idp)
 {
 	struct idr_layer *il;
 
-	il = idr->free;
-	if (il) {
-		idr->free = il->ary[0];
+	mtx_lock_spin(&idp->lock);
+	if ((il = idp->free)) {
+		idp->free = il->ary[0];
 		il->ary[0] = NULL;
-		return (il);
 	}
-	if (curthread->td_critnest == 0)
-		il = malloc(sizeof(*il), M_IDR, M_ZERO | M_NOWAIT);
-	else if (!in_interrupt()) {
+	mtx_unlock_spin(&idp->lock);
+	return (il);
+}
+
+
+static inline struct idr_layer *
+idr_get(struct idr *idp)
+{
+	struct idr_layer *il;
+
+	if ((il = __free_list_get(idp)))
+		goto done;
+	if ((il = lkpi_malloc(sizeof(*il), M_IDR, M_ZERO | M_NOWAIT)) != NULL)
+		goto done;
+
+	if (!in_interrupt()) {
 		if ((il = DPCPU_GET(idr_preload_head)) != NULL) {
 			DPCPU_SET(idr_preload_head, il->ary[0]);
 			DPCPU_SET(idr_preload_cnt, DPCPU_GET(idr_preload_cnt) - 1);
 		}
 	}
+done:
 	if (il != NULL)
 		bitmap_fill(&il->bitmap, IDR_SIZE);
 	return (il);
@@ -624,7 +637,7 @@ ida_pre_get(struct ida *ida, gfp_t flags)
 
 	if (ida->free_bitmap == NULL) {
 		ida->free_bitmap =
-		    malloc(sizeof(struct ida_bitmap), M_IDR, flags);
+		    lkpi_malloc(sizeof(struct ida_bitmap), M_IDR, flags);
 	}
 	return (ida->free_bitmap != NULL);
 }
@@ -685,5 +698,5 @@ void
 ida_destroy(struct ida *ida)
 {
 	idr_destroy(&ida->idr);
-	free(ida->free_bitmap, M_IDR);
+	lkpi_free(ida->free_bitmap, M_IDR);
 }
