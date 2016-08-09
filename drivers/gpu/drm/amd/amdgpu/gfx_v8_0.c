@@ -1236,10 +1236,9 @@ static void gfx_v8_0_rlc_fini(struct amdgpu_device *adev)
 	if (adev->gfx.rlc.clear_state_obj) {
 		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, false);
 		if (unlikely(r != 0))
-			dev_warn(adev->dev, "(%d) reserve RLC c bo failed\n", r);
+			dev_warn(adev->dev, "(%d) reserve RLC cbs bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.clear_state_obj);
 		amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
-
 		amdgpu_bo_unref(&adev->gfx.rlc.clear_state_obj);
 		adev->gfx.rlc.clear_state_obj = NULL;
 	}
@@ -1251,7 +1250,6 @@ static void gfx_v8_0_rlc_fini(struct amdgpu_device *adev)
 			dev_warn(adev->dev, "(%d) reserve RLC cp table bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.rlc.cp_table_obj);
 		amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
-
 		amdgpu_bo_unref(&adev->gfx.rlc.cp_table_obj);
 		adev->gfx.rlc.cp_table_obj = NULL;
 	}
@@ -1293,14 +1291,14 @@ static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 				  &adev->gfx.rlc.clear_state_gpu_addr);
 		if (r) {
 			amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
-			dev_warn(adev->dev, "(%d) pin RLC c bo failed\n", r);
+			dev_warn(adev->dev, "(%d) pin RLC cbs bo failed\n", r);
 			gfx_v8_0_rlc_fini(adev);
 			return r;
 		}
 
 		r = amdgpu_bo_kmap(adev->gfx.rlc.clear_state_obj, (void **)&adev->gfx.rlc.cs_ptr);
 		if (r) {
-			dev_warn(adev->dev, "(%d) map RLC c bo failed\n", r);
+			dev_warn(adev->dev, "(%d) map RLC cbs bo failed\n", r);
 			gfx_v8_0_rlc_fini(adev);
 			return r;
 		}
@@ -1335,7 +1333,7 @@ static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 				  &adev->gfx.rlc.cp_table_gpu_addr);
 		if (r) {
 			amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
-			dev_warn(adev->dev, "(%d) pin RLC cp_table bo failed\n", r);
+			dev_warn(adev->dev, "(%d) pin RLC cp table bo failed\n", r);
 			return r;
 		}
 		r = amdgpu_bo_kmap(adev->gfx.rlc.cp_table_obj, (void **)&adev->gfx.rlc.cp_table_ptr);
@@ -1348,7 +1346,6 @@ static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 
 		amdgpu_bo_kunmap(adev->gfx.rlc.cp_table_obj);
 		amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
-
 	}
 
 	return 0;
@@ -1364,7 +1361,6 @@ static void gfx_v8_0_mec_fini(struct amdgpu_device *adev)
 			dev_warn(adev->dev, "(%d) reserve HPD EOP bo failed\n", r);
 		amdgpu_bo_unpin(adev->gfx.mec.hpd_eop_obj);
 		amdgpu_bo_unreserve(adev->gfx.mec.hpd_eop_obj);
-
 		amdgpu_bo_unref(&adev->gfx.mec.hpd_eop_obj);
 		adev->gfx.mec.hpd_eop_obj = NULL;
 	}
@@ -2127,9 +2123,7 @@ static int gfx_v8_0_sw_fini(void *handle)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
 	gfx_v8_0_mec_fini(adev);
-
 	gfx_v8_0_rlc_fini(adev);
-
 	gfx_v8_0_free_microcode(adev);
 
 	return 0;
@@ -3585,7 +3579,6 @@ static void gfx_v8_0_gpu_init(struct amdgpu_device *adev)
 	WREG32(mmDMIF_ADDR_CALC, adev->gfx.config.gb_addr_config);
 
 	gfx_v8_0_tiling_mode_table_init(adev);
-
 	gfx_v8_0_setup_rb(adev);
 	gfx_v8_0_get_cu_info(adev);
 
@@ -3998,14 +3991,13 @@ static int gfx_v8_0_rlc_resume(struct amdgpu_device *adev)
 	/* disable CG */
 	WREG32(mmRLC_CGCG_CGLS_CTRL, 0);
 	if (adev->asic_type == CHIP_POLARIS11 ||
-		adev->asic_type == CHIP_POLARIS10)
+	    adev->asic_type == CHIP_POLARIS10)
 		WREG32(mmRLC_CGCG_CGLS_CTRL_3D, 0);
 
 	/* disable PG */
 	WREG32(mmRLC_PG_CNTL, 0);
 
 	gfx_v8_0_rlc_reset(adev);
-
 	gfx_v8_0_init_pg(adev);
 
 	if (!adev->pp_enabled) {
@@ -4980,7 +4972,6 @@ static int gfx_v8_0_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gfx_v8_0_init_golden_registers(adev);
-
 	gfx_v8_0_gpu_init(adev);
 
 	r = gfx_v8_0_rlc_resume(adev);
@@ -5552,15 +5543,15 @@ static void gfx_v8_0_send_serdes_cmd(struct amdgpu_device *adev,
 
 	data = RREG32(mmRLC_SERDES_WR_CTRL);
 	if (adev->asic_type == CHIP_STONEY)
-			data &= ~(RLC_SERDES_WR_CTRL__WRITE_COMMAND_MASK |
-			RLC_SERDES_WR_CTRL__READ_COMMAND_MASK |
-			RLC_SERDES_WR_CTRL__P1_SELECT_MASK |
-			RLC_SERDES_WR_CTRL__P2_SELECT_MASK |
-			RLC_SERDES_WR_CTRL__RDDATA_RESET_MASK |
-			RLC_SERDES_WR_CTRL__POWER_DOWN_MASK |
-			RLC_SERDES_WR_CTRL__POWER_UP_MASK |
-			RLC_SERDES_WR_CTRL__SHORT_FORMAT_MASK |
-			RLC_SERDES_WR_CTRL__SRBM_OVERRIDE_MASK);
+		data &= ~(RLC_SERDES_WR_CTRL__WRITE_COMMAND_MASK |
+			  RLC_SERDES_WR_CTRL__READ_COMMAND_MASK |
+			  RLC_SERDES_WR_CTRL__P1_SELECT_MASK |
+			  RLC_SERDES_WR_CTRL__P2_SELECT_MASK |
+			  RLC_SERDES_WR_CTRL__RDDATA_RESET_MASK |
+			  RLC_SERDES_WR_CTRL__POWER_DOWN_MASK |
+			  RLC_SERDES_WR_CTRL__POWER_UP_MASK |
+			  RLC_SERDES_WR_CTRL__SHORT_FORMAT_MASK |
+			  RLC_SERDES_WR_CTRL__SRBM_OVERRIDE_MASK);
 	else
 		data &= ~(RLC_SERDES_WR_CTRL__WRITE_COMMAND_MASK |
 			  RLC_SERDES_WR_CTRL__READ_COMMAND_MASK |
@@ -6093,9 +6084,9 @@ static void gfx_v8_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 	amdgpu_ring_write(ring,
 #ifdef __BIG_ENDIAN
-					  (2 << 0) |
+				(2 << 0) |
 #endif
-					  (ib->gpu_addr & 0xFFFFFFFC));
+				(ib->gpu_addr & 0xFFFFFFFC));
 	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr) & 0xFFFF);
 	amdgpu_ring_write(ring, control);
 }
