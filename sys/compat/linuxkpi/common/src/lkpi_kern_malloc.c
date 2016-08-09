@@ -224,9 +224,12 @@ lkpi_malloc(unsigned long size, struct malloc_type *mtp, int flags)
 	struct malloc_type_internal *mtip;
 	caddr_t va;
 	uma_zone_t zone;
+	struct thread *td = curthread;
 #if defined(DIAGNOSTIC) || defined(DEBUG_REDZONE)
 	unsigned long osize = size;
 #endif
+	if (td->td_critnest || td->td_intr_nesting_level)
+		flags |= M_NOVM | M_USE_RESERVE;
 
 #ifdef INVARIANTS
 	KASSERT(mtp->ks_magic == M_MAGIC, ("malloc: bad malloc type magic"));
