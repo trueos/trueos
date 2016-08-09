@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/drm2/radeon
+.PATH:	${.CURDIR}/../../../dev/drm/radeon
 
 # XXX not ported:
 #	radeon_mn.c
@@ -121,12 +121,12 @@ SRCS	= \
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include/drm
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include/uapi
-CFLAGS+= -I${.CURDIR}/../../../dev/drm2/radeon
-CFLAGS+= -I${.CURDIR}/../../../dev/drm2/amd/include
+CFLAGS+= -I${.CURDIR}/../../../dev/drm/radeon
+CFLAGS+= -I${.CURDIR}/../../../dev/drm/amd/include
 CFLAGS+= -I${.CURDIR}/../../../contrib/ck/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 CFLAGS+= -O0
-CFLAGS+= -include ${.CURDIR}/../../../dev/drm2/drm_os_config.h
+CFLAGS+= -include ${.CURDIR}/../../../dev/drm/drm_os_config.h
 
 SRCS    +=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.h \
         opt_vm.h opt_compat.h opt_syscons.h

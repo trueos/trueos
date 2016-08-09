@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../../dev/drm2/amd/amdkfd
+.PATH:	${.CURDIR}/../../../../dev/drm/amd/amdkfd
 
 KMOD	= amdkfd
 
@@ -37,13 +37,13 @@ SRCS	= \
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/uapi
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/amdkfd
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/amdgpu
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/include
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/acp/include
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/powerplay/inc
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/scheduler
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/include/asic_reg
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/amdkfd
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/amdgpu
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/include
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/acp/include
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/powerplay/inc
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/scheduler
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/include/asic_reg
 CFLAGS+=	-I${.CURDIR}/../../../../contrib/ck/include
 CFLAGS+=	'-DKBUILD_MODNAME="${KMOD}"'
 

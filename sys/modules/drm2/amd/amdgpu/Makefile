@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../../dev/drm2/amd/amdgpu ${.CURDIR}/../../../../dev/drm2/amd/scheduler ${.CURDIR}/../../../../dev/drm2/amd/powerplay ${.CURDIR}/../../../../dev/drm2/amd/powerplay/eventmgr ${.CURDIR}/../../../../dev/drm2/amd/powerplay/hwmgr ${.CURDIR}/../../../../dev/drm2/amd/powerplay/smumgr
+.PATH:	${.CURDIR}/../../../../dev/drm/amd/amdgpu ${.CURDIR}/../../../../dev/drm/amd/scheduler ${.CURDIR}/../../../../dev/drm/amd/powerplay ${.CURDIR}/../../../../dev/drm/amd/powerplay/eventmgr ${.CURDIR}/../../../../dev/drm/amd/powerplay/hwmgr ${.CURDIR}/../../../../dev/drm/amd/powerplay/smumgr
 
 KMOD	= amdgpu
 
@@ -135,18 +135,18 @@ CFLAGS+= 	-I${.CURDIR}/../../../../contrib/ck/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/uapi
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/amdgpu
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/include
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/acp/include
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/powerplay/eventmgr
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/powerplay/hwmgr
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/powerplay/inc
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/powerplay/smumgr
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/scheduler
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm2/amd/include/asic_reg
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/amdgpu
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/include
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/acp/include
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/powerplay/eventmgr
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/powerplay/hwmgr
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/powerplay/inc
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/powerplay/smumgr
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/scheduler
+CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/include/asic_reg
 CFLAGS+=	'-DKBUILD_MODNAME="${KMOD}"'
 #CFLAGS+=	-O0
-CFLAGS+=	-include ${.CURDIR}/../../../../dev/drm2/drm_os_config.h
+CFLAGS+=	-include ${.CURDIR}/../../../../dev/drm/drm_os_config.h
 
 
 SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.h \

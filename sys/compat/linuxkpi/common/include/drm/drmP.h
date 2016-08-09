@@ -133,7 +133,7 @@ __FBSDID("$FreeBSD$");
 #include <drm/drm_global.h>
 #include <drm/drm_mem_util.h>
 #include <drm/drm_mm.h>
-#include <dev/drm2/drm_os_freebsd.h>
+#include <dev/drm/drm_os_freebsd.h>
 #include <uapi/drm/drm_sarea.h>
 #include <drm/drm_vma_manager.h>
 #include <linux/atomic.h>

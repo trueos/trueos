@@ -58,7 +58,7 @@ typedef uint64_t __u64;
 #endif
 typedef size_t   __kernel_size_t;
 typedef unsigned long drm_handle_t;
-#include <dev/drm2/drm_os_freebsd.h>
+#include <dev/drm/drm_os_freebsd.h>
 #endif
 
 #define DRM_NAME	"drm"	  /**< Name in kernel, /dev, and /proc */
