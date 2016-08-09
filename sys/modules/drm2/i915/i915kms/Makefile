@@ -87,6 +87,7 @@ CFLAGS+= -I${.CURDIR}/../../../../contrib/ck/include
 CFLAGS+= -I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+= -I${.CURDIR}/../../../../compat/linuxkpi/common/include/uapi
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
+CFLAGS+= -include ${.CURDIR}/../../../../dev/drm2/drm_os_config.h
 #CFLAGS += -DPRINT_UNIMPLEMENTED
 
 .if ${MACHINE_CPUARCH} == "amd64"

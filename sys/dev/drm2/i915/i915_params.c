@@ -39,7 +39,11 @@ struct i915_params i915 __read_mostly = {
 	.enable_hangcheck = true,
 	.enable_ppgtt = -1,
 	.enable_psr = -1,
+#ifdef __notyet__
 	.preliminary_hw_support = IS_ENABLED(CONFIG_DRM_I915_PRELIMINARY_HW_SUPPORT),
+#else
+	.preliminary_hw_support = 1,
+#endif	
 	.disable_power_well = -1,
 	.enable_ips = 1,
 	.fastboot = 0,
