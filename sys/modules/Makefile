@@ -549,7 +549,7 @@ _cpuctl=	cpuctl
 _cpufreq=	cpufreq
 _cs=		cs
 _dpms=		dpms
-_drm=		drm2
+_drm=		drm
 _ed=		ed
 _em=		em
 _ep=		ep
@@ -758,7 +758,7 @@ _wi=		wi
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
-_drm=		drm2
+_drm=		drm
 .endif
 
 .if ${MACHINE_CPUARCH} == "sparc64"
