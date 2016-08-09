@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
+#include <sys/ptrace.h>
 #include <sys/namei.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
@@ -759,6 +760,8 @@ interpret:
 	if (p->p_flag & P_PPWAIT) {
 		p->p_flag &= ~(P_PPWAIT | P_PPTRACE);
 		cv_broadcast(&p->p_pwait);
+		/* STOPs are no longer ignored, arrange for AST */
+		signotify(td);
 	}
 
 	/*
@@ -903,7 +906,8 @@ exec_fail_dealloc:
 
 	if (error == 0) {
 		PROC_LOCK(p);
-		td->td_dbgflags |= TDB_EXEC;
+		if (p->p_ptevents & PTRACE_EXEC)
+			td->td_dbgflags |= TDB_EXEC;
 		PROC_UNLOCK(p);
 
 		/*
