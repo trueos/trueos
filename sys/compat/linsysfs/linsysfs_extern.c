@@ -270,8 +270,6 @@ sysfs_add_file(struct pfs_node *parent, const struct attribute *attr,
 	return (0);
 }
 
-
-
 int
 sysfs_create_bin_file(struct kobject *kobj, const struct bin_attribute *attr)
 {
