@@ -2200,7 +2200,7 @@ lkpi_keg_fetch_slab(uma_keg_t keg, uma_zone_t zone, int flags)
 	reserve = 0;
 	if ((flags & M_USE_RESERVE) == 0)
 		reserve = keg->uk_reserve;
-	
+
 	for (;;) {
 		/*
 		 * Find a slab with some space.  Prefer slabs that are partially
