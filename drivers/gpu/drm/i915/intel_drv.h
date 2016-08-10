@@ -50,8 +50,8 @@
  * added.
  */
 
-#define _wait_for(COND, MS, W) ({					\
-	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS) + 1;	\
+#define _wait_for(COND, US, W) ({					\
+	unsigned long timeout__ = jiffies + usecs_to_jiffies(US) + 1;	\
 	int ret__ = 0;							\
 	while (!(COND)) {						\
 		if (time_after(jiffies, timeout__)) {			\
@@ -60,10 +60,10 @@
 			break;						\
 		}							\
 		if (cold) {	/* FreeBSD FIX */			\
-			DELAY(1000);					\
-			timeout__ -= howmany(hz, 1000);			\
+			DELAY(1);					\
+			timeout__ -= howmany(hz, 1);			\
 		} else if ((W) && drm_can_sleep()) {			\
-			usleep_range((W)*1000, (W)*2000);		\
+			usleep_range((W), (W)*2);			\
 		} else {						\
 			cpu_relax();					\
 		}							\
