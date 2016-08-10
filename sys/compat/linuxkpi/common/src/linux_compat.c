@@ -119,7 +119,6 @@ TASKQGROUP_DEFINE(smp_tqg, mp_ncpus, 1);
 
 struct cpuinfo_x86 boot_cpu_data; 
 
-bool linux_cpu_has_clflush;
 struct kobject linux_class_root;
 struct device linux_root_device;
 struct class linux_class_misc;
@@ -1758,7 +1757,10 @@ linux_compat_init(void *arg)
 	struct sysctl_oid *rootoid;
 
 #if defined(__i386__) || defined(__amd64__)
-	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
+	if (cpu_feature & CPUID_CLFSH)
+		set_bit(X86_FEATURE_CLFLUSH, &boot_cpu_data.x86_capability);
+	if (cpu_feature & CPUID_PAT)
+		set_bit(X86_FEATURE_PAT, &boot_cpu_data.x86_capability);
 #endif
 	hwmon_idap = &hwmon_ida;
 	sx_init(&linux_global_lock, "LinuxBKL");

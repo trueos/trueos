@@ -1,11 +1,8 @@
 #ifndef _ASM_X86_PROCESSOR_H
 #define _ASM_X86_PROCESSOR_H
 
-/*
- * Defines x86 CPU feature bits
- */
-#define NCAPINTS	17	/* N 32-bit words worth of info */
-#define NBUGINTS	1	/* N 32-bit bug flags */
+#include <asm/cpufeatures.h>
+
 
 struct cpuinfo_x86 {
 	__u8			x86;		/* CPU family */
