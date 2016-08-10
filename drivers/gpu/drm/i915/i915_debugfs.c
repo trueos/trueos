@@ -2708,6 +2708,7 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 #else
 	seq_printf(m, "Device Power Management (CONFIG_PM) disabled\n");
 #endif
+/* XXX not currently being set ... */
 	seq_printf(m, "PCI device power state: %s [%d]\n",
 		   pci_power_name(dev_priv->dev->pdev->current_state),
 		   dev_priv->dev->pdev->current_state);

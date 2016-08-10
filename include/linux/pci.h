@@ -264,6 +264,15 @@ typedef int pci_power_t;
 
 #define PCI_POWER_ERROR	PCI_POWERSTATE_UNKNOWN
 
+
+/* Remember to update this when the list above changes! */
+extern const char *pci_power_names[];
+
+static inline const char *pci_power_name(pci_power_t state)
+{
+	return pci_power_names[1 + (int) state];
+}
+
 struct pci_dev;
 
 struct pci_driver {
@@ -383,6 +392,10 @@ struct pci_dev {
 	unsigned int		class;
 	u8			revision;
 	u8			hdr_type;	/* PCI header type (`multi' flag masked out) */
+
+	pci_power_t     current_state;  /* Current operating state. In ACPI-speak,
+					   this is D0-D3, D0 being fully functional,
+					   and D3 being off. */
 
 	unsigned int		msi_enabled:1;
 	unsigned int		msix_enabled:1;

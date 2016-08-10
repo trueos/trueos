@@ -70,6 +70,11 @@ __FBSDID("$FreeBSD$");
 /* assumes !e820 */
 unsigned long pci_mem_start;
 
+
+const char *pci_power_names[] = {
+	"error", "D0", "D1", "D2", "D3hot", "D3cold", "unknown",
+};
+
 struct linux_resource ioport_resource = {
 	.name	= "PCI IO",
 	.start	= 0,
