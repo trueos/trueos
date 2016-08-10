@@ -159,9 +159,6 @@ int drm_sysctl_cleanup(struct drm_device *dev)
 	error = sysctl_ctx_free(&dev->sysctl->ctx);
 	free(dev->sysctl, DRM_MEM_DRIVER);
 	dev->sysctl = NULL;
-	if (dev->driver->sysctl_cleanup != NULL)
-		dev->driver->sysctl_cleanup(dev);
-
 	return (-error);
 }
 

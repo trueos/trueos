@@ -43,7 +43,7 @@
 #include <linux/kref.h>
 #include <linux/rcupdate.h>
 #include <linux/dma-buf.h>
-#include <drm/ttm/ttm_memory.h>
+#include <ttm/ttm_memory.h>
 
 /**
  * enum ttm_ref_type
@@ -124,7 +124,7 @@ struct ttm_object_device;
  */
 
 struct ttm_base_object {
-	/* struct rcu_head rhead;XXXKIB */
+	struct rcu_head rhead;
 	struct drm_hash_item hash;
 	enum ttm_object_type object_type;
 	bool shareable;

@@ -1,16 +1,13 @@
-/**
- * \file drmP.h
- * Private header for Direct Rendering Manager
- *
- * \author Rickard E. (Rik) Faith <faith@valinux.com>
- * \author Gareth Hughes <gareth@valinux.com>
- */
-
 /*
+ * Internal Header for the Direct Rendering Manager
+ *
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * Copyright (c) 2009-2010, Code Aurora Forum.
  * All rights reserved.
+ *
+ * Author: Rickard E. (Rik) Faith <faith@valinux.com>
+ * Author: Gareth Hughes <gareth@valinux.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -31,9 +28,6 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #ifndef _DRM_P_H_
 #define _DRM_P_H_
@@ -172,7 +166,6 @@ struct videomode;
 struct reservation_object;
 struct seq_file;
 struct dma_buf_attachment;
-
 
 /*
  * 4 debug categories are defined:
@@ -467,24 +460,13 @@ struct drm_lock_data {
  * @driver_priv: Pointer to driver-private information.
  */
 struct drm_master {
-	struct kref  refcount; /* refcount for this master */
-	struct drm_minor *minor; /**< link back to minor we are a master for */
-	char *unique;			/**< Unique identifier: e.g., busid */
-	int unique_len;			/**< Length of unique field */
+	struct kref refcount;
+	struct drm_minor *minor;
+	char *unique;
+	int unique_len;
 	struct idr magic_map;
 	struct drm_lock_data lock;
 	void *driver_priv;
-
-	struct list_head head; /**< each minor contains a list of masters */
-
-	int blocked;			/**< Blocked due to VC switch? */
-
-	/** \name Authentication */
-	/*@{ */
-	struct drm_open_hash magiclist;
-	struct list_head magicfree;
-	/*@} */
-
 };
 
 /* Size of ringbuffer for vblank timestamps. Just double-buffer
@@ -525,7 +507,7 @@ struct drm_driver {
 	/**
 	 * get_vblank_counter - get raw hardware vblank counter
 	 * @dev: DRM device
-	 * @pipe: counter to fetcho
+	 * @pipe: counter to fetch
 	 *
 	 * Driver callback for fetching a raw hardware vblank counter for @crtc.
 	 * If a device doesn't have a hardware counter, the driver can simply
@@ -653,7 +635,7 @@ struct drm_driver {
 
 	/* these have to be filled in */
 
-	irqreturn_t(*irq_handler) (DRM_IRQ_ARGS);
+	irqreturn_t(*irq_handler) (int irq, void *arg);
 	void (*irq_preinstall) (struct drm_device *dev);
 	int (*irq_postinstall) (struct drm_device *dev);
 	void (*irq_uninstall) (struct drm_device *dev);
@@ -704,7 +686,6 @@ struct drm_driver {
 	/* import dmabuf -> GEM */
 	struct drm_gem_object * (*gem_prime_import)(struct drm_device *dev,
 				struct dma_buf *dma_buf);
-
 	/* low-level interface used by drm_gem_prime_{import,export} */
 	int (*gem_prime_pin)(struct drm_gem_object *obj);
 	void (*gem_prime_unpin)(struct drm_gem_object *obj);
@@ -723,7 +704,6 @@ struct drm_driver {
 	/* vga arb irq handler */
 	void (*vgaarb_irq)(struct drm_device *dev, bool state);
 
-	
 	/* dumb alloc support */
 	int (*dumb_create)(struct drm_file *file_priv,
 			   struct drm_device *dev,
@@ -740,10 +720,6 @@ struct drm_driver {
 
 	/* Driver private ops for this object */
 	const struct vm_operations_struct *gem_vm_ops;
-
-	int	(*sysctl_init)(struct drm_device *dev,
-		    struct sysctl_ctx_list *ctx, struct sysctl_oid *top);
-	void	(*sysctl_cleanup)(struct drm_device *dev);
 
 #ifdef COMPAT_FREEBSD32
 	struct drm_ioctl_desc *compat_ioctls;
@@ -764,8 +740,6 @@ struct drm_driver {
 
 	/* List of devices hanging off this driver with stealth attach. */
 	struct list_head legacy_dev_list;
-
-
 };
 
 enum drm_minor_type {
@@ -808,35 +782,16 @@ struct drm_minor {
 	device_t bsd_kdev;			/**< OS device */
 	struct drm_device *dev;
 
-	struct drm_master *master; /* currently active master for this node */
-
 	struct dentry *debugfs_root;
 
 	struct list_head debugfs_list;
 	struct mutex debugfs_lock; /* Protects debugfs_list. */
-#if 0
-	struct list_head master_list;
-	struct drm_mode_group mode_group;
-#endif
 	struct sigio *buf_sigio;	/* Processes waiting for SIGIO     */
+
+	/* currently active master for this node. Protected by master_mutex */
+	struct drm_master *master;
 };
 
-#if 0
-/* mode specified on the command line */
-struct drm_cmdline_mode {
-	bool specified;
-	bool refresh_specified;
-	bool bpp_specified;
-	int xres, yres;
-	int bpp;
-	int refresh;
-	bool rb;
-	bool interlace;
-	bool cvt;
-	bool margins;
-	enum drm_connector_force force;
-};
-#endif
 
 struct drm_pending_vblank_event {
 	struct drm_pending_event base;
@@ -880,7 +835,6 @@ struct drm_device {
 	struct device *dev;		/**< Device structure of bus-device */
 	struct drm_driver *driver;	/**< DRM driver managing the device */
 	void *dev_private;		/**< DRM driver private data */
-	void *mm_private;
 	struct drm_minor *control;		/**< Control node */
 	struct drm_minor *primary;		/**< Primary node */
 	struct drm_minor *render;		/**< Render node */
@@ -897,17 +851,10 @@ struct drm_device {
 
 	/** \name Usage Counters */
 	/*@{ */
-	int open_count;			/**< Outstanding files open */
+	int open_count;			/**< Outstanding files open, protected by drm_global_mutex. */
 	spinlock_t buf_lock;		/**< For drm_device::buf_use and a few other things. */
 	int buf_use;			/**< Buffers in use -- cannot alloc */
 	atomic_t buf_alloc;		/**< Buffer allocation in progress */
-	/*@} */
-
-	/** \name Performance counters */
-	/*@{ */
-	unsigned long counters;
-	enum drm_stat_type types[15];
-	atomic_t counts[15];
 	/*@} */
 
 	struct list_head filelist;
@@ -935,7 +882,8 @@ struct drm_device {
 
 	/** \name Context support */
 	/*@{ */
-	volatile long context_flag;		/**< Context swapping flag */
+
+	volatile long context_flag;	/**< Context swapping flag */
 	int last_context;		/**< Last current context */
 	/*@} */
 
@@ -950,7 +898,7 @@ struct drm_device {
 	 * Once the modeset ioctl *has* been called though, we can safely
 	 * disable them when unused.
 	 */
-	int vblank_disable_allowed;
+	bool vblank_disable_allowed;
 
 	/*
 	 * If true, vblank interrupt will be disabled immediately when the
@@ -1177,6 +1125,8 @@ extern void drm_put_dev(struct drm_device *dev);
 extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
 extern bool drm_atomic;
+
+				/* Debugfs support */
 #if defined(CONFIG_DEBUG_FS)
 extern int drm_debugfs_create_files(const struct drm_info_list *files,
 				    int count, struct dentry *root,
@@ -1197,7 +1147,6 @@ static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
 	return 0;
 }
 #endif
-
 
 extern struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 		struct drm_gem_object *obj, int flags);
@@ -1220,24 +1169,6 @@ extern void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *s
 extern unsigned int drm_timestamp_monotonic;
 
 extern struct class *drm_class;
-
-#ifdef FREEBSD_NOTYET
-extern struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
-		struct drm_gem_object *obj, int flags);
-extern int drm_gem_prime_handle_to_fd(struct drm_device *dev,
-		struct drm_file *file_priv, uint32_t handle, uint32_t flags,
-		int *prime_fd);
-extern struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
-		struct dma_buf *dma_buf);
-extern int drm_gem_prime_fd_to_handle(struct drm_device *dev,
-		struct drm_file *file_priv, int prime_fd, uint32_t *handle);
-extern void drm_gem_dmabuf_release(struct dma_buf *dma_buf);
-
-extern int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
-					    dma_addr_t *addrs, int max_pages);
-extern struct sg_table *drm_prime_pages_to_sg(struct page **pages, unsigned int nr_pages);
-extern void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg);
-#endif
 
 extern struct drm_dma_handle *drm_pci_alloc(struct drm_device *dev, size_t size,
 					    size_t align);
@@ -1316,11 +1247,9 @@ static __inline__ bool drm_can_sleep(void)
 	return true;
 }
 
-
 /* sysctl support (drm_sysctl.h) */
 extern int		drm_sysctl_init(struct drm_device *dev);
 extern int		drm_sysctl_cleanup(struct drm_device *dev);
-
 
 /* helper for handling conditionals in various for_each macros */
 #define for_each_if(condition) if (!(condition)) {} else

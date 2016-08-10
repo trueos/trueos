@@ -1205,8 +1205,6 @@ intel_dp_aux_init(struct intel_dp *intel_dp, struct intel_connector *connector)
 	intel_dp->aux.dev = connector->base.kdev;
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 
-	/* linuxkpi needs class to be set */
-	intel_dp->aux.ddc.dev.class = drm_class;
 	DRM_DEBUG_KMS("registering %s bus for %s\n",
 		      intel_dp->aux.name,
 		      connector->base.kdev->kobj.name);
@@ -4944,14 +4942,12 @@ static void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp)
 
 void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-	if (!HAS_DDI(dev_priv))
-		intel_dp->DP = I915_READ(intel_dp->output_reg);
+	struct intel_dp *intel_dp;
 
 	if (to_intel_encoder(encoder)->type != INTEL_OUTPUT_EDP)
 		return;
+
+	intel_dp = enc_to_intel_dp(encoder);
 
 	pps_lock(intel_dp);
 
@@ -5024,6 +5020,9 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	intel_display_power_get(dev_priv, power_domain);
 
 	if (long_hpd) {
+		/* indicate that we need to restart link training */
+		intel_dp->train_set_valid = false;
+
 		if (!intel_digital_port_connected(dev_priv, intel_dig_port))
 			goto mst_fail;
 

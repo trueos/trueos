@@ -33,7 +33,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_dp_dual_mode_helper.h>
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_atomic.h>
@@ -72,8 +71,6 @@
 #define wait_for_atomic(COND, MS) _wait_for(COND, MS, 0)
 #define wait_for_atomic_us(COND, US) _wait_for((COND), \
 					       DIV_ROUND_UP((US), 1000), 0)
-
-
 
 #define KHz(x) (1000 * (x))
 #define MHz(x) KHz(1000 * (x))
@@ -385,7 +382,7 @@ struct intel_crtc_state {
 
 	bool update_pipe; /* can a fast modeset be performed? */
 	bool disable_cxsr;
-	bool update_wm_pre, update_wm_post; /* watermarks are updated */
+	bool wm_changed; /* watermarks are updated */
 	bool fb_changed; /* fb on any of the planes is changed */
 
 	/* Pipe source size (ie. panel fitter input size)
@@ -710,10 +707,6 @@ struct cxsr_latency {
 struct intel_hdmi {
 	i915_reg_t hdmi_reg;
 	int ddc_bus;
-	struct {
-		enum drm_dp_dual_mode_type type;
-		int max_tmds_clock;
-	} dp_dual_mode;
 	bool limited_color_range;
 	bool color_range_auto;
 	bool has_hdmi_sink;
@@ -817,6 +810,7 @@ struct intel_dp {
 	/* This is called before a link training is starterd */
 	void (*prepare_link_retrain)(struct intel_dp *intel_dp);
 
+	bool train_set_valid;
 
 	/* Displayport compliance testing */
 	unsigned long compliance_test_type;
@@ -1361,7 +1355,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
 bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 			       struct intel_crtc_state *pipe_config);
-void intel_dp_dual_mode_set_tmds_output(struct intel_hdmi *hdmi, bool enable);
+
 
 /* intel_lvds.c */
 void intel_lvds_init(struct drm_device *dev);

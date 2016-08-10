@@ -4796,7 +4796,7 @@ static void intel_post_plane_update(struct intel_crtc *crtc)
 
 	crtc->wm.cxsr_allowed = true;
 
-	if (pipe_config->update_wm_post && pipe_config->base.active)
+	if (pipe_config->wm_changed && pipe_config->base.active)
 		intel_update_watermarks(&crtc->base);
 
 	if (atomic->update_fbc)
@@ -4843,7 +4843,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 			intel_set_memory_cxsr(dev_priv, false);
 	}
 
-	if (!needs_modeset(&pipe_config->base) && pipe_config->update_wm_pre)
+	if (!needs_modeset(&pipe_config->base) && pipe_config->wm_changed)
 		intel_update_watermarks(&crtc->base);
 }
 
@@ -6210,7 +6210,6 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 
 	intel_crtc_load_lut(crtc);
 
-	intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
 
 	assert_vblank_disabled(crtc);
@@ -8229,14 +8228,12 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
-	int i;
 	u32 val, final;
 	bool has_lvds = false;
 	bool has_cpu_edp = false;
 	bool has_panel = false;
 	bool has_ck505 = false;
 	bool can_ssc = false;
-	bool using_ssc_source = false;
 
 	/* We need to take the global config into account */
 	for_each_intel_encoder(dev, encoder) {
@@ -8263,22 +8260,8 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		can_ssc = true;
 	}
 
-	/* Check if any DPLLs are using the SSC source */
-	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		u32 temp = I915_READ(PCH_DPLL(i));
-
-		if (!(temp & DPLL_VCO_ENABLE))
-			continue;
-
-		if ((temp & PLL_REF_INPUT_MASK) ==
-		    PLLB_REF_INPUT_SPREADSPECTRUMIN) {
-			using_ssc_source = true;
-			break;
-		}
-	}
-
-	DRM_DEBUG_KMS("has_panel %d has_lvds %d has_ck505 %d using_ssc_source %d\n",
-		      has_panel, has_lvds, has_ck505, using_ssc_source);
+	DRM_DEBUG_KMS("has_panel %d has_lvds %d has_ck505 %d\n",
+		      has_panel, has_lvds, has_ck505);
 
 	/* Ironlake: try to setup display ref clock before DPLL
 	 * enabling. This is only under driver's control after
@@ -8315,9 +8298,9 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 				final |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
 		} else
 			final |= DREF_CPU_SOURCE_OUTPUT_DISABLE;
-	} else if (using_ssc_source) {
-		final |= DREF_SSC_SOURCE_ENABLE;
-		final |= DREF_SSC1_ENABLE;
+	} else {
+		final |= DREF_SSC_SOURCE_DISABLE;
+		final |= DREF_CPU_SOURCE_OUTPUT_DISABLE;
 	}
 
 	if (final == val)
@@ -8363,7 +8346,7 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 	} else {
-		DRM_DEBUG_KMS("Disabling CPU source output\n");
+		DRM_DEBUG_KMS("Disabling SSC entirely\n");
 
 		val &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
 
@@ -8374,20 +8357,16 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 
-		if (!using_ssc_source) {
-			DRM_DEBUG_KMS("Disabling SSC source\n");
+		/* Turn off the SSC source */
+		val &= ~DREF_SSC_SOURCE_MASK;
+		val |= DREF_SSC_SOURCE_DISABLE;
 
-			/* Turn off the SSC source */
-			val &= ~DREF_SSC_SOURCE_MASK;
-			val |= DREF_SSC_SOURCE_DISABLE;
+		/* Turn off SSC1 */
+		val &= ~DREF_SSC1_ENABLE;
 
-			/* Turn off SSC1 */
-			val &= ~DREF_SSC1_ENABLE;
-
-			I915_WRITE(PCH_DREF_CONTROL, val);
-			POSTING_READ(PCH_DREF_CONTROL);
-			udelay(200);
-		}
+		I915_WRITE(PCH_DREF_CONTROL, val);
+		POSTING_READ(PCH_DREF_CONTROL);
+		udelay(200);
 	}
 
 	BUG_ON(val != final);
@@ -11854,22 +11833,14 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 			 plane->base.id, was_visible, visible,
 			 turn_off, turn_on, mode_changed);
 
-	if (turn_on) {
-		pipe_config->update_wm_pre = true;
-
-		/* must disable cxsr around plane enable/disable */
-		if (plane->type != DRM_PLANE_TYPE_CURSOR)
-			pipe_config->disable_cxsr = true;
-	} else if (turn_off) {
-		pipe_config->update_wm_post = true;
+	if (turn_on || turn_off) {
+		pipe_config->wm_changed = true;
 
 		/* must disable cxsr around plane enable/disable */
 		if (plane->type != DRM_PLANE_TYPE_CURSOR)
 			pipe_config->disable_cxsr = true;
 	} else if (intel_wm_need_update(plane, plane_state)) {
-		/* FIXME bollocks */
-		pipe_config->update_wm_pre = true;
-		pipe_config->update_wm_post = true;
+		pipe_config->wm_changed = true;
 	}
 
 	if (visible || was_visible)
@@ -11969,7 +11940,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	if (mode_changed && !crtc_state->active)
-		pipe_config->update_wm_post = true;
+		pipe_config->wm_changed = true;
 
 	if (mode_changed && crtc_state->enable &&
 	    dev_priv->display.crtc_compute_clock &&
@@ -13482,12 +13453,12 @@ static bool needs_vblank_wait(struct intel_crtc_state *crtc_state)
 		return true;
 
 	/* wm changes, need vblank before final wm's */
-	if (crtc_state->update_wm_post)
+	if (crtc_state->wm_changed)
 		return true;
 
 	/*
 	 * cxsr is re-enabled after vblank.
-	 * This is already handled by crtc_state->update_wm_post,
+	 * This is already handled by crtc_state->wm_changed,
 	 * but added for clarity.
 	 */
 	if (crtc_state->disable_cxsr)
@@ -15986,18 +15957,6 @@ void intel_display_resume(struct drm_device *dev)
 
 retry:
 	ret = drm_modeset_lock_all_ctx(dev, &ctx);
-
-	/*
-	 * With MST, the number of connectors can change between suspend and
-	 * resume, which means that the state we want to restore might now be
-	 * impossible to use since it'll be pointing to non-existant
-	 * connectors.
-	 */
-	if (ret == 0 && state &&
-	    state->num_connector != dev->mode_config.num_connector) {
-		drm_atomic_state_free(state);
-		state = NULL;
-	}
 
 	if (ret == 0 && !setup) {
 		setup = true;

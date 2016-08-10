@@ -34,6 +34,8 @@
 
 #define ACPI_AC_CLASS           "ac_adapter"
 
+extern void radeon_pm_acpi_event_handler(struct radeon_device *rdev);
+
 struct atif_verify_interface {
 	u16 size;		/* structure size in bytes (includes size field) */
 	u16 version;		/* version */

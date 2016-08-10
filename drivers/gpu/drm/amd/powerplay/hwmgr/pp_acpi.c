@@ -21,20 +21,6 @@ bool acpi_atcs_functions_supported(void *device, uint32_t index)
 	return result == 0 ? (output_buf.function_bits & (1 << (index - 1))) != 0 : false;
 }
 
-bool acpi_atcs_notify_pcie_device_ready(void *device)
-{
-	int32_t temp_buffer = 1;
-
-	return cgs_call_acpi_method(device, CGS_ACPI_METHOD_ATCS,
-				ATCS_FUNCTION_PCIE_DEVICE_READY_NOTIFICATION,
-						&temp_buffer,
-						NULL,
-						0,
-						sizeof(temp_buffer),
-						0);
-}
-
-
 int acpi_pcie_perf_request(void *device, uint8_t perf_req, bool advertise)
 {
 	struct atcs_pref_req_input atcs_input;
@@ -43,7 +29,7 @@ int acpi_pcie_perf_request(void *device, uint8_t perf_req, bool advertise)
 	int result;
 	struct cgs_system_info info = {0};
 
-	if( 0 != acpi_atcs_notify_pcie_device_ready(device))
+	if (!acpi_atcs_functions_supported(device, ATCS_FUNCTION_PCIE_PERFORMANCE_REQUEST))
 		return -EINVAL;
 
 	info.size = sizeof(struct cgs_system_info);
@@ -68,7 +54,7 @@ int acpi_pcie_perf_request(void *device, uint8_t perf_req, bool advertise)
 						ATCS_FUNCTION_PCIE_PERFORMANCE_REQUEST,
 						&atcs_input,
 						&atcs_output,
-						1,
+						0,
 						sizeof(atcs_input),
 						sizeof(atcs_output));
 		if (result != 0)

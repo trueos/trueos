@@ -306,14 +306,10 @@ int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (display_config == NULL)
-		return -EINVAL;
-
-	hwmgr->display_config = *display_config;
-
 	if (hwmgr->hwmgr_func->store_cc6_data == NULL)
 		return -EINVAL;
 
+	hwmgr->display_config = *display_config;
 	/* to do pass other display configuration in furture */
 
 	if (hwmgr->hwmgr_func->store_cc6_data)

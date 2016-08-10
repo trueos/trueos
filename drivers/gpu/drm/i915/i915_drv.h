@@ -56,7 +56,6 @@
 #include "intel_guc.h"
 
 #define resource linux_resource
-/* #define CONFIG_DEBUG_FS 1 */
 
 /* General customization:
  */
@@ -3383,6 +3382,7 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 		    u32 batch_start_offset,
 		    u32 batch_len,
 		    bool is_master);
+
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);

@@ -84,6 +84,7 @@ SRCS	= \
 #ttm_page_alloc_dma.c
 
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
+CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include/drm
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include/uapi
 CFLAGS+= -I${.CURDIR}/../../../contrib/ck/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'

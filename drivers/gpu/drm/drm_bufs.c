@@ -399,7 +399,7 @@ int drm_legacy_addmap_ioctl(struct drm_device *dev, void *data,
 	struct drm_map_list *maplist;
 	int err;
 
-	if (!(DRM_SUSER(DRM_CURPROC) || map->type == _DRM_AGP || map->type == _DRM_SHM))
+	if (!(capable(CAP_SYS_ADMIN) || map->type == _DRM_AGP || map->type == _DRM_SHM))
 		return -EPERM;
 
 	err = drm_addmap_core(dev, map->offset, map->size, map->type,
@@ -790,7 +790,7 @@ int drm_legacy_addbufs_pci(struct drm_device *dev,
 	if (!dma)
 		return -EINVAL;
 
-	if (!DRM_SUSER(DRM_CURPROC))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	count = request->count;
@@ -993,7 +993,7 @@ static int drm_legacy_addbufs_sg(struct drm_device *dev,
 	if (!dma)
 		return -EINVAL;
 
-	if (!DRM_SUSER(DRM_CURPROC))
+	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	count = request->count;

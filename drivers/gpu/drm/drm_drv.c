@@ -938,9 +938,7 @@ err_p1:
 
 static void __exit drm_core_exit(void)
 {
-#ifdef __linux__
 	debugfs_remove(drm_debugfs_root);
-#endif	
 	drm_sysfs_destroy();
 
 	unregister_chrdev(DRM_MAJOR, "drm");

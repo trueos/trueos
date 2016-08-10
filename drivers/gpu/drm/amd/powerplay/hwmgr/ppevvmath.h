@@ -21,13 +21,14 @@
  *
  */
 #include <asm/div64.h>
+#undef MAX
 
 #define SHIFT_AMOUNT 16 /* We multiply all original integers with 2^SHIFT_AMOUNT to get the fInt representation */
 
 #define PRECISION 5 /* Change this value to change the number of decimal places in the final output - 5 is a good default */
 
 #define SHIFTED_2 (2 << SHIFT_AMOUNT)
-#define PP_MAX (1 << (SHIFT_AMOUNT - 1)) - 1 /* 32767 - Might change in the future */
+#define MAX (1 << (SHIFT_AMOUNT - 1)) - 1 /* 32767 - Might change in the future */
 
 /* -------------------------------------------------------------------------------
  * NEW TYPE - fINT
@@ -103,8 +104,8 @@ int GetRoundedValue(fInt);                         /* Incomplete function - Usef
 /* -------------------------------------------------------------------------------------
  * TROUBLESHOOTING INFORMATION
  * -------------------------------------------------------------------------------------
- * 1) ConvertToFraction - InputOutOfRangeException: Only accepts numbers smaller than PP_MAX (default: 32767)
- * 2) fAdd - OutputOutOfRangeException: Output bigger than PP_MAX (default: 32767)
+ * 1) ConvertToFraction - InputOutOfRangeException: Only accepts numbers smaller than MAX (default: 32767)
+ * 2) fAdd - OutputOutOfRangeException: Output bigger than MAX (default: 32767)
  * 3) fMultiply - OutputOutOfRangeException:
  * 4) fGetSquare - OutputOutOfRangeException:
  * 5) fDivide - DivideByZeroException
@@ -229,7 +230,7 @@ fInt ConvertToFraction(int X) /*Add all range checking here. Is it possible to m
 {
 	fInt temp;
 
-	if (X <= PP_MAX)
+	if (X <= MAX)
 		temp.full = (X << SHIFT_AMOUNT);
 	else
 		temp.full = 0;
@@ -247,7 +248,7 @@ fInt Convert_ULONG_ToFraction(uint32_t X)
 {
 	fInt temp;
 
-	if (X <= PP_MAX)
+	if (X <= MAX)
 		temp.full = (X << SHIFT_AMOUNT);
 	else
 		temp.full = 0;
@@ -275,14 +276,14 @@ fInt GetScaledFraction(int X, int factor)
 		bNEGATED = !bNEGATED; /*If bNEGATED = true due to X < 0, this will cover the case of negative cancelling negative */
 	}
 
-	if ((X > PP_MAX) || factor > PP_MAX) {
-		if ((X/factor) <= PP_MAX) {
-			while (X > PP_MAX) {
+	if ((X > MAX) || factor > MAX) {
+		if ((X/factor) <= MAX) {
+			while (X > MAX) {
 				X = X >> 1;
 				times_shifted++;
 			}
 
-			while (factor > PP_MAX) {
+			while (factor > MAX) {
 				factor = factor >> 1;
 				factor_shifted++;
 			}

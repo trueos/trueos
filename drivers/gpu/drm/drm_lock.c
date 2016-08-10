@@ -130,7 +130,6 @@ int drm_legacy_lock(struct drm_device *dev, void *data,
 		if (drm_lock_take(&master->lock, lock->context)) {
 			master->lock.file_priv = file_priv;
 			master->lock.lock_time = jiffies;
-			atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
 			break;	/* Got lock */
 		}
 		ret = -sx_sleep(&master->lock.lock_queue, &drm_global_mutex.sx,
