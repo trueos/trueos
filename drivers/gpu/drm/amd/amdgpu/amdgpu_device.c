@@ -46,6 +46,7 @@
 #endif
 #include "vi.h"
 #include "bif/bif_4_1_d.h"
+#include <linux/pci.h>
 
 #define pci_save_state linux_pci_save_state
 #define pci_restore_state linux_pci_restore_state
@@ -1184,11 +1185,37 @@ int amdgpu_ip_block_version_cmp(struct amdgpu_device *adev,
 	return 1;
 }
 
+static void amdgpu_whether_enable_virtual_display(struct amdgpu_device *adev)
+{
+	adev->enable_virtual_display = false;
+
+	if (amdgpu_virtual_display) {
+		struct drm_device *ddev = adev->ddev;
+		const char *pci_address_name = pci_name(ddev->pdev);
+		char *pciaddstr, *pciaddstr_tmp, *pciaddname;
+
+		pciaddstr = kstrdup(amdgpu_virtual_display, GFP_KERNEL);
+		pciaddstr_tmp = pciaddstr;
+		while ((pciaddname = strsep(&pciaddstr_tmp, ";"))) {
+			if (!strcmp(pci_address_name, pciaddname)) {
+				adev->enable_virtual_display = true;
+				break;
+			}
+		}
+
+		DRM_INFO("virtual display string:%s, %s:virtual_display:%d\n",
+				 amdgpu_virtual_display, pci_address_name,
+				 adev->enable_virtual_display);
+
+		kfree(pciaddstr);
+	}
+}
+
 static int amdgpu_early_init(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	DRM_INFO("virtual display enabled:%d\n", amdgpu_virtual_display);
+	amdgpu_whether_enable_virtual_display(adev);
 
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
