@@ -85,7 +85,7 @@
 	unsigned long end__; \
 	int ret__ = 0; \
 	_WAIT_FOR_ATOMIC_CHECK; \
-	/*BUILD_BUG_ON((US) > 50000);		 */	\
+	BUILD_BUG_ON((US) > 50000);		 	\
 	end__ = (local_clock() >> 10) + (US) + 1; \
 	while (!(COND)) { \
 		if (time_after((unsigned long)(local_clock() >> 10), end__)) { \
