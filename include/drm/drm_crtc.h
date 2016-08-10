@@ -45,6 +45,16 @@ struct drm_clip_rect;
 struct device_node;
 struct fence;
 
+#define DRM_MODE_OBJECT_CRTC 0xcccccccc
+#define DRM_MODE_OBJECT_CONNECTOR 0xc0c0c0c0
+#define DRM_MODE_OBJECT_ENCODER 0xe0e0e0e0
+#define DRM_MODE_OBJECT_MODE 0xdededede
+#define DRM_MODE_OBJECT_PROPERTY 0xb0b0b0b0
+#define DRM_MODE_OBJECT_FB 0xfbfbfbfb
+#define DRM_MODE_OBJECT_BLOB 0xbbbbbbbb
+#define DRM_MODE_OBJECT_PLANE 0xeeeeeeee
+#define DRM_MODE_OBJECT_ANY 0
+
 struct drm_mode_object {
 	uint32_t id;
 	uint32_t type;
@@ -1587,8 +1597,6 @@ struct drm_bridge_funcs {
 	 *
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is still running when this callback is called.
-	 *
-	 * The disable callback is optional.
 	 */
 	void (*disable)(struct drm_bridge *bridge);
 
@@ -1605,8 +1613,6 @@ struct drm_bridge_funcs {
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
 	 * singals) feeding it is no longer running when this callback is
 	 * called.
-	 *
-	 * The post_disable callback is optional.
 	 */
 	void (*post_disable)(struct drm_bridge *bridge);
 
@@ -1635,8 +1641,6 @@ struct drm_bridge_funcs {
 	 * will not yet be running when this callback is called. The bridge must
 	 * not enable the display link feeding the next bridge in the chain (if
 	 * there is one) when this callback is called.
-	 *
-	 * The pre_enable callback is optional.
 	 */
 	void (*pre_enable)(struct drm_bridge *bridge);
 
@@ -1654,8 +1658,6 @@ struct drm_bridge_funcs {
 	 * signals) feeding it is running when this callback is called. This
 	 * callback must enable the display link feeding the next bridge in the
 	 * chain if there is one.
-	 *
-	 * The enable callback is optional.
 	 */
 	void (*enable)(struct drm_bridge *bridge);
 };
@@ -2244,9 +2246,13 @@ int drm_connector_register(struct drm_connector *connector);
 void drm_connector_unregister(struct drm_connector *connector);
 
 extern void drm_connector_cleanup(struct drm_connector *connector);
-extern unsigned int drm_connector_index(struct drm_connector *connector);
-/* helper to unregister all connectors from sysfs for device */
-extern void drm_connector_unregister_all(struct drm_device *dev);
+static inline unsigned drm_connector_index(struct drm_connector *connector)
+{
+	return connector->connector_id;
+}
+
+/* helper to unplug all connectors from sysfs for device */
+extern void drm_connector_unplug_all(struct drm_device *dev);
 
 extern int drm_bridge_add(struct drm_bridge *bridge);
 extern void drm_bridge_remove(struct drm_bridge *bridge);
@@ -2605,18 +2611,9 @@ static inline uint32_t drm_color_lut_extract(uint32_t user_input,
 #define drm_for_each_crtc(crtc, dev) \
 	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
 
-
-/*
- * The connector hotadd/remove code currently grabs both locks when
- * updating lists. Hence readers need only hold either of them to be
- * safe and the check amounts to
- *
- * WARN_ON(not_holding(A) && not_holding(B)).
- */
 static inline void
 assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
 {
-	static int count = 0;
 	/*
 	 * The connector hotadd/remove code currently grabs both locks when
 	 * updating lists. Hence readers need only hold either of them to be
@@ -2624,9 +2621,8 @@ assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
 	 *
 	 * WARN_ON(not_holding(A) && not_holding(B)).
 	 */
-	if ((count++ % 10) == 0)
-		WARN_ON(!mutex_is_locked(&mode_config->mutex) &&
-			!drm_modeset_is_locked(&mode_config->connection_mutex));
+	WARN_ON(!mutex_is_locked(&mode_config->mutex) &&
+		!drm_modeset_is_locked(&mode_config->connection_mutex));
 }
 
 #define drm_for_each_connector(connector, dev) \
