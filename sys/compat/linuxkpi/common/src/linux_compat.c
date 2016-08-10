@@ -142,6 +142,7 @@ struct rendezvous_state {
 	struct mtx rs_mtx;
 	void *rs_data;
 	smp_call_func_t *rs_func;
+	int rs_count;
 	bool rs_free;
 };
 
@@ -150,19 +151,28 @@ rendezvous_wait(void *arg)
 {
 	struct rendezvous_state *rs = arg;
 
-	mtx_lock(&rs->rs_mtx);
-	wakeup(rs);
-	mtx_unlock(&rs->rs_mtx);
+	mtx_lock_spin(&rs->rs_mtx);
+	rs->rs_count--;
+	if (rs->rs_count == 0)
+		wakeup(rs);
+	mtx_unlock_spin(&rs->rs_mtx);
 }
 
 static void
 rendezvous_callback(void *arg)
 {
-	struct rendezvous_state *rs = arg;
+	struct rendezvous_state *rsp = arg;
+	int needfree;
 
-	rs->rs_func(rs->rs_data);
-	if (rs->rs_free)
-		free(rs, M_LCINT);
+	rsp->rs_func(rsp->rs_data);
+	if (rsp->rs_free) {
+		mtx_lock_spin(&rsp->rs_mtx);
+		rsp->rs_count--;
+		needfree = (rsp->rs_count == 0);
+		mtx_unlock_spin(&rsp->rs_mtx);
+		if (needfree)
+			lkpi_free(rsp, M_LCINT);
+	}
 }
 
 int
@@ -172,23 +182,22 @@ on_each_cpu(void callback(void *data), void *data, int wait)
 	if (wait)
 		rsp = &rs;
 	else
-		rsp = malloc(sizeof(*rsp), M_LCINT, M_WAITOK);
+		rsp = lkpi_malloc(sizeof(*rsp), M_LCINT, M_WAITOK);
 	bzero(rsp, sizeof(*rsp));
 	rsp->rs_data = data;
 	rsp->rs_func = callback;
+	rsp->rs_count = mp_ncpus;
+	mtx_init(&rsp->rs_mtx, "rs lock", NULL, MTX_SPIN|MTX_RECURSE|MTX_NOWITNESS);
 
 	if (wait) {
 		rsp->rs_free = false;
-		mtx_init(&rsp->rs_mtx, "rs lock", NULL, MTX_DEF|MTX_NOWITNESS);
+		mtx_lock_spin(&rsp->rs_mtx);
 		smp_rendezvous(NULL, rendezvous_callback, rendezvous_wait, rsp);
-
-		mtx_lock(&rsp->rs_mtx);
-		msleep(rsp, &rsp->rs_mtx, PI_SOFT|PDROP, "rendezvous", 0);
+		msleep_spin(rsp, &rsp->rs_mtx, "rendezvous", 0);
 	} else {
 		rsp->rs_free = true;
 		smp_rendezvous(NULL, callback, NULL, rsp);
 	}
-
 	return (0);
 }
 
