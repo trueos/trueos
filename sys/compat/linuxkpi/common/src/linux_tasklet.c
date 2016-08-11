@@ -7,6 +7,7 @@ struct aligned_ptr {
 	void *ptr;
 } __aligned(CACHE_LINE_SIZE);
 
+static int tasklet_schedule_cnt, tasklet_handler_cnt, tasklet_func_cnt;
 static struct grouptask_aligned *tasklet_gtask_array;
 static struct aligned_ptr *tasklet_head_array;
 
@@ -21,8 +22,14 @@ tasklet_handler(void *arg)
 	t = tasklet_head_array[cpuid].ptr;
 	tasklet_head_array[cpuid].ptr = NULL;
 	enable_intr();
+#ifdef INVARIANTS
+	atomic_add_int(&tasklet_handler_cnt, 1);
+#endif	
 	while (t != NULL) {
 		if (tasklet_trylock(t)) {
+#ifdef INVARIANTS	
+			atomic_add_int(&tasklet_func_cnt, 1);
+#endif			
 			t->func(t->data);
 			tprev = t;
 			t = t->next;
@@ -82,6 +89,9 @@ __tasklet_schedule(struct tasklet_struct *t)
 	if (!inintr)
 		enable_intr();
 	GROUPTASK_ENQUEUE(gtask);
+#ifdef INVARIANTS	
+	atomic_add_int(&tasklet_schedule_cnt, 1);
+#endif	
 }
 
 void
