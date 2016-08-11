@@ -87,7 +87,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   DEVEN_MCHBAR_EN (1 << 28)
 
 #define BSM 0x5c
-#define   BSM_MASK (0xFFFF << 20)
+#define   BSM_MASK (0xFFFFUL << 20)
 
 #define HPLLCC	0xc0 /* 85x only */
 #define   GC_CLOCK_CONTROL_MASK		(0x7 << 0)
