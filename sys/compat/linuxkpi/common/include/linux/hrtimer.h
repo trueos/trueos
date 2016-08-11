@@ -9,6 +9,7 @@
 #include <linux/timer.h>
 #include <linux/timerqueue.h>
 
+struct callout;
 struct hrtimer_clock_base;
 struct hrtimer_cpu_base;
 
@@ -28,13 +29,15 @@ enum hrtimer_restart {
 #define HRTIMER_STATE_INACTIVE	0x00
 #define HRTIMER_STATE_ENQUEUED	0x01
 
+#define BSD_CALLOUT_SIZE 64
 struct hrtimer {
 	struct timerqueue_node		node;
 	ktime_t				_softexpires;
 	enum hrtimer_restart		(*function)(struct hrtimer *);
 	u8				state;
 	u8				is_rel;
-	struct callout			bsd_callout;
+	/* struct callout			bsd_callout; */
+	u8				bsd_callout_[BSD_CALLOUT_SIZE];
 #ifdef CONFIG_TIMER_STATS
 	int				start_pid;
 	void				*start_site;
@@ -96,6 +99,8 @@ static inline void hrtimer_start(struct hrtimer *timer, ktime_t tim,
 {
 	hrtimer_start_range_ns(timer, tim, 0, mode);
 }
+
+extern int hrtimer_try_to_cancel(struct hrtimer *timer);
 
 extern int hrtimer_cancel(struct hrtimer *timer);
 
