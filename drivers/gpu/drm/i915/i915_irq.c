@@ -36,6 +36,7 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
+extern int drm_panic_on_error;
 
 /**
  * DOC: interrupt handling
@@ -2665,6 +2666,9 @@ void i915_handle_error(struct drm_device *dev, u32 engine_mask,
 	va_list args;
 	char error_msg[80];
 
+	if (drm_panic_on_error)
+		panic("dev=%p failure\n", dev);
+	
 	va_start(args, fmt);
 	vscnprintf(error_msg, sizeof(error_msg), fmt, args);
 	va_end(args);
