@@ -396,7 +396,22 @@ struct pci_dev {
 	pci_power_t     current_state;  /* Current operating state. In ACPI-speak,
 					   this is D0-D3, D0 being fully functional,
 					   and D3 being off. */
-
+	unsigned int	d1_support:1;	/* Low power state D1 is supported */
+	unsigned int	d2_support:1;	/* Low power state D2 is supported */
+	unsigned int	no_d1d2:1;	/* D1 and D2 are forbidden */
+	unsigned int	no_d3cold:1;	/* D3cold is forbidden */
+	unsigned int	d3cold_allowed:1;	/* D3cold is allowed by user */
+	unsigned int	mmio_always_on:1;	/* disallow turning off io/mem
+						   decoding during bar sizing */
+	unsigned int	wakeup_prepared:1;
+	unsigned int	runtime_d3cold:1;	/* whether go through runtime
+						   D3cold, not set for devices
+						   powered on/off by the
+						   corresponding bridge */
+	unsigned int	ignore_hotplug:1;	/* Ignore hotplug events */
+	unsigned int	d3_delay;	/* D3->D0 transition time in ms */
+	unsigned int	d3cold_delay;	/* D3cold->D0 transition time in ms */
+	
 	unsigned int		msi_enabled:1;
 	unsigned int		msix_enabled:1;
 	unsigned int		no_msi:1;	/* device may not use msi */
@@ -410,7 +425,6 @@ struct pci_dev {
 	struct bin_attribute	*rom_attr; /* attribute descriptor for sysfs ROM entry */
 	int			rom_attr_enabled; /* has display of the rom attribute been enabled? */
 	struct linux_resource linux_resource[DEVICE_COUNT_RESOURCE]; /* I/O and memory regions + expansion ROMs */
-	unsigned int		d3_delay;
 	char *driver_override; /* Driver name to force a match */
 	struct pci_vpd *vpd;
 };

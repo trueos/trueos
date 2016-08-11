@@ -59,6 +59,7 @@ SRCS+= 	linsysfs_init.c \
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
 CFLAGS+= -I${.CURDIR}/../../contrib/ck/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
+CFLAGS+= -include ${.CURDIR}/../../dev/drm/drm_os_config.h
 
 #CFLAGS += -DPRINT_UNIMPLEMENTED
 # until stable
