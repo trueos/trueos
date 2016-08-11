@@ -40,6 +40,7 @@
 #include <linux/lockdep.h>
 
 typedef struct mutex {
+	struct task_struct *owner;
 	struct sx sx;
 } mutex_t;
 
