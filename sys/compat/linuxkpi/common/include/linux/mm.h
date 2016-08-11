@@ -201,7 +201,6 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long pfn, pgprot_t pgprot);
 
-
 static inline vm_page_t
 vmalloc_to_page(const void *addr)
 {
@@ -211,7 +210,6 @@ vmalloc_to_page(const void *addr)
 	return (PHYS_TO_VM_PAGE(paddr));
 }
 
-
 static inline void *
 vmalloc_32(unsigned long size)
 {
@@ -219,15 +217,11 @@ vmalloc_32(unsigned long size)
 
 }
 
-
-static inline int is_vmalloc_addr(const void *x)
+static inline int
+is_vmalloc_addr(const void *x)
 {
-#if 0
-        unsigned long addr = (unsigned long)x;
 
-        return addr >= VMALLOC_START && addr < VMALLOC_END;
-#endif 
-        return (1);
+	return (vtoslab((vm_offset_t)x & (~UMA_SLAB_MASK)) != NULL);
 }
 
 #define VM_FAULT_OOM	0x0001
