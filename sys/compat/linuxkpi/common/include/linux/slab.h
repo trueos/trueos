@@ -48,7 +48,7 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	kzalloc(size, flags)		kmalloc((size), M_ZERO |((flags) ? (flags) : M_NOWAIT)) 
 #define	kzalloc_node(size, flags, node)	kzalloc(size, flags)
 #define	kfree_const(ptr)		kfree(ptr)
-#define	krealloc(ptr, size, flags)	realloc((ptr), (size), M_KMALLOC, (flags))
+#define	krealloc(ptr, size, flags)	lkpi_realloc((ptr), (size), M_KMALLOC, (flags))
 #define	kcalloc(n, size, flags)	        kmalloc((n) * (size), flags | M_ZERO)
 #define	vzalloc(size)			kzalloc(size, GFP_KERNEL | __GFP_NOWARN)
 #define	vfree(arg)			kfree(arg)

@@ -245,7 +245,7 @@ schedule(void)
 	schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 }
 
-
+#include <linux/hrtimer.h>
 
 
 #endif	/* _LINUX_SCHED_H_ */

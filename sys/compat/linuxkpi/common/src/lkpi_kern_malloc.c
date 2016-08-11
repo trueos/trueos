@@ -87,6 +87,18 @@ __FBSDID("$FreeBSD$");
 dtrace_malloc_probe_func_t	dtrace_malloc_probe;
 #endif
 
+int is_vmalloc_addr(const void *x);
+
+/*
+ * When realloc() is called, if the new size is sufficiently smaller than
+ * the old size, realloc() will allocate a new, smaller block to avoid
+ * wasting memory. 'Sufficiently smaller' is defined as: newsize <=
+ * oldsize / 2^n, where REALLOC_FRACTION defines the value of 'n'.
+ */
+#ifndef REALLOC_FRACTION
+#define	REALLOC_FRACTION	1	/* new block if <= half the size */
+#endif
+
 #include <linux/lkpi_uma.h>
 #include <linux/lkpi_malloc.h>
 #include <machine/cpufunc.h>
@@ -171,7 +183,6 @@ malloc_type_zone_allocated(struct malloc_type *mtp, unsigned long size,
 	enable_intr();
 }
 
-
 /*
  * Initialize the kernel memory allocator
  */
@@ -204,7 +215,6 @@ lkpi_mallocinit(void *dummy __unused)
 		}		    
 		for (;i <= size; i+= KMEM_ZBASE)
 			kmemsize[i >> KMEM_ZSHIFT] = indx;
-
 	}
 }
 SYSINIT(lkpi_kmem, SI_SUB_KMEM, SI_ORDER_SECOND, lkpi_mallocinit, NULL);
@@ -378,4 +388,71 @@ lkpi_free(void *addr, struct malloc_type *mtp)
 		uma_large_free(slab);
 	}
 	malloc_type_freed(mtp, size);
+}
+
+/*
+ *	realloc: change the size of a memory block
+ */
+void *
+lkpi_realloc(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
+{
+	uma_slab_t slab;
+	unsigned long alloc;
+	void *newaddr;
+
+	KASSERT(mtp->ks_magic == M_MAGIC,
+	    ("realloc: bad malloc type magic"));
+
+	/* realloc(NULL, ...) is equivalent to malloc(...) */
+	if (addr == NULL)
+		return (lkpi_malloc(size, mtp, flags));
+
+	/*
+	 * XXX: Should report free of old memory and alloc of new memory to
+	 * per-CPU stats.
+	 */
+
+#ifdef DEBUG_MEMGUARD
+	if (is_memguard_addr(addr))
+		return (memguard_realloc(addr, size, mtp, flags));
+#endif
+
+#ifdef DEBUG_REDZONE
+	slab = NULL;
+	alloc = redzone_get_size(addr);
+#else
+	slab = vtoslab((vm_offset_t)addr & ~(UMA_SLAB_MASK));
+
+	/* Sanity check */
+	KASSERT(slab != NULL,
+	    ("realloc: address %p out of range", (void *)addr));
+
+	/* Get the size of the original block */
+	if (!(slab->us_flags & UMA_SLAB_MALLOC))
+		alloc = slab->us_keg->uk_size;
+	else
+		alloc = slab->us_size;
+
+	/* Reuse the original block if appropriate */
+	if (size <= alloc
+	    && (size > (alloc >> REALLOC_FRACTION) || alloc == MINALLOCSIZE))
+		return (addr);
+#endif /* !DEBUG_REDZONE */
+
+	/* Allocate a new, bigger (or smaller) block */
+	if ((newaddr = lkpi_malloc(size, mtp, flags)) == NULL)
+		return (NULL);
+
+	/* Copy over original contents */
+	bcopy(addr, newaddr, min(size, alloc));
+	lkpi_free(addr, mtp);
+	return (newaddr);
+}
+
+
+int
+is_vmalloc_addr(const void *x)
+{
+
+	return (vtoslab((vm_offset_t)x & (~UMA_SLAB_MASK)) != NULL);
 }
