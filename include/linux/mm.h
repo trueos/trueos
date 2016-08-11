@@ -218,6 +218,18 @@ vmalloc_32(unsigned long size)
 	return (contigmalloc(size, M_KMALLOC, M_WAITOK, 0, UINT_MAX, 1, 1));
 
 }
+
+
+static inline int is_vmalloc_addr(const void *x)
+{
+#if 0
+        unsigned long addr = (unsigned long)x;
+
+        return addr >= VMALLOC_START && addr < VMALLOC_END;
+#endif 
+        return (1);
+}
+
 #define VM_FAULT_OOM	0x0001
 #define VM_FAULT_SIGBUS	0x0002
 #define VM_FAULT_MAJOR	0x0004
