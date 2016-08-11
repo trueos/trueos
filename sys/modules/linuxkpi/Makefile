@@ -29,6 +29,7 @@ SRCS=	interval_tree.c \
 	linux_seq_file.c \
 	linux_string.c \
 	linux_sysfs.c \
+	linux_tasklet.c \
 	linux_usb.c \
 	linux_video.c \
 	linux_work.c \
