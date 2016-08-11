@@ -106,15 +106,6 @@ assert_spin_locked(spinlock_t *lock)
 
 #define spin_lock_bh(lock) _spin_lock_bh((lock), __FILE__, __LINE__)
 
-static inline void _spin_lock_bh(spinlock_t *lock, char *file, int line) {
-	critical_enter();
-	_mtx_lock_flags(&lock->m, 0, file, line);
-}
-static inline void spin_unlock_bh(spinlock_t *lock) {
-	spin_unlock(lock);
-	critical_exit();
-}
-
 
 #define	spin_lock_irq(_l)	lkpi_mtx_lock_spin(&(_l)->m)
 #define	spin_unlock_irq(_l)	lkpi_mtx_unlock_spin(&(_l)->m)
@@ -129,6 +120,17 @@ static inline void spin_unlock_bh(spinlock_t *lock) {
 		spin_unlock_irq((lock));		\
 		flags = 0;				\
 	} while (0)
+
+
+static inline void _spin_lock_bh(spinlock_t *lock, char *file, int line) {
+	critical_enter();
+	spin_lock(lock);
+}
+static inline void spin_unlock_bh(spinlock_t *lock) {
+	spin_unlock(lock);
+	critical_exit();
+}
+
 
 
 #endif	/* _LINUX_SPINLOCK_H_ */
