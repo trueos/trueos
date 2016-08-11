@@ -107,8 +107,6 @@ SYSCTL_INT(_compat_linuxkpi, OID_AUTO, cdev_pfn_found_count, CTLFLAG_RW, &cdev_p
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 MALLOC_DEFINE(M_LCINT, "linuxint", "Linux compat internal");
 
-TASKQGROUP_DEFINE(smp_tqg, mp_ncpus, 1);
-
 #include <linux/rbtree.h>
 /* Undo Linux compat changes. */
 #undef RB_ROOT
