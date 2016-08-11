@@ -386,17 +386,15 @@ static inline void
 intel_flush_status_page(struct intel_engine_cs *engine, int reg)
 {
 	mb();
-	clflush(&engine->status_page.page_addr[reg]);
+	clflush((u_long)&engine->status_page.page_addr[reg]);
 	mb();
 }
 
 static inline u32
-intel_read_status_page(struct intel_engine_cs *engine,
-		       int reg)
+intel_read_status_page(struct intel_engine_cs *engine, int reg)
 {
 	/* Ensure that the compiler doesn't optimize away the load. */
-	barrier();
-	return engine->status_page.page_addr[reg];
+	return READ_ONCE(engine->status_page.page_addr[reg]);
 }
 
 static inline void
