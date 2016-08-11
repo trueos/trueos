@@ -3,39 +3,60 @@
 #include <sys/gtaskqueue.h>
 
 #include <linux/interrupt.h>
-struct aligned_ptr {
-	void *ptr;
-} __aligned(CACHE_LINE_SIZE);
+struct tasklet_head {
+	struct tasklet_struct *head;
+	struct tasklet_struct **tail;
+};
+DPCPU_DEFINE(struct tasklet_head, tasklet_head);
 
 static int tasklet_schedule_cnt, tasklet_handler_cnt, tasklet_func_cnt;
 static struct grouptask_aligned *tasklet_gtask_array;
-static struct aligned_ptr *tasklet_head_array;
 
 static void
 tasklet_handler(void *arg)
 {
 	intptr_t cpuid = (intptr_t)arg;
-	struct tasklet_struct *t, *tprev;
+	struct tasklet_struct *t, *l;
+	struct grouptask *gtask;
+	struct tasklet_head *h;
 
 	MPASS(curcpu == cpuid);
+
 	disable_intr();
-	t = tasklet_head_array[cpuid].ptr;
-	tasklet_head_array[cpuid].ptr = NULL;
+	h = &DPCPU_GET(tasklet_head);
+	l = h->head;
+	h->head = NULL;
+	h->tail = &h->head;
 	enable_intr();
+
 #ifdef INVARIANTS
 	atomic_add_int(&tasklet_handler_cnt, 1);
 #endif	
-	while (t != NULL) {
+	while (l) {
+		t = l;
+		l = l->next;
+
 		if (tasklet_trylock(t)) {
 #ifdef INVARIANTS	
 			atomic_add_int(&tasklet_func_cnt, 1);
-#endif			
-			t->func(t->data);
-			tprev = t;
-			t = t->next;
-			tasklet_unlock(tprev);
-		} else
-			t = t->next;
+#endif
+			if (!atomic_read(&t->count)) {
+					if (!test_and_clear_bit(TASKLET_STATE_SCHED,
+							&t->state))
+						BUG();
+				t->func(t->data);
+				tasklet_unlock(t);
+				continue;
+			}
+			tasklet_unlock(t);
+		}
+		disable_intr();
+		t->next = NULL;
+		*(h->tail) = t;
+		h->tail = &t->next;
+		gtask = (struct grouptask *)&tasklet_gtask_array[curcpu];
+		GROUPTASK_ENQUEUE(gtask);
+		enable_intr();
 	}
 }
 
@@ -44,14 +65,17 @@ tasklet_subsystem_init(void *arg __unused)
 {
 	int i;
 	struct grouptask *gtask;
+	struct tasklet_head *head;
 	char buf[32];
 
 	tasklet_gtask_array = malloc(sizeof(struct grouptask_aligned)*mp_ncpus, M_KMALLOC, M_WAITOK|M_ZERO);
-	tasklet_head_array =  malloc(CACHE_LINE_SIZE*mp_ncpus, M_KMALLOC, M_WAITOK|M_ZERO);
 
-	for (i = 0; i < mp_ncpus; i++) {
+	CPU_FOREACH(i) {
 		if (CPU_ABSENT(i))
 			continue;
+		head = DPCPU_ID_PTR(i, tasklet_head);
+		head->tail = &head->head;
+
 		gtask = (struct grouptask *)&tasklet_gtask_array[i];
 		GROUPTASK_INIT(gtask, 0, tasklet_handler, (void *)(uintptr_t)i);
 		snprintf(buf, 31, "softirq%d", i);
@@ -73,19 +97,19 @@ tasklet_init(struct tasklet_struct *t, void (*func)(unsigned long), unsigned lon
 void
 __tasklet_schedule(struct tasklet_struct *t)
 {
-	struct tasklet_struct *ttmp;
+	struct tasklet_head *head;
 	struct grouptask *gtask;
-	int cpuid, inintr;
+	int inintr;
 
+	t->next = NULL;
 	inintr = curthread->td_intr_nesting_level;
 
 	if (!inintr)
 		disable_intr();
-	cpuid = curcpu;
-	gtask = (struct grouptask *)&tasklet_gtask_array[cpuid];
-	ttmp = tasklet_head_array[cpuid].ptr;
-	t->next = ttmp;
-	tasklet_head_array[cpuid].ptr = t;
+	gtask = (struct grouptask *)&tasklet_gtask_array[curcpu];
+	head = &DPCPU_GET(tasklet_head);
+	*(head->tail) = t;
+	head->tail = &(t->next);
 	if (!inintr)
 		enable_intr();
 	GROUPTASK_ENQUEUE(gtask);
