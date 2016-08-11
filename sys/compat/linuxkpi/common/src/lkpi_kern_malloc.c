@@ -97,7 +97,6 @@ dtrace_malloc_probe_func_t	dtrace_malloc_probe;
 #define	REALLOC_FRACTION	1	/* new block if <= half the size */
 #endif
 
-
 #include <linux/lkpi_uma.h>
 #include <linux/lkpi_malloc.h>
 #include <machine/cpufunc.h>
@@ -182,7 +181,6 @@ malloc_type_zone_allocated(struct malloc_type *mtp, unsigned long size,
 	enable_intr();
 }
 
-
 /*
  * Initialize the kernel memory allocator
  */
@@ -215,7 +213,6 @@ lkpi_mallocinit(void *dummy __unused)
 		}		    
 		for (;i <= size; i+= KMEM_ZBASE)
 			kmemsize[i >> KMEM_ZSHIFT] = indx;
-
 	}
 }
 SYSINIT(lkpi_kmem, SI_SUB_KMEM, SI_ORDER_SECOND, lkpi_mallocinit, NULL);
