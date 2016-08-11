@@ -217,12 +217,7 @@ vmalloc_32(unsigned long size)
 
 }
 
-static inline int
-is_vmalloc_addr(const void *x)
-{
-
-	return (vtoslab((vm_offset_t)x & (~UMA_SLAB_MASK)) != NULL);
-}
+int is_vmalloc_addr(void *addr);
 
 #define VM_FAULT_OOM	0x0001
 #define VM_FAULT_SIGBUS	0x0002

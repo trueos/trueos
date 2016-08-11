@@ -87,6 +87,8 @@ __FBSDID("$FreeBSD$");
 dtrace_malloc_probe_func_t	dtrace_malloc_probe;
 #endif
 
+int is_vmalloc_addr(const void *x);
+
 /*
  * When realloc() is called, if the new size is sufficiently smaller than
  * the old size, realloc() will allocate a new, smaller block to avoid
@@ -445,4 +447,12 @@ lkpi_realloc(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 	bcopy(addr, newaddr, min(size, alloc));
 	lkpi_free(addr, mtp);
 	return (newaddr);
+}
+
+
+int
+is_vmalloc_addr(const void *x)
+{
+
+	return (vtoslab((vm_offset_t)x & (~UMA_SLAB_MASK)) != NULL);
 }
