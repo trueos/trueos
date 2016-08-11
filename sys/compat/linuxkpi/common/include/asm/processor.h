@@ -82,4 +82,7 @@ static __always_inline void cpu_relax(void)
 
 extern struct cpuinfo_x86	boot_cpu_data;
 
+/* XXX check for correctness */
+#define smp_store_mb(var, value) do { (void)atomic_xchg((atomic_t *)&var, value); } while (0)
+
 #endif
