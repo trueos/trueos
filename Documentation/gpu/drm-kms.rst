@@ -132,6 +132,15 @@ connectors has changed. Drivers that use the fb helper can just call the
 :c:func:`drm_fb_helper_hotplug_event()` function to handle this
 operation.
 
+Connector Display Sink Abstraction
+==================================
+
+.. kernel-doc:: include/drm/drm_connector.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :export:
+
 KMS Initialization and Cleanup
 ==============================
 

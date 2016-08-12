@@ -13,6 +13,7 @@ SRCS	= \
 	drm_bufs.c \
 	drm_bridge.c \
 	drm_cache.c \
+	drm_connector.c \
 	drm_context.c \
 	drm_crtc.c \
 	drm_crtc_helper.c \
