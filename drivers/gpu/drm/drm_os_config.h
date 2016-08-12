@@ -42,4 +42,7 @@
 
 #define CONFIG_SMP	
 #define CONFIG_DRM_LOAD_EDID_FIRMWARE 1
+
+#define CONFIG_DRM_AMD_POWERPLAY
+
 #endif
