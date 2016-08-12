@@ -109,8 +109,9 @@ SRCS	= \
 	psm.c \
 	cz_clockpowergating.c \
 	cz_hwmgr.c \
-	ellesmere_hwmgr.c \
+	ellesmere_clockpowergating.c \
 	ellesmere_powertune.c \
+	ellesmere_thermal.c \
 	fiji_clockpowergating.c \
 	fiji_hwmgr.c \
 	fiji_powertune.c \
@@ -132,6 +133,8 @@ SRCS	= \
 	ellesmere_smumgr.c \
 	fiji_smumgr.c \
 	tonga_smumgr.c
+
+#	ellesmere_hwmgr.c \
 
 
 CFLAGS+= 	-I${.CURDIR}/../../../../contrib/ck/include
@@ -192,8 +195,10 @@ CWARNFLAGS.amd_powerplay.c=	-Wno-missing-prototypes
 CWARNFLAGS.eventtasks.c=	-Wno-missing-prototypes
 CWARNFLAGS.cz_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.cz_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
+CWARNFLAGS.ellesmere_clockpowergating.c=	-Wno-missing-prototypes
 CWARNFLAGS.ellesmere_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.ellesmere_smumgr.c=	-Wno-missing-prototypes
+CWARNFLAGS.ellesmere_thermal.c=	-Wno-missing-prototypes
 CWARNFLAGS.fiji_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.fiji_thermal.c=	-Wno-missing-prototypes
 CWARNFLAGS.pp_acpi.c=	-Wno-missing-prototypes 
