@@ -168,6 +168,7 @@ CWARNFLAGS.radeon_prime.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_ring.c=	-Wno-cast-qual
 CWARNFLAGS.radeon_ttm.c=	-Wno-missing-prototypes
 CWARNFLAGS.radeon_ucode.c=	-Wno-incompatible-pointer-types-discards-qualifiers
+CWARNFLAGS.radeon_uvd.c=	-Wno-cast-qual
 CWARNFLAGS.rv770.c=		-Wno-missing-prototypes
 CWARNFLAGS.rv770_dpm.c=		-Wno-missing-prototypes
 CWARNFLAGS.si.c=		-Wno-missing-prototypes -Wno-cast-qual
