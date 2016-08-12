@@ -42,6 +42,7 @@
 #include <drm/drm_atomic_helper.h>
 
 #define fb_info linux_fb_info
+#define lru plinks.lq
 
 static bool drm_fbdev_emulation = true;
 module_param_named(fbdev_emulation, drm_fbdev_emulation, bool, 0600);
@@ -903,7 +904,7 @@ void drm_fb_helper_deferred_io(struct fb_info *info,
 	min = ULONG_MAX;
 	max = 0;
 	list_for_each_entry(page, pagelist, lru) {
-		start = page->index << PAGE_SHIFT;
+		start = page->pindex << PAGE_SHIFT;
 		end = start + PAGE_SIZE - 1;
 		min = min(min, start);
 		max = max(max, end);
