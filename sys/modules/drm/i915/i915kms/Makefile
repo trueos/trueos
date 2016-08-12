@@ -28,6 +28,7 @@ SRCS	= \
 	i915_gem_userptr.c \
 	i915_gpu_error.c \
 	i915_guc_submission.c \
+	i915_memcpy.c \
 	i915_params.c \
 	i915_pci.c \
 	i915_irq.c \

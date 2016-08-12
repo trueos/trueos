@@ -3936,6 +3936,9 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 
 void i915_locks_destroy(struct drm_i915_private *dev_priv);
 
+void i915_memcpy_init_early(struct drm_i915_private *dev_priv);
+bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len);
+
 #define ptr_unpack_bits(ptr, bits) ({					\
 	unsigned long __v = (unsigned long)(ptr);			\
 	(bits) = __v & ~PAGE_MASK;					\
