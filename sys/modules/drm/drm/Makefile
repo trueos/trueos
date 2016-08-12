@@ -25,7 +25,6 @@ SRCS	= \
 	drm_edid_load.c \
 	drm_encoder_slave.c \
 	drm_fb_helper.c \
-	drm_fb_cma_helper.c \
 	drm_fb_helper_freebsd.c \
 	drm_flip_work.c \
 	drm_fops.c \
@@ -79,10 +78,7 @@ SRCS	= \
        # drm_platform.c
         # 
 
-
-
-#
-#ttm_page_alloc_dma.c
+#	drm_fb_cma_helper.c \
 
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include/drm
