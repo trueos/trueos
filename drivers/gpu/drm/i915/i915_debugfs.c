@@ -40,8 +40,6 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
-#ifdef CONFIG_DEBUG_FS
-
 enum {
 	ACTIVE_LIST,
 	INACTIVE_LIST,
@@ -1948,7 +1946,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
                          fbdev_fb->base.depth,
                          fbdev_fb->base.bits_per_pixel,
                          fbdev_fb->base.modifier[0],
-                         drm_framebuffer_read_refcount(&fbdev_fb->base));
+                         atomic_read(&fbdev_fb->base.refcount.refcount));
                describe_obj(m, fbdev_fb->obj);
                seq_putc(m, '\n');
        }
@@ -1966,7 +1964,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 			   fb->base.depth,
 			   fb->base.bits_per_pixel,
 			   fb->base.modifier[0],
-			   drm_framebuffer_read_refcount(&fb->base));
+			   atomic_read(&fb->base.refcount.refcount));
 		describe_obj(m, fb->obj);
 		seq_putc(m, '\n');
 	}
@@ -2742,7 +2740,6 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 #else
 	seq_printf(m, "Device Power Management (CONFIG_PM) disabled\n");
 #endif
-/* XXX not currently being set ... */
 	seq_printf(m, "PCI device power state: %s [%d]\n",
 		   pci_power_name(dev_priv->dev->pdev->current_state),
 		   dev_priv->dev->pdev->current_state);
@@ -2916,6 +2913,20 @@ static void intel_dp_info(struct seq_file *m,
 		intel_panel_info(m, &intel_connector->panel);
 }
 
+static void intel_dp_mst_info(struct seq_file *m,
+			  struct intel_connector *intel_connector)
+{
+	struct intel_encoder *intel_encoder = intel_connector->encoder;
+	struct intel_dp_mst_encoder *intel_mst =
+		enc_to_mst(&intel_encoder->base);
+	struct intel_digital_port *intel_dig_port = intel_mst->primary;
+	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	bool has_audio = drm_dp_mst_port_has_audio(&intel_dp->mst_mgr,
+					intel_connector->port);
+
+	seq_printf(m, "\taudio support: %s\n", yesno(has_audio));
+}
+
 static void intel_hdmi_info(struct seq_file *m,
 			    struct intel_connector *intel_connector)
 {
@@ -2959,6 +2970,8 @@ static void intel_connector_info(struct seq_file *m,
 			intel_hdmi_info(m, intel_connector);
 		else if (intel_encoder->type == INTEL_OUTPUT_LVDS)
 			intel_lvds_info(m, intel_connector);
+		else if (intel_encoder->type == INTEL_OUTPUT_DP_MST)
+			intel_dp_mst_info(m, intel_connector);
 	}
 
 	seq_printf(m, "\tmodes:\n");
@@ -3463,8 +3476,7 @@ static int i915_dp_mst_info(struct seq_file *m, void *unused)
 		intel_dig_port = enc_to_dig_port(encoder);
 		if (!intel_dig_port->dp.can_mst)
 			continue;
-		seq_printf(m, "MST Source Port %c\n",
-			   port_name(intel_dig_port->port));
+
 		drm_dp_mst_dump_topology(m, &intel_dig_port->dp.mst_mgr);
 	}
 	drm_modeset_unlock_all(dev);
@@ -5615,4 +5627,3 @@ int i915_debugfs_connector_add(struct drm_connector *connector)
 
 	return 0;
 }
-#endif
