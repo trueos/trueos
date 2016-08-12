@@ -13463,7 +13463,7 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 	ret = drm_atomic_helper_prepare_planes(dev, state);
 	mutex_unlock(&dev->struct_mutex);
 
-	if (!ret && !async) {
+	if (!ret && !nonblock) {
 		for_each_plane_in_state(state, plane, plane_state, i) {
 			struct intel_plane_state *intel_plane_state =
 				to_intel_plane_state(plane_state);
