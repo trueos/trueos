@@ -1,5 +1,5 @@
 #
-# EVDEV-NODEBUG -- WITNESS and INVARIANTS free kernel configuration file 
+# EVDEV-NODEBUG -- WITNESS and INVARIANTS free kernel configuration file
 #		     for FreeBSD/amd64
 #
 # This configuration file removes several debugging options, including
@@ -26,15 +26,12 @@
 #
 # $FreeBSD$
 
-include GENERIC
+include EVDEV
 
-ident   GENERIC-NODEBUG
+ident   EVDEV-NODEBUG
 
 nooptions       INVARIANTS
 nooptions       INVARIANT_SUPPORT
 nooptions       WITNESS
 nooptions       WITNESS_SKIPSPIN
 nooptions       DEADLKRES
-
-# Create /dev/input/eventX input devices for libinput and Wayland
-options		EVDEV
