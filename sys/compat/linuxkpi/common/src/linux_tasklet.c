@@ -9,16 +9,20 @@ struct tasklet_head {
 };
 DPCPU_DEFINE(struct tasklet_head, tasklet_head);
 
+#ifdef INVARIANTS
 static int tasklet_schedule_cnt, tasklet_handler_cnt, tasklet_func_cnt;
+#endif
 static struct grouptask_aligned *tasklet_gtask_array;
 
 static void
 tasklet_handler(void *arg)
 {
-	intptr_t cpuid = (intptr_t)arg;
 	struct tasklet_struct *t, *l;
 	struct grouptask *gtask;
 	struct tasklet_head *h;
+#ifdef INVARIANTS
+	intptr_t cpuid = (intptr_t)arg;
+#endif
 
 	MPASS(curcpu == cpuid);
 
