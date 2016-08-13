@@ -33,6 +33,9 @@
 #include "atom.h"
 #include "amdgpu_ucode.h"
 
+#undef min_offset
+#undef max_offset
+
 struct amdgpu_cgs_device {
 	struct cgs_device base;
 	struct amdgpu_device *adev;
@@ -75,7 +78,7 @@ static int amdgpu_cgs_gpu_mem_info(struct cgs_device *cgs_device, enum cgs_gpu_m
 
 static int amdgpu_cgs_gmap_kmem(struct cgs_device *cgs_device, void *kmem,
 				uint64_t size,
-				uint64_t min_off, uint64_t max_off,
+				uint64_t min_offset, uint64_t max_offset,
 				cgs_handle_t *kmem_handle, uint64_t *mcaddr)
 {
 	CGS_FUNC_ADEV;
@@ -95,7 +98,7 @@ static int amdgpu_cgs_gmap_kmem(struct cgs_device *cgs_device, void *kmem,
 
 	/* pin buffer into GTT */
 	ret = amdgpu_bo_pin_restricted(bo, AMDGPU_GEM_DOMAIN_GTT,
-				       min_off, max_off, mcaddr);
+				       min_offset, max_offset, mcaddr);
 	amdgpu_bo_unreserve(bo);
 
 	*kmem_handle = (cgs_handle_t)bo;
@@ -121,7 +124,7 @@ static int amdgpu_cgs_gunmap_kmem(struct cgs_device *cgs_device, cgs_handle_t km
 static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 				    enum cgs_gpu_mem_type type,
 				    uint64_t size, uint64_t align,
-				    uint64_t min_off, uint64_t max_off,
+				    uint64_t min_offset, uint64_t max_offset,
 				    cgs_handle_t *handle)
 {
 	CGS_FUNC_ADEV;
@@ -132,7 +135,7 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 	struct ttm_placement placement;
 	struct ttm_place place;
 
-	if (min_off > max_off) {
+	if (min_offset > max_offset) {
 		BUG_ON(1);
 		return -EINVAL;
 	}
@@ -148,10 +151,10 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 	case CGS_GPU_MEM_TYPE__VISIBLE_FB:
 		flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
-		if (max_off > adev->mc.real_vram_size)
+		if (max_offset > adev->mc.real_vram_size)
 			return -EINVAL;
-		place.fpfn = min_off >> PAGE_SHIFT;
-		place.lpfn = max_off >> PAGE_SHIFT;
+		place.fpfn = min_offset >> PAGE_SHIFT;
+		place.lpfn = max_offset >> PAGE_SHIFT;
 		place.flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
 			TTM_PL_FLAG_VRAM;
 		break;
@@ -161,9 +164,9 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 		domain = AMDGPU_GEM_DOMAIN_VRAM;
 		if (adev->mc.visible_vram_size < adev->mc.real_vram_size) {
 			place.fpfn =
-				max(min_off, adev->mc.visible_vram_size) >> PAGE_SHIFT;
+				max(min_offset, adev->mc.visible_vram_size) >> PAGE_SHIFT;
 			place.lpfn =
-				min(max_off, adev->mc.real_vram_size) >> PAGE_SHIFT;
+				min(max_offset, adev->mc.real_vram_size) >> PAGE_SHIFT;
 			place.flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
 				TTM_PL_FLAG_VRAM;
 		}
@@ -171,15 +174,15 @@ static int amdgpu_cgs_alloc_gpu_mem(struct cgs_device *cgs_device,
 		break;
 	case CGS_GPU_MEM_TYPE__GART_CACHEABLE:
 		domain = AMDGPU_GEM_DOMAIN_GTT;
-		place.fpfn = min_off >> PAGE_SHIFT;
-		place.lpfn = max_off >> PAGE_SHIFT;
+		place.fpfn = min_offset >> PAGE_SHIFT;
+		place.lpfn = max_offset >> PAGE_SHIFT;
 		place.flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_TT;
 		break;
 	case CGS_GPU_MEM_TYPE__GART_WRITECOMBINE:
 		flags = AMDGPU_GEM_CREATE_CPU_GTT_USWC;
 		domain = AMDGPU_GEM_DOMAIN_GTT;
-		place.fpfn = min_off >> PAGE_SHIFT;
-		place.lpfn = max_off >> PAGE_SHIFT;
+		place.fpfn = min_offset >> PAGE_SHIFT;
+		place.lpfn = max_offset >> PAGE_SHIFT;
 		place.flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_TT |
 			TTM_PL_FLAG_UNCACHED;
 		break;
@@ -229,19 +232,19 @@ static int amdgpu_cgs_gmap_gpu_mem(struct cgs_device *cgs_device, cgs_handle_t h
 				   uint64_t *mcaddr)
 {
 	int r;
-	u64 min_off, max_off;
+	u64 min_offset, max_offset;
 	struct amdgpu_bo *obj = (struct amdgpu_bo *)handle;
 
 	WARN_ON_ONCE(obj->placement.num_placement > 1);
 
-	min_off = obj->placements[0].fpfn << PAGE_SHIFT;
-	max_off = obj->placements[0].lpfn << PAGE_SHIFT;
+	min_offset = obj->placements[0].fpfn << PAGE_SHIFT;
+	max_offset = obj->placements[0].lpfn << PAGE_SHIFT;
 
 	r = amdgpu_bo_reserve(obj, false);
 	if (unlikely(r != 0))
 		return r;
 	r = amdgpu_bo_pin_restricted(obj, AMDGPU_GEM_DOMAIN_GTT,
-				     min_off, max_off, mcaddr);
+				     min_offset, max_offset, mcaddr);
 	amdgpu_bo_unreserve(obj);
 	return r;
 }
@@ -1172,3 +1175,6 @@ void amdgpu_cgs_destroy_device(struct cgs_device *cgs_device)
 {
 	kfree(cgs_device);
 }
+
+#define min_offset header.start
+#define max_offset header.end
