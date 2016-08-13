@@ -259,6 +259,57 @@ hex_dump_to_buffer(const void *buf, size_t len, int rowsize, int groupsize,
 	if (j <= linebuflen)
 		sprintf(linebuf + j, "\n");
 }
+static void
+drm_kqfilter_detach(struct knote *kn)
+{
+	struct linux_file *filp = kn->kn_hook;
+
+	spin_lock(&filp->f_lock);
+	knlist_remove(&filp->f_selinfo.si_note, kn, 1);
+	spin_unlock(&filp->f_lock);
+}
+
+#ifdef DRM_KQ_DEBUG
+#define PRINTF printf
+#else
+#define PRINTF(...)
+#endif
+
+static int
+drm_kqfilter_read(struct knote *kn, long hint)
+{
+
+	struct file *filp = kn->kn_hook;
+	struct drm_file *file_priv = filp->private_data;
+	struct drm_device *dev = file_priv->minor->dev;
+	struct drm_pending_event *e = NULL;
+	struct drm_pending_event *et = NULL;
+	ssize_t ret = 0;
+
+	PRINTF("%s: pending(hint) = %ld\n",__func__,hint);
+	spin_lock_irq(&dev->event_lock);
+	list_for_each_entry_safe(e, et, &file_priv->event_list, link) {
+		ret += e->event->length;
+	}
+	spin_unlock_irq(&dev->event_lock);
+	kn->kn_data = ret;
+	PRINTF("%s: current=%p. event list size: %d bytes. empty=%d\n",
+		   __func__,current,ret,list_empty(&file_priv->event_list));
+	return (ret > 0);
+
+}
+
+static struct filterops drm_kqfiltops_read = {
+	.f_isfd = 1,
+	.f_detach = drm_kqfilter_detach,
+	.f_event = drm_kqfilter_read,
+};
+
+void
+drm_kqregister(struct linux_file *filp)
+{
+	filp->f_kqfiltops = &drm_kqfiltops_read;
+}
 
 #define to_drm_minor(d) container_of(d, struct drm_minor, kdev)
 #define to_drm_connector(d) container_of(d, struct drm_connector, kdev)
@@ -272,7 +323,6 @@ static char *drm_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
 }
-
 
 static int
 drm_modevent(module_t mod, int type, void *data)
