@@ -239,7 +239,7 @@ lkpi_malloc(unsigned long size, struct malloc_type *mtp, int flags)
 	unsigned long osize = size;
 #endif
 	if (td->td_critnest || td->td_intr_nesting_level)
-		flags |= M_NOVM | M_USE_RESERVE;
+		flags |= M_NOVM;
 
 #ifdef INVARIANTS
 	KASSERT(mtp->ks_magic == M_MAGIC, ("malloc: bad malloc type magic"));
