@@ -95,6 +95,9 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options 	SMP			# Symmetric MultiProcessor Kernel
 options 	DEVICE_NUMA		# I/O Device Affinity
 
+# Enable /dev/input/eventX for input devices
+options		EVDEV
+
 # CPU frequency control
 device		cpufreq
 
