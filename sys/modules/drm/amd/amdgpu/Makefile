@@ -24,6 +24,7 @@ SRCS	= \
 	amdgpu_benchmark.c \
 	amdgpu_bios.c \
 	amdgpu_bo_list.c \
+	amdgpu_cgs.c \
 	amdgpu_connectors.c \
 	amdgpu_cs.c \
 	amdgpu_ctx.c \
@@ -167,6 +168,7 @@ CWARNFLAGS+=	-Wno-pointer-sign ${CWARNFLAGS.${.IMPSRC:T}}
 CWARNFLAGS.amdgpu_acpi.c=	-Wno-int-conversion -Wno-missing-prototypes -Wno-unused-variable
 CWARNFLAGS.amdgpu_amdkfd.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_bo_list.c=	-Wno-missing-prototypes
+CWARNFLAGS.amdgpu_cgs.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.amdgpu_cs.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_device.c=	 -Wno-cast-qual
 CWARNFLAGS.amdgpu_gfx.c=	-Wno-missing-prototypes
