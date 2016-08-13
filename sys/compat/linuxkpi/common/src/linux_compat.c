@@ -1073,7 +1073,7 @@ linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 	if (revents) {
 		spin_lock(&filp->f_lock);
 		KNOTE_LOCKED(&filp->f_selinfo.si_note, 0);
-		spin_lock(&filp->f_lock);
+		spin_unlock(&filp->f_lock);
 	}
 	return (0);
 }
