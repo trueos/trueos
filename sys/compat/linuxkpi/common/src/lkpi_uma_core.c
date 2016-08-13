@@ -175,7 +175,7 @@ static MALLOC_DEFINE(M_UMAHASH, "UMAHash", "UMA Hash Buckets");
 static int bucketdisable = 1;
 
 /* Linked list of all kegs in the system */
-static LIST_HEAD(,uma_keg) uma_kegs = LIST_HEAD_INITIALIZER(uma_kegs);
+static LIST_HEAD(,uma_keg) lkpi_uma_kegs = LIST_HEAD_INITIALIZER(lkpi_uma_kegs);
 
 /* Linked list of all cache-only zones in the system */
 static LIST_HEAD(,uma_zone) uma_cachezones =
@@ -250,15 +250,15 @@ struct uma_bucket_zone {
 #define	BUCKET_MAX	BUCKET_SIZE(256)
 
 struct uma_bucket_zone bucket_zones[] = {
-	{ NULL, "4 Bucket", BUCKET_SIZE(4), 4096 },
-	{ NULL, "6 Bucket", BUCKET_SIZE(6), 3072 },
-	{ NULL, "8 Bucket", BUCKET_SIZE(8), 2048 },
-	{ NULL, "12 Bucket", BUCKET_SIZE(12), 1536 },
-	{ NULL, "16 Bucket", BUCKET_SIZE(16), 1024 },
-	{ NULL, "32 Bucket", BUCKET_SIZE(32), 512 },
-	{ NULL, "64 Bucket", BUCKET_SIZE(64), 256 },
-	{ NULL, "128 Bucket", BUCKET_SIZE(128), 128 },
-	{ NULL, "256 Bucket", BUCKET_SIZE(256), 64 },
+	{ NULL, "LK 4 Bucket", BUCKET_SIZE(4), 4096 },
+	{ NULL, "LK 6 Bucket", BUCKET_SIZE(6), 3072 },
+	{ NULL, "LK 8 Bucket", BUCKET_SIZE(8), 2048 },
+	{ NULL, "LK 12 Bucket", BUCKET_SIZE(12), 1536 },
+	{ NULL, "LK 16 Bucket", BUCKET_SIZE(16), 1024 },
+	{ NULL, "LK 32 Bucket", BUCKET_SIZE(32), 512 },
+	{ NULL, "LK 64 Bucket", BUCKET_SIZE(64), 256 },
+	{ NULL, "LK 128 Bucket", BUCKET_SIZE(128), 128 },
+	{ NULL, "LK 256 Bucket", BUCKET_SIZE(256), 64 },
 	{ NULL, NULL, 0}
 };
 
@@ -327,7 +327,7 @@ SYSCTL_PROC(_vm, OID_AUTO, lkpi_zone_count, CTLFLAG_RD|CTLTYPE_INT,
     0, 0, sysctl_vm_zone_count, "I", "Number of UMA zones");
 
 SYSCTL_PROC(_vm, OID_AUTO, lkpi_zone_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
-    0, 0, sysctl_vm_zone_stats, "s,struct uma_type_header", "Zone Stats");
+    0, 0, sysctl_vm_zone_stats, "s,struct uma_type_header", "LKPI Zone Stats");
 
 static int zone_warnings = 1;
 SYSCTL_INT(_vm, OID_AUTO, lkpi_zone_warnings, CTLFLAG_RWTUN, &zone_warnings, 0,
@@ -1567,7 +1567,7 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	LIST_INSERT_HEAD(&keg->uk_zones, zone, uz_link);
 
 	rw_wlock(&uma_rwlock);
-	LIST_INSERT_HEAD(&uma_kegs, keg, uk_link);
+	LIST_INSERT_HEAD(&lkpi_uma_kegs, keg, uk_link);
 	rw_wunlock(&uma_rwlock);
 	UMA_EXIT();
 	return (0);
@@ -1777,7 +1777,7 @@ zone_foreach(void (*zfunc)(uma_zone_t))
 	uma_zone_t zone;
 
 	rw_rlock(&uma_rwlock);
-	LIST_FOREACH(keg, &uma_kegs, uk_link) {
+	LIST_FOREACH(keg, &lkpi_uma_kegs, uk_link) {
 		LIST_FOREACH(zone, &keg->uk_zones, uz_link)
 			zfunc(zone);
 	}
@@ -1806,7 +1806,7 @@ lkpi_uma_startup(void *arg __unused)
 
 	/* "manually" create the initial zone */
 	memset(&args, 0, sizeof(args));
-	args.name = "LKPI UMA Kegs";
+	args.name = "LK UMA Kegs";
 	args.size = sizeof(struct uma_keg);
 	args.ctor = keg_ctor;
 	args.dtor = keg_dtor;
@@ -1833,7 +1833,7 @@ lkpi_uma_startup(void *arg __unused)
 #ifdef UMA_DEBUG
 	printf("Creating uma zone headers zone and keg.\n");
 #endif
-	args.name = "LKPI UMA Zones";
+	args.name = "LK UMA Zones";
 	args.size = sizeof(struct uma_zone) +
 	    (sizeof(struct uma_cache) * (mp_maxid + 1));
 	args.ctor = zone_ctor;
@@ -3181,7 +3181,7 @@ sysctl_vm_zone_count(SYSCTL_HANDLER_ARGS)
 
 	count = 0;
 	rw_rlock(&uma_rwlock);
-	LIST_FOREACH(kz, &uma_kegs, uk_link) {
+	LIST_FOREACH(kz, &lkpi_uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link)
 			count++;
 	}
@@ -3212,7 +3212,7 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 
 	count = 0;
 	rw_rlock(&uma_rwlock);
-	LIST_FOREACH(kz, &uma_kegs, uk_link) {
+	LIST_FOREACH(kz, &lkpi_uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link)
 			count++;
 	}
@@ -3226,7 +3226,7 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 	ush.ush_count = count;
 	(void)sbuf_bcat(&sbuf, &ush, sizeof(ush));
 
-	LIST_FOREACH(kz, &uma_kegs, uk_link) {
+	LIST_FOREACH(kz, &lkpi_uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
 			bzero(&uth, sizeof(uth));
 			ZONE_LOCK(z);
@@ -3424,7 +3424,7 @@ DB_SHOW_COMMAND(lkpi_uma, db_show_uma)
 
 	db_printf("%18s %8s %8s %8s %12s %8s %8s\n", "Zone", "Size", "Used",
 	    "Free", "Requests", "Sleeps", "Bucket");
-	LIST_FOREACH(kz, &uma_kegs, uk_link) {
+	LIST_FOREACH(kz, &lkpi_uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
 			if (kz->uk_flags & UMA_ZFLAG_INTERNAL) {
 				allocs = z->uz_allocs;
