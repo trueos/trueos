@@ -713,12 +713,54 @@ static struct cdev_pager_ops linux_cdev_pager_ops = {
 	.cdev_pg_dtor	= linux_cdev_pager_dtor
 };
 
+static void
+linux_dev_deferred_note(unsigned long arg)
+{
+	struct linux_file *filp = (struct linux_file *)arg;
+
+	spin_lock(&filp->f_lock);
+	KNOTE_LOCKED(&filp->f_selinfo.si_note, 1);
+	spin_unlock(&filp->f_lock);
+}
+
+static void
+kq_lock(void *arg)
+{
+	spinlock_t *s = arg;
+
+	spin_lock(s);
+}
+static void
+kq_unlock(void *arg)
+{
+	spinlock_t *s = arg;
+
+	spin_unlock(s);
+}
+
+static void
+kq_lock_owned(void *arg)
+{
+	spinlock_t *s = arg;
+
+	mtx_assert(&s->m, MA_OWNED);
+}
+
+static void
+kq_lock_unowned(void *arg)
+{
+	spinlock_t *s = arg;
+
+	mtx_assert(&s->m, MA_NOTOWNED);
+}
+
 static int
 linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct file *file;
+	struct tasklet_struct *t;
 	int error;
 
 	file = td->td_fpop;
@@ -732,6 +774,13 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	vhold(file->f_vnode);
 	filp->f_vnode = file->f_vnode;
 	linux_set_current();
+	INIT_LIST_HEAD(&filp->f_entry);
+	t = &filp->f_kevent_tasklet;
+	tasklet_init(t, linux_dev_deferred_note, (u_long)filp);
+	spin_lock_init(&filp->f_lock);
+	knlist_init(&filp->f_selinfo.si_note, &filp->f_lock, kq_lock, kq_unlock,
+		    kq_lock_owned, kq_lock_unowned);
+
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
@@ -957,10 +1006,10 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
+	struct poll_wqueues table;
 	struct file *file;
 	int revents;
 	int error;
-	struct poll_wqueues table;
 
 	file = td->td_fpop;
 	ldev = dev->si_drv1;
@@ -972,8 +1021,8 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	filp->f_flags = file->f_flag;
 	if (filp->_file == NULL)
 		filp->_file = td->td_fpop;
-	linux_set_current();
 
+	linux_set_current();
 	if (filp->f_op->poll) {
 		/* XXX need to add support for bounded wait */
 		poll_initwait(&table);
@@ -982,6 +1031,51 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	}
 
 	return (revents);
+}
+
+static int
+linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
+{
+	struct linux_file *filp;
+	struct file *file;
+	struct poll_wqueues table;
+	struct thread *td;
+	int error, revents;
+	struct linux_cdev *ldev;
+
+	ldev = dev->si_drv1;
+	td = curthread;
+	file = td->td_fpop;
+	revents = 0;
+	if (ldev == NULL)
+		return (ENXIO);
+	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
+		return (error);
+	filp->f_flags = file->f_flag;
+	if (filp->_file == NULL)
+		filp->_file = td->td_fpop;
+	if (filp->f_op->poll == NULL || kn->kn_filter != EVFILT_READ || filp->f_kqfiltops == NULL)
+		return (EINVAL);
+
+	if (kn->kn_filter == EVFILT_READ) {
+		kn->kn_fop = filp->f_kqfiltops;
+		kn->kn_hook = filp;
+		spin_lock(&filp->f_lock);
+		knlist_add(&filp->f_selinfo.si_note, kn, 1);
+		spin_unlock(&filp->f_lock);
+	} else
+		return (EINVAL);
+
+	linux_set_current();
+	kevent_initwait(&table);
+	revents = filp->f_op->poll(filp, &table.pt);
+
+	if (revents) {
+		spin_lock(&filp->f_lock);
+		KNOTE_LOCKED(&filp->f_selinfo.si_note, 0);
+		spin_lock(&filp->f_lock);
+	}
+	return (0);
 }
 
 static int
@@ -1065,6 +1159,8 @@ struct cdevsw linuxcdevsw = {
 	.d_ioctl = linux_dev_ioctl,
 	.d_mmap_single = linux_dev_mmap_single,
 	.d_poll = linux_dev_poll,
+	.d_kqfilter = linux_dev_kqfilter,
+	.d_name = "lkpidev",
 };
 
 static int

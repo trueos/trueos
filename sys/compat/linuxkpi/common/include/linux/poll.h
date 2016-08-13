@@ -50,22 +50,36 @@
 struct poll_table_struct;
 
 typedef void (*poll_queue_proc)(struct file *, wait_queue_head_t *, struct poll_table_struct *);
+typedef void (*kevent_queue_proc)(struct file *, wait_queue_head_t *, struct poll_table_struct *);
 
 typedef struct poll_table_struct {
 	poll_queue_proc _qproc;
+	kevent_queue_proc _kqproc;
 	unsigned long _key;
 } poll_table;
 
-static inline void poll_wait(struct file * filp, wait_queue_head_t * wait_address, poll_table *p)
+static inline void
+poll_wait(struct file * filp, wait_queue_head_t * wait_address, poll_table *p)	
 {
-	if (p && p->_qproc && wait_address)
+	if (!p || !wait_address)
+		return;
+	if (p->_qproc)
 		p->_qproc(filp, wait_address, p);
+	if (p->_kqproc)
+		p->_kqproc(filp, wait_address, p);
 }
 
-static inline void init_poll_funcptr(poll_table *pt, poll_queue_proc qproc)
+static inline void
+init_poll_funcptr(poll_table *pt, poll_queue_proc qproc)
 {
 	pt->_qproc = qproc;
 	pt->_key   = ~0UL; /* all events enabled */
+}
+
+static inline void
+init_kevent_funcptr(poll_table *pt, kevent_queue_proc qproc)
+{
+	pt->_kqproc = qproc;
 }
 
 struct poll_table_entry {
@@ -138,7 +152,7 @@ linux_pollwake(wait_queue_t *wait, unsigned mode, int sync, void *key)
 }
 
 static inline void
-linux_pollwait(struct file *filp, wait_queue_head_t *wa,
+linux_pollwait(struct linux_file *filp, wait_queue_head_t *wa,
 				poll_table *p)
 {
 	struct poll_wqueues *pwq = container_of(p, struct poll_wqueues, pt);
@@ -160,7 +174,31 @@ linux_pollwait(struct file *filp, wait_queue_head_t *wa,
 static inline void
 poll_initwait(struct poll_wqueues *pwq)
 {
+	bzero(pwq, sizeof(*pwq));
 	init_poll_funcptr(&pwq->pt, linux_pollwait);
+	pwq->polling_task = current;
+	pwq->triggered = 0;
+	pwq->error = 0;
+	pwq->table = NULL;
+	pwq->inline_index = 0;
+}
+
+static inline void
+linux_keventwait(struct linux_file *filp, wait_queue_head_t *wa,
+				poll_table *p)
+{
+	spin_lock(&filp->f_lock);
+	if (!list_empty(&filp->f_entry))
+	    list_del(&filp->f_entry);
+	list_add_tail(&filp->f_entry, &wa->wqh_file_list);
+	spin_unlock(&filp->f_lock);
+}
+
+static inline void
+kevent_initwait(struct poll_wqueues *pwq)
+{
+	bzero(pwq, sizeof(*pwq));
+	init_kevent_funcptr(&pwq->pt, linux_keventwait);
 	pwq->polling_task = current;
 	pwq->triggered = 0;
 	pwq->error = 0;

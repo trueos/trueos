@@ -49,6 +49,7 @@
 #include <linux/dcache.h>
 #include <linux/mutex.h>
 #include <linux/capability.h>
+#include <linux/interrupt.h>
 
 struct module;
 struct kiocb;
@@ -118,6 +119,13 @@ struct linux_file {
 	struct vnode	*f_vnode;
 	atomic_long_t		f_count;
 	vm_object_t	f_mapping;
+
+	/* kqfilter support */
+	struct tasklet_struct f_kevent_tasklet;
+	struct list_head f_entry;
+	struct filterops *f_kqfiltops;
+	/* protects f_sigio.si_note and f_entry */
+	spinlock_t	f_lock;
 };
 #define f_inode		f_vnode
 #define	file		linux_file

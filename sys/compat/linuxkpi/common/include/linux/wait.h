@@ -44,7 +44,6 @@
 #include <sys/sleepqueue.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/taskqueue.h>
 
 #define SKIP_SLEEP() (SCHEDULER_STOPPED() || kdb_active)
 
@@ -80,6 +79,7 @@ typedef struct wait_queue_head {
 	spinlock_t	lock;
 	struct list_head	task_list;
 	struct selinfo		wqh_si;
+	struct list_head	wqh_file_list;
 } wait_queue_head_t;
 
 
@@ -138,15 +138,16 @@ autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
 	wait_queue_t name =  LINUX_WAITQUEUE_INITIALIZER(name, tsk)
 
 #define LINUX_WAIT_QUEUE_HEAD_INITIALIZER(name) {			\
-	.task_list	= { &(name).task_list, &(name).task_list } }
+	.task_list	= { &(name).task_list, &(name).task_list }, \
+	.wqh_file_list = { &(name).wqh_file_list, &(name).wqh_file_list }}
 
 
 #define DECLARE_WAIT_QUEUE_HEAD(name)		\
-        wait_queue_head_t name = LINUX_WAIT_QUEUE_HEAD_INITIALIZER(name);  \
+        wait_queue_head_t name = LINUX_WAIT_QUEUE_HEAD_INITIALIZER(name); \
 	LINUX_MTX_SYSINIT(name, &(name).lock.m, "wqhead", 0)
 
 #define	init_waitqueue_head(x) \
-	do { lkpi_mtx_init(&((x)->lock.m), "wq", NULL, MTX_NOWITNESS);  INIT_LIST_HEAD(&(x)->task_list);  } while (0)
+	do { lkpi_mtx_init(&((x)->lock.m), "wq", NULL, MTX_NOWITNESS);  INIT_LIST_HEAD(&(x)->task_list); INIT_LIST_HEAD(&(x)->wqh_file_list);  } while (0)
 
 static inline void
 init_waitqueue_entry(wait_queue_t *q, struct task_struct *p)
@@ -194,16 +195,7 @@ __wake_up_locked(wait_queue_head_t *q, int mode, int nr, void *key)
 	}
 }
 
-static inline void
-__wake_up(wait_queue_head_t *q, int mode, int nr, void *key)
-{
-	int flags;
-
-	spin_lock_irqsave(&q->lock, flags);
-	selwakeup(&q->wqh_si);
-	__wake_up_locked(q, mode, nr, key);
-	spin_unlock_irqrestore(&q->lock, flags);
-}
+void __wake_up(wait_queue_head_t *q, int mode, int nr, void *key);
 
 
 #define	wake_up(q)				__wake_up(q, TASK_NORMAL, 1, NULL)
