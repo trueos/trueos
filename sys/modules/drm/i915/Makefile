@@ -1,8 +1,16 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/drm
-KMOD	= i915
-SRCS	= i915_dma.c i915_drv.c i915_irq.c i915_mem.c i915_suspend.c
-SRCS	+=device_if.h bus_if.h pci_if.h opt_drm.h
+SYSDIR?=${.CURDIR}/../../..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
-.include <bsd.kmod.mk>
+.if ${MACHINE_CPUARCH} == "amd64"
+_i915kms=	i915kms
+_i915kmsfw=	i915kmsfw
+.endif
+
+SUBDIR = \
+        ${_i915kms} \
+        ${_i915kmsfw}
+
+
+.include <bsd.subdir.mk>

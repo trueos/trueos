@@ -49,6 +49,7 @@
 #include <linux/dcache.h>
 #include <linux/mutex.h>
 #include <linux/capability.h>
+#include <linux/interrupt.h>
 
 struct module;
 struct kiocb;
@@ -118,6 +119,13 @@ struct linux_file {
 	struct vnode	*f_vnode;
 	atomic_long_t		f_count;
 	vm_object_t	f_mapping;
+
+	/* kqfilter support */
+	struct tasklet_struct f_kevent_tasklet;
+	struct list_head f_entry;
+	struct filterops *f_kqfiltops;
+	/* protects f_sigio.si_note and f_entry */
+	spinlock_t	f_lock;
 };
 #define f_inode		f_vnode
 #define	file		linux_file
@@ -361,6 +369,12 @@ extern ssize_t simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 extern int simple_statfs(struct dentry *, struct kstatfs *);
 extern int simple_pin_fs(struct file_system_type *, struct vfsmount **mount, int *count);
 extern void simple_release_fs(struct vfsmount **mount, int *count);
+
+static inline loff_t fixed_size_llseek(struct file *file, loff_t offset,
+				       int whence, loff_t size)
+{
+	panic("%s unimplemented", __FUNCTION__);
+}
 
 
 static inline __printf(1, 2)

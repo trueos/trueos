@@ -107,8 +107,6 @@ SYSCTL_INT(_compat_linuxkpi, OID_AUTO, cdev_pfn_found_count, CTLFLAG_RW, &cdev_p
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 MALLOC_DEFINE(M_LCINT, "linuxint", "Linux compat internal");
 
-TASKQGROUP_DEFINE(smp_tqg, mp_ncpus, 1);
-
 #include <linux/rbtree.h>
 /* Undo Linux compat changes. */
 #undef RB_ROOT
@@ -119,7 +117,6 @@ TASKQGROUP_DEFINE(smp_tqg, mp_ncpus, 1);
 
 struct cpuinfo_x86 boot_cpu_data; 
 
-bool linux_cpu_has_clflush;
 struct kobject linux_class_root;
 struct device linux_root_device;
 struct class linux_class_misc;
@@ -142,6 +139,7 @@ struct rendezvous_state {
 	struct mtx rs_mtx;
 	void *rs_data;
 	smp_call_func_t *rs_func;
+	int rs_count;
 	bool rs_free;
 };
 
@@ -150,19 +148,28 @@ rendezvous_wait(void *arg)
 {
 	struct rendezvous_state *rs = arg;
 
-	mtx_lock(&rs->rs_mtx);
-	wakeup(rs);
-	mtx_unlock(&rs->rs_mtx);
+	mtx_lock_spin(&rs->rs_mtx);
+	rs->rs_count--;
+	if (rs->rs_count == 0)
+		wakeup(rs);
+	mtx_unlock_spin(&rs->rs_mtx);
 }
 
 static void
 rendezvous_callback(void *arg)
 {
-	struct rendezvous_state *rs = arg;
+	struct rendezvous_state *rsp = arg;
+	int needfree;
 
-	rs->rs_func(rs->rs_data);
-	if (rs->rs_free)
-		free(rs, M_LCINT);
+	rsp->rs_func(rsp->rs_data);
+	if (rsp->rs_free) {
+		mtx_lock_spin(&rsp->rs_mtx);
+		rsp->rs_count--;
+		needfree = (rsp->rs_count == 0);
+		mtx_unlock_spin(&rsp->rs_mtx);
+		if (needfree)
+			lkpi_free(rsp, M_LCINT);
+	}
 }
 
 int
@@ -172,23 +179,22 @@ on_each_cpu(void callback(void *data), void *data, int wait)
 	if (wait)
 		rsp = &rs;
 	else
-		rsp = malloc(sizeof(*rsp), M_LCINT, M_WAITOK);
+		rsp = lkpi_malloc(sizeof(*rsp), M_LCINT, M_WAITOK);
 	bzero(rsp, sizeof(*rsp));
 	rsp->rs_data = data;
 	rsp->rs_func = callback;
+	rsp->rs_count = mp_ncpus;
+	mtx_init(&rsp->rs_mtx, "rs lock", NULL, MTX_SPIN|MTX_RECURSE|MTX_NOWITNESS);
 
 	if (wait) {
 		rsp->rs_free = false;
-		mtx_init(&rsp->rs_mtx, "rs lock", NULL, MTX_DEF|MTX_NOWITNESS);
+		mtx_lock_spin(&rsp->rs_mtx);
 		smp_rendezvous(NULL, rendezvous_callback, rendezvous_wait, rsp);
-
-		mtx_lock(&rsp->rs_mtx);
-		msleep(rsp, &rsp->rs_mtx, PI_SOFT|PDROP, "rendezvous", 0);
+		msleep_spin(rsp, &rsp->rs_mtx, "rendezvous", 0);
 	} else {
 		rsp->rs_free = true;
 		smp_rendezvous(NULL, callback, NULL, rsp);
 	}
-
 	return (0);
 }
 
@@ -210,10 +216,10 @@ memdup_user(const void *ubuf, size_t len)
 	void *kbuf;
 	int rc;
 
-	kbuf = malloc(len, M_KMALLOC, M_WAITOK);
+	kbuf = lkpi_malloc(len, M_KMALLOC, M_WAITOK);
 	rc = copyin(ubuf, kbuf, len);
 	if (rc) {
-		free(kbuf, M_KMALLOC);
+		lkpi_free(kbuf, M_KMALLOC);
 		return ERR_PTR(-EFAULT);
 	}
 	return (kbuf);
@@ -707,12 +713,54 @@ static struct cdev_pager_ops linux_cdev_pager_ops = {
 	.cdev_pg_dtor	= linux_cdev_pager_dtor
 };
 
+static void
+linux_dev_deferred_note(unsigned long arg)
+{
+	struct linux_file *filp = (struct linux_file *)arg;
+
+	spin_lock(&filp->f_lock);
+	KNOTE_LOCKED(&filp->f_selinfo.si_note, 1);
+	spin_unlock(&filp->f_lock);
+}
+
+static void
+kq_lock(void *arg)
+{
+	spinlock_t *s = arg;
+
+	spin_lock(s);
+}
+static void
+kq_unlock(void *arg)
+{
+	spinlock_t *s = arg;
+
+	spin_unlock(s);
+}
+
+static void
+kq_lock_owned(void *arg)
+{
+	spinlock_t *s = arg;
+
+	mtx_assert(&s->m, MA_OWNED);
+}
+
+static void
+kq_lock_unowned(void *arg)
+{
+	spinlock_t *s = arg;
+
+	mtx_assert(&s->m, MA_NOTOWNED);
+}
+
 static int
 linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct file *file;
+	struct tasklet_struct *t;
 	int error;
 
 	file = td->td_fpop;
@@ -726,6 +774,13 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	vhold(file->f_vnode);
 	filp->f_vnode = file->f_vnode;
 	linux_set_current();
+	INIT_LIST_HEAD(&filp->f_entry);
+	t = &filp->f_kevent_tasklet;
+	tasklet_init(t, linux_dev_deferred_note, (u_long)filp);
+	spin_lock_init(&filp->f_lock);
+	knlist_init(&filp->f_selinfo.si_note, &filp->f_lock, kq_lock, kq_unlock,
+		    kq_lock_owned, kq_lock_unowned);
+
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
@@ -951,10 +1006,10 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 {
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
+	struct poll_wqueues table;
 	struct file *file;
 	int revents;
 	int error;
-	struct poll_wqueues table;
 
 	file = td->td_fpop;
 	ldev = dev->si_drv1;
@@ -966,8 +1021,8 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	filp->f_flags = file->f_flag;
 	if (filp->_file == NULL)
 		filp->_file = td->td_fpop;
-	linux_set_current();
 
+	linux_set_current();
 	if (filp->f_op->poll) {
 		/* XXX need to add support for bounded wait */
 		poll_initwait(&table);
@@ -976,6 +1031,51 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	}
 
 	return (revents);
+}
+
+static int
+linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
+{
+	struct linux_file *filp;
+	struct file *file;
+	struct poll_wqueues table;
+	struct thread *td;
+	int error, revents;
+	struct linux_cdev *ldev;
+
+	ldev = dev->si_drv1;
+	td = curthread;
+	file = td->td_fpop;
+	revents = 0;
+	if (ldev == NULL)
+		return (ENXIO);
+	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
+		return (error);
+	filp->f_flags = file->f_flag;
+	if (filp->_file == NULL)
+		filp->_file = td->td_fpop;
+	if (filp->f_op->poll == NULL || kn->kn_filter != EVFILT_READ || filp->f_kqfiltops == NULL)
+		return (EINVAL);
+
+	if (kn->kn_filter == EVFILT_READ) {
+		kn->kn_fop = filp->f_kqfiltops;
+		kn->kn_hook = filp;
+		spin_lock(&filp->f_lock);
+		knlist_add(&filp->f_selinfo.si_note, kn, 1);
+		spin_unlock(&filp->f_lock);
+	} else
+		return (EINVAL);
+
+	linux_set_current();
+	kevent_initwait(&table);
+	revents = filp->f_op->poll(filp, &table.pt);
+
+	if (revents) {
+		spin_lock(&filp->f_lock);
+		KNOTE_LOCKED(&filp->f_selinfo.si_note, 0);
+		spin_unlock(&filp->f_lock);
+	}
+	return (0);
 }
 
 static int
@@ -1059,6 +1159,8 @@ struct cdevsw linuxcdevsw = {
 	.d_ioctl = linux_dev_ioctl,
 	.d_mmap_single = linux_dev_mmap_single,
 	.d_poll = linux_dev_poll,
+	.d_kqfilter = linux_dev_kqfilter,
+	.d_name = "lkpidev",
 };
 
 static int
@@ -1563,7 +1665,7 @@ list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 	count = 0;
 	list_for_each(le, head)
 		count++;
-	ar = malloc(sizeof(struct list_head *) * count, M_KMALLOC, M_WAITOK);
+	ar = lkpi_malloc(sizeof(struct list_head *) * count, M_KMALLOC, M_WAITOK);
 	i = 0;
 	list_for_each(le, head)
 		ar[i++] = le;
@@ -1573,7 +1675,7 @@ list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 	INIT_LIST_HEAD(head);
 	for (i = 0; i < count; i++)
 		list_add_tail(ar[i], head);
-	free(ar, M_KMALLOC);
+	lkpi_free(ar, M_KMALLOC);
 }
 
 int
@@ -1749,7 +1851,10 @@ linux_compat_init(void *arg)
 	struct sysctl_oid *rootoid;
 
 #if defined(__i386__) || defined(__amd64__)
-	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
+	if (cpu_feature & CPUID_CLFSH)
+		set_bit(X86_FEATURE_CLFLUSH, &boot_cpu_data.x86_capability);
+	if (cpu_feature & CPUID_PAT)
+		set_bit(X86_FEATURE_PAT, &boot_cpu_data.x86_capability);
 #endif
 	hwmon_idap = &hwmon_ida;
 	sx_init(&linux_global_lock, "LinuxBKL");

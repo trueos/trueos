@@ -65,6 +65,11 @@ pm_runtime_get_noresume(struct device *dev)
 	atomic_inc(&dev->power.usage_count);
 }
 
+static inline int pm_runtime_resume(struct device *dev)
+{
+	return __pm_runtime_resume(dev, 0);
+}
+
 static inline int
 pm_runtime_get(struct device *dev)
 {

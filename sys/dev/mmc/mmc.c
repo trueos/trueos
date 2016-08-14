@@ -362,8 +362,10 @@ mmc_highest_voltage(uint32_t ocr)
 {
 	int i;
 
-	for (i = MMC_OCR_MAX_VOLTAGE_SHIFT;
-	    i >= MMC_OCR_MIN_VOLTAGE_SHIFT; i--)
+    // Changed lower bound from MMC_OCR_MIN_VOLTAGE_SHIFT
+    // to 7 to make it work on Cherryview. Tip from DragonFlyBSD.
+    // Make more permanent fix? Does this break anything?
+	for (i = MMC_OCR_MAX_VOLTAGE_SHIFT; i >= 7; i--)
 		if (ocr & (1 << i))
 			return (i);
 	return (-1);
@@ -401,7 +403,7 @@ mmc_wait_for_req(struct mmc_softc *sc, struct mmc_request *req)
 		msleep(req, &sc->sc_mtx, 0, "mmcreq", 0);
 	MMC_UNLOCK(sc);
 	if (mmc_debug > 2 || (mmc_debug > 0 && req->cmd->error != MMC_ERR_NONE))
-		device_printf(sc->dev, "CMD%d RESULT: %d\n", 
+		device_printf(sc->dev, "CMD%d RESULT: %d\n",
 		    req->cmd->opcode, req->cmd->error);
 	return (0);
 }
@@ -511,7 +513,7 @@ mmc_idle_cards(struct mmc_softc *sc)
 {
 	device_t dev;
 	struct mmc_command cmd;
-	
+
 	dev = sc->dev;
 	mmcbr_set_chip_select(dev, cs_high);
 	mmcbr_update_ios(dev);
@@ -596,7 +598,7 @@ mmc_send_if_cond(struct mmc_softc *sc, uint8_t vhs)
 	cmd.flags = MMC_RSP_R7 | MMC_CMD_BCR;
 	cmd.data = NULL;
 
-	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
+	err = mmc_wait_for_cmd(sc, &cmd, 5*CMD_RETRIES);
 	return (err);
 }
 
@@ -795,7 +797,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		data.len = 8;
 		data.flags = MMC_DATA_WRITE;
 		mmc_wait_for_cmd(sc, &cmd, 0);
-		
+
 		memset(&cmd, 0, sizeof(cmd));
 		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_R;
@@ -808,7 +810,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		data.flags = MMC_DATA_READ;
 		err = mmc_wait_for_cmd(sc, &cmd, 0);
 		sc->squelched--;
-		
+
 		mmcbr_set_bus_width(sc->dev, bus_width_1);
 		mmcbr_update_ios(sc->dev);
 
@@ -832,7 +834,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		data.len = 4;
 		data.flags = MMC_DATA_WRITE;
 		mmc_wait_for_cmd(sc, &cmd, 0);
-		
+
 		memset(&cmd, 0, sizeof(cmd));
 		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_R;
@@ -1017,7 +1019,7 @@ mmc_decode_csd_sd(uint32_t *raw_csd, struct mmc_csd *csd)
 		csd->r2w_factor = 1 << mmc_get_bits(raw_csd, 128, 26, 3);
 		csd->write_bl_len = 1 << mmc_get_bits(raw_csd, 128, 22, 4);
 		csd->write_bl_partial = mmc_get_bits(raw_csd, 128, 21, 1);
-	} else 
+	} else
 		panic("unknown SD CSD version");
 }
 
@@ -1349,9 +1351,9 @@ mmc_discover_cards(struct mmc_softc *sc)
 			if (ivar->csd.csd_structure > 0)
 				ivar->high_cap = 1;
 			ivar->tran_speed = ivar->csd.tran_speed;
-			ivar->erase_sector = ivar->csd.erase_sector * 
+			ivar->erase_sector = ivar->csd.erase_sector *
 			    ivar->csd.write_bl_len / MMC_SECTOR_SIZE;
-			
+
 			err = mmc_send_status(sc, ivar->rca, &status);
 			if (err != MMC_ERR_NONE) {
 				device_printf(sc->dev,
@@ -1446,7 +1448,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 		mmc_decode_csd_mmc(ivar->raw_csd, &ivar->csd);
 		ivar->sec_count = ivar->csd.capacity / MMC_SECTOR_SIZE;
 		ivar->tran_speed = ivar->csd.tran_speed;
-		ivar->erase_sector = ivar->csd.erase_sector * 
+		ivar->erase_sector = ivar->csd.erase_sector *
 		    ivar->csd.write_bl_len / MMC_SECTOR_SIZE;
 
 		err = mmc_send_status(sc, ivar->rca, &status);
@@ -1655,7 +1657,7 @@ mmc_calculate_clock(struct mmc_softc *sc)
 	int nkid, i, f_max;
 	device_t *kids;
 	struct mmc_ivars *ivar;
-	
+
 	f_max = mmcbr_get_f_max(sc->dev);
 	max_dtr = max_hs_dtr = f_max;
 	if ((mmcbr_get_caps(sc->dev) & MMC_CAP_HSPEED))
@@ -1770,7 +1772,7 @@ static void
 mmc_delayed_attach(void *xsc)
 {
 	struct mmc_softc *sc = xsc;
-	
+
 	mmc_scan(sc);
 	config_intrhook_disestablish(&sc->config_intrhook);
 }

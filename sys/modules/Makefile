@@ -97,7 +97,7 @@ SUBDIR=	\
 	de \
 	${_dpms} \
 	${_dpt} \
-	${_drm2} \
+	${_drm} \
 	dummynet \
 	${_ed} \
 	${_elink} \
@@ -506,7 +506,7 @@ _txp=		txp
 .endif
 
 .if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
-	${MACHINE_ARCH:C/mips(el)?/mips/} != "mips" && \
+	${MACHINE_CPUARCH} != "mips" && \
 	${MACHINE_ARCH} != "powerpc" && ${MACHINE_CPUARCH} != "riscv"
 _cxgbe=		cxgbe
 .endif
@@ -549,7 +549,7 @@ _cpuctl=	cpuctl
 _cpufreq=	cpufreq
 _cs=		cs
 _dpms=		dpms
-_drm2=		drm2
+_drm=		drm
 _ed=		ed
 _em=		em
 _ep=		ep
@@ -758,7 +758,7 @@ _wi=		wi
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
-_drm2=		drm2
+_drm=		drm
 .endif
 
 .if ${MACHINE_CPUARCH} == "sparc64"

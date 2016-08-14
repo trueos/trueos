@@ -1,11 +1,8 @@
 #ifndef _ASM_X86_PROCESSOR_H
 #define _ASM_X86_PROCESSOR_H
 
-/*
- * Defines x86 CPU feature bits
- */
-#define NCAPINTS	17	/* N 32-bit words worth of info */
-#define NBUGINTS	1	/* N 32-bit bug flags */
+#include <asm/cpufeatures.h>
+
 
 struct cpuinfo_x86 {
 	__u8			x86;		/* CPU family */
@@ -84,5 +81,8 @@ static __always_inline void cpu_relax(void)
 #define smp_read_barrier_depends() do {} while (0)
 
 extern struct cpuinfo_x86	boot_cpu_data;
+
+/* XXX check for correctness */
+#define smp_store_mb(var, value) do { (void)atomic_xchg((atomic_t *)&var, value); } while (0)
 
 #endif

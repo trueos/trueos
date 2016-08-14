@@ -99,6 +99,36 @@ __FBSDID("$FreeBSD$");
 #include <vm/memguard.h>
 #endif
 
+/* Lock Macros */
+#define	KEG_LOCK_INIT(k, lc)					\
+	do {							\
+		if ((lc))					\
+			mtx_init(&(k)->uk_lock, (k)->uk_name,	\
+			    (k)->uk_name, MTX_DEF | MTX_DUPOK);	\
+		else						\
+			mtx_init(&(k)->uk_lock, (k)->uk_name,	\
+			    "UMA zone", MTX_DEF | MTX_DUPOK);	\
+	} while (0)
+
+#define	KEG_LOCK_FINI(k)	mtx_destroy(&(k)->uk_lock)
+#define	KEG_LOCK(k)	mtx_lock(&(k)->uk_lock)
+#define	KEG_UNLOCK(k)	mtx_unlock(&(k)->uk_lock)
+
+#define	ZONE_LOCK_INIT(z, lc)					\
+	do {							\
+		if ((lc))					\
+			mtx_init(&(z)->uz_lock, (z)->uz_name,	\
+			    (z)->uz_name, MTX_DEF | MTX_DUPOK);	\
+		else						\
+			mtx_init(&(z)->uz_lock, (z)->uz_name,	\
+			    "UMA zone", MTX_DEF | MTX_DUPOK);	\
+	} while (0)
+
+#define	ZONE_LOCK(z)	mtx_lock((z)->uz_lockptr)
+#define	ZONE_TRYLOCK(z)	mtx_trylock((z)->uz_lockptr)
+#define	ZONE_UNLOCK(z)	mtx_unlock((z)->uz_lockptr)
+#define	ZONE_LOCK_FINI(z)	mtx_destroy(&(z)->uz_lock)
+
 /*
  * This is the zone and keg from which all zones are spawned.  The idea is that
  * even the zone & keg heads are allocated from the allocator, so we use the

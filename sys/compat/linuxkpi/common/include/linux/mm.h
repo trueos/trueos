@@ -201,7 +201,6 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long pfn, pgprot_t pgprot);
 
-
 static inline vm_page_t
 vmalloc_to_page(const void *addr)
 {
@@ -211,13 +210,15 @@ vmalloc_to_page(const void *addr)
 	return (PHYS_TO_VM_PAGE(paddr));
 }
 
-
 static inline void *
 vmalloc_32(unsigned long size)
 {
 	return (contigmalloc(size, M_KMALLOC, M_WAITOK, 0, UINT_MAX, 1, 1));
 
 }
+
+int is_vmalloc_addr(void *addr);
+
 #define VM_FAULT_OOM	0x0001
 #define VM_FAULT_SIGBUS	0x0002
 #define VM_FAULT_MAJOR	0x0004

@@ -86,6 +86,9 @@ options 	KDB_TRACE		# Print a stack trace for a panic.
 options 	SMP			# Symmetric MultiProcessor Kernel
 options 	DEVICE_NUMA		# I/O Device Affinity
 
+# Enable /dev/input/eventX for input devices
+options		EVDEV
+
 # CPU frequency control
 device		cpufreq
 

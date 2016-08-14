@@ -187,6 +187,7 @@ static inline void atomic_##op(int i, atomic_t *v)		\
 
 LINUX_ATOMIC_OP(or, |)
 LINUX_ATOMIC_OP(and, &)
+LINUX_ATOMIC_OP(andnot, &~)
 LINUX_ATOMIC_OP(xor, ^)
 
 #endif					/* _ASM_ATOMIC_H_ */

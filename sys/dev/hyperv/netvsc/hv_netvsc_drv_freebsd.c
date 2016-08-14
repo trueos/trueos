@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/buf_ring.h>
 
@@ -151,7 +152,7 @@ __FBSDID("$FreeBSD$");
 #define HN_TX_DATA_MAXSIZE		IP_MAXPACKET
 #define HN_TX_DATA_SEGSIZE		PAGE_SIZE
 #define HN_TX_DATA_SEGCNT_MAX		\
-    (VMBUS_CHAN_SGLIST_MAX - HV_RF_NUM_TX_RESERVED_PAGE_BUFS)
+    (NETVSC_PACKET_MAXPAGE - HV_RF_NUM_TX_RESERVED_PAGE_BUFS)
 
 #define HN_DIRECT_TX_SIZE_DEF		128
 

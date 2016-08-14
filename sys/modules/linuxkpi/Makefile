@@ -12,12 +12,12 @@ SRCS=	interval_tree.c \
 	linux_fence.c \
 	linux_fs.c \
 	linux_firmware.c \
+	linux_hrtimer.c \
 	linux_i2c.c \
 	linux_idr.c \
 	linux_irq.c \
 	linux_kmod.c \
 	linux_lock.c \
-	linux_malloc.c \
 	linux_mtrr.c \
 	linux_notifier.c \
 	linux_page.c \
@@ -30,11 +30,14 @@ SRCS=	interval_tree.c \
 	linux_seq_file.c \
 	linux_string.c \
 	linux_sysfs.c \
+	linux_tasklet.c \
 	linux_usb.c \
 	linux_video.c \
 	linux_work.c \
+	lkpi_kern_malloc.c \
 	lkpi_kern_mutex.c \
-	lkpi_stubs.c
+	lkpi_stubs.c \
+	lkpi_uma_core.c
 
 
 SRCS+=	bus_if.h \
@@ -44,8 +47,10 @@ SRCS+=	bus_if.h \
 	usb_if.h \
 	opt_ddb.h \
 	opt_ktrace.h \
+	opt_param.h \
 	opt_sched.h \
-	opt_usb.h
+	opt_usb.h \
+	opt_vm.h
 
 SRCS+= 	linsysfs_init.c \
 	linsysfs_extern.c \
@@ -55,6 +60,7 @@ SRCS+= 	linsysfs_init.c \
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
 CFLAGS+= -I${.CURDIR}/../../contrib/ck/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
+CFLAGS+= -include ${.CURDIR}/../../dev/drm/drm_os_config.h
 
 #CFLAGS += -DPRINT_UNIMPLEMENTED
 # until stable
