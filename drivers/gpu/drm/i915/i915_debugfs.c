@@ -2017,6 +2017,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		if (IS_ERR(ctx->file_priv)) {
 			seq_puts(m, "(deleted) ");
 		} else if (ctx->file_priv) {
+#ifdef __linux__
 			struct pid *pid = ctx->file_priv->file->pid;
 			struct task_struct *task;
 
@@ -2026,6 +2027,14 @@ static int i915_context_status(struct seq_file *m, void *unused)
 					   task->comm, task->pid);
 				put_task_struct(task);
 			}
+#else
+			pid_t pid = ctx->file_priv->file->pid;
+			struct thread *td = tdfind(pid, -1);
+			if (td) {
+				seq_printf(m, "(%s [%d]) ",
+					   td->td_name, td->td_proc->p_pid);
+			}
+#endif
 		} else {
 			seq_puts(m, "(kernel) ");
 		}
