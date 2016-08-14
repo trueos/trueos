@@ -1757,7 +1757,10 @@ static struct drm_driver driver = {
 	 * deal with them for Intel hardware.
 	 */
 	.driver_features =
-	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME |
+	DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
+#ifdef FREEBSD_PRIME_WORKS
+	DRIVER_PRIME |
+#endif
 	    DRIVER_RENDER | DRIVER_MODESET,
 	.load = i915_driver_load,
 	.unload = i915_driver_unload,
