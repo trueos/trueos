@@ -58,6 +58,7 @@
 #include <asm/atomic.h>
 #include <linux/device.h>
 #include <linux/ioport.h>
+#include <linux/pci_ids.h>
 
 
 
