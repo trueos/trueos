@@ -2233,7 +2233,8 @@ i915_gem_object_invalidate(struct drm_i915_gem_object *obj)
 static void
 i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 {
-	struct sg_page_iter sg_iter;
+	struct sgt_iter sgt_iter;
+	struct page *page;
 	int ret;
 
 	BUG_ON(obj->madv == __I915_MADV_PURGED);
@@ -2255,9 +2256,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 	if (obj->madv == I915_MADV_DONTNEED)
 		obj->dirty = 0;
 
-	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0) {
-		struct page *page = sg_page_iter_page(&sg_iter);
-
+	for_each_sgt_page(page, sgt_iter, obj->pages) {
 		if (obj->dirty)
 			set_page_dirty(page);
 
@@ -2314,7 +2313,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	struct address_space *mapping;
 	struct sg_table *st;
 	struct scatterlist *sg;
-	struct sg_page_iter sg_iter;
+	struct sgt_iter sgt_iter;
 	struct page *page;
 	unsigned long last_pfn = 0;	/* suppress gcc warning */
 	int ret;
@@ -2411,8 +2410,8 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 
 err_pages:
 	sg_mark_end(sg);
-	for_each_sg_page(st->sgl, &sg_iter, st->nents, 0)
-		put_page(sg_page_iter_page(&sg_iter));
+	for_each_sgt_page(page, sgt_iter, st)
+		put_page(page);
 	sg_free_table(st);
 	kfree(st);
 
@@ -2471,7 +2470,8 @@ static void *i915_gem_object_map(const struct drm_i915_gem_object *obj)
 {
 	unsigned long n_pages = obj->base.size >> PAGE_SHIFT;
 	struct sg_table *sgt = obj->pages;
-	struct sg_page_iter sg_iter;
+	struct sgt_iter sgt_iter;
+	struct page *page;
 	struct page *stack_pages[32];
 	struct page **pages = stack_pages;
 	unsigned long i = 0;
@@ -2488,8 +2488,8 @@ static void *i915_gem_object_map(const struct drm_i915_gem_object *obj)
 			return NULL;
 	}
 
-	for_each_sg_page(sgt->sgl, &sg_iter, sgt->nents, 0)
-		pages[i++] = sg_page_iter_page(&sg_iter);
+	for_each_sgt_page(page, sgt_iter, sgt)
+		pages[i++] = page;
 
 	/* Check that we have the expected number of pages */
 	GEM_BUG_ON(i != n_pages);
@@ -4963,13 +4963,10 @@ i915_gem_init_hw(struct drm_device *dev)
 	intel_mocs_init_l3cc_table(dev);
 
 	/* We can't enable contexts until all firmware is loaded */
-	if (HAS_GUC_UCODE(dev)) {
-		ret = intel_guc_ucode_load(dev);
-		if (ret) {
-			DRM_ERROR("Failed to initialize GuC, error %d\n", ret);
-			ret = -EIO;
+	if (HAS_GUC(dev)) {
+		ret = intel_guc_setup(dev);
+		if (ret)
 			goto out;
-		}
 	}
 
 	/*
