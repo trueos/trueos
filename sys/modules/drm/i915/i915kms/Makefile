@@ -53,6 +53,7 @@ SRCS	= \
 	intel_dpio_phy.c \
 	intel_dpll_mgr.c \
 	intel_dsi.c \
+	intel_dsi_dcs_backlight.c \
 	intel_dsi_panel_vbt.c \
 	intel_dsi_pll.c \
 	intel_dvo.c \
