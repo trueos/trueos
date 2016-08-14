@@ -1191,17 +1191,13 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 
 static int kbl_init_workarounds(struct intel_engine_cs *engine)
 {
-<<<<<<< HEAD
 	struct drm_i915_private *dev_priv = engine->i915;
-=======
->>>>>>> e5f81d6... drm/i915/kbl: Init gen9 workarounds
 	int ret;
 
 	ret = gen9_init_workarounds(engine);
 	if (ret)
 		return ret;
 
-<<<<<<< HEAD
 	/* WaEnableGapsTsvCreditFix:kbl */
 	I915_WRITE(GEN8_GARBCNTL, (I915_READ(GEN8_GARBCNTL) |
 				   GEN9_GAPS_TSV_CREDIT_DISABLE));
@@ -1242,8 +1238,6 @@ static int kbl_init_workarounds(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-=======
->>>>>>> e5f81d6... drm/i915/kbl: Init gen9 workarounds
 	return 0;
 }
 
