@@ -741,17 +741,21 @@ kq_unlock(void *arg)
 static void
 kq_lock_owned(void *arg)
 {
+#ifdef INVARIANTS
 	spinlock_t *s = arg;
 
 	mtx_assert(&s->m, MA_OWNED);
+#endif
 }
 
 static void
 kq_lock_unowned(void *arg)
 {
+#ifdef INVARIANTS
 	spinlock_t *s = arg;
 
 	mtx_assert(&s->m, MA_NOTOWNED);
+#endif
 }
 
 static int
