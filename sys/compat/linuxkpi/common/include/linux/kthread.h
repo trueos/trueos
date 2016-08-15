@@ -95,6 +95,7 @@ struct task_struct {
 	int	flags;
 	pid_t	pid;
 	struct wait_queue_head	*sleep_wq;
+	int prio, static_prio, normal_prio;
 	void	*bsd_ioctl_data;
 	unsigned	bsd_ioctl_len;
 	struct mm_struct bsd_mm;
