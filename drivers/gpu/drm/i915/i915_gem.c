@@ -3768,6 +3768,26 @@ int i915_gpu_idle(struct drm_device *dev)
 	return 0;
 }
 
+int i915_gem_wait_for_idle(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *engine;
+	int ret;
+
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+
+	for_each_engine(engine, dev_priv) {
+		if (engine->last_context == NULL)
+			continue;
+
+		ret = intel_engine_idle(engine);
+		if (ret)
+			return ret;
+	}
+
+	WARN_ON(i915_verify_lists(dev));
+	return 0;
+}
+
 static bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 				     unsigned long cache_level)
 {

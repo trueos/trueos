@@ -564,7 +564,7 @@ static struct pci_driver radeon_kms_pci_driver = {
 	.id_table = pciidlist,
 	.probe = radeon_pci_probe,
 	.remove = radeon_pci_remove,
-	.linux_driver.pm = &radeon_pm_ops,
+	.driver.pm = &radeon_pm_ops,
 };
 
 static int __init radeon_init(void)

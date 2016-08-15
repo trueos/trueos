@@ -158,7 +158,7 @@ linux_pci_probe(device_t dev)
 		printf("linux_pci_find failed!\n");
 		return (ENXIO);
 	}
-	if (device_get_driver(dev) != &pdrv->driver) {
+	if (device_get_driver(dev) != &pdrv->bsd_driver) {
 		printf("device_get_driver failed!\n");
 		return (ENXIO);
 	}
@@ -314,8 +314,8 @@ int pci_default_suspend(struct pci_dev *dev,
 {
         int err;
 
-        if(dev->pdrv->linux_driver.pm->suspend != NULL)
-                err = -dev->pdrv->linux_driver.pm->suspend(&(dev->dev));
+        if(dev->pdrv->driver.pm->suspend != NULL)
+                err = -dev->pdrv->driver.pm->suspend(&(dev->dev));
         else
                 err = 0;
 
@@ -326,8 +326,8 @@ int pci_default_resume(struct pci_dev *dev)
 {
         int err;
 
-        if(dev->pdrv->linux_driver.pm->resume != NULL)
-                err = -dev->pdrv->linux_driver.pm->resume(&(dev->dev));
+        if(dev->pdrv->driver.pm->resume != NULL)
+                err = -dev->pdrv->driver.pm->resume(&(dev->dev));
         else
                 err = 0;
 
@@ -349,13 +349,13 @@ pci_register_driver(struct pci_driver *pdrv)
 	spin_lock(&pci_lock);
 	list_add(&pdrv->links, &pci_drivers);
 	spin_unlock(&pci_lock);
-	pdrv->driver.name = pdrv->name;
-	pdrv->driver.methods = pci_methods;
-	pdrv->driver.size = sizeof(struct pci_dev);
+	pdrv->bsd_driver.name = pdrv->name;
+	pdrv->bsd_driver.methods = pci_methods;
+	pdrv->bsd_driver.size = sizeof(struct pci_dev);
 
 	mtx_lock(&Giant);
 	if (bus != NULL) {
-		error = devclass_add_driver(bus, &pdrv->driver, BUS_PASS_DEFAULT,
+		error = devclass_add_driver(bus, &pdrv->bsd_driver, BUS_PASS_DEFAULT,
 		    pdrv->bsdclass);
 		if (error)
 			printf("devclass_add_driver failed with %d\n", error);
@@ -379,7 +379,7 @@ pci_unregister_driver(struct pci_driver *pdrv)
 	list_del(&pdrv->links);
 	mtx_lock(&Giant);
 	if (bus != NULL)
-		devclass_delete_driver(bus, &pdrv->driver);
+		devclass_delete_driver(bus, &pdrv->bsd_driver);
 	mtx_unlock(&Giant);
 }
 

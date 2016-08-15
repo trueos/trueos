@@ -458,7 +458,7 @@ static struct pci_driver i915_pci_driver = {
 	.id_table = pciidlist,
 	.probe = i915_pci_probe,
 	.remove = i915_pci_remove,
-	.linux_driver.pm = &i915_pm_ops,
+	.driver.pm = &i915_pm_ops,
 };
 
 static int __init i915_init(void)
@@ -482,6 +482,11 @@ static int __init i915_init(void)
 		DRM_DEBUG_DRIVER("KMS disabled.\n");
 		return 0;
 	}
+
+	/* FreeBSD specific hackery */
+	i915_pci_driver.busname = "vgapci";
+	i915_pci_driver.bsdclass = &drm_devclass;
+	i915_pci_driver.name = "drmn";
 
 	return pci_register_driver(&i915_pci_driver);
 }
