@@ -12723,7 +12723,7 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 
 	DRM_DEBUG_KMS("planes on this crtc\n");
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
-		const char *format_name;
+		char *format_name;
 		intel_plane = to_intel_plane(plane);
 		if (intel_plane->pipe != crtc->pipe)
 			continue;
@@ -15432,7 +15432,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 	u32 pitch_limit, stride_alignment;
-	const char *format_name;
+	char *format_name;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
