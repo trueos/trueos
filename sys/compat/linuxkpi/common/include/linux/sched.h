@@ -135,6 +135,15 @@ static inline int
 sched_setscheduler(struct task_struct *t, int policy,
 		   const struct sched_param *param)
 {
+	UNIMPLEMENTED();
+	return (0);
+}
+
+static inline int
+sched_setscheduler_nocheck(struct task_struct *t, int policy,
+		   const struct sched_param *param)
+{
+	UNIMPLEMENTED();
 	return (0);
 }
 
