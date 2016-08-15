@@ -14,9 +14,11 @@
 #ifdef __amd64__
 #define	CONFIG_X86	1
 #define	CONFIG_X86_64	1
+#define CONFIG_64BIT	1
 #endif
 #ifdef __ia64__
 #define	CONFIG_IA64	1
+#define CONFIG_64BIT	1
 #endif
 
 #if defined(__i386__) || defined(__amd64__)
