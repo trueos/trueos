@@ -65,5 +65,11 @@ trace_amdgpu_vm_bo_mapping(struct amdgpu_bo_va_mapping * mapping){
 	CTR1(KTR_DRM, "amdgpu_vm_bo_mapping %p", mapping);
 }
 
+#define trace_amdgpu_mm_rreg(dev, reg, ret)	\
+	CTR3(KTR_DRM, "amdgpu_mm_rreg %p %x %d", (dev), (reg), (ret))
+
+#define trace_amdgpu_mm_wreg(dev, reg, x)	\
+	CTR3(KTR_DRM, "amdgpu_mm_wreg %p %x %x", (dev), (reg), (x))
+
 #endif
 
