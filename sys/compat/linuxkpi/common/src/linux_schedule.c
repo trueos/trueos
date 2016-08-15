@@ -148,7 +148,7 @@ schedule_timeout(signed long timeout)
 
 	set_current_state(TASK_RUNNING);
 
-	return (-ret);
+	return (ret ? 0 : timeout);
 }
 
  void
