@@ -129,6 +129,9 @@ struct i2c_adapter {
 	int nr;
 	char name[48];
 	struct completion dev_released;
+	void (*lock_bus)(struct i2c_adapter *, unsigned int flags);
+	int (*trylock_bus)(struct i2c_adapter *, unsigned int flags);
+	void (*unlock_bus)(struct i2c_adapter *, unsigned int flags);
 };
 
 struct i2c_board_info {

@@ -445,6 +445,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
  */
 #define GFX_INSTR(opcode, flags) ((0x3 << 29) | ((opcode) << 24) | (flags))
 
+#define GEN9_MEDIA_POOL_STATE     ((0x3 << 29) | (0x2 << 27) | (0x5 << 16) | 4)
+#define   GEN9_MEDIA_POOL_ENABLE  (1 << 31)
 #define GFX_OP_RASTER_RULES    ((0x3<<29)|(0x7<<24))
 #define GFX_OP_SCISSOR         ((0x3<<29)|(0x1c<<24)|(0x10<<19))
 #define   SC_UPDATE_SCISSOR       (0x1<<1)
@@ -6104,6 +6106,7 @@ enum skl_disp_power_wells {
 
 #define FF_SLICE_CS_CHICKEN2			_MMIO(0x20e4)
 #define  GEN9_TSG_BARRIER_ACK_DISABLE		(1<<8)
+#define  GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE  (1<<10)
 
 #define GEN9_CS_DEBUG_MODE1		_MMIO(0x20ec)
 #define GEN9_CTX_PREEMPT_REG		_MMIO(0x2248)

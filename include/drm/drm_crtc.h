@@ -958,6 +958,33 @@ struct drm_connector_funcs {
 			     uint64_t val);
 
 	/**
+	 * @late_register:
+	 *
+	 * This optional hook can be used to register additional userspace
+	 * interfaces attached to the connector, light backlight control, i2c,
+	 * DP aux or similar interfaces. It is called late in the driver load
+	 * sequence from drm_connector_register() when registering all the
+	 * core drm connector interfaces. Everything added from this callback
+	 * should be unregistered in the early_unregister callback.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success, or a negative error code on failure.
+	 */
+	int (*late_register)(struct drm_connector *connector);
+
+	/**
+	 * @early_unregister:
+	 *
+	 * This optional hook should be used to unregister the additional
+	 * userspace interfaces attached to the connector from
+	 * late_unregister(). It is called from drm_connector_unregister(),
+	 * early in the driver unload sequence to disable userspace access
+	 * before data structures are torndown.
+	 */
+	void (*early_unregister)(struct drm_connector *connector);
+
+	/**
 	 * @destroy:
 	 *
 	 * Clean up connector resources. This is called at driver unload time
@@ -1167,6 +1194,7 @@ struct drm_encoder {
  * @interlace_allowed: can this connector handle interlaced modes?
  * @doublescan_allowed: can this connector handle doublescan?
  * @stereo_allowed: can this connector handle stereo modes?
+ * @registered: is this connector exposed (registered) with userspace?
  * @modes: modes available on this connector (from fill_modes() + user)
  * @status: one of the drm_connector_status enums (connected, not, or unknown)
  * @probed_modes: list of modes derived directly from the display
@@ -1223,6 +1251,7 @@ struct drm_connector {
 	bool interlace_allowed;
 	bool doublescan_allowed;
 	bool stereo_allowed;
+	bool registered;
 	struct list_head modes; /* list of modes on this connector */
 
 	enum drm_connector_status status;

@@ -36,6 +36,7 @@
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
+#include "i915_gem_dmabuf.h"
 #include "intel_dsi.h"
 #include "i915_trace.h"
 #include <drm/drm_atomic.h>
@@ -46,7 +47,6 @@
 #include <drm/drm_rect.h>
 #include <linux/dma_remapping.h>
 #include <linux/reservation.h>
-#include <linux/dma-buf.h>
 
 static bool is_mmio_work(struct intel_flip_work *work)
 {
@@ -4641,7 +4641,7 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 		struct intel_plane_state *old_primary_state =
 			to_intel_plane_state(old_pri_state);
 
-		intel_fbc_pre_update(crtc);
+		intel_fbc_pre_update(crtc, pipe_config, primary_state);
 
 		if (old_primary_state->visible &&
 		    (modeset || !primary_state->visible))
@@ -8412,7 +8412,7 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 			break;
 		}
 	}
-	
+
 	DRM_DEBUG_KMS("has_panel %d has_lvds %d has_ck505 %d using_ssc_source %d\n",
 		      has_panel, has_lvds, has_ck505, using_ssc_source);
 
@@ -8499,7 +8499,7 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 	} else {
-		DRM_DEBUG_KMS("Disabling SSC entirely\n");
+		DRM_DEBUG_KMS("Disabling CPU source output\n");
 
 		val &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
 
@@ -8510,16 +8510,20 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 
-		/* Turn off the SSC source */
-		val &= ~DREF_SSC_SOURCE_MASK;
-		val |= DREF_SSC_SOURCE_DISABLE;
+		if (!using_ssc_source) {
+			DRM_DEBUG_KMS("Disabling SSC source\n");
 
-		/* Turn off SSC1 */
-		val &= ~DREF_SSC1_ENABLE;
+			/* Turn off the SSC source */
+			val &= ~DREF_SSC_SOURCE_MASK;
+			val |= DREF_SSC_SOURCE_DISABLE;
 
-		I915_WRITE(PCH_DREF_CONTROL, val);
-		POSTING_READ(PCH_DREF_CONTROL);
-		udelay(200);
+			/* Turn off SSC1 */
+			val &= ~DREF_SSC1_ENABLE;
+
+			I915_WRITE(PCH_DREF_CONTROL, val);
+			POSTING_READ(PCH_DREF_CONTROL);
+			udelay(200);
+		}
 	}
 
 	BUG_ON(val != final);
@@ -11425,6 +11429,8 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 static bool use_mmio_flip(struct intel_engine_cs *engine,
 			  struct drm_i915_gem_object *obj)
 {
+	struct reservation_object *resv;
+
 	/*
 	 * This is not being used for older platforms, because
 	 * non-availability of flip done interrupt forces us to use
@@ -11445,12 +11451,12 @@ static bool use_mmio_flip(struct intel_engine_cs *engine,
 		return true;
 	else if (i915.enable_execlists)
 		return true;
-	else if (obj->base.dma_buf &&
-		 !reservation_object_test_signaled_rcu(obj->base.dma_buf->resv,
-						       false))
+
+	resv = i915_gem_object_get_dmabuf_resv(obj);
+	if (resv && !reservation_object_test_signaled_rcu(resv, false))
 		return true;
-	else
-		return engine != i915_gem_request_get_engine(obj->last_write_req);
+
+	return engine != i915_gem_request_get_engine(obj->last_write_req);
 }
 
 static void skl_do_mmio_flip(struct intel_crtc *intel_crtc,
@@ -11539,6 +11545,7 @@ static void intel_mmio_flip_work_func(struct work_struct *w)
 	struct intel_framebuffer *intel_fb =
 		to_intel_framebuffer(crtc->base.primary->fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
+	struct reservation_object *resv;
 
 	if (work->flip_queued_req)
 		WARN_ON(__i915_wait_request(work->flip_queued_req,
@@ -11546,9 +11553,9 @@ static void intel_mmio_flip_work_func(struct work_struct *w)
 					    &dev_priv->rps.mmioflips));
 
 	/* For framebuffer backed by dmabuf, wait for fence */
-	if (obj->base.dma_buf)
-		WARN_ON(reservation_object_wait_timeout_rcu(obj->base.dma_buf->resv,
-							    false, false,
+	resv = i915_gem_object_get_dmabuf_resv(obj);
+	if (resv)
+		WARN_ON(reservation_object_wait_timeout_rcu(resv, false, false,
 							    MAX_SCHEDULE_TIMEOUT) < 0);
 
 	intel_pipe_update_start(crtc);
@@ -11639,6 +11646,7 @@ void intel_check_page_flip(struct drm_i915_private *dev_priv, int pipe)
 	spin_unlock(&dev->event_lock);
 }
 
+__maybe_unused
 static int intel_crtc_page_flip(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				struct drm_pending_vblank_event *event,
@@ -11724,7 +11732,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	crtc->primary->fb = fb;
 	update_state_fb(crtc->primary);
-	intel_fbc_pre_update(intel_crtc);
+
+	intel_fbc_pre_update(intel_crtc, intel_crtc->config,
+			     to_intel_plane_state(primary->state));
 
 	work->pending_flip_obj = obj;
 
@@ -13571,11 +13581,6 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int i, ret;
 
-	if (nonblock) {
-		DRM_DEBUG_KMS("i915 does not yet support nonblocking commit\n");
-		return -EINVAL;
-	}
-
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		if (state->legacy_cursor_update)
 			continue;
@@ -13694,46 +13699,36 @@ static bool needs_vblank_wait(struct intel_crtc_state *crtc_state)
 	return false;
 }
 
-/**
- * intel_atomic_commit - commit validated state object
- * @dev: DRM device
- * @state: the top-level driver state object
- * @nonblock: nonblocking commit
- *
- * This function commits a top-level state object that has been validated
- * with drm_atomic_helper_check().
- *
- * FIXME:  Atomic modeset support for i915 is not yet complete.  At the moment
- * we can only handle plane-related operations and do not yet support
- * nonblocking commit.
- *
- * RETURNS
- * Zero for success or -errno.
- */
-static int intel_atomic_commit(struct drm_device *dev,
-			       struct drm_atomic_state *state,
-			       bool nonblock)
+static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 {
+	struct drm_device *dev = state->dev;
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc *crtc;
 	struct intel_crtc_state *intel_cstate;
-	int ret = 0, i;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
 	bool hw_check = intel_state->modeset;
 	unsigned long put_domains[I915_MAX_PIPES] = {};
 	unsigned crtc_vblank_mask = 0;
+	int i, ret;
 
-	ret = intel_atomic_prepare_commit(dev, state, nonblock);
-	if (ret) {
-		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
-		return ret;
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		struct intel_plane_state *intel_plane_state =
+			to_intel_plane_state(plane_state);
+
+		if (!intel_plane_state->wait_req)
+			continue;
+
+		ret = __i915_wait_request(intel_plane_state->wait_req,
+					  true, NULL, NULL);
+		/* EIO should be eaten, and we can't get interrupted in the
+		 * worker, and blocking commits have waited already. */
+		WARN_ON(ret);
 	}
 
-	drm_atomic_helper_swap_state(state, true);
-	dev_priv->wm.distrust_bios_wm = false;
-	dev_priv->wm.skl_results = intel_state->wm_results;
-	intel_shared_dpll_commit(state);
+	drm_atomic_helper_wait_for_dependencies(state);
 
 	if (intel_state->modeset) {
 		memcpy(dev_priv->min_pixclk, intel_state->min_pixclk,
@@ -13801,11 +13796,19 @@ static int intel_atomic_commit(struct drm_device *dev,
 		bool modeset = needs_modeset(crtc->state);
 		struct intel_crtc_state *pipe_config =
 			to_intel_crtc_state(crtc->state);
-		bool update_pipe = !modeset && pipe_config->update_pipe;
 
 		if (modeset && crtc->state->active) {
 			update_scanline_offset(to_intel_crtc(crtc));
 			dev_priv->display.crtc_enable(crtc);
+		}
+
+		/* Complete events for now disable pipes here. */
+		if (modeset && !crtc->state->active && crtc->state->event) {
+			spin_lock_irq(&dev->event_lock);
+			drm_crtc_send_vblank_event(crtc, crtc->state->event);
+			spin_unlock_irq(&dev->event_lock);
+
+			crtc->state->event = NULL;
 		}
 
 		if (!modeset)
@@ -13813,18 +13816,24 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 		if (crtc->state->active &&
 		    drm_atomic_get_existing_plane_state(state, crtc->primary))
-			intel_fbc_enable(intel_crtc);
+			intel_fbc_enable(intel_crtc, pipe_config, to_intel_plane_state(crtc->primary->state));
 
-		if (crtc->state->active &&
-		    (crtc->state->planes_changed || update_pipe))
+		if (crtc->state->active)
 			drm_atomic_helper_commit_planes_on_crtc(old_crtc_state);
 
 		if (pipe_config->base.active && needs_vblank_wait(pipe_config))
 			crtc_vblank_mask |= 1 << i;
 	}
 
-	/* FIXME: add subpixel order */
-
+	/* FIXME: We should call drm_atomic_helper_commit_hw_done() here
+	 * already, but still need the state for the delayed optimization. To
+	 * fix this:
+	 * - wrap the optimization/post_plane_update stuff into a per-crtc work.
+	 * - schedule that vblank worker _before_ calling hw_done
+	 * - at the start of commit_tail, cancel it _synchrously
+	 * - switch over to the vblank wait helper in the core after that since
+	 *   we don't need out special handling any more.
+	 */
 	if (!state->legacy_cursor_update)
 		intel_atomic_wait_for_vblanks(dev, dev_priv, crtc_vblank_mask);
 
@@ -13851,12 +13860,16 @@ static int intel_atomic_commit(struct drm_device *dev,
 		intel_modeset_verify_crtc(crtc, old_crtc_state, crtc->state);
 	}
 
+	drm_atomic_helper_commit_hw_done(state);
+
 	if (intel_state->modeset)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
 
 	mutex_lock(&dev->struct_mutex);
 	drm_atomic_helper_cleanup_planes(dev, state);
 	mutex_unlock(&dev->struct_mutex);
+
+	drm_atomic_helper_commit_cleanup_done(state);
 
 	drm_atomic_state_free(state);
 
@@ -13872,6 +13885,86 @@ static int intel_atomic_commit(struct drm_device *dev,
 	 * can happen also when the device is completely off.
 	 */
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
+}
+
+static void intel_atomic_commit_work(struct work_struct *work)
+{
+	struct drm_atomic_state *state = container_of(work,
+						      struct drm_atomic_state,
+						      commit_work);
+	intel_atomic_commit_tail(state);
+}
+
+static void intel_atomic_track_fbs(struct drm_atomic_state *state)
+{
+	struct drm_plane_state *old_plane_state;
+	struct drm_plane *plane;
+	struct drm_i915_gem_object *obj, *old_obj;
+	struct intel_plane *intel_plane;
+	int i;
+
+	mutex_lock(&state->dev->struct_mutex);
+	for_each_plane_in_state(state, plane, old_plane_state, i) {
+		obj = intel_fb_obj(plane->state->fb);
+		old_obj = intel_fb_obj(old_plane_state->fb);
+		intel_plane = to_intel_plane(plane);
+
+		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
+	}
+	mutex_unlock(&state->dev->struct_mutex);
+}
+
+/**
+ * intel_atomic_commit - commit validated state object
+ * @dev: DRM device
+ * @state: the top-level driver state object
+ * @nonblock: nonblocking commit
+ *
+ * This function commits a top-level state object that has been validated
+ * with drm_atomic_helper_check().
+ *
+ * FIXME:  Atomic modeset support for i915 is not yet complete.  At the moment
+ * nonblocking commits are only safe for pure plane updates. Everything else
+ * should work though.
+ *
+ * RETURNS
+ * Zero for success or -errno.
+ */
+static int intel_atomic_commit(struct drm_device *dev,
+			       struct drm_atomic_state *state,
+			       bool nonblock)
+{
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret = 0;
+
+	if (intel_state->modeset && nonblock) {
+		DRM_DEBUG_KMS("nonblocking commit for modeset not yet implemented.\n");
+		return -EINVAL;
+	}
+
+	ret = drm_atomic_helper_setup_commit(state, nonblock);
+	if (ret)
+		return ret;
+
+	INIT_WORK(&state->commit_work, intel_atomic_commit_work);
+
+	ret = intel_atomic_prepare_commit(dev, state, nonblock);
+	if (ret) {
+		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
+		return ret;
+	}
+
+	drm_atomic_helper_swap_state(state, true);
+	dev_priv->wm.distrust_bios_wm = false;
+	dev_priv->wm.skl_results = intel_state->wm_results;
+	intel_shared_dpll_commit(state);
+	intel_atomic_track_fbs(state);
+
+	if (nonblock)
+		queue_work(system_unbound_wq, &state->commit_work);
+	else
+		intel_atomic_commit_tail(state);
 
 	return 0;
 }
@@ -13921,7 +14014,7 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.set_property = drm_atomic_helper_crtc_set_property,
 	.destroy = intel_crtc_destroy,
-	.page_flip = intel_crtc_page_flip,
+	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = intel_crtc_duplicate_state,
 	.atomic_destroy_state = intel_crtc_destroy_state,
 };
@@ -13946,9 +14039,9 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_framebuffer *fb = new_state->fb;
-	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
+	struct reservation_object *resv;
 	int ret = 0;
 
 	if (!obj && !old_obj)
@@ -13978,12 +14071,15 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		}
 	}
 
+	if (!obj)
+		return 0;
+
 	/* For framebuffer backed by dmabuf, wait for fence */
-	if (obj && obj->base.dma_buf) {
+	resv = i915_gem_object_get_dmabuf_resv(obj);
+	if (resv) {
 		long lret;
 
-		lret = reservation_object_wait_timeout_rcu(obj->base.dma_buf->resv,
-							   false, true,
+		lret = reservation_object_wait_timeout_rcu(resv, false, true,
 							   MAX_SCHEDULE_TIMEOUT);
 		if (lret == -ERESTARTSYS)
 			return lret;
@@ -13991,9 +14087,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		WARN(lret < 0, "waiting returns %li\n", lret);
 	}
 
-	if (!obj) {
-		ret = 0;
-	} else if (plane->type == DRM_PLANE_TYPE_CURSOR &&
+	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
 	    INTEL_INFO(dev)->cursor_needs_physical) {
 		int align = IS_I830(dev) ? 16 * 1024 : 256;
 		ret = i915_gem_object_attach_phys(obj, align);
@@ -14004,15 +14098,11 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	}
 
 	if (ret == 0) {
-		if (obj) {
-			struct intel_plane_state *plane_state =
-				to_intel_plane_state(new_state);
+		struct intel_plane_state *plane_state =
+			to_intel_plane_state(new_state);
 
-			i915_gem_request_assign(&plane_state->wait_req,
-						obj->last_write_req);
-		}
-
-		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
+		i915_gem_request_assign(&plane_state->wait_req,
+					obj->last_write_req);
 	}
 
 	return ret;
@@ -14032,7 +14122,6 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 		       const struct drm_plane_state *old_state)
 {
 	struct drm_device *dev = plane->dev;
-	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_plane_state *old_intel_state;
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_state->fb);
 	struct drm_i915_gem_object *obj = intel_fb_obj(plane->state->fb);
@@ -14045,11 +14134,6 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 	if (old_obj && (plane->type != DRM_PLANE_TYPE_CURSOR ||
 	    !INTEL_INFO(dev)->cursor_needs_physical))
 		intel_unpin_fb_obj(old_state->fb, old_state->rotation);
-
-	/* prepare_fb aborted? */
-	if ((old_obj && (old_obj->frontbuffer_bits & intel_plane->frontbuffer_bit)) ||
-	    (obj && !(obj->frontbuffer_bits & intel_plane->frontbuffer_bit)))
-		i915_gem_track_fb(old_obj, obj, intel_plane->frontbuffer_bit);
 
 	i915_gem_request_assign(&old_intel_state->wait_req, NULL);
 }

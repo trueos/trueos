@@ -767,6 +767,32 @@ static void gen9_sseu_info_init(struct drm_device *dev)
 			       (info->slice_total > 1));
 	info->has_subslice_pg = (IS_BROXTON(dev) && (info->subslice_total > 1));
 	info->has_eu_pg = (info->eu_per_subslice > 2);
+
+	if (IS_BROXTON(dev)) {
+#define IS_SS_DISABLED(_ss_disable, ss)    (_ss_disable & (0x1 << ss))
+		/*
+		 * There is a HW issue in 2x6 fused down parts that requires
+		 * Pooled EU to be enabled as a WA. The pool configuration
+		 * changes depending upon which subslice is fused down. This
+		 * doesn't affect if the device has all 3 subslices enabled.
+		 */
+		/* WaEnablePooledEuFor2x6:bxt */
+		info->has_pooled_eu = ((info->subslice_per_slice == 3) ||
+				       (info->subslice_per_slice == 2 &&
+					INTEL_REVID(dev) < BXT_REVID_C0));
+
+		info->min_eu_in_pool = 0;
+		if (info->has_pooled_eu) {
+			if (IS_SS_DISABLED(ss_disable, 0) ||
+			    IS_SS_DISABLED(ss_disable, 2))
+				info->min_eu_in_pool = 3;
+			else if (IS_SS_DISABLED(ss_disable, 1))
+				info->min_eu_in_pool = 6;
+			else
+				info->min_eu_in_pool = 9;
+		}
+#undef IS_SS_DISABLED
+	}
 }
 
 static void broadwell_sseu_info_init(struct drm_device *dev)
@@ -965,6 +991,9 @@ static void intel_device_info_runtime_init(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("subslice per slice: %u\n", info->subslice_per_slice);
 	DRM_DEBUG_DRIVER("EU total: %u\n", info->eu_total);
 	DRM_DEBUG_DRIVER("EU per subslice: %u\n", info->eu_per_subslice);
+	DRM_DEBUG_DRIVER("Has Pooled EU: %s\n", HAS_POOLED_EU(dev) ? "y" : "n");
+	if (HAS_POOLED_EU(dev))
+		DRM_DEBUG_DRIVER("Min EU in pool: %u\n", info->min_eu_in_pool);
 	DRM_DEBUG_DRIVER("has slice power gating: %s\n",
 			 info->has_slice_pg ? "y" : "n");
 	DRM_DEBUG_DRIVER("has subslice power gating: %s\n",

@@ -1324,8 +1324,8 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
 		} else if (i == 1) {
 			stall_commit = commit;
 			drm_crtc_commit_get(stall_commit);
-		} else
 			break;
+		}
 
 		i++;
 	}
@@ -1337,7 +1337,7 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
 	/* We don't want to let commits get ahead of cleanup work too much,
 	 * stalling on 2nd previous commit means triple-buffer won't ever stall.
 	 */
-	ret = wait_for_completion_interruptible_timeout(&commit->cleanup_done,
+	ret = wait_for_completion_interruptible_timeout(&stall_commit->cleanup_done,
 							10*HZ);
 	if (ret == 0)
 		DRM_ERROR("[CRTC:%d:%s] cleanup_done timed out\n",
@@ -1579,11 +1579,8 @@ void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state)
 		/* commit_list borrows our reference, need to remove before we
 		 * clean up our drm_atomic_state. But only after it actually
 		 * completed, otherwise subsequent commits won't stall properly. */
-		if (try_wait_for_completion(&commit->flip_done)) {
-			list_del(&commit->commit_entry);
-			spin_unlock(&crtc->commit_lock);
-			continue;
-		}
+		if (try_wait_for_completion(&commit->flip_done))
+			goto del_commit;
 
 		spin_unlock(&crtc->commit_lock);
 
@@ -1597,6 +1594,7 @@ void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state)
 				  crtc->base.id, crtc->name);
 
 		spin_lock(&crtc->commit_lock);
+del_commit:
 		list_del(&commit->commit_entry);
 		spin_unlock(&crtc->commit_lock);
 	}
