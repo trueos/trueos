@@ -69,33 +69,53 @@ static struct idr drm_minors_idr;
 
 static struct dentry *drm_debugfs_root;
 
-void drm_err(const char *format, ...)
+#define DRM_PRINTK_FMT "[" DRM_NAME ":%s]%s %pV"
+
+void drm_dev_printk(const struct device *dev, const char *level,
+		    unsigned int category, const char *function_name,
+		    const char *prefix, const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
 
-	va_start(args, format);
+	if (category != DRM_UT_NONE && !(drm_debug & category))
+		return;
 
+	va_start(args, format);
 	vaf.fmt = format;
 	vaf.va = &args;
 
+#ifdef __linux__
+	dev_printk(level, dev, DRM_PRINTK_FMT, function_name, prefix,
+		   &vaf);
+#else
 	printf("[" DRM_NAME ":%ps] *ERROR* ", __builtin_return_address(0));
 	vprintf(format, args);
+#endif
+	
 
 	va_end(args);
 }
-EXPORT_SYMBOL(drm_err);
+EXPORT_SYMBOL(drm_dev_printk);
 
-void drm_ut_debug_printk(const char *function_name, const char *format, ...)
+void drm_printk(const char *level, unsigned int category,
+		const char *function_name, const char *prefix,
+		const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
 	static int stop_count = 0;
 
+	if (category != DRM_UT_NONE && !(drm_debug & category))
+		return;
+
 	va_start(args, format);
 	vaf.fmt = format;
 	vaf.va = &args;
 
+#ifdef __linux__			
+	printk("%s" DRM_PRINTK_FMT, level, function_name, prefix, &vaf);
+#else
 	if (SCHEDULER_STOPPED() || kdb_active) {
 		printf(" ");
 		return;
@@ -104,10 +124,10 @@ void drm_ut_debug_printk(const char *function_name, const char *format, ...)
 		return;
 	printf("[" DRM_NAME ":%s] ", function_name);
 	vprintf(format, args);
-
+#endif
 	va_end(args);
 }
-EXPORT_SYMBOL(drm_ut_debug_printk);
+EXPORT_SYMBOL(drm_printk);
 
 /*
  * DRM Minors
