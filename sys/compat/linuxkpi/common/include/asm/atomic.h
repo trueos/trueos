@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 #include <linux/types.h>
+#include <asm/cmpxchg.h>
 
 #define	ATOMIC_INIT(x)	{ .counter = (x) }
 
@@ -149,31 +150,13 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 	return (ret);
 }
 
-#define	cmpxchg(ptr, old, new) ({				\
-	__typeof(*(ptr)) __ret = (old);				\
-	CTASSERT(sizeof(__ret) == 4 || sizeof(__ret) == 8);	\
-	for (;;) {						\
-		if (sizeof(__ret) == 4) {			\
-			if (atomic_cmpset_int((volatile int *)	\
-			    (ptr), (old), (new)))		\
-				break;				\
-			__ret = atomic_load_acq_int(		\
-			    (volatile int *)(ptr));		\
-			if (__ret != (old))			\
-				break;				\
-		} else {					\
-			if (atomic_cmpset_64(			\
-			    (volatile int64_t *)(ptr),		\
-			    (old), (new)))			\
-				break;				\
-			__ret = atomic_load_acq_64(		\
-			    (volatile int64_t *)(ptr));		\
-			if (__ret != (old))			\
-				break;				\
-		}						\
-	}							\
-	__ret;							\
-})
+
+/* cmpxchg_relaxed */
+#ifndef cmpxchg_relaxed
+#define  cmpxchg_relaxed		cmpxchg
+#define  cmpxchg_acquire		cmpxchg
+#define  cmpxchg_release		cmpxchg
+#endif
 
 #define	LINUX_ATOMIC_OP(op, c_op)				\
 static inline void atomic_##op(int i, atomic_t *v)		\
