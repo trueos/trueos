@@ -245,6 +245,8 @@ schedule(void)
 	schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 }
 
+#define yield() kern_yield(0)
+
 #include <linux/hrtimer.h>
 
 
