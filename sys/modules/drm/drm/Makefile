@@ -31,6 +31,7 @@ SRCS	= \
 	drm_flip_work.c \
 	drm_fops.c \
 	drm_fourcc.c \
+	drm_framebuffer.c \
 	drm_gem.c \
 	drm_gem_cma_helper.c \
 	drm_global.c \
