@@ -134,13 +134,6 @@ struct drm_i915_gem_request {
 	/** file_priv list entry for this request */
 	struct list_head client_list;
 
-	/** process identifier submitting this request */
-#ifdef __linux__
-	struct pid *pid;
-#else
-	pid_t pid;
-#endif
-
 	/**
 	 * The ELSP only accepts two elements at a time, so we queue
 	 * context/tail pairs on a given queue (ring->execlist_queue) until the

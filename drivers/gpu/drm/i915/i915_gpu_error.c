@@ -474,7 +474,8 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				   dev_priv->engine[i].name,
 				   ee->num_requests);
 			for (j = 0; j < ee->num_requests; j++) {
-				err_printf(m, "  seqno 0x%08x, emitted %ld, head 0x%08x, tail 0x%08x\n",
+				err_printf(m, "  pid %d, seqno 0x%08x, emitted %ld, head 0x%08x, tail 0x%08x\n",
+					   ee->requests[j].pid,
 					   ee->requests[j].seqno,
 					   ee->requests[j].jiffies,
 					   ee->requests[j].head,
@@ -1080,6 +1081,11 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 		request = i915_gem_find_active_request(engine);
 		if (request) {
 			struct intel_ring *ring;
+#ifdef __linux__
+			struct pid *pid;
+#else
+			pid_t pid;
+#endif
 
 			ee->vm = request->ctx->ppgtt ?
 				&request->ctx->ppgtt->base : &ggtt->base;
@@ -1101,18 +1107,19 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 				i915_error_object_create(dev_priv,
 							 request->ctx->engine[i].state);
 
-			if (request->pid) {
+			pid = request->ctx->pid;
+			if (pid) {
 #ifdef __linux__
 				struct task_struct *task;
 				rcu_read_lock();
-				task = pid_task(request->pid, PIDTYPE_PID);
+				task = pid_task(pid, PIDTYPE_PID);
 				if (task) {
 					strcpy(ee->comm, task->comm);
 					ee->pid = task->pid;
 				}
 				rcu_read_unlock();
 #else
-				struct thread *td = tdfind(request->pid, -1);
+				struct thread *td = tdfind(pid, -1);
 				if (td) {
 					strcpy(ee->comm, td->td_proc->p_comm);
 					ee->pid = td->td_proc->p_pid;
@@ -1177,6 +1184,10 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			erq->jiffies = request->emitted_jiffies;
 			erq->head = request->head;
 			erq->tail = request->tail;
+
+			rcu_read_lock();
+			erq->pid = request->ctx->pid ? pid_nr(request->ctx->pid) : 0;
+			rcu_read_unlock();
 		}
 	}
 }
