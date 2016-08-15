@@ -82,7 +82,55 @@ static __always_inline void cpu_relax(void)
 
 extern struct cpuinfo_x86	boot_cpu_data;
 
-/* XXX check for correctness */
-#define smp_store_mb(var, value) do { (void)atomic_xchg((atomic_t *)&var, value); } while (0)
+#define __X86_CASE_B	1
+#define __X86_CASE_W	2
+#define __X86_CASE_L	4
+#ifdef CONFIG_64BIT
+#define __X86_CASE_Q	8
+#else
+#define	__X86_CASE_Q	-1		/* sizeof will never return -1 */
+#endif
+
+/* 
+ * An exchange-type operation, which takes a value and a pointer, and
+ * returns the old value.
+ */
+#define __xchg_op(ptr, arg, op, lock)					\
+	({								\
+	        __typeof__ (*(ptr)) __ret = (arg);			\
+		CTASSERT(sizeof(__ret) <= 8);				\
+		CTASSERT(sizeof(__ret) == __X86_CASE_B || sizeof(__ret) == __X86_CASE_W || sizeof(__ret) == __X86_CASE_L || sizeof(__ret) == __X86_CASE_Q); \
+		switch (sizeof(__ret)) {				\
+		case __X86_CASE_B:					\
+			__asm __volatile (lock #op "b %b0, %1\n"		\
+				      : "+q" (__ret), "+m" (*(ptr))	\
+				      : : "memory", "cc");		\
+			break;						\
+		case __X86_CASE_W:					\
+			__asm __volatile (lock #op "w %w0, %1\n"		\
+				      : "+r" (__ret), "+m" (*(ptr))	\
+				      : : "memory", "cc");		\
+			break;						\
+		case __X86_CASE_L:					\
+			__asm __volatile (lock #op "l %0, %1\n"		\
+				      : "+r" (__ret), "+m" (*(ptr))	\
+				      : : "memory", "cc");		\
+			break;						\
+		case __X86_CASE_Q:					\
+			__asm __volatile (lock #op "q %q0, %1\n"		\
+				      : "+r" (__ret), "+m" (*(ptr))	\
+				      : : "memory", "cc");		\
+			break;						\
+		default:						\
+			panic("bad value");				\
+		}							\
+		__ret;							\
+	})
+
+#define xchg(ptr, v)	__xchg_op((ptr), (v), xchg, "")
+#define __smp_store_mb(var, value) do { (void)xchg(&(var), value); } while (0)
+
+#define smp_store_mb __smp_store_mb
+
 
 #endif
