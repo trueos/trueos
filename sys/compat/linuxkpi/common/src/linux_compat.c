@@ -1788,12 +1788,6 @@ static DECLARE_WAIT_QUEUE_HEAD(async_done);
 static async_cookie_t nextcookie;
 static atomic_t entry_count;
 
-void
-async_synchronize_full(void)
-{
-	UNIMPLEMENTED();
-}
-
 static void
 async_run_entry_fn(struct work_struct *work)
 {

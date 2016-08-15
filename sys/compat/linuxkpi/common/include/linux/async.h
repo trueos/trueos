@@ -25,7 +25,18 @@ struct async_entry {
 };
 
 extern async_cookie_t async_schedule(async_func_t func, void *data);
-extern void async_synchronize_full(void);
+
+static inline void
+async_synchronize_full(void)
+{
+	UNIMPLEMENTED();
+}
+
+static inline void
+async_synchronize_cookie(async_cookie_t cookie)
+{
+	UNIMPLEMENTED();
+}
 
 static inline bool
 current_is_async(void)
