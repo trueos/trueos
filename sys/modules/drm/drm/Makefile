@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .PATH:	${.CURDIR}/../../../dev/drm ${.CURDIR}/../../../dev/drm/ttm
+
 KMOD	= drm
 SRCS	= \
 	ati_pcigart.c \
@@ -8,6 +9,7 @@ SRCS	= \
 	drm_atomic.c \
 	drm_atomic_helper.c \
 	drm_auth.c \
+	drm_blend.c \
 	drm_bufs.c \
 	drm_bridge.c \
 	drm_cache.c \
