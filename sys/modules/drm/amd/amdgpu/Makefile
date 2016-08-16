@@ -201,6 +201,7 @@ CWARNFLAGS.cz_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.cz_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.polaris10_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.polaris10_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual -Wno-unused-const-variable
+CWARNFLAGS.polaris10_powertune.c=	-Wno-missing-prototypes
 CWARNFLAGS.polaris10_smumgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.polaris10_thermal.c=	-Wno-missing-prototypes
 CWARNFLAGS.fiji_clockpowergating.c=	-Wno-enum-conversion
