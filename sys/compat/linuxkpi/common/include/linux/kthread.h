@@ -43,6 +43,7 @@
 #include <linux/slab.h>
 
 #include <linux/mm_types.h>
+#include <linux/completion.h>
 
 
 #define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
@@ -54,6 +55,7 @@
 #define	TASK_DEAD		64
 #define	TASK_WAKEKILL		128
 #define	TASK_WAKING		256
+#define TASK_PARKED		512
 
 #define	TASK_SHOULD_STOP	1
 #define	TASK_STOPPED		2
@@ -81,6 +83,11 @@
 } while (0)
 
 struct wait_queue_head;
+struct kthread {
+	unsigned long flags;
+	struct completion parked;
+	struct completion exited;
+};
 
 struct task_struct {
 	struct	thread *task_thread;
@@ -99,8 +106,8 @@ struct task_struct {
 	void	*bsd_ioctl_data;
 	unsigned	bsd_ioctl_len;
 	struct mm_struct bsd_mm;
+	struct kthread kthread;
 };
-
 
 static inline void
 linux_kthread_fn(void *arg)
@@ -151,15 +158,13 @@ linux_kthread_create(int (*threadfn)(void *data), void *data)
 	_task;								\
 })
 
-#define	kthread_should_stop()	current->should_stop
-
-static inline int
-wake_up_process(struct task_struct *p)
+static int
+try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
 {
 	int rc;
 
 	rc = 0;
-	if ((p->state & TASK_NORMAL) == 0)
+	if ((p->state & state) == 0)
 		goto out;
 	rc = 1;
 	if (!TD_IS_RUNNING(p->task_thread)) {
@@ -171,19 +176,29 @@ out:
 }
 
 static inline int
-kthread_stop(struct task_struct *task)
+wake_up_process(struct task_struct *p)
 {
 
-	PROC_LOCK(task->task_thread->td_proc);
-	task->should_stop = TASK_SHOULD_STOP;
-	wake_up_process(task);
-	while (task->should_stop != TASK_STOPPED)
-		msleep(task, &task->task_thread->td_proc->p_mtx, PWAIT,
-		    "kstop", hz);
-	PROC_UNLOCK(task->task_thread->td_proc);
-	return task->task_ret;
+	return (try_to_wake_up(p, TASK_NORMAL, 0));
 }
 
+static inline int
+wake_up_state(struct task_struct *p, unsigned int state)
+{
+
+	return (try_to_wake_up(p, state, 0));
+}
+
+
 extern int in_atomic(void);
+
+extern int kthread_stop(struct task_struct *task);
+extern bool kthread_should_stop(void);
+
+extern bool kthread_should_park(void);
+extern int kthread_park(struct task_struct *k);
+extern void kthread_unpark(struct task_struct *k);
+extern void kthread_parkme(void);
+
 
 #endif	/* _LINUX_KTHREAD_H_ */
