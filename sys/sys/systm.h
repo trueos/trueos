@@ -313,10 +313,6 @@ extern int	cpu_deepest_sleep;
 extern int	cpu_disable_c2_sleep;
 extern int	cpu_disable_c3_sleep;
 
-int	cr_cansee(struct ucred *u1, struct ucred *u2);
-int	cr_canseesocket(struct ucred *cred, struct socket *so);
-int	cr_canseeinpcb(struct ucred *cred, struct inpcb *inp);
-
 char	*kern_getenv(const char *name);
 void	freeenv(char *env);
 int	getenv_int(const char *name, int *data);
@@ -446,5 +442,7 @@ void free_unr(struct unrhdr *uh, u_int item);
 void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
 
 extern void (*softdep_ast_cleanup)(void);
+
+void counted_warning(unsigned *counter, const char *msg);
 
 #endif /* !_SYS_SYSTM_H_ */
