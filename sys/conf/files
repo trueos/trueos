@@ -284,6 +284,7 @@ compat/cloudabi/cloudabi_proc.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_random.c	optional compat_cloudabi64
 compat/cloudabi/cloudabi_sock.c		optional compat_cloudabi64
 compat/cloudabi/cloudabi_thread.c	optional compat_cloudabi64
+compat/cloudabi/cloudabi_vdso.c		optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_fd.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_module.c	optional compat_cloudabi64
 compat/cloudabi64/cloudabi64_poll.c	optional compat_cloudabi64
@@ -2022,8 +2023,6 @@ dev/malo/if_malohal.c		optional malo
 dev/malo/if_malo_pci.c		optional malo pci
 dev/mc146818/mc146818.c		optional mc146818
 dev/mca/mca_bus.c		optional mca
-dev/mcd/mcd.c			optional mcd isa nowerror
-dev/mcd/mcd_isa.c		optional mcd isa nowerror
 dev/md/md.c			optional md
 dev/mdio/mdio_if.m		optional miiproxy | mdio
 dev/mdio/mdio.c			optional miiproxy | mdio
@@ -3879,6 +3878,7 @@ netpfil/ipfw/ip_dummynet.c	optional inet dummynet
 netpfil/ipfw/ip_dn_io.c		optional inet dummynet
 netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
 netpfil/ipfw/ip_fw2.c		optional inet ipfirewall
+netpfil/ipfw/ip_fw_bpf.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_eaction.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_log.c	optional inet ipfirewall
@@ -3889,6 +3889,18 @@ netpfil/ipfw/ip_fw_table_algo.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_table_value.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_iface.c	optional inet ipfirewall
 netpfil/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
+netpfil/ipfw/nat64/ip_fw_nat64.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64lsn.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64lsn_control.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64stl.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64stl_control.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
+netpfil/ipfw/nat64/nat64_translate.c	optional inet inet6 ipfirewall \
+	ipfirewall_nat64
 netpfil/ipfw/nptv6/ip_fw_nptv6.c	optional inet inet6 ipfirewall \
 	ipfirewall_nptv6
 netpfil/ipfw/nptv6/nptv6.c	optional inet inet6 ipfirewall \

@@ -1795,7 +1795,8 @@ make_device(device_t parent, const char *name, int unit)
 		dc = NULL;
 	}
 
-	dev = malloc(sizeof(struct device_), M_BUS, M_NOWAIT|M_ZERO);
+
+	dev = malloc(sizeof(*dev), M_BUS, M_NOWAIT|M_ZERO);
 	if (!dev)
 		return (NULL);
 
