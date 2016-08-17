@@ -658,6 +658,7 @@ struct intel_csr {
 	func(has_fbc) sep \
 	func(has_psr) sep \
 	func(has_runtime_pm) sep \
+	func(has_csr) sep \
 	func(has_pipe_cxsr) sep \
 	func(has_hotplug) sep \
 	func(cursor_needs_physical) sep \
@@ -2797,7 +2798,7 @@ struct drm_i915_cmd_table {
 #define HAS_RC6(dev)		(INTEL_INFO(dev)->gen >= 6)
 #define HAS_RC6p(dev)		(IS_GEN6(dev) || IS_IVYBRIDGE(dev))
 
-#define HAS_CSR(dev)	(IS_GEN9(dev))
+#define HAS_CSR(dev)	(INTEL_INFO(dev)->has_csr)
 
 /*
  * For now, anything with a GuC requires uCode loading, and then supports
