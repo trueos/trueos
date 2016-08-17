@@ -144,7 +144,12 @@ __lkpi_mtx_lock_flags(volatile uintptr_t *c, int opts, const char *file, int lin
 	if (!intrctx)
 		WITNESS_CHECKORDER(&m->lock_object, (opts & ~MTX_RECURSE) |
 				   LOP_NEWORDER | LOP_EXCLUSIVE, file, line, NULL);
-	
+	if (intrctx) {
+		uintptr_t v = m->mtx_lock;
+		struct thread *owner = (struct thread *)(v & ~MTX_FLAGMASK);
+		if (owner)
+			KASSERT(TD_IS_RUNNING(owner), ("lock owner %s preempted - can't acquire from critical section", owner->td_name));
+	}
 	__mtx_lock(m, curthread, opts, file, line);
 	if (!intrctx) {
 		LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
