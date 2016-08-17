@@ -710,6 +710,7 @@ taskqgroup_binder(void *ctx)
 	error = cpuset_setthread(curthread->td_tid, &mask);
 	thread_lock(curthread);
 	sched_bind(curthread, gtask->bt_cpuid);
+	sched_prio(curthread, PI_NET);
 	thread_unlock(curthread);
 
 	if (error)
