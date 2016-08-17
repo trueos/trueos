@@ -662,6 +662,7 @@ struct intel_csr {
 	func(has_resource_streamer) sep \
 	func(has_rc6) sep \
 	func(has_rc6p) sep \
+	func(has_dp_mst) sep \
 	func(has_pipe_cxsr) sep \
 	func(has_hotplug) sep \
 	func(cursor_needs_physical) sep \
@@ -2791,8 +2792,7 @@ struct drm_i915_cmd_table {
 
 #define HAS_IPS(dev)		(IS_HSW_ULT(dev) || IS_BROADWELL(dev))
 
-#define HAS_DP_MST(dev)		(IS_HASWELL(dev) || IS_BROADWELL(dev) || \
-				 INTEL_INFO(dev)->gen >= 9)
+#define HAS_DP_MST(dev)	(INTEL_INFO(dev)->has_dp_mst)
 
 #define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
