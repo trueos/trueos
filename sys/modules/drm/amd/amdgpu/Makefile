@@ -61,6 +61,7 @@ SRCS	= \
 	amdgpu_uvd.c \
 	amdgpu_vce.c \
 	amdgpu_vm.c \
+	amd_powerplay.c \
 	atom.c \
 	atombios_crtc.c \
 	atombios_dp.c \
@@ -71,19 +72,37 @@ SRCS	= \
 	cik.c \
 	cik_ih.c \
 	cik_sdma.c \
+	cz_clockpowergating.c \
 	cz_dpm.c \
         cz_ih.c \
+	cz_hwmgr.c \
         cz_smc.c \
+	cz_smumgr.c \
 	dce_v10_0.c \
 	dce_v11_0.c \
 	dce_v8_0.c \
 	dce_virtual.c \
+	eventactionchains.c \
+	eventinit.c \
+	eventmanagement.c \
+	eventmgr.c \
+	eventsubchains.c \
+	eventtasks.c \
+	fiji_clockpowergating.c \
 	fiji_dpm.c \
+	fiji_hwmgr.c \
+	fiji_powertune.c \
 	fiji_smc.c \
+	fiji_smumgr.c \
+	fiji_thermal.c \
+	functiontables.c \
 	gfx_v7_0.c \
 	gfx_v8_0.c \
 	gmc_v7_0.c \
 	gmc_v8_0.c \
+	gpu_scheduler.c \
+	hardwaremanager.c \
+	hwmgr.c \
 	iceland_clockpowergating.c \
 	iceland_dpm.c \
 	iceland_hwmgr.c \
@@ -94,53 +113,35 @@ SRCS	= \
 	iceland_thermal.c \
 	kv_dpm.c \
 	kv_smc.c \
-	sdma_v2_4.c \
-	sdma_v3_0.c \
-	tonga_dpm.c \
-	tonga_ih.c \
-	tonga_smc.c \
-	uvd_v4_2.c \
-	uvd_v5_0.c \
-	uvd_v6_0.c \
-	vce_v2_0.c \
-	vce_v3_0.c \
-	vi.c \
-	sched_fence.c \
-	amd_powerplay.c \
-	eventactionchains.c \
-	eventinit.c \
-	eventmanagement.c \
-	eventmgr.c \
-	eventsubchains.c \
-	eventtasks.c \
-	psm.c \
-	cz_clockpowergating.c \
-	cz_hwmgr.c \
 	polaris10_clockpowergating.c \
 	polaris10_hwmgr.c \
 	polaris10_powertune.c \
 	polaris10_smumgr.c \
 	polaris10_thermal.c \
-	fiji_clockpowergating.c \
-	fiji_hwmgr.c \
-	fiji_powertune.c \
-	fiji_thermal.c \
-	functiontables.c \
-	gpu_scheduler.c \
-	hardwaremanager.c \
-	hwmgr.c \
 	pp_acpi.c \
 	ppatomctrl.c \
 	pppcielanes.c \
 	processpptables.c \
-	tonga_clockpowergating.c \
-	tonga_hwmgr.c \
-	tonga_processpptables.c \
-	tonga_thermal.c \
+	psm.c \
+	sched_fence.c \
+	sdma_v2_4.c \
+	sdma_v3_0.c \
 	smumgr.c \
-	cz_smumgr.c \
-	fiji_smumgr.c \
-	tonga_smumgr.c
+	tonga_clockpowergating.c \
+	tonga_dpm.c \
+	tonga_hwmgr.c \
+	tonga_ih.c \
+	tonga_powertune.c \
+	tonga_processpptables.c \
+	tonga_smc.c \
+	tonga_smumgr.c \
+	tonga_thermal.c \
+	uvd_v4_2.c \
+	uvd_v5_0.c \
+	uvd_v6_0.c \
+	vce_v2_0.c \
+	vce_v3_0.c \
+	vi.c
 
 
 
