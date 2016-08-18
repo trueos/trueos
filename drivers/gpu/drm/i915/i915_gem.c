@@ -1437,6 +1437,9 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	s64 before = 0; /* Only to silence a compiler warning. */
 	int ret = 0;
 
+	if  (drm_always_interruptible)
+		state = TASK_INTERRUPTIBLE;
+
 	might_sleep();
 
 	if (list_empty(&req->list))

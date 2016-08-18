@@ -34,7 +34,8 @@ int drm_debug_persist = 0;
 SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug_persist, CTLFLAG_RWTUN, &drm_debug_persist, 0, "keep drm debug flags post-load");
 int drm_panic_on_error = 0;
 SYSCTL_INT(_dev_drm, OID_AUTO, error_panic, CTLFLAG_RWTUN, &drm_panic_on_error, 0, "panic if an ERROR is hit");
-
+int drm_always_interruptible;
+SYSCTL_INT(_dev_drm, OID_AUTO, always_interruptible, CTLFLAG_RWTUN, &drm_always_interruptible, 0, "always allow a thread to be interrupted in driver wait");
 
 static void
 clear_debug_func(void *arg __unused)
