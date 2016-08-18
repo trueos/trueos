@@ -207,6 +207,9 @@ typedef struct drm_pci_id_list
 	char *name;
 } drm_pci_id_list_t;
 
+struct drm_minor;
+int drm_dev_alias(struct drm_minor *minor, const char *minor_str);
+
 
 #define	console_lock()
 #define	console_unlock()

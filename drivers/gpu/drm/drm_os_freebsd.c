@@ -6,8 +6,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/agp/agpreg.h>
 #include <dev/pci/pcireg.h>
+#include <linux/cdev.h>
+#undef cdev
 
 devclass_t drm_devclass;
+const char *fb_mode_option = NULL;
 
 MALLOC_DEFINE(DRM_MEM_DMA, "drm_dma", "DRM DMA Data Structures");
 MALLOC_DEFINE(DRM_MEM_DRIVER, "drm_driver", "DRM DRIVER Data Structures");
@@ -19,7 +22,58 @@ MALLOC_DEFINE(DRM_MEM_CTXBITMAP, "drm_ctxbitmap",
 MALLOC_DEFINE(DRM_MEM_HASHTAB, "drm_hashtab", "DRM HASHTABLE Data Structures");
 MALLOC_DEFINE(DRM_MEM_KMS, "drm_kms", "DRM KMS Data Structures");
 
-const char *fb_mode_option = NULL;
+SYSCTL_NODE(_dev, OID_AUTO, drm, CTLFLAG_RW, 0, "DRM args");
+SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug, CTLFLAG_RWTUN, &drm_debug, 0, "drm debug flags");
+extern int skip_ddb;
+SYSCTL_INT(_dev_drm, OID_AUTO, skip_ddb, CTLFLAG_RWTUN, &skip_ddb, 0, "go straight to dumping core");
+#if defined(DRM_DEBUG_LOG_ALL)
+int drm_debug_persist = 1;
+#else
+int drm_debug_persist = 0;
+#endif
+SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug_persist, CTLFLAG_RWTUN, &drm_debug_persist, 0, "keep drm debug flags post-load");
+int drm_panic_on_error = 0;
+SYSCTL_INT(_dev_drm, OID_AUTO, error_panic, CTLFLAG_RWTUN, &drm_panic_on_error, 0, "panic if an ERROR is hit");
+
+
+static void
+clear_debug_func(void *arg __unused)
+{
+	drm_debug = 0;
+}
+
+static void
+reset_debug_log(void)
+{
+	if (drm_debug_persist)
+		return;
+	timeout(clear_debug_func, NULL, 10*hz);
+}
+
+ int
+drm_dev_alias(struct drm_minor *minor, const char *minor_str)
+{
+	struct linux_cdev *cdevp;
+	char buf[20];
+
+	/*
+	 * FreeBSD won't automaticaly create the corresponding device
+	 * node as linux must so we find the corresponding one created by
+	 * register_chrdev in drm_drv.c and alias it.
+	 */
+	sprintf(buf, "dri/%s", minor_str);
+	cdevp = find_cdev("drm", DRM_MAJOR, minor->index, false);
+	MPASS(cdevp != NULL);
+	if (cdevp == NULL)
+		return (-ENXIO);
+	minor->bsd_device = cdevp->cdev;
+	make_dev_alias(cdevp->cdev, buf, minor->index);
+	/* MESA needs the hw.dri sysctl tree */
+	if (minor->type != DRM_MINOR_CONTROL && minor->type != DRM_MINOR_RENDER)
+		drm_sysctl_init(minor->dev);
+	reset_debug_log();
+	return (0);
+}
 
 static const drm_pci_id_list_t *
 drm_find_description(int vendor, int device, const drm_pci_id_list_t *idlist)
