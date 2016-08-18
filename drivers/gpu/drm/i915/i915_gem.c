@@ -1498,8 +1498,8 @@ err:
 static inline enum fb_op_origin
 write_origin(struct drm_i915_gem_object *obj, unsigned domain)
 {
-	return domain == I915_GEM_DOMAIN_GTT && !obj->has_wc_mmap ?
-	       ORIGIN_GTT : ORIGIN_CPU;
+	return (domain == I915_GEM_DOMAIN_GTT ?
+		obj->frontbuffer_ggtt_origin : ORIGIN_CPU);
 }
 
 /**
@@ -1676,7 +1676,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		up_write(&mm->mmap_sem);
 
 		/* This may race, but that's ok, it only gets set */
-		WRITE_ONCE(obj->has_wc_mmap, true);
+		WRITE_ONCE(obj->frontbuffer_ggtt_origin, ORIGIN_CPU);
 	}
 #else
 	error = 0;
@@ -1825,6 +1825,11 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 		 */
 		if (chunk_size >= obj->base.size >> PAGE_SHIFT)
 			view.type = I915_GGTT_VIEW_NORMAL;
+
+		/* Userspace is now writing through an untracked VMA, abandon
+		 * all hope that the hardware is able to track future writes.
+		 */
+		obj->frontbuffer_ggtt_origin = ORIGIN_CPU;
 
 		vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
 	}
@@ -4158,6 +4163,7 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 
 	obj->ops = ops;
 
+	obj->frontbuffer_ggtt_origin = ORIGIN_GTT;
 	obj->madv = I915_MADV_WILLNEED;
 
 	i915_gem_info_add_obj(to_i915(obj->base.dev), obj->base.size);
