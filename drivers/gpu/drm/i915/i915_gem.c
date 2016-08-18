@@ -830,7 +830,7 @@ i915_gem_gtt_pread(struct drm_device *dev,
 	if (!IS_ERR(vma)) {
 		node.start = i915_ggtt_offset(vma);
 		node.allocated = false;
-		ret = i915_gem_object_put_fence(obj);
+		ret = i915_vma_put_fence(vma);
 		if (ret) {
 			i915_vma_unpin(vma);
 			vma = ERR_PTR(ret);
@@ -1132,7 +1132,7 @@ i915_gem_gtt_pwrite_fast(struct drm_i915_private *i915,
 	if (!IS_ERR(vma)) {
 		node.start = i915_ggtt_offset(vma);
 		node.allocated = false;
-		ret = i915_gem_object_put_fence(obj);
+		ret = i915_vma_put_fence(vma);
 		if (ret) {
 			i915_vma_unpin(vma);
 			vma = ERR_PTR(ret);
@@ -1816,7 +1816,7 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	if (ret)
 		goto err_unpin;
 
-	ret = i915_gem_object_get_fence(obj);
+	ret = i915_vma_get_fence(vma);
 	if (ret)
 		goto err_unpin;
 
@@ -2968,7 +2968,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 		i915_gem_object_finish_gtt(obj);
 
 		/* release the fence reg _after_ flushing */
-		ret = i915_gem_object_put_fence(obj);
+		ret = i915_vma_put_fence(vma);
 		if (ret)
 			return ret;
 
@@ -3450,9 +3450,11 @@ restart:
 			 * dropped the fence as all snoopable access is
 			 * supposed to be linear.
 			 */
-			ret = i915_gem_object_put_fence(obj);
-			if (ret)
-				return ret;
+			list_for_each_entry(vma, &obj->vma_list, obj_link) {
+				ret = i915_vma_put_fence(vma);
+				if (ret)
+					return ret;
+			}
 		} else {
 			/* We either have incoherent backing store and
 			 * so no GTT access or the architecture is fully
@@ -4130,14 +4132,12 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 				    i915_gem_object_retire__read);
 	init_request_active(&obj->last_write,
 			    i915_gem_object_retire__write);
-	init_request_active(&obj->last_fence, NULL);
 	INIT_LIST_HEAD(&obj->obj_exec_link);
 	INIT_LIST_HEAD(&obj->vma_list);
 	INIT_LIST_HEAD(&obj->batch_pool_link);
 
 	obj->ops = ops;
 
-	obj->fence_reg = I915_FENCE_REG_NONE;
 	obj->madv = I915_MADV_WILLNEED;
 
 	i915_gem_info_add_obj(to_i915(obj->base.dev), obj->base.size);
@@ -4567,6 +4567,7 @@ void
 i915_gem_load_init_fences(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
+	int i;
 
 	if (INTEL_INFO(dev_priv)->gen >= 7 && !IS_VALLEYVIEW(dev_priv) &&
 	    !IS_CHERRYVIEW(dev_priv))
@@ -4582,6 +4583,13 @@ i915_gem_load_init_fences(struct drm_i915_private *dev_priv)
 				I915_READ(vgtif_reg(avail_rs.fence_num));
 
 	/* Initialize fence registers to zero */
+	for (i = 0; i < dev_priv->num_fence_regs; i++) {
+		struct drm_i915_fence_reg *fence = &dev_priv->fence_regs[i];
+
+		fence->i915 = dev_priv;
+		fence->id = i;
+		list_add_tail(&fence->link, &dev_priv->mm.fence_list);
+	}
 	i915_gem_restore_fences(dev);
 
 	i915_gem_detect_bit_6_swizzle(dev);
@@ -4617,8 +4625,6 @@ i915_gem_load_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 	for (i = 0; i < I915_NUM_ENGINES; i++)
 		init_engine_lists(&dev_priv->engine[i]);
-	for (i = 0; i < I915_MAX_NUM_FENCES; i++)
-		INIT_LIST_HEAD(&dev_priv->fence_regs[i].link);
 	INIT_DELAYED_WORK(&dev_priv->gt.retire_work,
 			  i915_gem_retire_work_handler);
 	INIT_DELAYED_WORK(&dev_priv->gt.idle_work,
@@ -4627,8 +4633,6 @@ i915_gem_load_init(struct drm_device *dev)
 	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
 
 	dev_priv->relative_constants_mode = I915_EXEC_CONSTANTS_REL_GENERAL;
-
-	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 
 	init_waitqueue_head(&dev_priv->pending_flip_queue);
 
