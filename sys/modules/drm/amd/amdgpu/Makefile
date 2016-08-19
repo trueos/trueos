@@ -125,6 +125,7 @@ SRCS	= \
 	ppatomctrl.c \
 	pppcielanes.c \
 	processpptables.c \
+	process_pptables_v1_0.c \
 	psm.c \
 	sched_fence.c \
 	sdma_v2_4.c \
@@ -140,7 +141,6 @@ SRCS	= \
 	tonga_hwmgr.c \
 	tonga_ih.c \
 	tonga_powertune.c \
-	tonga_processpptables.c \
 	tonga_smc.c \
 	tonga_smumgr.c \
 	tonga_thermal.c \
@@ -238,12 +238,12 @@ CWARNFLAGS.polaris10_thermal.c=	-Wno-missing-prototypes
 CWARNFLAGS.pp_acpi.c=	-Wno-missing-prototypes 
 CWARNFLAGS.ppatomctrl.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.processpptables.c=	-Wno-missing-prototypes -Wno-sometimes-uninitialized
+CWARNFLAGS.process_pptables_v1_0.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.sdma_v3_0.c=		-Wno-missing-prototypes
 CWARNFLAGS.si.c=		-Wno-missing-prototypes
 CWARNFLAGS.si_dpm.c=		-Wno-missing-prototypes -Wno-unused-const-variable
 CWARNFLAGS.tonga_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
 CWARNFLAGS.tonga_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual -Wno-unused-const-variable
-CWARNFLAGS.tonga_processpptables.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.tonga_smc.c=	-Wno-cast-qual
 CWARNFLAGS.tonga_smumgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.tonga_thermal.c=	-Wno-missing-prototypes
