@@ -86,13 +86,15 @@ void drm_dev_printk(const struct device *dev, const char *level,
 	vaf.va = &args;
 
 #ifdef __linux__
-	dev_printk(level, dev, DRM_PRINTK_FMT, function_name, prefix,
-		   &vaf);
+	if (dev)
+		dev_printk(level, dev, DRM_PRINTK_FMT, function_name, prefix,
+			   &vaf);
+	else
+		printk("%s" DRM_PRINTK_FMT, level, function_name, prefix, &vaf);
 #else
 	printf("[" DRM_NAME ":%ps] *ERROR* ", __builtin_return_address(0));
 	vprintf(format, args);
 #endif
-	
 
 	va_end(args);
 }
