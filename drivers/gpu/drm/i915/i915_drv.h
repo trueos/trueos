@@ -3962,6 +3962,11 @@ void i915_locks_destroy(struct drm_i915_private *dev_priv);
 void i915_memcpy_init_early(struct drm_i915_private *dev_priv);
 bool i915_memcpy_from_wc(void *dst, const void *src, unsigned long len);
 
+/* i915_mm.c */
+int remap_io_mapping(struct vm_area_struct *vma,
+		     unsigned long addr, unsigned long pfn, unsigned long size,
+		     struct io_mapping *iomap);
+
 #define ptr_mask_bits(ptr) ({						\
 	unsigned long __v = (unsigned long)(ptr);			\
 	(typeof(ptr))(__v & PAGE_MASK);					\
