@@ -141,6 +141,7 @@ SRCS	= \
 	smu7_clockpowergating.c \
 	smu7_hwmgr.c \
 	smu7_powertune.c \
+	smu7_smumgr.c \
 	smu7_thermal.c \
 	tonga_clockpowergating.c \
 	tonga_dpm.c \
