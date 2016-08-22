@@ -2562,7 +2562,7 @@ struct drm_i915_cmd_table {
 		panic("baaaaaaaaaaaaaaaad TYPE, bad!!!");	\
 	__p; \
 })
-#define INTEL_INFO(p) 	(&__I915__(p)->info)
+#define INTEL_INFO(p)	(&__I915__(p)->info)
 #define INTEL_GEN(p)	(INTEL_INFO(p)->gen)
 #define INTEL_DEVID(p)	(INTEL_INFO(p)->device_id)
 
@@ -2856,7 +2856,7 @@ extern int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state);
 extern int i915_resume_switcheroo(struct drm_device *dev);
 
 int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
-			       	int enable_ppgtt);
+				int enable_ppgtt);
 
 bool intel_sanitize_semaphores(struct drm_i915_private *dev_priv, int value);
 
@@ -3808,7 +3808,7 @@ __raw_write(64, q)
 #define outb _outb
 
 /* These are untraced mmio-accessors that are only valid to be used inside
- * criticial sections inside IRQ handlers where forcewake is explicitly
+ * critical sections inside IRQ handlers where forcewake is explicitly
  * controlled.
  * Think twice, and think again, before using these.
  * Note: Should only be used between intel_uncore_forcewake_irqlock() and
