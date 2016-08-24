@@ -61,6 +61,7 @@ SUBDIR=	adduser \
 	nologin \
 	pciconf \
 	periodic \
+	pkg_sanity \
 	powerd \
 	procctl \
 	pstat \
