@@ -1101,6 +1101,9 @@ main(int argc, char *argv[])
 		exit(EXIT_SUCCESS);
 	}
 
+	/* Replace call to pkg with our sanity rolling-release check */
+	snprintf(pkgpath, MAXPATHLEN, "/usr/sbin/pkg_sanity");
+
 	execv(pkgpath, argv);
 
 	/* NOT REACHED */
