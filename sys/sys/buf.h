@@ -140,7 +140,6 @@ struct buf {
 	void	*b_fsprivate1;
 	void	*b_fsprivate2;
 	void	*b_fsprivate3;
-	int	b_pin_count;
 };
 
 #define b_object	b_bufobj->bo_object
@@ -538,9 +537,6 @@ void	reassignbuf(struct buf *);
 struct	buf *trypbuf(int *);
 void	bwait(struct buf *, u_char, const char *);
 void	bdone(struct buf *);
-void	bpin(struct buf *);
-void	bunpin(struct buf *);
-void 	bunpin_wait(struct buf *);
 
 #endif /* _KERNEL */
 
