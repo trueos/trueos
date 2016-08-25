@@ -3332,6 +3332,8 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.iscsi.size = val[1] - val[0] + 1;
 	}
 
+	t4_init_sge_params(sc);
+
 	/*
 	 * We've got the params we wanted to query via the firmware.  Now grab
 	 * some others directly from the chip.
@@ -4590,6 +4592,32 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nports", CTLFLAG_RD, NULL,
 	    sc->params.nports, "# of ports");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "doorbells",
+	    CTLTYPE_STRING | CTLFLAG_RD, doorbells, sc->doorbells,
+	    sysctl_bitfield, "A", "available doorbells");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD, NULL,
+	    sc->params.vpd.cclk, "core clock frequency (in KHz)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_timers",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc->params.sge.timer_val,
+	    sizeof(sc->params.sge.timer_val), sysctl_int_array, "A",
+	    "interrupt holdoff timer values (us)");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_pkt_counts",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc->params.sge.counter_val,
+	    sizeof(sc->params.sge.counter_val), sysctl_int_array, "A",
+	    "interrupt holdoff packet counter values");
+
+	t4_sge_sysctls(sc, ctx, children);
+
+	sc->lro_timeout = 100;
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lro_timeout", CTLFLAG_RW,
+	    &sc->lro_timeout, 0, "lro inactive-flush timeout (in us)");
+
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "debug_flags", CTLFLAG_RW,
+	    &sc->debug_flags, 0, "flags to enable runtime debugging");
+
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "hw_revision", CTLFLAG_RD,
 	    NULL, chip_rev(sc), "chip hardware revision");
 
@@ -4610,10 +4638,6 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cfcsum", CTLFLAG_RD, NULL,
 	    sc->cfcsum, "config file checksum");
 
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "doorbells",
-	    CTLTYPE_STRING | CTLFLAG_RD, doorbells, sc->doorbells,
-	    sysctl_bitfield, "A", "available doorbells");
-
 #define SYSCTL_CAP(name, n, text) \
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, #name, \
 	    CTLTYPE_STRING | CTLFLAG_RD, caps_decoder[n], sc->name, \
@@ -4630,34 +4654,12 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_CAP(fcoecaps, 8, "FCoE");
 #undef SYSCTL_CAP
 
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "core_clock", CTLFLAG_RD, NULL,
-	    sc->params.vpd.cclk, "core clock frequency (in KHz)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_timers",
-	    CTLTYPE_STRING | CTLFLAG_RD, sc->params.sge.timer_val,
-	    sizeof(sc->params.sge.timer_val), sysctl_int_array, "A",
-	    "interrupt holdoff timer values (us)");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_pkt_counts",
-	    CTLTYPE_STRING | CTLFLAG_RD, sc->params.sge.counter_val,
-	    sizeof(sc->params.sge.counter_val), sysctl_int_array, "A",
-	    "interrupt holdoff packet counter values");
-
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nfilters", CTLFLAG_RD,
 	    NULL, sc->tids.nftids, "number of filters");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature", CTLTYPE_INT |
 	    CTLFLAG_RD, sc, 0, sysctl_temperature, "I",
 	    "chip temperature (in Celsius)");
-
-	t4_sge_sysctls(sc, ctx, children);
-
-	sc->lro_timeout = 100;
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "lro_timeout", CTLFLAG_RW,
-	    &sc->lro_timeout, 0, "lro inactive-flush timeout (in us)");
-
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "debug_flags", CTLFLAG_RW,
-	    &sc->debug_flags, 0, "flags to enable runtime debugging");
 
 #ifdef SBUF_DRAIN
 	/*
@@ -8763,7 +8765,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	}
 	case CHELSIO_T4_REGDUMP: {
 		struct t4_regdump *regs = (struct t4_regdump *)data;
-		int reglen = is_t4(sc) ? T4_REGDUMP_SIZE : T5_REGDUMP_SIZE;
+		int reglen = t4_get_regs_len(sc);
 		uint8_t *buf;
 
 		if (regs->len < reglen) {

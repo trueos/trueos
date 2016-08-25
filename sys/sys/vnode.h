@@ -618,8 +618,6 @@ u_quad_t init_va_filerev(void);
 int	speedup_syncer(void);
 int	vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf,
 	    u_int *buflen);
-#define textvp_fullpath(p, rb, rfb) \
-	vn_fullpath(FIRST_THREAD_IN_PROC(p), (p)->p_textvp, rb, rfb)
 int	vn_fullpath(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
 int	vn_fullpath_global(struct thread *td, struct vnode *vn,
@@ -655,7 +653,6 @@ int	vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length,
 	    int blksize);
 void	vunref(struct vnode *);
 void	vn_printf(struct vnode *vp, const char *fmt, ...) __printflike(2,3);
-#define vprint(label, vp) vn_printf((vp), "%s\n", (label))
 int	vrecycle(struct vnode *vp);
 int	vn_bmap_seekhole(struct vnode *vp, u_long cmd, off_t *off,
 	    struct ucred *cred);
@@ -723,6 +720,7 @@ int	vfs_write_suspend(struct mount *mp, int flags);
 int	vfs_write_suspend_umnt(struct mount *mp);
 void	vnlru_free(int, struct vfsops *);
 int	vop_stdbmap(struct vop_bmap_args *);
+int	vop_stdfdatasync_buf(struct vop_fdatasync_args *);
 int	vop_stdfsync(struct vop_fsync_args *);
 int	vop_stdgetwritemount(struct vop_getwritemount_args *);
 int	vop_stdgetpages(struct vop_getpages_args *);

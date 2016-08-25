@@ -990,7 +990,7 @@ callout_when(sbintime_t sbt, sbintime_t precision, int flags,
 		if ((flags & C_HARDCLOCK) == 0)
 			to_sbt += tick_sbt;
 	} else
-		  to_sbt = sbinuptime();
+		to_sbt = sbinuptime();
 	if (SBT_MAX - to_sbt < sbt)
 		to_sbt = SBT_MAX;
 	else
@@ -1067,7 +1067,7 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t prec,
 		 */
 		if (c->c_lock != NULL && !cc_exec_cancel(cc, direct))
 			cancelled = cc_exec_cancel(cc, direct) = true;
-		if (cc_exec_waiting(cc, direct)) {
+		if (cc_exec_waiting(cc, direct) || cc_exec_drain(cc, direct)) {
 			/*
 			 * Someone has called callout_drain to kill this
 			 * callout.  Don't reschedule.
