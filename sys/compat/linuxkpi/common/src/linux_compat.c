@@ -276,9 +276,10 @@ kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
 	len++;
 
 	/* check for error */
-	if (len < 1)
+	if (len < 1) {
+		printf("kobj name too short\n");
 		return (-EINVAL);
-
+	}
 	/* allocate memory for string */
 	name = kzalloc(len, GFP_KERNEL);
 	if (name == NULL)
@@ -317,6 +318,8 @@ kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 
 	kobj->parent = kobject_get(parent);
 	error = sysfs_create_dir_ns(kobj, NULL);
+	if (error)
+		log(LOG_ERR, "sysfs_create_dir_ns failed: %d\n", error);
 	if (error == 0 && kobj->ktype && kobj->ktype->default_attrs) {
 		struct attribute **attr;
 		t = kobj->ktype;
@@ -326,8 +329,10 @@ kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 			if (error)
 				break;
 		}
-		if (error)
+		if (error) {
+			log(LOG_ERR, "sysfs_create_file failed in kobject_add_complete - error: %d\n", error);
 			sysfs_remove_dir(kobj);
+		}
 		
 	}
 	if (error == 0)
@@ -344,9 +349,10 @@ kobject_add(struct kobject *kobj, struct kobject *parent, const char *fmt, ...)
 	va_start(args, fmt);
 	error = kobject_set_name_vargs(kobj, fmt, args);
 	va_end(args);
-	if (error)
+	if (error) {
+		log(LOG_ERR, "kobject_set_name_vargs failed\n");
 		return (error);
-
+	}
 	return kobject_add_complete(kobj, parent);
 }
 
@@ -1872,6 +1878,7 @@ linux_compat_init(void *arg)
 	INIT_LIST_HEAD(&cdev_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
+
 	kobject_init(&linux_class_root, &linux_class_ktype);
 	kobject_set_name(&linux_class_root, "class");
 	linux_class_root.oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(rootoid),
@@ -1881,6 +1888,7 @@ linux_compat_init(void *arg)
 	linux_root_device.kobj.oidp = SYSCTL_ADD_NODE(NULL,
 	    SYSCTL_CHILDREN(rootoid), OID_AUTO, "device", CTLFLAG_RD, NULL,
 	    "device");
+
 	linux_root_device.bsddev = root_bus;
 	linux_class_misc.name = "misc";
 	class_register(&linux_class_misc);
