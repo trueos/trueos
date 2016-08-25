@@ -214,6 +214,8 @@ device		ale			# Atheros AR8121/AR8113/AR8114 Ethernet
 device		bce			# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bfe			# Broadcom BCM440x 10/100 Ethernet
 device		bge			# Broadcom BCM570xx Gigabit Ethernet
+device		re			# RealTek 8139C+/8169/8169S/8110S
+
 
 # Wireless NIC cards
 device		wlan			# 802.11 support
