@@ -12,9 +12,6 @@
 #include <linux/list.h>
 #include <linux/mod_devicetable.h>
 
-
-
-#define CONFIG_ACPI
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
