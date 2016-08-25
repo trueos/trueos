@@ -74,6 +74,7 @@ SUBDIR=	\
 	${_cfi} \
 	${_ciss} \
 	cloudabi \
+	${_cloudabi32} \
 	${_cloudabi64} \
 	${_cm} \
 	${_cmx} \
@@ -139,7 +140,6 @@ SUBDIR=	\
 	${_ibcs2} \
 	${_ichwd} \
 	${_ida} \
-	${_ie} \
 	if_bridge \
 	if_disc \
 	if_edsc \
@@ -320,7 +320,6 @@ SUBDIR=	\
 	${_safe} \
 	${_sbni} \
 	scc \
-	scd \
 	${_scsi_low} \
 	sdhci \
 	sdhci_pci \
@@ -329,7 +328,6 @@ SUBDIR=	\
 	${_sf} \
 	${_sfxge} \
 	sge \
-	${_si} \
 	siba_bwn \
 	siftr \
 	siis \
@@ -390,9 +388,7 @@ SUBDIR=	\
 	${_vxge} \
 	wb \
 	${_wbwd} \
-	${_wds} \
 	${_wi} \
-	${_wl} \
 	wlan \
 	wlan_acl \
 	wlan_amrr \
@@ -582,7 +578,6 @@ _rdma=		rdma
 .endif
 _safe=		safe
 _scsi_low=	scsi_low
-_si=		si
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
@@ -707,7 +702,6 @@ _elink=		elink
 _glxiic=	glxiic
 _glxsb=		glxsb
 #_ibcs2=		ibcs2
-_ie=		ie
 _mse=		mse
 _ncr=		ncr
 _ncv=		ncv
@@ -718,7 +712,6 @@ _sbni=		sbni
 _streams=	streams
 _stg=		stg
 _svr4=		svr4
-_wds=		wds
 .if ${MACHINE} == "i386"
 .if ${MK_EISA} != "no"
 _ahb=		ahb
@@ -730,7 +723,6 @@ _ctau=		ctau
 .endif
 _dpt=		dpt
 _ex=		ex
-_wl=		wl
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus
@@ -771,6 +763,9 @@ _epic=		epic
 _igb=		igb
 .endif
 
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+_cloudabi32=	cloudabi32
+.endif
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
 _cloudabi64=	cloudabi64
 .endif
