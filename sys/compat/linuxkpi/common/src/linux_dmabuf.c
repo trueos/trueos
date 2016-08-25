@@ -175,7 +175,7 @@ dma_buf_seek(struct file *fp, off_t offset, int whence, struct thread *td)
 	else
 		return (EINVAL);
 
-	fp->f_offset = base;
+	td->td_retval[0] = fp->f_offset = base;
 	return (0);
 }
 
