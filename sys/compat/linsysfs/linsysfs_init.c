@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/pseudofs/pseudofs.h>
 
 #include <linux/kobject.h>
+#include <linux/device.h>
 
 
 #define SCSI_HOST_CLASS     0
@@ -81,7 +82,9 @@ __FBSDID("$FreeBSD$");
 struct pfs_node *classes[SYS_CLASS_MAX];
 struct pfs_node *pfs_pci_devices;
 struct pfs_node *sysfs_root;
+struct pfs_node *pci_root;
 extern struct kobject linux_class_root;
+extern struct device linux_root_device;
 
 struct scsi_host_queue {
 	TAILQ_ENTRY(scsi_host_queue) scsi_host_next;
@@ -334,7 +337,7 @@ linsysfs_init(PFS_INIT_ARGS)
 	dir = pfs_create_dir(root, "devices", NULL, NULL, NULL, 0);
 
 	/* /sys/device/pci0000:00 */
-	linux_class_root.sd = pci00 = pfs_create_dir(dir, "pci0000:00", NULL, NULL, NULL, 0);
+	linux_root_device.kobj.sd = linux_class_root.sd = pci00 = pfs_create_dir(dir, "pci0000:00", NULL, NULL, NULL, 0);
 
 	/* /sys/dev/... */
 	dir = pfs_create_dir(root, "dev", NULL, NULL, NULL, 0);
