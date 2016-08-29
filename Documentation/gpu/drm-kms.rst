@@ -141,6 +141,15 @@ Connector Display Sink Abstraction
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :export:
 
+Encoder Abstraction
+===================
+
+.. kernel-doc:: include/drm/drm_encoder.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_encoder.c
+   :export:
+
 KMS Initialization and Cleanup
 ==============================
 

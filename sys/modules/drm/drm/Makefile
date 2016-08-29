@@ -26,6 +26,7 @@ SRCS	= \
 	drm_drv.c \
 	drm_edid.c \
 	drm_edid_load.c \
+	drm_encoder.c \
 	drm_encoder_slave.c \
 	drm_fb_helper.c \
 	drm_fb_helper_freebsd.c \
