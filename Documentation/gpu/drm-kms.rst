@@ -18,9 +18,6 @@ be setup by initializing the following fields.
 -  struct drm_mode_config_funcs \*funcs;
    Mode setting functions.
 
-Display Modes Function Reference
---------------------------------
-
 .. kernel-doc:: include/drm/drm_modes.h
    :internal:
 

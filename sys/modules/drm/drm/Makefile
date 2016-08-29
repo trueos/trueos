@@ -47,6 +47,7 @@ SRCS	= \
 	drm_mipi_dsi.c \
 	drm_mm.c \
 	drm_modes.c \
+	drm_mode_object.c \
 	drm_modeset_lock.c \
 	drm_modeset_helper.c \
 	drm_os_freebsd.c \
