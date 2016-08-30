@@ -53,6 +53,25 @@
 SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
 
+.if !defined(XCC)
+_build_warn: .PHONY 
+	@echo ---------------------------------------------------------
+	@echo "    NB: devel/llvm38 must be installed"
+	@echo ---------------------------------------------------------
+.else
+_buildworld_warn: .PHONY 
+	@echo	
+.endif
+.if !defined(XCC)
+XCC= /usr/local/bin/clang38
+.endif
+.if !defined(XCXX)
+XCXX= /usr/local/bin/clang++38
+.endif
+.if !defined(XCPP)
+XCPP= /usr/local/bin/clang-cpp38
+.endif
+
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
 .if defined(CROSS_TOOLCHAIN)
@@ -803,7 +822,7 @@ WMAKE_TGTS+=	everything
 WMAKE_TGTS+=	build${libcompat}
 .endif
 
-buildworld: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue .PHONY
+buildworld: _buildworld_warn buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue .PHONY
 .ORDER: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
 
 buildworld_prologue: .PHONY
@@ -1184,7 +1203,7 @@ ${WMAKE_TGTS:N_worldtmp:Nbuild${libcompat}} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE
 #
 # Builds all kernels defined by BUILDKERNELS.
 #
-buildkernel: .MAKE .PHONY
+buildkernel: _build_warn .MAKE .PHONY
 .if empty(BUILDKERNELS:Ndummy)
 	@echo "ERROR: Missing kernel configuration file(s) (${KERNCONF})."; \
 	false
