@@ -623,6 +623,7 @@ void amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 		     int pages, struct page **pagelist,
 		     dma_addr_t *dma_addr, uint32_t flags);
+int amdgpu_ttm_recover_gart(struct amdgpu_device *adev);
 
 /*
  * GPU MC structures, functions & helpers
