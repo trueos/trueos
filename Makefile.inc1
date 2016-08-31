@@ -53,13 +53,13 @@
 SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
 
-.if !defined(XCC)
+.if !defined(XCC) || !defined(XCXX) || !defined(XCPP)
 _build_warn: .PHONY 
 	@echo ---------------------------------------------------------
 	@echo "    NB: devel/llvm38 must be installed"
 	@echo ---------------------------------------------------------
 .else
-_buildworld_warn: .PHONY 
+_build_warn: .PHONY 
 	@echo	
 .endif
 .if !defined(XCC)
@@ -822,7 +822,7 @@ WMAKE_TGTS+=	everything
 WMAKE_TGTS+=	build${libcompat}
 .endif
 
-buildworld: _buildworld_warn buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue .PHONY
+buildworld: _build_warn buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue .PHONY
 .ORDER: buildworld_prologue ${WMAKE_TGTS} buildworld_epilogue
 
 buildworld_prologue: .PHONY
