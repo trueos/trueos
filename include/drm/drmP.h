@@ -463,7 +463,6 @@ struct drm_file {
 	unsigned is_master:1;
 
 	pid_t pid;
-	uid_t uid;
 	drm_magic_t magic;
 	unsigned long ioctl_count;
 	struct list_head lhead;
