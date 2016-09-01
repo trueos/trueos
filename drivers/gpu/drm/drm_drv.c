@@ -35,7 +35,6 @@
 #include <linux/mount.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
-#include <drm/drm_core.h>
 #include "drm_crtc_internal.h"
 #include "drm_legacy.h"
 #include "drm_internal.h"
@@ -52,8 +51,8 @@ unsigned int drm_debug = 0;	/* bitmask of DRM_UT_x */
 #endif
 EXPORT_SYMBOL(drm_debug);
 
-MODULE_AUTHOR(CORE_AUTHOR);
-MODULE_DESCRIPTION(CORE_DESC);
+MODULE_AUTHOR("Gareth Hughes, Leif Delgass, José Fonseca, Jon Smirl");
+MODULE_DESCRIPTION("DRM shared core routines");
 MODULE_LICENSE("GPL and additional rights");
 MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug category.\n"
 "\t\tBit 0 (0x01) will enable CORE messages (drm core code)\n"
@@ -871,8 +870,7 @@ static int __init drm_core_init(void)
 		goto err_p3;
 	}
 
-	DRM_INFO("Initialized %s %d.%d.%d %s\n",
-		 CORE_NAME, CORE_MAJOR, CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
+	DRM_INFO("Initialized\n");
 	return 0;
 err_p3:
 	drm_sysfs_destroy();
