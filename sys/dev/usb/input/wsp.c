@@ -691,11 +691,11 @@ wsp_set_device_mode(struct wsp_softc *sc, uint8_t on)
 	 */
 	pause("WHW", hz / 4);
 
-	mode_bytes[params->um_switch_idx] = 
+	mode_bytes[params->um_switch_idx] =
 	    on ? params->um_switch_on : params->um_switch_off;
 
 	return (usbd_req_set_report(sc->sc_usb_device, NULL,
-	    mode_bytes, params->um_size, params->iface_index, 
+	    mode_bytes, params->um_size, params->iface_index,
 	    params->um_req_val, params->um_req_idx));
 }
 
@@ -907,7 +907,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	int ibt = 0;			/* button status */
 	int dx = 0;
 	int dy = 0;
-	int dz = 0;	
+	int dz = 0;
 	int dt = 0;
 	int rdx = 0;
 	int rdy = 0;
@@ -974,7 +974,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				f->pressure = le16toh((uint16_t)f->pressure);
 				f->multi = le16toh((uint16_t)f->multi);
 			}
-			DPRINTFN(WSP_LLEVEL_INFO, 
+			DPRINTFN(WSP_LLEVEL_INFO,
 			    "[%d]ibt=%d, taps=%d, o=%4d, ax=%5d, ay=%5d, "
 			    "rx=%5d, ry=%5d, tlmaj=%4d, tlmin=%4d, ot=%4x, "
 			    "tchmaj=%4d, tchmin=%4d, presure=%4d, m=%4x\n",
@@ -1119,15 +1119,15 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				if (ntouch == 1 && sc->index[0]->tool_major > 1200)
 					dx = dy = 0;
 
-				if (sc->ibtn != 0 && ntouch == 1 && 
-				    sc->intr_count < WSP_TAP_MAX_COUNT && 
+				if (sc->ibtn != 0 && ntouch == 1 &&
+				    sc->intr_count < WSP_TAP_MAX_COUNT &&
 				    abs(sc->dx_sum) < 1 && abs(sc->dy_sum) < 1 )
 					dx = dy = 0;
 
 				if (ntouch == 2 && sc->sc_status.button != 0) {
 					dx = sc->pos_x[sc->finger] - sc->pre_pos_x;
 					dy = sc->pos_y[sc->finger] - sc->pre_pos_y;
-					
+
 					/*
 					 * Ignore movement of switch finger or
 					 * movement from ibt=0 to ibt=1
@@ -1154,7 +1154,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 					DPRINTFN(WSP_LLEVEL_INFO, "dx=%5d, dy=%5d, mov=%5d\n",
 					    dx, dy, sc->finger);
 				}
-				
+
 				if (sc->dz_count--) {
 					rdz = (dy + sc->rdz) % tun.scale_factor;
 					sc->dz_sum -= (dy + sc->rdz) / tun.scale_factor;
@@ -1314,9 +1314,9 @@ wsp_add_to_queue(struct wsp_softc *sc, int dx, int dy, int dz,
 	}
 	evdev_push_mouse_btn(sc->sc_evdev,
 						 (buttons_in & ~MOUSE_STDBUTTONS) |
-						 (buttons_in & (1 << 2) ? MOUSE_BUTTON1DOWN : 0) |
+						 (buttons_in & (1 << 0) ? MOUSE_BUTTON1DOWN : 0) |
 						 (buttons_in & (1 << 1) ? MOUSE_BUTTON2DOWN : 0) |
-						 (buttons_in & (1 << 0) ? MOUSE_BUTTON3DOWN : 0));
+						 (buttons_in & (1 << 2) ? MOUSE_BUTTON3DOWN : 0));
 	evdev_sync(sc->sc_evdev);
 #endif
 
