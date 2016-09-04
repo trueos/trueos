@@ -23,7 +23,6 @@
 #include <drm/drmP.h>
 #include "drm_internal.h"
 
-
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
 
@@ -82,6 +81,7 @@ void drm_sysfs_destroy(void)
 {
 	if (IS_ERR_OR_NULL(drm_class))
 		return;
+	cancel_reset_debug_log();
 	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
 	drm_class = NULL;
@@ -384,7 +384,7 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 		goto err_free;
 	r = drm_dev_alias(minor, minor_str);
 	if (r < 0)
-		goto err_free;	
+		goto err_free;
 	return kdev;
 
 err_free:

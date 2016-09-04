@@ -37,10 +37,20 @@ SYSCTL_INT(_dev_drm, OID_AUTO, error_panic, CTLFLAG_RWTUN, &drm_panic_on_error, 
 int drm_always_interruptible;
 SYSCTL_INT(_dev_drm, OID_AUTO, always_interruptible, CTLFLAG_RWTUN, &drm_always_interruptible, 0, "always allow a thread to be interrupted in driver wait");
 
+static atomic_t reset_debug_log_armed = ATOMIC_INIT(0);
+static struct callout_handle reset_debug_log_handle;
+
 static void
 clear_debug_func(void *arg __unused)
 {
 	drm_debug = 0;
+}
+
+void
+cancel_reset_debug_log(void)
+{
+	if (atomic_read(&reset_debug_log_armed))
+		untimeout(clear_debug_func, NULL, reset_debug_log_handle);
 }
 
 static void
@@ -48,7 +58,11 @@ reset_debug_log(void)
 {
 	if (drm_debug_persist)
 		return;
-	timeout(clear_debug_func, NULL, 10*hz);
+
+	if (atomic_add_unless(&reset_debug_log_armed, 1, 1)) {
+		reset_debug_log_handle = timeout(clear_debug_func, NULL,
+		    10*hz);
+	}
 }
 
  int

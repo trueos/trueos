@@ -55,14 +55,14 @@ mtrr_add(unsigned long offset, unsigned long size, int flags)
 {
 	int act, bsdflags, rc;
 	struct mem_range_desc mrdesc;
-	
+
 	bsdflags = 0;
 	/* assert that we receive only flags we know about */
 	MPASS((flags & ~MTRR_TYPE_WRCOMB) == 0);
 
 	if (flags & MTRR_TYPE_WRCOMB)
 		bsdflags |= MDF_WRITECOMBINE;
-	
+
 	mrdesc.mr_base = offset;
 	mrdesc.mr_len = size;
 	mrdesc.mr_flags = bsdflags;
@@ -97,13 +97,17 @@ arch_phys_wc_add(unsigned long base, unsigned long size)
 	mi = malloc(sizeof(*mi), M_LKMTRR, M_WAITOK);
 	mi->base = base;
 	mi->size = size;
-	rc  = mtrr_add(base, size, MTRR_TYPE_WRCOMB);
+	rc = mtrr_add(base, size, MTRR_TYPE_WRCOMB);
 	if (rc >= 0) {
 		rc2 = idr_get_new(&mtrr_idr, mi, &id);
 		MPASS(idr_find(&mtrr_idr, id) == mi);
 		MPASS(rc2 == 0);
 	} else {
 		free(mi, M_LKMTRR);
+		pr_warn(
+		    "Failed to add WC MTRR for [%p-%p]: %d; "
+		    "performance may suffer",
+		    (void *)base, (void *)(base + size - 1), rc);
 	}
 
 	return (rc != 0 ? rc : id);
@@ -113,6 +117,11 @@ void
 arch_phys_wc_del(int reg)
 {
 	struct mtrr_info *mi;
+
+	if (reg < 1) {
+		/* arch_phys_wc_add() failed. */
+		return;
+	}
 
 	mi = idr_find(&mtrr_idr, reg);
 	MPASS(mi != NULL);

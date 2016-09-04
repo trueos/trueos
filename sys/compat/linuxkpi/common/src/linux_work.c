@@ -32,12 +32,12 @@ get_work_pool_id(struct work_struct *work)
 {
 	unsigned long data = atomic_long_read(&work->data);
 
-#ifdef __notyet__	
+#ifdef __notyet__
 	if (data & WORK_STRUCT_PWQ)
 		return ((struct pool_workqueue *)
 			(data & WORK_STRUCT_WQ_DATA_MASK))->pool->id;
 #endif
-	
+
 	return data >> WORK_OFFQ_POOL_SHIFT;
 }
 
@@ -96,7 +96,7 @@ linux_cancel_work_timer(struct work_struct *work, int delayed)
 {
 	static DECLARE_WAIT_QUEUE_HEAD(wq);
 	int rc;
-	
+
 	do {
 		rc = remove_task(work, delayed);
 		if (__predict_false(rc == -ENOENT)) {
@@ -172,7 +172,7 @@ linux_queue_work(int cpu __unused, struct workqueue_struct *wq, struct work_stru
 	work->taskqueue = wq->taskqueue;
 	taskqueue_enqueue(wq->taskqueue, &work->work_task);
 }
-	
+
 bool
 queue_work_on(int cpu, struct workqueue_struct *wq, struct work_struct *work)
 {
@@ -260,11 +260,10 @@ cancel_delayed_work(struct delayed_work *dwork)
 int
 cancel_delayed_work_sync(struct delayed_work *work)
 {
-        if (work->work.taskqueue &&
-            taskqueue_cancel(work->work.taskqueue, &work->work.work_task, NULL))
-                taskqueue_drain(work->work.taskqueue, &work->work.work_task);
+	while (work->work.taskqueue &&
+	    taskqueue_cancel(work->work.taskqueue, &work->work.work_task,
+	    NULL) != 0)
+		taskqueue_drain(work->work.taskqueue, &work->work.work_task);
 
 	return (linux_cancel_work_timer(&work->work, 1));
 }
-
-

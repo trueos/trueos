@@ -737,7 +737,6 @@ extern void fb_dealloc_cmap(struct fb_cmap *cmap);
 
 /* updated FreeBSD fb_info */
 extern void drm_legacy_fb_init(struct linux_fb_info *fb_info);
-extern void linux_fb_destroy(void);
 extern int fb_get_options(const char *name, char **option);
 
 

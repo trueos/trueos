@@ -60,6 +60,7 @@ struct class {
 	struct module	*owner;
 	struct kobject	kobj;
 	devclass_t	bsdclass;
+	struct pfs_node	*sd;
 	const struct attribute_group	**dev_groups;
 	void		(*class_release)(struct class *class);
 	void		(*dev_release)(struct device *dev);
@@ -89,7 +90,7 @@ struct device_driver {
 	const struct dev_pm_ops *pm;
 #ifdef notyet
 	struct driver_private *p;
-#endif	
+#endif
 };
 
 typedef void (*dr_release_t)(struct device *dev, void *res);
@@ -173,6 +174,7 @@ struct device {
 	struct device	*parent;
 	struct list_head irqents;
 	device_t	bsddev;
+	bool		bsddev_attached_here;
 	dev_t		devt;
 	struct class	*class;
 	void		(*release)(struct device *dev);
@@ -188,7 +190,7 @@ struct device {
 					     not all hardware supports
 					     64 bit addresses for consistent
 					     allocations such descriptors. */
-	struct device_node	*of_node; /* associated device tree node */	
+	struct device_node	*of_node; /* associated device tree node */
 	struct fwnode_handle	*fwnode;
 	struct device_driver *driver;	/* which driver has allocated this device */
 	struct dev_pm_info	power;
@@ -268,7 +270,7 @@ show_class_attr_string(struct class *class,
 /*
  * should we create device_printf with corresponding
  * syslog priorities?
- */ 
+ */
 #define	dev_err(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_warn(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_info(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
@@ -329,13 +331,14 @@ class_register(struct class *class)
 	kobject_init(&class->kobj, &linux_class_ktype);
 	kobject_set_name(&class->kobj, class->name);
 	kobject_add(&class->kobj, &linux_class_root, class->name);
-	linsysfs_create_class_dir(&class->kobj, class->name);
+	class->sd = linsysfs_create_class_dir(class, class->name);
 	return (0);
 }
 
 static inline void
 class_unregister(struct class *class)
 {
+	linsysfs_destroy_class_dir(class);
 	kobject_put(&class->kobj);
 }
 
@@ -364,11 +367,23 @@ device_initialize(struct device *dev)
 
 	bsddev = NULL;
 	unit = -1;
+
+	/*
+	 * The bsddev_attached_here flag is used to determine if we
+	 * are responsible for detaching the device too. If the device
+	 * was created/attached elsewhere and we only get it using
+	 * devclass_get_device(), we must not try to detach/delete it:
+	 * it's already done elsewhere.
+	 */
+	dev->bsddev_attached_here = true;
+
 	if (dev->devt) {
 		unit = MINOR(dev->devt);
 		bsddev = devclass_get_device(dev->class->bsdclass, unit);
+		dev->bsddev_attached_here = false;
 	} else if (dev->parent == NULL) {
 		bsddev = devclass_get_device(dev->class->bsdclass, 0);
+		dev->bsddev_attached_here = false;
 	}
 	if (bsddev == NULL && dev->parent != NULL) {
 		bsddev = device_add_child(dev->parent->bsddev,
@@ -387,7 +402,7 @@ device_initialize(struct device *dev)
 
 static inline int
 device_add(struct device *dev)
-{	
+{
 	if (dev->bsddev != NULL) {
 		if (dev->devt == 0)
 			dev->devt = makedev(0, device_get_unit(dev->bsddev));
@@ -471,11 +486,22 @@ device_register(struct device *dev)
 	if (dev->bsddev != NULL)
 		goto done;
 
+	/*
+	 * The bsddev_attached_here flag is used to determine if we
+	 * are responsible for detaching the device too. If the device
+	 * was created/attached elsewhere and we only get it using
+	 * devclass_get_device(), we must not try to detach/delete it:
+	 * it's already done elsewhere.
+	 */
+	dev->bsddev_attached_here = true;
+
 	if (dev->devt) {
 		unit = MINOR(dev->devt);
 		bsddev = devclass_get_device(dev->class->bsdclass, unit);
+		dev->bsddev_attached_here = false;
 	} else if (dev->parent == NULL) {
 		bsddev = devclass_get_device(dev->class->bsdclass, 0);
+		dev->bsddev_attached_here = false;
 	}
 	if (bsddev == NULL && dev->parent != NULL) {
 		bsddev = device_add_child(dev->parent->bsddev,
@@ -502,7 +528,7 @@ device_unregister(struct device *dev)
 	bsddev = dev->bsddev;
 	dev->bsddev = NULL;
 
-	if (bsddev != NULL) {
+	if (bsddev != NULL && dev->bsddev_attached_here) {
 		mtx_lock(&Giant);
 		device_delete_child(device_get_parent(bsddev), bsddev);
 		mtx_unlock(&Giant);
@@ -518,7 +544,7 @@ device_del(struct device *dev)
 	bsddev = dev->bsddev;
 	dev->bsddev = NULL;
 
-	if (bsddev != NULL) {
+	if (bsddev != NULL && dev->bsddev_attached_here) {
 		mtx_lock(&Giant);
 		device_delete_child(device_get_parent(bsddev), bsddev);
 		mtx_unlock(&Giant);
@@ -562,10 +588,10 @@ strpbrk(const char *s, const char *b)
 static struct class hwmon_class = {
 	.name = "hwmon",
 	.owner = THIS_MODULE,
-#ifdef __linux__	
+#ifdef __linux__
 	.dev_groups = hwmon_dev_attr_groups,
 	.dev_release = hwmon_dev_release,
-#endif	
+#endif
 };
 
 #define HWMON_ID_PREFIX "hwmon"
@@ -689,7 +715,7 @@ class_create(struct module *owner, const char *name)
 
 	class = kzalloc(sizeof(*class), M_WAITOK);
 	class->owner = owner;
-	class->name= name;
+	class->name = name;
 	class->class_release = linux_class_kfree;
 	error = class_register(class);
 	if (error) {

@@ -438,8 +438,10 @@ sysfs_remove_dir(struct kobject *kobj)
 	struct pfs_node *pn = kobj->sd;
 
 	lkpi_sysfs_remove_dir(kobj);
-	if (pn)
+	if (pn) {
 		pfs_destroy(pn);
+		kobj->sd = NULL;
+	}
 }
 
 int
