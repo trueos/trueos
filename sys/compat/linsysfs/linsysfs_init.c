@@ -275,14 +275,22 @@ debugfs_attr(PFS_ATTR_ARGS)
 
 static struct pfs_node *classdir;
 struct pfs_node *
-linsysfs_create_class_dir(struct kobject *kobj, const char *name)
+linsysfs_create_class_dir(struct class *class, const char *name)
 {
 	struct pfs_node *pn;
 
 	pn = pfs_create_dir(classdir, name, NULL, NULL, NULL, 0);
-	pn->pn_data = kobj;
-	kobj->sd = pn;
+	pn->pn_data = class;
 	return (pn);
+}
+
+void
+linsysfs_destroy_class_dir(struct class *class)
+{
+	if (class->sd != NULL) {
+		pfs_destroy(class->sd);
+		class->sd = NULL;
+	}
 }
 
 static void

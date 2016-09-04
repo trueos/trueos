@@ -151,7 +151,7 @@ extern void sysfs_remove_bin_file(struct kobject *kobj, const struct bin_attribu
 
 
 extern int sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
-extern void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);	
+extern void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
 
 extern int __must_check sysfs_create_files(struct kobject *kobj, const struct attribute **attr);
 extern void sysfs_remove_files(struct kobject *kobj, const struct attribute **attr);
@@ -178,7 +178,7 @@ void pci_remove_legacy_files(struct pci_bus *b);
 
 
 extern int lkpi_sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
-extern void lkpi_sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);	
+extern void lkpi_sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
 
 extern int lkpi_sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp);
 extern void lkpi_sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp);
@@ -188,8 +188,9 @@ extern void sysfs_unmerge_group(struct kobject *kobj, const struct attribute_gro
 extern int lkpi_sysfs_create_dir(struct kobject *kobj);
 extern void lkpi_sysfs_remove_dir(struct kobject *kobj);
 
-
-struct pfs_node *linsysfs_create_class_dir(struct kobject *kobj, const char *name);
+struct class;
+struct pfs_node *linsysfs_create_class_dir(struct class *class, const char *name);
+void linsysfs_destroy_class_dir(struct class *class);
 
 /*
  * Handle our generic '\0' terminated 'C' string.

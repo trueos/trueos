@@ -39,6 +39,8 @@ SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug_persist, CTLFLAG_RWTUN, &drm_debug_pers
 int drm_panic_on_error = 0;
 SYSCTL_INT(_dev_drm, OID_AUTO, error_panic, CTLFLAG_RWTUN, &drm_panic_on_error, 0, "panic if an ERROR is hit");
 
+static atomic_t reset_debug_log_armed = ATOMIC_INIT(0);
+static struct callout_handle reset_debug_log_handle;
 
 static void
 clear_debug_func(void *arg __unused)
@@ -51,9 +53,18 @@ reset_debug_log(void)
 {
 	if (drm_debug_persist)
 		return;
-	timeout(clear_debug_func, NULL, 10*hz);
+	if (atomic_add_unless(&reset_debug_log_armed, 1, 1)) {
+		reset_debug_log_handle = timeout(clear_debug_func, NULL,
+		    10*hz);
+	}
 }
 
+static void
+cancel_reset_debug_log()
+{
+	if (atomic_read(&reset_debug_log_armed))
+		untimeout(clear_debug_func, NULL, reset_debug_log_handle);
+}
 
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
@@ -184,6 +195,7 @@ void drm_sysfs_destroy(void)
 {
 	if (IS_ERR_OR_NULL(drm_class))
 		return;
+	cancel_reset_debug_log();
 	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
 	drm_class = NULL;
@@ -462,10 +474,10 @@ drm_dev_alias(struct drm_minor *minor, const char *minor_str)
 	/* MESA needs the hw.dri sysctl tree */
 	if (minor->type != DRM_MINOR_CONTROL && minor->type != DRM_MINOR_RENDER)
 		drm_sysctl_init(minor->dev);
-	reset_debug_log();	
+	reset_debug_log();
 	return (0);
 }
-	
+
 
 /**
  * drm_sysfs_minor_alloc() - Allocate sysfs device for given minor
@@ -512,7 +524,7 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 		goto err_free;
 	r = drm_dev_alias(minor, minor_str);
 	if (r < 0)
-		goto err_free;	
+		goto err_free;
 	return kdev;
 
 err_free:
