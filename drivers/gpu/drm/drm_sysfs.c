@@ -471,9 +471,6 @@ drm_dev_alias(struct drm_minor *minor, const char *minor_str)
 		return (-ENXIO);
 	minor->bsd_device = cdevp->cdev;
 	make_dev_alias(cdevp->cdev, buf, minor->index);
-	/* MESA needs the hw.dri sysctl tree */
-	if (minor->type != DRM_MINOR_CONTROL && minor->type != DRM_MINOR_RENDER)
-		drm_sysctl_init(minor->dev);
 	reset_debug_log();
 	return (0);
 }

@@ -286,8 +286,8 @@ framebuffer_release(struct linux_fb_info *info)
 			sc->fb_helper->fbdev = NULL;
 	}
 	kfree(info->apertures);
-	free(info, DRM_MEM_KMS);
 	free(info->fbio.fb_priv, DRM_MEM_KMS);
+	free(info, DRM_MEM_KMS);
 }
 
 static void
@@ -621,7 +621,6 @@ unlink_framebuffer(struct linux_fb_info *fb_info)
 static int
 __unregister_framebuffer(struct linux_fb_info *fb_info)
 {
-	struct vt_kms_softc *sc;
 	struct fb_event event;
 	int i, ret = 0;
 
@@ -634,11 +633,6 @@ __unregister_framebuffer(struct linux_fb_info *fb_info)
 		device_delete_child(fb_info->fb_bsddev, fb_info->fbio.fb_fbd_dev);
 		mtx_unlock(&Giant);
 		fb_info->fbio.fb_fbd_dev = NULL;
-	}
-	if (fb_info->fbio.fb_priv) {
-		sc = fb_info->fbio.fb_priv;
-		if (sc->fb_helper != NULL)
-			sc->fb_helper->fbdev = NULL;
 	}
 	if (num_registered_fb == 1)
 		vt_fb_detach(&fb_info->fbio);
