@@ -133,7 +133,7 @@ drm_sysctl_init(struct drm_device *dev)
 #ifdef notyet
 	if (dev->driver->sysctl_init != NULL)
 		dev->driver->sysctl_init(dev, &info->ctx, top);
-#endif	
+#endif
 
 	drm_add_busid_modesetting(dev, &info->ctx, top);
 
