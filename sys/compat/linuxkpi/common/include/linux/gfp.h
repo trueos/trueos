@@ -98,9 +98,9 @@ __free_hot_cold_page(vm_page_t page)
 		VM_OBJECT_WLOCK(object);
 
 	vm_page_lock(page);
-	if (page->flags & PG_UNHOLDFREE) {
-		vm_page_unhold(page);
-		goto done;
+	if (page->hold_count) {
+		MPASS(page->hold_count == 1);
+		page->hold_count--;
 	}
 	if (page->wire_count) {
 		MPASS(page->wire_count == 1);
@@ -109,7 +109,6 @@ __free_hot_cold_page(vm_page_t page)
 	if (pmap_page_is_mapped(page))
 		pmap_remove_all(page);
 	vm_page_free(page);
-done:
 	vm_page_unlock(page);
 	if (object)
 		VM_OBJECT_WUNLOCK(object);
