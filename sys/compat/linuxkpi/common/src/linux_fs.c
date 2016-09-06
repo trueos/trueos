@@ -63,6 +63,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 
+#ifdef INVARIANTS
+static int fs_held_pages;
+SYSCTL_INT(_compat_linuxkpi, OID_AUTO, fs_held_pages, CTLFLAG_RW, &fs_held_pages, 0, "number of total pages held");
+#endif
 
 static MALLOC_DEFINE(M_LKFS, "lkfs", "lkpi fs");
 uma_zone_t vnode_zone;
@@ -75,12 +79,12 @@ mount_pseudo(struct file_system_type *fs_type, char *name,
 	UNIMPLEMENTED();
 	return (NULL);
 }
+
 void
 kill_anon_super(struct super_block *sb)
 {
 	UNIMPLEMENTED();	
 }
-
 
 char *
 simple_dname(struct dentry *dentry, char *buffer, int buflen)
@@ -88,7 +92,6 @@ simple_dname(struct dentry *dentry, char *buffer, int buflen)
 	UNIMPLEMENTED();
 	return (NULL);
 }
-
 
 int
 simple_pin_fs(struct file_system_type *type, struct vfsmount **mount, int *count)
@@ -391,6 +394,10 @@ __get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages, int w
 		prot |= VM_PROT_WRITE;
 	len = nr_pages << PAGE_SHIFT;
 	count = vm_fault_quick_hold_pages(map, start, len, prot, pages, nr_pages);
+#ifdef INVARIANTS
+	if (count > 0)
+		atomic_add_int(&fs_held_pages, count);
+#endif
 	return (count == -1 ? -EFAULT : count);
 }
 
@@ -435,6 +442,10 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			vm_page_dirty(*mp);
 		}
 	}
+#ifdef INVARIANTS
+	if (count > 0)
+		atomic_add_int(&fs_held_pages, count);
+#endif
 	return (count);
 }
 
