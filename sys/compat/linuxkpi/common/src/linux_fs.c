@@ -428,7 +428,13 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		*mp = pmap_extract_and_hold(map->pmap, va, prot);
 		if (*mp == NULL)
 			break;
-		else if ((prot & VM_PROT_WRITE) != 0 &&
+		if ((*mp)->hold_count > 1) {
+			vm_page_lock(*mp);
+			MPASS((*mp)->hold_count == 2);
+			(*mp)->hold_count--;
+			vm_page_unlock(*mp);
+		}
+		if ((prot & VM_PROT_WRITE) != 0 &&
 		    (*mp)->dirty != VM_PAGE_BITS_ALL) {
 			/*
 			 * Explicitly dirty the physical page.  Otherwise, the
