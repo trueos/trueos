@@ -386,14 +386,26 @@ static int
 __get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages, int write,
 			  struct page **pages)
 {
-	int count, len;
+	int i, count, len;
 	vm_prot_t prot;
+	vm_page_t *mp;
 
 	prot = VM_PROT_READ;
 	if (write)
 		prot |= VM_PROT_WRITE;
 	len = nr_pages << PAGE_SHIFT;
 	count = vm_fault_quick_hold_pages(map, start, len, prot, pages, nr_pages);
+	if (count > 0) {
+		mp = pages;
+		for (i = 0; i < count; i++, mp++) {
+			if ((*mp)->hold_count > 1) {
+				vm_page_lock(*mp);
+				MPASS((*mp)->hold_count == 2);
+				(*mp)->hold_count--;
+				vm_page_unlock(*mp);
+			}
+		}
+	}
 #ifdef INVARIANTS
 	if (count > 0)
 		atomic_add_int(&fs_held_pages, count);
