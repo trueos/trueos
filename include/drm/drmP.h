@@ -145,8 +145,16 @@
 #endif /* DRM_DEBUG */
 
 
-#define __OS_HAS_AGP (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
-#define __OS_HAS_MTRR (defined(CONFIG_MTRR))
+#if defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE))
+#define __OS_HAS_AGP 1
+#else
+#define __OS_HAS_AGP 0
+#endif
+#if defined(CONFIG_MTRR)
+#define __OS_HAS_MTRR 1
+#else
+#define __OS_HAS_MTRR 0
+#endif
 
 #undef DRM_LINUX
 #define DRM_LINUX 0
