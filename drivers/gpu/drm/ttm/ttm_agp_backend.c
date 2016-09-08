@@ -42,8 +42,6 @@ struct ttm_agp_backend {
 	device_t bridge;
 };
 
-MALLOC_DEFINE(M_TTM_AGP, "ttm_agp", "TTM AGP Backend");
-
 static int ttm_agp_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 {
 	struct ttm_agp_backend *agp_be = container_of(ttm, struct ttm_agp_backend, ttm);
