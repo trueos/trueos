@@ -95,6 +95,7 @@ SRCS	= \
 	fiji_powertune.c \
 	fiji_smc.c \
 	fiji_smumgr.c \
+	fiji_smumgr_smc.c \
 	fiji_thermal.c \
 	functiontables.c \
 	gfx_v6_0.c \
@@ -224,6 +225,7 @@ CWARNFLAGS.fiji_smc.c=	-Wno-cast-qual
 CWARNFLAGS.fiji_clockpowergating.c=	-Wno-enum-conversion
 CWARNFLAGS.fiji_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.fiji_smumgr.c=	-Wno-missing-prototypes -Wno-cast-qual
+CWARNFLAGS.fiji_smumgr_smc.c=	-Wno-missing-prototypes
 CWARNFLAGS.fiji_thermal.c=	-Wno-missing-prototypes
 CWARNFLAGS.gmc_v6_0.c=	-Wno-unused-const-variable
 CWARNFLAGS.gfx_v6_0.c=	-Wno-cast-qual -Wno-unused-const-variable
