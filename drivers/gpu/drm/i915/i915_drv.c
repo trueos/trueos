@@ -561,7 +561,6 @@ static void i915_gem_fini(struct drm_device *dev)
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	i915_gem_reset(dev);
 	i915_gem_cleanup_engines(dev);
 	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
@@ -1581,7 +1580,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 	if (i915_gem_init_hw(dev)) {
 		DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
-		set_bit(I915_WEDGED, &dev_priv->gpu_error.flags);
+		i915_gem_set_wedged(dev_priv);
 	}
 	mutex_unlock(&dev->struct_mutex);
 
@@ -1757,9 +1756,6 @@ void i915_reset(struct drm_i915_private *dev_priv)
 	error->reset_count++;
 
 	pr_notice("drm/i915: Resetting chip after gpu hang\n");
-
-	i915_gem_reset(dev);
-
 	ret = intel_gpu_reset(dev_priv, ALL_ENGINES);
 	if (ret) {
 		if (ret != -ENODEV)
@@ -1769,6 +1765,7 @@ void i915_reset(struct drm_i915_private *dev_priv)
 		goto error;
 	}
 
+	i915_gem_reset(dev_priv);
 	intel_overlay_reset(dev_priv);
 
 	/* Ok, now get things going again... */
@@ -1805,7 +1802,7 @@ wakeup:
 	return;
 
 error:
-	set_bit(I915_WEDGED, &error->flags);
+	i915_gem_set_wedged(dev_priv);
 	goto wakeup;
 }
 
