@@ -2879,6 +2879,9 @@ static void intel_dp_info(struct seq_file *m,
 	seq_printf(m, "\taudio support: %s\n", yesno(intel_dp->has_audio));
 	if (intel_encoder->type == INTEL_OUTPUT_EDP)
 		intel_panel_info(m, &intel_connector->panel);
+
+	drm_dp_downstream_debug(m, intel_dp->dpcd, intel_dp->downstream_ports,
+				&intel_dp->aux);
 }
 
 static void intel_hdmi_info(struct seq_file *m,
