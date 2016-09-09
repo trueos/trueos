@@ -119,6 +119,7 @@ SRCS	= \
 	polaris10_clockpowergating.c \
 	polaris10_hwmgr.c \
 	polaris10_powertune.c \
+	polaris10_smc.c \
 	polaris10_smumgr.c \
 	polaris10_thermal.c \
 	pp_acpi.c \
