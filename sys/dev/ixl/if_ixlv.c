@@ -217,7 +217,6 @@ TUNABLE_INT("hw.ixlv.tx_itr", &ixlv_tx_itr);
 SYSCTL_INT(_hw_ixlv, OID_AUTO, tx_itr, CTLFLAG_RDTUN,
     &ixlv_tx_itr, 0, "TX Interrupt Rate");
 
-        
 /*********************************************************************
  *  Device identification routine
  *

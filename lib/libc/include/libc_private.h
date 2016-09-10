@@ -228,6 +228,7 @@ enum {
 	INTERPOS_wait6,
 	INTERPOS_ppoll,
 	INTERPOS_map_stacks_exec,
+	INTERPOS_fdatasync,
 	INTERPOS_MAX
 };
 
@@ -318,6 +319,7 @@ int		__sys_clock_gettime(__clockid_t, struct timespec *ts);
 int		__sys_close(int);
 int		__sys_connect(int, const struct sockaddr *, __socklen_t);
 int		__sys_fcntl(int, int, ...);
+int		__sys_fdatasync(int);
 int		__sys_fsync(int);
 __pid_t		__sys_fork(void);
 int		__sys_ftruncate(int, __off_t);
@@ -333,6 +335,7 @@ int		__sys_openat(int, const char *, int, ...);
 int		__sys_pselect(int, struct fd_set *, struct fd_set *,
 		    struct fd_set *, const struct timespec *,
 		    const __sigset_t *);
+int		__sys_ptrace(int, __pid_t, char *, int);
 int		__sys_poll(struct pollfd *, unsigned, int);
 int		__sys_ppoll(struct pollfd *, unsigned, const struct timespec *,
 		    const __sigset_t *);

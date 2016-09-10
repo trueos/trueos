@@ -3951,23 +3951,6 @@ bus_generic_new_pass(device_t dev)
 }
 
 /**
- * @brief Helper function for implementing BUS_MAP_INTR().
- *
- * This simple implementation of BUS_MAP_INTR() simply calls the
- * BUS_MAP_INTR() method of the parent of @p dev.
- */
-int
-bus_generic_map_intr(device_t dev, device_t child, int *rid, rman_res_t *start,
-    rman_res_t *end, rman_res_t *count, struct intr_map_data **imd)
-{
-	/* Propagate up the bus hierarchy until someone handles it. */
-	if (dev->parent)
-		return (BUS_MAP_INTR(dev->parent, child, rid, start, end, count,
-		    imd));
-	return (EINVAL);
-}
-
-/**
  * @brief Helper function for implementing BUS_SETUP_INTR().
  *
  * This simple implementation of BUS_SETUP_INTR() simply calls the
@@ -4422,41 +4405,6 @@ bus_release_resources(device_t dev, const struct resource_spec *rs,
 		}
 }
 
-#ifdef INTRNG
-/**
- * @internal
- *
- * This can be converted to bus method later. (XXX)
- */
-static struct intr_map_data *
-bus_extend_resource(device_t dev, int type, int *rid, rman_res_t *start,
-    rman_res_t *end, rman_res_t *count)
-{
-	struct intr_map_data *imd;
-	struct resource_list *rl;
-	int rv;
-
-	if (dev->parent == NULL)
-		return (NULL);
-	if (type != SYS_RES_IRQ)
-		return (NULL);
-
-	if (!RMAN_IS_DEFAULT_RANGE(*start, *end))
-		return (NULL);
-	rl = BUS_GET_RESOURCE_LIST(dev->parent, dev);
-	if (rl != NULL) {
-		if (resource_list_find(rl, type, *rid) != NULL)
-			return (NULL);
-	}
-	rv = BUS_MAP_INTR(dev->parent, dev, rid, start, end, count, &imd);
-	if (rv != 0)
-		return (NULL);
-	if (rl != NULL)
-		resource_list_add(rl, type, *rid, *start, *end, *count);
-	return (imd);
-}
-#endif
-
 /**
  * @brief Wrapper function for BUS_ALLOC_RESOURCE().
  *
@@ -4468,26 +4416,11 @@ bus_alloc_resource(device_t dev, int type, int *rid, rman_res_t start,
     rman_res_t end, rman_res_t count, u_int flags)
 {
 	struct resource *res;
-#ifdef INTRNG
-	struct intr_map_data *imd;
-#endif
 
 	if (dev->parent == NULL)
 		return (NULL);
-
-#ifdef INTRNG
-	imd = bus_extend_resource(dev, type, rid, &start, &end, &count);
-#endif
 	res = BUS_ALLOC_RESOURCE(dev->parent, dev, type, rid, start, end,
 	    count, flags);
-#ifdef INTRNG
-	if (imd != NULL) {
-		if (res != NULL && rman_get_virtual(res) == NULL)
-			rman_set_virtual(res, imd);
-		else
-			imd->destruct(imd);
-	}
-#endif
 	return (res);
 }
 
@@ -4574,21 +4507,10 @@ int
 bus_release_resource(device_t dev, int type, int rid, struct resource *r)
 {
 	int rv;
-#ifdef INTRNG
-	struct intr_map_data *imd;
-#endif
 
 	if (dev->parent == NULL)
 		return (EINVAL);
-
-#ifdef INTRNG
-	imd = (type == SYS_RES_IRQ) ? rman_get_virtual(r) : NULL;
-#endif
 	rv = BUS_RELEASE_RESOURCE(dev->parent, dev, type, rid, r);
-#ifdef INTRNG
-	if (imd != NULL)
-		imd->destruct(imd);
-#endif
 	return (rv);
 }
 
@@ -5427,6 +5349,7 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case DEV_SUSPEND:
 	case DEV_RESUME:
 	case DEV_SET_DRIVER:
+	case DEV_CLEAR_DRIVER:
 	case DEV_RESCAN:
 	case DEV_DELETE:
 		error = priv_check(td, PRIV_DRIVER);
@@ -5592,6 +5515,25 @@ devctl2_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = device_probe_and_attach(dev);
 		break;
 	}
+	case DEV_CLEAR_DRIVER:
+		if (!(dev->flags & DF_FIXEDCLASS)) {
+			error = 0;
+			break;
+		}
+		if (device_is_attached(dev)) {
+			if (req->dr_flags & DEVF_CLEAR_DRIVER_DETACH)
+				error = device_detach(dev);
+			else
+				error = EBUSY;
+			if (error)
+				break;
+		}
+
+		dev->flags &= ~DF_FIXEDCLASS;
+		dev->flags |= DF_WILDCARD;
+		devclass_delete_device(dev->devclass, dev);
+		error = device_probe_and_attach(dev);
+		break;
 	case DEV_RESCAN:
 		if (!device_is_attached(dev)) {
 			error = ENXIO;

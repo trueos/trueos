@@ -82,6 +82,7 @@ LIBIBMAD?=	${DESTDIR}${LIBDIR}/libibmad.a
 LIBIBSDP?=	${DESTDIR}${LIBDIR}/libibsdp.a
 LIBIBUMAD?=	${DESTDIR}${LIBDIR}/libibumad.a
 LIBIBVERBS?=	${DESTDIR}${LIBDIR}/libibverbs.a
+LIBIFCONFIG?=	${DESTDIR}${LIBDIR}/libifconfig.a
 LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
 LIBJAIL?=	${DESTDIR}${LIBDIR}/libjail.a
 LIBKADM5CLNT?=	${DESTDIR}${LIBDIR}/libkadm5clnt.a

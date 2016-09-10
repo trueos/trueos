@@ -281,7 +281,7 @@ parse_pci_mem_ranges(struct generic_pcie_softc *sc)
 	OF_getencprop(OF_parent(node), "#address-cells", &parent_addr_cells,
 					sizeof(parent_addr_cells));
 
-	if (parent_addr_cells != 2 || pci_addr_cells != 3 || size_cells != 2) {
+	if (parent_addr_cells > 2 || pci_addr_cells != 3 || size_cells > 2) {
 		device_printf(sc->dev,
 		    "Unexpected number of address or size cells in FDT\n");
 		return (ENXIO);
@@ -939,9 +939,7 @@ generic_pcie_ofw_bus_attach(device_t dev)
 			resource_list_init(&di->di_rl);
 			ofw_bus_reg_to_rl(dev, node, addr_cells, size_cells,
 			    &di->di_rl);
-#ifndef INTRNG
 			ofw_bus_intr_to_rl(dev, node, &di->di_rl, NULL);
-#endif
 
 			/* Add newbus device for this FDT node */
 			child = device_add_child(dev, NULL, -1);

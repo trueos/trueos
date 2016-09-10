@@ -105,6 +105,7 @@ _LIBRARIES=	\
 		heimntlm \
 		heimsqlite \
 		hx509 \
+		ifconfig \
 		ipsec \
 		jail \
 		kadm5clnt \

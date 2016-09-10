@@ -14,9 +14,9 @@ arm/allwinner/aw_nmi.c			optional	intrng
 arm/allwinner/aw_if_dwc.c		optional	dwc
 arm/allwinner/aw_rsb.c			optional	rsb
 arm/allwinner/aw_rtc.c			standard
+arm/allwinner/aw_ts.c			standard
 arm/allwinner/aw_wdog.c			standard
-arm/allwinner/a20/a20_cpu_cfg.c 	standard
-arm/allwinner/allwinner_machdep.c	standard
+arm/allwinner/aw_machdep.c		standard
 arm/allwinner/aw_mp.c			optional	smp
 arm/allwinner/axp209.c			optional	axp209
 arm/allwinner/axp81x.c			optional	axp81x
@@ -28,6 +28,7 @@ dev/usb/controller/generic_ohci.c	optional	ohci
 dev/usb/controller/generic_usb_if.m	optional	ohci
 arm/allwinner/aw_sid.c			standard
 arm/allwinner/aw_thermal.c		standard
+dev/iicbus/sy8106a.c			optional	sy8106a
 #arm/allwinner/console.c		standard
 
 arm/allwinner/a10_fb.c			optional	vt
@@ -52,4 +53,5 @@ arm/allwinner/clk/aw_modclk.c		standard
 arm/allwinner/clk/aw_mmcclk.c		standard
 arm/allwinner/clk/aw_oscclk.c		standard
 arm/allwinner/clk/aw_pll.c		standard
+arm/allwinner/clk/aw_thsclk.c		standard
 arm/allwinner/clk/aw_usbclk.c		standard

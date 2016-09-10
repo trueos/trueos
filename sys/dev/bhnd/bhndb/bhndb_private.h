@@ -33,6 +33,7 @@
 #define _BHND_BHNDB_PRIVATE_H_
 
 #include <sys/param.h>
+#include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 
@@ -61,6 +62,9 @@ struct resource			*bhndb_find_regwin_resource(
 struct bhndb_resources		*bhndb_alloc_resources(device_t dev,
 				     device_t parent_dev,
 				     const struct bhndb_hwcfg *cfg);
+
+int				 bhndb_alloc_host_resources(
+				     struct bhndb_resources *br);
 
 void				 bhndb_free_resources(
 				     struct bhndb_resources *br);
@@ -125,13 +129,13 @@ const struct bhndb_regwin	*bhndb_regwin_find_best(
 				     bhnd_port_type port_type, u_int port,
 				     u_int region, bus_size_t min_size);
 
-bool				 bhndb_regwin_matches_device(
+bool				 bhndb_regwin_match_core(
 				     const struct bhndb_regwin *regw,
-				     device_t dev);
+				     struct bhnd_core_info *core);
 
-const struct bhndb_hw_priority	*bhndb_hw_priority_find_device(
+const struct bhndb_hw_priority	*bhndb_hw_priority_find_core(
 				     const struct bhndb_hw_priority *table,
-				     device_t device);
+				     struct bhnd_core_info *core);
 
 
 /**
@@ -174,8 +178,9 @@ struct bhndb_resources {
 	const struct bhndb_hwcfg	*cfg;		/**< hardware configuration */
 
 	device_t			 parent_dev;	/**< parent device */
-	struct resource_spec		*res_spec;	/**< parent bus resource specs */
-	struct resource			**res;		/**< parent bus resources */
+	struct resource_spec		*res_spec;	/**< parent bus resource specs, or NULL if not allocated */
+	struct resource			**res;		/**< parent bus resources, or NULL if not allocated */
+	bool				 res_avail;	/**< if parent bus resources have been allocated */
 	
 	struct rman			 ht_mem_rman;	/**< host memory manager */
 	struct rman			 br_mem_rman;	/**< bridged memory manager */
@@ -184,21 +189,23 @@ struct bhndb_resources {
 
 	struct bhndb_dw_alloc		*dw_alloc;	/**< dynamic window allocation records */
 	size_t				 dwa_count;	/**< number of dynamic windows available. */
-	uint32_t			 dwa_freelist;	/**< dynamic window free list */
+	bitstr_t			*dwa_freelist;	/**< dynamic window free list */
 	bhndb_priority_t		 min_prio;	/**< minimum resource priority required to
 							     allocate a dynamic window */
 };
 
 /**
- * Returns true if the all dynamic windows have been exhausted, false
+ * Returns true if the all dynamic windows are marked free, false
  * otherwise.
  * 
  * @param br The resource state to check.
  */
 static inline bool
-bhndb_dw_exhausted(struct bhndb_resources *br)
+bhndb_dw_all_free(struct bhndb_resources *br)
 {
-	return (br->dwa_freelist == 0);
+	int bit;
+	bit_ffs(br->dwa_freelist, br->dwa_count, &bit);
+	return (bit == -1);
 }
 
 /**
@@ -209,12 +216,14 @@ bhndb_dw_exhausted(struct bhndb_resources *br)
 static inline struct bhndb_dw_alloc *
 bhndb_dw_next_free(struct bhndb_resources *br)
 {
-	struct bhndb_dw_alloc *dw_free;
+	struct bhndb_dw_alloc	*dw_free;
+	int			 bit;
 
-	if (bhndb_dw_exhausted(br))
+	bit_ffc(br->dwa_freelist, br->dwa_count, &bit);
+	if (bit == -1)
 		return (NULL);
 
-	dw_free = &br->dw_alloc[__builtin_ctz(br->dwa_freelist)];
+	dw_free = &br->dw_alloc[bit];
 
 	KASSERT(LIST_EMPTY(&dw_free->refs),
 	    ("free list out of sync with refs"));
@@ -233,7 +242,7 @@ bhndb_dw_is_free(struct bhndb_resources *br, struct bhndb_dw_alloc *dwa)
 {
 	bool is_free = LIST_EMPTY(&dwa->refs);
 
-	KASSERT(is_free == ((br->dwa_freelist & (1 << dwa->rnid)) != 0),
+	KASSERT(is_free == !bit_test(br->dwa_freelist, dwa->rnid),
 	    ("refs out of sync with free list"));
 
 	return (is_free);

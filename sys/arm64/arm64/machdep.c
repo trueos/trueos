@@ -416,8 +416,17 @@ cpu_flush_dcache(void *ptr, size_t len)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
+	struct pcpu *pc;
 
-	panic("ARM64TODO: cpu_est_clockrate");
+	pc = pcpu_find(cpu_id);
+	if (pc == NULL || rate == NULL)
+		return (EINVAL);
+
+	if (pc->pc_clock == 0)
+		return (EOPNOTSUPP);
+
+	*rate = pc->pc_clock;
+	return (0);
 }
 
 void
@@ -1005,17 +1014,6 @@ initarm(struct arm64_bootparams *abp)
 	early_boot = 0;
 }
 
-uint32_t (*arm_cpu_fill_vdso_timehands)(struct vdso_timehands *,
-    struct timecounter *);
-
-uint32_t
-cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
-{
-
-	return (arm_cpu_fill_vdso_timehands != NULL ?
-	    arm_cpu_fill_vdso_timehands(vdso_th, tc) : 0);
-}
-
 #ifdef DDB
 #include <ddb/ddb.h>
 
@@ -1100,7 +1098,9 @@ DB_SHOW_COMMAND(vtop, db_show_vtop)
 
 	if (have_addr) {
 		phys = arm64_address_translate_s1e1r(addr);
-		db_printf("Physical address reg: 0x%016lx\n", phys);
+		db_printf("Physical address reg (read):  0x%016lx\n", phys);
+		phys = arm64_address_translate_s1e1w(addr);
+		db_printf("Physical address reg (write): 0x%016lx\n", phys);
 	} else
 		db_printf("show vtop <virt_addr>\n");
 }

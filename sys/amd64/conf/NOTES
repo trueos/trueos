@@ -73,12 +73,6 @@ cpu		HAMMER			# aka K8, aka Opteron & Athlon64
 # Options for CPU features.
 #
 
-#
-# PERFMON causes the driver for Pentium/Pentium Pro performance counters
-# to be compiled.  See perfmon(4) for more information.
-#
-#XXX#options 	PERFMON
-
 
 #####################################################################
 # NETWORKING OPTIONS
@@ -542,7 +536,6 @@ hint.pbio.0.port="0x360"
 device		smbios
 device		vpd
 device		asmc
-device		si
 device		tpm
 device		padlock_rng	# VIA Padlock RNG
 device		rdrand_rng	# Intel Bull Mountain RNG
@@ -614,6 +607,9 @@ options 	COMPAT_FREEBSD32
 
 # Emulate spx device for client side of SVR3 local X interface
 #XXX#options 	SPX_HACK
+
+# Enable 32-bit runtime support for CloudABI binaries.
+options 	COMPAT_CLOUDABI32
 
 # Enable 64-bit runtime support for CloudABI binaries.
 options 	COMPAT_CLOUDABI64
