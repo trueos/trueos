@@ -61,7 +61,7 @@ static int  hv_nv_init_send_buffer_with_net_vsp(struct hn_softc *sc);
 static int  hv_nv_init_rx_buffer_with_net_vsp(struct hn_softc *);
 static int  hv_nv_destroy_send_buffer(struct hn_softc *sc);
 static int  hv_nv_destroy_rx_buffer(struct hn_softc *sc);
-static int  hv_nv_connect_to_vsp(struct hn_softc *sc);
+static int  hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu);
 static void hn_nvs_sent_none(struct hn_send_ctx *sndc,
     struct hn_softc *, struct vmbus_channel *chan,
     const void *, int);
@@ -470,12 +470,10 @@ hn_nvs_doinit(struct hn_softc *sc, uint32_t nvs_ver)
 }
 
 /*
- * Send NDIS version 2 config packet containing MTU.
- *
- * Not valid for NDIS version 1.
+ * Configure MTU and enable VLAN.
  */
 static int
-hv_nv_send_ndis_config(struct hn_softc *sc, uint32_t mtu)
+hn_nvs_conf_ndis(struct hn_softc *sc, int mtu)
 {
 	struct hn_nvs_ndis_conf conf;
 	int error;
@@ -489,6 +487,24 @@ hv_nv_send_ndis_config(struct hn_softc *sc, uint32_t mtu)
 	error = hn_nvs_req_send(sc, &conf, sizeof(conf));
 	if (error)
 		if_printf(sc->hn_ifp, "send nvs ndis conf failed: %d\n", error);
+	return (error);
+}
+
+static int
+hn_nvs_init_ndis(struct hn_softc *sc)
+{
+	struct hn_nvs_ndis_init ndis;
+	int error;
+
+	memset(&ndis, 0, sizeof(ndis));
+	ndis.nvs_type = HN_NVS_TYPE_NDIS_INIT;
+	ndis.nvs_ndis_major = HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver);
+	ndis.nvs_ndis_minor = HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver);
+
+	/* NOTE: No response. */
+	error = hn_nvs_req_send(sc, &ndis, sizeof(ndis));
+	if (error)
+		if_printf(sc->hn_ifp, "send nvs ndis init failed: %d\n", error);
 	return (error);
 }
 
@@ -522,48 +538,37 @@ hn_nvs_init(struct hn_softc *sc)
 	return (ENXIO);
 }
 
-/*
- * Net VSC connect to VSP
- */
 static int
-hv_nv_connect_to_vsp(struct hn_softc *sc)
+hv_nv_connect_to_vsp(struct hn_softc *sc, int mtu)
 {
-	int ret = 0;
-	struct ifnet *ifp = sc->hn_ifp;
-	struct hn_nvs_ndis_init ndis;
+	int ret;
 
+	/*
+	 * Initialize NVS.
+	 */
 	ret = hn_nvs_init(sc);
 	if (ret != 0)
 		return (ret);
 
-	/*
-	 * Set the MTU if supported by this NVSP protocol version
-	 * This needs to be right after the NVSP init message per Haiyang
-	 */
-	if (sc->hn_nvs_ver >= HN_NVS_VERSION_2)
-		ret = hv_nv_send_ndis_config(sc, ifp->if_mtu);
+	if (sc->hn_nvs_ver >= HN_NVS_VERSION_2) {
+		/*
+		 * Configure NDIS before initializing it.
+		 */
+		ret = hn_nvs_conf_ndis(sc, mtu);
+		if (ret != 0)
+			return (ret);
+	}
 
 	/*
 	 * Initialize NDIS.
 	 */
-
-	memset(&ndis, 0, sizeof(ndis));
-	ndis.nvs_type = HN_NVS_TYPE_NDIS_INIT;
-	ndis.nvs_ndis_major = HN_NDIS_VERSION_MAJOR(sc->hn_ndis_ver);
-	ndis.nvs_ndis_minor = HN_NDIS_VERSION_MINOR(sc->hn_ndis_ver);
-
-	/* NOTE: No response. */
-	ret = hn_nvs_req_send(sc, &ndis, sizeof(ndis));
-	if (ret != 0) {
-		if_printf(sc->hn_ifp, "send nvs ndis init failed: %d\n", ret);
-		goto cleanup;
-	}
+	ret = hn_nvs_init_ndis(sc);
+	if (ret != 0)
+		return (ret);
 
 	ret = hv_nv_init_rx_buffer_with_net_vsp(sc);
 	if (ret == 0)
 		ret = hv_nv_init_send_buffer_with_net_vsp(sc);
-
-cleanup:
 	return (ret);
 }
 
@@ -583,13 +588,13 @@ hv_nv_disconnect_from_vsp(struct hn_softc *sc)
  * Callback when the device belonging to this driver is added
  */
 int
-hv_nv_on_device_add(struct hn_softc *sc)
+hv_nv_on_device_add(struct hn_softc *sc, int mtu)
 {
 
 	/*
 	 * Connect with the NetVsp
 	 */
-	return (hv_nv_connect_to_vsp(sc));
+	return (hv_nv_connect_to_vsp(sc, mtu));
 }
 
 /*
