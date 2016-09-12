@@ -1213,8 +1213,15 @@ vga_init(struct vt_device *vd)
 		vd->vd_softc = (void *)&vga_conssoftc;
 	sc = vd->vd_softc;
 
+	/*
+	 * FIXME: REPOSTing causes a failure to stop an Intel GPU during
+	 * the unload of the i915 DRM driver, which later triggers a
+	 * panic.
+	 */
+#if 0
 	if (vd->vd_flags & VDF_DOWNGRADE && vd->vd_video_dev != NULL)
 		vga_pci_repost(vd->vd_video_dev);
+#endif
 
 #if defined(__amd64__) || defined(__i386__)
 	sc->vga_fb_tag = X86_BUS_SPACE_MEM;

@@ -70,8 +70,6 @@
 #define DRIVER_DESC		"Intel Graphics"
 #define DRIVER_DATE		"20160425"
 
-MALLOC_DECLARE(DRM_I915_GEM);
-
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
 #if 0

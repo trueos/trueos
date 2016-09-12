@@ -216,6 +216,14 @@ fbd_init(struct linux_fb_info *fb_info, int unit)
 	return (0);
 }
 
+static int
+fbd_destroy(struct linux_fb_info *fb_info)
+{
+	destroy_dev(fb_info->fb_cdev);
+
+	return (0);
+}
+
 
 static int
 fb_init(void)
@@ -226,11 +234,12 @@ fb_init(void)
 }
 SYSINIT(fb_init, SI_SUB_KLD, SI_ORDER_MIDDLE, fb_init, NULL);
 
-void
-linux_fb_destroy(void)
+static void
+fb_destroy(void)
 {
 	class_destroy(fb_class);
 }
+SYSUNINIT(fb_destroy, SI_SUB_KLD, SI_ORDER_MIDDLE, fb_destroy, NULL);
 
 
 struct linux_fb_info *
@@ -277,8 +286,8 @@ framebuffer_release(struct linux_fb_info *info)
 			sc->fb_helper->fbdev = NULL;
 	}
 	kfree(info->apertures);
-	free(info, DRM_MEM_KMS);
 	free(info->fbio.fb_priv, DRM_MEM_KMS);
+	free(info, DRM_MEM_KMS);
 }
 
 static void
@@ -531,7 +540,7 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 			fb_info->pixmap.access_align = 32;
 			fb_info->pixmap.flags = FB_PIXMAP_DEFAULT;
 		}
-	}	
+	}
 	fb_info->pixmap.offset = 0;
 
 	if (!fb_info->pixmap.blit_x)
@@ -571,14 +580,14 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 	}
 	fb_info_print(&fb_info->fbio);
 
-#if 0	
+#if 0
 	if (!lock_fb_info(fb_info))
 		return -ENODEV;
 	console_lock();
 	fb_notifier_call_chain(FB_EVENT_FB_REGISTERED, &event);
 	console_unlock();
 	unlock_fb_info(fb_info);
-#endif	
+#endif
 	return 0;
 }
 
@@ -612,7 +621,6 @@ unlink_framebuffer(struct linux_fb_info *fb_info)
 static int
 __unregister_framebuffer(struct linux_fb_info *fb_info)
 {
-	struct vt_kms_softc *sc;
 	struct fb_event event;
 	int i, ret = 0;
 
@@ -626,16 +634,12 @@ __unregister_framebuffer(struct linux_fb_info *fb_info)
 		mtx_unlock(&Giant);
 		fb_info->fbio.fb_fbd_dev = NULL;
 	}
-	if (fb_info->fbio.fb_priv) {
-		sc = fb_info->fbio.fb_priv;
-		if (sc->fb_helper != NULL)
-			sc->fb_helper->fbdev = NULL;
-	}
 	if (num_registered_fb == 1)
 		vt_fb_detach(&fb_info->fbio);
+	fbd_destroy(fb_info);
 
 
-#if 0	
+#if 0
 	if (!lock_fb_info(fb_info))
 		return -ENODEV;
 	console_lock();
@@ -647,7 +651,7 @@ __unregister_framebuffer(struct linux_fb_info *fb_info)
 	if (ret)
 		return -EINVAL;
 #endif
-	
+
 	unlink_framebuffer(fb_info);
 	if (fb_info->pixmap.addr &&
 	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
@@ -657,7 +661,7 @@ __unregister_framebuffer(struct linux_fb_info *fb_info)
 	num_registered_fb--;
 	event.info = fb_info;
 
-#if 0	
+#if 0
 	console_lock();
 	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
 	console_unlock();
@@ -680,7 +684,7 @@ unregister_framebuffer(struct linux_fb_info *fb_info)
 void
 fb_set_suspend(struct linux_fb_info *info, int state)
 {
-#if 0	
+#if 0
 	struct fb_event event;
 
 	event.info = info;
@@ -691,7 +695,7 @@ fb_set_suspend(struct linux_fb_info *info, int state)
 		info->state = FBINFO_STATE_RUNNING;
 		fb_notifier_call_chain(FB_EVENT_RESUME, &event);
 	}
-#endif	
+#endif
 }
 
 
@@ -830,7 +834,7 @@ fb_sys_read(struct linux_fb_info *info, char *ubuf, size_t count,
 		return -EPERM;
 
 	total_size = info->screen_size ? info->screen_size : info->fix.smem_len;
-	
+
 	if (p >= total_size)
 		return 0;
 

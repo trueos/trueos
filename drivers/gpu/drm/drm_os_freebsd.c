@@ -11,12 +11,6 @@ devclass_t drm_devclass;
 
 MALLOC_DEFINE(DRM_MEM_DMA, "drm_dma", "DRM DMA Data Structures");
 MALLOC_DEFINE(DRM_MEM_DRIVER, "drm_driver", "DRM DRIVER Data Structures");
-MALLOC_DEFINE(DRM_MEM_FILES, "drm_files", "DRM FILE Data Structures");
-MALLOC_DEFINE(DRM_MEM_BUFLISTS, "drm_buflists", "DRM BUFLISTS Data Structures");
-MALLOC_DEFINE(DRM_MEM_AGPLISTS, "drm_agplists", "DRM AGPLISTS Data Structures");
-MALLOC_DEFINE(DRM_MEM_CTXBITMAP, "drm_ctxbitmap",
-    "DRM CTXBITMAP Data Structures");
-MALLOC_DEFINE(DRM_MEM_HASHTAB, "drm_hashtab", "DRM HASHTABLE Data Structures");
 MALLOC_DEFINE(DRM_MEM_KMS, "drm_kms", "DRM KMS Data Structures");
 
 const char *fb_mode_option = NULL;
