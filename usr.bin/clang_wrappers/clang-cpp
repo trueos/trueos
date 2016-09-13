@@ -1,3 +1,8 @@
 #!/bin/sh
 
+if [ ! -e "/usr/local/bin/clang38" ] ; then
+  echo "ERROR: Please 'pkg install llvm38' first"
+  exit 1
+fi
+
 exec /usr/local/bin/clang-cpp38 "${@}"
