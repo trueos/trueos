@@ -1525,7 +1525,7 @@ void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 }
 
 static int intel_dp_compute_bpp(struct intel_dp *intel_dp,
-			 struct intel_crtc_state *pipe_config)
+				struct intel_crtc_state *pipe_config)
 {
 	int bpp, bpc;
 
