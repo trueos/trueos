@@ -1318,8 +1318,8 @@ static void gfx_v6_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, 0x1);
 }
 
-static void gfx_v6_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
-					 u64 seq, unsigned flags)
+static void gfx_v6_0_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
+				     u64 seq, unsigned flags)
 {
 	bool write64bit = flags & AMDGPU_FENCE_FLAG_64BIT;
 	bool int_sel = flags & AMDGPU_FENCE_FLAG_INT;
@@ -1345,17 +1345,9 @@ static void gfx_v6_0_ring_emit_fence_gfx(struct amdgpu_ring *ring, u64 addr,
 	amdgpu_ring_write(ring, upper_32_bits(seq));
 }
 
-static void gfx_v6_0_ring_emit_fence_compute(struct amdgpu_ring *ring,
-					     u64 addr, u64 seq,
-					     unsigned flags)
-{
-	gfx_v6_0_ring_emit_fence_gfx(ring, addr, seq, flags);
-}
-
-
-static void gfx_v6_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
-				      struct amdgpu_ib *ib,
-				      unsigned vm_id, bool ctx_switch)
+static void gfx_v6_0_ring_emit_ib(struct amdgpu_ring *ring,
+				  struct amdgpu_ib *ib,
+				  unsigned vm_id, bool ctx_switch)
 {
 	u32 header, control = 0;
 
@@ -1380,13 +1372,6 @@ static void gfx_v6_0_ring_emit_ib_gfx(struct amdgpu_ring *ring,
 			  (ib->gpu_addr & 0xFFFFFFFC));
 	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr) & 0xFFFF);
 	amdgpu_ring_write(ring, control);
-}
-
-static void gfx_v6_0_ring_emit_ib_compute(struct amdgpu_ring *ring,
-					  struct amdgpu_ib *ib,
-					  unsigned vm_id, bool ctx_switch)
-{
-	gfx_v6_0_ring_emit_ib_gfx(ring, ib, vm_id, ctx_switch);
 }
 
 /**
@@ -3111,8 +3096,8 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_gfx = {
 	.get_wptr = gfx_v6_0_ring_get_wptr,
 	.set_wptr = gfx_v6_0_ring_set_wptr_gfx,
 	.parse_cs = NULL,
-	.emit_ib = gfx_v6_0_ring_emit_ib_gfx,
-	.emit_fence = gfx_v6_0_ring_emit_fence_gfx,
+	.emit_ib = gfx_v6_0_ring_emit_ib,
+	.emit_fence = gfx_v6_0_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v6_0_ring_emit_pipeline_sync,
 	.emit_vm_flush = gfx_v6_0_ring_emit_vm_flush,
 	.emit_gds_switch = gfx_v6_0_ring_emit_gds_switch,
@@ -3128,8 +3113,8 @@ static const struct amdgpu_ring_funcs gfx_v6_0_ring_funcs_compute = {
 	.get_wptr = gfx_v6_0_ring_get_wptr,
 	.set_wptr = gfx_v6_0_ring_set_wptr_compute,
 	.parse_cs = NULL,
-	.emit_ib = gfx_v6_0_ring_emit_ib_compute,
-	.emit_fence = gfx_v6_0_ring_emit_fence_compute,
+	.emit_ib = gfx_v6_0_ring_emit_ib,
+	.emit_fence = gfx_v6_0_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v6_0_ring_emit_pipeline_sync,
 	.emit_vm_flush = gfx_v6_0_ring_emit_vm_flush,
 	.emit_gds_switch = gfx_v6_0_ring_emit_gds_switch,
