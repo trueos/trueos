@@ -43,6 +43,7 @@
 
 #define fb_info linux_fb_info
 #define lru plinks.lq
+#include "drm_crtc_helper_internal.h"
 
 static bool drm_fbdev_emulation = true;
 module_param_named(fbdev_emulation, drm_fbdev_emulation, bool, 0600);
