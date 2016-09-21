@@ -53,6 +53,7 @@ SRCS	= \
 	drm_os_freebsd.c \
 	drm_panel.c \
 	drm_pci.c \
+	drm_plane.c \
 	drm_plane_helper.c \
 	drm_prime.c \
 	drm_probe_helper.c \
