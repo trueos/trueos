@@ -532,8 +532,8 @@ static int etnaviv_bind(struct device *dev)
 	int ret;
 
 	drm = drm_dev_alloc(&etnaviv_drm_driver, dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	drm->platformdev = to_platform_device(dev);
 
