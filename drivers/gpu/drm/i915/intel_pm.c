@@ -2879,6 +2879,13 @@ skl_wm_plane_id(const struct intel_plane *plane)
 	}
 }
 
+static bool
+intel_has_sagv(struct drm_i915_private *dev_priv)
+{
+	return IS_SKYLAKE(dev_priv) &&
+	       dev_priv->sagv_status != I915_SAGV_NOT_CONTROLLED;
+}
+
 /*
  * SAGV dynamically adjusts the system agent voltage and clock frequencies
  * depending on power and performance requirements. The display engine access
@@ -2895,8 +2902,10 @@ intel_enable_sagv(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-	if (dev_priv->sagv_status == I915_SAGV_NOT_CONTROLLED ||
-	    dev_priv->sagv_status == I915_SAGV_ENABLED)
+	if (!intel_has_sagv(dev_priv))
+		return 0;
+
+	if (dev_priv->sagv_status == I915_SAGV_ENABLED)
 		return 0;
 
 	DRM_DEBUG_KMS("Enabling the SAGV\n");
@@ -2944,8 +2953,10 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 {
 	int ret, result;
 
-	if (dev_priv->sagv_status == I915_SAGV_NOT_CONTROLLED ||
-	    dev_priv->sagv_status == I915_SAGV_DISABLED)
+	if (!intel_has_sagv(dev_priv))
+		return 0;
+
+	if (dev_priv->sagv_status == I915_SAGV_DISABLED)
 		return 0;
 
 	DRM_DEBUG_KMS("Disabling the SAGV\n");
@@ -2985,6 +2996,9 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 	int level, plane;
+
+	if (!intel_has_sagv(dev_priv))
+		return false;
 
 	/*
 	 * SKL workaround: bspec recommends we disable the SAGV when we have
