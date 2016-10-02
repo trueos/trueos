@@ -103,6 +103,7 @@ SUBDIR=	\
 	${_drm2} \
 	dummynet \
 	${_ed} \
+	${_efirt} \
 	${_elink} \
 	${_em} \
 	en \
@@ -110,6 +111,7 @@ SUBDIR=	\
 	${_epic} \
 	esp \
 	${_et} \
+	evdev \
 	${_ex} \
 	${_exca} \
 	ext2fs \
@@ -232,7 +234,7 @@ SUBDIR=	\
 	mlx \
 	${_mlx4} \
 	${_mlx4ib} \
-	${_mlxen} \
+	${_mlx4en} \
 	${_mlx5} \
 	${_mlx5en} \
 	${_mly} \
@@ -370,6 +372,7 @@ SUBDIR=	\
 	udf \
 	udf_iconv \
 	ufs \
+	uinput \
 	unionfs \
 	urtwn \
 	${_urtwnfw} \
@@ -630,15 +633,15 @@ _iwifw=		iwifw
 _iwmfw=		iwmfw
 _iwnfw=		iwnfw
 .endif
-.if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _mlx4=		mlx4
-_mlx4ib=	mlx4ib
-_mlxen=		mlxen
-.endif
 _mlx5=		mlx5
 .if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
+_mlx4en=	mlx4en
 _mlx5en=	mlx5en
+.endif
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mlx4ib=	mlx4ib
 .endif
 _mly=		mly
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
@@ -669,6 +672,7 @@ _x86bios=	x86bios
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_efirt=		efirt
 _ioat=		ioat
 _ixl=		ixl
 _ixlv=		ixlv
@@ -766,7 +770,8 @@ _epic=		epic
 _igb=		igb
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+.if (${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "armv6" || \
+     ${MACHINE_CPUARCH} == "i386")
 _cloudabi32=	cloudabi32
 .endif
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"

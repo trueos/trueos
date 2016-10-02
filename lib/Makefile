@@ -46,7 +46,6 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	${_libdevdctl} \
 	libdevinfo \
 	libdevstat \
-	libdpv \
 	libdwarf \
 	libedit \
 	${_libelftc} \
@@ -60,7 +59,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \
-	libifc \
+	libifconfig \
 	libipsec \
 	libjail \
 	libkiconv \
@@ -90,6 +89,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libprocstat \
 	${_libradius} \
 	librpcsvc \
+	librss \
 	librt \
 	${_librtld_db} \
 	libsbuf \
@@ -196,6 +196,8 @@ _libdevdctl=	libdevdctl
 _libelftc=	libelftc
 _libpe=		libpe
 .endif
+
+SUBDIR.${MK_DIALOG}+=	libdpv
 
 .if ${MK_FILE} != "no"
 _libmagic=	libmagic

@@ -136,6 +136,7 @@ struct tar {
 	int64_t			 entry_padding;
 	int64_t 		 entry_bytes_unconsumed;
 	int64_t			 realsize;
+	int			 sparse_allowed;
 	struct sparse_block	*sparse_list;
 	struct sparse_block	*sparse_last;
 	int64_t			 sparse_offset;
@@ -1128,8 +1129,15 @@ header_common(struct archive_read *a, struct tar *tar,
 	if (tar->entry_bytes_remaining < 0) {
 		tar->entry_bytes_remaining = 0;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Tar entry has negative size?");
-		err = ARCHIVE_WARN;
+		    "Tar entry has negative size");
+		return (ARCHIVE_FATAL);
+	}
+	if (tar->entry_bytes_remaining == INT64_MAX) {
+		/* Note: tar_atol returns INT64_MAX on overflow */
+		tar->entry_bytes_remaining = 0;
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+		    "Tar entry size overflow");
+		return (ARCHIVE_FATAL);
 	}
 	tar->realsize = tar->entry_bytes_remaining;
 	archive_entry_set_size(entry, tar->entry_bytes_remaining);
@@ -1263,6 +1271,14 @@ header_common(struct archive_read *a, struct tar *tar,
 		 * Sparse files are really just regular files with
 		 * sparse information in the extended area.
 		 */
+		/* FALLTHROUGH */
+	case '0':
+		/*
+		 * Enable sparse file "read" support only for regular
+		 * files and explicit GNU sparse files.  However, we
+		 * don't allow non-standard file types to be sparse.
+		 */
+		tar->sparse_allowed = 1;
 		/* FALLTHROUGH */
 	default: /* Regular file  and non-standard types */
 		/*
@@ -1723,6 +1739,14 @@ pax_attribute(struct archive_read *a, struct tar *tar,
 #endif
 	switch (key[0]) {
 	case 'G':
+		/* Reject GNU.sparse.* headers on non-regular files. */
+		if (strncmp(key, "GNU.sparse", 10) == 0 &&
+		    !tar->sparse_allowed) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Non-regular file cannot be sparse");
+			return (ARCHIVE_FATAL);
+		}
+
 		/* GNU "0.0" sparse pax format. */
 		if (strcmp(key, "GNU.sparse.numblocks") == 0) {
 			tar->sparse_offset = -1;

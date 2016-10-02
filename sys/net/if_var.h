@@ -178,9 +178,6 @@ struct if_encap_req {
 
 /*
  * Structure defining a network interface.
- *
- * Size ILP32:  592 (approx)
- *	 LP64: 1048 (approx)
  */
 struct ifnet {
 	/* General book keeping of interface lists. */
@@ -316,7 +313,6 @@ struct ifnet {
 };
 
 /* for compatibility with other BSDs */
-#define	if_addrlist	if_addrhead
 #define	if_list		if_link
 #define	if_name(ifp)	((ifp)->if_xname)
 
@@ -450,9 +446,6 @@ struct ifaddr {
 	counter_u64_t	ifa_ibytes;
 	counter_u64_t	ifa_obytes;
 };
-
-/* For compatibility with other BSDs. SCTP uses it. */
-#define	ifa_list	ifa_link
 
 struct ifaddr *	ifa_alloc(size_t size, int flags);
 void	ifa_free(struct ifaddr *ifa);
