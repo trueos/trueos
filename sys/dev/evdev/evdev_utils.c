@@ -304,7 +304,7 @@ void
 evdev_ev_kbd_event(struct evdev_dev *evdev, void *softc, uint16_t type,
     uint16_t code, int32_t value)
 {
-        keyboard_t *kbd = (keyboard_t *)softc;
+	keyboard_t *kbd = (keyboard_t *)softc;
 	int delay[2], leds, oleds;
 	size_t i;
 

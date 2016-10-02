@@ -76,6 +76,7 @@ __DEFAULT_YES_OPTIONS = \
     CTM \
     CUSE \
     CXX \
+    DIALOG \
     DICT \
     DMAGENT \
     DYNAMICROOT \
@@ -147,7 +148,6 @@ __DEFAULT_YES_OPTIONS = \
     RADIUS_SUPPORT \
     RCMDS \
     RBOOTD \
-    RCS \
     RESCUE \
     ROUTED \
     SENDMAIL \
@@ -187,6 +187,7 @@ __DEFAULT_NO_OPTIONS = \
     NAND \
     OFED \
     OPENLDAP \
+    RCS \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
     SVN \
@@ -260,6 +261,9 @@ BROKEN_OPTIONS+=LLDB
 .if ${__T} != "armv6"
 BROKEN_OPTIONS+=LIBSOFT
 .endif
+.if ${__T:Mmips*}
+BROKEN_OPTIONS+=SSP
+.endif
 
 .include <bsd.mkopt.mk>
 
@@ -289,6 +293,10 @@ MK_${var}:=	no
 # Force some options off if their dependencies are off.
 # Order is somewhat important.
 #
+.if !${COMPILER_FEATURES:Mc++11}
+MK_LLVM_LIBUNWIND:=	no
+.endif
+
 .if ${MK_LIBPTHREAD} == "no"
 MK_LIBTHR:=	no
 .endif
@@ -319,6 +327,10 @@ MK_CLANG:=	no
 MK_GROFF:=	no
 MK_GNUCXX:=	no
 MK_TESTS:=	no
+.endif
+
+.if ${MK_DIALOG} == "no"
+MK_BSDINSTALL:=	no
 .endif
 
 .if ${MK_MAIL} == "no"

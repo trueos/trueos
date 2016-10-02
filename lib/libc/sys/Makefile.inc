@@ -12,7 +12,18 @@
 #
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
+# PSEUDO generates _<sys>() and __sys_<sys>() symbols, but not <sys>().
 #
+# While historically machine dependent, all architectures have the following
+# declarations in common:
+#
+NOASM=	break.o \
+	exit.o \
+	getlogin.o \
+	sstk.o \
+	yield.o
+PSEUDO=	_exit.o \
+	_getlogin.o
 .sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/sys/Makefile.inc"
 
 SRCS+= clock_gettime.c gettimeofday.c __vdso_gettimeofday.c
@@ -249,6 +260,7 @@ MAN+=	abort2.2 \
 	pselect.2 \
 	ptrace.2 \
 	quotactl.2 \
+	rctl_add_rule.2 \
 	read.2 \
 	readlink.2 \
 	reboot.2 \
@@ -310,6 +322,8 @@ MAN+=	sctp_generic_recvmsg.2 \
 	thr_new.2 \
 	thr_self.2 \
 	thr_set_name.2 \
+	thr_suspend.2 \
+	thr_wake.2 \
 	timer_create.2 \
 	timer_delete.2 \
 	timer_settime.2 \
@@ -412,6 +426,10 @@ MLINKS+=pdfork.2 pdgetpid.2\
 	pdfork.2 pdwait4.2
 MLINKS+=pipe.2 pipe2.2
 MLINKS+=poll.2 ppoll.2
+MLINKS+=rctl_add_rule.2 rctl_get_limits.2 \
+	rctl_add_rule.2 rctl_get_racct.2 \
+	rctl_add_rule.2 rctl_get_rules.2 \
+	rctl_add_rule.2 rctl_remove_rule.2
 MLINKS+=read.2 pread.2 \
 	read.2 preadv.2 \
 	read.2 readv.2
