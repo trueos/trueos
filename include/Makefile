@@ -180,6 +180,8 @@ copies: .PHONY .META
 	cd ${.CURDIR}/../sys/dev/evdev; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 input.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 input-event-codes.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 uinput.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/evdev
 	cd ${.CURDIR}/../sys/dev/pci; \
@@ -272,7 +274,7 @@ symlinks: .PHONY .META
 	done
 .endif
 	cd ${.CURDIR}/../sys/dev/evdev; \
-	for h in input.h uinput.h; do \
+	for h in input.h input-event-codes.h uinput.h; do \
 		ln -fs ../../../../sys/dev/evdev/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
 	done

@@ -61,8 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
-#include <sys/sched.h>
-#include <sys/kdb.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -74,7 +72,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/quirk/usb_quirk.h>
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 #include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
 #endif
@@ -168,7 +166,7 @@ struct ukbd_softc {
 	struct usb_device *sc_udev;
 	struct usb_interface *sc_iface;
 	struct usb_xfer *sc_xfer[UKBD_N_TRANSFER];
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	struct evdev_dev *sc_evdev;
 #endif
 
@@ -257,32 +255,9 @@ struct ukbd_softc {
 			 SCAN_PREFIX_CTL | SCAN_PREFIX_SHIFT)
 #define	SCAN_CHAR(c)	((c) & 0x7f)
 
-#define	UKBD_LOCK()	mtx_lock(&Giant)
-#define	UKBD_UNLOCK()	mtx_unlock(&Giant)
-
-#ifdef	INVARIANTS
-
-/*
- * Assert that the lock is held in all contexts
- * where the code can be executed.
- */
-#define	UKBD_LOCK_ASSERT()	mtx_assert(&Giant, MA_OWNED)
-
-/*
- * Assert that the lock is held in the contexts
- * where it really has to be so.
- */
-#define	UKBD_CTX_LOCK_ASSERT()			 	\
-	do {						\
-		if (!kdb_active && panicstr == NULL)	\
-			mtx_assert(&Giant, MA_OWNED);	\
-	} while (0)
-#else
-
-#define UKBD_LOCK_ASSERT()	(void)0
-#define UKBD_CTX_LOCK_ASSERT()	(void)0
-
-#endif
+#define	UKBD_LOCK()	USB_MTX_LOCK(&Giant)
+#define	UKBD_UNLOCK()	USB_MTX_UNLOCK(&Giant)
+#define	UKBD_LOCK_ASSERT()	USB_MTX_ASSERT(&Giant, MA_OWNED)
 
 struct ukbd_mods {
 	uint32_t mask, key;
@@ -388,10 +363,8 @@ static device_attach_t ukbd_attach;
 static device_detach_t ukbd_detach;
 static device_resume_t ukbd_resume;
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 static struct evdev_methods ukbd_evdev_methods = {
-	.ev_open = NULL,
-	.ev_close = NULL,
 	.ev_event = evdev_ev_kbd_event,
 };
 #endif
@@ -417,7 +390,7 @@ ukbd_start_timer(struct ukbd_softc *sc)
 	sc->sc_co_basetime += delay;
 	/* This is rarely called, so prefer precision to efficiency. */
 	prec = qmin(delay >> 7, SBT_1MS * 10);
-	callout_reset_sbt(&sc->sc_callout.co, sc->sc_co_basetime, prec,
+	usb_callout_reset_sbt(&sc->sc_callout, sc->sc_co_basetime, prec,
 	    ukbd_timeout, sc, C_ABSOLUTE);
 }
 
@@ -425,14 +398,17 @@ static void
 ukbd_put_key(struct ukbd_softc *sc, uint32_t key)
 {
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	DPRINTF("0x%02x (%d) %s\n", key, key,
 	    (key & KEY_RELEASE) ? "released" : "pressed");
 
-#ifdef EVDEV
-	evdev_push_event(sc->sc_evdev, EV_KEY, evdev_hid2key(KEY_INDEX(key)), !(key & KEY_RELEASE));
-	evdev_sync(sc->sc_evdev);
+#ifdef EVDEV_SUPPORT
+	if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD && sc->sc_evdev != NULL) {
+		evdev_push_event(sc->sc_evdev, EV_KEY,
+		    evdev_hid2key(KEY_INDEX(key)), !(key & KEY_RELEASE));
+		evdev_sync(sc->sc_evdev);
+	}
 #endif
 
 	if (sc->sc_inputs < UKBD_IN_BUF_SIZE) {
@@ -451,12 +427,12 @@ static void
 ukbd_do_poll(struct ukbd_softc *sc, uint8_t wait)
 {
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 	KASSERT((sc->sc_flags & UKBD_FLAG_POLLING) != 0,
 	    ("ukbd_do_poll called when not polling\n"));
 	DPRINTFN(2, "polling\n");
 
-	if (!kdb_active && !SCHEDULER_STOPPED()) {
+	if (USB_IN_POLLING_MODE_FUNC() == 0) {
 		/*
 		 * In this context the kernel is polling for input,
 		 * but the USB subsystem works in normal interrupt-driven
@@ -501,9 +477,9 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 {
 	int32_t c;
 
-	UKBD_CTX_LOCK_ASSERT();
-	KASSERT((!kdb_active && !SCHEDULER_STOPPED())
-	    || (sc->sc_flags & UKBD_FLAG_POLLING) != 0,
+	UKBD_LOCK_ASSERT();
+	KASSERT((USB_IN_POLLING_MODE_FUNC() == 0) ||
+	    (sc->sc_flags & UKBD_FLAG_POLLING) != 0,
 	    ("not polling in kdb or panic\n"));
 
 	if (sc->sc_inputs == 0 &&
@@ -541,7 +517,7 @@ ukbd_interrupt(struct ukbd_softc *sc)
 	uint8_t i;
 	uint8_t j;
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	if (sc->sc_ndata.keycode[0] == KEY_ERROR)
 		return;
@@ -637,7 +613,7 @@ ukbd_event_keyinput(struct ukbd_softc *sc)
 {
 	int c;
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	if ((sc->sc_flags & UKBD_FLAG_POLLING) != 0)
 		return;
@@ -860,7 +836,7 @@ ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		ukbd_interrupt(sc);
 
-		if (ukbd_any_key_pressed(sc)) {
+		if (ukbd_any_key_pressed(sc) != 0) {
 			ukbd_start_timer(sc);
 		}
 
@@ -955,9 +931,9 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (!any)
 			break;
 
-#ifdef EVDEV
-		evdev_push_leds(sc->sc_evdev, sc->sc_leds);
-		evdev_sync(sc->sc_evdev);
+#ifdef EVDEV_SUPPORT
+		if (sc->sc_evdev != NULL)
+			evdev_push_leds(sc->sc_evdev, sc->sc_leds);
 #endif
 
 		/* range check output report length */
@@ -1235,7 +1211,8 @@ ukbd_attach(device_t dev)
 	usb_error_t err;
 	uint16_t n;
 	uint16_t hid_len;
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
+	struct evdev_dev *evdev;
 	int i;
 #endif
 #ifdef USB_DEBUG
@@ -1353,28 +1330,34 @@ ukbd_attach(device_t dev)
 	}
 #endif
 
-#ifdef EVDEV
-	sc->sc_evdev = evdev_alloc();
-	evdev_set_name(sc->sc_evdev, device_get_desc(dev));
-	evdev_set_serial(sc->sc_evdev, "0");
-	evdev_set_methods(sc->sc_evdev, kbd, &ukbd_evdev_methods);
-	evdev_support_event(sc->sc_evdev, EV_SYN);
-	evdev_support_event(sc->sc_evdev, EV_KEY);
+#ifdef EVDEV_SUPPORT
+	evdev = evdev_alloc();
+	evdev_set_name(evdev, device_get_desc(dev));
+	evdev_set_phys(evdev, device_get_nameunit(dev));
+	evdev_set_id(evdev, BUS_USB, uaa->info.idVendor,
+	   uaa->info.idProduct, 0);
+	evdev_set_serial(evdev, usb_get_serial(uaa->device));
+	evdev_set_methods(evdev, kbd, &ukbd_evdev_methods);
+	evdev_support_event(evdev, EV_SYN);
+	evdev_support_event(evdev, EV_KEY);
 	if (sc->sc_flags & (UKBD_FLAG_NUMLOCK | UKBD_FLAG_CAPSLOCK |
 			    UKBD_FLAG_SCROLLLOCK))
-		evdev_support_event(sc->sc_evdev, EV_LED);
-	evdev_support_event(sc->sc_evdev, EV_REP);
+		evdev_support_event(evdev, EV_LED);
+	evdev_support_event(evdev, EV_REP);
 
 	for (i = 0x00; i <= 0xFF; i++)
-		evdev_support_key(sc->sc_evdev, evdev_hid2key(i));
+		evdev_support_key(evdev, evdev_hid2key(i));
 	if (sc->sc_flags & UKBD_FLAG_NUMLOCK)
-		evdev_support_led(sc->sc_evdev, LED_NUML);
+		evdev_support_led(evdev, LED_NUML);
 	if (sc->sc_flags & UKBD_FLAG_CAPSLOCK)
-		evdev_support_led(sc->sc_evdev, LED_CAPSL);
+		evdev_support_led(evdev, LED_CAPSL);
 	if (sc->sc_flags & UKBD_FLAG_SCROLLLOCK)
-		evdev_support_led(sc->sc_evdev, LED_SCROLLL);
+		evdev_support_led(evdev, LED_SCROLLL);
 
-	evdev_register(dev, sc->sc_evdev);
+	if (evdev_register(evdev))
+		evdev_free(evdev);
+	else
+		sc->sc_evdev = evdev;
 #endif
 
 	sc->sc_flags |= UKBD_FLAG_ATTACHED;
@@ -1448,11 +1431,8 @@ ukbd_detach(device_t dev)
 	}
 #endif
 
-#ifdef EVDEV
-	if (sc->sc_flags & UKBD_FLAG_ATTACHED) {
-		evdev_unregister(dev, sc->sc_evdev);
-		evdev_free(sc->sc_evdev);
-	}
+#ifdef EVDEV_SUPPORT
+	evdev_free(sc->sc_evdev);
 #endif
 
 	if (KBD_IS_CONFIGURED(&sc->sc_kbd)) {
@@ -1570,7 +1550,7 @@ ukbd_check(keyboard_t *kbd)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd))
 		return (0);
@@ -1595,7 +1575,7 @@ ukbd_check_char_locked(keyboard_t *kbd)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd))
 		return (0);
@@ -1632,7 +1612,7 @@ ukbd_read(keyboard_t *kbd, int wait)
 
 #endif
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd))
 		return (-1);
@@ -1681,7 +1661,7 @@ ukbd_read_char_locked(keyboard_t *kbd, int wait)
 	uint32_t scancode;
 #endif
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd))
 		return (NOKEY);
@@ -1964,7 +1944,6 @@ ukbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		if (!KBD_HAS_DEVICE(kbd)) {
 			return (0);
 		}
-
 		/*
 		 * Convert negative, zero and tiny args to the same limits
 		 * as atkbd.  We could support delays of 1 msec, but
@@ -1973,9 +1952,9 @@ ukbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		 */
 		kbd->kb_delay1 = imax(((int *)arg)[0], 250);
 		kbd->kb_delay2 = imax(((int *)arg)[1], 34);
-#ifdef EVDEV
-		evdev_push_repeats(sc->sc_evdev, kbd);
-		evdev_sync(sc->sc_evdev);
+#ifdef EVDEV_SUPPORT
+		if (sc->sc_evdev != NULL)
+			evdev_push_repeats(sc->sc_evdev, kbd);
 #endif
 		return (0);
 
@@ -2030,7 +2009,7 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case KDGKBSTATE:
 	case KDSKBSTATE:
 	case KDSETLED:
-		if (!mtx_owned(&Giant) && !SCHEDULER_STOPPED())
+		if (!mtx_owned(&Giant) && !USB_IN_POLLING_MODE_FUNC())
 			return (EDEADLK);	/* best I could come up with */
 		/* FALLTHROUGH */
 	default:
@@ -2048,7 +2027,7 @@ ukbd_clear_state(keyboard_t *kbd)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 
-	UKBD_CTX_LOCK_ASSERT();
+	UKBD_LOCK_ASSERT();
 
 	sc->sc_flags &= ~(UKBD_FLAG_COMPOSE | UKBD_FLAG_POLLING);
 	sc->sc_state &= LOCK_MASK;	/* preserve locking key state */
@@ -2125,7 +2104,7 @@ ukbd_set_leds(struct ukbd_softc *sc, uint8_t leds)
 static int
 ukbd_set_typematic(keyboard_t *kbd, int code)
 {
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	struct ukbd_softc *sc = kbd->kb_data;
 #endif
 	static const int delays[] = {250, 500, 750, 1000};
@@ -2139,9 +2118,9 @@ ukbd_set_typematic(keyboard_t *kbd, int code)
 	}
 	kbd->kb_delay1 = delays[(code >> 5) & 3];
 	kbd->kb_delay2 = rates[code & 0x1f];
-#ifdef EVDEV
-	evdev_push_repeats(sc->sc_evdev, kbd);
-	evdev_sync(sc->sc_evdev);
+#ifdef EVDEV_SUPPORT
+	if (sc->sc_evdev != NULL)
+		evdev_push_repeats(sc->sc_evdev, kbd);
 #endif
 	return (0);
 }
@@ -2321,5 +2300,8 @@ static driver_t ukbd_driver = {
 
 DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, ukbd_driver_load, 0);
 MODULE_DEPEND(ukbd, usb, 1, 1, 1);
+#ifdef EVDEV_SUPPORT
+MODULE_DEPEND(ukbd, evdev, 1, 1, 1);
+#endif
 MODULE_VERSION(ukbd, 1);
 USB_PNP_HOST_INFO(ukbd_devs);

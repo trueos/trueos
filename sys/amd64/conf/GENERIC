@@ -87,7 +87,10 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 options 	DEVICE_NUMA		# I/O Device Affinity
 
 # Enable /dev/input/eventX for input devices
-options		EVDEV
+
+options		EVDEV_SUPPORT
+device		evdev
+device		uinput
 
 # CPU frequency control
 device		cpufreq

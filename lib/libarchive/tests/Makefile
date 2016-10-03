@@ -6,6 +6,8 @@ _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 ATF_TESTS_SH+=	functional_test
 
+TEST_METADATA.functional_test+=	timeout="600"
+
 BINDIR=	${TESTSDIR}
 
 PROGS+=	libarchive_test
@@ -211,6 +213,8 @@ TESTS_SRCS= \
 	test_write_disk_perms.c			\
 	test_write_disk_secure.c		\
 	test_write_disk_secure744.c		\
+	test_write_disk_secure745.c		\
+	test_write_disk_secure746.c		\
 	test_write_disk_sparse.c		\
 	test_write_disk_symlink.c		\
 	test_write_disk_times.c			\

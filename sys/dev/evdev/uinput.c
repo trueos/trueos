@@ -27,34 +27,39 @@
  * $FreeBSD$
  */
 
+#include "opt_evdev.h"
+
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/param.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/proc.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/sx.h>
 
 #include <dev/evdev/input.h>
 #include <dev/evdev/uinput.h>
 #include <dev/evdev/evdev.h>
+#include <dev/evdev/evdev_private.h>
 
-#undef	DEBUG
-#ifdef DEBUG
-#define	debugf(fmt, args...)	printf("evdev: " fmt "\n", ##args);
+#ifdef UINPUT_DEBUG
+#define	debugf(state, fmt, args...)	printf("uinput: " fmt "\n", ##args)
 #else
-#define	debugf(fmt, args...)
+#define	debugf(state, fmt, args...)
 #endif
 
 #define	UINPUT_BUFFER_SIZE	16
 
-#define	UINPUT_LOCKQ(state)		mtx_lock(&(state)->ucs_mtx)
-#define	UINPUT_UNLOCKQ(state)		mtx_unlock(&(state)->ucs_mtx)
-#define	UINPUT_LOCKQ_ASSERT(state)	mtx_assert(&(state)->ucs_mtx, MA_OWNED)
+#define	UINPUT_LOCK(state)		sx_xlock(&(state)->ucs_lock)
+#define	UINPUT_UNLOCK(state)		sx_unlock(&(state)->ucs_lock)
+#define	UINPUT_LOCK_ASSERT(state)	sx_assert(&(state)->ucs_lock, SA_LOCKED)
 #define UINPUT_EMPTYQ(state) \
     ((state)->ucs_buffer_head == (state)->ucs_buffer_tail)
 
@@ -89,6 +94,8 @@ static struct cdevsw uinput_cdevsw = {
 	.d_name = "uinput",
 };
 
+static struct cdev *uinput_cdev;
+
 static struct evdev_methods uinput_ev_methods = {
 	.ev_open = NULL,
 	.ev_close = NULL,
@@ -106,7 +113,7 @@ struct uinput_cdev_state
 {
 	enum uinput_state	ucs_state;
 	struct evdev_dev *	ucs_evdev;
-	struct mtx		ucs_mtx;
+	struct sx		ucs_lock;
 	size_t			ucs_buffer_head;
 	size_t			ucs_buffer_tail;
 	struct selinfo		ucs_selp;
@@ -123,6 +130,36 @@ static int uinput_cdev_create(void);
 static void uinput_notify(struct uinput_cdev_state *);
 
 static void
+uinput_knllock(void *arg)
+{
+	struct sx *sx = arg;
+
+	sx_xlock(sx);
+}
+
+static void
+uinput_knlunlock(void *arg)
+{
+	struct sx *sx = arg;
+
+	sx_unlock(sx);
+}
+
+static void
+uinput_knl_assert_locked(void *arg)
+{
+
+	sx_assert((struct sx*)arg, SA_XLOCKED);
+}
+
+static void
+uinput_knl_assert_unlocked(void *arg)
+{
+
+	sx_assert((struct sx*)arg, SA_UNLOCKED);
+}
+
+static void
 uinput_ev_event(struct evdev_dev *evdev, void *softc, uint16_t type,
     uint16_t code, int32_t value)
 {
@@ -131,10 +168,12 @@ uinput_ev_event(struct evdev_dev *evdev, void *softc, uint16_t type,
 	if (type == EV_LED)
 		evdev_push_event(evdev, type, code, value);
 
-	UINPUT_LOCKQ(state);
-	uinput_enqueue_event(state, type, code, value);
-	uinput_notify(state);
-	UINPUT_UNLOCKQ(state);
+	UINPUT_LOCK(state);
+	if (state->ucs_state == UINPUT_RUNNING) {
+		uinput_enqueue_event(state, type, code, value);
+		uinput_notify(state);
+	}
+	UINPUT_UNLOCK(state);
 }
 
 static void
@@ -143,7 +182,7 @@ uinput_enqueue_event(struct uinput_cdev_state *state, uint16_t type,
 {
 	size_t head, tail;
 
-	UINPUT_LOCKQ_ASSERT(state);
+	UINPUT_LOCK_ASSERT(state);
 
 	head = state->ucs_buffer_head;
 	tail = (state->ucs_buffer_tail + 1) % UINPUT_BUFFER_SIZE;
@@ -156,7 +195,7 @@ uinput_enqueue_event(struct uinput_cdev_state *state, uint16_t type,
 
 	/* If queue is full remove oldest event */
 	if (tail == head) {
-		debugf("state %p: buffer overflow", state);
+		debugf(state, "state %p: buffer overflow", state);
 
 		head = (head + 1) % UINPUT_BUFFER_SIZE;
 		state->ucs_buffer_head = head;
@@ -172,8 +211,10 @@ uinput_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	    M_WAITOK | M_ZERO);
 	state->ucs_evdev = evdev_alloc();
 
-	mtx_init(&state->ucs_mtx, "uinput", NULL, MTX_DEF);
-	knlist_init_mtx(&state->ucs_selp.si_note, &state->ucs_mtx);
+	sx_init(&state->ucs_lock, "uinput");
+	knlist_init(&state->ucs_selp.si_note, &state->ucs_lock, uinput_knllock,
+	    uinput_knlunlock, uinput_knl_assert_locked,
+	    uinput_knl_assert_unlocked);
 
 	devfs_set_cdevpriv(state, uinput_dtor);
 	return (0);
@@ -184,15 +225,12 @@ uinput_dtor(void *data)
 {
 	struct uinput_cdev_state *state = (struct uinput_cdev_state *)data;
 
-	if (state->ucs_state == UINPUT_RUNNING)
-		evdev_unregister(NULL, state->ucs_evdev);
-
 	evdev_free(state->ucs_evdev);
 
 	knlist_clear(&state->ucs_selp.si_note, 0);
 	seldrain(&state->ucs_selp);
 	knlist_destroy(&state->ucs_selp.si_note);
-	mtx_destroy(&state->ucs_mtx);
+	sx_destroy(&state->ucs_lock);
 	free(data, M_EVDEV);
 }
 
@@ -203,12 +241,12 @@ uinput_read(struct cdev *dev, struct uio *uio, int ioflag)
 	struct input_event *event;
 	int remaining, ret;
 
-	debugf("uinput: read %zd bytes by thread %d", uio->uio_resid,
-	    uio->uio_td->td_tid);
-
 	ret = devfs_get_cdevpriv((void **)&state);
 	if (ret != 0)
 		return (ret);
+
+	debugf(state, "read %zd bytes by thread %d", uio->uio_resid,
+	    uio->uio_td->td_tid);
 
 	/* Zero-sized reads are allowed for error checking */
 	if (uio->uio_resid != 0 && uio->uio_resid < sizeof(struct input_event))
@@ -216,15 +254,18 @@ uinput_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 	remaining = uio->uio_resid / sizeof(struct input_event);
 
-	UINPUT_LOCKQ(state);
+	UINPUT_LOCK(state);
 
-	if (UINPUT_EMPTYQ(state)) {
+	if (state->ucs_state != UINPUT_RUNNING)
+		ret = EINVAL;
+
+	if (ret == 0 && UINPUT_EMPTYQ(state)) {
 		if (ioflag & O_NONBLOCK)
 			ret = EWOULDBLOCK;
 		else {
 			if (remaining != 0) {
 				state->ucs_blocked = true;
-				ret = mtx_sleep(state, &state->ucs_mtx,
+				ret = sx_sleep(state, &state->ucs_lock,
 				    PCATCH, "uiread", 0);
 			}
 		}
@@ -235,13 +276,10 @@ uinput_read(struct cdev *dev, struct uio *uio, int ioflag)
 		state->ucs_buffer_head = (state->ucs_buffer_head + 1) %
 		    UINPUT_BUFFER_SIZE;
 		remaining--;
-
-		UINPUT_UNLOCKQ(state);
 		ret = uiomove(event, sizeof(struct input_event), uio);
-		UINPUT_LOCKQ(state);
 	}
 
-	UINPUT_UNLOCKQ(state);
+	UINPUT_UNLOCK(state);
 
 	return (ret);
 }
@@ -254,40 +292,45 @@ uinput_write(struct cdev *dev, struct uio *uio, int ioflag)
 	struct input_event event;
 	int ret = 0;
 
-	debugf("uinput: write %zd bytes by thread %d", uio->uio_resid,
-	    uio->uio_td->td_tid);
-
 	ret = devfs_get_cdevpriv((void **)&state);
 	if (ret != 0)
 		return (ret);
 
+	debugf(state, "write %zd bytes by thread %d", uio->uio_resid,
+	    uio->uio_td->td_tid);
+
+	UINPUT_LOCK(state);
+
 	if (state->ucs_state != UINPUT_RUNNING) {
 		/* Process written struct uinput_user_dev */
 		if (uio->uio_resid != sizeof(struct uinput_user_dev)) {
-			debugf("write size not multiple of struct uinput_user_dev size");
-			return (EINVAL);
+			debugf(state, "write size not multiple of "
+			    "struct uinput_user_dev size");
+			ret = EINVAL;
+		} else {
+			ret = uiomove(&userdev, sizeof(struct uinput_user_dev),
+			    uio);
+			if (ret == 0)
+				uinput_setup_provider(state, &userdev);
 		}
-
-		uiomove(&userdev, sizeof(struct uinput_user_dev), uio);
-		uinput_setup_provider(state, &userdev);
 	} else {
 		/* Process written event */
 		if (uio->uio_resid % sizeof(struct input_event) != 0) {
-			debugf("write size not multiple of struct input_event size");
-			return (EINVAL);
+			debugf(state, "write size not multiple of "
+			    "struct input_event size");
+			ret = EINVAL;
 		}
 
-		while (uio->uio_resid > 0) {
+		while (ret == 0 && uio->uio_resid > 0) {
 			uiomove(&event, sizeof(struct input_event), uio);
-			ret = evdev_inject_event(state->ucs_evdev, event.type,
+			ret = evdev_push_event(state->ucs_evdev, event.type,
 			    event.code, event.value);
-
-			if (ret != 0)
-				return (ret);
 		}
 	}
 
-	return (0);
+	UINPUT_UNLOCK(state);
+
+	return (ret);
 }
 
 static int
@@ -299,7 +342,8 @@ uinput_setup_dev(struct uinput_cdev_state *state, struct input_id *id,
 		return (EINVAL);
 
 	evdev_set_name(state->ucs_evdev, name);
-	memcpy(&state->ucs_evdev->ev_id, id, sizeof(struct input_id));
+	evdev_set_id(state->ucs_evdev, id->bustype, id->vendor, id->product,
+	    id->version);
 	state->ucs_state = UINPUT_CONFIGURED;
 
 	return (0);
@@ -312,7 +356,7 @@ uinput_setup_provider(struct uinput_cdev_state *state,
 	struct input_absinfo absinfo;
 	int i, ret;
 
-	debugf("uinput: setup_provider called, udev=%p", udev);
+	debugf(state, "setup_provider called, udev=%p", udev);
 
 	ret = uinput_setup_dev(state, &udev->id, udev->name,
 	    udev->ff_effects_max);
@@ -340,24 +384,24 @@ uinput_poll(struct cdev *dev, int events, struct thread *td)
 	struct uinput_cdev_state *state;
 	int revents = 0;
 
-	debugf("uinput: poll by thread %d", td->td_tid);
-
 	if (devfs_get_cdevpriv((void **)&state) != 0)
 		return (POLLNVAL);
+
+	debugf(state, "poll by thread %d", td->td_tid);
 
 	/* Always allow write */
 	if (events & (POLLOUT | POLLWRNORM))
 		revents |= (events & (POLLOUT | POLLWRNORM));
 
 	if (events & (POLLIN | POLLRDNORM)) {
-		UINPUT_LOCKQ(state);
+		UINPUT_LOCK(state);
 		if (!UINPUT_EMPTYQ(state))
 			revents = events & (POLLIN | POLLRDNORM);
 		else {
 			state->ucs_selected = true;
 			selrecord(td, &state->ucs_selp);
 		}
-		UINPUT_UNLOCKQ(state);
+		UINPUT_UNLOCK(state);
 	}
 
 	return (revents);
@@ -394,7 +438,7 @@ uinput_kqread(struct knote *kn, long hint)
 
 	state = (struct uinput_cdev_state *)kn->kn_hook;
 
-	UINPUT_LOCKQ_ASSERT(state);
+	UINPUT_LOCK_ASSERT(state);
 
 	ret = !UINPUT_EMPTYQ(state);
 	return (ret);
@@ -413,7 +457,7 @@ static void
 uinput_notify(struct uinput_cdev_state *state)
 {
 
-	UINPUT_LOCKQ_ASSERT(state);
+	UINPUT_LOCK_ASSERT(state);
 
 	if (state->ucs_blocked) {
 		state->ucs_blocked = false;
@@ -427,22 +471,18 @@ uinput_notify(struct uinput_cdev_state *state)
 }
 
 static int
-uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
-    struct thread *td)
+uinput_ioctl_sub(struct uinput_cdev_state *state, u_long cmd, caddr_t data)
 {
-	struct uinput_cdev_state *state;
 	struct uinput_setup *us;
 	struct uinput_abs_setup *uabs;
-	int ret, len;
+	int ret, len, intdata;
 	char buf[NAMELEN];
 
+	UINPUT_LOCK_ASSERT(state);
+
 	len = IOCPARM_LEN(cmd);
-
-	debugf("uinput: ioctl called: cmd=0x%08lx, data=%p", cmd, data);
-
-	ret = devfs_get_cdevpriv((void **)&state);
-	if (ret != 0)
-		return (ret);
+	if ((cmd & IOC_DIRMASK) == IOC_VOID && len == sizeof(int))
+		intdata = *(int *)data;
 
 	switch (IOCBASECMD(cmd)) {
 	case UI_GET_SYSNAME(0):
@@ -461,7 +501,7 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
 		evdev_set_methods(state->ucs_evdev, state, &uinput_ev_methods);
 		evdev_set_flag(state->ucs_evdev, EVDEV_FLAG_SOFTREPEAT);
-		evdev_register(NULL, state->ucs_evdev);
+		evdev_register(state->ucs_evdev);
 		state->ucs_state = UINPUT_RUNNING;
 		return (0);
 
@@ -469,7 +509,8 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		if (state->ucs_state != UINPUT_RUNNING)
 			return (0);
 
-		evdev_unregister(NULL, state->ucs_evdev);
+		evdev_unregister(state->ucs_evdev);
+		bzero(state->ucs_evdev, sizeof(struct evdev_dev));
 		state->ucs_state = UINPUT_NEW;
 		return (0);
 
@@ -486,47 +527,67 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 			return (EINVAL);
 
 		uabs = (struct uinput_abs_setup *)data;
-		return (evdev_support_abs(state->ucs_evdev, uabs->code,
-		    &uabs->absinfo));
+		if (uabs->code > ABS_MAX)
+			return (EINVAL);
+
+		evdev_support_abs(state->ucs_evdev, uabs->code,
+		    uabs->absinfo.value, uabs->absinfo.minimum,
+		    uabs->absinfo.maximum, uabs->absinfo.fuzz,
+		    uabs->absinfo.flat, uabs->absinfo.resolution);
+		return (0);
 
 	case UI_SET_EVBIT:
-		if (state->ucs_state == UINPUT_RUNNING)
+		if (state->ucs_state == UINPUT_RUNNING ||
+		    intdata > EV_MAX || intdata < 0)
 			return (EINVAL);
-
-		return (evdev_support_event(state->ucs_evdev, *(int *)data));
+		evdev_support_event(state->ucs_evdev, intdata);
+		return (0);
 
 	case UI_SET_KEYBIT:
-		if (state->ucs_state == UINPUT_RUNNING)
+		if (state->ucs_state == UINPUT_RUNNING ||
+		    intdata > KEY_MAX || intdata < 0)
 			return (EINVAL);
-		return (evdev_support_key(state->ucs_evdev, *(int *)data));
+		evdev_support_key(state->ucs_evdev, intdata);
+		return (0);
 
 	case UI_SET_RELBIT:
-		if (state->ucs_state == UINPUT_RUNNING)
+		if (state->ucs_state == UINPUT_RUNNING ||
+		    intdata > REL_MAX || intdata < 0)
 			return (EINVAL);
-		return (evdev_support_rel(state->ucs_evdev, *(int *)data));
+		evdev_support_rel(state->ucs_evdev, intdata);
+		return (0);
 
 	case UI_SET_ABSBIT:
-		if (state->ucs_state == UINPUT_RUNNING)
+		if (state->ucs_state == UINPUT_RUNNING ||
+		    intdata > ABS_MAX || intdata < 0)
 			return (EINVAL);
-		return (evdev_set_abs_bit(state->ucs_evdev, *(int *)data));
+		evdev_set_abs_bit(state->ucs_evdev, intdata);
+		return (0);
 
 	case UI_SET_MSCBIT:
-		if (state->ucs_state == UINPUT_RUNNING)
+		if (state->ucs_state == UINPUT_RUNNING ||
+		    intdata > MSC_MAX || intdata < 0)
 			return (EINVAL);
-		return (evdev_support_msc(state->ucs_evdev, *(int *)data));
+		evdev_support_msc(state->ucs_evdev, intdata);
+		return (0);
 
 	case UI_SET_LEDBIT:
-		if (state->ucs_state == UINPUT_RUNNING)
+		if (state->ucs_state == UINPUT_RUNNING ||
+		    intdata > LED_MAX || intdata < 0)
 			return (EINVAL);
-		return (evdev_support_led(state->ucs_evdev, *(int *)data));
+		evdev_support_led(state->ucs_evdev, intdata);
+		return (0);
 
 	case UI_SET_SNDBIT:
-		if (state->ucs_state == UINPUT_RUNNING)
+		if (state->ucs_state == UINPUT_RUNNING ||
+		    intdata > SND_MAX || intdata < 0)
 			return (EINVAL);
-		return (evdev_support_snd(state->ucs_evdev, *(int *)data));
+		evdev_support_snd(state->ucs_evdev, intdata);
+		return (0);
 
 	case UI_SET_FFBIT:
-		if (state->ucs_state == UINPUT_RUNNING)
+		if (state->ucs_state == UINPUT_RUNNING ||
+		    intdata > FF_MAX || intdata < 0)
 			return (EINVAL);
 		/* Fake unsupported ioctl */
 		return (0);
@@ -544,14 +605,18 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		return (0);
 
 	case UI_SET_SWBIT:
-		if (state->ucs_state == UINPUT_RUNNING)
+		if (state->ucs_state == UINPUT_RUNNING ||
+		    intdata > SW_MAX || intdata < 0)
 			return (EINVAL);
-		return (evdev_support_sw(state->ucs_evdev, *(int *)data));
+		evdev_support_sw(state->ucs_evdev, intdata);
+		return (0);
 
 	case UI_SET_PROPBIT:
-		if (state->ucs_state == UINPUT_RUNNING)
+		if (state->ucs_state == UINPUT_RUNNING ||
+		    intdata > INPUT_PROP_MAX || intdata < 0)
 			return (EINVAL);
-		return (evdev_support_prop(state->ucs_evdev, *(int *)data));
+		evdev_support_prop(state->ucs_evdev, intdata);
+		return (0);
 
 	case UI_BEGIN_FF_UPLOAD:
 	case UI_END_FF_UPLOAD:
@@ -571,20 +636,77 @@ uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 }
 
 static int
+uinput_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
+    struct thread *td)
+{
+	struct uinput_cdev_state *state;
+	int ret;
+
+	ret = devfs_get_cdevpriv((void **)&state);
+	if (ret != 0)
+		return (ret);
+
+	debugf(state, "ioctl called: cmd=0x%08lx, data=%p", cmd, data);
+
+	UINPUT_LOCK(state);
+	ret = uinput_ioctl_sub(state, cmd, data);
+	UINPUT_UNLOCK(state);
+
+	return (ret);
+}
+
+static int
 uinput_cdev_create(void)
 {
 	struct make_dev_args mda;
-	struct cdev *cdev;
+	int ret;
 
 	make_dev_args_init(&mda);
+	mda.mda_flags = MAKEDEV_WAITOK | MAKEDEV_CHECKNAME;
 	mda.mda_devsw = &uinput_cdevsw;
 	mda.mda_uid = UID_ROOT;
 	mda.mda_gid = GID_WHEEL;
 	mda.mda_mode = 0600;
 
-	make_dev_s(&mda, &cdev, "uinput");
+	ret = make_dev_s(&mda, &uinput_cdev, "uinput");
+
+	return (ret);
+}
+
+static int
+uinput_cdev_destroy(void)
+{
+
+	destroy_dev(uinput_cdev);
 
 	return (0);
 }
 
-SYSINIT(uinput, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, uinput_cdev_create, NULL);
+static int
+uinput_modevent(module_t mod __unused, int cmd, void *data)
+{
+	int ret = 0;
+
+	switch (cmd) {
+	case MOD_LOAD:
+		ret = uinput_cdev_create();
+		break;
+
+	case MOD_UNLOAD:
+		ret = uinput_cdev_destroy();
+		break;
+
+	case MOD_SHUTDOWN:
+		break;
+
+	default:
+		ret = EINVAL;
+		break;
+	}
+
+	return (ret);
+}
+
+DEV_MODULE(uinput, uinput_modevent, NULL);
+MODULE_VERSION(uinput, 1);
+MODULE_DEPEND(uinput, evdev, 1, 1, 1);
