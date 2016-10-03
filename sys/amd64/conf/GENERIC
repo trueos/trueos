@@ -368,3 +368,6 @@ options ALTQ_RIO # RED In/Out
 options ALTQ_HFSC # Hierarchical Packet Scheduler (HFSC)
 options ALTQ_PRIQ # Priority Queuing (PRIQ)
 options ALTQ_NOPCC # Required for SMP build
+
+# Enable VIMAGE
+options VIMAGE
