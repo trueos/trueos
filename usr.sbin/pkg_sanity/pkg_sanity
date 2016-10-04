@@ -89,4 +89,4 @@ do
   fi
 done
 
-exec pkg-static "$@"
+exec /usr/local/sbin/pkg-static "$@"
