@@ -241,7 +241,8 @@
 #define HAVE_KILL 1
 
 /* Define if we have LibreSSL */
-/* #undef HAVE_LIBRESSL */
+/* KPM 9-4-16 Enable LibreSSL */
+#define HAVE_LIBRESSL 1
 
 /* Define to 1 if you have the `localtime_r' function. */
 #define HAVE_LOCALTIME_R 1
