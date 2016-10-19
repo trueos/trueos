@@ -1716,7 +1716,7 @@ sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 	if (req->lock != REQ_WIRED && req->oldptr &&
 	    req->oldfunc == sysctl_old_user) {
 		if (wiredlen != 0) {
-			ret = vslock(req->oldptr, wiredlen);
+			ret = vshold(req->oldptr, wiredlen);
 			if (ret != 0) {
 				if (ret != ENOMEM)
 					return (ret);
@@ -1985,7 +1985,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	CURVNET_RESTORE();
 
 	if (req.lock == REQ_WIRED && req.validlen > 0)
-		vsunlock(req.oldptr, req.validlen);
+		vsunhold(req.oldptr, req.validlen);
 	if (memlocked)
 		sx_xunlock(&sysctlmemlock);
 
