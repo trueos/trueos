@@ -2961,8 +2961,9 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 
 	/* Rotate src coordinates to match rotated GTT view */
 	if (intel_rotation_90_or_270(rotation))
-		drm_rect_rotate(&plane_state->src,
-				fb->width, fb->height, BIT(DRM_ROTATE_270));
+		drm_rect_rotate(&plane_state->base.src,
+				fb->width << 16, fb->height << 16,
+				DRM_ROTATE_270);
 
 	/*
 	 * Handle the AUX surface first since
