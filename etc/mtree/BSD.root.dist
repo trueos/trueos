@@ -32,6 +32,8 @@
         ..
         casper
         ..
+	conf.d
+	..
         defaults
         ..
         devd
@@ -39,7 +41,11 @@
         dma
         ..
         gss
+	..
+	init.d
         ..
+	local.d
+	..
         mail
         ..
         mtree
@@ -68,6 +74,18 @@
         ..
         rc.d
         ..
+	runlevels
+	    boot
+	    ..
+	    default
+	    ..
+	    nonetwork
+	    ..
+	    shutdown
+	    ..
+	    sysinit
+	    ..
+	..
         security
         ..
         skel
@@ -76,6 +94,8 @@
         ..
         ssl
         ..
+	sysctl.d
+	..
         zfs
         ..
     ..
