@@ -108,6 +108,17 @@
     libexec
         resolvconf
         ..
+	rc
+	    bin
+	    ..
+	    init.d
+	    ..
+	    sbin
+	    ..
+	    sh
+	    ..
+	    tmp
+	    ..
     ..
     media
     ..
