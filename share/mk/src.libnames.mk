@@ -91,6 +91,7 @@ _LIBRARIES=	\
 		dtrace \
 		dwarf \
 		edit \
+		einfo \
 		elf \
 		execinfo \
 		fetch \
@@ -143,6 +144,7 @@ _LIBRARIES=	\
 		pthread \
 		radius \
 		readline \
+		rc \
 		roken \
 		rpcsec_gss \
 		rpcsvc \
