@@ -11,7 +11,7 @@ CFLAGS+=	-I${.CURDIR}/../../contrib/openrc \
 	       	-I${.CURDIR}/../../lib/librc
 
 WARNS?=	3
-MAN=	openrc.8
+MAN=	openrc-run.8
 
 LIBADD=	einfo rc
 
