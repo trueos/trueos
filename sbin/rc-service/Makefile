@@ -8,7 +8,8 @@ SRCS=	rc-service.c \
        	${.CURDIR}/../../contrib/openrc/_usage.c
 CFLAGS+=	-I${.CURDIR}/../../contrib/openrc \
 	       	-I${.CURDIR}/../../lib/libeinfo \
-	       	-I${.CURDIR}/../../lib/librc
+	       	-I${.CURDIR}/../../lib/librc \
+	       	-I${.CURDIR}/../../include
 
 WARNS?=	3
 MAN=	rc-service.8

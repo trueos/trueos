@@ -10,7 +10,8 @@ SRCS=	rc.c rc-logger.c \
 INCS=	rc-logger.h
 CFLAGS+=	-I${.CURDIR}/../../contrib/openrc \
 	       	-I${.CURDIR}/../../lib/libeinfo \
-	       	-I${.CURDIR}/../../lib/librc
+	       	-I${.CURDIR}/../../lib/librc \
+	       	-I${.CURDIR}/../../include
 
 WARNS?=	3
 MAN=	openrc.8
