@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=	rc-service
+LINKS=	${BINDIR}/rc-service ${BINDIR}/service
 SRCS=	rc-service.c \
        	${.CURDIR}/../../contrib/openrc/rc-misc.c \
        	${.CURDIR}/../../contrib/openrc/_usage.c
