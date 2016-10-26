@@ -48,6 +48,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libdevstat \
 	libdwarf \
 	libedit \
+	libeinfo \
 	${_libelftc} \
 	libevent \
 	libexecinfo \
@@ -88,6 +89,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	${_libproc} \
 	libprocstat \
 	${_libradius} \
+	librc \
 	librpcsvc \
 	librss \
 	librt \
