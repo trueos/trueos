@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-PROG=	rc-service
-SRCS=	rc-service.c \
+PROG=	rc-update
+SRCS=	rc-update.c \
        	${.CURDIR}/../../contrib/openrc/rc-misc.c \
        	${.CURDIR}/../../contrib/openrc/_usage.c
 CFLAGS+=	-I${.CURDIR}/../../contrib/openrc \
@@ -9,7 +9,7 @@ CFLAGS+=	-I${.CURDIR}/../../contrib/openrc \
 	       	-I${.CURDIR}/../../lib/librc
 
 WARNS?=	3
-MAN=	rc-service.8
+MAN=	rc-update.8
 
 LIBADD=	einfo rc
 
