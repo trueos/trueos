@@ -55,6 +55,7 @@ SUBDIR=adjkerntz \
 	nfsiod \
 	nos-tun \
 	openrc \
+	openrc-run \
 	ping \
 	rcorder \
 	reboot \
