@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	openrc-run
 LINKS=  ${BINDIR}/openrc-run ${BINDIR}/runscript
 SRCS=	openrc-run.c \

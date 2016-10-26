@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	rc-update
 SRCS=	rc-update.c \
        	${.CURDIR}/../../contrib/openrc/rc-misc.c \

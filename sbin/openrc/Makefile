@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+PACKAGE=runtime
 PROG=	openrc
 LINKS=  ${BINDIR}/openrc ${BINDIR}/rc
 SRCS=	rc.c rc-logger.c \

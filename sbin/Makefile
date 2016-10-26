@@ -69,6 +69,8 @@ SUBDIR=adjkerntz \
 	setkey \
 	shutdown \
 	spppcontrol \
+	start-stop-daemon \
+	supervise-daemon \
 	swapon \
 	sysctl \
 	tunefs \
