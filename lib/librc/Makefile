@@ -2,6 +2,7 @@
 
 PACKAGE=lib${LIB}
 LIB=		rc
+SHLIBDIR?=	/lib
 SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
 SRCS=		librc.c librc-daemon.c librc-depend.c librc-misc.c librc-stringlist.c
