@@ -58,6 +58,7 @@ SUBDIR=adjkerntz \
 	openrc-run \
 	ping \
 	rcorder \
+	rc-service \
 	reboot \
 	recoverdisk \
 	resolvconf \
