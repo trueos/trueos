@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-BINDIR=	/libexec/rc/sbin
 SUBDIR= mark_service_starting
 SUBDIR+= rc-abort
 SUBDIR+= swclock
