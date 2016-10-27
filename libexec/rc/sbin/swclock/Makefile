@@ -12,6 +12,7 @@ CFLAGS+=	-I${.CURDIR}/../../../../contrib/openrc \
 
 WARNS?=	3
 
+BINDIR=/libexec/rc/sbin
 LIBADD=	einfo kvm rc util
 MAN=
 
