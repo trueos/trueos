@@ -16,6 +16,6 @@ CFLAGS+=	-I${.CURDIR}/../../contrib/openrc \
 WARNS?=	3
 MAN=	openrc.8
 
-LIBADD=	einfo rc
+LIBADD=	einfo rc util
 
 .include <bsd.prog.mk>
