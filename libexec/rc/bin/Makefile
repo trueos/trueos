@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+BINDIR=/libexec/rc/bin
+
 SUBDIR= checkpath
 SUBDIR+= einfo
 SUBDIR+= fstabinfo
