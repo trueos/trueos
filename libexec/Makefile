@@ -15,6 +15,7 @@ SUBDIR=	${_atf} \
 	${_pppoed} \
 	revnetgroup \
 	${_rlogind} \
+	rc \
 	rpc.rquotad \
 	rpc.rstatd \
 	rpc.rusersd \

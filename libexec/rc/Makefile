@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR= bin init.d sbin sh tmp
+SUBDIR= sh
 SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>
