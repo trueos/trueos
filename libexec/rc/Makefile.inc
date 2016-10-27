@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+BINDIR= /libexec/${.CURDIR:T}
+NO_OBJ=
+FILESMODE= 755
+
