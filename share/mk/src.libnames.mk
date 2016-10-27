@@ -229,6 +229,7 @@ _DP_edit=	ncursesw
 .if ${MK_OPENSSL} != "no"
 _DP_bsnmp=	crypto
 .endif
+_DP_einfo=	kvm
 _DP_geom=	bsdxml sbuf
 _DP_cam=	sbuf
 _DP_kvm=	elf
@@ -240,6 +241,7 @@ _DP_cap_random=	nv
 _DP_cap_sysctl=	nv
 _DP_pjdlog=	util
 _DP_opie=	md
+_DP_rc=		kvm
 _DP_usb=	pthread
 _DP_unbound=	ssl crypto pthread
 _DP_rt=	pthread

@@ -2,6 +2,7 @@
 
 PACKAGE=lib${LIB}
 LIB=		einfo
+LIBADD+=	kvm
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
