@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-SUBDIR= sh
-SUBDIR+= bin
+SUBDIR= checkpath
 SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>
