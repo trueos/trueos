@@ -13,5 +13,6 @@ CFLAGS+=	-I${.CURDIR}/../../../../contrib/openrc \
 WARNS?=	3
 
 LIBADD=	einfo kvm rc util
+MAN=
 
 .include <bsd.prog.mk>
