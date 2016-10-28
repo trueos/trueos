@@ -59,11 +59,13 @@ extern "C" {
 
 /* LOCAL_PREFIX is for user written stuff, which the base OS and package
  * manger don't touch. */
+/* Disable RC_LOCAL_PREFIX on FreeBSD
 #define RC_LOCAL_PREFIX		"/usr/local"
 #ifdef RC_LOCAL_PREFIX
 #  define RC_LOCAL_INITDIR      RC_LOCAL_PREFIX "/etc/init.d"
 #  define RC_LOCAL_CONFDIR      RC_LOCAL_PREFIX "/etc/conf.d"
 #endif
+*/
 
 #ifndef _SYS_QUEUE_H_
 
