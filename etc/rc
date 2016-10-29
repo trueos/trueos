@@ -23,4 +23,3 @@ trap "echo 'Boot interrupted'; exit 1" SIGQUIT
 
 # We don't actually care if rc default worked or not, we should exit 0
 # to allow logins
-exit 0

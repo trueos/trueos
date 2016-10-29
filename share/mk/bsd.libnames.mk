@@ -60,6 +60,7 @@ LIBDTRACE?=	${DESTDIR}${LIBDIR}/libdtrace.a
 LIBDWARF?=	${DESTDIR}${LIBDIR}/libdwarf.a
 LIBEDIT?=	${DESTDIR}${LIBDIR}/libedit.a
 LIBEINFO?=	${DESTDIR}${LIBDIR}/libeinfo.a
+LIBEFIVAR?=	${DESTDIR}${LIBDIR}/libefivar.a
 LIBELF?=	${DESTDIR}${LIBDIR}/libelf.a
 LIBEXECINFO?=	${DESTDIR}${LIBDIR}/libexecinfo.a
 LIBFETCH?=	${DESTDIR}${LIBDIR}/libfetch.a

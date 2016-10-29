@@ -92,6 +92,7 @@ _LIBRARIES=	\
 		dwarf \
 		edit \
 		einfo \
+		efivar \
 		elf \
 		execinfo \
 		fetch \
