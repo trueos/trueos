@@ -417,10 +417,6 @@ hwpstate_get_info_from_msr(device_t dev)
 
 		/* Convert fid/did to frequency. */
 		switch(family) {
-		case 0x15:
-			/* fid/did to frequency */
-                        hwpstate_set[i].freq = 100 * (fid + 0x08) / (1 << did);
-			break;
 		case 0x11:
 			hwpstate_set[i].freq = (100 * (fid + 0x08)) >> did;
 			break;
