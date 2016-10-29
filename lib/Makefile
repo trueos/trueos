@@ -124,42 +124,11 @@ SUBDIR_DEPEND_liblzma= ${_libthr}
 
 # NB: keep these sorted by MK_* knobs
 
-<<<<<<< HEAD
-.if ${MK_ATM} != "no"
-_libngatm=	libngatm
-.endif
-
-.if ${MK_BLACKLIST} != "no"
-_libblacklist=	libblacklist
-.endif
-
-.if ${MK_BLUETOOTH} != "no"
-_libbluetooth=	libbluetooth
-_libsdp=	libsdp
-.endif
-
-.if ${MK_BSNMP} != "no"
-_libbsnmp=	libbsnmp
-.endif
-
-.if ${MK_CASPER} != "no"
-_libcasper=	libcasper
-.endif
-
-.if ${MK_CUSE} != "no"
-_cuse=		libcuse
-.endif
-
-.if ${MK_CXX} != "no"
-_libdevdctl=	libdevdctl
-.endif
-=======
 SUBDIR.${MK_ATM}+=	libngatm
 SUBDIR.${MK_BLACKLIST}+=libblacklist
 SUBDIR.${MK_BLUETOOTH}+=libbluetooth libsdp
 SUBDIR.${MK_BSNMP}+=	libbsnmp
 SUBDIR.${MK_CASPER}+=	libcasper
->>>>>>> c573dff5b0503e03cf400af8bcaffebab17df3a4
 
 .if !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
 SUBDIR.${MK_CLANG}+=	clang
