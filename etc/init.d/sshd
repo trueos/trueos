@@ -19,24 +19,3 @@ depend()
 	use logger dns
 	need net
 }
-
-start_pre()
-{
-	if [ ! -e /etc/ssh/ssh_host_key ]; then
-		ebegin "Generating Hostkey"
-		ssh-keygen -t rsa1 -b 1024 -f /etc/ssh/ssh_host_key -N ''
-		eend $? || return 1
-	fi
-	if [ ! -e /etc/ssh/ssh_host_dsa_key ]; then
-		ebegin "Generating DSA Hostkey"
-		ssh-keygen -d -f /etc/ssh/ssh_host_dsa_key -N ''
-		eend $? || return 1
-	fi
-	if [ ! -e /etc/ssh/ssh_host_rsa_key ]; then
-		ebegin "Generating RSA Hostkey"
-		ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N ''
-		eend $? || return 1
-	fi
-
-	$command -t
-}
