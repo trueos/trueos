@@ -1,0 +1,11 @@
+## Set to YES to disable ldconfig security checks
+ldconfig_insecure="NO"
+
+## ldconfig paths and directories
+ldconfig_paths="/usr/lib/compat /usr/local/lib"
+
+ldconfig_paths_aout="/usr/lib/compat/aout /usr/local/lib/aout"
+
+## ldconfig directories
+ldconfig_local_dirs="/usr/libdata/ldconfig /usr/local/libdata/ldconfig"
+
