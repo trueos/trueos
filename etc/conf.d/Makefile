@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FILES=          bootmisc fsck hostname ipfw ldconfig localmount modules moused netmount network powerd rarpd \
+FILES=          bootmisc fsck ipfw ldconfig localmount moused netmount powerd rarpd \
 		savecore staticroute swap syscons tmpfiles urandom
 
 NO_OBJ=
