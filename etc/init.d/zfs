@@ -5,13 +5,6 @@
 
 depend()
 {
-        if $(mount -dv / | grep -q zfs)
-        then
-               before localmount
-        else
-               after localmount
-        fi
-
 	before bootmisc logger
 	keyword -jail -prefix
 }
