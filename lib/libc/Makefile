@@ -29,7 +29,11 @@ LIBC_ARCH=${MACHINE_CPUARCH}
 # to CFLAGS below.  -DSYSLIBC_SCCS affects just the system call stubs.
 LIB=c
 SHLIB_MAJOR= 7
+.if ${MK_SSP} != "no"
 SHLIB_LDSCRIPT=libc.ldscript
+.else
+SHLIB_LDSCRIPT=libc_nossp.ldscript
+.endif
 SHLIB_LDSCRIPT_LINKS=libxnet.so
 WARNS?=	2
 CFLAGS+=-I${LIBC_SRCTOP}/include -I${LIBC_SRCTOP}/../../include
@@ -107,7 +111,7 @@ NOASM=
 .include "${LIBC_SRCTOP}/xdr/Makefile.inc"
 .if (${LIBC_ARCH} == "arm" && \
 	(${MACHINE_ARCH:Marmv6*} == "" || (defined(CPUTYPE) && ${CPUTYPE:M*soft*}))) || \
-     ${LIBC_ARCH} == "mips"
+     (${LIBC_ARCH} == "mips" && ${MACHINE_ARCH:Mmips*hf} == "")
 .include "${LIBC_SRCTOP}/softfloat/Makefile.inc"
 .endif
 .if ${LIBC_ARCH} == "i386" || ${LIBC_ARCH} == "amd64"

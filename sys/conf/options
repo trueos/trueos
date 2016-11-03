@@ -50,12 +50,14 @@ TWA_FLASH_FIRMWARE	opt_twa.h
 # Debugging options.
 ALT_BREAK_TO_DEBUGGER	opt_kdb.h
 BREAK_TO_DEBUGGER	opt_kdb.h
+BUF_TRACKING		opt_global.h
 DDB
 DDB_BUFR_SIZE	opt_ddb.h
 DDB_CAPTURE_DEFAULTBUFSIZE	opt_ddb.h
 DDB_CAPTURE_MAXBUFSIZE	opt_ddb.h
 DDB_CTF		opt_ddb.h
 DDB_NUMSYM	opt_ddb.h
+FULL_BUF_TRACKING	opt_global.h
 GDB
 KDB		opt_global.h
 KDB_TRACE	opt_kdb.h
@@ -443,6 +445,7 @@ SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
 TCPPCAP		opt_global.h
 SIFTR
+TCP_HHOOK		opt_inet.h
 TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_RFC7413		opt_inet.h
 TCP_RFC7413_MAX_KEYS	opt_inet.h
@@ -677,8 +680,9 @@ UPLCOM_INTR_INTERVAL	opt_uplcom.h
 UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h
 UVSCOM_INTR_INTERVAL	opt_uvscom.h
 
-# options for the Realtek RTL8188*U/RTL8192CU driver (urtwn)
-URTWN_WITHOUT_UCODE	opt_urtwn.h
+# options for the Realtek rtwn driver
+RTWN_DEBUG		opt_rtwn.h
+RTWN_WITHOUT_UCODE	opt_rtwn.h
 
 # Embedded system options
 INIT_PATH

@@ -82,7 +82,7 @@ __DEFAULT_YES_OPTIONS = \
     DYNAMICROOT \
     ED_CRYPTO \
     EE \
-    ELFCOPY_AS_OBJCOPY \
+    EFI \
     ELFTOOLCHAIN_BOOTSTRAP \
     EXAMPLES \
     FDT \
@@ -98,6 +98,8 @@ __DEFAULT_YES_OPTIONS = \
     GCOV \
     GDB \
     GNU \
+    GNU_DIFF \
+    GNU_GREP \
     GNU_GREP_COMPAT \
     GPIO \
     GPL_DTC \
@@ -264,6 +266,9 @@ BROKEN_OPTIONS+=LIBSOFT
 .if ${__T:Mmips*}
 BROKEN_OPTIONS+=SSP
 .endif
+.if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || ${__T:Mriscv*}
+BROKEN_OPTIONS+=EFI
+.endif
 
 .include <bsd.mkopt.mk>
 
@@ -295,6 +300,10 @@ MK_${var}:=	no
 #
 .if !${COMPILER_FEATURES:Mc++11}
 MK_LLVM_LIBUNWIND:=	no
+.endif
+
+.if ${MK_BINUTILS} == "no"
+MK_GDB:=	no
 .endif
 
 .if ${MK_LIBPTHREAD} == "no"
