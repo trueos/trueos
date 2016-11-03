@@ -300,6 +300,10 @@ start()
 		ebegin "Setting default route $defaultiproute"
 		ip route add default $defaultiproute
 		eend $?
+	elif [ -n "$defaultrouter" ]; then
+		ebegin "Setting the default route $defaultrouter"
+		route add default $defaultrouter
+		eend $?
 	fi
 
 	if [ -n "$defaultroute6" ]; then
