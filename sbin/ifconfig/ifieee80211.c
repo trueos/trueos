@@ -2716,11 +2716,6 @@ printathie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 static void
 printmeshconf(const char *tag, const uint8_t *ie, size_t ielen, int maxlen)
 {
-#define MATCHOUI(field, oui, string)					\
-do {									\
-	if (memcmp(field, oui, 4) == 0)					\
-		printf("%s", string);					\
-} while (0)
 
 	printf("%s", tag);
 	if (verbose) {
@@ -2754,7 +2749,6 @@ do {									\
 		printf(" FORM:0x%x CAPS:0x%x>", mconf->conf_form,
 		    mconf->conf_cap);
 	}
-#undef MATCHOUI
 }
 
 static void
@@ -3290,8 +3284,8 @@ printmimo(const struct ieee80211_mimo_info *mi)
 	/* NB: don't muddy display unless there's something to show */
 	if (mi->rssi[0] != 0 || mi->rssi[1] != 0 || mi->rssi[2] != 0) {
 		/* XXX ignore EVM for now */
-		printf(" (rssi %d:%d:%d nf %d:%d:%d)",
-		    mi->rssi[0], mi->rssi[1], mi->rssi[2],
+		printf(" (rssi %.1f:%.1f:%.1f nf %d:%d:%d)",
+		    mi->rssi[0] / 2.0, mi->rssi[1] / 2.0, mi->rssi[2] / 2.0,
 		    mi->noise[0], mi->noise[1], mi->noise[2]);
 	}
 }

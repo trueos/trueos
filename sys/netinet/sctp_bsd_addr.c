@@ -140,7 +140,6 @@ sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa)
 		ifa->localifa_flags &= ~SCTP_ADDR_IFA_UNUSEABLE;
 	}
 }
-
 #endif				/* INET6 */
 
 
@@ -201,14 +200,12 @@ sctp_init_ifns_for_vrf(int vrfid)
 	struct ifaddr *ifa;
 	struct sctp_ifa *sctp_ifa;
 	uint32_t ifa_flags;
-
 #ifdef INET6
 	struct in6_ifaddr *ifa6;
-
 #endif
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
+	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_link) {
 		if (sctp_is_desired_interface_type(ifn) == 0) {
 			/* non desired type */
 			continue;
@@ -361,7 +358,7 @@ void
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
+	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_link) {
 		if (!(*pred) (ifn)) {
 			continue;
 		}
