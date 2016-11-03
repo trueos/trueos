@@ -175,6 +175,7 @@ struct  ether_addr {
 					} while (0)
 #  include <net/if_var.h>
 #  define	GETKTIME(x)	microtime((struct timeval *)x)
+#  define	if_addrlist	if_addrhead
 
 #   include <netinet/in_systm.h>
 #   include <netinet/ip.h>
@@ -211,7 +212,7 @@ struct  ether_addr {
 #  define	MSGDSIZE(m)	mbufchainlen(m)
 #  define	M_LEN(m)	(m)->m_len
 #  define	M_ADJ(m,x)	m_adj(m, x)
-#  define	M_COPY(x)	m_copy((x), 0, M_COPYALL)
+#  define	M_COPY(x)	m_copym((x), 0, M_COPYALL, M_NOWAIT)
 #  define	M_DUP(m)	m_dup(m, M_NOWAIT)
 #  define	IPF_PANIC(x,y)	if (x) { printf y; panic("ipf_panic"); }
 typedef struct mbuf mb_t;

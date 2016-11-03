@@ -165,7 +165,7 @@ LIBADD+=	compiler_rt
 .if ${TARGET_CPUARCH} == mips
 LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 # ABIs other than o32 need this
-.if ${TARGET_ARCH} != "mips" && ${TARGET_ARCH} != "mipsel"
+.if ${TARGET_ARCH:Mmips64*} != "" || ${TARGET_ARCH:Mmipsn32*} != ""
 LIB2FUNCS_EXTRA+= floatdidf.c fixunsdfsi.c
 LIB2FUNCS_EXTRA+= floatdisf.c floatundidf.c
 LIB2FUNCS_EXTRA+= fixsfdi.c floatundisf.c
@@ -173,7 +173,7 @@ LIB2FUNCS_EXTRA+= fixdfdi.c fixunssfsi.c
 .endif
 .endif
 
-.if ${TARGET_ARCH} == "powerpc"
+.if ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "powerpcspe"
 #	from config/rs6000/t-ppccomm
 LIB2FUNCS_EXTRA = tramp.asm
 LIB2FUNCS_STATIC_EXTRA = eabi.asm
@@ -258,8 +258,8 @@ OBJ_GRPS +=	FPBIT DPBIT
 .for T in ${OBJ_GRPS}
 ${T}_OBJS_T =	${${T}_FUNCS:S/$/.o/}
 ${T}_OBJS_P =	${${T}_FUNCS:S/$/.po/}
-${T}_OBJS_S =	${${T}_FUNCS:S/$/.So/}
-SOBJS +=	${${T}_FUNCS:S/$/.So/}
+${T}_OBJS_S =	${${T}_FUNCS:S/$/.pico/}
+SOBJS +=	${${T}_FUNCS:S/$/.pico/}
 
 ${${T}_OBJS_T}: ${${T}_CFILE} ${COMMONHDRS}
 	${CC_T} ${${T}_CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${.ALLSRC:M*.c}
@@ -274,7 +274,7 @@ ${${T}_OBJS_S}: ${${T}_CFILE} ${COMMONHDRS}
 # Extra objects coming from separate files
 #
 .if !empty(LIB2ADD)
-SOBJS +=	${LIB2ADD:R:S/$/.So/}
+SOBJS +=	${LIB2ADD:R:S/$/.pico/}
 .endif
 
 #-----------------------------------------------------------------------
@@ -298,9 +298,9 @@ ${STAT_OBJS_P}:	${STD_CFILE} ${COMMONHDRS}
 .if defined(LIB1ASMSRC)
 ASM_T =		${LIB1ASMFUNCS:S/$/.o/}
 ASM_P =		${LIB1ASMFUNCS:S/$/.po/}
-ASM_S =		${LIB1ASMFUNCS:S/$/.So/}
+ASM_S =		${LIB1ASMFUNCS:S/$/.pico/}
 ASM_V =		${LIB1ASMFUNCS:S/$/.vis/}
-SOBJS +=	${LIB1ASMFUNCS:S/$/.So/}
+SOBJS +=	${LIB1ASMFUNCS:S/$/.pico/}
 
 ${ASM_T}: ${LIB1ASMSRC} ${.PREFIX}.vis
 	${CC} -x assembler-with-cpp -c ${CFLAGS} -DL${.PREFIX} \
@@ -327,7 +327,7 @@ CLEANFILES += ${ASM_V} ${ASM_V:R:S/$/.vo/}
 #
 EH_OBJS_T = ${LIB2ADDEHSTATIC:R:S/$/.o/}
 EH_OBJS_P = ${LIB2ADDEHSTATIC:R:S/$/.po/}
-EH_OBJS_S = ${LIB2ADDEHSHARED:R:S/$/.So/}
+EH_OBJS_S = ${LIB2ADDEHSHARED:R:S/$/.pico/}
 EH_CFLAGS = -fexceptions -D__GLIBC__=3 -DElfW=__ElfN
 .if ${TARGET_CPUARCH} != "riscv64"
 # RISCVTODO: unwinding support
@@ -341,7 +341,7 @@ ${_src:R:S/$/.po/}: ${_src} ${COMMONHDRS}
 	${CC_P} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
 .endfor
 .for _src in ${LIB2ADDEHSHARED:M*.c}
-${_src:R:S/$/.So/}: ${_src} ${COMMONHDRS}
+${_src:R:S/$/.pico/}: ${_src} ${COMMONHDRS}
 	${CC_S} ${EH_CFLAGS} -o ${.TARGET} ${.IMPSRC}
 .endfor
 
@@ -397,11 +397,11 @@ _libinstall: _lib-eh-install
 
 _lib-eh-install:
 .if ${MK_INSTALLLIB} != "no"
-	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${TAG_ARGS} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		${_INSTALLFLAGS} libgcc_eh.a ${DESTDIR}${LIBDIR}
 .endif
 .if ${MK_PROFILE} != "no"
-	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${TAG_ARGS} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 		${_INSTALLFLAGS} libgcc_eh_p.a ${DESTDIR}${LIBDIR}
 .endif
 

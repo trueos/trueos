@@ -128,6 +128,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_subr.h>
 
 int cold = 1;
 #ifdef __powerpc64__
@@ -140,6 +141,7 @@ int hw_direct_map = 1;
 extern void *ap_pcpu;
 
 struct pcpu __pcpu[MAXCPU];
+static char init_kenv[2048];
 
 static struct trapframe frame0;
 
@@ -236,6 +238,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	vm_offset_t	startkernel, endkernel;
 	void		*kmdp;
         char		*env;
+        bool		ofw_bootargs = false;
 #ifdef DDB
 	vm_offset_t ksym_start;
 	vm_offset_t ksym_end;
@@ -292,7 +295,8 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 		bzero(__sbss_start, __sbss_end - __sbss_start);
 		bzero(__bss_start, _end - __bss_start);
 #endif
-		init_static_kenv(NULL, 0);
+		init_static_kenv(init_kenv, sizeof(init_kenv));
+		ofw_bootargs = true;
 	}
 	/* Store boot environment state */
 	OF_initial_setup((void *)fdt, NULL, (int (*)(void *))ofentry);
@@ -334,6 +338,9 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	 */
 
 	OF_bootstrap();
+
+	if (ofw_bootargs)
+		ofw_parse_bootargs();
 
 	/*
 	 * Initialize the console before printing anything.
@@ -527,6 +534,7 @@ spinlock_exit(void)
  */
 extern register_t get_spr(int);
 
+#ifdef DDB
 DB_SHOW_COMMAND(spr, db_show_spr)
 {
 	register_t spr;
@@ -546,3 +554,4 @@ DB_SHOW_COMMAND(spr, db_show_spr)
 	db_printf("SPR %d(%x): %lx\n", saved_sprno, saved_sprno,
 	    (unsigned long)spr);
 }
+#endif

@@ -72,6 +72,7 @@ SUBDIR=	\
 	cd9660_iconv \
 	${_ce} \
 	${_cfi} \
+	${_chromebook_platform} \
 	${_ciss} \
 	cloudabi \
 	${_cloudabi32} \
@@ -101,6 +102,7 @@ SUBDIR=	\
 	${_drm} \
 	dummynet \
 	${_ed} \
+	${_efirt} \
 	${_elink} \
 	${_em} \
 	en \
@@ -108,6 +110,7 @@ SUBDIR=	\
 	${_epic} \
 	esp \
 	${_et} \
+	evdev \
 	${_ex} \
 	${_exca} \
 	ext2fs \
@@ -230,7 +233,7 @@ SUBDIR=	\
 	mlx \
 	${_mlx4} \
 	${_mlx4ib} \
-	${_mlxen} \
+	${_mlx4en} \
 	${_mlx5} \
 	${_mlx5en} \
 	${_mly} \
@@ -315,6 +318,8 @@ SUBDIR=	\
 	re \
 	rl \
 	rtwn \
+	rtwn_pci \
+	rtwn_usb \
 	${_rtwnfw} \
 	${_s3} \
 	${_safe} \
@@ -368,9 +373,8 @@ SUBDIR=	\
 	udf \
 	udf_iconv \
 	ufs \
+	uinput \
 	unionfs \
-	urtwn \
-	${_urtwnfw} \
 	usb \
 	utopia \
 	${_vesa} \
@@ -498,7 +502,6 @@ _mwlfw=		mwlfw
 _otusfw=	otusfw
 _ralfw=		ralfw
 _rtwnfw=	rtwnfw
-_urtwnfw=	urtwnfw
 _sf=		sf
 _ti=		ti
 _txp=		txp
@@ -506,7 +509,8 @@ _txp=		txp
 
 .if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
 	${MACHINE_CPUARCH} != "mips" && \
-	${MACHINE_ARCH} != "powerpc" && ${MACHINE_CPUARCH} != "riscv"
+	${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "powerpcspe" && \
+	${MACHINE_CPUARCH} != "riscv"
 _cxgbe=		cxgbe
 .endif
 
@@ -598,6 +602,7 @@ _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
 _ciss=		ciss
+_chromebook_platform=	chromebook_platform
 _cmx=		cmx
 _coretemp=	coretemp
 .if ${MK_SOURCELESS_HOST} != "no"
@@ -627,15 +632,15 @@ _iwifw=		iwifw
 _iwmfw=		iwmfw
 _iwnfw=		iwnfw
 .endif
-.if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _mlx4=		mlx4
-_mlx4ib=	mlx4ib
-_mlxen=		mlxen
-.endif
 _mlx5=		mlx5
 .if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
+_mlx4en=	mlx4en
 _mlx5en=	mlx5en
+.endif
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mlx4ib=	mlx4ib
 .endif
 _mly=		mly
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
@@ -666,6 +671,7 @@ _x86bios=	x86bios
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
+_efirt=		efirt
 _ioat=		ioat
 _ixl=		ixl
 _ixlv=		ixlv
@@ -747,13 +753,16 @@ _cfi=		cfi
 _cpufreq=	cpufreq
 _drm=		drm
 _exca=		exca
-_nvram=		powermac_nvram
 _pccard=	pccard
 _wi=		wi
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
 _drm=		drm
+.endif
+.if ${MACHINE_ARCH} == "powerpc64" || ${MACHINE_ARCH} == "powerpc"
+# Don't build powermac_nvram for powerpcspe, it's never supported.
+_nvram=		powermac_nvram
 .endif
 
 .if ${MACHINE_CPUARCH} == "sparc64"
@@ -763,7 +772,8 @@ _epic=		epic
 _igb=		igb
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+.if (${MACHINE_CPUARCH} == "amd64" || ${MACHINE_ARCH} == "armv6" || \
+     ${MACHINE_CPUARCH} == "i386")
 _cloudabi32=	cloudabi32
 .endif
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"

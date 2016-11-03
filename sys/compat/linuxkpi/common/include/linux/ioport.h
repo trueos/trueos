@@ -54,10 +54,10 @@ __devm_request_region(struct device *dev,
 #define IORESOURCE_BITS		0x000000ff	/* Bus-specific bits */
 
 #define IORESOURCE_TYPE_BITS	0x00001f00	/* Resource type */
-#define	IORESOURCE_IO	SYS_RES_IOPORT
-#define	IORESOURCE_MEM	SYS_RES_MEMORY
+#define	IORESOURCE_MEM	(1 << SYS_RES_MEMORY)
+#define	IORESOURCE_IO	(1 << SYS_RES_IOPORT)
+#define	IORESOURCE_IRQ	(1 << SYS_RES_IRQ)
 #define IORESOURCE_REG		0x00000300	/* Register offsets */
-#define	IORESOURCE_IRQ	SYS_RES_IRQ
 #define IORESOURCE_DMA		0x00000800
 #define IORESOURCE_BUS		0x00001000
 

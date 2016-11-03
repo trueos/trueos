@@ -68,15 +68,10 @@ FBSD_1.0 {
 	arc4random_addrandom;
 	arc4random_stir;
 	__assert;
-	basename;
 	check_utility_compat;
 	clock;
 	closedir;
 	confstr;
-	encrypt;
-	des_setkey;
-	des_cipher;
-	setkey;
 	ctermid;
 	ctermid_r;
 	daemon;
@@ -418,6 +413,7 @@ FBSD_1.4 {
 };
 
 FBSD_1.5 {
+	basename;
 	dirname;
 };
 

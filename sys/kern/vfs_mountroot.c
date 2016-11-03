@@ -18,7 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -298,9 +298,9 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 	TAILQ_INSERT_TAIL(&mountlist, mpdevfs, mnt_list);
 	mtx_unlock(&mountlist_mtx);
 
-	cache_purgevfs(mporoot);
+	cache_purgevfs(mporoot, true);
 	if (mporoot != mpdevfs)
-		cache_purgevfs(mpdevfs);
+		cache_purgevfs(mpdevfs, true);
 
 	VFS_ROOT(mporoot, LK_EXCLUSIVE, &vporoot);
 
@@ -315,7 +315,7 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 	/* Set up the new rootvnode, and purge the cache */
 	mpnroot->mnt_vnodecovered = NULL;
 	set_rootvnode();
-	cache_purgevfs(rootvnode->v_mount);
+	cache_purgevfs(rootvnode->v_mount, true);
 
 	if (mporoot != mpdevfs) {
 		/* Remount old root under /.mount or /mnt */

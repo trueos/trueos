@@ -27,27 +27,30 @@
  * $FreeBSD$
  */
 
+#include "opt_evdev.h"
+
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/param.h>
-#include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/bitstring.h>
-
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
+#include <sys/sysctl.h>
 
 #include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
+#include <dev/evdev/evdev_private.h>
 
-#ifdef DEBUG
-#define	debugf(fmt, args...)	printf("evdev: " fmt "\n", ##args)
+#ifdef EVDEV_DEBUG
+#define	debugf(evdev, fmt, args...)	printf("evdev: " fmt "\n", ##args)
 #else
-#define	debugf(fmt, args...)
+#define	debugf(evdev, fmt, args...)
+#endif
+
+#ifdef FEATURE
+FEATURE(evdev, "Input event devices support");
 #endif
 
 enum evdev_sparse_result
@@ -59,7 +62,13 @@ enum evdev_sparse_result
 
 MALLOC_DEFINE(M_EVDEV, "evdev", "evdev memory");
 
-static void evdev_assign_id(struct evdev_dev *);
+int evdev_rcpt_mask = EVDEV_RCPT_SYSMOUSE | EVDEV_RCPT_KBDMUX;
+
+SYSCTL_NODE(_kern, OID_AUTO, evdev, CTLFLAG_RW, 0, "Evdev args");
+SYSCTL_INT(_kern_evdev, OID_AUTO, rcpt_mask, CTLFLAG_RW, &evdev_rcpt_mask, 0,
+    "Who is receiving events: bit0 - sysmouse, bit1 - kbdmux, "
+    "bit2 - mouse hardware, bit3 - keyboard hardware");
+
 static void evdev_start_repeat(struct evdev_dev *, uint16_t);
 static void evdev_stop_repeat(struct evdev_dev *);
 static int evdev_check_event(struct evdev_dev *, uint16_t, uint16_t, int32_t);
@@ -83,6 +92,10 @@ evdev_alloc(void)
 void
 evdev_free(struct evdev_dev *evdev)
 {
+
+	if (evdev != NULL && evdev->ev_cdev != NULL &&
+	    evdev->ev_cdev->si_drv1 != NULL)
+		evdev_unregister(evdev);
 
 	free(evdev, M_EVDEV);
 }
@@ -174,21 +187,16 @@ evdev_estimate_report_size(struct evdev_dev *evdev)
 	return (size);
 }
 
-int
-evdev_register(device_t dev, struct evdev_dev *evdev)
+static int
+evdev_register_common(struct evdev_dev *evdev)
 {
 	int ret;
 
-	device_printf(dev, "registered evdev provider: %s <%s>\n",
-	    evdev->ev_name, evdev->ev_serial);
+	debugf(evdev, "%s: registered evdev provider: %s <%s>\n",
+	    evdev->ev_shortname, evdev->ev_name, evdev->ev_serial);
 
 	/* Initialize internal structures */
-	evdev->ev_dev = dev;
-	mtx_init(&evdev->ev_mtx, "evmtx", NULL, MTX_DEF);
 	LIST_INIT(&evdev->ev_clients);
-
-	if (dev != NULL)
-		strlcpy(evdev->ev_shortname, device_get_nameunit(dev), NAMELEN);
 
 	if (evdev_event_supported(evdev, EV_REP) &&
 	    bit_test(evdev->ev_flags, EVDEV_FLAG_SOFTREPEAT)) {
@@ -202,9 +210,6 @@ evdev_register(device_t dev, struct evdev_dev *evdev)
 			evdev->ev_rep[REP_PERIOD] = 33;
 		}
 	}
-
-	/* Retrieve bus info */
-	evdev_assign_id(evdev);
 
 	/* Initialize multitouch protocol type B states */
 	if (bit_test(evdev->ev_abs_flags, ABS_MT_SLOT) &&
@@ -222,6 +227,19 @@ evdev_register(device_t dev, struct evdev_dev *evdev)
 	/* Create char device node */
 	ret = evdev_cdev_create(evdev);
 bail_out:
+	return (ret);
+}
+
+int
+evdev_register(struct evdev_dev *evdev)
+{
+	int ret;
+
+	evdev->ev_lock_type = EV_LOCK_INTERNAL;
+	evdev->ev_lock = &evdev->ev_mtx;
+	mtx_init(&evdev->ev_mtx, "evmtx", NULL, MTX_DEF);
+
+	ret = evdev_register_common(evdev);
 	if (ret != 0)
 		mtx_destroy(&evdev->ev_mtx);
 
@@ -229,16 +247,28 @@ bail_out:
 }
 
 int
-evdev_unregister(device_t dev, struct evdev_dev *evdev)
+evdev_register_mtx(struct evdev_dev *evdev, struct mtx *mtx)
+{
+
+	evdev->ev_lock_type = EV_LOCK_MTX;
+	evdev->ev_lock = mtx;
+	return (evdev_register_common(evdev));
+}
+
+int
+evdev_unregister(struct evdev_dev *evdev)
 {
 	struct evdev_client *client;
 	int ret;
-	device_printf(dev, "unregistered evdev provider: %s\n", evdev->ev_name);
+	debugf(evdev, "%s: unregistered evdev provider: %s\n",
+	    evdev->ev_shortname, evdev->ev_name);
 
 	EVDEV_LOCK(evdev);
 	evdev->ev_cdev->si_drv1 = NULL;
 	/* Wake up sleepers */
 	LIST_FOREACH(client, &evdev->ev_clients, ec_link) {
+		evdev_revoke_client(client);
+		evdev_dispose_client(evdev, client);
 		EVDEV_CLIENT_LOCKQ(client);
 		evdev_notify_event(client);
 		EVDEV_CLIENT_UNLOCKQ(client);
@@ -247,7 +277,8 @@ evdev_unregister(device_t dev, struct evdev_dev *evdev)
 
 	/* destroy_dev can sleep so release lock */
 	ret = evdev_cdev_destroy(evdev);
-	if (ret == 0)
+	evdev->ev_cdev = NULL;
+	if (ret == 0 && evdev->ev_lock_type == EV_LOCK_INTERNAL)
 		mtx_destroy(&evdev->ev_mtx);
 
 	evdev_free_absinfo(evdev->ev_absinfo);
@@ -261,6 +292,19 @@ evdev_set_name(struct evdev_dev *evdev, const char *name)
 {
 
 	snprintf(evdev->ev_name, NAMELEN, "%s", name);
+}
+
+inline void
+evdev_set_id(struct evdev_dev *evdev, uint16_t bustype, uint16_t vendor,
+    uint16_t product, uint16_t version)
+{
+
+	evdev->ev_id = (struct input_id) {
+		.bustype = bustype,
+		.vendor = vendor,
+		.product = product,
+		.version = version
+	};
 }
 
 inline void
@@ -279,148 +323,127 @@ evdev_set_serial(struct evdev_dev *evdev, const char *serial)
 
 inline void
 evdev_set_methods(struct evdev_dev *evdev, void *softc,
-    struct evdev_methods *methods)
+    const struct evdev_methods *methods)
 {
 
 	evdev->ev_methods = methods;
 	evdev->ev_softc = softc;
 }
 
-inline int
+inline void
 evdev_support_prop(struct evdev_dev *evdev, uint16_t prop)
 {
 
-	if (prop >= INPUT_PROP_CNT)
-		return (EINVAL);
-
+	KASSERT(prop < INPUT_PROP_CNT, ("invalid evdev input property"));
 	bit_set(evdev->ev_prop_flags, prop);
-	return (0);
 }
 
-inline int
+inline void
 evdev_support_event(struct evdev_dev *evdev, uint16_t type)
 {
 
-	if (type >= EV_CNT)
-		return (EINVAL);
-
+	KASSERT(type < EV_CNT, ("invalid evdev event property"));
 	bit_set(evdev->ev_type_flags, type);
-	return (0);
 }
 
-inline int
+inline void
 evdev_support_key(struct evdev_dev *evdev, uint16_t code)
 {
 
-	if (code >= KEY_CNT)
-		return (EINVAL);
-
+	KASSERT(code < KEY_CNT, ("invalid evdev key property"));
 	bit_set(evdev->ev_key_flags, code);
-	return (0);
 }
 
-inline int
+inline void
 evdev_support_rel(struct evdev_dev *evdev, uint16_t code)
 {
 
-	if (code >= REL_CNT)
-		return (EINVAL);
-
+	KASSERT(code < REL_CNT, ("invalid evdev rel property"));
 	bit_set(evdev->ev_rel_flags, code);
-	return (0);
 }
 
-inline int
-evdev_support_abs(struct evdev_dev *evdev, uint16_t code,
-    struct input_absinfo *absinfo)
+inline void
+evdev_support_abs(struct evdev_dev *evdev, uint16_t code, int32_t value,
+    int32_t minimum, int32_t maximum, int32_t fuzz, int32_t flat,
+    int32_t resolution)
 {
-	int ret;
+	struct input_absinfo absinfo;
 
-	ret = evdev_set_absinfo(evdev, code, absinfo);
-	if (ret)
-		return (ret);
+	KASSERT(code < ABS_CNT, ("invalid evdev abs property"));
 
-	return (evdev_set_abs_bit(evdev, code));
+	absinfo = (struct input_absinfo) {
+		.value = value,
+		.minimum = minimum,
+		.maximum = maximum,
+		.fuzz = fuzz,
+		.flat = flat,
+		.resolution = resolution,
+	};
+	evdev_set_abs_bit(evdev, code);
+	evdev_set_absinfo(evdev, code, &absinfo);
 }
 
-inline int
+inline void
 evdev_set_abs_bit(struct evdev_dev *evdev, uint16_t code)
 {
-	if (code >= ABS_CNT)
-		return (EINVAL);
 
+	KASSERT(code < ABS_CNT, ("invalid evdev abs property"));
 	if (evdev->ev_absinfo == NULL)
 		evdev->ev_absinfo = evdev_alloc_absinfo();
-
 	bit_set(evdev->ev_abs_flags, code);
-	return (0);
 }
 
-inline int
+inline void
 evdev_support_msc(struct evdev_dev *evdev, uint16_t code)
 {
 
-	if (code >= MSC_CNT)
-		return (EINVAL);
-
+	KASSERT(code < MSC_CNT, ("invalid evdev msc property"));
 	bit_set(evdev->ev_msc_flags, code);
-	return (0);
 }
 
 
-inline int
+inline void
 evdev_support_led(struct evdev_dev *evdev, uint16_t code)
 {
 
-	if (code >= LED_CNT)
-		return (EINVAL);
-
+	KASSERT(code < LED_CNT, ("invalid evdev led property"));
 	bit_set(evdev->ev_led_flags, code);
-	return (0);
 }
 
-inline int
+inline void
 evdev_support_snd(struct evdev_dev *evdev, uint16_t code)
 {
 
-	if (code >= SND_CNT)
-		return (EINVAL);
-
+	KASSERT(code < SND_CNT, ("invalid evdev snd property"));
 	bit_set(evdev->ev_snd_flags, code);
-	return (0);
 }
 
-inline int
+inline void
 evdev_support_sw(struct evdev_dev *evdev, uint16_t code)
 {
-	if (code >= SW_CNT)
-		return (EINVAL);
 
+	KASSERT(code < SW_CNT, ("invalid evdev sw property"));
 	bit_set(evdev->ev_sw_flags, code);
-	return (0);
 }
 
 bool
 evdev_event_supported(struct evdev_dev *evdev, uint16_t type)
 {
 
-	if (type >= EV_CNT)
-		return (false);
-
+	KASSERT(type < EV_CNT, ("invalid evdev event property"));
 	return (bit_test(evdev->ev_type_flags, type));
 }
 
-inline int
+inline void
 evdev_set_absinfo(struct evdev_dev *evdev, uint16_t axis,
     struct input_absinfo *absinfo)
 {
 
-	if (axis >= ABS_CNT)
-		return (EINVAL);
+	KASSERT(axis < ABS_CNT, ("invalid evdev abs property"));
 
 	if (axis == ABS_MT_SLOT &&
 	    (absinfo->maximum < 1 || absinfo->maximum >= MAX_MT_SLOTS))
-		return (EINVAL);
+		return;
 
 	if (evdev->ev_absinfo == NULL)
 		evdev->ev_absinfo = evdev_alloc_absinfo();
@@ -430,8 +453,6 @@ evdev_set_absinfo(struct evdev_dev *evdev, uint16_t axis,
 	else
 		memcpy(&evdev->ev_absinfo[axis], absinfo,
 		    sizeof(struct input_absinfo));
-
-	return (0);
 }
 
 inline void
@@ -442,21 +463,21 @@ evdev_set_repeat_params(struct evdev_dev *evdev, uint16_t property, int value)
 	evdev->ev_rep[property] = value;
 }
 
-inline int
+inline void
 evdev_set_flag(struct evdev_dev *evdev, uint16_t flag)
 {
 
-	if (flag >= EVDEV_FLAG_CNT)
-		return (EINVAL);
-
+	KASSERT(flag < EVDEV_FLAG_CNT, ("invalid evdev flag property"));
 	bit_set(evdev->ev_flags, flag);
-	return(0);
 }
 
 static int
 evdev_check_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
     int32_t value)
 {
+
+	if (type >= EV_CNT)
+		return (EINVAL);
 
 	/* Allow SYN events implicitly */
 	if (type != EV_SYN && !evdev_event_supported(evdev, type))
@@ -665,6 +686,8 @@ evdev_sparse_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 
 	case EV_SYN:
 		if (code == SYN_REPORT) {
+			/* Count empty reports as well as non empty */
+			evdev->ev_report_count++;
 			/* Skip empty reports */
 			if (!evdev->ev_report_opened)
 				return (EV_SKIP_EVENT);
@@ -684,7 +707,7 @@ evdev_propagate_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 {
 	struct evdev_client *client;
 
-	debugf("%s pushed event %d/%d/%d",
+	debugf(evdev, "%s pushed event %d/%d/%d",
 	    evdev->ev_shortname, type, code, value);
 
 	EVDEV_LOCK_ASSERT(evdev);
@@ -701,10 +724,7 @@ evdev_propagate_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 		EVDEV_CLIENT_UNLOCKQ(client);
 	}
 
-	/* Update counters */
 	evdev->ev_event_count++;
-	if (type == EV_SYN && code == SYN_REPORT)
-		evdev->ev_report_count++;
 }
 
 void
@@ -735,16 +755,24 @@ evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
     int32_t value)
 {
 
+	if (evdev->ev_lock_type != EV_LOCK_INTERNAL)
+		EVDEV_LOCK_ASSERT(evdev);
+
 	if (evdev_check_event(evdev, type, code, value) != 0)
 		return (EINVAL);
 
-	EVDEV_LOCK(evdev);
+	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
+		EVDEV_LOCK(evdev);
 	evdev_modify_event(evdev, type, code, &value);
+	if (type == EV_SYN && code == SYN_REPORT &&
+	     bit_test(evdev->ev_flags, EVDEV_FLAG_MT_AUTOREL))
+		evdev_send_mt_autorel(evdev);
 	if (type == EV_SYN && code == SYN_REPORT && evdev->ev_report_opened &&
 	    bit_test(evdev->ev_flags, EVDEV_FLAG_MT_STCOMPAT))
 		evdev_send_mt_compat(evdev);
 	evdev_send_event(evdev, type, code, value);
-	EVDEV_UNLOCK(evdev);
+	if (evdev->ev_lock_type == EV_LOCK_INTERNAL)
+		EVDEV_UNLOCK(evdev);
 
 	return (0);
 }
@@ -794,33 +822,19 @@ push:
 	return (ret);
 }
 
-inline int
-evdev_sync(struct evdev_dev *evdev)
-{
-
-	return (evdev_push_event(evdev, EV_SYN, SYN_REPORT, 1));
-}
-
-
-inline int
-evdev_mt_sync(struct evdev_dev *evdev)
-{
-
-	return (evdev_push_event(evdev, EV_SYN, SYN_MT_REPORT, 1));
-}
-
 int
 evdev_register_client(struct evdev_dev *evdev, struct evdev_client *client)
 {
 	int ret = 0;
 
-	debugf("adding new client for device %s", evdev->ev_shortname);
+	debugf(evdev, "adding new client for device %s", evdev->ev_shortname);
 
 	EVDEV_LOCK_ASSERT(evdev);
 
 	if (LIST_EMPTY(&evdev->ev_clients) && evdev->ev_methods != NULL &&
 	    evdev->ev_methods->ev_open != NULL) {
-		debugf("calling ev_open() on device %s", evdev->ev_shortname);
+		debugf(evdev, "calling ev_open() on device %s",
+		    evdev->ev_shortname);
 		ret = evdev->ev_methods->ev_open(evdev, evdev->ev_softc);
 	}
 	if (ret == 0)
@@ -831,7 +845,7 @@ evdev_register_client(struct evdev_dev *evdev, struct evdev_client *client)
 void
 evdev_dispose_client(struct evdev_dev *evdev, struct evdev_client *client)
 {
-	debugf("removing client for device %s", evdev->ev_shortname);
+	debugf(evdev, "removing client for device %s", evdev->ev_shortname);
 
 	EVDEV_LOCK_ASSERT(evdev);
 
@@ -876,65 +890,6 @@ evdev_release_client(struct evdev_dev *evdev, struct evdev_client *client)
 }
 
 static void
-evdev_assign_id(struct evdev_dev *dev)
-{
-	device_t parent;
-	devclass_t devclass;
-	const char *classname;
-
-	if (dev->ev_id.bustype != 0)
-		return;
-
-	if (dev->ev_dev == NULL) {
-		dev->ev_id.bustype = BUS_VIRTUAL;
-		return;
-	}
-
-	parent = device_get_parent(dev->ev_dev);
-	if (parent == NULL) {
-		dev->ev_id.bustype = BUS_HOST;
-		return;
-	}
-
-	devclass = device_get_devclass(parent);
-	classname = devclass_get_name(devclass);
-
-	debugf("parent bus classname: %s", classname);
-
-	if (strcmp(classname, "pci") == 0) {
-		dev->ev_id.bustype = BUS_PCI;
-		dev->ev_id.vendor = pci_get_vendor(dev->ev_dev);
-		dev->ev_id.product = pci_get_device(dev->ev_dev);
-		dev->ev_id.version = pci_get_revid(dev->ev_dev);
-		return;
-	}
-
-	if (strcmp(classname, "uhub") == 0) {
-		struct usb_attach_arg *uaa = device_get_ivars(dev->ev_dev);
-		dev->ev_id.bustype = BUS_USB;
-		dev->ev_id.vendor = uaa->info.idVendor;
-		dev->ev_id.product = uaa->info.idProduct;
-		return;
-	}
-
-	if (strcmp(classname, "atkbdc") == 0) {
-		devclass = device_get_devclass(dev->ev_dev);
-		classname = devclass_get_name(devclass);
-		dev->ev_id.bustype = BUS_I8042;
-		if (strcmp(classname, "atkbd") == 0) {
-			dev->ev_id.vendor = PS2_KEYBOARD_VENDOR;
-			dev->ev_id.product = PS2_KEYBOARD_PRODUCT;
-		} else if (strcmp(classname, "psm") == 0) {
-			dev->ev_id.vendor = PS2_MOUSE_VENDOR;
-			dev->ev_id.product = PS2_MOUSE_GENERIC_PRODUCT;
-		}
-		return;
-	}
-
-	dev->ev_id.bustype = BUS_HOST;
-}
-
-static void
 evdev_repeat_callout(void *arg)
 {
 	struct evdev_dev *evdev = (struct evdev_dev *)arg;
@@ -975,3 +930,5 @@ evdev_stop_repeat(struct evdev_dev *evdev)
 		evdev->ev_rep_key = KEY_RESERVED;
 	}
 }
+
+MODULE_VERSION(evdev, 1);

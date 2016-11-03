@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -170,13 +170,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	catch = priority & PCATCH;
 	pri = priority & PRIMASK;
 
-	/*
-	 * If we are already on a sleep queue, then remove us from that
-	 * sleep queue first.  We have to do this to handle recursive
-	 * sleeps.
-	 */
-	if (TD_ON_SLEEPQ(td))
-		sleepq_remove(td, td->td_wchan);
+	KASSERT(!TD_ON_SLEEPQ(td), ("recursive sleep"));
 
 	if ((uint8_t *)ident >= &pause_wchan[0] &&
 	    (uint8_t *)ident <= &pause_wchan[MAXCPU - 1])

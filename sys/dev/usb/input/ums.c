@@ -70,8 +70,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/usb/quirk/usb_quirk.h>
 
+#ifdef EVDEV_SUPPORT
 #include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
+#endif
 
 #include <sys/ioccom.h>
 #include <sys/filio.h>
@@ -140,7 +142,7 @@ struct ums_softc {
 
 	int sc_pollrate;
 	int sc_fflags;
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	int sc_evflags;
 #define	UMS_EVDEV_OPENED	1
 #endif
@@ -149,7 +151,7 @@ struct ums_softc {
 	uint8_t	sc_iid;
 	uint8_t	sc_temp[64];
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	struct evdev_dev *sc_evdev;
 #endif
 };
@@ -168,16 +170,18 @@ static usb_fifo_open_t ums_fifo_open;
 static usb_fifo_close_t ums_fifo_close;
 static usb_fifo_ioctl_t ums_fifo_ioctl;
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 static evdev_open_t ums_ev_open;
 static evdev_close_t ums_ev_close;
+static void ums_evdev_push(struct ums_softc *, int32_t, int32_t,
+    int32_t, int32_t, int32_t);
 #endif
 
-static void ums_start_rx(struct ums_softc *);
-static void ums_stop_rx(struct ums_softc *);
-static void ums_put_queue(struct ums_softc *, int32_t, int32_t,
-    int32_t, int32_t, int32_t, int32_t);
-static int ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS);
+static void	ums_start_rx(struct ums_softc *);
+static void	ums_stop_rx(struct ums_softc *);
+static void	ums_put_queue(struct ums_softc *, int32_t, int32_t,
+		    int32_t, int32_t, int32_t);
+static int	ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS);
 
 static struct usb_fifo_methods ums_fifo_methods = {
 	.f_open = &ums_fifo_open,
@@ -188,8 +192,8 @@ static struct usb_fifo_methods ums_fifo_methods = {
 	.basename[0] = "ums",
 };
 
-#ifdef EVDEV
-static struct evdev_methods ums_evdev_methods = {
+#ifdef EVDEV_SUPPORT
+static const struct evdev_methods ums_evdev_methods = {
 	.ev_open = &ums_ev_open,
 	.ev_close = &ums_ev_close,
 };
@@ -202,7 +206,10 @@ ums_put_queue_timeout(void *__sc)
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
-	ums_put_queue(sc, 0, 0, 0, 0, 0, 0);
+	ums_put_queue(sc, 0, 0, 0, 0, 0);
+#ifdef EVDEV_SUPPORT
+	ums_evdev_push(sc, 0, 0, 0, 0, 0);
+#endif
 }
 
 static void
@@ -213,8 +220,10 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct usb_page_cache *pc;
 	uint8_t *buf = sc->sc_temp;
 	int32_t buttons = 0;
-	int32_t oldbuttons = 0;
 	int32_t buttons_found = 0;
+#ifdef EVDEV_SUPPORT
+	int32_t buttons_reported = 0;
+#endif
 	int32_t dw = 0;
 	int32_t dx = 0;
 	int32_t dy = 0;
@@ -286,8 +295,11 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		}
 
 		if ((info->sc_flags & UMS_FLAG_T_AXIS) &&
-		    (id == info->sc_iid_t))
+		    (id == info->sc_iid_t)) {
 			dt -= hid_get_data(buf, len, &info->sc_loc_t);
+			/* T-axis is translated into button presses */
+			buttons_found |= (1UL << 5) | (1UL << 6);
+		}
 
 		for (i = 0; i < info->sc_buttons; i++) {
 			uint32_t mask;
@@ -305,6 +317,9 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (++info != &sc->sc_info[UMS_INFO_MAX])
 			goto repeat;
 
+#ifdef EVDEV_SUPPORT
+		buttons_reported = buttons;
+#endif
 		/* keep old button value(s) for non-detected buttons */
 		buttons |= sc->sc_status.button & ~buttons_found;
 
@@ -315,12 +330,14 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			    dx, dy, dz, dt, dw, buttons);
 
 			/* translate T-axis into button presses until further */
-			if (dt > 0)
+			if (dt > 0) {
+				ums_put_queue(sc, 0, 0, 0, 0, buttons);
 				buttons |= 1UL << 5;
-			else if (dt < 0)
+			} else if (dt < 0) {
+				ums_put_queue(sc, 0, 0, 0, 0, buttons);
 				buttons |= 1UL << 6;
+			}
 
-			oldbuttons = sc->sc_status.button;
 			sc->sc_status.button = buttons;
 			sc->sc_status.dx += dx;
 			sc->sc_status.dy += dy;
@@ -347,16 +364,22 @@ ums_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				usb_callout_reset(&sc->sc_callout, hz / 20,
 				    &ums_put_queue_timeout, sc);
 			} else {
+
 				usb_callout_stop(&sc->sc_callout);
-				ums_put_queue(sc, dx, dy, dz, dt, buttons,
-				    oldbuttons);
+
+				ums_put_queue(sc, dx, dy, dz, dt, buttons);
+#ifdef EVDEV_SUPPORT
+				ums_evdev_push(sc, dx, dy, dz, dt,
+				    buttons_reported);
+#endif
+
 			}
 		}
 	case USB_ST_SETUP:
 tr_setup:
 		/* check if we can put more data into the FIFO */
 		if (usb_fifo_put_bytes_max(sc->sc_fifo.fp[USB_FIFO_RX]) == 0) {
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 			if (sc->sc_evflags == 0)
 				break;
 #else
@@ -689,10 +712,13 @@ ums_attach(device_t dev)
 	if (err)
 		goto detach;
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	sc->sc_evdev = evdev_alloc();
 	evdev_set_name(sc->sc_evdev, device_get_desc(dev));
-	evdev_set_serial(sc->sc_evdev, "0");
+	evdev_set_phys(sc->sc_evdev, device_get_nameunit(dev));
+	evdev_set_id(sc->sc_evdev, BUS_USB, uaa->info.idVendor,
+	    uaa->info.idProduct, 0);
+	evdev_set_serial(sc->sc_evdev, usb_get_serial(uaa->device));
 	evdev_set_methods(sc->sc_evdev, sc, &ums_evdev_methods);
 	evdev_support_prop(sc->sc_evdev, INPUT_PROP_POINTER);
 	evdev_support_event(sc->sc_evdev, EV_SYN);
@@ -716,7 +742,7 @@ ums_attach(device_t dev)
 	for (i = 0; i < info->sc_buttons; i++)
 		evdev_support_key(sc->sc_evdev, BTN_MOUSE + i);
 
-	err = evdev_register(dev, sc->sc_evdev);
+	err = evdev_register_mtx(sc->sc_evdev, &sc->sc_mtx);
 	if (err)
 		goto detach;
 #endif
@@ -746,8 +772,7 @@ ums_detach(device_t self)
 
 	usb_fifo_detach(&sc->sc_fifo);
 
-#ifdef EVDEV
-	evdev_unregister(self, sc->sc_evdev);
+#ifdef EVDEV_SUPPORT
 	evdev_free(sc->sc_evdev);
 #endif
 
@@ -851,7 +876,7 @@ ums_fifo_stop_read(struct usb_fifo *fifo)
 
 static void
 ums_put_queue(struct ums_softc *sc, int32_t dx, int32_t dy,
-    int32_t dz, int32_t dt, int32_t buttons, int32_t oldbuttons)
+    int32_t dz, int32_t dt, int32_t buttons)
 {
 	uint8_t buf[8];
 
@@ -888,29 +913,31 @@ ums_put_queue(struct ums_softc *sc, int32_t dx, int32_t dy,
 		}
 		usb_fifo_put_data_linear(sc->sc_fifo.fp[USB_FIFO_RX], buf,
 		    sc->sc_mode.packetsize, 1);
+	} else {
+		DPRINTF("Buffer full, discarded packet\n");
+	}
+}
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
+static void
+ums_evdev_push(struct ums_softc *sc, int32_t dx, int32_t dy,
+    int32_t dz, int32_t dt, int32_t buttons)
+{
+	if (evdev_rcpt_mask & EVDEV_RCPT_HW_MOUSE) {
 		/* Push evdev event */
-		if (dx != 0 || dy != 0) {
-			evdev_push_event(sc->sc_evdev, EV_REL, REL_X, dx);
-			evdev_push_event(sc->sc_evdev, EV_REL, REL_Y, -dy);
-		}
-		if (dz != 0)
-			evdev_push_event(sc->sc_evdev, EV_REL, REL_WHEEL, -dz);
-		if (dt != 0)
-			evdev_push_event(sc->sc_evdev, EV_REL, REL_HWHEEL, dt);
-
+		evdev_push_rel(sc->sc_evdev, REL_X, dx);
+		evdev_push_rel(sc->sc_evdev, REL_Y, -dy);
+		evdev_push_rel(sc->sc_evdev, REL_WHEEL, -dz);
+		evdev_push_rel(sc->sc_evdev, REL_HWHEEL, dt);
 		evdev_push_mouse_btn(sc->sc_evdev,
 		    (buttons & ~MOUSE_STDBUTTONS) |
 		    (buttons & (1 << 2) ? MOUSE_BUTTON1DOWN : 0) |
 		    (buttons & (1 << 1) ? MOUSE_BUTTON2DOWN : 0) |
 		    (buttons & (1 << 0) ? MOUSE_BUTTON3DOWN : 0));
 		evdev_sync(sc->sc_evdev);
-#endif
-	} else {
-		DPRINTF("Buffer full, discarded packet\n");
 	}
 }
+#endif
 
 static void
 ums_reset_buf(struct ums_softc *sc)
@@ -919,15 +946,13 @@ ums_reset_buf(struct ums_softc *sc)
 	usb_fifo_reset(sc->sc_fifo.fp[USB_FIFO_RX]);
 }
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 static int
 ums_ev_open(struct evdev_dev *evdev, void *ev_softc)
 {
 	struct ums_softc *sc = (struct ums_softc *)ev_softc;
 
-	printf("ums_ev_open()\n");
-
-	mtx_lock(&sc->sc_mtx);
+	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
 	sc->sc_evflags = UMS_EVDEV_OPENED;
 
@@ -935,8 +960,6 @@ ums_ev_open(struct evdev_dev *evdev, void *ev_softc)
 		ums_reset(sc);
 		ums_start_rx(sc);
 	}
-
-	mtx_unlock(&sc->sc_mtx);
 
 	return (0);
 }
@@ -946,14 +969,12 @@ ums_ev_close(struct evdev_dev *evdev, void *ev_softc)
 {
 	struct ums_softc *sc = (struct ums_softc *)ev_softc;
 
-	mtx_lock(&sc->sc_mtx);
+	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
 	sc->sc_evflags = 0;
 
 	if (sc->sc_fflags == 0)
 		ums_stop_rx(sc);
-
-	mtx_unlock(&sc->sc_mtx);
 }
 #endif
 
@@ -969,7 +990,7 @@ ums_fifo_open(struct usb_fifo *fifo, int fflags)
 		return (EBUSY);
 
 	/* check for first open */
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	if (sc->sc_fflags == 0 && sc->sc_evflags == 0)
 		ums_reset(sc);
 #else
@@ -1201,5 +1222,8 @@ static driver_t ums_driver = {
 
 DRIVER_MODULE(ums, uhub, ums_driver, ums_devclass, NULL, 0);
 MODULE_DEPEND(ums, usb, 1, 1, 1);
+#ifdef EVDEV_SUPPORT
+MODULE_DEPEND(ums, evdev, 1, 1, 1);
+#endif
 MODULE_VERSION(ums, 1);
 USB_PNP_HOST_INFO(ums_devs);

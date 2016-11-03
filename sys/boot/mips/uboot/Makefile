@@ -81,13 +81,11 @@ LIBUBOOT_FDT=	${.OBJDIR}/../../uboot/fdt/libuboot_fdt.a
 LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
 .endif
 
-CFLAGS+=	-DNETIF_OPEN_CLOSE_ONCE
-
 .if ${MK_FORTH} != "no"
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl
-.if ${MACHINE_ARCH} == "mips64" || ${MACHINE_ARCH} == "mips64el"
+.if ${MACHINE_ARCH:Mmips64*} != ""
 CFLAGS+=	-I${.CURDIR}/../../ficl/mips64
 .else
 CFLAGS+=	-I${.CURDIR}/../../ficl/mips

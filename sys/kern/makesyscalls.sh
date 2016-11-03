@@ -65,7 +65,6 @@ if [ -n "$2" ]; then
 fi
 
 sed -e '
-s/\$//g
 :join
 	/\\$/{a\
 
@@ -147,7 +146,7 @@ s/\$//g
 		printf " * $%s$\n", "FreeBSD" > systrace
 	}
 	NR == 1 {
-		gsub("[$]FreeBSD: ", "", $0)
+		gsub("[$]FreeBSD: ", "FreeBSD: ", $0)
 		gsub(" [$]", "", $0)
 
 		printf " * created from%s\n */\n\n", $0 > syssw
@@ -418,7 +417,10 @@ s/\$//g
 			for (i = 1; i <= argc; i++) {
 				arg = argtype[i]
 				sub("__restrict$", "", arg)
-				printf("\t\tcase %d:\n\t\t\tp = \"%s\";\n\t\t\tbreak;\n", i - 1, arg) > systracetmp
+				if (index(arg, "*") > 0)
+					printf("\t\tcase %d:\n\t\t\tp = \"userland %s\";\n\t\t\tbreak;\n", i - 1, arg) > systracetmp
+				else
+					printf("\t\tcase %d:\n\t\t\tp = \"%s\";\n\t\t\tbreak;\n", i - 1, arg) > systracetmp
 				if (index(arg, "*") > 0 || arg == "caddr_t")
 					printf("\t\tuarg[%d] = (intptr_t) p->%s; /* %s */\n", \
 					     i - 1, \

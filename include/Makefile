@@ -59,6 +59,7 @@ LSUBDIRS=	cam/ata cam/nvme cam/scsi \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
+	sys/disk \
 	ufs/ffs ufs/ufs
 
 LSUBSUBDIRS=	dev/mpt/mpilib
@@ -180,6 +181,8 @@ copies: .PHONY .META
 	cd ${.CURDIR}/../sys/dev/evdev; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 input.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 input-event-codes.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 uinput.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/evdev
 	cd ${.CURDIR}/../sys/dev/pci; \
@@ -234,6 +237,17 @@ copies: .PHONY .META
 	cd ${.CURDIR}/../sys/teken; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
+.if ${MK_CDDL} != "no"
+	cd ${.CURDIR}/../cddl/contrib/opensolaris/lib/libzfs_core/common; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 libzfs_core.h \
+	    ${DESTDIR}${INCLUDEDIR}
+	cd ${.CURDIR}/../cddl/contrib/opensolaris/lib/libnvpair; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 libnvpair.h \
+	    ${DESTDIR}${INCLUDEDIR}
+	cd ${.CURDIR}/../sys/cddl/contrib/opensolaris/uts/common/sys; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 nvpair.h \
+	    ${DESTDIR}${INCLUDEDIR}/sys
+.endif
 
 symlinks: .PHONY .META
 	@${ECHO} "Setting up symlinks to kernel source tree..."
@@ -272,7 +286,7 @@ symlinks: .PHONY .META
 	done
 .endif
 	cd ${.CURDIR}/../sys/dev/evdev; \
-	for h in input.h uinput.h; do \
+	for h in input.h input-event-codes.h uinput.h; do \
 		ln -fs ../../../../sys/dev/evdev/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/dev/evdev; \
 	done

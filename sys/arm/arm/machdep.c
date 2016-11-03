@@ -412,7 +412,7 @@ arm_vector_init(vm_offset_t va, int which)
 	icache_sync(va, (ARM_NVEC * 2) * sizeof(u_int));
 
 	vector_page = va;
-
+#if __ARM_ARCH < 6
 	if (va == ARM_VECTORS_HIGH) {
 		/*
 		 * Enable high vectors in the system control reg (SCTLR).
@@ -427,6 +427,7 @@ arm_vector_init(vm_offset_t va, int which)
 		 */
 		cpu_control(CPU_CONTROL_VECRELOC, CPU_CONTROL_VECRELOC);
 	}
+#endif
 }
 
 static void
@@ -1398,9 +1399,6 @@ set_stackptrs(int cpu)
 #endif
 
 #ifdef EFI
-#define efi_next_descriptor(ptr, size) \
-	((struct efi_md *)(((uint8_t *) ptr) + size))
-
 static void
 add_efi_map_entries(struct efi_map_header *efihdr, struct mem_region *mr,
     int *mrcnt)

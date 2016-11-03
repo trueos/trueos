@@ -3976,7 +3976,7 @@ pci_rescan_method(device_t dev)
 		if (hdrtype & PCIM_MFDEV)
 			pcifunchigh = PCIB_MAXFUNCS(pcib);
 		for (f = 0; f <= pcifunchigh; f++) {
-			if (REG(PCIR_VENDOR, 2) == 0xfff)
+			if (REG(PCIR_VENDOR, 2) == 0xffff)
 				continue;
 
 			/*
@@ -4613,6 +4613,9 @@ static const struct
 	{PCIC_CRYPTO,		PCIS_CRYPTO_ENTERTAIN,	1, "entertainment crypto"},
 	{PCIC_DASP,		-1,			0, "dasp"},
 	{PCIC_DASP,		PCIS_DASP_DPIO,		1, "DPIO module"},
+	{PCIC_DASP,		PCIS_DASP_PERFCNTRS,	1, "performance counters"},
+	{PCIC_DASP,		PCIS_DASP_COMM_SYNC,	1, "communication synchronizer"},
+	{PCIC_DASP,		PCIS_DASP_MGMT_CARD,	1, "signal processing management"},
 	{0, 0, 0,		NULL}
 };
 
@@ -5005,6 +5008,7 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	struct resource_list *rl = &dinfo->resources;
 	struct resource *res;
 	struct pci_map *pm;
+	uint16_t cmd;
 	pci_addr_t map, testval;
 	int mapsize;
 
@@ -5094,8 +5098,17 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 		device_printf(child,
 		    "Lazy allocation of %#jx bytes rid %#x type %d at %#jx\n",
 		    count, *rid, type, rman_get_start(res));
+
+	/* Disable decoding via the CMD register before updating the BAR */
+	cmd = pci_read_config(child, PCIR_COMMAND, 2);
+	pci_write_config(child, PCIR_COMMAND,
+	    cmd & ~(PCI_BAR_MEM(map) ? PCIM_CMD_MEMEN : PCIM_CMD_PORTEN), 2);
+
 	map = rman_get_start(res);
 	pci_write_bar(child, pm, map);
+
+	/* Restore the original value of the CMD register */
+	pci_write_config(child, PCIR_COMMAND, cmd, 2);
 out:
 	return (res);
 }

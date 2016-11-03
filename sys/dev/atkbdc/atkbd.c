@@ -50,12 +50,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/atkbdc/atkbdreg.h>
 #include <dev/atkbdc/atkbdcreg.h>
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 #include <dev/evdev/evdev.h>
 #include <dev/evdev/input.h>
 #endif
-
-static timeout_t	atkbd_timeout;
 
 typedef struct atkbd_state {
 	KBDC		kbdc;		/* keyboard controller */
@@ -68,9 +66,8 @@ typedef struct atkbd_state {
 	u_int		ks_composed_char; /* composed char code (> 0) */
 	u_char		ks_prefix;	/* AT scan code prefix */
 	struct callout	ks_timer;
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	struct evdev_dev *ks_evdev;
-	int		ks_evdev_opened;
 	int		ks_evdev_state;
 #endif
 } atkbd_state_t;
@@ -79,24 +76,22 @@ static void		atkbd_timeout(void *arg);
 static void		atkbd_shutdown_final(void *v);
 static int		atkbd_reset(KBDC kbdc, int flags, int c);
 
-struct atkbd_args
-{
-	int unit;
-	int irq;
-	device_t dev;
-};
-
 #define HAS_QUIRK(p, q)		(((atkbdc_softc_t *)(p))->quirks & q)
 #define ALLOW_DISABLE_KBD(kbdc)	!HAS_QUIRK(kbdc, KBDC_QUIRK_KEEP_ACTIVATED)
 
 #define DEFAULT_DELAY		0x1  /* 500ms */
 #define DEFAULT_RATE		0x10 /* 14Hz */
 
+#ifdef EVDEV_SUPPORT
+#define PS2_KEYBOARD_VENDOR	1
+#define PS2_KEYBOARD_PRODUCT	1
+#endif
+
 int
 atkbd_probe_unit(device_t dev, int irq, int flags)
 {
 	keyboard_switch_t *sw;
-	int args[3];
+	int args[2];
 	int error;
 
 	sw = kbd_get_switch(ATKBD_DRIVER_NAME);
@@ -105,7 +100,6 @@ atkbd_probe_unit(device_t dev, int irq, int flags)
 
 	args[0] = device_get_unit(device_get_parent(dev));
 	args[1] = irq;
-	args[2] = (int)dev;
 	error = (*sw->probe)(device_get_unit(dev), args, flags);
 	if (error)
 		return error;
@@ -116,8 +110,8 @@ int
 atkbd_attach_unit(device_t dev, keyboard_t **kbd, int irq, int flags)
 {
 	keyboard_switch_t *sw;
-	struct atkbd_args args;
 	atkbd_state_t *state;
+	int args[2];
 	int error;
 	int unit;
 
@@ -127,14 +121,13 @@ atkbd_attach_unit(device_t dev, keyboard_t **kbd, int irq, int flags)
 
 	/* reset, initialize and enable the device */
 	unit = device_get_unit(dev);
-	args.unit = device_get_unit(device_get_parent(dev));
-	args.irq = irq;
-	args.dev = dev;
+	args[0] = device_get_unit(device_get_parent(dev));
+	args[1] = irq;
 	*kbd = NULL;
-	error = (*sw->probe)(unit, &args, flags);
+	error = (*sw->probe)(unit, args, flags);
 	if (error)
 		return error;
-	error = (*sw->init)(unit, kbd, &args, flags);
+	error = (*sw->init)(unit, kbd, args, flags);
 	if (error)
 		return error;
 	(*sw->enable)(*kbd);
@@ -272,13 +265,8 @@ static int		typematic(int delay, int rate);
 static int		typematic_delay(int delay);
 static int		typematic_rate(int rate);
 
-#ifdef EVDEV
-static int		atkbd_ev_open(struct evdev_dev *, void *);
-static void		atkbd_ev_close(struct evdev_dev *, void *);
-
-struct evdev_methods atkbd_evdev_methods = {
-	.ev_open = atkbd_ev_open,
-	.ev_close = atkbd_ev_close,
+#ifdef EVDEV_SUPPORT
+static const struct evdev_methods atkbd_evdev_methods = {
 	.ev_event = evdev_ev_kbd_event,
 };
 #endif
@@ -312,7 +300,7 @@ static int
 atkbd_configure(int flags)
 {
 	keyboard_t *kbd;
-	struct atkbd_args args;
+	int arg[2];
 	int i;
 
 	/*
@@ -335,13 +323,12 @@ atkbd_configure(int flags)
 		flags |= i;
 
 	/* probe the default keyboard */
-	args.unit = -1;
-	args.irq = -1;
-	args.dev = NULL;
+	arg[0] = -1;
+	arg[1] = -1;
 	kbd = NULL;
-	if (atkbd_probe(ATKBD_DEFAULT, &args, flags))
+	if (atkbd_probe(ATKBD_DEFAULT, arg, flags))
 		return 0;
-	if (atkbd_init(ATKBD_DEFAULT, &kbd, &args, flags))
+	if (atkbd_init(ATKBD_DEFAULT, &kbd, arg, flags))
 		return 0;
 
 	/* return the number of found keyboards */
@@ -355,7 +342,7 @@ static int
 atkbd_probe(int unit, void *arg, int flags)
 {
 	KBDC kbdc;
-	struct atkbd_args *data = (struct atkbd_args *)arg;
+	int *data = (int *)arg;	/* data[0]: controller, data[1]: irq */
 
 	/* XXX */
 	if (unit == ATKBD_DEFAULT) {
@@ -363,7 +350,7 @@ atkbd_probe(int unit, void *arg, int flags)
 			return 0;
 	}
 
-	kbdc = atkbdc_open(data->unit);
+	kbdc = atkbdc_open(data[0]);
 	if (kbdc == NULL)
 		return ENXIO;
 	if (probe_keyboard(kbdc, flags)) {
@@ -382,13 +369,13 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	keymap_t *keymap;
 	accentmap_t *accmap;
 	fkeytab_t *fkeymap;
-	struct atkbd_args *data = (struct atkbd_args *)arg;
 	int fkeymap_size;
 	int delay[2];
+	int *data = (int *)arg;	/* data[0]: controller, data[1]: irq */
 	int error, needfree;
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	struct evdev_dev *evdev;
-	device_t dev = data->dev;
+	char phys_loc[8];
 #endif
 
 	/* XXX */
@@ -430,7 +417,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	}
 
 	if (!KBD_IS_PROBED(kbd)) {
-		state->kbdc = atkbdc_open(data->unit);
+		state->kbdc = atkbdc_open(data[0]);
 		if (state->kbdc == NULL) {
 			error = ENXIO;
 			goto bad;
@@ -475,12 +462,15 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		delay[1] = kbd->kb_delay2;
 		atkbd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 		/* register as evdev provider on first init */
-		if (dev != NULL && state->ks_evdev == NULL) {
+		if (state->ks_evdev == NULL) {
+			snprintf(phys_loc, sizeof(phys_loc), "atkbd%d", unit);
 			evdev = evdev_alloc();
-			evdev_set_name(evdev, device_get_desc(dev));
-			evdev_set_serial(evdev, "0");
+			evdev_set_name(evdev, "AT keyboard");
+			evdev_set_phys(evdev, phys_loc);
+			evdev_set_id(evdev, BUS_I8042, PS2_KEYBOARD_VENDOR,
+			    PS2_KEYBOARD_PRODUCT, 0);
 			evdev_set_methods(evdev, kbd, &atkbd_evdev_methods);
 			evdev_support_event(evdev, EV_SYN);
 			evdev_support_event(evdev, EV_KEY);
@@ -491,8 +481,10 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 			evdev_support_led(evdev, LED_CAPSL);
 			evdev_support_led(evdev, LED_SCROLLL);
 
-			evdev_register(dev, evdev);
-			state->ks_evdev = evdev;
+			if (evdev_register(evdev))
+				evdev_free(evdev);
+			else
+				state->ks_evdev = evdev;
 			state->ks_evdev_state = 0;
 		}
 #endif
@@ -504,7 +496,6 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 			error = ENXIO;
 			goto bad;
 		}
-
 		KBD_CONFIG_DONE(kbd);
 	}
 
@@ -682,15 +673,15 @@ next_code:
 	printf("atkbd_read_char(): scancode:0x%x\n", scancode);
 #endif
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	/* push evdev event */
-	if (state->ks_evdev != NULL && state->ks_evdev_opened) {
-		uint16_t key = evdev_scancode2key(&state->ks_evdev_state,
+	if (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD && state->ks_evdev != NULL) {
+		keycode = evdev_scancode2key(&state->ks_evdev_state,
 		    scancode);
 
-		if (key != KEY_RESERVED) {
+		if (keycode != KEY_RESERVED) {
 			evdev_push_event(state->ks_evdev, EV_KEY,
-			    key, scancode & 0x80 ? 0 : 1);
+			    (uint16_t)keycode, scancode & 0x80 ? 0 : 1);
 			evdev_sync(state->ks_evdev);
 		}
 	}
@@ -845,7 +836,7 @@ next_code:
 			break;
 		}
 	}
-	
+
 	/* return the key code in the K_CODE mode */
 	if (state->ks_mode == K_CODE)
 		return (keycode | (scancode & 0x80));
@@ -1006,12 +997,11 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 				return error;
 			}
 		}
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 		/* push LED states to evdev */
-		if (state->ks_evdev != NULL && state->ks_evdev_opened) {
+		if (state->ks_evdev != NULL &&
+		    evdev_rcpt_mask & EVDEV_RCPT_HW_KBD)
 			evdev_push_leds(state->ks_evdev, *(int *)arg);
-			evdev_sync(state->ks_evdev);
-		}
 #endif
 		KBD_LED_VAL(kbd) = *(int *)arg;
 		break;
@@ -1046,12 +1036,10 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		if (error == 0) {
 			kbd->kb_delay1 = typematic_delay(i);
 			kbd->kb_delay2 = typematic_rate(i);
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 			if (state->ks_evdev != NULL &&
-			     state->ks_evdev_opened) {
+			    evdev_rcpt_mask & EVDEV_RCPT_HW_KBD)
 				evdev_push_repeats(state->ks_evdev, kbd);
-				evdev_sync(state->ks_evdev);
-			}
 #endif
 		}
 		return error;
@@ -1071,12 +1059,10 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		if (error == 0) {
 			kbd->kb_delay1 = typematic_delay(*(int *)arg);
 			kbd->kb_delay2 = typematic_rate(*(int *)arg);
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 			if (state->ks_evdev != NULL &&
-			     state->ks_evdev_opened) {
+			    evdev_rcpt_mask & EVDEV_RCPT_HW_KBD)
 				evdev_push_repeats(state->ks_evdev, kbd);
-				evdev_sync(state->ks_evdev);
-			}
 #endif
 		}
 		return error;
@@ -1095,27 +1081,6 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	splx(s);
 	return 0;
 }
-
-#ifdef EVDEV
-static int
-atkbd_ev_open(struct evdev_dev *evdev, void *softc)
-{
-	keyboard_t *kbd = (keyboard_t *)softc;
-	struct atkbd_state *state = kbd->kb_data;
-
-	state->ks_evdev_opened = true;
-	return (0);
-}
-
-static void
-atkbd_ev_close(struct evdev_dev *evdev, void *softc)
-{
-	keyboard_t *kbd = (keyboard_t *)softc;
-	struct atkbd_state *state = kbd->kb_data;
-
-	state->ks_evdev_opened = false;
-}
-#endif /* EVDEV */
 
 /* lock the access to the keyboard */
 static int
