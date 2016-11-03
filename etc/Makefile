@@ -23,6 +23,7 @@ OPENRC_BOOT_LINK=	adjkerntz \
 			localmount \
 			loopback \
 			modules \
+			motd \
 			network \
 			newsyslog \
 			root \
