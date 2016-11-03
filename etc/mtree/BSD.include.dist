@@ -110,6 +110,8 @@
         ..
         ciss
         ..
+        evdev
+        ..
         filemon
         ..
         firewire
@@ -334,6 +336,8 @@
     ssp
     ..
     sys
+        disk
+        ..
     ..
     teken
     ..

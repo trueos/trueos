@@ -1949,15 +1949,17 @@ device_delete_child(device_t dev, device_t child)
 
 	PDEBUG(("%s from %s", DEVICENAME(child), DEVICENAME(dev)));
 
-	/* remove children first */
+	/* detach parent before deleting children, if any */
+	if ((error = device_detach(child)) != 0)
+		return (error);
+	
+	/* remove children second */
 	while ((grandchild = TAILQ_FIRST(&child->children)) != NULL) {
 		error = device_delete_child(child, grandchild);
 		if (error)
 			return (error);
 	}
 
-	if ((error = device_detach(child)) != 0)
-		return (error);
 	if (child->devclass)
 		devclass_delete_device(child->devclass, child);
 	if (child->parent)
@@ -2144,6 +2146,12 @@ device_probe_child(device_t dev, device_t child)
 				pri = 0;
 				break;
 			}
+
+			/*
+			 * Reset DF_QUIET in case this driver doesn't
+			 * end up as the best driver.
+			 */
+			device_verbose(child);
 
 			/*
 			 * Probes that return BUS_PROBE_NOWILDCARD or lower
@@ -2970,6 +2978,7 @@ device_detach(device_t dev)
 	if (!(dev->flags & DF_FIXEDCLASS))
 		devclass_delete_device(dev->devclass, dev);
 
+	device_verbose(dev);
 	dev->state = DS_NOTPRESENT;
 	(void)device_set_driver(dev, NULL);
 	device_sysctl_fini(dev);

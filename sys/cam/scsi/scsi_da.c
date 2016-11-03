@@ -1492,8 +1492,7 @@ daclose(struct disk *dp)
 			error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
 			    /*sense_flags*/SF_RETRY_UA | SF_QUIET_IR,
 			    softc->disk->d_devstat);
-			if (error == 0)
-				softc->flags &= ~DA_FLAG_DIRTY;
+			softc->flags &= ~DA_FLAG_DIRTY;
 			xpt_release_ccb(ccb);
 		}
 
@@ -2950,6 +2949,8 @@ more:
 			void *data_ptr;
 			int rw_op;
 
+			biotrack(bp, __func__);
+
 			if (bp->bio_cmd == BIO_WRITE) {
 				softc->flags |= DA_FLAG_DIRTY;
 				rw_op = SCSI_RW_WRITE;
@@ -2977,6 +2978,9 @@ more:
 					/*dxfer_len*/ bp->bio_bcount,
 					/*sense_len*/SSD_FULL_SIZE,
 					da_default_timeout * 1000);
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+			start_ccb->csio.bio = bp;
+#endif
 			break;
 		}
 		case BIO_FLUSH:
@@ -4009,6 +4013,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("dadone\n"));
 
 	csio = &done_ccb->csio;
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	if (csio->bio != NULL)
+		biotrack(csio->bio, __func__);
+#endif
 	state = csio->ccb_h.ccb_state & DA_CCB_TYPE_MASK;
 	switch (state) {
 	case DA_CCB_BUFFER_IO:
@@ -4107,6 +4115,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 
+		biotrack(bp, __func__);
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		if (LIST_EMPTY(&softc->pending_ccbs))
 			softc->flags |= DA_FLAG_WAS_OTAG;
@@ -5219,6 +5228,11 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	struct da_softc	  *softc;
 	struct cam_periph *periph;
 	int error, error_code, sense_key, asc, ascq;
+
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	if (ccb->csio.bio != NULL)
+		biotrack(ccb->csio.bio, __func__);
+#endif
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct da_softc *)periph->softc;

@@ -597,7 +597,8 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			if (last != NULL) {
 				struct mbuf *n;
 
-				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
+				if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) !=
+				    NULL) {
 					UDP_PROBE(receive, NULL, last, ip,
 					    last, uh);
 					if (udp_append(last, ip, n, iphlen,
@@ -1566,12 +1567,18 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 
 release:
 	if (unlock_udbinfo == UH_WLOCKED) {
+		KASSERT(unlock_inp == UH_WLOCKED,
+		    ("%s: excl udbinfo lock, shared inp lock", __func__));
 		INP_HASH_WUNLOCK(pcbinfo);
 		INP_WUNLOCK(inp);
 	} else if (unlock_udbinfo == UH_RLOCKED) {
+		KASSERT(unlock_inp == UH_RLOCKED,
+		    ("%s: shared udbinfo lock, excl inp lock", __func__));
 		INP_HASH_RUNLOCK(pcbinfo);
 		INP_RUNLOCK(inp);
-	} else
+	} else if (unlock_inp == UH_WLOCKED)
+		INP_WUNLOCK(inp);
+	else
 		INP_RUNLOCK(inp);
 	m_freem(m);
 	return (error);

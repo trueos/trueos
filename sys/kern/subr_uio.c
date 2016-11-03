@@ -20,7 +20,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -532,7 +532,7 @@ fueword32(volatile const void *base, int32_t *val)
 int
 fueword64(volatile const void *base, int64_t *val)
 {
-	int32_t res;
+	int64_t res;
 
 	res = fuword64(base);
 	if (res == -1)

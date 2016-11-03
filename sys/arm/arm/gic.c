@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/fdt/fdt_intr.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/arm/gic.h>
@@ -821,18 +822,40 @@ gic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, u_int *irqp,
 		}
 
 		tripol = cells[2] & 0xff;
-		if (tripol & 0xf0 || (tripol & 0x0a && cells[0] == 0))
+		if (tripol & 0xf0 || (tripol & FDT_INTR_LOW_MASK &&
+		    cells[0] == 0))
 			device_printf(dev, "unsupported trigger/polarity "
 			    "configuration 0x%02x\n", tripol);
 
 		*irqp = irq;
 		*polp = INTR_POLARITY_CONFORM;
-		*trigp = tripol & 0x03 ? INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL;
+		*trigp = tripol & FDT_INTR_EDGE_MASK ?
+		    INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL;
 		return (0);
 	}
 	return (EINVAL);
 }
 #endif
+
+static int
+gic_map_msi(device_t dev, struct intr_map_data_msi *msi_data, u_int *irqp,
+    enum intr_polarity *polp, enum intr_trigger *trigp)
+{
+	struct gic_irqsrc *gi;
+
+	/* Map a non-GICv2m MSI */
+	gi = (struct gic_irqsrc *)msi_data->isrc;
+	if (gi == NULL)
+		return (ENXIO);
+
+	*irqp = gi->gi_irq;
+
+	/* MSI/MSI-X interrupts are always edge triggered with high polarity */
+	*polp = INTR_POLARITY_HIGH;
+	*trigp = INTR_TRIGGER_EDGE;
+
+	return (0);
+}
 
 static int
 gic_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
@@ -842,6 +865,7 @@ gic_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 	enum intr_polarity pol;
 	enum intr_trigger trig;
 	struct arm_gic_softc *sc;
+	struct intr_map_data_msi *dam;
 #ifdef FDT
 	struct intr_map_data_fdt *daf;
 #endif
@@ -860,6 +884,12 @@ gic_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 		    __func__));
 		break;
 #endif
+	case INTR_MAP_DATA_MSI:
+		/* Non-GICv2m MSI */
+		dam = (struct intr_map_data_msi *)data;
+		if (gic_map_msi(dev, dam, &irq, &pol, &trig) != 0)
+			return (EINVAL);
+		break;
 	default:
 		return (ENOTSUP);
 	}
@@ -907,6 +937,7 @@ arm_gic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	enum intr_polarity pol;
 
 	if ((gi->gi_flags & GI_FLAG_MSI) == GI_FLAG_MSI) {
+		/* GICv2m MSI */
 		pol = gi->gi_pol;
 		trig = gi->gi_trig;
 		KASSERT(pol == INTR_POLARITY_HIGH,
@@ -1446,15 +1477,15 @@ arm_gicv2m_release_msi(device_t dev, device_t child, int count,
 
 	mtx_lock(&sc->sc_mutex);
 	for (i = 0; i < count; i++) {
-		gi = (struct gic_irqsrc *)isrc;
+		gi = (struct gic_irqsrc *)isrc[i];
 
 		KASSERT((gi->gi_flags & GI_FLAG_MSI_USED) == GI_FLAG_MSI_USED,
 		    ("%s: Trying to release an unused MSI-X interrupt",
 		    __func__));
 
 		gi->gi_flags &= ~GI_FLAG_MSI_USED;
-		mtx_unlock(&sc->sc_mutex);
 	}
+	mtx_unlock(&sc->sc_mutex);
 
 	return (0);
 }

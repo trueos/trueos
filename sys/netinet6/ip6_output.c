@@ -259,7 +259,7 @@ ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
 			ip6f->ip6f_offlg |= IP6F_MORE_FRAG;
 		mhip6->ip6_plen = htons((u_short)(mtu + hlen +
 		    sizeof(*ip6f) - sizeof(struct ip6_hdr)));
-		if ((m_frgpart = m_copy(m0, off, mtu)) == NULL) {
+		if ((m_frgpart = m_copym(m0, off, mtu, M_NOWAIT)) == NULL) {
 			IP6STAT_INC(ip6s_odropped);
 			return (ENOBUFS);
 		}
@@ -1064,12 +1064,7 @@ sendorfree:
 		IP6STAT_INC(ip6s_fragmented);
 
 done:
-	/*
-	 * Release the route if using our private route, or if
-	 * (with flowtable) we don't have our own reference.
-	 */
-	if (ro == &ip6route ||
-	    (ro != NULL && ro->ro_flags & RT_NORTREF))
+	if (ro == &ip6route)
 		RO_RTFREE(ro);
 	return (error);
 
@@ -1398,6 +1393,15 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 	int retval;
 #endif
 
+/*
+ * Don't use more than a quarter of mbuf clusters.  N.B.:
+ * nmbclusters is an int, but nmbclusters * MCLBYTES may overflow
+ * on LP64 architectures, so cast to u_long to avoid undefined
+ * behavior.  ILP32 architectures cannot have nmbclusters
+ * large enough to overflow for other reasons.
+ */
+#define IPV6_PKTOPTIONS_MBUF_LIMIT	((u_long)nmbclusters * MCLBYTES / 4)
+
 	level = sopt->sopt_level;
 	op = sopt->sopt_dir;
 	optname = sopt->sopt_name;
@@ -1452,6 +1456,12 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 #endif
 			{
 				struct mbuf *m;
+
+				if (optlen > IPV6_PKTOPTIONS_MBUF_LIMIT) {
+					printf("ip6_ctloutput: mbuf limit hit\n");
+					error = ENOBUFS;
+					break;
+				}
 
 				error = soopt_getm(sopt, &m); /* XXX */
 				if (error != 0)
@@ -3003,7 +3013,7 @@ ip6_mloopback(struct ifnet *ifp, struct mbuf *m)
 	struct mbuf *copym;
 	struct ip6_hdr *ip6;
 
-	copym = m_copy(m, 0, M_COPYALL);
+	copym = m_copym(m, 0, M_COPYALL, M_NOWAIT);
 	if (copym == NULL)
 		return;
 

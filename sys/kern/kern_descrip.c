@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -1761,8 +1761,8 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 	    priv_check(td, PRIV_MAXFILES) != 0) ||
 	    openfiles >= maxfiles) {
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
-			printf("kern.maxfiles limit exceeded by uid %i, "
-			    "please see tuning(7).\n", td->td_ucred->cr_ruid);
+			printf("kern.maxfiles limit exceeded by uid %i, (%s) "
+			    "please see tuning(7).\n", td->td_ucred->cr_ruid, td->td_proc->p_comm);
 		}
 		return (ENFILE);
 	}
@@ -2446,6 +2446,82 @@ finit(struct file *fp, u_int flag, short type, void *data, struct fileops *ops)
 }
 
 int
+fget_cap_locked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+    struct file **fpp, struct filecaps *havecapsp)
+{
+	struct filedescent *fde;
+	int error;
+
+	FILEDESC_LOCK_ASSERT(fdp);
+
+	fde = fdeget_locked(fdp, fd);
+	if (fde == NULL) {
+		error = EBADF;
+		goto out;
+	}
+
+#ifdef CAPABILITIES
+	error = cap_check(cap_rights_fde(fde), needrightsp);
+	if (error != 0)
+		goto out;
+#endif
+
+	if (havecapsp != NULL)
+		filecaps_copy(&fde->fde_caps, havecapsp, true);
+
+	*fpp = fde->fde_file;
+
+	error = 0;
+out:
+	return (error);
+}
+
+int
+fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
+    struct file **fpp, struct filecaps *havecapsp)
+{
+	struct filedesc *fdp = td->td_proc->p_fd;
+	int error;
+#ifndef CAPABILITIES
+	error = fget_unlocked(fdp, fd, needrightsp, fpp, NULL);
+	if (error == 0 && havecapsp != NULL)
+		filecaps_fill(havecapsp);
+#else
+	struct file *fp;
+	seq_t seq;
+
+	for (;;) {
+		error = fget_unlocked(fdp, fd, needrightsp, &fp, &seq);
+		if (error != 0)
+			return (error);
+
+		if (havecapsp != NULL) {
+			if (!filecaps_copy(&fdp->fd_ofiles[fd].fde_caps,
+			    havecapsp, false)) {
+				fdrop(fp, td);
+				goto get_locked;
+			}
+		}
+
+		if (!fd_modified(fdp, fd, seq))
+			break;
+		fdrop(fp, td);
+	}
+
+	*fpp = fp;
+	return (0);
+
+get_locked:
+	FILEDESC_SLOCK(fdp);
+	error = fget_cap_locked(fdp, fd, needrightsp, fpp, havecapsp);
+	if (error == 0)
+		fhold(*fpp);
+	FILEDESC_SUNLOCK(fdp);
+#endif
+	return (error);
+}
+
+int
 fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
     struct file **fpp, seq_t *seqp)
 {
@@ -2710,30 +2786,31 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
     struct filecaps *havecaps, struct vnode **vpp)
 {
 	struct filedesc *fdp;
+	struct filecaps caps;
 	struct file *fp;
-#ifdef CAPABILITIES
 	int error;
-#endif
 
 	fdp = td->td_proc->p_fd;
-	fp = fget_locked(fdp, fd);
-	if (fp == NULL || fp->f_ops == &badfileops)
-		return (EBADF);
-
-#ifdef CAPABILITIES
-	error = cap_check(cap_rights(fdp, fd), needrightsp);
+	error = fget_cap_locked(fdp, fd, needrightsp, &fp, &caps);
 	if (error != 0)
 		return (error);
-#endif
+	if (fp->f_ops == &badfileops) {
+		error = EBADF;
+		goto out;
+	}
+	if (fp->f_vnode == NULL) {
+		error = EINVAL;
+		goto out;
+	}
 
-	if (fp->f_vnode == NULL)
-		return (EINVAL);
-
+	*havecaps = caps;
 	*vpp = fp->f_vnode;
 	vref(*vpp);
-	filecaps_copy(&fdp->fd_ofiles[fd].fde_caps, havecaps, true);
 
 	return (0);
+out:
+	filecaps_free(&caps);
+	return (error);
 }
 
 int

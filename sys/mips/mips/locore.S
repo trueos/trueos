@@ -118,7 +118,7 @@ VECTOR(_locore, unknown)
 	 */
 	li	t1, MIPS_SR_COP_1_BIT
 #ifdef __mips_n64
-	or	t1, MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX
+	or	t1, MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_FR
 #endif
 #endif
 	/*
@@ -161,7 +161,7 @@ VECTOR(_locore, unknown)
 #if defined(CPU_MALTA) && defined(SMP)
 	.set push
 	.set mips32r2
-	jal	enable_mvp
+	jal	malta_cpu_configure
 	nop
 	jal	platform_processor_id
 	nop

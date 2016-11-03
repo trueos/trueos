@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -2578,21 +2579,25 @@ xpt_action_default(union ccb *start_ccb)
 
 		abort_ccb = start_ccb->cab.abort_ccb;
 		if (XPT_FC_IS_DEV_QUEUED(abort_ccb)) {
+			struct cam_ed *device;
+			struct cam_devq *devq;
 
-			if (abort_ccb->ccb_h.pinfo.index >= 0) {
-				struct cam_ccbq *ccbq;
-				struct cam_ed *device;
+			device = abort_ccb->ccb_h.path->device;
+			devq = device->sim->devq;
 
-				device = abort_ccb->ccb_h.path->device;
-				ccbq = &device->ccbq;
-				cam_ccbq_remove_ccb(ccbq, abort_ccb);
+			mtx_lock(&devq->send_mtx);
+			if (abort_ccb->ccb_h.pinfo.index > 0) {
+				cam_ccbq_remove_ccb(&device->ccbq, abort_ccb);
 				abort_ccb->ccb_h.status =
 				    CAM_REQ_ABORTED|CAM_DEV_QFRZN;
-				xpt_freeze_devq(abort_ccb->ccb_h.path, 1);
+				xpt_freeze_devq_device(device, 1);
+				mtx_unlock(&devq->send_mtx);
 				xpt_done(abort_ccb);
 				start_ccb->ccb_h.status = CAM_REQ_CMP;
 				break;
 			}
+			mtx_unlock(&devq->send_mtx);
+
 			if (abort_ccb->ccb_h.pinfo.index == CAM_UNQUEUED_INDEX
 			 && (abort_ccb->ccb_h.status & CAM_SIM_QUEUED) == 0) {
 				/*
@@ -4467,6 +4472,12 @@ xpt_done(union ccb *done_ccb)
 	struct cam_doneq *queue;
 	int	run, hash;
 
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	if (done_ccb->ccb_h.func_code == XPT_SCSI_IO &&
+	    done_ccb->csio.bio != NULL)
+		biotrack(done_ccb->csio.bio, __func__);
+#endif
+
 	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE,
 	    ("xpt_done: func= %#x %s status %#x\n",
 		done_ccb->ccb_h.func_code,
@@ -5184,6 +5195,16 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 	struct cam_sim *sim;
 	struct cam_devq *devq;
 	struct mtx *mtx = NULL;
+
+#if defined(BUF_TRACKING) || defined(FULL_BUF_TRACKING)
+	struct ccb_scsiio *csio;
+
+	if (ccb_h->func_code == XPT_SCSI_IO) {
+		csio = &((union ccb *)ccb_h)->csio;
+		if (csio->bio != NULL)
+			biotrack(csio->bio, __func__);
+	}
+#endif
 
 	if (ccb_h->flags & CAM_HIGH_POWER) {
 		struct highpowerlist	*hphead;

@@ -1103,10 +1103,8 @@ usb_detach_device_sub(struct usb_device *udev, device_t *ppdev,
 					device_printf(dev, "Resume failed\n");
 				}
 			}
-			if (device_detach(dev)) {
-				goto error;
-			}
 		}
+		/* detach and delete child */
 		if (device_delete_child(udev->parent_dev, dev)) {
 			goto error;
 		}
@@ -1511,13 +1509,13 @@ usbd_clear_stall_proc(struct usb_proc_msg *_pm)
 
 	/* Change lock */
 	USB_BUS_UNLOCK(udev->bus);
-	mtx_lock(&udev->device_mtx);
+	USB_MTX_LOCK(&udev->device_mtx);
 
 	/* Start clear stall callback */
 	usbd_transfer_start(udev->ctrl_xfer[1]);
 
 	/* Change lock */
-	mtx_unlock(&udev->device_mtx);
+	USB_MTX_UNLOCK(&udev->device_mtx);
 	USB_BUS_LOCK(udev->bus);
 }
 
@@ -1940,8 +1938,8 @@ config_done:
 	udev->ugen_symlink = usb_alloc_symlink(udev->ugen_name);
 
 	/* Announce device */
-	printf("%s: <%s> at %s\n", udev->ugen_name,
-	    usb_get_manufacturer(udev),
+	printf("%s: <%s %s> at %s\n", udev->ugen_name,
+	    usb_get_manufacturer(udev), usb_get_product(udev),
 	    device_get_nameunit(udev->bus->bdev));
 #endif
 
@@ -2150,8 +2148,9 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 
 #if USB_HAVE_UGEN
 	if (!rebooting) {
-		printf("%s: <%s> at %s (disconnected)\n", udev->ugen_name,
-		    usb_get_manufacturer(udev), device_get_nameunit(bus->bdev));
+		printf("%s: <%s %s> at %s (disconnected)\n", udev->ugen_name,
+		    usb_get_manufacturer(udev), usb_get_product(udev),
+		    device_get_nameunit(bus->bdev));
 	}
 
 	/* Destroy UGEN symlink, if any */

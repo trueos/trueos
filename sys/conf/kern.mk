@@ -114,6 +114,7 @@ INLINE_LIMIT?=	8000
 CFLAGS += -mgeneral-regs-only
 # Reserve x18 for pcpu data
 CFLAGS += -ffixed-x18
+INLINE_LIMIT?=	8000
 .endif
 
 .if ${MACHINE_CPUARCH} == "riscv"
@@ -166,6 +167,10 @@ CFLAGS.gcc+=	-msoft-float
 INLINE_LIMIT?=	15000
 .endif
 
+.if ${MACHINE_ARCH} == "powerpcspe"
+CFLAGS+=	-mno-spe
+.endif
+
 #
 # Use dot symbols on powerpc64 to make ddb happy
 #
@@ -179,6 +184,9 @@ CFLAGS.gcc+=	-mcall-aixdesc
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-msoft-float
 INLINE_LIMIT?=	8000
+.if ${TARGET_ARCH:Mmips*hf} != ""
+CFLAGS+= -DCPU_HAVEFPU
+.endif
 .endif
 
 #
@@ -244,3 +252,24 @@ CFLAGS+=        -std=iso9899:1999
 .else # CSTD
 CFLAGS+=        -std=${CSTD}
 .endif # CSTD
+
+# Set target-specific linker emulation name. Used by ld -b binary to convert
+# binary files into ELF objects.
+LD_EMULATION_aarch64=aarch64elf
+LD_EMULATION_amd64=elf_x86_64_fbsd
+LD_EMULATION_arm=armelf_fbsd
+LD_EMULATION_armeb=armelf_fbsd
+LD_EMULATION_armv6=armelf_fbsd
+LD_EMULATION_i386=elf_i386_fbsd
+LD_EMULATION_mips= elf32btsmip_fbsd
+LD_EMULATION_mips64= elf64btsmip_fbsd
+LD_EMULATION_mipsel= elf32ltsmip_fbsd
+LD_EMULATION_mips64el= elf64ltsmip_fbsd
+LD_EMULATION_mipsn32= elf32btsmipn32_fbsd
+LD_EMULATION_mipsn32el= elf32btsmipn32_fbsd   # I don't think this is a thing that works
+LD_EMULATION_powerpc= elf32ppc_fbsd
+LD_EMULATION_powerpcspe= elf32ppc_fbsd
+LD_EMULATION_powerpc64= elf64ppc_fbsd
+LD_EMULATION_riscv= elf64riscv
+LD_EMULATION_sparc64= elf64_sparc_fbsd
+LD_EMULATION=${LD_EMULATION_${MACHINE_ARCH}}

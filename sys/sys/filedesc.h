@@ -190,6 +190,11 @@ int	getvnode(struct thread *td, int fd, cap_rights_t *rightsp,
 	    struct file **fpp);
 void	mountcheckdirs(struct vnode *olddp, struct vnode *newdp);
 
+int	fget_cap_locked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+	    struct file **fpp, struct filecaps *havecapsp);
+int	fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
+	    struct file **fpp, struct filecaps *havecapsp);
+
 /* Return a referenced file from an unlocked descriptor. */
 int	fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	    struct file **fpp, seq_t *seqp);
@@ -224,12 +229,14 @@ fdeget_locked(struct filedesc *fdp, int fd)
 	return (fde);
 }
 
+#ifdef CAPABILITIES
 static __inline bool
 fd_modified(struct filedesc *fdp, int fd, seq_t seq)
 {
 
 	return (!seq_consistent(fd_seq(fdp->fd_files, fd), seq));
 }
+#endif
 
 /* cdir/rdir/jdir manipulation functions. */
 void	pwd_chdir(struct thread *td, struct vnode *vp);
