@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=runtime
+
 SUBDIR= sh
 SUBDIR+= bin
 SUBDIR+= sbin

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+PACKAGE=runtime
+
 .include <src.opts.mk>
 
 BINDIR=		/etc/init.d
