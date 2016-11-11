@@ -17,9 +17,14 @@
 trap : SIGINT
 trap "echo 'Boot interrupted'; exit 1" SIGQUIT
 
-/sbin/openrc sysinit || exit 1
-/sbin/openrc boot || exit 1
-/sbin/openrc default
+/sbin/openrc sysinit >/dev/null 2>/dev/null || exit 1
+/sbin/openrc boot >/dev/null 2>/dev/null || exit 1
+
+echo "Starting TrueOS -- Please wait..."
+
+/sbin/openrc default >/dev/null 2>/dev/null || exit 1
+
+/usr/bin/tput clear
 
 # We don't actually care if rc default worked or not, we should exit 0
 # to allow logins

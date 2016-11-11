@@ -21,4 +21,6 @@ LD_LIBRARY_PATH="/lib${LD_LIBRARY_PATH:+:}${LDLIBRARY_PATH}" ; export LD_LIBRARY
 [ -z "$TERM" -o "$TERM" = "dumb" ] && TERM="cons25" && export TERM
 
 action=${1:-shutdown}
-exec /sbin/openrc "${action}"
+/usr/bin/tput clear
+echo "TrueOS is shutting down..."
+exec /sbin/openrc "${action}" >/dev/null 2>/dev/null
