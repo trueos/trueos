@@ -54,8 +54,12 @@ SUBDIR=adjkerntz \
 	newfs_msdos \
 	nfsiod \
 	nos-tun \
+	openrc \
+	openrc-run \
 	ping \
 	rcorder \
+	rc-service \
+	rc-update \
 	reboot \
 	recoverdisk \
 	resolvconf \
@@ -65,6 +69,8 @@ SUBDIR=adjkerntz \
 	setkey \
 	shutdown \
 	spppcontrol \
+	start-stop-daemon \
+	supervise-daemon \
 	swapon \
 	sysctl \
 	tunefs \
@@ -87,6 +93,7 @@ SUBDIR.${MK_PF}+=	pfctl
 SUBDIR.${MK_PF}+=	pflogd
 SUBDIR.${MK_QUOTAS}+=	quotacheck
 SUBDIR.${MK_ROUTED}+=	routed
+SUBDIR.${MK_ZFS}+=	zfsbootcfg
 
 SUBDIR.${MK_TESTS}+=	tests
 
