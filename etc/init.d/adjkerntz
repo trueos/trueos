@@ -24,11 +24,6 @@ fi
 depend()
 {
 	provide clock
-	# BSD adjkerntz needs to be able to write to /etc
-	if [ "$clock" = "UTC" -a -e /etc/wall_cmos_clock ] ||
-	   [ "$clock" != "UTC" -a ! -e /etc/wall_cmos_clock ]; then
-		need root
-	fi
 	keyword -jail -prefix
 }
 
@@ -36,10 +31,8 @@ start()
 {
 	ebegin "Starting the System Clock Adjuster [${utc}]"
 	if [ "$clock" != "UTC" ]; then
-		echo >/etc/wall_cmos_clock
 		start-stop-daemon --start --exec /sbin/adjkerntz -- -i
 	else
-		rm -f /etc/wall_cmos_clock
 		/sbin/adjkerntz -i
 	fi
 	eend $?
