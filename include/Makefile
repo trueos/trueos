@@ -12,7 +12,7 @@ SUBDIR= arpa protocols rpcsvc rpc xlocale
 SUBDIR_PARALLEL=
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	db.h \
-	dirent.h dlfcn.h elf.h elf-hints.h err.h fmtmsg.h fnmatch.h fstab.h \
+	dirent.h dlfcn.h elf.h elf-hints.h einfo.h err.h fmtmsg.h fnmatch.h fstab.h \
 	fts.h ftw.h getopt.h glob.h grp.h \
 	ieeefp.h ifaddrs.h \
 	inttypes.h iso646.h kenv.h langinfo.h libgen.h limits.h link.h \
@@ -20,7 +20,7 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	ndbm.h netconfig.h \
 	netdb.h nl_types.h nlist.h nss.h nsswitch.h paths.h \
 	printf.h proc_service.h pthread.h \
-	pthread_np.h pwd.h ranlib.h readpassphrase.h regex.h \
+	pthread_np.h pwd.h rc.h ranlib.h readpassphrase.h regex.h \
 	res_update.h resolv.h runetype.h search.h semaphore.h setjmp.h \
 	signal.h spawn.h stab.h stdalign.h stdbool.h stddef.h \
 	stdnoreturn.h stdio.h stdlib.h string.h stringlist.h \
@@ -59,6 +59,7 @@ LSUBDIRS=	cam/ata cam/nvme cam/scsi \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
+	sys/disk \
 	ufs/ffs ufs/ufs
 
 LSUBSUBDIRS=	dev/mpt/mpilib
@@ -236,6 +237,17 @@ copies: .PHONY .META
 	cd ${.CURDIR}/../sys/teken; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
 	    ${DESTDIR}${INCLUDEDIR}/teken
+.if ${MK_CDDL} != "no"
+	cd ${.CURDIR}/../cddl/contrib/opensolaris/lib/libzfs_core/common; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 libzfs_core.h \
+	    ${DESTDIR}${INCLUDEDIR}
+	cd ${.CURDIR}/../cddl/contrib/opensolaris/lib/libnvpair; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 libnvpair.h \
+	    ${DESTDIR}${INCLUDEDIR}
+	cd ${.CURDIR}/../sys/cddl/contrib/opensolaris/uts/common/sys; \
+	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 nvpair.h \
+	    ${DESTDIR}${INCLUDEDIR}/sys
+.endif
 
 symlinks: .PHONY .META
 	@${ECHO} "Setting up symlinks to kernel source tree..."

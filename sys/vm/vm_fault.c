@@ -321,6 +321,8 @@ RetryFault:;
 			growstack = FALSE;
 			goto RetryFault;
 		}
+		if (fs.vp != NULL)
+			vput(fs.vp);
 		return (result);
 	}
 
@@ -722,7 +724,10 @@ vnode_locked:
 			 */
 			if (rv == VM_PAGER_ERROR || rv == VM_PAGER_BAD) {
 				vm_page_lock(fs.m);
-				vm_page_free(fs.m);
+				if (fs.m->wire_count == 0)
+					vm_page_free(fs.m);
+				else
+					vm_page_xunbusy_maybelocked(fs.m);
 				vm_page_unlock(fs.m);
 				fs.m = NULL;
 				unlock_and_deallocate(&fs);
@@ -742,7 +747,10 @@ vnode_locked:
 			 */
 			if (fs.object != fs.first_object) {
 				vm_page_lock(fs.m);
-				vm_page_free(fs.m);
+				if (fs.m->wire_count == 0)
+					vm_page_free(fs.m);
+				else
+					vm_page_xunbusy_maybelocked(fs.m);
 				vm_page_unlock(fs.m);
 				fs.m = NULL;
 			}
