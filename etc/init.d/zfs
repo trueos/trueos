@@ -88,9 +88,9 @@ start() {
 stop()
 {	
 	ebegin "Unsharing ZFS filesystems"
-	$ZFS unshare -a
+	timeout 5 $ZFS unshare -a
 	ebegin "Umounting ZFS filesystem"
-	$ZFS umount -a
+	timeout 5 $ZFS umount -a
 	rv=$?
 	if [ $rv -ne 0 ]; then
 		einfo "Some ZFS filesystems not unmounted"
