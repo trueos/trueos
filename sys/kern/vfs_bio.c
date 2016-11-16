@@ -4655,7 +4655,24 @@ bdata2bio(struct buf *bp, struct bio *bip)
 	}
 }
 
-static int buf_pager_relbuf;
+/*
+ * The MIPS pmap code currently doesn't handle aliased pages.
+ * The VIPT caches may not handle page aliasing themselves, leading
+ * to data corruption.
+ *
+ * As such, this code makes a system extremely unhappy if said
+ * system doesn't support unaliasing the above situation in hardware.
+ * Some "recent" systems (eg some mips24k/mips74k cores) don't enable
+ * this feature at build time, so it has to be handled in software.
+ *
+ * Once the MIPS pmap/cache code grows to support this function on
+ * earlier chips, it should be flipped back off.
+ */
+#ifdef	__mips__
+static int buf_pager_relbuf = 1;
+#else
+static int buf_pager_relbuf = 0;
+#endif
 SYSCTL_INT(_vfs, OID_AUTO, buf_pager_relbuf, CTLFLAG_RWTUN,
     &buf_pager_relbuf, 0,
     "Make buffer pager release buffers after reading");
@@ -4686,13 +4703,15 @@ vfs_bio_getpages(struct vnode *vp, vm_page_t *ma, int count,
 	vm_page_t m;
 	vm_object_t object;
 	struct buf *bp;
+	struct mount *mp;
 	daddr_t lbn, lbnp;
 	vm_ooffset_t la, lb, poff, poffe;
 	long bsize;
-	int bo_bs, error, i;
+	int bo_bs, br_flags, error, i;
 	bool redo, lpart;
 
 	object = vp->v_object;
+	mp = vp->v_mount;
 	la = IDX_TO_OFF(ma[count - 1]->pindex);
 	if (la >= object->un_pager.vnp.vnp_size)
 		return (VM_PAGER_BAD);
@@ -4709,6 +4728,8 @@ vfs_bio_getpages(struct vnode *vp, vm_page_t *ma, int count,
 			    vnp.vnp_size, PAGE_SIZE) - la);
 		}
 	}
+	br_flags = (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS)
+	    != 0) ? GB_UNMAPPED : 0;
 	VM_OBJECT_WLOCK(object);
 again:
 	for (i = 0; i < count; i++)
@@ -4741,8 +4762,8 @@ again:
 			lbnp = lbn;
 
 			bsize = get_blksize(vp, lbn);
-			error = bread_gb(vp, lbn, bsize, NOCRED, GB_UNMAPPED,
-			    &bp);
+			error = bread_gb(vp, lbn, bsize, curthread->td_ucred,
+			    br_flags, &bp);
 			if (error != 0)
 				goto end_pages;
 			if (LIST_EMPTY(&bp->b_dep)) {
