@@ -1177,8 +1177,14 @@ static SDValue emitComparison(SDValue LHS, SDValue RHS, ISD::CondCode CC,
                               SDLoc dl, SelectionDAG &DAG) {
   EVT VT = LHS.getValueType();
 
-  if (VT.isFloatingPoint())
+  if (VT.isFloatingPoint()) {
+    assert(VT != MVT::f128);
+    if (VT == MVT::f16) {
+      LHS = DAG.getNode(ISD::FP_EXTEND, dl, MVT::f32, LHS);
+      RHS = DAG.getNode(ISD::FP_EXTEND, dl, MVT::f32, RHS);
+    }
     return DAG.getNode(AArch64ISD::FCMP, dl, VT, LHS, RHS);
+  }
 
   // The CMP instruction is just an alias for SUBS, and representing it as
   // SUBS means that it's possible to get CSE with subtract operations.
@@ -1261,9 +1267,14 @@ static SDValue emitConditionalComparison(SDValue LHS, SDValue RHS,
                                          SDValue Condition, unsigned NZCV,
                                          SDLoc DL, SelectionDAG &DAG) {
   unsigned Opcode = 0;
-  if (LHS.getValueType().isFloatingPoint())
+  if (LHS.getValueType().isFloatingPoint()) {
+    assert(LHS.getValueType() != MVT::f128);
+    if (LHS.getValueType() == MVT::f16) {
+      LHS = DAG.getNode(ISD::FP_EXTEND, DL, MVT::f32, LHS);
+      RHS = DAG.getNode(ISD::FP_EXTEND, DL, MVT::f32, RHS);
+    }
     Opcode = AArch64ISD::FCCMP;
-  else if (RHS.getOpcode() == ISD::SUB) {
+  } else if (RHS.getOpcode() == ISD::SUB) {
     SDValue SubOp0 = RHS.getOperand(0);
     if (isNullConstant(SubOp0) && (CC == ISD::SETEQ || CC == ISD::SETNE)) {
         // See emitComparison() on why we can only do this for SETEQ and SETNE.
@@ -1290,6 +1301,8 @@ static bool isConjunctionDisjunctionTree(const SDValue Val, bool &CanPushNegate,
     return false;
   unsigned Opcode = Val->getOpcode();
   if (Opcode == ISD::SETCC) {
+    if (Val->getOperand(0).getValueType() == MVT::f128)
+      return false;
     CanPushNegate = true;
     return true;
   }
@@ -7562,12 +7575,14 @@ static SDValue performIntToFpCombine(SDNode *N, SelectionDAG &DAG,
 /// Fold a floating-point multiply by power of two into floating-point to
 /// fixed-point conversion.
 static SDValue performFpToIntCombine(SDNode *N, SelectionDAG &DAG,
+                                     TargetLowering::DAGCombinerInfo &DCI,
                                      const AArch64Subtarget *Subtarget) {
   if (!Subtarget->hasNEON())
     return SDValue();
 
   SDValue Op = N->getOperand(0);
-  if (!Op.getValueType().isVector() || Op.getOpcode() != ISD::FMUL)
+  if (!Op.getValueType().isVector() || !Op.getValueType().isSimple() ||
+      Op.getOpcode() != ISD::FMUL)
     return SDValue();
 
   SDValue ConstVec = Op->getOperand(1);
@@ -7604,9 +7619,15 @@ static SDValue performFpToIntCombine(SDNode *N, SelectionDAG &DAG,
     ResTy = FloatBits == 32 ? MVT::v2i32 : MVT::v2i64;
     break;
   case 4:
-    ResTy = MVT::v4i32;
+    ResTy = FloatBits == 32 ? MVT::v4i32 : MVT::v4i64;
     break;
   }
+
+  if (ResTy == MVT::v4i64 && DCI.isBeforeLegalizeOps())
+    return SDValue();
+
+  assert((ResTy != MVT::v4i64 || DCI.isBeforeLegalizeOps()) &&
+         "Illegal vector type after legalization");
 
   SDLoc DL(N);
   bool IsSigned = N->getOpcode() == ISD::FP_TO_SINT;
@@ -9711,7 +9732,7 @@ SDValue AArch64TargetLowering::PerformDAGCombine(SDNode *N,
     return performIntToFpCombine(N, DAG, Subtarget);
   case ISD::FP_TO_SINT:
   case ISD::FP_TO_UINT:
-    return performFpToIntCombine(N, DAG, Subtarget);
+    return performFpToIntCombine(N, DAG, DCI, Subtarget);
   case ISD::FDIV:
     return performFDivCombine(N, DAG, Subtarget);
   case ISD::OR:
