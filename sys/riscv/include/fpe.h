@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 2015 Oleksandr Tymoshenko
+ * Copyright (c) 2016 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract FA8750-10-C-0237
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,8 +26,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  */
 
-#include "am335x-evm.dts"
+#ifndef	_MACHINE_FPE_H_
+#define	_MACHINE_FPE_H_
+
+void fpe_state_save(struct thread *td);
+
+#endif /* !_MACHINE_FPE_H_ */
