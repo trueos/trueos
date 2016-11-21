@@ -51,6 +51,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20161119:
+	The layout of the pmap structure has changed for powerpc to put the pmap
+	statistics at the front for all CPU variations.  libkvm(3) and all tools
+	that link against it need to be recompiled.
+
 20161030:
 	isl(4) and cyapa(4) drivers now require a new driver,
 	chromebook_platform(4), to work properly on Chromebook-class hardware.
@@ -130,7 +135,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 20160527:
 	CAM will now strip leading spaces from SCSI disks' serial numbers.
-	This will effect users who create UFS filesystems on SCSI disks using
+	This will affect users who create UFS filesystems on SCSI disks using
 	those disk's diskid device nodes.  For example, if /etc/fstab
 	previously contained a line like
 	"/dev/diskid/DISK-%20%20%20%20%20%20%20ABCDEFG0123456", you should
