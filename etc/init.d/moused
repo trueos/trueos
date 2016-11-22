@@ -50,7 +50,7 @@ start()
 
 	local args=
 	eval args=\$moused_args_${moused_device##*/}
-	[ -z "$args" ] && args=$moused_args
+	[ -z "$args" ] && args=$moused_flags
 
 	start-stop-daemon --start --exec /usr/sbin/moused \
 		--pidfile "$pidfile" \

@@ -7,7 +7,7 @@ SHLIBDIR?=	/lib
 SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
 SRCS=		libeinfo.c
-INCS=		../../include/einfo.h helpers.h hidden-visibility.h
+INCS=		../../include/einfo.h
 CFLAGS+=	-D_GNU_SOURCE -I${.CURDIR}/../../include/
 .if defined(HAVE_DEBUG)
 CFLAGS+=	-g
