@@ -42,6 +42,7 @@ SUBDIR=	\
 	${_apm} \
 	${_arcmsr} \
 	${_arcnet} \
+	${_armv8crypto} \
 	${_asmc} \
 	ata \
 	ath \
@@ -61,6 +62,7 @@ SUBDIR=	\
 	bwi \
 	bwn \
 	bwn_pci \
+	${_bytgpio} \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -537,6 +539,7 @@ _cxgb=		cxgb
 .endif
 
 .if ${MACHINE_CPUARCH} == "aarch64"
+_armv8crypto=	armv8crypto
 _em=		em
 _igb=		igb
 .endif
@@ -602,6 +605,7 @@ _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
+_bytgpio=	bytgpio
 _ciss=		ciss
 _chromebook_platform=	chromebook_platform
 _cmx=		cmx

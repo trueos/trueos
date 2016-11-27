@@ -2,6 +2,8 @@
 #
 # $FreeBSD$
 
+#NO_UNIVERSE
+
 ident		X1000
 machine		mips mipsel
 cpu		CPU_XBURST
@@ -87,3 +89,6 @@ device		mmcsd
 #device		ulpt		# Printer
 #device		umass		# Disks/Mass storage - Requires scbus and da
 #device		ums		# Mouse
+
+# FDT support
+options 	FDT
