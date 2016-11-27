@@ -102,7 +102,8 @@ rcu_destroy_object(ck_epoch_entry_t *e)
 
 	record = rcu->epoch_record;
 	rcu->epoch_record = NULL;
-	rcu->func(rcu);
+	if (rcu->func != NULL)
+		rcu->func(rcu);
 	ck_epoch_unregister(record);
 }
 
