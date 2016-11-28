@@ -5,7 +5,7 @@ OPENSOLARIS_SYS_DISTDIR= ${.CURDIR}/../../../sys/cddl/contrib/opensolaris
 
 IGNORE_PRAGMA=	YES
 
-CFLAGS+=	-DNEED_SOLARIS_BOOLEAN
+CFLAGS+=	-DNEED_SOLARIS_BOOLEAN -Wno-varargs
 
 WARNS?=		6
 
