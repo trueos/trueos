@@ -70,7 +70,7 @@ linux_rcu_runtime_init(void *arg __unused)
 	/*
 	 * Populate the epoch with 5*ncpus # of records
 	 */
-	for (i = 0; i < 5*mp_ncpus; i++) {
+	for (i = 0; i < 20*mp_ncpus; i++) {
 		record = malloc(sizeof *record, M_LRCU, M_WAITOK|M_ZERO);
 		ck_epoch_register(&lr_epoch, record);
 		ck_epoch_unregister(record);
@@ -101,7 +101,6 @@ rcu_destroy_object(ck_epoch_entry_t *e)
 	struct rcu_head *rcu = rcu_head_container(e);
 
 	record = rcu->epoch_record;
-	rcu->epoch_record = NULL;
 	if (rcu->func != NULL)
 		rcu->func(rcu);
 	ck_epoch_unregister(record);
