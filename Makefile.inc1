@@ -58,14 +58,14 @@ LOCALBASE?=	/usr/local
 .error "You need to install devel/llvm39 to build or set XCC"
 .endif
 
-XCC= ${LOCALBASE}/bin/clang38
+XCC= ${LOCALBASE}/bin/clang39
 .endif
 .if !defined(XCXX)
 .if !exists(${LOCALBASE}/bin/clang++39)
 .error "You need to install devel/llvm39 to build or set XCXX"
 .endif
 
-XCXX= ${LOCALBASE}/bin/clang++38
+XCXX= ${LOCALBASE}/bin/clang++39
 .endif
 .if !defined(XCPP)
 .if !exists(${LOCALBASE}/bin/clang-cpp39)
