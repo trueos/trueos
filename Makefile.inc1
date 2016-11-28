@@ -54,25 +54,25 @@ SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
 
 .if !defined(XCC)
-.if !exists(${LOCALBASE}/bin/clang38)
-.error "You need to install devel/llvm38 to build or set XCC"
+.if !exists(${LOCALBASE}/bin/clang39)
+.error "You need to install devel/llvm39 to build or set XCC"
 .endif
 
 XCC= ${LOCALBASE}/bin/clang38
 .endif
 .if !defined(XCXX)
-.if !exists(${LOCALBASE}/bin/clang++38)
-.error "You need to install devel/llvm38 to build or set XCXX"
+.if !exists(${LOCALBASE}/bin/clang++39)
+.error "You need to install devel/llvm39 to build or set XCXX"
 .endif
 
 XCXX= ${LOCALBASE}/bin/clang++38
 .endif
 .if !defined(XCPP)
-.if !exists(${LOCALBASE}/bin/clang-cpp38)
-.error "You need to install devel/llvm38 to build or set XCPP"
+.if !exists(${LOCALBASE}/bin/clang-cpp39)
+.error "You need to install devel/llvm39 to build or set XCPP"
 .endif
 
-XCPP= ${LOCALBASE}/bin/clang-cpp38
+XCPP= ${LOCALBASE}/bin/clang-cpp39
 .endif
 
 # Cross toolchain changes must be in effect before bsd.compiler.mk
