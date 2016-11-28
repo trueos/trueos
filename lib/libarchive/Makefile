@@ -15,6 +15,7 @@ SHLIB_MAJOR= 6
 
 CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/config_freebsd.h\"
 CFLAGS+=	-I${.OBJDIR}
+CFLAGS+=	-Wno-varargs
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_OPENSSL
