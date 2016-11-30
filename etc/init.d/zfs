@@ -89,12 +89,6 @@ stop()
 {	
 	ebegin "Unsharing ZFS filesystems"
 	timeout -s SIGKILL -k 6 5 $ZFS unshare -a
-	ebegin "Umounting ZFS filesystem"
-	timeout -s SIGKILL -k 6 5 $ZFS umount -f -a
-	rv=$?
-	if [ $rv -ne 0 ]; then
-		einfo "Some ZFS filesystems not unmounted"
-	fi
 
 	# Don't fail if we couldn't umount everything.  /usr might be in use.
 	eend 0
