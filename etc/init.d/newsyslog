@@ -14,7 +14,7 @@ required_files="/etc/newsyslog.conf"
 depend()
 {
 	need localmount
-	after zfs
+	after root zfs
 	keyword -prefix
 }
 
