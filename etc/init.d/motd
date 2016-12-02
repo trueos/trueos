@@ -22,13 +22,13 @@ start()
 	#	Must be done *before* interactive logins are possible
 	#	to prevent possible race conditions.
 	#
-	check_startmsgs && echo -n 'Updating motd:'
+	ebegin "Updating motd:"
 	if [ ! -f /etc/motd ]; then
 		install -c -o root -g wheel -m ${PERMS} /dev/null /etc/motd
 	fi
 
 	if [ ! -w /etc/motd ]; then
-		echo ' /etc/motd is not writable, update failed.'
+		ewarn "/etc/motd is not writable, update failed."
 		return
 	fi
 
@@ -41,8 +41,7 @@ start()
 		chmod ${PERMS} /etc/motd
 	}
 	rm -f $T
-
-	check_startmsgs && echo '.'
+	eend 0
 }
 
 stop()
