@@ -50,6 +50,10 @@ start()
 		case "${mountpoint}" in
 			/)
 			;;
+			/proc)
+			;;
+			/compat/linux/proc)
+			;;
 			/*)
 				mountinfo -q "${mountpoint}" && \
 					fstabinfo --remount "${mountpoint}"
