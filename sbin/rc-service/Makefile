@@ -12,7 +12,7 @@ CFLAGS+=	-I${.CURDIR}/../../contrib/openrc \
 	       	-I${.CURDIR}/../../include
 
 WARNS?=	3
-MAN=	rc-service.8
+MAN=	rc-service.8 service.8
 
 LIBADD=	einfo rc util
 
