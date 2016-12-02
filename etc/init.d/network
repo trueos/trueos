@@ -15,6 +15,147 @@ description="Configures network interfaces."
 __nl="
 "
 
+IFCONFIG_CMD="/sbin/ifconfig"
+
+# get_if_var if var [default]
+#	Return the value of the pseudo-hash corresponding to $if where
+#	$var is a string containg the sub-string "IF" which will be
+#	replaced with $if after the characters defined in _punct are
+#	replaced with '_'. If the variable is unset, replace it with
+#	$default if given.
+get_if_var()
+{
+	local _if _punct _punct_c _var _default prefix suffix
+
+	if [ $# -ne 2 -a $# -ne 3 ]; then
+		eerror 3 'USAGE: get_if_var name var [default]'
+	fi
+
+	_if=$1
+	_punct=".-/+"
+	ltr ${_if} "${_punct}" '_' _if
+	_var=$2
+	_default=$3
+
+	prefix=${_var%%IF*}
+	suffix=${_var##*IF}
+	eval echo \${${prefix}${_if}${suffix}-${_default}}
+}
+
+# clone_up
+#	Create cloneable interfaces.
+#
+clone_up()
+{
+	local _list ifn ifopt _iflist _n tmpargs
+	_list=
+	_iflist=$*
+
+	# create_args_IF
+	for ifn in ${cloned_interfaces}; do
+		# Parse ifn:ifopt.
+		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
+		case $_iflist in
+		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		*)	continue ;;
+		esac
+		case $ifn in
+		epair[0-9]*)
+			# epair(4) uses epair[0-9] for creation and
+			# epair[0-9][ab] for configuration.
+			#
+			# Skip if ${ifn}a or ${ifn}b already exist.
+			if ${IFCONFIG_CMD} ${ifn}a > /dev/null 2>&1; then
+				continue
+			elif ${IFCONFIG_CMD} ${ifn}b > /dev/null 2>&1; then
+				continue
+			fi
+			${IFCONFIG_CMD} ${ifn} create \
+			    `get_if_var ${ifn} create_args_IF`
+			if [ $? -eq 0 ]; then
+				_list="$_list ${ifn}a ${ifn}b"
+			fi
+		;;
+		*)
+			# Skip if ${ifn} already exists.
+			if ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+				continue
+			fi
+			${IFCONFIG_CMD} ${ifn} create \
+			    `get_if_var ${ifn} create_args_IF`
+			if [ $? -eq 0 ]; then
+				_list="$_list $ifn"
+			fi
+		esac
+	done
+	if [ -n "${_list# }" ]; then
+		einfo "Created clone interfaces: ${_list# }."
+	fi
+}
+
+# clone_down
+#	Destroy cloned interfaces. Destroyed interfaces are echoed to
+#	standard output.
+#
+clone_down()
+{
+	local _list ifn _difn ifopt _iflist _sticky
+	_list=
+	_iflist=$*
+
+	: ${cloned_interfaces_sticky:=NO}
+	if checkyesno cloned_interfaces_sticky; then
+		_sticky=1
+	else
+		_sticky=0
+	fi
+	for ifn in ${cloned_interfaces} ${gif_interfaces}; do
+		# Parse ifn:ifopt.
+		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
+		case $ifopt:$_sticky in
+		sticky:*)	continue ;;	# :sticky => not destroy
+		nosticky:*)	;;		# :nosticky => destroy
+		*:1)		continue ;;	# global sticky knob == 1
+		esac
+		case $_iflist in
+		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
+		*)	continue ;;
+		esac
+		case $ifn in
+		epair[0-9]*)
+			# Note: epair(4) uses epair[0-9] for removal and
+			# epair[0-9][ab] for configuration.
+			#
+			# Skip if both of ${ifn}a and ${ifn}b do not exist.
+			if ${IFCONFIG_CMD} ${ifn}a > /dev/null 2>&1; then
+				_difn=${ifn}a
+			elif ${IFCONFIG_CMD} ${ifn}b > /dev/null 2>&1; then
+				_difn=${ifn}b
+			else
+				continue
+			fi
+			${IFCONFIG_CMD} -n $_difn destroy
+			if [ $? -eq 0 ]; then
+				_list="$_list ${ifn}a ${ifn}b"
+			fi
+		;;
+		*)
+			# Skip if ifn does not exist.
+			if ! ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+				continue
+			fi
+			${IFCONFIG_CMD} -n ${ifn} destroy
+			if [ $? -eq 0 ]; then
+				_list="$_list $ifn"
+			fi
+		;;
+		esac
+	done
+	if [ -n "${_list# }" ]; then
+		einfo "Destroyed clone interfaces: ${_list# }."
+	fi
+}
+
 depend()
 {
 	need localmount
@@ -306,6 +447,9 @@ start()
 		eend $?
 	fi
 
+	# Bring up cloned interfaces
+	clone_up
+
 	if [ -n "$defaultroute6" ]; then
 		ebegin "Setting default route $defaultroute6"
 		if [ "$RC_UNAME" = Linux ]; then
@@ -359,6 +503,10 @@ stop()
 			ifconfig "$int" destroy 2>/dev/null
 		fi
 	done
+
+	# Bring down cloned interfaces
+	clone_down
+
 	eoutdent
 	eend 0
 }
