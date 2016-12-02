@@ -17,6 +17,30 @@ __nl="
 
 IFCONFIG_CMD="/sbin/ifconfig"
 
+find_wireless()
+{
+	local iface=
+	for iface in $(sysctl -b net.wlan.devices 2>/dev/null); do
+		echo "${iface##*/}"
+	done
+}
+
+# wireless_up
+# 	Create the wlan[] devices
+wireless_up()
+{
+	local iface= i=
+
+	iface=$(find_wireless)
+	if [ -n "$iface" ]; then
+		wnum="0"
+		for i in $iface; do
+			ifconfig wlan${wnum} create wlandev $iface
+			wnum=`expr $wnum + 1`
+		done
+	fi
+}
+
 # get_if_var if var [default]
 #	Return the value of the pseudo-hash corresponding to $if where
 #	$var is a string containg the sub-string "IF" which will be
@@ -433,6 +457,12 @@ start()
 		veend $?
 	fi
 
+	# Bring up the wireless interfaces
+	wireless_up
+
+	# Bring up cloned interfaces
+	clone_up
+
 	if [ -n "$defaultroute" ]; then
 		ebegin "Setting default route $defaultroute"
 		route add default $defaultroute
@@ -446,9 +476,6 @@ start()
 		route add default $defaultrouter
 		eend $?
 	fi
-
-	# Bring up cloned interfaces
-	clone_up
 
 	if [ -n "$defaultroute6" ]; then
 		ebegin "Setting default route $defaultroute6"
