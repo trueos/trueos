@@ -86,7 +86,7 @@ cleanup_var_run_dir()
 		case "$x" in
 			*.pid)
 				start-stop-daemon --test --quiet \
-				--stop --pidfile "$x" && continue
+				--stop --pidfile "$x" 2>/dev/null && continue
 			;;
 		esac
 		rm -f -- "$x"
