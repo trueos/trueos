@@ -20,7 +20,7 @@ IFCONFIG_CMD="/sbin/ifconfig"
 find_wireless()
 {
 	local iface=
-	for iface in $(sysctl -b net.wlan.devices 2>/dev/null); do
+	for iface in $(/sbin/sysctl -b net.wlan.devices 2>/dev/null); do
 		echo "${iface##*/}"
 	done
 }
@@ -35,7 +35,8 @@ wireless_up()
 	if [ -n "$iface" ]; then
 		wnum="0"
 		for i in $iface; do
-			ifconfig wlan${wnum} create wlandev $iface
+			einfo "Created wlan${wnum}"
+			${IFCONFIG_CMD} wlan${wnum} create wlandev $iface
 			wnum=`expr $wnum + 1`
 		done
 	fi
