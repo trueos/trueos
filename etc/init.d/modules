@@ -22,9 +22,9 @@ FreeBSD_modules()
 {
 	local cnt=0 x
 	for x in $modules; do
-		ebegin "Loading module $x"
+		#ebegin "Loading module $x"
 		kldload "$x"
-		eend $? "Failed to load $x" && : $(( cnt += 1 ))
+		#eend $? "Failed to load $x" && : $(( cnt += 1 ))
 	done
 	# Load dynamicly listed KLDs
 	for dynkld in `set | grep "^kldload_" | sed 's/kldload_.*=//g' | sed "s|'||g"`; do
@@ -35,9 +35,9 @@ FreeBSD_modules()
 		fi
 	done
         for x in $kld_list; do
-                ebegin "Loading module $x"
+                #ebegin "Loading module $x"
                 kldload "$x"
-                eend $? "Failed to load $x" && : $(( cnt += 1 ))
+                #eend $? "Failed to load $x" && : $(( cnt += 1 ))
         done
 	einfo "Autoloaded $cnt module(s)"
 
