@@ -276,6 +276,7 @@ ck_epoch_register(struct ck_epoch *global, struct ck_epoch_record *record)
 
 	ck_pr_fence_store();
 	ck_stack_push_upmc(&global->records, &record->record_next);
+	return;
 }
 
 void
@@ -297,8 +298,8 @@ ck_epoch_unregister(struct ck_epoch_record *record)
 	ck_pr_fence_store();
 	ck_pr_store_uint(&record->state, CK_EPOCH_STATE_FREE);
 	ck_pr_inc_uint(&global->n_free);
+	return;
 }
-
 
 static struct ck_epoch_record *
 ck_epoch_scan(struct ck_epoch *global,
@@ -362,6 +363,7 @@ ck_epoch_dispatch(struct ck_epoch_record *record, unsigned int e)
 
 	record->n_dispatch += i;
 	record->n_pending -= i;
+	return;
 }
 
 /*
@@ -374,6 +376,8 @@ ck_epoch_reclaim(struct ck_epoch_record *record)
 
 	for (epoch = 0; epoch < CK_EPOCH_LENGTH; epoch++)
 		ck_epoch_dispatch(record, epoch);
+
+	return;
 }
 
 /*
@@ -387,20 +391,19 @@ ck_epoch_synchronize(struct ck_epoch_record *record)
 	unsigned int delta, epoch, goal, i;
 	bool active;
 
+	ck_pr_fence_memory();
+
 	/*
-	 * If UINT_MAX concurrent mutations were to occur then
-	 * it is possible to encounter an ABA-issue. If this is a concern,
-	 * consider tuning write-side concurrency.
+	 * The observation of the global epoch must be ordered with respect to
+	 * all prior operations. The re-ordering of loads is permitted given
+	 * monoticity of global epoch counter.
+	 *
+	 * If UINT_MAX concurrent mutations were to occur then it is possible
+	 * to encounter an ABA-issue. If this is a concern, consider tuning
+	 * write-side concurrency.
 	 */
 	delta = epoch = ck_pr_load_uint(&global->epoch);
 	goal = epoch + CK_EPOCH_GRACE;
-
-	/*
-	 * Provide strong ordering irrespective of reader status. The
-	 * observations of the counters must be ordered with respect to
-	 * prior updates and current active readers.
-	 */
-	ck_pr_fence_memory();
 
 	for (i = 0, cr = NULL; i < CK_EPOCH_GRACE - 1; cr = NULL, i++) {
 		bool r;
