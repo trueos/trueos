@@ -53,6 +53,9 @@
 SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
 
+
+WITHOUT_LLVM_LIBUNWIND = 1
+ 
 .if !defined(XCC)
 .if !exists(${LOCALBASE}/bin/clang39)
 .error "You need to install devel/llvm39 to build or set XCC"
