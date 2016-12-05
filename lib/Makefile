@@ -128,9 +128,9 @@ SUBDIR.${MK_BLUETOOTH}+=libbluetooth libsdp
 SUBDIR.${MK_BSNMP}+=	libbsnmp
 SUBDIR.${MK_CASPER}+=	libcasper
 
-.if !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
-SUBDIR.${MK_CLANG}+=	clang
-.endif
+#.if !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
+#SUBDIR.${MK_CLANG}+=	clang
+#.endif
 
 SUBDIR.${MK_CUSE}+= 	libcuse
 SUBDIR.${MK_CXX}+=	libdevdctl
@@ -147,10 +147,10 @@ SUBDIR.${MK_LDNS}+=	libldns
 # sense to build when clang is enabled at all.  Furthermore, they can only be
 # built for certain architectures.
 
-.if ${MK_LIBCPLUSPLUS} != "no"
-_libcxxrt=	libcxxrt
-_libcplusplus=	libc++
-.endif
+#.if ${MK_LIBCPLUSPLUS} != "no"
+#_libcxxrt=	libcxxrt
+#_libcplusplus=	libc++
+#.endif
 
 SUBDIR.${MK_EFI}+=	libefivar
 SUBDIR.${MK_LIBTHR}+=	libthr
