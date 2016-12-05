@@ -7,8 +7,8 @@ PACKAGE=runtime
 BINDIR=		/etc/init.d
 FILESGROUP=	FILES
 
-FILES=          adjkerntz automount automountd bootmisc cron devd devfs dumpon encswap fsck gssd hostid \
-	       	hostname ipfw jail \
+FILES=          adjkerntz automount automountd bootmisc cron devd devfs dumpon encswap fsck ftpd \
+	       	gssd hostid hostname ipfw jail \
 		ldconfig local localmount lockd loopback mixer \
 		modules modules-load mountd moused motd \
 		netmount network newsyslog nfsclient nfsd nfsuserd \
