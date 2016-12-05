@@ -58,10 +58,10 @@ fi
 # Check if we need to resume wpa_supp
 ifconfig | grep -q 'wlan0:'
 if [ $? -eq 0 ] ; then
-  /usr/sbin/service netif restart wlan0
+  service wpa_supplicant restart
 fi
 
 # Restart moused to fix suspend
-/etc/rc.d/moused restart
+service moused restart
 
 exit 0
