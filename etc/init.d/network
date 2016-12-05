@@ -11,6 +11,14 @@
 
 # This script was inspired by the equivalent rc.d network from NetBSD.
 
+depend()
+{
+        provide net
+        need localmount
+        after bootmisc modules devd
+}
+
+
 description="Configures network interfaces."
 __nl="
 "
