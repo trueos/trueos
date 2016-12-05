@@ -1,0 +1,49 @@
+#!/sbin/openrc-run
+# Copyright (c) 2007-2015 The OpenRC Authors.
+# See the Authors file at the top-level directory of this distribution and
+# https://github.com/OpenRC/openrc/blob/master/AUTHORS
+#
+# This file is part of OpenRC. It is subject to the license terms in
+# the LICENSE file found in the top-level directory of this
+# distribution and at https://github.com/OpenRC/openrc/blob/master/LICENSE
+# This file may not be copied, modified, propagated, or distributed
+# except according to the terms contained in the LICENSE file.
+
+command=/usr/sbin/nfsd
+command_args="$nfs_server_flags"
+pidfile=/var/run/nfsd.pid
+name="NFS Daemon"
+
+depend()
+{
+	need localmount rpcbind mountd gssd
+	use net logger
+}
+
+start_pre()
+{
+	# Load the nfsd kernel module
+	kldstat | grep -q "nfsd"
+	if [ $? -ne 0 ] ; then
+		kldload nfsd 2>/dev/null
+	fi
+
+        if yesno nfs_reserved_port_only; then
+                einfo 'NFS on reserved port only=YES'
+                sysctl vfs.nfsd.nfs_privport=1 > /dev/null
+        else    
+                sysctl vfs.nfsd.nfs_privport=0 > /dev/null
+        fi
+        
+        if yesno nfsv4_server_enable || \
+            yesno nfs_server_managegids; then
+                need nfsuserd
+        fi
+        
+        if yesno nfsv4_server_enable; then
+                sysctl vfs.nfsd.server_max_nfsvers=4 > /dev/null
+        else    
+                einfo 'NFSv4 is disabled'
+                sysctl vfs.nfsd.server_max_nfsvers=3 > /dev/null
+        fi
+}
