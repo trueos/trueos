@@ -9,8 +9,6 @@
 # This file may not be copied, modified, propagated, or distributed
 # except according to the terms contained in the LICENSE file.
 
-command=/usr/sbin/nfsuserd
-command_args="$nfsuserd_flags"
 name="NFSv4 User Services"
 
 depend()
@@ -21,9 +19,21 @@ depend()
 
 start_pre()
 {
-
 	if yesno nfs_server_managegids; then
-		command_args="-manage-gids ${commmand_args}"
+		nfsuserd_flags="-manage-gids ${nfsuserd_flags}"
 	fi
+}
 
+start()
+{
+	ebegin "Starting NFS user services"
+	/usr/sbin/nfsuserd -force $nfsuserd_flags
+	eend $?
+}
+
+stop()
+{
+	ebegin "Stopping NFS user services"
+	killall -9 nfsuserd
+	eend $?
 }

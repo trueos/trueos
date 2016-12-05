@@ -9,10 +9,8 @@
 # This file may not be copied, modified, propagated, or distributed
 # except according to the terms contained in the LICENSE file.
 
-command=/usr/sbin/nfsd
-command_args="$nfs_server_flags"
-pidfile=/var/run/nfsd.pid
 name="NFS Daemon"
+stopsig="USR1"
 
 depend()
 {
@@ -46,4 +44,18 @@ start_pre()
                 einfo 'NFSv4 is disabled'
                 sysctl vfs.nfsd.server_max_nfsvers=3 > /dev/null
         fi
+}
+
+start()
+{
+	ebegin "Starting NFSd"
+	/usr/sbin/nfsd $nfs_server_flags
+	eend $?
+}
+
+stop()
+{
+	ebegin "Stopping NFSd"
+	killall -9 nfsd
+	eend $?
 }
