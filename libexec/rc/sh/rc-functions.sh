@@ -382,8 +382,351 @@ ifconfig_getargs()
 	echo $_args
 }
 
+
+# check_kern_features mib
+#	Return existence of kern.features.* sysctl MIB as true or
+#	false.  The result will be cached in $_rc_cache_kern_features_
+#	namespace.  "0" means the kern.features.X exists.
+
+check_kern_features()
+{
+	local _v
+
+	[ -n "$1" ] || return 1;
+	eval _v=\$_rc_cache_kern_features_$1
+	[ -n "$_v" ] && return "$_v";
+
+	if ${SYSCTL_N} kern.features.$1 > /dev/null 2>&1; then
+		eval _rc_cache_kern_features_$1=0
+		return 0
+	else
+		eval _rc_cache_kern_features_$1=1
+		return 1
+	fi
+}
+
+# autoif
+#	Returns 0 if the interface should be automatically configured at
+#	boot time and 1 otherwise.
+autoif()
+{
+	local _tmpargs _arg
+	_tmpargs=`_ifconfig_getargs $1`
+
+	for _arg in $_tmpargs; do
+		case $_arg in
+		[Nn][Oo][Aa][Uu][Tt][Oo])
+			return 1
+			;;
+		esac
+	done
+
+	return 0
+}
+
+# dhcpif if
+#	Returns 0 if the interface is a DHCP interface and 1 otherwise.
+dhcpif()
+{
+	local _tmpargs _arg
+	_tmpargs=`_ifconfig_getargs $1`
+
+	case $1 in
+	lo[0-9]*|\
+	stf[0-9]*|\
+	lp[0-9]*|\
+	sl[0-9]*)
+		return 1
+		;;
+	esac
+	if noafif $1; then
+		return 1
+	fi
+
+	for _arg in $_tmpargs; do
+		case $_arg in
+		[Aa][Uu][Tt][Oo])
+			return 0
+			;;
+		[Dd][Hh][Cc][Pp])
+			return 0
+			;;
+		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp])
+			return 0
+			;;
+		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp])
+			return 0
+			;;
+		esac
+	done
+
+	return 1
+}
+
+# syncdhcpif
+#	Returns 0 if the interface should be configured synchronously and
+#	1 otherwise.
+syncdhcpif()
+{
+	local _tmpargs _arg
+	_tmpargs=`_ifconfig_getargs $1`
+
+	if noafif $1; then
+		return 1
+	fi
+
+	for _arg in $_tmpargs; do
+		case $_arg in
+		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp])
+			return 1
+			;;
+		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp])
+			return 0
+			;;
+		esac
+	done
+
+	yesno synchronous_dhclient
+}
+
+# wpaif if
+#	Returns 0 if the interface is a WPA interface and 1 otherwise.
+wpaif()
+{
+	local _tmpargs _arg
+	_tmpargs=`_ifconfig_getargs $1`
+
+	for _arg in $_tmpargs; do
+		case $_arg in
+		[Ww][Pp][Aa])
+			return 0
+			;;
+		esac
+	done
+
+	return 1
+}
+
+# hostapif if
+#	Returns 0 if the interface is a HOSTAP interface and 1 otherwise.
+hostapif()
+{
+	local _tmpargs _arg
+	_tmpargs=`_ifconfig_getargs $1`
+
+	for _arg in $_tmpargs; do
+		case $_arg in
+		[Hh][Oo][Ss][Tt][Aa][Pp])
+			return 0
+			;;
+		esac
+	done
+
+	return 1
+}
+
+# vnetif if
+#	Returns 0 and echo jail if "vnet" keyword is specified on the
+#	interface, and 1 otherwise.
+vnetif()
+{
+	local _tmpargs _arg _vnet
+	_tmpargs=`_ifconfig_getargs $1`
+
+	_vnet=0
+	for _arg in $_tmpargs; do
+		case $_arg:$_vnet in
+		vnet:0)	_vnet=1 ;;
+		*:1)	echo $_arg; return 0 ;;
+		esac
+	done
+
+	return 1
+}
+
+# afexists af
+#	Returns 0 if the address family is enabled in the kernel
+#	1 otherwise.
+afexists()
+{
+	local _af
+	_af=$1
+
+	case ${_af} in
+	inet|inet6)
+		check_kern_features ${_af}
+		;;
+	atm)
+		if [ -x /sbin/atmconfig ]; then
+			/sbin/atmconfig diag list > /dev/null 2>&1
+		else
+			return 1
+		fi
+		;;
+	link|ether)
+		return 0
+		;;
+	*)
+		err 1 "afexists(): Unsupported address family: $_af"
+		;;
+	esac
+}
+
+# noafif if
+#	Returns 0 if the interface has no af configuration and 1 otherwise.
+noafif()
+{
+	local _if
+	_if=$1
+
+	case $_if in
+	pflog[0-9]*|\
+	pfsync[0-9]*|\
+	usbus[0-9]*|\
+	an[0-9]*|\
+	ath[0-9]*|\
+	ipw[0-9]*|\
+	ipfw[0-9]*|\
+	iwi[0-9]*|\
+	iwn[0-9]*|\
+	ral[0-9]*|\
+	wi[0-9]*|\
+	wl[0-9]*|\
+	wpi[0-9]*)
+		return 0
+		;;
+	esac
+
+	return 1
+}
+
+# ipv6if if
+#	Returns 0 if the interface should be configured for IPv6 and
+#	1 otherwise.
+ipv6if()
+{
+	local _if _tmpargs i
+	_if=$1
+
+	if ! afexists inet6; then
+		return 1
+	fi
+
+	# lo0 is always IPv6-enabled
+	case $_if in
+	lo0)
+		return 0
+		;;
+	esac
+
+	case "${ipv6_network_interfaces}" in
+	$_if|"$_if "*|*" $_if"|*" $_if "*|[Aa][Uu][Tt][Oo])
+		# True if $ifconfig_IF_ipv6 is defined.
+		_tmpargs=`_ifconfig_getargs $_if ipv6`
+		if [ -n "${_tmpargs}" ]; then
+			return 0
+		fi
+
+		# True if $ipv6_prefix_IF is defined.
+		_tmpargs=`get_if_var $_if ipv6_prefix_IF`
+		if [ -n "${_tmpargs}" ]; then
+			return 0
+		fi
+
+		# backward compatibility: True if $ipv6_ifconfig_IF is defined.
+		_tmpargs=`get_if_var $_if ipv6_ifconfig_IF`
+		if [ -n "${_tmpargs}" ]; then
+			return 0
+		fi
+		;;
+	esac
+
+	return 1
+}
+
+# ipv6_autoconfif if
+#	Returns 0 if the interface should be configured for IPv6 with
+#	Stateless Address Configuration; 1 otherwise.
+ipv6_autoconfif()
+{
+	local _if _tmpargs _arg
+	_if=$1
+
+	case $_if in
+	lo[0-9]*|\
+	stf[0-9]*|\
+	lp[0-9]*|\
+	sl[0-9]*)
+		return 1
+		;;
+	esac
+	if noafif $_if; then
+		return 1
+	fi
+	if ! ipv6if $_if; then
+		return 1
+	fi
+	if yesno ipv6_gateway_enable; then
+		return 1
+	fi
+	_tmpargs=`get_if_var $_if ipv6_prefix_IF`
+	if [ -n "${_tmpargs}" ]; then
+		return 1
+	fi
+	# backward compatibility: $ipv6_enable
+	case $ipv6_enable in
+	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		if yesno ipv6_gateway_enable; then
+			return 1
+		fi
+		case $1 in
+		bridge[0-9]*)
+			# No accept_rtadv by default on if_bridge(4)
+			# to avoid a conflict with the member
+			# interfaces.
+			return 1
+		;;
+		*)
+			return 0
+		;;
+		esac
+	;;
+	esac
+
+	_tmpargs=`_ifconfig_getargs $_if ipv6`
+	for _arg in $_tmpargs; do
+		case $_arg in
+		accept_rtadv)
+			return 0
+			;;
+		esac
+	done
+
+	# backward compatibility: $ipv6_ifconfig_IF
+	_tmpargs=`get_if_var $_if ipv6_ifconfig_IF`
+	for _arg in $_tmpargs; do
+		case $_arg in
+		accept_rtadv)
+			return 0
+			;;
+		esac
+	done
+
+	return 1
+}
+
+# ifexists if
+#	Returns 0 if the interface exists and 1 otherwise.
+ifexists()
+{
+	[ -z "$1" ] && return 1
+	${IFCONFIG_CMD} -n $1 > /dev/null 2>&1
+}
+
 # Location to ifconfig
 export IFCONFIG_CMD="/sbin/ifconfig"
+export SYSCTL="/sbin/sysctl"
+export SYSCTL_N="${SYSCTL} -n"
 
 # Add our sbin to $PATH
 case "$PATH" in
