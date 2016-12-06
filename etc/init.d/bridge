@@ -1,0 +1,78 @@
+#!/sbin/openrc-run
+# Copyright (c) 2007-2015 The OpenRC Authors.
+# See the Authors file at the top-level directory of this distribution and
+# https://github.com/OpenRC/openrc/blob/master/AUTHORS
+#
+# This file is part of OpenRC. It is subject to the license terms in
+# the LICENSE file found in the top-level directory of this
+# distribution and at https://github.com/OpenRC/openrc/blob/master/LICENSE
+# This file may not be copied, modified, propagated, or distributed
+# except according to the terms contained in the LICENSE file.
+
+name="bridge"
+description="Network bridge setup"
+
+depend()
+{
+	need localmount
+	use net
+	before inetd xinetd
+	keyword -jail
+}
+
+glob_int() {
+	case "$1" in
+		$2 ) true ;;
+		* ) false ;;
+	esac
+}
+
+bridge_test() {
+	bridge=$1
+	iface=$2
+
+	eval interfaces=\$autobridge_${bridge}
+	if [ -n "${interfaces}" ]; then
+		for i in ${interfaces}; do
+			if glob_int $iface $i ; then
+				ifconfig $bridge $cmd $iface > /dev/null 2>&1
+				return
+			fi
+		done
+	fi
+}
+
+autobridge()
+{
+	if [ -n "${autobridge_interfaces}" ]; then
+		if [ -z "$iflist" ]; then
+			# We're operating as a general network start routine.
+			iflist="`list_net_interfaces`"
+		fi
+
+		for br in ${autobridge_interfaces}; do
+			for i in $iflist; do
+				bridge_test $br $i
+			done
+		done
+	fi
+}
+
+start()
+{
+	iflist=$1
+	ebegin "Setting up bridge interfaces"
+	cmd="addm"
+	autobridge
+	eend $?
+}
+
+stop()
+{
+	iflist=$1
+	ebegin "Destroying bridge interfaces"
+	cmd="deletem"
+	autobridge
+	eend $?
+}
+
