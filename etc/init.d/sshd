@@ -19,3 +19,60 @@ depend()
 	use logger dns
 	need net
 }
+
+openssh_keygen()
+{
+	if [ -f /etc/ssh_host_dsa_key -a \
+	    -f /etc/ssh_host_rsa_key -a \
+	    -f /etc/ssh_host_ecdsa_key -a \
+	    -f /etc/ssh_host_ed25519_key ]; then
+		return 0
+	fi
+
+	umask 022
+
+	# Can't do anything if ssh is not installed
+	[ -x /usr/bin/ssh-keygen ] ||
+		err 1 "/usr/bin/ssh-keygen does not exist."
+
+	if [ -f /etc/ssh_host_dsa_key ]; then
+		echo "You already have a DSA host key" \
+			"in /etc/ssh_host_dsa_key"
+		echo "Skipping protocol version 2 DSA Key Generation"
+	else
+		/usr/bin/ssh-keygen -t dsa \
+			-f /etc/ssh_host_dsa_key -N ''
+	fi
+
+	if [ -f /etc/ssh_host_rsa_key ]; then
+		echo "You already have a RSA host key" \
+			"in /etc/ssh_host_rsa_key"
+		echo "Skipping protocol version 2 RSA Key Generation"
+	else
+		/usr/bin/ssh-keygen -t rsa \
+			-f /etc/ssh_host_rsa_key -N ''
+	fi
+
+	if [ -f /etc/ssh_host_ecdsa_key ]; then
+		echo "You already have a Elliptic Curve DSA host key" \
+			"in /etc/ssh_host_ecdsa_key"
+		echo "Skipping protocol version 2 Elliptic Curve DSA Key Generation"
+	else
+		/usr/bin/ssh-keygen -t ecdsa \
+			-f /etc/ssh_host_ecdsa_key -N ''
+	fi
+
+	if [ -f /etc/ssh_host_ed25519_key ]; then
+		echo "You already have a Elliptic Curve ED25519 host key" \
+			"in /etc/ssh_host_ed25519_key"
+		echo "Skipping protocol version 2 Elliptic Curve ED25519 Key Generation"
+	else
+		/usr/bin/ssh-keygen -t ed25519 \
+			-f /etc/ssh_host_ed25519_key -N ''
+	fi
+}
+
+start_pre()
+{
+	openssh_keygen
+}
