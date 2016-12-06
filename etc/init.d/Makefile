@@ -7,7 +7,7 @@ PACKAGE=runtime
 BINDIR=		/etc/init.d
 FILESGROUP=	FILES
 
-FILES=          abi accounting adjkerntz amd automount automountd bootmisc cron \
+FILES=          abi accounting adjkerntz amd auditd automount automountd bootmisc cron \
 	       	devd devfs dumpon encswap fsck ftpd \
 	       	gssd hostid hostname ipfw jail \
 		ldconfig local localmount lockd loopback mixer \
