@@ -16,6 +16,7 @@ SUBDIR+=sendmail
 
 OPENRC_BOOT_LINK=	adjkerntz \
 			bootmisc \
+			bridge \
 			dumpon \
 			fsck \
 			hostid \
