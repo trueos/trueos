@@ -29,6 +29,8 @@ find_wireless()
 {
 	local iface=
 	for iface in $(/sbin/sysctl -b net.wlan.devices 2>/dev/null); do
+		sysctl -n net.wlan.devices | grep -q "$iface"
+		if [ $? -eq 0 ] ; then continue ; fi
 		echo "${iface##*/}"
 	done
 }
@@ -41,7 +43,18 @@ wireless_up()
 
 	iface=$(find_wireless)
 	if [ -n "$iface" ]; then
+		# Get next wlan0 device name
 		wnum="0"
+		while :
+		do
+			ifconfig wlan${wnum} >/dev/null
+			if [ $? -ne 0 ] ; then
+				break
+			fi
+			wnum=`expr $wnum + 1`
+		done
+
+		# Create the wireless devices
 		for i in $iface; do
 			einfo "Created wlan${wnum}"
 			${IFCONFIG_CMD} wlan${wnum} create wlandev $iface
@@ -165,7 +178,7 @@ clone_down()
 	_iflist=$*
 
 	: ${cloned_interfaces_sticky:=NO}
-	if checkyesno cloned_interfaces_sticky; then
+	if yesno cloned_interfaces_sticky; then
 		_sticky=1
 	else
 		_sticky=0
@@ -250,51 +263,23 @@ reverse()
 
 sys_interfaces()
 {
-	case "$RC_UNAME" in
-	Linux)
-		local w= rest= i= cmd=$1
-		while read w rest; do
-			i=${w%%:*}
-			case "$i" in
-				"$w") continue ;;
-				lo|lo0) continue ;;
-				*) ;;
-			esac
-			if [ "$cmd" = u ]; then
-				ifconfig "$i" | grep -q "[ ]*UP" || continue
-			fi
-			printf "%s " "$i"
-		done </proc/net/dev
-		;;
-	*)
-		ifconfig -l$1
-		;;
-	esac
+	ifconfig -l$1
 }
 
 tentative()
 {
 	local inet= address= rest=
 
-	case "$RC_UNAME" in
-	Linux)
-		[ -x /sbin/ip ] || [ -x /bin/ip ] || return 1
-		[ -n "$(ip -f inet6 addr show tentative)" ]
-		;;
-	*)
-		local inet= address= rest=
-		LC_ALL=C ifconfig -a | while read inet address rest; do
-	 		case "${inet}" in
-			inet6)
-				case "${rest}" in
-				*" "tentative*) return 2;;
-				esac
-				;;
+	local inet= address= rest=
+	LC_ALL=C ifconfig -a | while read inet address rest; do
+ 		case "${inet}" in
+		inet6)
+			case "${rest}" in
+			*" "tentative*) return 2;;
 			esac
-		done
-		[ $? = 2 ]
-		;;
-	esac
+			;;
+		esac
+	done
 }
 
 
@@ -302,23 +287,12 @@ auto_interfaces()
 {
 	local ifs= c= f=
 
-	case "$RC_UNAME" in
-	NetBSD)
-		for c in $(ifconfig -C 2>/dev/null); do
-			for f in /etc/ifconfig.${c}[0-9]*; do
-				[ -f "$f" ] && printf "%s" "$f{##*.} "
-			done
-		done
-		;;
-	*)
-		for f in /etc/ifconfig.*; do
-			[ -f "$f" ] && printf "%s" "${f##*.} "
-		done
-		for f in /etc/ip.*; do
-			[ -f "$f" ] && printf "%s" "${f##*.} "
-		done
-		;;
-	esac
+	for f in /etc/ifconfig.*; do
+		[ -f "$f" ] && printf "%s" "${f##*.} "
+	done
+	for f in /etc/ip.*; do
+		[ -f "$f" ] && printf "%s" "${f##*.} "
+	done
 	echo
 }
 
@@ -375,35 +349,7 @@ runip()
 
 routeflush()
 {
-	if [ "$RC_UNAME" = Linux ]; then
-		if [ -x /sbin/ip ] || [ -x /bin/ip ]; then
-			ip route flush scope global
-			ip route delete default 2>/dev/null
-		else
-			# Sadly we also delete some link routes, but
-			# this cannot be helped
-			local dest= gate= net= flags= rest=
-			route -n | while read dest gate net flags rest; do
-				[ -z "$net" ] && continue
-				case "$dest" in
-				[0-9]*)	;;
-				*)	continue;;
-				esac
-				local xtra= netmask="netmask $net"
-				case "$flags" in
-				U)	continue;;
-				*H*)	flags=-host; netmask=;;
-				*!*)	flags=-net; xtra=reject;;
-				*)	flags=-net;;
-				esac
-				route del $flags $dest $netmask $xtra
-			done
-			# Erase any default dev eth0 routes
-			route del default 2>/dev/null
-		fi
-	else
-		route -qn flush
-	fi
+	route -qn flush
 }
 
 runargs()
@@ -448,6 +394,11 @@ start()
 				break
 			fi
 		done
+
+		# Skip ifconfig lines that have some 'magic' DHCP/WPA keywords
+		echo "$cmd" | grep -q -e "AUTO" -e "WPA" -e "DHCP" -e "IPV6"
+		if [ $? -eq 0 ] ; then continue; fi
+
 		[ -n "$cf" -o -n "$upcmd" -o \
 			-f /etc/ifup."$int" -o -f "$cf" ] || continue
 		veinfo "$int"
@@ -516,11 +467,7 @@ start()
 
 	if [ -n "$defaultroute6" ]; then
 		ebegin "Setting default route $defaultroute6"
-		if [ "$RC_UNAME" = Linux ]; then
-			routecmd="route -A inet6 add"
-		else
-			routecmd="route -inet6 add"
-		fi
+		routecmd="route -inet6 add"
 		$routecmd default $defaultroute6
 		eend $?
 	elif [ -n "$defaultiproute6" ]; then
