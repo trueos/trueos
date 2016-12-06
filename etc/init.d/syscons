@@ -75,7 +75,7 @@ start() {
 		for i in $(kldstat | sed -n -e 's/.* \(splash_.*\)/\1/p'); do
 			kldunload "$i"
 		done
-		kldstat -v | grep -q _saver || kldload ${saver}_saver
+		kldstat -v | grep -q _saver || load_kld ${saver}_saver
 	fi
 
 	if [ -n "$kbdflags" ]; then

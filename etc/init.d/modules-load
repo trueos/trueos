@@ -53,7 +53,7 @@ load_modules()
 	for x in $modules; do
 		ebegin "Loading module $x"
 		case "$RC_UNAME" in
-			FreeBSD) kldload "$x"; rc=$? ;;
+			FreeBSD) load_kld "$x"; rc=$? ;;
 			Linux) modprobe --use-blacklist -q "$x"; rc=$? ;;
 			*) ;;
 		esac

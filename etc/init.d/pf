@@ -24,9 +24,7 @@ depend() {
 start()
 {
 	ebegin "Starting $name"
-	if command -v kldload >/dev/null 2>&1; then
-		kldload pf 2>/dev/null
-	fi
+	load_kld pf 2>/dev/null
 	pfctl -q -F all
 	pfctl -q -f "$pf_conf" $pf_args
 	pfctl -q -e

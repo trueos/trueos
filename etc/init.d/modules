@@ -23,7 +23,7 @@ FreeBSD_modules()
 	local cnt=0 x
 	for x in $modules; do
 		#ebegin "Loading module $x"
-		kldload "$x"
+		load_kld "$x"
 		#eend $? "Failed to load $x" && : $(( cnt += 1 ))
 		: $(( cnt += 1 ))
 	done
@@ -37,7 +37,7 @@ FreeBSD_modules()
 	done
         for x in $kld_list; do
                 #ebegin "Loading module $x"
-                kldload "$x"
+                load_kld "$x"
                 #eend $? "Failed to load $x" && : $(( cnt += 1 ))
                 : $(( cnt += 1 ))
         done

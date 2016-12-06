@@ -1,0 +1,72 @@
+#!/sbin/openrc-run
+# Copyright (c) 2007-2015 The OpenRC Authors.
+# See the Authors file at the top-level directory of this distribution and
+# https://github.com/OpenRC/openrc/blob/master/AUTHORS
+#
+# This file is part of OpenRC. It is subject to the license terms in
+# the LICENSE file found in the top-level directory of this
+# distribution and at https://github.com/OpenRC/openrc/blob/master/LICENSE
+# This file may not be copied, modified, propagated, or distributed
+# except according to the terms contained in the LICENSE file.
+
+name="abi"
+
+depend()
+{
+	before bootmisc logger
+}
+
+sysv_start()
+{
+	ABIS="sysvipc $ABIS"
+	load_kld sysvmsg
+	load_kld sysvsem
+	load_kld sysvshm
+}
+
+linux_start()
+{
+	local _tmpdir
+
+	ABIS="linux $ABIS"
+	load_kld -e 'linux(aout|elf)' linux
+	case `sysctl -n hw.machine_arch` in
+	amd64)
+		load_kld -e 'linux64elf' linux64
+		;;
+	esac
+	if [ -x /compat/linux/sbin/ldconfigDisabled ]; then
+		_tmpdir=`mktemp -d -t linux-ldconfig`
+		/compat/linux/sbin/ldconfig -C ${_tmpdir}/ld.so.cache
+		if ! cmp -s ${_tmpdir}/ld.so.cache /compat/linux/etc/ld.so.cache; then
+			cat ${_tmpdir}/ld.so.cache > /compat/linux/etc/ld.so.cache
+		fi
+		rm -rf ${_tmpdir}
+	fi
+}
+
+svr4_start()
+{
+	ABIS="svr4 $ABIS"
+	load_kld -m svr4elf svr4
+}
+
+start()
+{
+	if ! yesno sysvipc_enable && ! yesno linux_enable && ! yesno svr4_enable; then
+		mark_service_inactive
+		return 0
+	fi
+
+	yesno sysvipc_enable && sysv_start
+	yesno linux_enable && linux_start
+	yesno svr4_enable && svr4_start
+
+	einfo "Additional ABI support: $ABIS"
+	return 0
+}
+
+stop()
+{
+	return 0
+}

@@ -127,6 +127,49 @@ _depend() {
 	done
 }
 
+# Code common to scripts that need to load a kernel module
+# if it isn't in the kernel yet. Syntax:
+#   load_kld [-e regex] [-m module] file
+# where -e or -m chooses the way to check if the module
+# is already loaded:
+#   regex is egrep'd in the output from `kldstat -v',
+#   module is passed to `kldstat -m'.
+# The default way is as though `-m file' were specified.
+load_kld()
+{
+	local _loaded _mod _opt _re
+
+	while getopts "e:m:" _opt; do
+		case "$_opt" in
+		e) _re="$OPTARG" ;;
+		m) _mod="$OPTARG" ;;
+		*) eend 3 'USAGE: load_kld [-e regex] [-m module] file' ;;
+		esac
+	done
+	shift $(($OPTIND - 1))
+	if [ $# -ne 1 ]; then
+		eend 3 'USAGE: load_kld [-e regex] [-m module] file'
+	fi
+	_mod=${_mod:-$1}
+	_loaded=false
+	if [ -n "$_re" ]; then
+		if kldstat -v | egrep -q -e "$_re"; then
+			_loaded=true
+		fi
+	else
+		if kldstat -q -m "$_mod"; then
+			_loaded=true
+		fi
+	fi
+	if ! $_loaded; then
+		if ! kldload "$1"; then
+			ewarn "Unable to load kernel module $1"
+			return 1
+		fi
+	fi
+	return 0
+}
+
 # Add our sbin to $PATH
 case "$PATH" in
 	"$RC_LIBEXECDIR"/sbin|"$RC_LIBEXECDIR"/sbin:*);;

@@ -34,7 +34,7 @@ have_ip6() {
 init() {
 	# Load the kernel module
 	if ! sysctl net.inet.ip.fw.enable=1 >/dev/null 2>&1; then
-		if ! kldload ipfw; then
+		if ! load_kld ipfw; then
 			eend 1 "Unable to load firewall module"
 			return 1
 		fi
