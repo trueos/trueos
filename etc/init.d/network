@@ -63,59 +63,6 @@ wireless_up()
 	fi
 }
 
-# ltr str src dst [var]
-#	Change every $src in $str to $dst.
-#	Useful when /usr is not yet mounted and we cannot use tr(1), sed(1) nor
-#	awk(1). If var is non-NULL, set it to the result.
-ltr()
-{
-	local _str _src _dst _out _com _var
-	_str="$1"
-	_src="$2"
-	_dst="$3"
-	_var="$4"
-	_out=""
-
-	local IFS="${_src}"
-	for _com in ${_str}; do
-		if [ -z "${_out}" ]; then
-			_out="${_com}"
-		else
-			_out="${_out}${_dst}${_com}"
-		fi
-	done
-	if [ -n "${_var}" ]; then
-		setvar "${_var}" "${_out}"
-	else
-		echo "${_out}"
-	fi
-}
-
-# get_if_var if var [default]
-#	Return the value of the pseudo-hash corresponding to $if where
-#	$var is a string containg the sub-string "IF" which will be
-#	replaced with $if after the characters defined in _punct are
-#	replaced with '_'. If the variable is unset, replace it with
-#	$default if given.
-get_if_var()
-{
-	local _if _punct _punct_c _var _default prefix suffix
-
-	if [ $# -ne 2 -a $# -ne 3 ]; then
-		eerror 3 'USAGE: get_if_var name var [default]'
-	fi
-
-	_if=$1
-	_punct=".-/+"
-	ltr ${_if} "${_punct}" '_' _if
-	_var=$2
-	_default=$3
-
-	prefix=${_var%%IF*}
-	suffix=${_var##*IF}
-	eval echo \${${prefix}${_if}${suffix}-${_default}}
-}
-
 # clone_up
 #	Create cloneable interfaces.
 #

@@ -170,6 +170,221 @@ load_kld()
 	return 0
 }
 
+# list_net_interfaces type
+#	List all network interfaces. The type of interface returned
+#	can be controlled by the type argument. The type
+#	argument can be any of the following:
+#		nodhcp	- all interfaces, excluding DHCP configured interfaces
+#		dhcp	- list only DHCP configured interfaces
+#		noautoconf	- all interfaces, excluding IPv6 Stateless
+#				  Address Autoconf configured interfaces
+#		autoconf	- list only IPv6 Stateless Address Autoconf
+#				  configured interfaces
+#	If no argument is specified all network interfaces are output.
+#	Note that the list will include cloned interfaces if applicable.
+#	Cloned interfaces must already exist to have a chance to appear
+#	in the list if ${network_interfaces} is set to `auto'.
+#
+list_net_interfaces()
+{
+	local type _tmplist _list _autolist _lo _if
+	type=$1
+
+	# Get a list of ALL the interfaces and make lo0 first if it's there.
+	#
+	_tmplist=
+	case ${network_interfaces} in
+	[Aa][Uu][Tt][Oo])
+		_autolist="`${IFCONFIG_CMD} -l`"
+		_lo=
+		for _if in ${_autolist} ; do
+			if autoif $_if; then
+				if [ "$_if" = "lo0" ]; then
+					_lo="lo0 "
+				else
+					_tmplist="${_tmplist} ${_if}"
+				fi
+			fi
+		done
+		_tmplist="${_lo}${_tmplist# }"
+	;;
+	*)
+		for _if in ${network_interfaces} ${cloned_interfaces}; do
+			# epair(4) uses epair[0-9] for creation and
+			# epair[0-9][ab] for configuration.
+			case $_if in
+			epair[0-9]*)
+				_tmplist="$_tmplist ${_if}a ${_if}b"
+			;;
+			*)
+				_tmplist="$_tmplist $_if"
+			;;
+			esac
+		done
+		#
+		# lo0 is effectively mandatory, so help prevent foot-shooting
+		#
+		case "$_tmplist" in
+		lo0|'lo0 '*|*' lo0'|*' lo0 '*)
+			# This is fine, do nothing
+			_tmplist="${_tmplist# }"
+		;;
+		*)
+			_tmplist="lo0 ${_tmplist# }"
+		;;
+		esac
+	;;
+	esac
+
+	_list=
+	case "$type" in
+	nodhcp)
+		for _if in ${_tmplist} ; do
+			if ! dhcpif $_if && \
+			   [ -n "`_ifconfig_getargs $_if`" ]; then
+				_list="${_list# } ${_if}"
+			fi
+		done
+	;;
+	dhcp)
+		for _if in ${_tmplist} ; do
+			if dhcpif $_if; then
+				_list="${_list# } ${_if}"
+			fi
+		done
+	;;
+	noautoconf)
+		for _if in ${_tmplist} ; do
+			if ! ipv6_autoconfif $_if && \
+			   [ -n "`_ifconfig_getargs $_if ipv6`" ]; then
+				_list="${_list# } ${_if}"
+			fi
+		done
+	;;
+	autoconf)
+		for _if in ${_tmplist} ; do
+			if ipv6_autoconfif $_if; then
+				_list="${_list# } ${_if}"
+			fi
+		done
+	;;
+	*)
+		_list=${_tmplist}
+	;;
+	esac
+
+	echo $_list
+
+	return 0
+}
+
+# ltr str src dst [var]
+#	Change every $src in $str to $dst.
+#	Useful when /usr is not yet mounted and we cannot use tr(1), sed(1) nor
+#	awk(1). If var is non-NULL, set it to the result.
+ltr()
+{
+	local _str _src _dst _out _com _var
+	_str="$1"
+	_src="$2"
+	_dst="$3"
+	_var="$4"
+	_out=""
+
+	local IFS="${_src}"
+	for _com in ${_str}; do
+		if [ -z "${_out}" ]; then
+			_out="${_com}"
+		else
+			_out="${_out}${_dst}${_com}"
+		fi
+	done
+	if [ -n "${_var}" ]; then
+		setvar "${_var}" "${_out}"
+	else
+		echo "${_out}"
+	fi
+}
+
+# get_if_var if var [default]
+#	Return the value of the pseudo-hash corresponding to $if where
+#	$var is a string containg the sub-string "IF" which will be
+#	replaced with $if after the characters defined in _punct are
+#	replaced with '_'. If the variable is unset, replace it with
+#	$default if given.
+get_if_var()
+{
+	local _if _punct _punct_c _var _default prefix suffix
+
+	if [ $# -ne 2 -a $# -ne 3 ]; then
+		err 3 'USAGE: get_if_var name var [default]'
+	fi
+
+	_if=$1
+	_punct=".-/+"
+	ltr ${_if} "${_punct}" '_' _if
+	_var=$2
+	_default=$3
+
+	prefix=${_var%%IF*}
+	suffix=${_var##*IF}
+	eval echo \${${prefix}${_if}${suffix}-${_default}}
+}
+
+# _ifconfig_getargs if [af]
+#	Prints the arguments for the supplied interface to stdout.
+#	Returns 1 if empty.  In general, ifconfig_getargs should be used
+#	outside this file.
+_ifconfig_getargs()
+{
+	local _ifn _af
+	_ifn=$1
+	_af=${2+_$2}
+
+	if [ -z "$_ifn" ]; then
+		return 1
+	fi
+
+	get_if_var $_ifn ifconfig_IF$_af "$ifconfig_DEFAULT"
+}
+
+# ifconfig_getargs if [af]
+#	Takes the result from _ifconfig_getargs and removes pseudo
+#	args such as DHCP and WPA.
+ifconfig_getargs()
+{
+	local _tmpargs _arg _args _vnet
+	_tmpargs=`_ifconfig_getargs $1 $2`
+	if [ $? -eq 1 ]; then
+		return 1
+	fi
+	_args=
+	_vnet=0
+
+	for _arg in $_tmpargs; do
+		case $_arg:$_vnet in
+		[Ii][Pp][Vv][6]:0) ;;
+		[Aa][Uu][Tt][Oo]:0) ;;
+		[Dd][Hh][Cc][Pp]:0) ;;
+		[Nn][Oo][Aa][Uu][Tt][Oo]:0) ;;
+		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]:0) ;;
+		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]:0) ;;
+		[Ww][Pp][Aa]:0) ;;
+		[Hh][Oo][Ss][Tt][Aa][Pp]:0) ;;
+		vnet:0)	_vnet=1 ;;
+		*:1)	_vnet=0 ;;
+		*:0)
+			_args="$_args $_arg"
+		;;
+		esac
+	done
+
+	echo $_args
+}
+
+# Location to ifconfig
+export IFCONFIG_CMD="/sbin/ifconfig"
+
 # Add our sbin to $PATH
 case "$PATH" in
 	"$RC_LIBEXECDIR"/sbin|"$RC_LIBEXECDIR"/sbin:*);;
