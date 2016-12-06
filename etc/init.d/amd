@@ -9,20 +9,36 @@
 # This file may not be copied, modified, propagated, or distributed
 # except according to the terms contained in the LICENSE file.
 
-command=/usr/sbin/rpcbind
-command_args=$rpcbind_args
-name="RPC program number mapper"
+name="amd"
 
 depend()
 {
-	provide rpc
-	need localmount
-	use net logger dns
-	before inetd xinetd
+	need localmount nfsclient rpcbind
+	use net logger
 }
 
-stop_post()
+start_pre()
 {
-	# rpcbind returns too fast, so sleep for a second
-	sleep 1
+	case ${amd_map_program} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		amd_flags="${amd_flags} `echo $(eval ${amd_map_program})`"
+		;;
+	esac
+
+	case "${amd_flags}" in
+	'')     if [ ! -r /etc/amd.conf ]; then
+			eend 1 'amd will not load without arguments'
+		fi
+		;;
+	*)
+		;;
+	esac
+}
+
+start()
+{
+	start-stop-daemon --start --exec /usr/sbin/amd \
+		--pidfile /var/run/amd.pid -b -m -- $amd_flags
 }
