@@ -29,8 +29,6 @@ find_wireless()
 {
 	local iface=
 	for iface in $(/sbin/sysctl -b net.wlan.devices 2>/dev/null); do
-		sysctl -n net.wlan.devices | grep -q "$iface"
-		if [ $? -eq 0 ] ; then continue ; fi
 		echo "${iface##*/}"
 	done
 }
@@ -47,7 +45,7 @@ wireless_up()
 		wnum="0"
 		while :
 		do
-			ifconfig wlan${wnum} >/dev/null
+			ifconfig wlan${wnum} 2>/dev/null
 			if [ $? -ne 0 ] ; then
 				break
 			fi
@@ -61,6 +59,21 @@ wireless_up()
 			wnum=`expr $wnum + 1`
 		done
 	fi
+}
+
+# Destroy wlan devices
+wireless_down()
+{
+	wnum="0"
+	while :
+	do
+		ifconfig wlan${wnum} 2>/dev/null
+		if [ $? -ne 0 ] ; then
+			break
+		fi
+		${IFCONFIG_CMD} wlan${wnum} destroy
+		wnum=`expr $wnum + 1`
+	done
 }
 
 # clone_up
@@ -110,6 +123,8 @@ clone_up()
 		esac
 	done
 	if [ -n "${_list# }" ]; then
+		# Start the bridge service
+		service_set_value want bridge
 		einfo "Created clone interfaces: ${_list# }."
 	fi
 }
@@ -464,6 +479,9 @@ stop()
 
 	# Bring down cloned interfaces
 	clone_down
+
+	# Bring down wireless
+	wireless_down
 
 	eoutdent
 	eend 0
