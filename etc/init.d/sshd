@@ -9,10 +9,19 @@
 # This file may not be copied, modified, propagated, or distributed
 # except according to the terms contained in the LICENSE file.
 
+name="sshd"
 command=/usr/sbin/sshd
 command_args=$sshd_args
 pidfile=@VARBASE@/run/sshd.pid
 required_files=/etc/ssh/sshd_config
+extra_commands="keygen configtest"
+
+: ${sshd_rsa1_enable:="no"}
+: ${sshd_rsa_enable:="yes"}
+: ${sshd_dsa_enable:="no"}
+: ${sshd_ecdsa_enable:="yes"}
+: ${sshd_ed25519_enable:="yes"}
+
 
 depend()
 {
@@ -20,59 +29,57 @@ depend()
 	need net
 }
 
-openssh_keygen()
+sshd_keygen_alg()
 {
-	if [ -f /etc/ssh_host_dsa_key -a \
-	    -f /etc/ssh_host_rsa_key -a \
-	    -f /etc/ssh_host_ecdsa_key -a \
-	    -f /etc/ssh_host_ed25519_key ]; then
+	local alg=$1
+	local ALG="$(echo $alg | tr a-z A-Z)"
+	local keyfile
+
+	if ! yesno "sshd_${alg}_enable" ; then
 		return 0
 	fi
 
-	umask 022
+	case $alg in
+	rsa1)
+		keyfile="/etc/ssh/ssh_host_key"
+		;;
+	rsa|dsa|ecdsa|ed25519)
+		keyfile="/etc/ssh/ssh_host_${alg}_key"
+		;;
+	*)
+		return 1
+		;;
+	esac
 
-	# Can't do anything if ssh is not installed
-	[ -x /usr/bin/ssh-keygen ] ||
-		err 1 "/usr/bin/ssh-keygen does not exist."
-
-	if [ -f /etc/ssh_host_dsa_key ]; then
-		echo "You already have a DSA host key" \
-			"in /etc/ssh_host_dsa_key"
-		echo "Skipping protocol version 2 DSA Key Generation"
-	else
-		/usr/bin/ssh-keygen -t dsa \
-			-f /etc/ssh_host_dsa_key -N ''
+	if [ ! -x /usr/bin/ssh-keygen ] ; then
+		ewarn "/usr/bin/ssh-keygen does not exist."
+		return 1
 	fi
 
-	if [ -f /etc/ssh_host_rsa_key ]; then
-		echo "You already have a RSA host key" \
-			"in /etc/ssh_host_rsa_key"
-		echo "Skipping protocol version 2 RSA Key Generation"
-	else
-		/usr/bin/ssh-keygen -t rsa \
-			-f /etc/ssh_host_rsa_key -N ''
+	if [ ! -f "${keyfile}" ] ; then
+		einfo "Generating $ALG host key."
+		/usr/bin/ssh-keygen -q -t $alg -f "$keyfile" -N ""
+		/usr/bin/ssh-keygen -l -f "$keyfile.pub"
 	fi
+}
 
-	if [ -f /etc/ssh_host_ecdsa_key ]; then
-		echo "You already have a Elliptic Curve DSA host key" \
-			"in /etc/ssh_host_ecdsa_key"
-		echo "Skipping protocol version 2 Elliptic Curve DSA Key Generation"
-	else
-		/usr/bin/ssh-keygen -t ecdsa \
-			-f /etc/ssh_host_ecdsa_key -N ''
-	fi
+keygen()
+{
+	sshd_keygen_alg rsa1
+	sshd_keygen_alg rsa
+	sshd_keygen_alg dsa
+	sshd_keygen_alg ecdsa
+	sshd_keygen_alg ed25519
+}
 
-	if [ -f /etc/ssh_host_ed25519_key ]; then
-		echo "You already have a Elliptic Curve ED25519 host key" \
-			"in /etc/ssh_host_ed25519_key"
-		echo "Skipping protocol version 2 Elliptic Curve ED25519 Key Generation"
-	else
-		/usr/bin/ssh-keygen -t ed25519 \
-			-f /etc/ssh_host_ed25519_key -N ''
-	fi
+configtest()
+{
+	einfo "Performing sanity check on ${name} configuration."
+	eval ${command} ${command_args} -t
 }
 
 start_pre()
 {
-	openssh_keygen
+	keygen
+	configtest
 }
