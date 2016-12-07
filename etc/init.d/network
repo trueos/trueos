@@ -15,7 +15,7 @@ depend()
 {
         provide net
         need localmount
-        after bootmisc modules devd
+        after bootmisc modules
 	keyword -jail -prefix -vserver
 }
 
