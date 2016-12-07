@@ -16,6 +16,7 @@ depend()
         provide net
         need localmount
         after bootmisc modules devd
+	keyword -jail -prefix -vserver
 }
 
 
@@ -67,7 +68,7 @@ wireless_down()
 	wnum="0"
 	while :
 	do
-		ifconfig wlan${wnum} 2>/dev/null
+		ifconfig wlan${wnum} >/dev/null 2>/dev/null
 		if [ $? -ne 0 ] ; then
 			break
 		fi
@@ -124,7 +125,6 @@ clone_up()
 	done
 	if [ -n "${_list# }" ]; then
 		# Start the bridge service
-		service_set_value want bridge
 		einfo "Created clone interfaces: ${_list# }."
 	fi
 }
@@ -190,16 +190,6 @@ clone_down()
 	if [ -n "${_list# }" ]; then
 		einfo "Destroyed clone interfaces: ${_list# }."
 	fi
-}
-
-depend()
-{
-	need localmount
-	after bootmisc
-	if [ -n "$(interfaces)" ]; then
-		provide net
-	fi
-	keyword -jail -prefix -vserver
 }
 
 uniqify()
