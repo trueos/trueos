@@ -61,6 +61,8 @@ wireless_up()
 		for i in $iface; do
 			einfo "Created wlan${wnum}"
 			${IFCONFIG_CMD} wlan${wnum} create wlandev $iface
+			# Up the device
+			${IFCONFIG_CMD} wlan${wnum} up
 			wnum=`expr $wnum + 1`
 		done
 	fi
