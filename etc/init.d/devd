@@ -14,7 +14,7 @@ command_args=$devd_args
 name="Device State Change Daemon"
 
 depend() {
-	need localmount net
+	need localmount
 	after bootmisc
 	keyword -jail -prefix
 }

@@ -36,11 +36,6 @@ if [ -d "/etc/rc.conf.d" ]; then
 	done
 fi
 
-# Disable devd until we need it
-if [ -z "$RC_SYS" -a "$RC_UNAME" = "FreeBSD" ]; then
-	sysctl hw.bus.devctl_disable=1 >/dev/null
-fi
-
 # mount $RC_SVCDIR as something we can write to if it's not rw
 # On vservers, / is always rw at this point, so we need to clean out
 # the old service state data

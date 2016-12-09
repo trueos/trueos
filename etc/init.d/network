@@ -11,6 +11,16 @@
 
 # This script was inspired by the equivalent rc.d network from NetBSD.
 
+
+name="network"
+description="Configures network interfaces."
+__nl="
+"
+extra_started_commands="attach detach"
+attach_description="Attach new network device"
+detach_description="Detach removed network device"
+IFCONFIG_CMD="/sbin/ifconfig"
+
 depend()
 {
         provide net
@@ -19,12 +29,6 @@ depend()
 	keyword -jail -prefix -vserver
 }
 
-
-description="Configures network interfaces."
-__nl="
-"
-
-IFCONFIG_CMD="/sbin/ifconfig"
 
 find_wireless()
 {
@@ -319,6 +323,61 @@ runargs()
 	done
 }
 
+start_interface()
+{
+	int="$1"
+	local func= cf=
+	intv=$(shell_var "$int")
+	eval upcmd=\$ifup_$intv
+	for func in ip ifconfig; do
+		eval cmd=\$${func}_$intv
+		if [ -n "$cmd" -o -f /etc/"$func.$int" ]; then
+			cf=/etc/"$func.$int"
+			break
+		fi
+	done
+
+	# Skip ifconfig lines that have some 'magic' DHCP/WPA keywords
+	echo "$cmd" | grep -q -e "AUTO" -e "WPA" -e "DHCP" -e "IPV6"
+	if [ $? -eq 0 ] ; then return 0; fi
+
+	[ -n "$cf" -o -n "$upcmd" -o \
+		-f /etc/ifup."$int" -o -f "$cf" ] || return 0
+	veinfo "$int"
+	case "$func" in
+	ip)	func=runip; intup=false;;
+	esac
+	eindent
+	runargs /etc/ifup."$int" "$upcmd"
+	r=0
+	dumpargs "$cf" "$cmd" | while read -r args; do
+		case "$args" in
+		''|"#"*)	;;
+		"!"*)
+				(
+				 	eval vebegin "${args#*!}"
+					eval "${args#*!}"
+					veend $?
+				);;
+		*)
+				(
+				 	set -o noglob
+					eval set -- "$args"
+					vebegin "$@"
+					$func "$int" "$@"
+					veend $?
+				);;
+		esac
+	done
+	eoutdent
+
+	# Save the devices for use by attach/detach later
+	# Used to determine what devices have been added / remove
+	# Often only called by devd
+	ifa=" $int $ifa "
+	service_set_value ifa "$ifa"
+}
+
 start()
 {
 	local cr=0 r= int= intv= cmd= args= upcmd=
@@ -336,50 +395,7 @@ start()
 	routeflush
 	eindent
 	for int in $(interfaces); do
-		local func= cf=
-		intv=$(shell_var "$int")
-		eval upcmd=\$ifup_$intv
-		for func in ip ifconfig; do
-			eval cmd=\$${func}_$intv
-			if [ -n "$cmd" -o -f /etc/"$func.$int" ]; then
-				cf=/etc/"$func.$int"
-				break
-			fi
-		done
-
-		# Skip ifconfig lines that have some 'magic' DHCP/WPA keywords
-		echo "$cmd" | grep -q -e "AUTO" -e "WPA" -e "DHCP" -e "IPV6"
-		if [ $? -eq 0 ] ; then continue; fi
-
-		[ -n "$cf" -o -n "$upcmd" -o \
-			-f /etc/ifup."$int" -o -f "$cf" ] || continue
-		veinfo "$int"
-		case "$func" in
-		ip)	func=runip; intup=false;;
-		esac
-		eindent
-		runargs /etc/ifup."$int" "$upcmd"
-		r=0
-		dumpargs "$cf" "$cmd" | while read -r args; do
-			case "$args" in
-			''|"#"*)	;;
-			"!"*)
-					(
-					 	eval vebegin "${args#*!}"
-						eval "${args#*!}"
-						veend $?
-					);;
-			*)
-					(
-					 	set -o noglob
-						eval set -- "$args"
-						vebegin "$@"
-						$func "$int" "$@"
-						veend $?
-					);;
-			esac
-		done
-		eoutdent
+		start_interface $int
 	done
 	eoutdent
 	eend $cr
@@ -431,6 +447,33 @@ start()
 	return 0
 }
 
+stop_interface()
+{
+	int="$1"
+	case "$int" in
+		lo|lo0) return 0 ;;
+		*) ;;
+	esac
+	intv=$(shell_var "$int")
+	eval downcmd=\$ifdown_$intv
+	eval cmd=\$ip_$intv
+	[ -z "$cmd" ] && eval cmd=\$ifconfig_$intv
+	if [ -n "$cmd" -o -f /etc/ip."$int" -o \
+		-f /etc/ifconfig."$int" -o \
+		-n "$downcmd" -o -f /etc/ifdown."$int" ];
+	then
+		veinfo "$int"
+		runargs /etc/ifdown."$int" "$downcmd"
+		if [ -x /sbin/ip ] || [ -x /bin/ip ]; then
+			# We need to do this, otherwise we may
+			# fail to add things correctly on restart
+			ip address flush dev "$int" 2>/dev/null
+		fi
+		ifconfig "$int" down 2>/dev/null
+		ifconfig "$int" destroy 2>/dev/null
+	fi
+}
+
 stop()
 {
 	# Don't stop the network at shutdown.
@@ -443,28 +486,7 @@ stop()
 	routeflush
 	eindent
 	for int in $(reverse $(interfaces u)); do
-		case "$int" in
-			lo|lo0) continue ;;
-			*) ;;
-		esac
-		intv=$(shell_var "$int")
-		eval downcmd=\$ifdown_$intv
-		eval cmd=\$ip_$intv
-		[ -z "$cmd" ] && eval cmd=\$ifconfig_$intv
-		if [ -n "$cmd" -o -f /etc/ip."$int" -o \
-			-f /etc/ifconfig."$int" -o \
-			-n "$downcmd" -o -f /etc/ifdown."$int" ];
-		then
-			veinfo "$int"
-			runargs /etc/ifdown."$int" "$downcmd"
-			if [ -x /sbin/ip ] || [ -x /bin/ip ]; then
-				# We need to do this, otherwise we may
-				# fail to add things correctly on restart
-				ip address flush dev "$int" 2>/dev/null
-			fi
-			ifconfig "$int" down 2>/dev/null
-			ifconfig "$int" destroy 2>/dev/null
-		fi
+		stop_interface "$int"
 	done
 
 	# Bring down cloned interfaces
@@ -475,4 +497,34 @@ stop()
 
 	eoutdent
 	eend 0
+}
+
+#
+# Attach and enable a specific device
+#
+attach()
+{
+	ifa="$(service_get_value ifa)"
+	for int in $(interfaces); do
+		echo $ifa | grep -q -w "$int"	
+		if [ $? -ne 0 ] ; then
+			start_interface $int
+		fi
+	done
+}
+
+#
+# Detach a specific device
+#
+detach()
+{
+	local int= intv= cmd= downcmd= r=
+	ifa="$(service_get_value ifa)"
+	ifcur="$(reverse $(interfaces u))"
+	for prev in $ifa; do
+		echo $ifcur | grep -q -w "$prev"	
+		if [ $? -eq 0 ] ; then newifa=" $prev $newifa " ; continue; fi
+		stop_interface "$prev"
+	done
+	service_set_value ifa "$newifa"
 }
