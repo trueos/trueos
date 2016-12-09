@@ -61,8 +61,6 @@ wireless_up()
 		for i in $iface; do
 			einfo "Created wlan${wnum}"
 			${IFCONFIG_CMD} wlan${wnum} create wlandev $iface
-			# Up the device
-			${IFCONFIG_CMD} wlan${wnum} up
 			wnum=`expr $wnum + 1`
 		done
 	fi
@@ -506,18 +504,13 @@ stop()
 #
 attach()
 {
-	ebegin "Attaching new network devices"
-	eindent
 	ifa="$(service_get_value ifa)"
 	for int in $(interfaces); do
-		echo $ifa | grep -q -w "$int"
+		echo $ifa | grep -q -w "$int"	
 		if [ $? -ne 0 ] ; then
-			einfo "Attaching $int"
 			start_interface $int
 		fi
 	done
-	eoutdent
-	eend 0
 }
 
 #
@@ -526,16 +519,12 @@ attach()
 detach()
 {
 	local int= intv= cmd= downcmd= r=
-	ebegin "Detaching removed network devices"
-	eindent
 	ifa="$(service_get_value ifa)"
 	ifcur="$(reverse $(interfaces u))"
 	for prev in $ifa; do
-		echo $ifcur | grep -q -w "$prev"
+		echo $ifcur | grep -q -w "$prev"	
 		if [ $? -eq 0 ] ; then newifa=" $prev $newifa " ; continue; fi
-		einfo "Detaching $prev"
 		stop_interface "$prev"
 	done
 	service_set_value ifa "$newifa"
-	eend 0
 }
