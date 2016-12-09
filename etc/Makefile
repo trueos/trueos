@@ -14,7 +14,8 @@ SUBDIR=	\
 SUBDIR+=sendmail
 .endif
 
-OPENRC_BOOT_LINK=	adjkerntz \
+OPENRC_BOOT_LINK=	abi \
+			adjkerntz \
 			bootmisc \
 			bridge \
 			dumpon \
