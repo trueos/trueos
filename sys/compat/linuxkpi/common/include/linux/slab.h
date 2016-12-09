@@ -59,14 +59,6 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	vmalloc_user(size)              kmalloc(size, GFP_KERNEL | __GFP_ZERO)
 #define __kmalloc			kmalloc
 
-/**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
- */
-
-
 /*
  * Prefix some functions with linux_ to avoid namespace conflict
  * with the OpenSolaris code in the kernel.

@@ -428,7 +428,6 @@ struct pci_dev {
 	struct pci_vpd *vpd;
 };
 
-
 static inline struct resource_list_entry *
 linux_pci_get_rle(struct pci_dev *pdev, int type, int rid)
 {
@@ -518,14 +517,12 @@ pci_resource_flags(struct pci_dev *pdev, int bar)
 	return (1 << type);
 }
 
-
 static inline const char *
 pci_name(struct pci_dev *d)
 {
 
 	return device_get_desc(d->dev.bsddev);
 }
-
 
 static inline void *
 pci_get_drvdata(struct pci_dev *pdev)
@@ -630,11 +627,10 @@ pci_request_regions(struct pci_dev *pdev, const char *res_name)
 	return (0);
 }
 
-
 static inline int
 linux_pci_enable_msi(struct pci_dev *pdev)
 {
-	/*  not clear what address to use - ignore for now*/
+	/* not clear what address to use - ignore for now */
 	return (0);
 }
 
@@ -644,7 +640,6 @@ linux_pci_disable_msi(struct pci_dev *pdev)
 	/* disable until clear how to do enable */
 	/* pci_disable_msi(pdev->dev.bsddev); */
 }
-
 
 struct pci_dev *linux_pci_get_class(unsigned int class, struct pci_dev *from);
 
