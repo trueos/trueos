@@ -44,6 +44,7 @@ start()
 	fi
 
 	if [ -z "$moused_device" ]; then
+		mark_service_inactive
 		eend 1 "No mouse device found"
 		return 1
 	fi
