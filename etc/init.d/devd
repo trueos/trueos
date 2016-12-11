@@ -15,7 +15,7 @@ name="Device State Change Daemon"
 
 depend() {
 	need localmount
-	after bootmisc
+	after bootmisc network
 	keyword -jail -prefix
 }
 
