@@ -1,4 +1,5 @@
 #!/sbin/openrc-run
+# Copyright (c) 2016 - Kris Moore <kris@ixsystems.com>
 # Copyright (c) 2009-2015 The OpenRC Authors.
 # See the Authors file at the top-level directory of this distribution and
 # https://github.com/OpenRC/openrc/blob/master/AUTHORS
@@ -8,17 +9,29 @@
 # distribution and at https://github.com/OpenRC/openrc/blob/master/LICENSE
 # This file may not be copied, modified, propagated, or distributed
 # except according to the terms contained in the LICENSE file.
-
+#
 # This script was inspired by the equivalent rc.d network from NetBSD.
+#
+# 2016-12-11 - Kris Moore - Improved to support per-interface sub-services
+#
 
+netif=${RC_SVCNAME##*.}
+if [ -n "$netif" -a "$netif" != "network" ]; then
+        network_device="$netif"
+fi
 
+# Until we can determine why devd is throwing some bogus
+# $cdev = '' variables
+if [ "$network_device" = "." ] ; then
+	exit 1
+fi
 name="network"
+[ -n "$network_device" ] && name="$name ($network_device)"
+
+
 description="Configures network interfaces."
 __nl="
 "
-extra_started_commands="attach detach"
-attach_description="Attach new network device"
-detach_description="Detach removed network device"
 IFCONFIG_CMD="/sbin/ifconfig"
 
 depend()
@@ -26,9 +39,8 @@ depend()
         provide net
         need localmount
         after bootmisc modules
-	keyword -jail -prefix -vserver
+	keyword -jail -prefix -vserver -stop
 }
-
 
 find_wireless()
 {
@@ -337,9 +349,14 @@ start_interface()
 		fi
 	done
 
+	# Up the interfaces
+	ifconfig $int up
+
 	# Skip ifconfig lines that have some 'magic' DHCP/WPA keywords
 	echo "$cmd" | grep -q -e "AUTO" -e "WPA" -e "DHCP" -e "IPV6"
 	if [ $? -eq 0 ] ; then return 0; fi
+
+	ebegin "Starting network ($int)"
 
 	[ -n "$cf" -o -n "$upcmd" -o \
 		-f /etc/ifup."$int" -o -f "$cf" ] || return 0
@@ -371,15 +388,20 @@ start_interface()
 	done
 	eoutdent
 
-	# Save the devices for use by attach/detach later
-	# Used to determine what devices have been added / remove
-	# Often only called by devd
-	ifa=" $int $ifa "
-	service_set_value ifa "$ifa"
+	eend 0
+
+	# Set the routes
+	set_default_route
 }
 
 start()
 {
+	# Have we been started on a specific network device?
+	if [ -n "$network_device" ] ; then
+		start_interface $network_device
+		return $?
+	fi
+
 	local cr=0 r= int= intv= cmd= args= upcmd=
 
 	if [ -z "$domainname" -a -s /etc/defaultdomain ]; then
@@ -391,14 +413,17 @@ start()
 		eend $?
 	fi
 
-	einfo "Starting network"
+	# Flush old routes
 	routeflush
-	eindent
+
+	ebegin "Starting network services"
+	# Spawn the network sub-services
 	for int in $(interfaces); do
-		start_interface $int
+		ln -fs /etc/init.d/network /etc/init.d/network.${int}
+		/sbin/service network.${int} start
 	done
-	eoutdent
 	eend $cr
+
 
 	# Wait for any inet6 tentative addresses
 	r=5
@@ -419,9 +444,15 @@ start()
 	# Bring up cloned interfaces
 	clone_up
 
+	# Set the routes
+	set_default_route
+}
+
+set_default_route()
+{
 	if [ -n "$defaultroute" ]; then
 		ebegin "Setting default route $defaultroute"
-		route add default $defaultroute
+		route add default $defaultroute >/dev/null 2>/dev/null
 		eend $?
 	elif [ -n "$defaultiproute" ]; then
 		ebegin "Setting default route $defaultiproute"
@@ -429,14 +460,14 @@ start()
 		eend $?
 	elif [ -n "$defaultrouter" ]; then
 		ebegin "Setting the default route $defaultrouter"
-		route add default $defaultrouter
+		route add default $defaultrouter >/dev/null 2>/dev/null
 		eend $?
 	fi
 
 	if [ -n "$defaultroute6" ]; then
 		ebegin "Setting default route $defaultroute6"
 		routecmd="route -inet6 add"
-		$routecmd default $defaultroute6
+		$routecmd default $defaultroute6 >/dev/null 2>/dev/null
 		eend $?
 	elif [ -n "$defaultiproute6" ]; then
 		ebegin "Setting default route $defaultiproute6"
@@ -472,6 +503,7 @@ stop_interface()
 		ifconfig "$int" down 2>/dev/null
 		ifconfig "$int" destroy 2>/dev/null
 	fi
+	return 0
 }
 
 stop()
@@ -481,12 +513,20 @@ stop()
 	# correctly if we go back to multiuser.
 	yesno ${keep_network:-YES} && yesno $RC_GOINGDOWN && return 0
 
+	# If we are stopping a sub-network device
+	if [ -n "$network_device" ] ; then
+		stop_interface "$network_device"
+		return $?
+	fi
+
 	local int= intv= cmd= downcmd= r=
-	einfo "Stopping network"
+	ebegin "Stopping network"
 	routeflush
-	eindent
+
+	# Stop all the sub-network processes
 	for int in $(reverse $(interfaces u)); do
-		stop_interface "$int"
+		ln -fs /etc/init.d/network /etc/init.d/network.${int}
+		/sbin/service network.${int} stop
 	done
 
 	# Bring down cloned interfaces
@@ -495,36 +535,5 @@ stop()
 	# Bring down wireless
 	wireless_down
 
-	eoutdent
 	eend 0
-}
-
-#
-# Attach and enable a specific device
-#
-attach()
-{
-	ifa="$(service_get_value ifa)"
-	for int in $(interfaces); do
-		echo $ifa | grep -q -w "$int"	
-		if [ $? -ne 0 ] ; then
-			start_interface $int
-		fi
-	done
-}
-
-#
-# Detach a specific device
-#
-detach()
-{
-	local int= intv= cmd= downcmd= r=
-	ifa="$(service_get_value ifa)"
-	ifcur="$(reverse $(interfaces u))"
-	for prev in $ifa; do
-		echo $ifcur | grep -q -w "$prev"	
-		if [ $? -eq 0 ] ; then newifa=" $prev $newifa " ; continue; fi
-		stop_interface "$prev"
-	done
-	service_set_value ifa "$newifa"
 }
