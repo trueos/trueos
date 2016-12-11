@@ -22,7 +22,7 @@ fi
 
 # Until we can determine why devd is throwing some bogus
 # $cdev = '' variables
-if [ "$network_device" = "." ] ; then
+if [ "${RC_SVCNAME}" = "network." ] ; then
 	exit 1
 fi
 name="network"
