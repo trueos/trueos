@@ -37,6 +37,7 @@
 #endif
 
 #ifdef _KERNEL
+#include <sys/systm.h>
 
 extern vm_paddr_t dump_avail[];
 extern vm_paddr_t phys_avail[];
