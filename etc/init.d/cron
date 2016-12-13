@@ -9,7 +9,7 @@ depend() {
 
 start() {
 	ebegin "Starting cron daemon"
-	start-stop-daemon --start --quiet --exec /usr/sbin/cron
+	start-stop-daemon --start --quiet --exec /usr/sbin/cron -- -s
 	eend $?
 }
 
