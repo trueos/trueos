@@ -10,7 +10,7 @@
 # except according to the terms contained in the LICENSE file.
 
 command=/usr/sbin/syslogd
-command_args=$syslogd_args
+command_args=-NCC
 pidfile=/var/run/syslog.pid
 name="System Logger Daemon"
 
