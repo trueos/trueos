@@ -12,7 +12,7 @@
 depend()
 {
 	before bootmisc logger
-	keyword -prefix -systemd-nspawn -vserver
+	keyword -prefix -systemd-nspawn -vserver -jail
 }
 
 BSD_sysctl()
