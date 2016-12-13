@@ -354,7 +354,8 @@ start_interface()
 	# If this is a wireless device, make sure wpa_supplicant is started
 	echo $int | grep -q "wlan"
 	if [ $? -eq 0 ] ; then
-		service wpa_supplicant start
+		ln -fs /usr/local/etc/init.d/wpa_supplicant /usr/local/etc/init.d/wpa_supplicant.${int}
+		service wpa_supplicant.${int} start
 	fi
 
 	# Skip ifconfig lines that have some 'magic' DHCP/WPA keywords
@@ -527,9 +528,9 @@ stop()
 		fi
 
 		# Stop wpa_supp (if running)
-		service_started wpa_supplicant
+		service_started wpa_supplicant.${network_device}
 		if [ $? -eq 0 ] ; then
-			service wpa_supplicant stop
+			service wpa_supplicant.${network_device} stop
 		fi
 
 		stop_interface "$network_device"
