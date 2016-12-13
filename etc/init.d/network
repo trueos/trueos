@@ -351,8 +351,11 @@ start_interface()
 		fi
 	done
 
-	# Up the interfaces
-	ifconfig $int up
+	# If this is a wireless device, make sure wpa_supplicant is started
+	echo $int | grep -q "wlan"
+	if [ $? -eq 0 ] ; then
+		service wpa_supplicant start
+	fi
 
 	# Skip ifconfig lines that have some 'magic' DHCP/WPA keywords
 	echo "$cmd" | grep -q -e "AUTO" -e "WPA" -e "DHCP" -e "IPV6"
@@ -517,6 +520,18 @@ stop()
 
 	# If we are stopping a sub-network device
 	if [ -n "$network_device" ] ; then
+		# Kill any dhcpcd services
+		service_started dhcpcd.${network_device}
+		if [ $? -eq 0 ] ; then
+			service dhcpcd.${network_device} stop
+		fi
+
+		# Stop wpa_supp (if running)
+		service_started wpa_supplicant
+		if [ $? -eq 0 ] ; then
+			service wpa_supplicant stop
+		fi
+
 		stop_interface "$network_device"
 		return $?
 	fi
