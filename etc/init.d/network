@@ -506,10 +506,19 @@ stop_interface()
 			# fail to add things correctly on restart
 			ip address flush dev "$int" 2>/dev/null
 		fi
+		clear_all_ips "$int"
 		ifconfig "$int" down 2>/dev/null
-		ifconfig "$int" destroy 2>/dev/null
 	fi
 	return 0
+}
+
+clear_all_ips()
+{
+	# Clear all IPv4 Addresses
+	for addr in $(ifconfig $1 | tr -d '\t' | grep -e "^inet " | awk '{print $2}')
+	do
+		ifconfig $1 -alias $addr
+	done
 }
 
 stop()
