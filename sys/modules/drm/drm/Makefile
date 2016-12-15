@@ -103,7 +103,8 @@ SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.
 .if ${MACHINE_CPUARCH} == "powerpc"
 CWARNFLAGS+=-Wno-cast-qual
 .endif
-CWARNFLAGS += -Wno-pointer-arith -Wno-pointer-sign -Wno-format
+CWARNFLAGS+= -Wno-pointer-arith -Wno-pointer-sign -Wno-format
+CWARNFLAGS+= -Wno-expansion-to-defined
 
 CWARNFLAGS.drm_mipi_dsi.c+=	-Wno-incompatible-pointer-types-discards-qualifiers -Wno-int-conversion
 CWARNFLAGS.drm_cache.c+=	-Wno-int-conversion

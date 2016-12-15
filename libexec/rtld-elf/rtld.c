@@ -200,9 +200,6 @@ Elf_Sym sym_zero;		/* For resolving undefined weak refs. */
 
 extern Elf_Dyn _DYNAMIC;
 #pragma weak _DYNAMIC
-#ifndef RTLD_IS_DYNAMIC
-#define	RTLD_IS_DYNAMIC()	(&_DYNAMIC != NULL)
-#endif
 
 int dlclose(void *) __exported;
 char *dlerror(void) __exported;
@@ -642,6 +639,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     r_debug_state(NULL, &obj_main->linkmap); /* say hello to gdb! */
 
     map_stacks_exec(NULL);
+    ifunc_init(aux);
 
     dbg("resolving ifuncs");
     if (resolve_objects_ifunc(obj_main,
@@ -690,10 +688,14 @@ rtld_resolve_ifunc(const Obj_Entry *obj, const Elf_Sym *def)
 	Elf_Addr target;
 
 	ptr = (void *)make_function_pointer(def, obj);
-	target = ((Elf_Addr (*)(void))ptr)();
+	target = call_ifunc_resolver(ptr);
 	return ((void *)target);
 }
 
+/*
+ * NB: MIPS uses a private version of this function (_mips_rtld_bind).
+ * Changes to this function should be applied there as well.
+ */
 Elf_Addr
 _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 {
@@ -713,8 +715,8 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 	rel = (const Elf_Rel *) ((caddr_t) obj->pltrela + reloff);
 
     where = (Elf_Addr *) (obj->relocbase + rel->r_offset);
-    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, true, NULL,
-	&lockstate);
+    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, SYMLOOK_IN_PLT,
+	NULL, &lockstate);
     if (def == NULL)
 	rtld_die();
     if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC)
@@ -1915,22 +1917,20 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 #ifdef PIC
     objtmp.relocbase = mapbase;
 #endif
-    if (RTLD_IS_DYNAMIC()) {
-	objtmp.dynamic = rtld_dynamic(&objtmp);
-	digest_dynamic1(&objtmp, 1, &dyn_rpath, &dyn_soname, &dyn_runpath);
-	assert(objtmp.needed == NULL);
+
+    objtmp.dynamic = rtld_dynamic(&objtmp);
+    digest_dynamic1(&objtmp, 1, &dyn_rpath, &dyn_soname, &dyn_runpath);
+    assert(objtmp.needed == NULL);
 #if !defined(__mips__)
-	/* MIPS has a bogus DT_TEXTREL. */
-	assert(!objtmp.textrel);
+    /* MIPS has a bogus DT_TEXTREL. */
+    assert(!objtmp.textrel);
 #endif
+    /*
+     * Temporarily put the dynamic linker entry into the object list, so
+     * that symbols can be found.
+     */
+    relocate_objects(&objtmp, true, &objtmp, 0, NULL);
 
-	/*
-	 * Temporarily put the dynamic linker entry into the object list, so
-	 * that symbols can be found.
-	 */
-
-	relocate_objects(&objtmp, true, &objtmp, 0, NULL);
-    }
     ehdr = (Elf_Ehdr *)mapbase;
     objtmp.phdr = (Elf_Phdr *)((char *)mapbase + ehdr->e_phoff);
     objtmp.phsize = ehdr->e_phnum * sizeof(objtmp.phdr[0]);

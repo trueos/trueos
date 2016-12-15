@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/mouse.h>
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 #include <dev/evdev/input.h>
 #include <dev/evdev/evdev.h>
 #endif
@@ -554,7 +554,7 @@ struct wsp_softc {
 	u_int	sc_state;
 	u_int	sc_fflags;
 #define	WSP_ENABLED	       0x01
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	int sc_evflags;
 #define	WSP_EVDEV_OPENED	1
 #endif
@@ -597,7 +597,7 @@ struct wsp_softc {
 #define	WSP_SCROLL_HOR		2
 	uint8_t tp_data[WSP_BUFFER_MAX] __aligned(4);		/* trackpad transferred data */
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	struct evdev_dev *sc_evdev;
 #endif
 };
@@ -614,7 +614,7 @@ static usb_fifo_ioctl_t wsp_ioctl;
 static void wsp_start_rx(struct wsp_softc *sc);
 static void wsp_stop_rx(struct wsp_softc *sc);
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 static evdev_open_t wsp_ev_open;
 static evdev_close_t wsp_ev_close;
 #endif
@@ -628,7 +628,7 @@ static struct usb_fifo_methods wsp_fifo_methods = {
 	.basename[0] = WSP_DRIVER_NAME,
 };
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 static struct evdev_methods wsp_evdev_methods = {
 	.ev_open = &wsp_ev_open,
 	.ev_close = &wsp_ev_close,
@@ -839,7 +839,7 @@ wsp_attach(device_t dev)
 	sc->sc_touch = WSP_UNTOUCH;
 	sc->scroll_mode = WSP_SCROLL_NONE;
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	sc->sc_evdev = evdev_alloc();
 	evdev_set_name(sc->sc_evdev, device_get_desc(dev));
 	evdev_set_serial(sc->sc_evdev, "0");
@@ -856,7 +856,7 @@ wsp_attach(device_t dev)
 	for(int i = 0; i < sc->sc_hw.buttons; i++)
 		evdev_support_key(sc->sc_evdev, BTN_MOUSE + i);
 
-	err = evdev_register(dev, sc->sc_evdev);
+	err = evdev_register(sc->sc_evdev);
 	if (err)
 		goto detach;
 #endif
@@ -882,8 +882,8 @@ wsp_detach(device_t dev)
 
 	usb_fifo_detach(&sc->sc_fifo);
 
-#ifdef EVDEV
-	evdev_unregister(dev, sc->sc_evdev);
+#ifdef EVDEV_SUPPORT
+	evdev_unregister(sc->sc_evdev);
 	evdev_free(sc->sc_evdev);
 #endif
 
@@ -1241,7 +1241,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 tr_setup:
 		/* check if we can put more data into the FIFO */
 		if (usb_fifo_put_bytes_max(sc->sc_fifo.fp[USB_FIFO_RX]) == 0) {
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 			if (sc->sc_evflags == 0)
 				break;
 #else
@@ -1301,7 +1301,7 @@ wsp_add_to_queue(struct wsp_softc *sc, int dx, int dy, int dz,
 	usb_fifo_put_data_linear(sc->sc_fifo.fp[USB_FIFO_RX], buf,
 	    sc->sc_mode.packetsize, 1);
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	/* Push evdev event */
 	if (dx != 0 || dy != 0) {
 		evdev_push_event(sc->sc_evdev, EV_REL, REL_X, dx);
@@ -1322,7 +1322,7 @@ wsp_add_to_queue(struct wsp_softc *sc, int dx, int dy, int dz,
 
 }
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 static int
 wsp_ev_open(struct evdev_dev *evdev, void *ev_softc)
 {

@@ -78,6 +78,7 @@ SELVEC+= ,&${_v}
 CFLAGS+= -DSELECT_VECS="${SELVEC}"
 CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
 CFLAGS+= -DDEBUGDIR="NULL"
+CFLAGS+= -Wno-varargs
 
 # XXX:DEO should grab BFD_VERSION_DATE from ${VERSION}...
 bfdver.h: Makefile

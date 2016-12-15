@@ -48,6 +48,7 @@
 
 #define R92S_MACIDSETTING	0x0050
 #define R92S_MACID		(R92S_MACIDSETTING + 0x000)
+#define R92S_MAR		(R92S_MACIDSETTING + 0x010)
 
 #define R92S_GP			0x01e0
 #define R92S_GPIO_CTRL		(R92S_GP + 0x00c)
@@ -509,6 +510,7 @@ struct r92s_rx_stat {
 #define R92S_RXDW0_QOS		0x00800000
 #define R92S_RXDW0_SHIFT_M	0x03000000
 #define R92S_RXDW0_SHIFT_S	24
+#define R92S_RXDW0_PHYST	0x04000000
 #define R92S_RXDW0_DECRYPTED	0x08000000
 
 	uint32_t	rxdw1;
@@ -573,7 +575,7 @@ struct r92s_tx_desc {
 #define R92S_TXDW1_QSEL_M	0x00001f00
 #define R92S_TXDW1_QSEL_S	8
 #define R92S_TXDW1_QSEL_BE	0x03
-#define R92S_TXDW1_QSEL_H2C	0x1f
+#define R92S_TXDW1_QSEL_H2C	0x13
 #define R92S_TXDW1_NONQOS	0x00010000
 #define R92S_TXDW1_KEYIDX_M	0x00060000
 #define R92S_TXDW1_KEYIDX_S	17
@@ -623,8 +625,6 @@ struct r92s_add_ba_req {
  */
 #define RSU_RX_LIST_COUNT	100
 #define RSU_TX_LIST_COUNT	32
-
-#define RSU_HOST_CMD_RING_COUNT	32
 
 #define RSU_RXBUFSZ	(8 * 1024)
 #define RSU_TXBUFSZ	\
@@ -699,27 +699,6 @@ struct rsu_tx_radiotap_header {
 
 struct rsu_softc;
 
-struct rsu_host_cmd {
-	void	(*cb)(struct rsu_softc *, void *);
-	uint8_t	data[256];
-};
-
-struct rsu_cmd_newstate {
-	enum ieee80211_state	state;
-	int			arg;
-};
-
-struct rsu_cmd_key {
-	struct ieee80211_key	key;
-};
-
-struct rsu_host_cmd_ring {
-	struct rsu_host_cmd	cmd[RSU_HOST_CMD_RING_COUNT];
-	int			cur;
-	int			next;
-	int			queued;
-};
-
 enum {
 	RSU_BULK_RX,
 	RSU_BULK_TX_BE_BK,	/* = WME_AC_BE/BK */
@@ -754,12 +733,9 @@ struct rsu_softc {
 	struct mbufq			sc_snd;
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
-	int				(*sc_newstate)(struct ieee80211com *,
-					    enum ieee80211_state, int);
-	struct usbd_interface		*sc_iface;
+
 	struct timeout_task		calib_task;
 	struct task			tx_task;
-	const uint8_t			*qid2idx;
 	struct mtx			sc_mtx;
 	int				sc_ht;
 	int				sc_nendpoints;
@@ -768,16 +744,14 @@ struct rsu_softc {
 
 	u_int				sc_running:1,
 					sc_calibrating:1,
-					sc_scanning:1,
-					sc_scan_pass:1;
+					sc_active_scan:1,
+					sc_extra_scan:1;
 	u_int				cut;
 	uint8_t				sc_rftype;
 	int8_t				sc_nrxstream;
 	int8_t				sc_ntxstream;
-	struct rsu_host_cmd_ring	cmdq;
 	struct rsu_data			sc_rx[RSU_RX_LIST_COUNT];
 	struct rsu_data			sc_tx[RSU_TX_LIST_COUNT];
-	struct rsu_data			*fwcmd_data;
 	uint8_t				cmd_seq;
 	uint8_t				rom[128];
 	struct usb_xfer			*sc_xfer[RSU_N_TRANSFER];

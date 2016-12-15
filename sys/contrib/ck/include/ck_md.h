@@ -22,6 +22,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef CK_MD_H
@@ -43,15 +45,27 @@
 #define CK_MD_POINTER_PACK_DISABLE
 #endif /* CK_MD_POINTER_PACK_DISABLE */
 
-#ifndef CK_MD_VMA_BITS 
-#define CK_MD_VMA_BITS 48ULL
-#endif /* CK_MD_VMA_BITS */
+#ifndef CK_MD_VMA_BITS_UNKNOWN 
+#define CK_MD_VMA_BITS_UNKNOWN 
+#endif /* CK_MD_VMA_BITS_UNKNOWN */
 
-#ifndef CK_MD_TSO
-#define CK_MD_TSO
-#endif /* CK_MD_TSO */
+#ifndef CK_MD_RMO
+#define CK_MD_RMO
+#endif /* CK_MD_RMO */
 
-#define CK_VERSION "0.5.1"
+#define CK_VERSION "0.5.2"
 #define CK_GIT_SHA ""
 
+/*
+ * CK expects those, which are normally defined by the build system.
+ */
+#if defined(__i386__) && !defined(__x86__)
+#define __x86__
+#elif defined(__sparc64__) && !defined(__sparcv9__)
+#define __sparcv9__
+#elif defined(__powerpc64__) && !defined(__ppc64__)
+#define __ppc64__
+#elif defined(__powerpc__) && !defined(__ppc__)
+#define __ppc__
+#endif
 #endif /* CK_MD_H */

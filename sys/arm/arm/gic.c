@@ -61,9 +61,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/smp.h>
 
-#include <dev/fdt/fdt_common.h>
+#ifdef FDT
 #include <dev/fdt/fdt_intr.h>
 #include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 #include <arm/arm/gic.h>
 
@@ -312,7 +313,7 @@ gic_decode_fdt(phandle_t iparent, pcell_t *intr, int *interrupt,
 
 	if (self == 0) {
 		for (ocd = compat_data; ocd->ocd_str != NULL; ocd++) {
-			if (fdt_is_compatible(iparent, ocd->ocd_str)) {
+			if (ofw_bus_node_is_compatible(iparent, ocd->ocd_str)) {
 				self = iparent;
 				break;
 			}

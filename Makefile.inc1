@@ -53,26 +53,29 @@
 SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
 
+
+WITHOUT_LLVM_LIBUNWIND = 1
+ 
 .if !defined(XCC)
-.if !exists(${LOCALBASE}/bin/clang38)
-.error "You need to install devel/llvm38 to build or set XCC"
+.if !exists(${LOCALBASE}/bin/clang39)
+.error "You need to install devel/llvm39 to build or set XCC"
 .endif
 
-XCC= ${LOCALBASE}/bin/clang38
+XCC= ${LOCALBASE}/bin/clang39
 .endif
 .if !defined(XCXX)
-.if !exists(${LOCALBASE}/bin/clang++38)
-.error "You need to install devel/llvm38 to build or set XCXX"
+.if !exists(${LOCALBASE}/bin/clang++39)
+.error "You need to install devel/llvm39 to build or set XCXX"
 .endif
 
-XCXX= ${LOCALBASE}/bin/clang++38
+XCXX= ${LOCALBASE}/bin/clang++39
 .endif
 .if !defined(XCPP)
-.if !exists(${LOCALBASE}/bin/clang-cpp38)
-.error "You need to install devel/llvm38 to build or set XCPP"
+.if !exists(${LOCALBASE}/bin/clang-cpp39)
+.error "You need to install devel/llvm39 to build or set XCPP"
 .endif
 
-XCPP= ${LOCALBASE}/bin/clang-cpp38
+XCPP= ${LOCALBASE}/bin/clang-cpp39
 .endif
 
 # Cross toolchain changes must be in effect before bsd.compiler.mk
@@ -378,10 +381,15 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		mipsn32el/mips \
 		mips64/mips \
 		mipsn32/mips \
+		mipshf/mips \
+		mipselhf/mips \
+		mips64elhf/mips \
+		mips64hf/mips \
 		powerpc \
 		powerpc64/powerpc \
 		powerpcspe/powerpc \
 		riscv64/riscv \
+		riscv64sf/riscv \
 		sparc64
 
 .if ${TARGET} == ${TARGET_ARCH}
@@ -533,7 +541,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		MK_GDB=no MK_TESTS=no
+		MK_GDB=no MK_TESTS=no MK_LLD_AS_LD=no
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -561,8 +569,8 @@ HMAKE+=		PATH=${TMPPATH} METALOG=${METALOG} -DNO_ROOT
 
 CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCXXFLAGS} ${XCFLAGS}" \
 		CPP="${XCPP} ${XCFLAGS}" \
-		AS="${XAS}" AR="${XAR}" LD="${XLD}" NM=${XNM} \
-		OBJCOPY="${XOBJCOPY}" \
+		AS="${XAS}" AR="${XAR}" LD="${XLD}" LLVM_LINK="${XLLVM_LINK}" \
+		NM=${XNM} OBJCOPY="${XOBJCOPY}" \
 		RANLIB=${XRANLIB} STRINGS=${XSTRINGS} \
 		SIZE="${XSIZE}"
 
@@ -694,9 +702,6 @@ _worldtmp: .PHONY
 .endif
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
-#	XXX - These can depend on any header file.
-	rm -f ${OBJTREE}${.CURDIR}/lib/libsysdecode/ioctl.c
-	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/kdump_subr.c
 .endif
 .for _dir in \
     lib lib/casper usr legacy/bin legacy/usr
@@ -1651,11 +1656,6 @@ ${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 _cat=		bin/cat
 .endif
 
-# r264059 support for status=
-.if ${BOOTSTRAPPING} < 1100017
-_dd=		bin/dd
-.endif
-
 # r277259 crunchide: Correct 64-bit section header offset
 # r281674 crunchide: always include both 32- and 64-bit ELF support
 .if ${BOOTSTRAPPING} < 1100078
@@ -1685,6 +1685,18 @@ ${_bt}-usr.bin/yacc: ${_bt}-lib/liby
 .if ${MK_BSNMP} != "no"
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
+
+# We need to build tblgen when we're building clang either as
+# the bootstrap compiler, or as the part of the normal build.
+#.if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no"
+#_clang_tblgen= \
+#	lib/clang/libllvmminimal \
+#	usr.bin/clang/llvm-tblgen \
+#	usr.bin/clang/clang-tblgen
+
+#${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmminimal
+#${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
+#.endif
 
 # Default to building the GPL DTC, but build the BSDL one if users explicitly
 # request it.
@@ -1725,7 +1737,6 @@ bootstrap-tools: .PHONY
     ${_groff} \
     ${_dtc} \
     ${_cat} \
-    ${_dd} \
     ${_kbdcontrol} \
     usr.bin/lorder \
     ${_libopenbsd} \
@@ -1949,6 +1960,7 @@ native-xtools: .PHONY
     usr.bin/gzip \
     usr.bin/id \
     usr.bin/lex \
+    usr.bin/limits \
     usr.bin/lorder \
     usr.bin/mktemp \
     usr.bin/mt \
@@ -1996,7 +2008,7 @@ libraries: .MAKE .PHONY
 #
 # static libgcc.a prerequisite for shared libc
 #
-_prereq_libs= gnu/lib/libgcc lib/libcompiler_rt
+_prereq_libs= lib/libcompiler_rt
 .if ${MK_SSP} != "no"
 _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 .endif
@@ -2008,7 +2020,6 @@ _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 #
 _startup_libs=	gnu/lib/csu
 _startup_libs+=	lib/csu
-_startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
 _startup_libs+=	lib/libc_nonshared
@@ -2016,10 +2027,26 @@ _startup_libs+=	lib/libc_nonshared
 _startup_libs+=	lib/libcxxrt
 .endif
 
+.if ${MK_LLVM_LIBUNWIND} != "no"
+_prereq_libs+=	lib/libgcc_eh lib/libgcc_s
+_startup_libs+=	lib/libgcc_eh lib/libgcc_s
+
+lib/libgcc_s__L: lib/libc__L
+lib/libgcc_s__L: lib/libc_nonshared__L
+.if ${MK_LIBCPLUSPLUS} != "no"
+lib/libcxxrt__L: lib/libgcc_s__L
+.endif
+
+.else # MK_LLVM_LIBUNWIND == no
+
+_prereq_libs+=	gnu/lib/libgcc
+_startup_libs+=	gnu/lib/libgcc
+
 gnu/lib/libgcc__L: lib/libc__L
 gnu/lib/libgcc__L: lib/libc_nonshared__L
 .if ${MK_LIBCPLUSPLUS} != "no"
 lib/libcxxrt__L: gnu/lib/libgcc__L
+.endif
 .endif
 
 _prebuild_libs=	${_kerberos5_lib_libasn1} \
@@ -2385,6 +2412,11 @@ delete-old-dirs: .PHONY
 		elif [ -L "${DESTDIR}/$${dir}" ]; then \
 			echo "${DESTDIR}/$${dir} is a link, please remove everything manually."; \
 		fi; \
+		if [ -d "${DESTDIR}${DEBUGDIR}/$${dir}" ]; then \
+			rmdir -v "${DESTDIR}${DEBUGDIR}/$${dir}" || true; \
+		elif [ -L "${DESTDIR}${DEBUGDIR}/$${dir}" ]; then \
+			echo "${DESTDIR}${DEBUGDIR}/$${dir} is a link, please remove everything manually."; \
+		fi; \
 	done
 	@echo ">>> Old directories removed"
 
@@ -2398,6 +2430,11 @@ check-old-dirs: .PHONY
 			echo "${DESTDIR}/$${dir}"; \
 		elif [ -L "${DESTDIR}/$${dir}" ]; then \
 			echo "${DESTDIR}/$${dir} is a link, please remove everything manually."; \
+		fi; \
+		if [ -d "${DESTDIR}${DEBUGDIR}/$${dir}" ]; then \
+			echo "${DESTDIR}${DEBUGDIR}/$${dir}"; \
+		elif [ -L "${DESTDIR}${DEBUGDIR}/$${dir}" ]; then \
+			echo "${DESTDIR}${DEBUGDIR}/$${dir} is a link, please remove everything manually."; \
 		fi; \
 	done
 

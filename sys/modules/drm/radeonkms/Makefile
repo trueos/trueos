@@ -134,6 +134,7 @@ SRCS    +=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_d
 .include <bsd.kmod.mk>
 
 CWARNFLAGS+= -Wno-format
+CWARNFLAGS+= -Wno-expansion-to-defined
 
 CWARNFLAGS.atombios_encoders.c=	-Wno-missing-prototypes
 CWARNFLAGS.atombios_i2c.c=	-Wno-missing-prototypes

@@ -32,6 +32,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_evdev.h"
 #include "opt_kbd.h"
 #include "opt_kbdmux.h"
 #include "opt_evdev.h"
@@ -65,7 +66,7 @@
 
 #include <dev/kbd/kbdtables.h>
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 #include <dev/evdev/evdev.h>
 #include <dev/evdev/input.h>
 #endif
@@ -165,9 +166,8 @@ struct kbdmux_state
 	u_int			 ks_composed_char; /* composed char code */
 	u_char			 ks_prefix;	/* AT scan code prefix */
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	struct evdev_dev *	 ks_evdev;
-	bool			 ks_evdev_opened;
 	int			 ks_evdev_state;
 #endif
 
@@ -383,34 +383,10 @@ static keyboard_switch_t kbdmuxsw = {
 	.diag =		genkbd_diag,
 };
 
-#ifdef EVDEV
-static int kbdmux_ev_open(struct evdev_dev *, void *);
-static void kbdmux_ev_close(struct evdev_dev *, void *);
-
-struct evdev_methods kbdmux_evdev_methods = {
-	.ev_open = kbdmux_ev_open,
-	.ev_close = kbdmux_ev_close,
+#ifdef EVDEV_SUPPORT
+static const struct evdev_methods kbdmux_evdev_methods = {
 	.ev_event = evdev_ev_kbd_event,
 };
-
-static int
-kbdmux_ev_open(struct evdev_dev *evdev, void *softc)
-{
-	keyboard_t *kbd = (keyboard_t *)softc;
- 	struct kbdmux_state *state = kbd->kb_data;
-
-	state->ks_evdev_opened = true;
-	return (0);
-}
-
-static void
-kbdmux_ev_close(struct evdev_dev *evdev, void *softc)
-{
-	keyboard_t *kbd = (keyboard_t *)softc;
- 	struct kbdmux_state *state = kbd->kb_data;
-
-	state->ks_evdev_opened = false;
-}
 #endif
 
 /*
@@ -446,9 +422,9 @@ kbdmux_init(int unit, keyboard_t **kbdp, void *arg, int flags)
         accentmap_t	*accmap = NULL;
         fkeytab_t	*fkeymap = NULL;
 	int		 error, needfree, fkeymap_size, delay[2];
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	struct evdev_dev *evdev;
-	char phys_loc[NAMELEN];
+	char		 phys_loc[NAMELEN];
 #endif
 
 	if (*kbdp == NULL) {
@@ -510,13 +486,13 @@ kbdmux_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		delay[1] = kbd->kb_delay2;
 		kbdmux_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 		/* register as evdev provider */
 		evdev = evdev_alloc();
 		evdev_set_name(evdev, "System keyboard multiplexer");
 		snprintf(phys_loc, NAMELEN, KEYBOARD_NAME"%d", unit);
 		evdev_set_phys(evdev, phys_loc);
-		evdev_set_serial(evdev, "0");
+		evdev_set_id(evdev, BUS_VIRTUAL, 0, 0, 0);
 		evdev_set_methods(evdev, kbd, &kbdmux_evdev_methods);
 		evdev_support_event(evdev, EV_SYN);
 		evdev_support_event(evdev, EV_KEY);
@@ -527,9 +503,10 @@ kbdmux_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		evdev_support_led(evdev, LED_CAPSL);
 		evdev_support_led(evdev, LED_SCROLLL);
 
-
-		evdev_register(NULL, evdev);
-		state->ks_evdev = evdev;
+		if (evdev_register(evdev))
+			evdev_free(evdev);
+		else
+			state->ks_evdev = evdev;
 		state->ks_evdev_state = 0;
 #endif
 
@@ -600,6 +577,10 @@ kbdmux_term(keyboard_t *kbd)
 	KBDMUX_UNLOCK(state);
 
 	kbd_unregister(kbd);
+
+#ifdef EVDEV_SUPPORT
+	evdev_free(state->ks_evdev);
+#endif
 
 	KBDMUX_LOCK_DESTROY(state);
 	bzero(state, sizeof(*state));
@@ -763,9 +744,9 @@ next_code:
 
 	kbd->kb_count ++;
 
-#ifdef EVDEV
+#ifdef EVDEV_SUPPORT
 	/* push evdev event */
-	if (state->ks_evdev != NULL && state->ks_evdev_opened) {
+	if (evdev_rcpt_mask & EVDEV_RCPT_KBDMUX && state->ks_evdev != NULL) {
 		uint16_t key = evdev_scancode2key(&state->ks_evdev_state,
 		    scancode);
 
@@ -1203,11 +1184,10 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		}
 
 		KBD_LED_VAL(kbd) = *(int *)arg;
-#ifdef EVDEV
-		if (state->ks_evdev != NULL && state->ks_evdev_opened) {
+#ifdef EVDEV_SUPPORT
+		if (state->ks_evdev != NULL &&
+		    evdev_rcpt_mask & EVDEV_RCPT_KBDMUX)
 			evdev_push_leds(state->ks_evdev, *(int *)arg);
-			evdev_sync(state->ks_evdev);
-		}
 #endif
 		/* KDSETLED on all slave keyboards */
 		SLIST_FOREACH(k, &state->ks_kbds, next)
@@ -1285,11 +1265,10 @@ kbdmux_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 		kbd->kb_delay1 = delays[(mode >> 5) & 3];
 		kbd->kb_delay2 = rates[mode & 0x1f];
-#ifdef EVDEV
-		if (state->ks_evdev != NULL && state->ks_evdev_opened) {
+#ifdef EVDEV_SUPPORT
+		if (state->ks_evdev != NULL &&
+		    evdev_rcpt_mask & EVDEV_RCPT_KBDMUX)
 			evdev_push_repeats(state->ks_evdev, kbd);
-			evdev_sync(state->ks_evdev);
-		}
 #endif
 		/* perform command on all slave keyboards */
 		SLIST_FOREACH(k, &state->ks_kbds, next)
@@ -1489,4 +1468,6 @@ kbdmux_modevent(module_t mod, int type, void *data)
 }
 
 DEV_MODULE(kbdmux, kbdmux_modevent, NULL);
-
+#ifdef EVDEV_SUPPORT
+MODULE_DEPEND(kbdmux, evdev, 1, 1, 1);
+#endif

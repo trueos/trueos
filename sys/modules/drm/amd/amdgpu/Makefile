@@ -164,6 +164,7 @@ SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.
 
 CWARNFLAGS+=	-Wno-pointer-arith -Wno-format
 CWARNFLAGS+=	-Wno-pointer-sign ${CWARNFLAGS.${.IMPSRC:T}}
+CWARNFLAGS+=	-Wno-expansion-to-defined
 
 CWARNFLAGS.amdgpu_acpi.c=	-Wno-int-conversion -Wno-missing-prototypes -Wno-unused-variable
 CWARNFLAGS.amdgpu_amdkfd.c=	-Wno-missing-prototypes
