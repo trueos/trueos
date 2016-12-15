@@ -187,6 +187,7 @@ __DEFAULT_NO_OPTIONS = \
     HESIOD \
     LIBSOFT \
     NAND \
+    NTP \
     OFED \
     OPENLDAP \
     RCS \
