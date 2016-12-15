@@ -1,8 +1,8 @@
 #!/bin/sh
 
-if [ ! -e "/usr/local/bin/clang38" ] ; then
-  echo "ERROR: Please 'pkg install llvm38' first"
+if [ ! -e "/usr/local/bin/clang39" ] ; then
+  echo "ERROR: Please 'pkg install llvm39' first"
   exit 1
 fi
 
-exec /usr/local/bin/clang-cpp38 "${@}"
+exec /usr/local/bin/clang-cpp39 "${@}"
