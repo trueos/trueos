@@ -213,6 +213,10 @@ X${BINUTIL}?=	${${BINUTIL}}
 .endif
 .endfor
 
+# 2016-12-14
+# KPM - Disable NTP in favor of OpenNTPD
+# 
+MK_NTP=	no
 
 # We must do lib/ and libexec/ before bin/ in case of a mid-install error to
 # keep the users system reasonably usable.  For static->dynamic root upgrades,
