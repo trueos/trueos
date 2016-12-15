@@ -138,7 +138,6 @@ __DEFAULT_YES_OPTIONS = \
     NETGRAPH \
     NLS_CATALOGS \
     NS_CACHING \
-    NTP \
     OPENSSL \
     PAM \
     PC_SYSINSTALL \
