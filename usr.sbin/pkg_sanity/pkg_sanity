@@ -87,6 +87,17 @@ do
     safecmd=1
     continue
   fi
+  if [ "$arg" = "upgrade" -a $safecmd -ne 1 ] ; then
+    # Warn user that 'pkg upgrade' is unsafe on rolling release
+    echo "Warning: Using 'pkg upgrade' on TrueOS is dangerous!"
+    echo "Please use 'pc-updatemanager pkgupdate' instead."
+    echo ""
+    echo "If you wish to by-pass this safety check, re-run your pkg command as"
+    echo "# pkg-static <args>"
+    echo ""
+    echo "Note: This could be dangerous, be sure you know what you are doing!"
+    exit 1
+  fi
 done
 
 exec /usr/local/sbin/pkg-static "$@"
