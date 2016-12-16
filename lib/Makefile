@@ -149,10 +149,10 @@ SUBDIR.${MK_LDNS}+=	libldns
 # sense to build when clang is enabled at all.  Furthermore, they can only be
 # built for certain architectures.
 
-#.if ${MK_LIBCPLUSPLUS} != "no"
-#_libcxxrt=	libcxxrt
-#_libcplusplus=	libc++
-#.endif
+.if ${MK_LIBCPLUSPLUS} != "no"
+_libcxxrt=	libcxxrt
+_libcplusplus=	libc++
+.endif
 
 SUBDIR.${MK_EFI}+=	libefivar
 SUBDIR.${MK_LIBTHR}+=	libthr
