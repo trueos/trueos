@@ -31,6 +31,7 @@ start()
 	# When started in 'master' mode, search for available
 	# mouse devices, and start them as sub-services
 	if [ -z "$moused_device" ]; then
+		export OPENRC_SILENT=TRUE
 		local founddev=0
 		local dev=
 		for dev in /dev/psm[0-9]* /dev/ums[0-9]*; do
@@ -47,7 +48,9 @@ start()
 		fi
 	fi
 
-	ebegin "Starting $name"
+	if [ -z "$OPENRC_SILENT" ] ; then
+		ebegin "Starting $name"
+	fi
 
 	if [ -z "$moused_device" ]; then
 		mark_service_inactive
@@ -72,7 +75,9 @@ start()
 		done
 	fi
 
-	eend $retval "Failed to start moused"
+	if [ -z "$OPENRC_SILENT" ] ; then
+		eend $retval "Failed to start moused"
+	fi
 }
 
 stop()
@@ -88,8 +93,12 @@ stop()
 		return 0
 	fi
 
-	ebegin "Stopping $name"
+	if [ -z "$OPENRC_SILENT" ] ; then
+		ebegin "Stopping $name"
+	fi
 	start-stop-daemon --stop --exec /usr/sbin/moused \
 		-p $pidfile
-	eend $?
+	if [ -z "$OPENRC_SILENT" ] ; then
+		eend $?
+	fi
 }

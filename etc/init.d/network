@@ -355,14 +355,16 @@ start_interface()
 	echo $int | grep -q "wlan"
 	if [ $? -eq 0 ] ; then
 		ln -fs /usr/local/etc/init.d/wpa_supplicant /usr/local/etc/init.d/wpa_supplicant.${int}
-		service wpa_supplicant.${int} start
+		service wpa_supplicant.${int} start >/dev/null 2>/dev/null
 	fi
 
 	# Skip ifconfig lines that have some 'magic' DHCP/WPA keywords
 	echo "$cmd" | grep -q -e "AUTO" -e "WPA" -e "DHCP" -e "IPV6"
 	if [ $? -eq 0 ] ; then return 0; fi
 
-	ebegin "Starting network ($int)"
+	if [ -z "$OPENRC_SILENT" ] ; then
+		ebegin "Starting network ($int)"
+	fi
 
 	[ -n "$cf" -o -n "$upcmd" -o \
 		-f /etc/ifup."$int" -o -f "$cf" ] || return 0
@@ -394,7 +396,9 @@ start_interface()
 	done
 	eoutdent
 
-	eend 0
+	if [ -z "$OPENRC_SILENT" ] ; then
+		eend 0
+	fi
 
 	# Set the routes
 	set_default_route
@@ -422,13 +426,19 @@ start()
 	# Flush old routes
 	routeflush
 
-	ebegin "Starting network services"
+	if [ -z "$OPENRC_SILENT" ] ; then
+		ebegin "Starting network services"
+	fi
 	# Spawn the network sub-services
 	for int in $(interfaces); do
+		export OPENRC_SILENT=TRUE
 		ln -fs /etc/init.d/network /etc/init.d/network.${int}
-		/sbin/service network.${int} start
+		/sbin/service network.${int} start 2>/dev/null >/dev/null
+		unset OPENRC_SILENT
 	done
-	eend $cr
+	if [ -z "$OPENRC_SILENT" ] ; then
+		eend $cr
+	fi
 
 
 	# Wait for any inet6 tentative addresses
@@ -530,6 +540,8 @@ stop()
 
 	# If we are stopping a sub-network device
 	if [ -n "$network_device" ] ; then
+		export OPENRC_SILENT=TRUE
+
 		# Kill any dhcpcd services
 		service_started dhcpcd.${network_device}
 		if [ $? -eq 0 ] ; then
@@ -552,8 +564,10 @@ stop()
 
 	# Stop all the sub-network processes
 	for int in $(reverse $(interfaces u)); do
+		export OPENRC_SILENT=TRUE
 		ln -fs /etc/init.d/network /etc/init.d/network.${int}
 		/sbin/service network.${int} stop
+		unset OPENRC_SILENT
 	done
 
 	# Bring down cloned interfaces
