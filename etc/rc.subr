@@ -2127,6 +2127,25 @@ if kenv -q rc.debug > /dev/null ; then
 	rc_debug=YES
 fi
 
+if [ -z "${source_rc_confs_defined}" ]; then
+        source_rc_confs_defined=yes
+        source_rc_confs() {
+                local i sourced_files
+                for i in ${rc_conf_files}; do
+                        case ${sourced_files} in
+                        *:$i:*)
+                                ;;
+                        *)
+                                sourced_files="${sourced_files}:$i:"
+                                if [ -r $i ]; then
+                                        . $i
+                                fi
+                                ;;
+                        esac
+                done
+        }
+fi
+
 fi # [ -z "${_rc_subr_loaded}" ]
 
 _rc_subr_loaded=:
