@@ -228,6 +228,8 @@ start()
 					fi
 					dmesg > /var/log/dmesg
 					chmod 640 /var/log/dmesg
+					dmesg > /var/run/dmesg.boot
+					chmod 640 /var/run/dmesg.boot
 					;;
 			esac
 		fi
