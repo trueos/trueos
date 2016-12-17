@@ -59,11 +59,30 @@ reset_debug_log(void)
 	}
 }
 
- int
-drm_dev_alias(struct drm_minor *minor, const char *minor_str)
+int
+drm_dev_alias(struct device *ldev, struct drm_minor *minor, const char *minor_str)
 {
+	struct sysctl_oid_list *oid_list, *child;
+	struct sysctl_ctx_list *ctx_list;
 	struct linux_cdev *cdevp;
+	struct sysctl_oid *node;
+	device_t dev = ldev->parent->bsddev;
 	char buf[20];
+	char *devbuf;
+
+	MPASS(dev != NULL);
+	ctx_list = device_get_sysctl_ctx(dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+	sprintf(buf, "%d", minor->index);
+	node = SYSCTL_ADD_NODE(ctx_list, SYSCTL_STATIC_CHILDREN(_dev_drm), OID_AUTO, buf,
+			       CTLFLAG_RD, NULL, "drm properties");
+	oid_list = SYSCTL_CHILDREN(node);
+	sprintf(buf, "%x:%x", pci_get_vendor(dev),
+		pci_get_device(dev));
+	/* XXX leak - fix me */
+	devbuf = strndup(buf, 20, DRM_MEM_DRIVER);
+	SYSCTL_ADD_STRING(ctx_list, oid_list, OID_AUTO, "PCI_ID",
+			  CTLFLAG_RD, devbuf, 0, "vendor and device ids");
 
 	/*
 	 * FreeBSD won't automaticaly create the corresponding device

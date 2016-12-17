@@ -382,7 +382,7 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 	r = dev_set_name(kdev, minor_str, minor->index);
 	if (r < 0)
 		goto err_free;
-	r = drm_dev_alias(minor, minor_str);
+	r = drm_dev_alias(kdev, minor, minor_str);
 	if (r < 0)
 		goto err_free;
 	return kdev;
