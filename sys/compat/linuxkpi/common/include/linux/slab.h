@@ -53,10 +53,9 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	vzalloc(size)			kzalloc(size, GFP_KERNEL | __GFP_NOWARN)
 #define	vfree(arg)			kfree(arg)
 #define	kvfree(arg)			kfree(arg)
-#define	vmalloc(size)                   kmalloc(size, GFP_KERNEL)
-#define	__vmalloc(size, flags, other)                   kmalloc(size, (flags))
-#define	vmalloc_node(size, node)        kmalloc(size, GFP_KERNEL)
-#define	vmalloc_user(size)              kmalloc(size, GFP_KERNEL | __GFP_ZERO)
+#define	vmalloc_node(size, node)        __vmalloc(size, GFP_KERNEL, 0)
+#define	vmalloc_user(size)              __vmalloc(size, GFP_KERNEL | __GFP_ZERO, 0)
+#define	vmalloc(size)                   __vmalloc(size, GFP_KERNEL | __GFP_ZERO, 0)
 #define __kmalloc			kmalloc
 
 /**
@@ -88,9 +87,15 @@ static inline void *
 kmalloc(int size, gfp_t flags)
 {
 
-	return (lkpi_malloc(size, M_KMALLOC, flags ? flags : M_NOWAIT));
+	return (lkpi_malloc(size, M_KMALLOC, (flags ? flags : M_NOWAIT) | M_CONTIG));
 }
 
+static inline void *
+__vmalloc(int size, gfp_t flags, int other)
+{
+
+	return (lkpi_malloc(size, M_KMALLOC, flags ? flags : M_NOWAIT));
+}
 
 static inline void *
 kmalloc_array(size_t n, size_t size, gfp_t flags)
