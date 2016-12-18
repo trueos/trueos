@@ -181,6 +181,7 @@ struct device {
 	struct kobject	kobj;
 	void		*driver_data;
 	unsigned int	irq;
+#define	LINUX_IRQ_INVALID	65535
 	unsigned int	msix;
 	unsigned int	msix_max;
 	struct device_type *type;

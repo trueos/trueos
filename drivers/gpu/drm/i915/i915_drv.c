@@ -1754,7 +1754,7 @@ static struct pci_driver i915_pci_driver = {
 	.id_table = pciidlist,
 	.probe = i915_pci_probe,
 	.remove = i915_pci_remove,
-	.linux_driver.pm = &i915_pm_ops,
+	.driver.pm = &i915_pm_ops,
         .suspend = pci_default_suspend,
         .resume = pci_default_resume
 };
