@@ -468,18 +468,22 @@ alloc_page(gfp_t flags)
 	req = VM_ALLOC_ZERO | VM_ALLOC_NOOBJ;
 	tries = 0;
 retry:
-	page = vm_page_alloc_contig(NULL, 0, req, 1, 0, 0xffffffff,
-	    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-	if (page == NULL) {
-		if (tries < 1) {
-			if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
-			    PAGE_SIZE, 0))
-				VM_WAIT;
-			tries++;
-			goto retry;
+	if (flags & GFP_DMA32) {
+		page = vm_page_alloc_contig(NULL, 0, req, 1, 0, 0xffffffff,
+					    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+		if (page == NULL) {
+			if (tries < 1) {
+				if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
+							    PAGE_SIZE, 0))
+					VM_WAIT;
+				tries++;
+				goto retry;
+			}
+			return (NULL);
 		}
-		return (NULL);
-	}
+	} else
+		page = vm_page_alloc(NULL, -1, req | VM_ALLOC_NORMAL);
+
 	if ((flags & __GFP_ZERO) && ((page->flags & PG_ZERO) == 0))
 		pmap_zero_page(page);
 	return (page);
