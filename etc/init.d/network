@@ -356,6 +356,16 @@ start_interface()
 	if [ $? -eq 0 ] ; then
 		ln -fs /usr/local/etc/init.d/wpa_supplicant /usr/local/etc/init.d/wpa_supplicant.${int}
 		service wpa_supplicant.${int} start >/dev/null 2>/dev/null
+	else
+		echo "$cmd" | grep -q -e "AUTO" -e "DHCP" -e "IPV6"
+		if [ $? -eq 0 ] ; then
+			# Start any dhcpcd services
+			service_started dhcpcd.${int}
+			if [ $? -ne 0 ] ; then
+				ln -fs /usr/local/etc/init.d/dhcpcd /usr/local/etc/init.d/dhcpcd.${int}
+				service -N dhcpcd.${int} start
+			fi
+		fi
 	fi
 
 	# Skip ifconfig lines that have some 'magic' DHCP/WPA keywords
