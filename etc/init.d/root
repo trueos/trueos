@@ -44,21 +44,5 @@ start()
 		;;
 	esac
 
-	ebegin "Remounting filesystems"
-	local mountpoint
-	for mountpoint in $(fstabinfo); do
-		case "${mountpoint}" in
-			/)
-			;;
-			/proc)
-			;;
-			/compat/linux/proc)
-			;;
-			/*)
-				mountinfo -q "${mountpoint}" && \
-					fstabinfo --remount "${mountpoint}"
-			;;
-		esac
-	done
-	eend 0
+	return 0
 }

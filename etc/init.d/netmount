@@ -35,7 +35,7 @@ start()
 	done
 
 	ebegin "Mounting network filesystems"
-	mount -at $fs
+	mount -alt $fs
 	rc=$?
 	if [ "$RC_UNAME" = Linux ] && [ $rc = 0 ]; then
 		mount -a -O _netdev
