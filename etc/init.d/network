@@ -231,6 +231,24 @@ reverse()
 	echo "${result# *}"
 }
 
+# ifnet_rename [ifname]
+#	Rename interfaces if ifconfig_IF_name is defined.
+#
+ifnet_rename()
+{
+	local _if _ifname
+
+	# ifconfig_IF_name
+	for _if in ${*:-$(${IFCONFIG_CMD} -l)}; do
+		_ifname=`get_if_var $_if ifconfig_IF_name`
+		if [ ! -z "$_ifname" ]; then
+			${IFCONFIG_CMD} $_if name $_ifname
+		fi
+	done
+
+	return 0
+}
+
 sys_interfaces()
 {
 	ifconfig -l$1
@@ -436,6 +454,15 @@ start()
 	# Flush old routes
 	routeflush
 
+	# Bring up the wireless interfaces
+	wireless_up
+
+	# Bring up cloned interfaces
+	clone_up
+
+	# Rename interfaces
+	ifnet_rename
+
 	if [ -z "$OPENRC_SILENT" ] ; then
 		ebegin "Starting network services"
 	fi
@@ -463,12 +490,6 @@ start()
 		[ $r != 0 ]
 		veend $?
 	fi
-
-	# Bring up the wireless interfaces
-	wireless_up
-
-	# Bring up cloned interfaces
-	clone_up
 
 	# Set the routes
 	set_default_route
