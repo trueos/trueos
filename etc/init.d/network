@@ -369,6 +369,9 @@ start_interface()
 		fi
 	done
 
+	# Up the interface
+	ifconfig $int up
+
 	# If this is a wireless device, make sure wpa_supplicant is started
 	echo $int | grep -q "wlan"
 	if [ $? -eq 0 ] ; then
