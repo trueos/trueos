@@ -108,10 +108,8 @@ void
 interval_tree_insert(struct interval_tree_node *node, struct rb_root *root)
 {
 	interval_tree_insert_(node, root);
-#ifdef INVARIANTS
 	interval_tree_remove(node, root);
 	interval_tree_insert_(node, root);
-#endif
 }
 
 
