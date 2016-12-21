@@ -123,19 +123,19 @@ static inline void
 mdelay(unsigned long msecs)
 {
 	while (msecs--)
-		DELAY(1000);
+		udelay(1000);
 }
 
 static inline void
 ndelay(unsigned long x)
 {
-	DELAY(howmany(x, 1000));
+	udelay(howmany(x, 1000));
 }
 
 static inline void
 usleep_range(unsigned long min, unsigned long max)
 {
-	DELAY(max);
+	udelay(max);
 }
 
 #endif	/* _LINUX_DELAY_H_ */
