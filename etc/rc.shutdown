@@ -22,3 +22,4 @@ LD_LIBRARY_PATH="/lib${LD_LIBRARY_PATH:+:}${LDLIBRARY_PATH}" ; export LD_LIBRARY
 
 action=${1:-shutdown}
 exec /sbin/openrc "${action}"
+exit 0
