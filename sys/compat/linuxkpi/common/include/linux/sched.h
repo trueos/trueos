@@ -204,6 +204,7 @@ signal_pending_state(long state, struct task_struct *p)
 }
 
 long schedule_timeout(signed long timeout);
+long schedule_timeout_locked(signed long timeout, spinlock_t *lock);
 
 static inline unsigned long
 schedule_timeout_uninterruptible(signed long timeout)
@@ -240,11 +241,7 @@ io_schedule_timeout(long timeout)
 static inline void
 io_schedule(void)
 {
-#ifdef __notyet__
 	io_schedule_timeout(MAX_SCHEDULE_TIMEOUT);
-#endif
-	/* XXX not getting interrupts on skylake */
-	io_schedule_timeout(max(hz/100, 1));
 }
 
 static inline void

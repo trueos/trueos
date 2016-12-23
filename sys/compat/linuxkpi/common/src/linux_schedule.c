@@ -108,47 +108,61 @@ lkpi_msleep_spin_sbt(void *ident, struct mtx *mtx, int prio, const char *wmesg,
 	return (rval);
 }
 
-
 long
 schedule_timeout(signed long timeout)
 {
-	int ret, flags, sleepable;
+	return (schedule_timeout_locked(timeout, NULL));
+}
+
+long
+schedule_timeout_locked(signed long timeout, spinlock_t *lock)
+{
+	int flags, sleepable, expire;
+	long ret;
 	struct mtx *m;
 	struct mtx stackm;
 
 	if (timeout < 0)
 		return 0;
+	expire = ticks + (unsigned int)timeout;
 	if (SKIP_SLEEP())
 		return (0);
 	MPASS(current);
 	sleepable = 0;
-	if (current->sleep_wq == NULL) {
+	if (current->state == TASK_WAKING)
+		goto done;
+
+	if (lock != NULL) {
+		m = &lock->m;
+	} else if (current->sleep_wq != NULL) {
+		m = &current->sleep_wq->lock.m;
+		lkpi_mtx_lock_spin(m);
+	} else {
 		m = &stackm;
 		bzero(m, sizeof(*m));
 		mtx_init(m, "stack", NULL, MTX_DEF|MTX_NOWITNESS);
 		mtx_lock(m);
 		sleepable = 1;
-	} else {
-		m = &current->sleep_wq->lock.m;
-		lkpi_mtx_lock_spin(m);
-		if (current->state == TASK_WAKING) {
-			lkpi_mtx_unlock_spin(m);
-			set_current_state(TASK_RUNNING);
-			return (0);
-		}
 	}
 
 	flags = (current->state == TASK_INTERRUPTIBLE) ? PCATCH : 0;
+	if (lock == NULL)
+		flags |= PDROP;
 	if (sleepable)
-		ret = _sleep(current, &(m->lock_object), flags | PDROP ,
+		ret = _sleep(current, &(m->lock_object), flags,
 			     "lsti", tick_sbt * timeout, 0 , C_HARDCLOCK);
 	else 
-		ret = lkpi_msleep_spin_sbt(current, m, flags | PDROP, "lstisp",
+		ret = lkpi_msleep_spin_sbt(current, m, flags, "lstisp",
 				      tick_sbt * timeout, 0, C_HARDCLOCK);
-
+done:
+	
 	set_current_state(TASK_RUNNING);
+	if (timeout == MAX_SCHEDULE_TIMEOUT)
+		ret = MAX_SCHEDULE_TIMEOUT;
+	else
+		ret = expire - ticks;
 
-	return (ret ? 0 : timeout);
+	return (ret);
 }
 
  void
