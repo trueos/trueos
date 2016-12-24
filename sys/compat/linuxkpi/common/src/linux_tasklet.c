@@ -103,19 +103,17 @@ __tasklet_schedule(struct tasklet_struct *t)
 {
 	struct tasklet_head *head;
 	struct grouptask *gtask;
-	int inintr;
 
 	t->next = NULL;
-	inintr = curthread->td_intr_nesting_level;
+	spinlock_enter();
 
-	if (!inintr)
-		disable_intr();
 	gtask = (struct grouptask *)&tasklet_gtask_array[curcpu];
 	head = &DPCPU_GET(tasklet_head);
 	*(head->tail) = t;
 	head->tail = &(t->next);
-	if (!inintr)
-		enable_intr();
+
+	spinlock_exit();
+
 	GROUPTASK_ENQUEUE(gtask);
 #ifdef INVARIANTS	
 	atomic_add_int(&tasklet_schedule_cnt, 1);
