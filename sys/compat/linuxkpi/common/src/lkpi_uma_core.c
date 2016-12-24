@@ -1992,6 +1992,9 @@ lkpi_uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	uma_bucket_t bucket;
 	int lockfail;
 	int cpu;
+#ifdef INVARIANTS
+	int nesting = curthread->td_intr_nesting_level;
+#endif
 
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
 	random_harvest_fast_uma(&zone, sizeof(zone), 1, RANDOM_UMA);
@@ -2021,6 +2024,7 @@ lkpi_uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 			    	zone->uz_fini(item, zone->uz_size);
 				return (NULL);
 			}
+			MPASS(nesting == curthread->td_intr_nesting_level);
 			return (item);
 		}
 		/* This is unfortunate but should not be fatal. */
@@ -2037,7 +2041,7 @@ lkpi_uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	 * the current cache; when we re-acquire the critical section, we
 	 * must detect and handle migration if it has occurred.
 	 */
-	disable_intr();
+	spinlock_enter();
 	cpu = curcpu;
 	cache = &zone->uz_cpu[cpu];
 
@@ -2051,7 +2055,7 @@ zalloc_start:
 #endif
 		KASSERT(item != NULL, ("uma_zalloc: Bucket pointer mangled."));
 		cache->uc_allocs++;
-		enable_intr();
+		spinlock_exit();
 		if (zone->uz_ctor != NULL &&
 		    zone->uz_ctor(item, zone->uz_size, udata, flags) != 0) {
 			atomic_add_long(&zone->uz_fails, 1);
@@ -2063,6 +2067,7 @@ zalloc_start:
 
 		if (flags & M_ZERO)
 			uma_zero_item(item, zone);
+		MPASS(nesting == curthread->td_intr_nesting_level);
 		return (item);
 	}
 
@@ -2085,7 +2090,7 @@ zalloc_start:
 	 */
 	bucket = cache->uc_allocbucket;
 	cache->uc_allocbucket = NULL;
-	enable_intr();
+	spinlock_exit();
 	if (bucket != NULL)
 		bucket_free(zone, bucket, udata);
 
@@ -2108,7 +2113,7 @@ zalloc_start:
 		ZONE_LOCK(zone);
 		lockfail = 1;
 	}
-	disable_intr();
+	spinlock_enter();
 	cpu = curcpu;
 	cache = &zone->uz_cpu[cpu];
 
@@ -2139,7 +2144,7 @@ zalloc_start:
 		goto zalloc_start;
 	}
 	/* We are no longer associated with this CPU. */
-	enable_intr();
+	spinlock_exit();
 
 	/*
 	 * We bump the uz count when the cache size is insufficient to
@@ -2157,7 +2162,7 @@ zalloc_start:
 	bucket = zone_alloc_bucket(zone, udata, flags);
 	if (bucket != NULL) {
 		ZONE_LOCK(zone);
-		disable_intr();
+		spinlock_enter();
 		cpu = curcpu;
 		cache = &zone->uz_cpu[cpu];
 		/*
@@ -2182,7 +2187,7 @@ zalloc_start:
 
 zalloc_item:
 	item = lkpi_zone_alloc_item(zone, udata, flags);
-
+	MPASS(nesting == curthread->td_intr_nesting_level);
 	return (item);
 }
 
@@ -2473,7 +2478,10 @@ lkpi_uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	uma_bucket_t bucket;
 	int lockfail;
 	int cpu;
-
+#ifdef INVARIANTS
+	int nesting = curthread->td_intr_nesting_level;
+#endif
+	
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
 	random_harvest_fast_uma(&zone, sizeof(zone), 1, RANDOM_UMA);
 
@@ -2524,7 +2532,7 @@ lkpi_uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	 * detect and handle migration if it has occurred.
 	 */
 zfree_restart:
-	disable_intr();
+	spinlock_enter();
 	cpu = curcpu;
 	cache = &zone->uz_cpu[cpu];
 
@@ -2543,7 +2551,8 @@ zfree_start:
 		bucket->ub_bucket[bucket->ub_cnt] = item;
 		bucket->ub_cnt++;
 		cache->uc_frees++;
-		enable_intr();
+		spinlock_exit();
+		MPASS(nesting == curthread->td_intr_nesting_level);
 		return;
 	}
 
@@ -2555,7 +2564,7 @@ zfree_start:
 	 * thread-local state specific to the cache from prior to releasing
 	 * the critical section.
 	 */
-	enable_intr();
+	spinlock_exit();
 	if (zone->uz_count == 0 || bucketdisable)
 		goto zfree_item;
 
@@ -2565,7 +2574,7 @@ zfree_start:
 		ZONE_LOCK(zone);
 		lockfail = 1;
 	}
-	disable_intr();
+	spinlock_enter();
 	cpu = curcpu;
 	cache = &zone->uz_cpu[cpu];
 
@@ -2584,7 +2593,7 @@ zfree_start:
 	}
 	cache->uc_freebucket = NULL;
 	/* We are no longer associated with this CPU. */
-	enable_intr();
+	spinlock_exit();
 
 	/* Can we throw this on the zone full list? */
 	if (bucket != NULL) {
@@ -2610,7 +2619,7 @@ zfree_start:
 #endif
 	bucket = bucket_alloc(zone, udata, M_NOWAIT);
 	if (bucket) {
-		disable_intr();
+		spinlock_enter();
 		cpu = curcpu;
 		cache = &zone->uz_cpu[cpu];
 		if (cache->uc_freebucket == NULL) {
@@ -2621,7 +2630,7 @@ zfree_start:
 		 * We lost the race, start over.  We have to drop our
 		 * critical section to free the bucket.
 		 */
-		enable_intr();
+		spinlock_exit();
 		bucket_free(zone, bucket, udata);
 		goto zfree_restart;
 	}
@@ -2631,8 +2640,7 @@ zfree_start:
 	 */
 zfree_item:
 	zone_free_item(zone, item, udata, SKIP_DTOR);
-
-	return;
+	MPASS(nesting == curthread->td_intr_nesting_level);
 }
 
 static void
