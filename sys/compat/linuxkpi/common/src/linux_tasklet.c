@@ -54,13 +54,13 @@ tasklet_handler(void *arg)
 			}
 			tasklet_unlock(t);
 		}
-		disable_intr();
+		spinlock_enter();
 		t->next = NULL;
 		*(h->tail) = t;
 		h->tail = &t->next;
 		gtask = (struct grouptask *)&tasklet_gtask_array[curcpu];
 		GROUPTASK_ENQUEUE(gtask);
-		enable_intr();
+		spinlock_exit();
 	}
 }
 
@@ -111,10 +111,9 @@ __tasklet_schedule(struct tasklet_struct *t)
 	head = &DPCPU_GET(tasklet_head);
 	*(head->tail) = t;
 	head->tail = &(t->next);
-
+	GROUPTASK_ENQUEUE(gtask);
 	spinlock_exit();
 
-	GROUPTASK_ENQUEUE(gtask);
 #ifdef INVARIANTS	
 	atomic_add_int(&tasklet_schedule_cnt, 1);
 #endif	
