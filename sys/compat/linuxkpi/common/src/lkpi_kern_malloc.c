@@ -160,7 +160,7 @@ malloc_type_zone_allocated(struct malloc_type *mtp, unsigned long size,
 	struct malloc_type_internal *mtip;
 	struct malloc_type_stats *mtsp;
 
-	disable_intr();
+	spinlock_enter();
 	mtip = mtp->ks_handle;
 	mtsp = &mtip->mti_stats[curcpu];
 	if (size > 0) {
@@ -179,8 +179,8 @@ malloc_type_zone_allocated(struct malloc_type *mtp, unsigned long size,
 			    (uintptr_t) mtsp, size, zindx);
 	}
 #endif
+	spinlock_exit();
 
-	enable_intr();
 }
 
 /*
