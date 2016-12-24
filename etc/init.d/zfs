@@ -5,7 +5,7 @@
 
 depend()
 {
-	before bootmisc logger
+	before bootmisc logger network
 	keyword -jail -prefix
 }
 
