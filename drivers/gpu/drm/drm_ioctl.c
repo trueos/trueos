@@ -473,30 +473,39 @@ static int drm_version(struct drm_device *dev, void *data,
 int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 {
 	/* ROOT_ONLY is only for CAP_SYS_ADMIN */
-	if (unlikely((flags & DRM_ROOT_ONLY) && !capable(CAP_SYS_ADMIN)))
+	if (unlikely((flags & DRM_ROOT_ONLY) && !capable(CAP_SYS_ADMIN))) {
+		DRM_DEBUG("(unlikely((flags & DRM_ROOT_ONLY) && !capable(CAP_SYS_ADMIN)))");
 		return -EACCES;
-
+	}
 	/* AUTH is only for authenticated or render client */
 	if (unlikely((flags & DRM_AUTH) && !drm_is_render_client(file_priv) &&
-		     !file_priv->authenticated))
+		     !file_priv->authenticated)) {
+		DRM_DEBUG("unlikely((flags & DRM_AUTH) && !drm_is_render_client(file_priv) && !file_priv->authenticated))");
 		return -EACCES;
-
+	}
 	/* MASTER is only for master or control clients */
 	if (unlikely((flags & DRM_MASTER) && 
 		     !drm_is_current_master(file_priv) &&
-		     !drm_is_control_client(file_priv)))
+		     !drm_is_control_client(file_priv))) {
+		DRM_DEBUG("unlikely((flags & DRM_MASTER) && "
+		     "!drm_is_current_master(file_priv) && "
+			  "!drm_is_control_client(file_priv)))");
 		return -EACCES;
-
+	}
 	/* Control clients must be explicitly allowed */
 	if (unlikely(!(flags & DRM_CONTROL_ALLOW) &&
-		     drm_is_control_client(file_priv)))
+		     drm_is_control_client(file_priv))) {
+		DRM_DEBUG("unlikely(!(flags & DRM_CONTROL_ALLOW) && "
+			  "drm_is_control_client(file_priv)))");
 		return -EACCES;
-
+	}
 	/* Render clients must be explicitly allowed */
 	if (unlikely(!(flags & DRM_RENDER_ALLOW) &&
-		     drm_is_render_client(file_priv)))
+		     drm_is_render_client(file_priv))) {
+		DRM_DEBUG("unlikely(!(flags & DRM_RENDER_ALLOW) && "
+		     "drm_is_render_client(file_priv)))");
 		return -EACCES;
-
+	}
 	return 0;
 }
 EXPORT_SYMBOL(drm_ioctl_permit);
@@ -517,7 +526,7 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_MAGIC, drm_getmagic, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_IRQ_BUSID, drm_irq_by_busid, DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_MAP, drm_legacy_getmap_ioctl, DRM_UNLOCKED),
-	DRM_IOCTL_DEF(DRM_IOCTL_GET_CLIENT, drm_getclient, DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_IOCTL_GET_CLIENT, drm_getclient, DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_STATS, drm_getstats, DRM_UNLOCKED),
 	DRM_IOCTL_DEF(DRM_IOCTL_GET_CAP, drm_getcap, DRM_UNLOCKED|DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF(DRM_IOCTL_SET_CLIENT_CAP, drm_setclientcap, 0),
