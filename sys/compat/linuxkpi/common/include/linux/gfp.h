@@ -159,7 +159,7 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
 	size_t size;
 
 	size = PAGE_SIZE << order;
-	page = kmem_alloc_contig(kmem_arena, size, gfp_mask, 0, -1,
+	page = kmem_alloc_contig(kmem_arena, size, gfp_mask, 0, -1UL,
 	    size, 0, VM_MEMATTR_DEFAULT);
 	if (page == 0)
 		return (NULL);
