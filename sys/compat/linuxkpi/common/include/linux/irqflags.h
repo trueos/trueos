@@ -24,7 +24,7 @@ local_save_flags(void)
 static inline void
 local_irq_restore(unsigned long flags __unused)
 {
-	critical_exit();
+	spinlock_exit();
 }
 #else
 #error "local_irq functions undefined"
@@ -32,7 +32,7 @@ local_irq_restore(unsigned long flags __unused)
 
 #define local_irq_save(flags) do {		\
 		flags = local_save_flags();	\
-		critical_enter();		\
+		spinlock_enter();		\
 	} while (0)
 
 #endif	/* _LINUX_IRQFLAGS_H_ */
