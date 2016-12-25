@@ -174,6 +174,13 @@ struct device {
 	struct device	*parent;
 	struct list_head irqents;
 	device_t	bsddev;
+	/*
+	 * The following flag is used to determine if the LinuxKPI is
+	 * responsible for detaching the BSD device or not. If the
+	 * LinuxKPI got the BSD device using devclass_get_device(), it
+	 * must not try to detach or delete it, because it's already
+	 * done somewhere else.
+	 */
 	bool		bsddev_attached_here;
 	dev_t		devt;
 	struct class	*class;
@@ -363,20 +370,8 @@ kobj_to_dev(struct kobject *kobj)
 static inline void
 device_initialize(struct device *dev)
 {
-	device_t bsddev;
-	int unit;
-
-	bsddev = NULL;
-	unit = -1;
-
-	/*
-	 * The bsddev_attached_here flag is used to determine if we
-	 * are responsible for detaching the device too. If the device
-	 * was created/attached elsewhere and we only get it using
-	 * devclass_get_device(), we must not try to detach/delete it:
-	 * it's already done elsewhere.
-	 */
-	dev->bsddev_attached_here = true;
+	device_t bsddev = NULL;
+	int unit = -1;
 
 	if (dev->devt) {
 		unit = MINOR(dev->devt);
@@ -385,7 +380,10 @@ device_initialize(struct device *dev)
 	} else if (dev->parent == NULL) {
 		bsddev = devclass_get_device(dev->class->bsdclass, 0);
 		dev->bsddev_attached_here = false;
+	} else {
+		dev->bsddev_attached_here = true;
 	}
+
 	if (bsddev == NULL && dev->parent != NULL) {
 		bsddev = device_add_child(dev->parent->bsddev,
 		    dev->class->kobj.name, unit);
@@ -440,9 +438,8 @@ device_create_groups_vargs(struct class *class, struct device *parent,
 	dev->parent = parent;
 	dev->groups = groups;
 	dev->release = device_create_release;
-	dev->bsddev = devclass_get_device(dev->class->bsdclass, MINOR(devt));
+	/* device_initialize() needs the class and parent to be set */
 	device_initialize(dev);
-	MPASS(dev->bsddev != NULL);
 	dev_set_drvdata(dev, drvdata);
 
 	retval = kobject_set_name_vargs(&dev->kobj, fmt, args);
@@ -478,23 +475,11 @@ device_create_with_groups(struct class *class,
 static inline int
 device_register(struct device *dev)
 {
-	device_t bsddev;
-	int unit;
-
-	bsddev = NULL;
-	unit = -1;
+	device_t bsddev = NULL;
+	int unit = -1;
 
 	if (dev->bsddev != NULL)
 		goto done;
-
-	/*
-	 * The bsddev_attached_here flag is used to determine if we
-	 * are responsible for detaching the device too. If the device
-	 * was created/attached elsewhere and we only get it using
-	 * devclass_get_device(), we must not try to detach/delete it:
-	 * it's already done elsewhere.
-	 */
-	dev->bsddev_attached_here = true;
 
 	if (dev->devt) {
 		unit = MINOR(dev->devt);
@@ -503,6 +488,8 @@ device_register(struct device *dev)
 	} else if (dev->parent == NULL) {
 		bsddev = devclass_get_device(dev->class->bsdclass, 0);
 		dev->bsddev_attached_here = false;
+	} else {
+		dev->bsddev_attached_here = true;
 	}
 	if (bsddev == NULL && dev->parent != NULL) {
 		bsddev = device_add_child(dev->parent->bsddev,
@@ -554,7 +541,6 @@ device_del(struct device *dev)
 
 struct device *device_create(struct class *class, struct device *parent,
 	    dev_t devt, void *drvdata, const char *fmt, ...);
-
 
 static inline void
 device_destroy(struct class *class, dev_t devt)
