@@ -238,11 +238,9 @@ trace_i915_gem_request_add(void *req)
 	CTR1(KTR_DRM, "gem_request_add req %p", req);
 }
 
-static inline void
-trace_i915_gem_ring_sync_to(void *to_req, void *from, void *from_req)
-{
-	CTR3(KTR_DRM, "gem_ring_sync_to  to_req %p from %p from_req %p", to_req, from, from_req);
-}
+#define trace_i915_gem_ring_sync_to(to_req, from) \
+CTR2(KTR_DRM, "gem_ring_sync_to  to_req %p from %p", to_req, from);
+
 
 static inline void
 trace_i915_vma_bind(void *vma, uint32_t flags)
