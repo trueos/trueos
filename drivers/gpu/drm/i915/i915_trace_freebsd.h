@@ -126,12 +126,8 @@ trace_i915_gem_object_destroy(struct drm_i915_gem_object *obj)
 	CTR1(KTR_DRM, "object_destroy_tail %p", obj);
 }
 
-static inline void
-trace_i915_gem_evict(struct drm_device *dev, int min_size, unsigned alignment, bool mappable)
-{
-	CTR4(KTR_DRM, "evict_something %p %d %u %d", dev, min_size,
-		alignment, mappable);
-}
+#define trace_i915_gem_evict(vm, min_size, alignment, flags) \
+CTR4(KTR_DRM, "evict_something %p %d %u %x", vm, min_size, alignment, flags)
 
 static inline void
 trace_i915_gem_evict_vm(struct i915_address_space *vm)
