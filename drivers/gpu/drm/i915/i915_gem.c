@@ -3032,7 +3032,6 @@ int i915_gpu_idle(struct drm_device *dev)
 			return ret;
 	}
 
-	WARN_ON(i915_verify_lists(dev));
 	return 0;
 }
 

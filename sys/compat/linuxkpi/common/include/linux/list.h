@@ -72,7 +72,6 @@
 
 /* CEM: TODO: Port some of the queue(9) invariants? */
 
-#define	prefetch(x)
 
 #define LINUX_LIST_HEAD_INIT(name) { &(name), &(name) }
 
