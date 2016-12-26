@@ -411,7 +411,11 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	req->previous_context = NULL;
 	req->file_priv = NULL;
 	req->batch_obj = NULL;
+#ifdef __linux__
 	req->pid = NULL;
+#else
+	req->pid = 0;
+#endif
 	req->elsp_submitted = 0;
 
 	/*
