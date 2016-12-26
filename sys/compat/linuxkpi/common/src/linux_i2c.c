@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
@@ -119,7 +120,7 @@ linux_i2c_init(void *arg __unused)
 SYSINIT(linux_i2c, SI_SUB_VFS, SI_ORDER_ANY, linux_i2c_init, NULL);
 
 
-#define UDELAY(x) DELAY((x) + 2)
+#define UDELAY(x) udelay((x))
 
 static void
 i2c_adapter_lock_bus(struct i2c_adapter *adapter,
