@@ -44,6 +44,37 @@ void __rcu_read_unlock(void);
 void synchronize_rcu(void);
 
 
+/**                                                                                                       
+ * synchronize_rcu_expedited - Brute-force RCU grace period                                               
+ *                                                                                                        
+ * Wait for an RCU-preempt grace period, but expedite it.  The basic                                      
+ * idea is to IPI all non-idle non-nohz online CPUs.  The IPI handler                                     
+ * checks whether the CPU is in an RCU-preempt critical section, and                                      
+ * if so, it sets a flag that causes the outermost rcu_read_unlock()                                      
+ * to report the quiescent state.  On the other hand, if the CPU is                                       
+ * not in an RCU read-side critical section, the IPI handler reports                                      
+ * the quiescent state immediately.                                                                       
+ *                                                                                                        
+ * Although this is a greate improvement over previous expedited                                          
+ * implementations, it is still unfriendly to real-time workloads, so is                                  
+ * thus not recommended for any sort of common-case code.  In fact, if                                    
+ * you are using synchronize_rcu_expedited() in a loop, please restructure                                
+ * your code to batch your updates, and then Use a single synchronize_rcu()                               
+ * instead.                                                                                               
+ */
+static inline void
+synchronize_rcu_expedited(void)
+{
+#ifdef __linux__
+        struct rcu_state *rsp = rcu_state_p;
+
+        _synchronize_rcu_expedited(rsp, sync_rcu_exp_handler);
+#else
+	synchronize_rcu();
+#endif
+}
+
+
 static inline void
 kfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
@@ -89,6 +120,29 @@ rcu_read_unlock(void)
 
 
 #define rcu_dereference(p) rcu_dereference_protected(p, 0)
+
+
+/**                                                                                                       
+ * rcu_pointer_handoff() - Hand off a pointer from RCU to other mechanism                                 
+ * @p: The pointer to hand off                                                                            
+ *                                                                                                        
+ * This is simply an identity function, but it documents where a pointer                                  
+ * is handed off from RCU to some other synchronization mechanism, for                                    
+ * example, reference counting or locking.  In C11, it would map to                                       
+ * kill_dependency().  It could be used as follows:                                                       
+ *                                                                                                        
+ *      rcu_read_lock();                                                                                  
+ *      p = rcu_dereference(gp);                                                                          
+ *      long_lived = is_long_lived(p);                                                                    
+ *      if (long_lived) {                                                                                 
+ *              if (!atomic_inc_not_zero(p->refcnt))                                                      
+ *                      long_lived = false;                                                               
+ *              else                                                                                      
+ *                      p = rcu_pointer_handoff(p);                                                       
+ *      }                                                                                                 
+ *      rcu_read_unlock();                                                                                
+ */
+#define rcu_pointer_handoff(p) (p)
 
 #define RCU_INITIALIZER(v) (typeof(*(v)) __force __rcu *)(v)
 #define smp_store_release(p, v) atomic_store_rel_ptr((volatile unsigned long *)(p), (unsigned long)v)

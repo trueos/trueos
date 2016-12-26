@@ -37,6 +37,7 @@
 #include <sys/systm.h>
 #include <sys/syslog.h>
 
+#include <asm/types.h>
 #define __user
 #define __kernel
 #define __safe
@@ -116,6 +117,34 @@
 #define WARN_NOT() 	UNIMPLEMENTED_ONCE()
 #define DODGY() DODGY_ONCE();
 
+#define __READ_ONCE_SIZE                                                \
+({                                                                      \
+        switch (size) {                                                 \
+        case 1: *(__u8 *)res = *(volatile __u8 *)(uintptr_t)p; break;	\
+        case 2: *(__u16 *)res = *(volatile __u16 *)(uintptr_t)p; break;	\
+        case 4: *(__u32 *)res = *(volatile __u32 *)(uintptr_t)p; break;	\
+        case 8: *(__u64 *)res = *(volatile __u64 *)(uintptr_t)p; break;	\
+        default:                                                        \
+                barrier();                                              \
+                __builtin_memcpy((void *)res, (const void *)(uintptr_t)p, size); \
+                barrier();                                              \
+        }                                                               \
+})
+
+static __always_inline
+void __read_once_size(const volatile void *p, void *res, int size)
+{
+        __READ_ONCE_SIZE;
+}
+
+#define __READ_ONCE(x)                                           \
+({                                                                      \
+        union { typeof(x) __val; char __c[1]; } __u;                    \
+        __read_once_size(&(x), __u.__c, sizeof(x));             \
+        __u.__val;                                                      \
+})
+#define READ_ONCE(x) __READ_ONCE(x)
+
 #define	ACCESS_ONCE(x)			(*(volatile __typeof(x) *)&(x))
   
 #define	WRITE_ONCE(x,v) do {		\
@@ -123,14 +152,6 @@
 	ACCESS_ONCE(x) = (v);		\
 	barrier();			\
 } while (0)
-
-#define	READ_ONCE(x) ({			\
-	__typeof(x) __var;		\
-	barrier();			\
-	__var = ACCESS_ONCE(x);		\
-	barrier();			\
-	__var;				\
-})
 
 #define	lockless_dereference(p) READ_ONCE(p)
 
