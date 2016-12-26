@@ -1133,8 +1133,8 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 #else
 				struct thread *td = tdfind(request->pid, -1);
 				if (td) {
-					strcpy(error->ring[i].comm, td->td_proc->p_comm);
-					error->ring[i].pid = td->td_proc->p_pid;
+					strcpy(ee->comm, td->td_proc->p_comm);
+					ee->pid = td->td_proc->p_pid;
 				}
 #endif
 			}
