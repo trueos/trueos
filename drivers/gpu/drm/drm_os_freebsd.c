@@ -90,7 +90,7 @@ drm_dev_alias(struct device *ldev, struct drm_minor *minor, const char *minor_st
 	 * register_chrdev in drm_drv.c and alias it.
 	 */
 	sprintf(buf, "dri/%s", minor_str);
-	cdevp = find_cdev("drm", DRM_MAJOR, minor->index, false);
+	cdevp = linux_find_cdev("drm", DRM_MAJOR, minor->index);
 	MPASS(cdevp != NULL);
 	if (cdevp == NULL)
 		return (-ENXIO);

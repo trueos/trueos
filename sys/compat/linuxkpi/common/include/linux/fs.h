@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -198,28 +198,6 @@ struct file_operations {
 #define	FMODE_WRITE	FWRITE
 #define	FMODE_EXEC	FEXEC
 
-extern int __register_chrdev(unsigned int major, unsigned int baseminor,
-			     unsigned int count, const char *name,
-			     const struct file_operations *fops);
-extern int __register_chrdev_p(unsigned int major, unsigned int baseminor,
-			     unsigned int count, const char *name,
-			       const struct file_operations *fops, uid_t, gid_t, int);
-extern void __unregister_chrdev(unsigned int major, unsigned int baseminor,
-				unsigned int count, const char *name);
-
-static inline int register_chrdev(unsigned int major, const char *name,
-				  const struct file_operations *fops)
-{
-	return __register_chrdev(major, 0, 256, name, fops);
-}
-
-static inline int register_chrdev_p(unsigned int major, const char *name,
-				    const struct file_operations *fops, uid_t uid,
-				    gid_t gid, int mode)
-{
-	return __register_chrdev_p(major, 0, 256, name, fops, uid, gid, mode);
-}
-
 /* Alas, no aliases. Too much hassle with bringing module.h everywhere */
 #define fops_put(fops) \
 	do { if (fops) module_put((fops)->owner); } while(0)
@@ -235,10 +213,37 @@ static inline int register_chrdev_p(unsigned int major, const char *name,
 		BUG_ON(!(__file->f_op = (fops))); \
 	} while(0)
 
+int __register_chrdev(unsigned int major, unsigned int baseminor,
+    unsigned int count, const char *name,
+    const struct file_operations *fops);
+int __register_chrdev_p(unsigned int major, unsigned int baseminor,
+    unsigned int count, const char *name,
+    const struct file_operations *fops, uid_t uid,
+    gid_t gid, int mode);
+void __unregister_chrdev(unsigned int major, unsigned int baseminor,
+    unsigned int count, const char *name);
 
-static inline void unregister_chrdev(unsigned int major, const char *name)
+static inline void
+unregister_chrdev(unsigned int major, const char *name)
 {
+
 	__unregister_chrdev(major, 0, 256, name);
+}
+
+static inline int
+register_chrdev(unsigned int major, const char *name,
+    const struct file_operations *fops)
+{
+
+	return (__register_chrdev(major, 0, 256, name, fops));
+}
+
+static inline int
+register_chrdev_p(unsigned int major, const char *name,
+    const struct file_operations *fops, uid_t uid, gid_t gid, int mode)
+{
+
+	return (__register_chrdev_p(major, 0, 256, name, fops, uid, gid, mode));
 }
 
 static inline int
@@ -274,7 +279,7 @@ static inline dev_t
 iminor(struct inode *inode)
 {
 
-	return dev2unit(inode->v_rdev);
+	return (MINOR(dev2unit(inode->v_rdev)));
 }
 
 static inline struct inode *

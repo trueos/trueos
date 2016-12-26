@@ -127,7 +127,6 @@ spinlock_t pci_lock;
 struct sx linux_global_lock;
 
 unsigned long linux_timer_hz_mask;
-struct list_head cdev_list;
 struct ida *hwmon_idap;
 DEFINE_IDA(hwmon_ida);
 
@@ -1705,60 +1704,55 @@ in_atomic(void)
 	return ((curthread->td_pflags & TDP_NOFAULTING) != 0);
 }
 
-struct linux_cdev*
-find_cdev(const char *name, unsigned int major, int minor, int remove)
+struct linux_cdev *
+linux_find_cdev(const char *name, unsigned major, unsigned minor)
 {
-	struct linux_cdev *cdev;
-	struct list_head *h;
-	
-	sx_xlock(&linux_global_lock);
-	list_for_each(h, &cdev_list) {
-		cdev = __containerof(h, struct linux_cdev, list);
-		if ((strcmp(kobject_name(&cdev->kobj), name) == 0) &&
-		    cdev->baseminor == minor &&
-		    cdev->major == major) {
-			if (remove)
-				list_del(&cdev->list);
-			sx_xunlock(&linux_global_lock);
-			return (cdev);
+	int unit = MKDEV(major, minor);
+	struct cdev *cdev;
+
+	dev_lock();
+	LIST_FOREACH(cdev, &linuxcdevsw.d_devs, si_list) {
+		struct linux_cdev *ldev = cdev->si_drv1;
+		if (dev2unit(cdev) == unit &&
+		    strcmp(kobject_name(&ldev->kobj), name) == 0) {
+			break;
 		}
 	}
-	sx_xunlock(&linux_global_lock);
-	return (NULL);
-}
+	dev_unlock();
 
+	return (cdev != NULL ? cdev->si_drv1 : NULL);
+}
 
 int
 __register_chrdev(unsigned int major, unsigned int baseminor,
-		  unsigned int count, const char *name,
-		  const struct file_operations *fops)
+    unsigned int count, const char *name,
+    const struct file_operations *fops)
 {
 	struct linux_cdev *cdev;
-	int i, ret;
+	int ret = 0;
+	int i;
 
 	for (i = baseminor; i < baseminor + count; i++) {
 		cdev = cdev_alloc();
 		cdev_init(cdev, fops);
 		kobject_set_name(&cdev->kobj, name);
 
-		ret = cdev_add(cdev, i, 1);
-		cdev->major = major;
-		cdev->baseminor = i;	
-		sx_xlock(&linux_global_lock);
-		list_add(&cdev->list, &cdev_list);
-		sx_xunlock(&linux_global_lock);
+		ret = cdev_add(cdev, makedev(major, i), 1);
+		if (ret != 0)
+			break;
 	}
 	return (ret);
 }
 
 int
 __register_chrdev_p(unsigned int major, unsigned int baseminor,
-		    unsigned int count, const char *name,
-		    const struct file_operations *fops, uid_t uid,
-		    gid_t gid, int mode)
+    unsigned int count, const char *name,
+    const struct file_operations *fops, uid_t uid,
+    gid_t gid, int mode)
 {
 	struct linux_cdev *cdev;
-	int i, ret;
+	int ret = 0;
+	int i;
 
 	for (i = baseminor; i < baseminor + count; i++) {
 		cdev = cdev_alloc();
@@ -1766,25 +1760,21 @@ __register_chrdev_p(unsigned int major, unsigned int baseminor,
 		kobject_set_name(&cdev->kobj, name);
 
 		ret = cdev_add_ext(cdev, makedev(major, i), uid, gid, mode);
-		cdev->major = major;
-		cdev->baseminor = i;	
-		sx_xlock(&linux_global_lock);
-		list_add(&cdev->list, &cdev_list);
-		sx_xunlock(&linux_global_lock);
+		if (ret != 0)
+			break;
 	}
 	return (ret);
 }
 
 void
 __unregister_chrdev(unsigned int major, unsigned int baseminor,
-		    unsigned int count, const char *name)
+    unsigned int count, const char *name)
 {
-	int i;
 	struct linux_cdev *cdevp;
+	int i;
 
-	for (i = baseminor; i < count; i++) {
-		cdevp = find_cdev(name, major, i, true);
-		MPASS(cdevp != NULL);
+	for (i = baseminor; i < baseminor + count; i++) {
+		cdevp = linux_find_cdev(name, major, i);
 		if (cdevp != NULL)
 			cdev_del(cdevp);
 	}
@@ -1875,7 +1865,6 @@ linux_compat_init(void *arg)
 	system_wq = alloc_workqueue("events", 0, MAX_WQ_CPUS);
 	system_power_efficient_wq = alloc_workqueue("power efficient", 0, MAX_WQ_CPUS);
 	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, MAX_WQ_CPUS);
-	INIT_LIST_HEAD(&cdev_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
 
