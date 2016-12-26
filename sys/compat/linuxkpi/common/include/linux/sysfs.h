@@ -149,7 +149,6 @@ struct bin_attribute {
 extern int sysfs_create_bin_file(struct kobject *kobj, const struct bin_attribute *attr);
 extern void sysfs_remove_bin_file(struct kobject *kobj, const struct bin_attribute *attr);
 
-
 extern int sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
 extern void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
 
@@ -166,7 +165,6 @@ extern void sysfs_remove_link(struct kobject *kobj, const char *name);
 
 
 void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
-
 
 
 struct pci_bus;

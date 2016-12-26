@@ -480,7 +480,6 @@ vop_getpages {
 	IN int count;
 	INOUT int *rbehind;
 	INOUT int *rahead;
-	IN int prot;
 };
 
 
