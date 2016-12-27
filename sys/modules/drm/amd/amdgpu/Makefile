@@ -174,6 +174,7 @@ CWARNFLAGS.amdgpu_amdkfd_gfx_v8.c=	-Wno-cast-qual
 CWARNFLAGS.amdgpu_atpx_handler.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_bo_list.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_cgs.c=	-Wno-missing-prototypes -Wno-cast-qual
+CWARNFLAGS.amdgpu_connectors.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_cs.c=	-Wno-missing-prototypes
 CWARNFLAGS.amdgpu_device.c=	 -Wno-cast-qual -Wno-missing-prototypes
 CWARNFLAGS.amdgpu_gfx.c=	-Wno-missing-prototypes
