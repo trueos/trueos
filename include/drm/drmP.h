@@ -33,7 +33,7 @@
 #define _DRM_P_H_
 
 #if defined(_KERNEL) || defined(__KERNEL__)
-
+#define _SYS_TREE_H_
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
@@ -60,7 +60,6 @@
 #include <sys/poll.h>
 #include <sys/sbuf.h>
 #include <sys/taskqueue.h>
-#include <sys/tree.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
