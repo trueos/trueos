@@ -60,6 +60,7 @@
 #define	__devexit
 #define __exit
 #define	__rcu
+#define __malloc
 
 #define __weak		__attribute__((weak))
 
