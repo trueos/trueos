@@ -107,12 +107,9 @@ SYSCTL_INT(_compat_linuxkpi, OID_AUTO, cdev_pfn_found_count, CTLFLAG_RW, &cdev_p
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 MALLOC_DEFINE(M_LCINT, "linuxint", "Linux compat internal");
 
-#include <linux/rbtree.h>
-/* Undo Linux compat changes. */
-#undef RB_ROOT
+
 #undef file
 #undef cdev
-#define	RB_ROOT(head)	(head)->rbh_root
 
 
 struct cpuinfo_x86 boot_cpu_data; 
@@ -244,14 +241,6 @@ clear_user(void *uptr, unsigned long len)
 	return (0);
 }
 
-
-int
-panic_cmp(struct rb_node *one, struct rb_node *two)
-{
-	panic("no cmp");
-}
-
-RB_GENERATE(linux_root, rb_node, __entry, panic_cmp);
 
 int
 kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
