@@ -381,8 +381,11 @@ abs64(int64_t x)
 }
 
 
-/* XXX move me */
+/* XXX move us */
 #define rdmsrl(msr, val)			\
 	((val) = rdmsr((msr)))
+
+#define static_branch_enable(x)
+#define DEFINE_STATIC_KEY_FALSE(x)
 
 #endif	/* _LINUX_KERNEL_H_ */
