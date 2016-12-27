@@ -33,7 +33,6 @@
 #include <linux/stddef.h>
 #include <linux/rcupdate.h>
 
-#undef RB_ROOT
 struct rb_node {
 	unsigned long  __rb_parent_color;
 	struct rb_node *rb_right;
@@ -64,7 +63,7 @@ rb_first(const struct rb_root *root)
 	struct rb_node	*n;
 
 	n = __DECONST(struct rb_node *, root->rb_node);
-	if (!n)
+	if (n == NULL)
 		return (NULL);
 	while (n->rb_left)
 		n = n->rb_left;
@@ -94,7 +93,7 @@ rb_next(const struct rb_node *node)
 		return (NULL);
 
 	if (n->rb_right) {
-		n = node->rb_right; 
+		n = n->rb_right; 
 		while (n->rb_left)
 			n = n->rb_left;
 		return (n);
@@ -128,10 +127,6 @@ rb_prev(const struct rb_node *node)
 	return (parent);
 }
 
-/* Postorder iteration - always visit the parent after its children */
-extern struct rb_node *rb_first_postorder(const struct rb_root *);
-extern struct rb_node *rb_next_postorder(const struct rb_node *);
-
 extern void rb_replace_node_rcu(struct rb_node *victim, struct rb_node *new,
 				struct rb_root *root);
 
@@ -160,6 +155,45 @@ rb_link_node_rcu(struct rb_node *node, struct rb_node *parent,
 	   ____ptr ? rb_entry(____ptr, type, member) : NULL; \
 	})
 
+static inline struct rb_node *
+rb_left_deepest_node(const struct rb_node *node)
+{
+	struct rb_node *n = __DECONST(struct rb_node *, node);
+	
+	for (;;) {
+		if (n->rb_left)
+			n = n->rb_left;
+		else if (n->rb_right)
+			n = node->rb_right;
+		else
+			return (n);
+	}
+}
+
+/* Postorder iteration - always visit the parent after its children */
+static inline struct rb_node *
+rb_next_postorder(const struct rb_node *node)
+{
+	struct rb_node *parent;
+
+	if (node == NULL)
+		return (NULL);
+	parent = rb_parent(node);
+
+	if (parent && (node == parent->rb_left) && parent->rb_right) {
+		return rb_left_deepest_node(parent->rb_right);
+	} else
+		return (parent);
+}
+
+static inline struct rb_node *
+rb_first_postorder(const struct rb_root *root)
+{
+	if (!root->rb_node)
+		return (NULL);
+
+	return (rb_left_deepest_node(root->rb_node));
+}
 /**
  * rbtree_postorder_for_each_entry_safe - iterate in post-order over rb_root of
  * given type allowing the backing memory of @pos to be invalidated
