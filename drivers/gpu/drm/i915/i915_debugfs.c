@@ -403,7 +403,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   dev_priv->mm.object_count,
 		   dev_priv->mm.object_memory);
 
-	size = count = purgeable_size = purgeable_count = 0;
+	mapped_count = mapped_size = size = count = purgeable_size = purgeable_count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.unbound_list, global_list) {
 		size += obj->base.size;
 		++count;
