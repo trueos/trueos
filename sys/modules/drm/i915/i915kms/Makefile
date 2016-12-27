@@ -60,6 +60,7 @@ SRCS	= \
 	intel_dsi_pll.c \
 	intel_dvo.c \
 	intel_fbc.c \
+	intel_engine_cs.c \
 	intel_fbdev.c \
 	intel_fifo_underrun.c \
 	intel_frontbuffer.c \
@@ -125,6 +126,7 @@ CWARNFLAGS.intel_ddi.c=		-Wno-compare-distinct-pointer-types
 CWARNFLAGS.intel_display.c=	-Wno-tautological-pointer-compare -Wno-enum-conversion -Wno-cast-qual -Wno-incompatible-pointer-types-discards-qualifiers
 CWARNFLAGS.intel_dpll_mgr.c=	-Wno-compare-distinct-pointer-types
 CWARNFLAGS.intel_dsi_panel_vbt.c= -Wno-cast-qual
+CWARNFLAGS.intel_engine_cs.c= -Wno-cast-qual
 CWARNFLAGS.intel_guc_loader.c= 	-Wno-cast-qual
 CWARNFLAGS.intel_hdmi.c=	-Wno-enum-conversion
 CWARNFLAGS.intel_hotplug.c=	-Wno-missing-prototypes
