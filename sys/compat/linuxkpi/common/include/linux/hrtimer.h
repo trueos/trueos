@@ -105,6 +105,13 @@ extern int hrtimer_try_to_cancel(struct hrtimer *timer);
 extern int hrtimer_cancel(struct hrtimer *timer);
 
 
+static inline void hrtimer_set_expires(struct hrtimer *timer, ktime_t time)
+{
+
+        timer->node.expires = time;
+        timer->_softexpires = time;
+}
+
 /* Query timers: */
 extern ktime_t __hrtimer_get_remaining(const struct hrtimer *timer, bool adjust);
 
