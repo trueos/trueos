@@ -49,12 +49,6 @@ static const struct rb_augment_callbacks dummy_callbacks = {
 	dummy_propagate, dummy_copy, dummy_rotate
 };
 
-static inline void
-rb_set_black(struct rb_node *rb)
-{
-	rb->__rb_parent_color |= RB_BLACK;
-}
-
 static inline struct rb_node *
 rb_red_parent(struct rb_node *red)
 {
@@ -93,8 +87,6 @@ rbname ## _rotate(struct rb_node *rb_old, struct rb_node *rb_new)	\
 rbstatic const struct rb_augment_callbacks rbname = {			\
 	rbname ## _propagate, rbname ## _copy, rbname ## _rotate	\
 };
-#undef RB_RED
-#undef RB_BLACK
 
 #define	RB_RED		0
 #define	RB_BLACK	1
@@ -118,27 +110,11 @@ static inline void rb_set_parent_color(struct rb_node *rb,
 {
 	rb->__rb_parent_color = (unsigned long)p | color;
 }
-/* Fast replacement of a single node without remove/rebalance/add/rebalance */
-/* ISLN version - untested in this context XXX */
-static inline void
-rb_replace_node(struct rb_node *victim, struct rb_node *new,
-    struct rb_root *root)
-{
-	struct rb_node *p;
 
-	p = rb_parent(victim);
-	if (p) {
-		if (p->rb_left == victim)
-			p->rb_left = new;
-		else
-			p->rb_right = new;
-	} else
-		root->rb_node = new;
-	if (victim->rb_left)
-		rb_set_parent(victim->rb_left, new);
-	if (victim->rb_right)
-		rb_set_parent(victim->rb_right, new);
-	*new = *victim;
+static inline void
+rb_set_black(struct rb_node *rb)
+{
+	rb->__rb_parent_color |= RB_BLACK;
 }
 
 static inline void
@@ -165,6 +141,24 @@ __rb_change_child_rcu(struct rb_node *old, struct rb_node *new,
 			rcu_assign_pointer(parent->rb_right, new);
 	} else
 		rcu_assign_pointer(root->rb_node, new);
+}
+
+/* Fast replacement of a single node without remove/rebalance/add/rebalance */
+static inline void
+rb_replace_node(struct rb_node *victim, struct rb_node *new,
+                     struct rb_root *root)
+{
+        struct rb_node *parent = rb_parent(victim);
+
+	/* Copy the pointers/colour from the victim to the replacement */
+        *new = *victim;
+
+	/* Set the surrounding nodes to point to the replacement */
+        if (victim->rb_left)
+                rb_set_parent(victim->rb_left, new);
+        if (victim->rb_right)
+                rb_set_parent(victim->rb_right, new);
+        __rb_change_child(victim, new, parent, root);
 }
 
 static inline void
