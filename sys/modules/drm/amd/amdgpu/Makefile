@@ -84,9 +84,14 @@ SRCS	= \
 	gfx_v8_0.c \
 	gmc_v7_0.c \
 	gmc_v8_0.c \
+	iceland_clockpowergating.c \
 	iceland_dpm.c \
+	iceland_hwmgr.c \
 	iceland_ih.c \
+	iceland_powertune.c \
 	iceland_smc.c \
+	iceland_smumgr.c \
+	iceland_thermal.c \
 	kv_dpm.c \
 	kv_smc.c \
 	sdma_v2_4.c \
@@ -199,7 +204,10 @@ CWARNFLAGS.dce_v11_0.c=	-Wno-missing-prototypes
 CWARNFLAGS.fiji_smc.c=	-Wno-cast-qual
 CWARNFLAGS.gfx_v7_0.c=	-Wno-missing-prototypes -Wno-cast-qual
 CWARNFLAGS.gfx_v8_0.c=	-Wno-missing-prototypes -Wno-cast-qual
+CWARNFLAGS.iceland_hwmgr.c=	-Wno-missing-prototypes  -Wno-cast-qual
 CWARNFLAGS.iceland_smc.c=	-Wno-missing-prototypes
+CWARNFLAGS.iceland_smumgr.c=	-Wno-missing-prototypes
+CWARNFLAGS.iceland_thermal.c=	-Wno-missing-prototypes
 CWARNFLAGS.kv_dpm.c=	-Wno-unused-const-variable
 CWARNFLAGS.tonga_smc.c=	-Wno-cast-qual
 CWARNFLAGS.gpu_scheduler.c=	-Wno-missing-prototypes
