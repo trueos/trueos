@@ -136,7 +136,7 @@ vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr, pfn_t pfn)
 
 
 void
-linux_clflushopt(u_long addr)
+__linux_clflushopt(u_long addr)
 {
 	if (cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT)
 		clflushopt(addr);

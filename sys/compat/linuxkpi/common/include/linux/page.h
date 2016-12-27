@@ -141,5 +141,7 @@ void *acpi_os_ioremap(vm_paddr_t pa, vm_size_t size);
 void unmap_mapping_range(void *obj,
 			 loff_t const holebegin, loff_t const holelen, int even_cows);
 
-extern void linux_clflushopt(u_long addr);
+#define linux_clflushopt(arg) __linux_clflushopt((u_long)(arg))
+extern void __linux_clflushopt(u_long addr);
+
 #endif	/* _LINUX_PAGE_H_ */
