@@ -48,6 +48,13 @@ typedef unsigned long pmd_t;
 typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
+#define	PAGE_KERNEL	0x0000
+#define PAGE_KERNEL_IO  PAGE_KERNEL
+/*
+#define __PAGE_KERNEL_EXEC						\
+	(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_GLOBAL)
+#define __PAGE_KERNEL		(__PAGE_KERNEL_EXEC | _PAGE_NX)
+*/
 
 #define PROT_VALID (1 << 4)
 #define CACHE_MODE_SHIFT 3

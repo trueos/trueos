@@ -70,6 +70,9 @@
 #define VM_PFNINTERNAL	0x80000000	/* FreeBSD private flag to vm_insert_pfn */
 
 #define VMA_MAX_PREFAULT_RECORD 1
+
+typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+			void *data);
 struct vm_area_struct {
 	vm_offset_t	vm_start;
 	vm_offset_t	vm_end;
@@ -127,6 +130,22 @@ io_remap_pfn_range(struct vm_area_struct *vma,
 	vma->vm_len = size;
 
 	return (0);
+}
+
+static inline int
+apply_to_page_range(struct mm_struct *mm, unsigned long address,
+		    unsigned long size, pte_fn_t fn, void *data)
+{
+	panic("XXX implement me!!!");
+	return (-ENOTSUP);
+}
+
+static inline int
+zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
+		 unsigned long size)
+{
+	panic("XXX implement me!!!");
+	return (-ENOTSUP);
 }
 static inline int
 remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,

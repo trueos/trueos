@@ -88,6 +88,8 @@ __FBSDID("$FreeBSD$");
 
 extern u_int cpu_clflush_line_size;
 extern u_int cpu_id;
+pteval_t __supported_pte_mask __read_mostly = ~0;
+
 
 struct workqueue_struct *system_long_wq;
 struct workqueue_struct *system_wq;

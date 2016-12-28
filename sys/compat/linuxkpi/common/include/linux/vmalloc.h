@@ -43,13 +43,6 @@ struct notifier_block;		/* in notifier.h */
 
 
 #define	VM_MAP		0x0000
-#define	PAGE_KERNEL	0x0000
-#define PAGE_KERNEL_IO  PAGE_KERNEL
-/*
-#define __PAGE_KERNEL_EXEC						\
-	(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_GLOBAL)
-#define __PAGE_KERNEL		(__PAGE_KERNEL_EXEC | _PAGE_NX)
-*/
 
 
 void *vmap(struct page **pages, unsigned int count, unsigned long flags,

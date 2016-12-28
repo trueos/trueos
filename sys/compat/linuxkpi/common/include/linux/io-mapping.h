@@ -41,8 +41,22 @@ struct io_mapping {
 	vm_paddr_t base;
 	unsigned long size;
 	vm_prot_t prot;
+	void __iomem *iomem;
 	struct resource *r;
 };
+
+static inline struct io_mapping *
+io_mapping_init_wc(struct io_mapping *iomap,
+		   resource_size_t base,
+		   unsigned long size)
+{
+	iomap->base = base;
+	iomap->size = size;
+	iomap->iomem = ioremap_wc(base, size);
+	iomap->prot = pgprot_writecombine(PAGE_KERNEL_IO);
+
+	return iomap;
+}
 
 static inline struct io_mapping *
 io_mapping_create_wc(vm_paddr_t base, unsigned long size)
@@ -52,16 +66,24 @@ io_mapping_create_wc(vm_paddr_t base, unsigned long size)
 	if ((iomap = kmalloc(sizeof(*iomap), GFP_KERNEL)) == NULL)
 		return (NULL);
 
-	/* resource allocation happens when we look up the address on FreeBSD */
-	iomap->base = base;
-	iomap->size = size;
+	if (!io_mapping_init_wc(iomap, base, size)) {
+		kfree(iomap);
+		return NULL;
+	}
+
 	return (iomap);
+}
+
+static inline void
+io_mapping_fini(struct io_mapping *mapping)
+{
+	iounmap(mapping->iomem);
 }
 
 static inline void
 io_mapping_free(struct io_mapping *mapping)
 {
-	/* assuming the resource is released elsewhere */
+	io_mapping_fini(mapping);
 	kfree(mapping);
 }
 
