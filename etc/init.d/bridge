@@ -11,6 +11,10 @@
 
 name="bridge"
 description="Network bridge setup"
+extra_commands="static staticstop"
+
+. /etc/rc.subr
+. /etc/network.subr
 
 depend()
 {
@@ -25,6 +29,16 @@ glob_int() {
 		$2 ) true ;;
 		* ) false ;;
 	esac
+}
+
+static()
+{
+	start
+}
+
+staticstop()
+{
+	stop
 }
 
 bridge_test() {
@@ -60,7 +74,7 @@ autobridge()
 
 start()
 {
-	iflist=$1
+	iflist=${BRIDGE_IFLIST}
 	ebegin "Setting up bridge interfaces"
 	cmd="addm"
 	autobridge
@@ -69,7 +83,7 @@ start()
 
 stop()
 {
-	iflist=$1
+	iflist=${BRIDGE_IFLIST}
 	ebegin "Destroying bridge interfaces"
 	cmd="deletem"
 	autobridge

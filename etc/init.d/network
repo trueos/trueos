@@ -36,6 +36,10 @@ __nl="
 "
 IFCONFIG_CMD="/sbin/ifconfig"
 
+# Needed for network scripts
+. /etc/rc.subr
+. /etc/network.subr
+
 depend()
 {
         provide net
@@ -44,571 +48,219 @@ depend()
 	keyword -jail -prefix -vserver -stop
 }
 
-find_wireless()
-{
-	local iface=
-	for iface in $(/sbin/sysctl -b net.wlan.devices 2>/dev/null); do
-		echo "${iface##*/}"
-	done
-}
-
-# wireless_up
-# 	Create the wlan[] devices
-wireless_up()
-{
-	local iface= i=
-
-	iface=$(find_wireless)
-	if [ -n "$iface" ]; then
-		# Get next wlan0 device name
-		wnum="0"
-		while :
-		do
-			ifconfig wlan${wnum} 2>/dev/null
-			if [ $? -ne 0 ] ; then
-				break
-			fi
-			wnum=`expr $wnum + 1`
-		done
-
-		# Create the wireless devices
-		for i in $iface; do
-			einfo "Created wlan${wnum}"
-			${IFCONFIG_CMD} wlan${wnum} create wlandev $iface
-			wnum=`expr $wnum + 1`
-		done
-	fi
-}
-
-# Destroy wlan devices
-wireless_down()
-{
-	wnum="0"
-	while :
-	do
-		ifconfig wlan${wnum} >/dev/null 2>/dev/null
-		if [ $? -ne 0 ] ; then
-			break
-		fi
-		${IFCONFIG_CMD} wlan${wnum} destroy
-		wnum=`expr $wnum + 1`
-	done
-}
-
-# clone_up
-#	Create cloneable interfaces.
-#
-clone_up()
-{
-	local _list ifn ifopt _iflist _n tmpargs
-	_list=
-	_iflist=$*
-
-	# create_args_IF
-	for ifn in ${cloned_interfaces}; do
-		# Parse ifn:ifopt.
-		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
-		case $_iflist in
-		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
-		*)	continue ;;
-		esac
-		case $ifn in
-		epair[0-9]*)
-			# epair(4) uses epair[0-9] for creation and
-			# epair[0-9][ab] for configuration.
-			#
-			# Skip if ${ifn}a or ${ifn}b already exist.
-			if ${IFCONFIG_CMD} ${ifn}a > /dev/null 2>&1; then
-				continue
-			elif ${IFCONFIG_CMD} ${ifn}b > /dev/null 2>&1; then
-				continue
-			fi
-			${IFCONFIG_CMD} ${ifn} create \
-			    `get_if_var ${ifn} create_args_IF`
-			if [ $? -eq 0 ]; then
-				_list="$_list ${ifn}a ${ifn}b"
-			fi
-		;;
-		*)
-			# Skip if ${ifn} already exists.
-			if ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
-				continue
-			fi
-			${IFCONFIG_CMD} ${ifn} create \
-			    `get_if_var ${ifn} create_args_IF`
-			if [ $? -eq 0 ]; then
-				_list="$_list $ifn"
-			fi
-		esac
-	done
-	if [ -n "${_list# }" ]; then
-		# Start the bridge service
-		einfo "Created clone interfaces: ${_list# }."
-	fi
-}
-
-# clone_down
-#	Destroy cloned interfaces. Destroyed interfaces are echoed to
-#	standard output.
-#
-clone_down()
-{
-	local _list ifn _difn ifopt _iflist _sticky
-	_list=
-	_iflist=$*
-
-	: ${cloned_interfaces_sticky:=NO}
-	if yesno cloned_interfaces_sticky; then
-		_sticky=1
-	else
-		_sticky=0
-	fi
-	for ifn in ${cloned_interfaces} ${gif_interfaces}; do
-		# Parse ifn:ifopt.
-		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
-		case $ifopt:$_sticky in
-		sticky:*)	continue ;;	# :sticky => not destroy
-		nosticky:*)	;;		# :nosticky => destroy
-		*:1)		continue ;;	# global sticky knob == 1
-		esac
-		case $_iflist in
-		""|$ifn|$ifn\ *|*\ $ifn\ *|*\ $ifn)	;;
-		*)	continue ;;
-		esac
-		case $ifn in
-		epair[0-9]*)
-			# Note: epair(4) uses epair[0-9] for removal and
-			# epair[0-9][ab] for configuration.
-			#
-			# Skip if both of ${ifn}a and ${ifn}b do not exist.
-			if ${IFCONFIG_CMD} ${ifn}a > /dev/null 2>&1; then
-				_difn=${ifn}a
-			elif ${IFCONFIG_CMD} ${ifn}b > /dev/null 2>&1; then
-				_difn=${ifn}b
-			else
-				continue
-			fi
-			${IFCONFIG_CMD} -n $_difn destroy
-			if [ $? -eq 0 ]; then
-				_list="$_list ${ifn}a ${ifn}b"
-			fi
-		;;
-		*)
-			# Skip if ifn does not exist.
-			if ! ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
-				continue
-			fi
-			${IFCONFIG_CMD} -n ${ifn} destroy
-			if [ $? -eq 0 ]; then
-				_list="$_list $ifn"
-			fi
-		;;
-		esac
-	done
-	if [ -n "${_list# }" ]; then
-		einfo "Destroyed clone interfaces: ${_list# }."
-	fi
-}
-
-uniqify()
-{
-	local result= i=
-	for i; do
-		case " $result " in
-		*" $i "*);;
-		*) result="$result $i";;
-		esac
-	done
-	echo "${result# *}"
-}
-
-reverse()
-{
-	local result= i=
-	for i; do
-		result="$i $result"
-	done
-	echo "${result# *}"
-}
-
-# ifnet_rename [ifname]
-#	Rename interfaces if ifconfig_IF_name is defined.
-#
-ifnet_rename()
-{
-	local _if _ifname
-
-	# ifconfig_IF_name
-	for _if in ${*:-$(${IFCONFIG_CMD} -l)}; do
-		_ifname=`get_if_var $_if ifconfig_IF_name`
-		if [ ! -z "$_ifname" ]; then
-			${IFCONFIG_CMD} $_if name $_ifname
-		fi
-	done
-
-	return 0
-}
-
-sys_interfaces()
-{
-	ifconfig -l$1
-}
-
-tentative()
-{
-	local inet= address= rest=
-
-	local inet= address= rest=
-	LC_ALL=C ifconfig -a | while read inet address rest; do
- 		case "${inet}" in
-		inet6)
-			case "${rest}" in
-			*" "tentative*) return 2;;
-			esac
-			;;
-		esac
-	done
-}
-
-
-auto_interfaces()
-{
-	local ifs= c= f=
-
-	for f in /etc/ifconfig.*; do
-		[ -f "$f" ] && printf "%s" "${f##*.} "
-	done
-	for f in /etc/ip.*; do
-		[ -f "$f" ] && printf "%s" "${f##*.} "
-	done
-	echo
-}
-
-interfaces()
-{
-	uniqify $(sys_interfaces "$@") $interfaces $(auto_interfaces)
-}
-
-dumpargs()
-{
-	local f="$1"
-
-	shift
-	case "$@" in
-	'')		[ -f "$f" ] && cat "$f";;
-	*"$__nl"*)	echo "$@";;
-	*)
-		(
-		 	set -o noglob
-			IFS=';'; set -- $@
-			IFS="$__nl"; echo "$*"
-		);;
-	esac
-}
-
-intup=false
-runip()
-{
-	local int="$1" err=
-	shift
-
-	# Ensure we have a valid broadcast address
-	case "$@" in
-	*" broadcast "*|*" brd "*) ;;
-	*:*) ;; # Ignore IPv6
-	*) set -- "$@" brd +;;
-	esac
-
-	err=$(LC_ALL=C ip address add "$@" dev "$int" 2>&1)
-	if [ -z "$err" ]; then
-		# ip does not bring up the interface when adding addresses
-		if ! $intup; then
-			ip link set "$int" up
-			intup=true
-		fi
-		return 0
-	fi
-	if [ "$err" = "RTNETLINK answers: File exists" ]; then
-		ip address del "$@" dev "$int" 2>/dev/null
-	fi
-	# Localise the error
-	ip address add "$@" dev "$int"
-}
-
-routeflush()
-{
-	route -qn flush
-}
-
-runargs()
-{
-	dumpargs "$@" | while read -r args; do
-		case "$args" in
-		''|"#"*)	;;
-		*)
-				(
-				 	eval vebegin "${args#*!}"
-					eval "${args#*!}"
-					veend $?
-				);;
-		esac
-	done
-}
-
-start_interface()
-{
-	int="$1"
-	local func= cf=
-	intv=$(shell_var "$int")
-	eval upcmd=\$ifup_$intv
-	for func in ip ifconfig; do
-		eval cmd=\$${func}_$intv
-		if [ -n "$cmd" -o -f /etc/"$func.$int" ]; then
-			cf=/etc/"$func.$int"
-			break
-		fi
-	done
-
-	# Up the interface
-	ifconfig $int up
-
-	# If this is a wireless device, make sure wpa_supplicant is started
-	echo $int | grep -q "wlan"
-	if [ $? -eq 0 ] ; then
-		ln -fs /usr/local/etc/init.d/wpa_supplicant /usr/local/etc/init.d/wpa_supplicant.${int}
-		service wpa_supplicant.${int} start >/dev/null 2>/dev/null
-	else
-		echo "$cmd" | grep -q -e "AUTO" -e "DHCP" -e "IPV6"
-		if [ $? -eq 0 ] ; then
-			# Start any dhcpcd services
-			service_started dhcpcd.${int}
-			if [ $? -ne 0 ] ; then
-				ln -fs /usr/local/etc/init.d/dhcpcd /usr/local/etc/init.d/dhcpcd.${int}
-				service -N dhcpcd.${int} start
-			fi
-		fi
-	fi
-
-	# Skip ifconfig lines that have some 'magic' DHCP/WPA keywords
-	echo "$cmd" | grep -q -e "AUTO" -e "WPA" -e "DHCP" -e "IPV6"
-	if [ $? -eq 0 ] ; then return 0; fi
-
-	if [ -z "$OPENRC_SILENT" ] ; then
-		ebegin "Starting network ($int)"
-	fi
-
-	[ -n "$cf" -o -n "$upcmd" -o \
-		-f /etc/ifup."$int" -o -f "$cf" ] || return 0
-	veinfo "$int"
-	case "$func" in
-	ip)	func=runip; intup=false;;
-	esac
-	eindent
-	runargs /etc/ifup."$int" "$upcmd"
-	r=0
-	dumpargs "$cf" "$cmd" | while read -r args; do
-		case "$args" in
-		''|"#"*)	;;
-		"!"*)
-				(
-				 	eval vebegin "${args#*!}"
-					eval "${args#*!}"
-					veend $?
-				);;
-		*)
-				(
-				 	set -o noglob
-					eval set -- "$args"
-					vebegin "$@"
-					$func "$int" "$@"
-					veend $?
-				);;
-		esac
-	done
-	eoutdent
-
-	if [ -z "$OPENRC_SILENT" ] ; then
-		eend 0
-	fi
-
-	# Set the routes
-	set_default_route
-}
-
 start()
 {
-	# Have we been started on a specific network device?
-	if [ -n "$network_device" ] ; then
-		start_interface $network_device
-		return $?
+	local _if
+
+	# Set the list of interfaces to work on.
+	cmdifn=$network_device
+
+	# Create IEEE802.11 interface
+	wlan_up $cmdifn
+
+	# Create cloned interfaces
+	clone_up $cmdifn
+
+	# Rename interfaces.
+	ifnet_rename $cmdifn
+
+	# Configure the interface(s).
+	netif_common ifn_start $cmdifn
+
+	#if [ -f /etc/rc.d/ipfilter ] ; then
+		# Resync ipfilter
+	#	/etc/rc.d/ipfilter quietresync
+	#fi
+	if [ -n "$cmdifn" ] ; then
+		export BRIDGE_IFLIST="${cmdifn}"
+		service bridge static
 	fi
-
-	local cr=0 r= int= intv= cmd= args= upcmd=
-
-	if [ -z "$domainname" -a -s /etc/defaultdomain ]; then
-		domainname=$(cat /etc/defaultdomain)
+	if [ -n "$cmdifn" ] ; then
+		for _if in $cmdifn; do
+			export ROUTE_AF="any"
+			export ROUTE_IF="$_if"
+			service routing static
+		done
 	fi
-	if [ -n "$domainname" ]; then
-		ebegin "Setting NIS domainname: $domainname"
-		domainname "$domainname"
-		eend $?
-	fi
-
-	# Flush old routes
-	routeflush
-
-	# Bring up the wireless interfaces
-	wireless_up
-
-	# Bring up cloned interfaces
-	clone_up
-
-	# Rename interfaces
-	ifnet_rename
-
-	if [ -z "$OPENRC_SILENT" ] ; then
-		ebegin "Starting network services"
-	fi
-	# Spawn the network sub-services
-	for int in $(interfaces); do
-		export OPENRC_SILENT=TRUE
-		ln -fs /etc/init.d/network /etc/init.d/network.${int}
-		/sbin/service network.${int} start 2>/dev/null >/dev/null
-		unset OPENRC_SILENT
-	done
-	if [ -z "$OPENRC_SILENT" ] ; then
-		eend $cr
-	fi
-
-
-	# Wait for any inet6 tentative addresses
-	r=5
-	while [ $r -gt 0 ]; do
-		tentative || break
-		[ $r = 5 ] && vebegin "Waiting for tentative addresses"
-		sleep 1
-		: $(( r -= 1 ))
-	done
-	if [ $r != 5 ]; then
-		[ $r != 0 ]
-		veend $?
-	fi
-
-	# Set the routes
-	set_default_route
-}
-
-set_default_route()
-{
-	if [ -n "$defaultroute" ]; then
-		ebegin "Setting default route $defaultroute"
-		route add default $defaultroute >/dev/null 2>/dev/null
-		eend $?
-	elif [ -n "$defaultiproute" ]; then
-		ebegin "Setting default route $defaultiproute"
-		ip route add default $defaultiproute
-		eend $?
-	elif [ -n "$defaultrouter" ]; then
-		ebegin "Setting the default route $defaultrouter"
-		route add default $defaultrouter >/dev/null 2>/dev/null
-		eend $?
-	fi
-
-	if [ -n "$defaultroute6" ]; then
-		ebegin "Setting default route $defaultroute6"
-		routecmd="route -inet6 add"
-		$routecmd default $defaultroute6 >/dev/null 2>/dev/null
-		eend $?
-	elif [ -n "$defaultiproute6" ]; then
-		ebegin "Setting default route $defaultiproute6"
-		ip -f inet6 route add default $defaultiproute6
-		eend $?
-	fi
-
-	return 0
-}
-
-stop_interface()
-{
-	int="$1"
-	case "$int" in
-		lo|lo0) return 0 ;;
-		*) ;;
-	esac
-	intv=$(shell_var "$int")
-	eval downcmd=\$ifdown_$intv
-	eval cmd=\$ip_$intv
-	[ -z "$cmd" ] && eval cmd=\$ifconfig_$intv
-	if [ -n "$cmd" -o -f /etc/ip."$int" -o \
-		-f /etc/ifconfig."$int" -o \
-		-n "$downcmd" -o -f /etc/ifdown."$int" ];
-	then
-		veinfo "$int"
-		runargs /etc/ifdown."$int" "$downcmd"
-		if [ -x /sbin/ip ] || [ -x /bin/ip ]; then
-			# We need to do this, otherwise we may
-			# fail to add things correctly on restart
-			ip address flush dev "$int" 2>/dev/null
-		fi
-		clear_all_ips "$int"
-		ifconfig "$int" down 2>/dev/null
-	fi
-	return 0
-}
-
-clear_all_ips()
-{
-	# Clear all IPv4 Addresses
-	for addr in $(ifconfig $1 | tr -d '\t' | grep -e "^inet " | awk '{print $2}')
-	do
-		ifconfig $1 -alias $addr
-	done
 }
 
 stop()
 {
-	# Don't stop the network at shutdown.
- 	# We don't use the noshutdown keyword so that we are started again
-	# correctly if we go back to multiuser.
-	yesno ${keep_network:-YES} && yesno $RC_GOINGDOWN && return 0
+	_clone_down=1
+	_wlan_down=1
+	netif_stop0 $*
+}
 
-	# If we are stopping a sub-network device
-	if [ -n "$network_device" ] ; then
-		export OPENRC_SILENT=TRUE
+doclear()
+{
+	_clone_down=
+	_wlan_down=
+	netif_stop0 $*
+}
 
-		# Kill any dhcpcd services
-		service_started dhcpcd.${network_device}
-		if [ $? -eq 0 ] ; then
-			service dhcpcd.${network_device} stop
-		fi
+netif_stop0()
+{
+	local _if
 
-		# Stop wpa_supp (if running)
-		service_started wpa_supplicant.${network_device}
-		if [ $? -eq 0 ] ; then
-			service wpa_supplicant.${network_device} stop
-		fi
+	# Set the list of interfaces to work on.
+	#
+	cmdifn=$network_device
 
-		stop_interface "$network_device"
-		return $?
+	# Deconfigure the interface(s)
+	netif_common ifn_stop $cmdifn
+
+	# Destroy wlan interfaces
+	if [ -n "$_wlan_down" ]; then
+		wlan_down $cmdifn
 	fi
 
-	local int= intv= cmd= downcmd= r=
-	ebegin "Stopping network"
-	routeflush
+	# Destroy cloned interfaces
+	if [ -n "$_clone_down" ]; then
+		clone_down $cmdifn
+	fi
 
-	# Stop all the sub-network processes
-	for int in $(reverse $(interfaces u)); do
-		export OPENRC_SILENT=TRUE
-		ln -fs /etc/init.d/network /etc/init.d/network.${int}
-		/sbin/service network.${int} stop
-		unset OPENRC_SILENT
+	if [ -n "$cmdifn" ] ; then
+		for _if in $cmdifn; do
+			export ROUTE_AF="any"
+			export ROUTE_IF="$_if"
+			service routing staticstop
+		done
+	fi
+}
+
+vnet_up()
+{
+	cmdifn=$*
+
+	netif_common ifn_vnetup $cmdifn
+}
+
+vnet_down()
+{
+	cmdifn=$*
+
+	netif_common ifn_vnetdown $cmdifn
+}
+
+# netif_common routine
+#	Common configuration subroutine for network interfaces. This
+#	routine takes all the preparatory steps needed for configuriing
+#	an interface and then calls $routine.
+netif_common()
+{
+	local _cooked_list _tmp_list _fail _func _ok _str _cmdifn
+
+	_func=
+
+	if [ -z "$1" ]; then
+		eerror "netif_common(): No function name specified."
+		exit 1
+	else
+		_func="$1"
+		shift
+	fi
+
+	# Set the scope of the command (all interfaces or just one).
+	#
+	_cooked_list=
+	_tmp_list=
+	_cmdifn=$*
+	if [ -n "$_cmdifn" ]; then
+		# Don't check that the interface(s) exist.  We need to run
+		# the down code even when the interface doesn't exist to
+		# kill off wpa_supplicant.
+		# XXXBED: is this really true or does wpa_supplicant die?
+		# if so, we should get rid of the devd entry
+		_cooked_list="$_cmdifn"
+	else
+		_cooked_list="`list_net_interfaces`"
+	fi
+
+	# Expand epair[0-9] to epair[0-9][ab].
+	for ifn in $_cooked_list; do
+	case ${ifn#epair} in
+	[0-9]*[ab])	;;	# Skip epair[0-9]*[ab].
+	[0-9]*)
+		for _str in $_cooked_list; do
+		case $_str in
+		$ifn)	_tmp_list="$_tmp_list ${ifn}a ${ifn}b" ;;
+		*)	_tmp_list="$_tmp_list ${ifn}" ;;
+		esac
+		done
+		_cooked_list=${_tmp_list# }
+	;;
+	esac
 	done
 
-	# Bring down cloned interfaces
-	clone_down
+	_dadwait=
+	_fail=
+	_ok=
+	for ifn in ${_cooked_list# }; do
+		# Skip if ifn does not exist.
+		case $_func in
+		ifn_stop)
+			if ! ${IFCONFIG_CMD} $ifn > /dev/null 2>&1; then
+				ewarn "$ifn does not exist.  Skipped."
+				_fail="${_fail} ${ifn}"
+				continue
+			fi
+		;;
+		esac
+		if ${_func} ${ifn} $2; then
+			_ok="${_ok} ${ifn}"
+			if ipv6if ${ifn}; then
+				_dadwait=1
+			fi
+		else
+			_fail="${_fail} ${ifn}"
+		fi
+	done
 
-	# Bring down wireless
-	wireless_down
+	# inet6 address configuration needs sleep for DAD.
+	case ${_func}:${_dadwait} in
+	ifn_start:1|ifn_vnetup:1|ifn_vnetdown:1)
+		sleep `${SYSCTL_N} net.inet6.ip6.dad_count`
+		sleep 1
+	;;
+	esac
 
-	eend 0
+	_str=
+	if [ -n "${_ok}" ]; then
+		case ${_func} in
+		ifn_start)
+			_str='Starting'
+		;;
+		ifn_stop)
+			_str='Stopping'
+		;;
+		ifn_vnetup)
+			_str='Moving'
+		;;
+		ifn_vnetdown)
+			_str='Reclaiming'
+		;;
+		esac
+		einfo "${_str} Network:${_ok}."
+		case ${_func} in
+		ifn_vnetup)
+			# Clear _ok not to do "ifconfig $ifn"
+			# because $ifn is no longer in the current vnet.
+			_ok=
+		;;
+		esac
+		if check_startmsgs; then
+			for ifn in ${_ok}; do
+				/sbin/ifconfig ${ifn} >/dev/null 2>/dev/null
+			done
+		fi
+	fi
+
+	if [ -n "$_fail" ] ; then
+		ewarn "The following interfaces were not configured: $_fail"
+	fi
 }
+
+# Load the old "network" config file also for compatibility.
+# This is needed for mfsBSD at least.
+#load_rc_config network
+#load_rc_config $name
