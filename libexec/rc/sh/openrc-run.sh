@@ -195,6 +195,7 @@ yesno $RC_DEBUG && set -x
 
 # Load configuration settings. First the global ones, then any
 # service-specific settings.
+sourcex -e "/etc/defaults/rc.conf"
 sourcex -e "/etc/rc.conf"
 if [ -d "/etc/rc.conf.d" ]; then
 	for _f in "/etc"/rc.conf.d/*.conf; do
