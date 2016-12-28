@@ -30,6 +30,7 @@
  */
 #ifndef	_LINUX_RBTREE_H_
 #define	_LINUX_RBTREE_H_
+#error "don't include"
 
 #include <sys/stddef.h>
 #include <sys/types.h>
