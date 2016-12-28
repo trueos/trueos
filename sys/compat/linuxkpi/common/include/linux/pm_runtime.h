@@ -202,4 +202,11 @@ pm_runtime_allow(struct device *dev){
 	UNIMPLEMENTED();
 }
 
+static inline void pm_runtime_enable(struct device *dev) { UNIMPLEMENTED();}
+
+static inline void __pm_runtime_disable(struct device *dev, bool c) { 	UNIMPLEMENTED(); }
+static inline void pm_runtime_disable(struct device *dev)
+{
+	__pm_runtime_disable(dev, true);
+}
 #endif /*  _LINUX_PM_RUNTIME_H_ */
