@@ -42,6 +42,7 @@
 #include <linux/uaccess.h>
 /* CEM: Make sure we got the Linux version */
 CTASSERT(PAGE_MASK != (PAGE_SIZE - 1));
+#define clflushopt linux_clflushopt
 
 #define DBG_USE_CPU_RELOC 0 /* -1 force GTT relocs; 1 force CPU relocs */
 
