@@ -142,6 +142,12 @@ i2c_adapter_unlock_bus(struct i2c_adapter *adapter,
 	mutex_unlock(&adapter->bus_lock);
 }
 
+static const struct i2c_lock_operations i2c_adapter_lock_ops = {
+	.lock_bus =    i2c_adapter_lock_bus,
+	.trylock_bus = i2c_adapter_trylock_bus,
+	.unlock_bus =  i2c_adapter_unlock_bus,
+};
+
 static int
 i2c_register_adapter(struct i2c_adapter *adap)
 {
@@ -153,14 +159,10 @@ i2c_register_adapter(struct i2c_adapter *adap)
 		return (-EINVAL);
 
 
-	if (!adap->lock_bus) {
-		adap->lock_bus = i2c_adapter_lock_bus;
-		adap->trylock_bus = i2c_adapter_trylock_bus;
-		adap->unlock_bus = i2c_adapter_unlock_bus;
-	}
-
 	mutex_init(&adap->bus_lock);
-
+	if (!adap->lock_ops)
+		adap->lock_ops = &i2c_adapter_lock_ops;
+ 
 	if (adap->timeout == 0)
 		adap->timeout = hz;
 

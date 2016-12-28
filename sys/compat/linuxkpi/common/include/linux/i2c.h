@@ -68,7 +68,6 @@ struct i2c_msg {
 					 I2C_FUNC_SMBUS_PEC)
 
 
-
 /* i2c adapter classes (bitmask) */
 #define I2C_CLASS_HWMON		(1<<0)	/* lm_sensors, ... */
 #define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
@@ -113,6 +112,20 @@ struct i2c_algorithm {
 	u32 (*functionality) (struct i2c_adapter *);
 };
 
+/**
+ * struct i2c_lock_operations - represent I2C locking operations
+ * @lock_bus: Get exclusive access to an I2C bus segment
+ * @trylock_bus: Try to get exclusive access to an I2C bus segment
+ * @unlock_bus: Release exclusive access to an I2C bus segment
+ *
+ * The main operations are wrapped by i2c_lock_bus and i2c_unlock_bus.
+ */
+struct i2c_lock_operations {
+	void (*lock_bus)(struct i2c_adapter *, unsigned int flags);
+	int (*trylock_bus)(struct i2c_adapter *, unsigned int flags);
+	void (*unlock_bus)(struct i2c_adapter *, unsigned int flags);
+};
+
 struct i2c_adapter {
 	struct module *owner;
 	unsigned int class;		  /* classes to allow probing for */
@@ -120,8 +133,8 @@ struct i2c_adapter {
 	void *algo_data;
 
 	/* data fields that are valid for all devices	*/
+	const struct i2c_lock_operations *lock_ops;
 	struct mutex bus_lock;
-
 	int timeout;			/* in jiffies */
 	int retries;
 	struct device dev;		/* the adapter device */
@@ -129,9 +142,7 @@ struct i2c_adapter {
 	int nr;
 	char name[48];
 	struct completion dev_released;
-	void (*lock_bus)(struct i2c_adapter *, unsigned int flags);
-	int (*trylock_bus)(struct i2c_adapter *, unsigned int flags);
-	void (*unlock_bus)(struct i2c_adapter *, unsigned int flags);
+
 };
 
 struct i2c_board_info {
@@ -232,6 +243,44 @@ static inline void
 i2c_set_adapdata(struct i2c_adapter *dev, void *data)
 {
 	dev_set_drvdata(&dev->dev, data);
+}
+
+/**
+ * i2c_lock_bus - Get exclusive access to an I2C bus segment
+ * @adapter: Target I2C bus segment
+ * @flags: I2C_LOCK_ROOT_ADAPTER locks the root i2c adapter, I2C_LOCK_SEGMENT
+ *	locks only this branch in the adapter tree
+ */
+static inline void
+i2c_lock_bus(struct i2c_adapter *adapter, unsigned int flags)
+{
+	adapter->lock_ops->lock_bus(adapter, flags);
+}
+
+/**
+ * i2c_trylock_bus - Try to get exclusive access to an I2C bus segment
+ * @adapter: Target I2C bus segment
+ * @flags: I2C_LOCK_ROOT_ADAPTER tries to locks the root i2c adapter,
+ *	I2C_LOCK_SEGMENT tries to lock only this branch in the adapter tree
+ *
+ * Return: true if the I2C bus segment is locked, false otherwise
+ */
+static inline int
+i2c_trylock_bus(struct i2c_adapter *adapter, unsigned int flags)
+{
+	return adapter->lock_ops->trylock_bus(adapter, flags);
+}
+
+/**
+ * i2c_unlock_bus - Release exclusive access to an I2C bus segment
+ * @adapter: Target I2C bus segment
+ * @flags: I2C_LOCK_ROOT_ADAPTER unlocks the root i2c adapter, I2C_LOCK_SEGMENT
+ *	unlocks only this branch in the adapter tree
+ */
+static inline void
+i2c_unlock_bus(struct i2c_adapter *adapter, unsigned int flags)
+{
+	adapter->lock_ops->unlock_bus(adapter, flags);
 }
 
 #endif
