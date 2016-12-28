@@ -30,6 +30,7 @@ OPENRC_BOOT_LINK=	abi \
 			network \
 			newsyslog \
 			root \
+			routing \
 			savecore \
 			staticroute \
 			swap \
