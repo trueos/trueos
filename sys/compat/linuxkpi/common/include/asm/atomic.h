@@ -33,6 +33,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <sys/lock.h>
 #include <machine/atomic.h>
 #include <linux/types.h>
 #include <asm/cmpxchg.h>
@@ -168,9 +169,24 @@ static inline void atomic_##op(int i, atomic_t *v)		\
 		c = old;					\
 }
 
+#define LINUX_ATOMIC_FETCH_OP(op, c_op)					\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	int ret;							\
+									\
+	spinlock_enter();\
+	ret = v->counter;						\
+	v->counter = v->counter c_op i;					\
+	spinlock_exit();\
+									\
+	return (ret);							\
+}
+
 LINUX_ATOMIC_OP(or, |)
 LINUX_ATOMIC_OP(and, &)
 LINUX_ATOMIC_OP(andnot, &~)
 LINUX_ATOMIC_OP(xor, ^)
+LINUX_ATOMIC_FETCH_OP(xor, ^)
+
 
 #endif					/* _ASM_ATOMIC_H_ */
