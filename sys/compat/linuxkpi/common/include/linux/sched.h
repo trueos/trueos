@@ -248,9 +248,16 @@ io_schedule(void)
 static inline void
 schedule(void)
 {
-
 	schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 }
+
+
+static inline void
+schedule_short(void)
+{
+	schedule_timeout(hz/10);
+}
+
 
 #define yield() kern_yield(0)
 
