@@ -1776,8 +1776,23 @@ __unregister_chrdev(unsigned int major, unsigned int baseminor,
 }
 
 static DECLARE_WAIT_QUEUE_HEAD(async_done);
+static DECLARE_WAIT_QUEUE_HEAD(global_wait_queue_head);
 static async_cookie_t nextcookie;
 static atomic_t entry_count;
+
+wait_queue_head_t *
+bit_waitqueue(void *word, int bit)
+{
+#ifdef __linux__
+	const int shift = BITS_PER_LONG == 32 ? 5 : 6;
+	const struct zone *zone = page_zone(virt_to_page(word));
+	unsigned long val = (unsigned long)word << shift | bit;
+
+	return &zone->wait_table[hash_long(val, zone->wait_table_bits)];
+#else
+	return (&global_wait_queue_head);
+#endif
+}
 
 static void
 async_run_entry_fn(struct work_struct *work)

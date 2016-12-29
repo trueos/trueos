@@ -42,6 +42,7 @@
 #include <linux/kernel.h>
 #include <linux/rwlock.h>
 #include <linux/lkpi_mutex.h>
+#include <linux/bottom_half.h>
 
 typedef struct {
 	struct mtx m;

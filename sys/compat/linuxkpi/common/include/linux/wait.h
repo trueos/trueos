@@ -75,6 +75,18 @@ struct __wait_queue {
 	struct list_head	task_list;
 };
 
+struct wait_bit_key {
+	void			*flags;
+	int			bit_nr;
+#define WAIT_ATOMIC_T_BIT_NR	-1
+	unsigned long		timeout;
+};
+
+struct wait_bit_queue {
+	struct wait_bit_key	key;
+	wait_queue_t		wait;
+};
+
 typedef struct wait_queue_head {
 	spinlock_t	lock;
 	struct list_head	task_list;
@@ -82,6 +94,9 @@ typedef struct wait_queue_head {
 	struct list_head	wqh_file_list;
 } wait_queue_head_t;
 
+
+#define __WAIT_BIT_KEY_INITIALIZER(word, bit)				\
+	{ .flags = word, .bit_nr = bit, }
 
 static inline int
 default_wake_function(wait_queue_t *curr, unsigned mode, int wake_flags,
@@ -110,6 +125,9 @@ autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
 		list_del_init(&wait->task_list);
 	return ret;
 }
+
+int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
+
 #define DEFINE_WAIT_FUNC(name, function)				\
 	wait_queue_t name = {						\
 		.private	= current,				\
@@ -119,6 +137,16 @@ autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
 
 #define DEFINE_WAIT(name) DEFINE_WAIT_FUNC(name, autoremove_wake_function)
 
+#define DEFINE_WAIT_BIT(name, word, bit)				\
+	struct wait_bit_queue name = {					\
+		.key = __WAIT_BIT_KEY_INITIALIZER(word, bit),		\
+		.wait	= {						\
+			.private	= current,			\
+			.func		= wake_bit_function,		\
+			.task_list	=				\
+				LINUX_LIST_HEAD_INIT((name).wait.task_list),	\
+		},							\
+	}
 
 #define init_wait(wait)							\
 	do {								\
@@ -127,6 +155,12 @@ autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
 		INIT_LIST_HEAD(&(wait)->task_list);			\
 		(wait)->flags = 0;					\
 	} while (0)
+
+
+extern int bit_wait(struct wait_bit_key *, int);
+extern int bit_wait_io(struct wait_bit_key *, int);
+extern int bit_wait_timeout(struct wait_bit_key *, int);
+extern int bit_wait_io_timeout(struct wait_bit_key *, int);
 
 
 #define LINUX_WAITQUEUE_INITIALIZER(name, tsk) {			\
@@ -195,6 +229,7 @@ __wake_up_locked(wait_queue_head_t *q, int mode, int nr, void *key)
 	}
 }
 
+typedef int wait_bit_action_f(struct wait_bit_key *, int mode);
 void __wake_up(wait_queue_head_t *q, int mode, int nr, void *key);
 
 
@@ -513,6 +548,65 @@ finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 		list_del_init(&wait->task_list);
 		spin_unlock_irqrestore(&q->lock, flags);
 	}
+}
+
+wait_queue_head_t *bit_waitqueue(void *word, int bit);
+/*
+ * Linux re-discovers sleep channels and re-implements them 
+ * in the most irritating, hacked up way possible
+ */
+
+static inline int
+__wait_on_bit(wait_queue_head_t *wq, struct wait_bit_queue *q,
+	      wait_bit_action_f *action, unsigned mode)
+{
+	int ret = 0;
+
+	do {
+		prepare_to_wait(wq, &q->wait, mode);
+		if (test_bit(q->key.bit_nr, q->key.flags))
+			ret = (*action)(&q->key, mode);
+	} while (test_bit(q->key.bit_nr, q->key.flags) && !ret);
+	finish_wait(wq, &q->wait);
+
+	return (ret);
+}
+static inline void
+__wake_up_bit(wait_queue_head_t *wq, void *word, int bit)
+{
+	struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(word, bit);
+	if (waitqueue_active(wq))
+		__wake_up(wq, TASK_NORMAL, 1, &key);
+}
+
+static inline void
+wake_up_bit(void *word, int bit)
+{
+	__wake_up_bit(bit_waitqueue(word, bit), word, bit);
+}
+
+static inline int
+out_of_line_wait_on_bit_timeout(
+	void *word, int bit, wait_bit_action_f *action,
+	unsigned mode, unsigned long timeout)
+{
+	wait_queue_head_t *wq = bit_waitqueue(word, bit);
+	DEFINE_WAIT_BIT(wait, word, bit);
+
+	wait.key.timeout = jiffies + timeout;
+	return __wait_on_bit(wq, &wait, action, mode);
+}
+
+static inline int
+wait_on_bit_timeout(unsigned long *word, int bit, unsigned mode,
+		    unsigned long timeout)
+{
+	might_sleep();
+	if (!test_bit(bit, word))
+		return 0;
+	return out_of_line_wait_on_bit_timeout(word, bit,
+					       bit_wait_timeout,
+					       mode, timeout);
 }
 
 /*
