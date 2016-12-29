@@ -59,6 +59,7 @@
 #define PF_EXITING	0x00000004
 #define PF_USED_ASYNC	TDP_UNUSED9
 
+struct seq_file;
 
 #define task_pid(task) ((task)->task_thread->td_proc->p_pid)
 #define get_pid(x) (x)
