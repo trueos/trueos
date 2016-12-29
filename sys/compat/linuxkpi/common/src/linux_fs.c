@@ -131,7 +131,7 @@ simple_read_from_buffer(void __user *to, size_t count,
 	loff_t pos = *ppos;
 	size_t ret;
 
-	if (pos < 0)
+	if ((int64_t)pos < 0)
 		return (-EINVAL);
 	if (pos >= available || !count)
 		return 0;
@@ -152,7 +152,7 @@ simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 	loff_t pos = *ppos;
 	size_t res;
 
-	if (pos < 0)
+	if ((int64_t)pos < 0)
 		return (-EINVAL);
 	if (pos >= available || !count)
 		return 0;
