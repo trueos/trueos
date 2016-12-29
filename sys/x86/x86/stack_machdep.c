@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_stack.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -60,12 +62,14 @@ typedef struct i386_frame *x86_frame_t;
 typedef struct amd64_frame *x86_frame_t;
 #endif
 
+#ifdef STACK
 static struct stack *nmi_stack;
 static volatile struct thread *nmi_pending;
 
 #ifdef SMP
 static struct mtx nmi_lock;
 MTX_SYSINIT(nmi_lock, &nmi_lock, "stack_nmi", MTX_SPIN);
+#endif
 #endif
 
 static void
@@ -96,6 +100,7 @@ int
 stack_nmi_handler(struct trapframe *tf)
 {
 
+#ifdef STACK
 	/* Don't consume an NMI that wasn't meant for us. */
 	if (nmi_stack == NULL || curthread != nmi_pending)
 		return (0);
@@ -108,6 +113,9 @@ stack_nmi_handler(struct trapframe *tf)
 
 	atomic_store_rel_ptr((long *)&nmi_pending, (long)NULL);
 	return (1);
+#else
+	return (0);
+#endif
 }
 
 void
@@ -126,6 +134,7 @@ int
 stack_save_td_running(struct stack *st, struct thread *td)
 {
 
+#ifdef STACK
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	MPASS(TD_IS_RUNNING(td));
 
@@ -149,10 +158,13 @@ stack_save_td_running(struct stack *st, struct thread *td)
 	if (st->depth == 0)
 		/* We interrupted a thread in user mode. */
 		return (EAGAIN);
-#else
+#else /* !SMP */
 	KASSERT(0, ("curthread isn't running"));
-#endif
+#endif /* SMP */
 	return (0);
+#else /* !STACK */
+	return (EOPNOTSUPP);
+#endif /* STACK */
 }
 
 void

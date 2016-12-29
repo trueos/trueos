@@ -58,6 +58,7 @@
 #include <asm/atomic.h>
 #include <linux/device.h>
 #include <linux/ioport.h>
+#include <linux/pci_ids.h>
 
 
 
@@ -204,10 +205,6 @@ struct pci_dev *linux_pci_get_device(unsigned int vendor, unsigned int device,
 #define PCI_EXP_LNKCAP_CLKPM	0x00040000
 #define PCI_EXP_DEVSTA_TRPND	0x0020
 
-#define	IORESOURCE_MEM	(1 << SYS_RES_MEMORY)
-#define	IORESOURCE_IO	(1 << SYS_RES_IOPORT)
-#define	IORESOURCE_IRQ	(1 << SYS_RES_IRQ)
-
 enum pci_bus_speed {
 	PCI_SPEED_UNKNOWN = -1,
 	PCIE_SPEED_2_5GT,
@@ -257,7 +254,6 @@ enum {
 	DEVICE_COUNT_RESOURCE = PCI_NUM_RESOURCES,
 };
 
-
 typedef int pci_power_t;
 
 #define PCI_D0	PCI_POWERSTATE_D0
@@ -267,7 +263,6 @@ typedef int pci_power_t;
 #define PCI_D3cold	4
 
 #define PCI_POWER_ERROR	PCI_POWERSTATE_UNKNOWN
-
 
 /* Remember to update this when the list above changes! */
 extern const char *pci_power_names[];
@@ -288,10 +283,10 @@ struct pci_driver {
 	int  (*suspend) (struct pci_dev *dev, pm_message_t state);	/* Device suspended */
 	int  (*resume) (struct pci_dev *dev);		/* Device woken up */
 	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
-	driver_t			driver;
+	driver_t			bsd_driver;
 	devclass_t			*bsdclass;
 	char				*busname;
-	struct device_driver	linux_driver;
+	struct device_driver	driver;
         const struct pci_error_handlers       *err_handler;
 };
 
@@ -433,9 +428,8 @@ struct pci_dev {
 	struct pci_vpd *vpd;
 };
 
-
 static inline struct resource_list_entry *
-_pci_get_rle(struct pci_dev *pdev, int type, int rid)
+linux_pci_get_rle(struct pci_dev *pdev, int type, int rid)
 {
 	struct pci_devinfo *dinfo;
 	struct resource_list *rl;
@@ -446,18 +440,18 @@ _pci_get_rle(struct pci_dev *pdev, int type, int rid)
 }
 
 static inline struct resource_list_entry *
-_pci_get_bar(struct pci_dev *pdev, int bar)
+linux_pci_get_bar(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
 	bar = PCIR_BAR(bar);
-	if ((rle = _pci_get_rle(pdev, SYS_RES_MEMORY, bar)) == NULL)
-		rle = _pci_get_rle(pdev, SYS_RES_IOPORT, bar);
+	if ((rle = linux_pci_get_rle(pdev, SYS_RES_MEMORY, bar)) == NULL)
+		rle = linux_pci_get_rle(pdev, SYS_RES_IOPORT, bar);
 	return (rle);
 }
 
 static inline struct device *
-_pci_find_irq_dev(unsigned int irq)
+linux_pci_find_irq_dev(unsigned int irq)
 {
 	struct pci_dev *pdev;
 
@@ -479,7 +473,7 @@ pci_resource_start(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
-	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
+	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
 		return (0);
 	return rle->start;
 }
@@ -489,7 +483,7 @@ pci_resource_len(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
-	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
+	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
 		return (0);
 	return rle->count;
 }
@@ -523,14 +517,12 @@ pci_resource_flags(struct pci_dev *pdev, int bar)
 	return (1 << type);
 }
 
-
 static inline const char *
 pci_name(struct pci_dev *d)
 {
 
 	return device_get_desc(d->dev.bsddev);
 }
-
 
 static inline void *
 pci_get_drvdata(struct pci_dev *pdev)
@@ -605,7 +597,7 @@ pci_release_region(struct pci_dev *pdev, int bar)
 {
 	struct resource_list_entry *rle;
 
-	if ((rle = _pci_get_bar(pdev, bar)) == NULL)
+	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
 		return;
 	bus_release_resource(pdev->dev.bsddev, rle->type, rle->rid, rle->res);
 }
@@ -635,11 +627,10 @@ pci_request_regions(struct pci_dev *pdev, const char *res_name)
 	return (0);
 }
 
-
 static inline int
 linux_pci_enable_msi(struct pci_dev *pdev)
 {
-	/*  not clear what address to use - ignore for now*/
+	/* not clear what address to use - ignore for now */
 	return (0);
 }
 
@@ -649,7 +640,6 @@ linux_pci_disable_msi(struct pci_dev *pdev)
 	/* disable until clear how to do enable */
 	/* pci_disable_msi(pdev->dev.bsddev); */
 }
-
 
 struct pci_dev *linux_pci_get_class(unsigned int class, struct pci_dev *from);
 
@@ -665,10 +655,9 @@ pci_disable_msix(struct pci_dev *pdev)
 static inline bus_addr_t
 pci_bus_address(struct pci_dev *pdev, int bar)
 {
+
 	return (pci_resource_start(pdev, bar));
-
 }
-
 
 #define	PCI_CAP_ID_EXP	PCIY_EXPRESS
 #define	PCI_CAP_ID_PCIX	PCIY_PCIX
@@ -819,7 +808,7 @@ pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 		pci_release_msi(pdev->dev.bsddev);
 		return avail;
 	}
-	rle = _pci_get_rle(pdev, SYS_RES_IRQ, 1);
+	rle = linux_pci_get_rle(pdev, SYS_RES_IRQ, 1);
 	pdev->dev.msix = rle->start;
 	pdev->dev.msix_max = rle->start + avail;
 	for (i = 0; i < nreq; i++)
@@ -879,9 +868,9 @@ static inline void pci_disable_sriov(struct pci_dev *dev)
 #define	PCI_DMA_NONE		3
 
 #define	pci_pool		dma_pool
-#define pci_pool_destroy	dma_pool_destroy
-#define pci_pool_alloc		dma_pool_alloc
-#define pci_pool_free		dma_pool_free
+#define	pci_pool_destroy(...)	dma_pool_destroy(__VA_ARGS__)
+#define	pci_pool_alloc(...)	dma_pool_alloc(__VA_ARGS__)
+#define	pci_pool_free(...)	dma_pool_free(__VA_ARGS__)
 #define	pci_pool_create(_name, _pdev, _size, _align, _alloc)		\
 	    dma_pool_create(_name, &(_pdev)->dev, _size, _align, _alloc)
 #define	pci_free_consistent(_hwdev, _size, _vaddr, _dma_handle)		\
@@ -1062,7 +1051,6 @@ pcie_capability_read_dword(struct pci_dev *dev, int pos, u32 *dst)
         return pci_read_config_dword(dev, pci_pcie_cap(dev) + pos, dst);
 }
 
-
 static inline int
 pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *dst)
 {
@@ -1074,7 +1062,6 @@ pcie_capability_read_word(struct pci_dev *dev, int pos, u16 *dst)
 
         return pci_read_config_word(dev, pci_pcie_cap(dev) + pos, dst);
 }
-
 
 static inline int
 pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)

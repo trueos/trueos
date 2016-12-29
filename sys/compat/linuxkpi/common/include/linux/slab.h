@@ -45,7 +45,7 @@
 MALLOC_DECLARE(M_KMALLOC);
 
 #define	kvmalloc(size)			kmalloc((size), 0)
-#define	kzalloc(size, flags)		kmalloc((size), M_ZERO |((flags) ? (flags) : M_NOWAIT)) 
+#define	kzalloc(size, flags)		kmalloc((size), M_ZERO | ((flags) ? (flags) : M_NOWAIT))
 #define	kzalloc_node(size, flags, node)	kzalloc(size, flags)
 #define	kfree_const(ptr)		kfree(ptr)
 #define	krealloc(ptr, size, flags)	lkpi_realloc((ptr), (size), M_KMALLOC, (flags))
@@ -59,14 +59,17 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	vmalloc_user(size)              kmalloc(size, GFP_KERNEL | __GFP_ZERO)
 #define __kmalloc			kmalloc
 
-/**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
+/*
+ * Prefix some functions with linux_ to avoid namespace conflict
+ * with the OpenSolaris code in the kernel.
  */
+#define	kmem_cache		linux_kmem_cache
+#define	kmem_cache_create(...)	linux_kmem_cache_create(__VA_ARGS__)
+#define	kmem_cache_alloc(...)	linux_kmem_cache_alloc(__VA_ARGS__)
+#define	kmem_cache_free(...) 	linux_kmem_cache_free(__VA_ARGS__)
+#define	kmem_cache_destroy(...) linux_kmem_cache_destroy(__VA_ARGS__)
 
-struct kmem_cache {
+struct linux_kmem_cache {
 	uma_zone_t	cache_zone;
 	void		(*cache_ctor)(void *);
 };
@@ -97,7 +100,7 @@ kfree(const void *ptr)
 }
 
 static inline int
-kmem_ctor(void *mem, int size, void *arg, int flags)
+linux_kmem_ctor(void *mem, int size, void *arg, int flags)
 {
 	void (*ctor)(void *);
 
@@ -108,7 +111,7 @@ kmem_ctor(void *mem, int size, void *arg, int flags)
 }
 
 static inline struct kmem_cache *
-kmem_cache_create(char *name, size_t size, size_t align, u_long flags,
+linux_kmem_cache_create(char *name, size_t size, size_t align, u_long flags,
     void (*ctor)(void *))
 {
 	struct kmem_cache *c;
@@ -118,7 +121,7 @@ kmem_cache_create(char *name, size_t size, size_t align, u_long flags,
 		align--;
 	if (flags & SLAB_HWCACHE_ALIGN)
 		align = UMA_ALIGN_CACHE;
-	c->cache_zone = lkpi_uma_zcreate(name, size, ctor ? kmem_ctor : NULL,
+	c->cache_zone = lkpi_uma_zcreate(name, size, ctor ? linux_kmem_ctor : NULL,
 	    NULL, NULL, NULL, align, 0);
 	c->cache_ctor = ctor;
 
@@ -126,7 +129,7 @@ kmem_cache_create(char *name, size_t size, size_t align, u_long flags,
 }
 
 static inline void *
-kmem_cache_alloc(struct kmem_cache *c, int flags)
+linux_kmem_cache_alloc(struct kmem_cache *c, int flags)
 {
 	return lkpi_uma_zalloc_arg(c->cache_zone, c->cache_ctor, (flags ? flags : M_NOWAIT));
 }
@@ -138,13 +141,13 @@ kmem_cache_zalloc(struct kmem_cache *c, int flags)
 }
 
 static inline void
-kmem_cache_free(struct kmem_cache *c, void *m)
+linux_kmem_cache_free(struct kmem_cache *c, void *m)
 {
 	lkpi_uma_zfree(c->cache_zone, m);
 }
 
 static inline void
-kmem_cache_destroy(struct kmem_cache *c)
+linux_kmem_cache_destroy(struct kmem_cache *c)
 {
 	lkpi_uma_zdestroy(c->cache_zone);
 	lkpi_free(c, M_KMALLOC);

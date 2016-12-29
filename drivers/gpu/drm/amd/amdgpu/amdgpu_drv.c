@@ -574,7 +574,7 @@ static struct pci_driver amdgpu_kms_pci_driver = {
 	.id_table = pciidlist,
 	.probe = amdgpu_pci_probe,
 	.remove = amdgpu_pci_remove,
-	.linux_driver.pm = &amdgpu_pm_ops,
+	.driver.pm = &amdgpu_pm_ops,
 };
 
 

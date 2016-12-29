@@ -22,49 +22,6 @@
 #include <drm/drm_core.h>
 #include <drm/drmP.h>
 #include "drm_internal.h"
-#include <linux/cdev.h>
-#undef cdev
-
-
-SYSCTL_NODE(_dev, OID_AUTO, drm, CTLFLAG_RW, 0, "DRM args");
-SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug, CTLFLAG_RWTUN, &drm_debug, 0, "drm debug flags");
-extern int skip_ddb;
-SYSCTL_INT(_dev_drm, OID_AUTO, skip_ddb, CTLFLAG_RWTUN, &skip_ddb, 0, "go straight to dumping core");
-#if defined(DRM_DEBUG_LOG_ALL)
-int drm_debug_persist = 1;
-#else
-int drm_debug_persist = 0;
-#endif
-SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug_persist, CTLFLAG_RWTUN, &drm_debug_persist, 0, "keep drm debug flags post-load");
-int drm_panic_on_error = 0;
-SYSCTL_INT(_dev_drm, OID_AUTO, error_panic, CTLFLAG_RWTUN, &drm_panic_on_error, 0, "panic if an ERROR is hit");
-
-static atomic_t reset_debug_log_armed = ATOMIC_INIT(0);
-static struct callout_handle reset_debug_log_handle;
-
-static void
-clear_debug_func(void *arg __unused)
-{
-	drm_debug = 0;
-}
-
-static void
-reset_debug_log(void)
-{
-	if (drm_debug_persist)
-		return;
-	if (atomic_add_unless(&reset_debug_log_armed, 1, 1)) {
-		reset_debug_log_handle = timeout(clear_debug_func, NULL,
-		    10*hz);
-	}
-}
-
-static void
-cancel_reset_debug_log()
-{
-	if (atomic_read(&reset_debug_log_armed))
-		untimeout(clear_debug_func, NULL, reset_debug_log_handle);
-}
 
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
@@ -453,29 +410,6 @@ static void drm_sysfs_release(struct device *dev)
 	kfree(dev);
 }
 
-static int
-drm_dev_alias(struct drm_minor *minor, const char *minor_str)
-{
-	struct linux_cdev *cdevp;
-	char buf[20];
-
-	/*
-	 * FreeBSD won't automaticaly create the corresponding device
-	 * node as linux must so we find the corresponding one created by
-	 * register_chrdev in drm_drv.c and alias it.
-	 */
-	sprintf(buf, "dri/%s", minor_str);
-	cdevp = find_cdev("drm", DRM_MAJOR, minor->index, false);
-	MPASS(cdevp != NULL);
-	if (cdevp == NULL)
-		return (-ENXIO);
-	minor->bsd_device = cdevp->cdev;
-	make_dev_alias(cdevp->cdev, buf, minor->index);
-	reset_debug_log();
-	return (0);
-}
-
-
 /**
  * drm_sysfs_minor_alloc() - Allocate sysfs device for given minor
  * @minor: minor to allocate sysfs device for
@@ -519,7 +453,7 @@ struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 	r = dev_set_name(kdev, minor_str, minor->index);
 	if (r < 0)
 		goto err_free;
-	r = drm_dev_alias(minor, minor_str);
+	r = drm_dev_alias(kdev, minor, minor_str);
 	if (r < 0)
 		goto err_free;
 	return kdev;

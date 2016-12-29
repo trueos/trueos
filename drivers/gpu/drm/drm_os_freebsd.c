@@ -6,14 +6,99 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/agp/agpreg.h>
 #include <dev/pci/pcireg.h>
+#include <linux/cdev.h>
+#undef cdev
 
 devclass_t drm_devclass;
+const char *fb_mode_option = NULL;
 
 MALLOC_DEFINE(DRM_MEM_DMA, "drm_dma", "DRM DMA Data Structures");
 MALLOC_DEFINE(DRM_MEM_DRIVER, "drm_driver", "DRM DRIVER Data Structures");
 MALLOC_DEFINE(DRM_MEM_KMS, "drm_kms", "DRM KMS Data Structures");
 
-const char *fb_mode_option = NULL;
+SYSCTL_NODE(_dev, OID_AUTO, drm, CTLFLAG_RW, 0, "DRM args");
+SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug, CTLFLAG_RWTUN, &drm_debug, 0, "drm debug flags");
+extern int skip_ddb;
+SYSCTL_INT(_dev_drm, OID_AUTO, skip_ddb, CTLFLAG_RWTUN, &skip_ddb, 0, "go straight to dumping core");
+#if defined(DRM_DEBUG_LOG_ALL)
+int drm_debug_persist = 1;
+#else
+int drm_debug_persist = 0;
+#endif
+SYSCTL_INT(_dev_drm, OID_AUTO, drm_debug_persist, CTLFLAG_RWTUN, &drm_debug_persist, 0, "keep drm debug flags post-load");
+int drm_panic_on_error = 0;
+SYSCTL_INT(_dev_drm, OID_AUTO, error_panic, CTLFLAG_RWTUN, &drm_panic_on_error, 0, "panic if an ERROR is hit");
+int drm_always_interruptible;
+SYSCTL_INT(_dev_drm, OID_AUTO, always_interruptible, CTLFLAG_RWTUN, &drm_always_interruptible, 0, "always allow a thread to be interrupted in driver wait");
+
+static atomic_t reset_debug_log_armed = ATOMIC_INIT(0);
+static struct callout_handle reset_debug_log_handle;
+
+static void
+clear_debug_func(void *arg __unused)
+{
+	drm_debug = 0;
+}
+
+void
+cancel_reset_debug_log(void)
+{
+	if (atomic_read(&reset_debug_log_armed))
+		untimeout(clear_debug_func, NULL, reset_debug_log_handle);
+}
+
+static void
+reset_debug_log(void)
+{
+	if (drm_debug_persist)
+		return;
+
+	if (atomic_add_unless(&reset_debug_log_armed, 1, 1)) {
+		reset_debug_log_handle = timeout(clear_debug_func, NULL,
+		    10*hz);
+	}
+}
+
+int
+drm_dev_alias(struct device *ldev, struct drm_minor *minor, const char *minor_str)
+{
+	struct sysctl_oid_list *oid_list, *child;
+	struct sysctl_ctx_list *ctx_list;
+	struct linux_cdev *cdevp;
+	struct sysctl_oid *node;
+	device_t dev = ldev->parent->bsddev;
+	char buf[20];
+	char *devbuf;
+
+	MPASS(dev != NULL);
+	ctx_list = device_get_sysctl_ctx(dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
+	sprintf(buf, "%d", minor->index);
+	node = SYSCTL_ADD_NODE(ctx_list, SYSCTL_STATIC_CHILDREN(_dev_drm), OID_AUTO, buf,
+			       CTLFLAG_RD, NULL, "drm properties");
+	oid_list = SYSCTL_CHILDREN(node);
+	sprintf(buf, "%x:%x", pci_get_vendor(dev),
+		pci_get_device(dev));
+	/* XXX leak - fix me */
+	devbuf = strndup(buf, 20, DRM_MEM_DRIVER);
+	SYSCTL_ADD_STRING(ctx_list, oid_list, OID_AUTO, "PCI_ID",
+			  CTLFLAG_RD, devbuf, 0, "vendor and device ids");
+
+	/*
+	 * FreeBSD won't automaticaly create the corresponding device
+	 * node as linux must so we find the corresponding one created by
+	 * register_chrdev in drm_drv.c and alias it.
+	 */
+	sprintf(buf, "dri/%s", minor_str);
+	cdevp = linux_find_cdev("drm", DRM_MAJOR, minor->index);
+	MPASS(cdevp != NULL);
+	if (cdevp == NULL)
+		return (-ENXIO);
+	minor->bsd_device = cdevp->cdev;
+	make_dev_alias(cdevp->cdev, buf, minor->index);
+	reset_debug_log();
+	return (0);
+}
 
 static const drm_pci_id_list_t *
 drm_find_description(int vendor, int device, const drm_pci_id_list_t *idlist)
