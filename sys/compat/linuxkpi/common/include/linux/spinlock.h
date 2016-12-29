@@ -115,6 +115,8 @@ assert_spin_locked(spinlock_t *lock)
 		spin_lock_irq((lock));		\
 	} while (0)
 
+#define spin_lock_irqsave_nested(lock, flags, x) spin_lock_irqsave(lock, flags)
+
 /* is the local_irq_restore really necessary since we track interrupt nesting? */
 #define	spin_unlock_irqrestore(lock, flags) do {	\
 		spin_unlock_irq((lock));		\

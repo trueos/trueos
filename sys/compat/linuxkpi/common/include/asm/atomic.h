@@ -80,11 +80,17 @@ atomic_set_mask(unsigned int mask, atomic_t *v)
 	atomic_set_int(&v->counter, mask);
 }
 
+#ifndef atomic_set_release
+#define  atomic_set_release(v, i)	smp_store_release(&(v)->counter, (i))
+#endif
+
 static inline int
-atomic_read(atomic_t *v)
+atomic_read_(atomic_t *v)
 {
 	return atomic_load_acq_int(&v->counter);
 }
+
+#define atomic_read(v) (atomic_read_(__DECONST(atomic_t *, (v))))
 
 static inline int
 atomic_inc(atomic_t *v)
