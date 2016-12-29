@@ -242,6 +242,6 @@ CWARNFLAGS.tonga_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversio
 CWARNFLAGS.tonga_hwmgr.c=	-Wno-missing-prototypes -Wno-cast-qual -Wno-unused-const-variable
 CWARNFLAGS.tonga_smc.c=	-Wno-cast-qual
 CWARNFLAGS.tonga_smumgr.c=	-Wno-missing-prototypes -Wno-cast-qual
-CWARNFLAGS.tonga_smumgr_smc.c=	-Wno-parenthesis-equality
+CWARNFLAGS.tonga_smumgr_smc.c=	-Wno-parentheses-equality
 CWARNFLAGS.tonga_thermal.c=	-Wno-missing-prototypes
 CWARNFLAGS.vi.c=	-Wno-unused-const-variable
