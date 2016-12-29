@@ -189,7 +189,7 @@ static int drm_getclient(struct drm_device *dev, void *data,
 	if (client->idx == 0) {
 		client->auth = file_priv->authenticated;
 		client->pid = file_priv->pid;
-		client->uid = file_priv->uid;
+		client->uid = 0;
 		client->magic = 0;
 		client->iocs = 0;
 

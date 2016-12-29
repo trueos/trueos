@@ -401,7 +401,7 @@ static int drm_clients_info DRM_SYSCTL_HANDLER_ARGS
 			       priv->authenticated ? 'y' : 'n',
 			       devtoname(priv->minor->bsd_device),
 			       priv->pid,
-			       priv->uid,
+				 0,
 			       priv->magic,
 			       priv->ioctl_count);
 	}

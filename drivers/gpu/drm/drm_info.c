@@ -80,7 +80,7 @@ int drm_clients_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_file *priv;
-	kuid_t uid;
+	uid_t uid;
 
 	seq_printf(m,
 		   "%20s %5s %3s master a %5s %10s\n",
@@ -95,9 +95,9 @@ int drm_clients_info(struct seq_file *m, void *data)
 	 */
 	mutex_lock(&dev->filelist_mutex);
 	list_for_each_entry_reverse(priv, &dev->filelist, lhead) {
+#ifdef __linux__
 		struct task_struct *task;
-
-		rcu_read_lock(); /* locks pid_task()->comm */
+		rcu_read_lock(); /* locks pid_task()->comm */	
 		task = pid_task(priv->pid, PIDTYPE_PID);
 		uid = task ? __task_cred(task)->euid : GLOBAL_ROOT_UID;
 		seq_printf(m, "%20s %5d %3d   %c    %c %5d %10u\n",
@@ -109,6 +109,21 @@ int drm_clients_info(struct seq_file *m, void *data)
 			   from_kuid_munged(seq_user_ns(m), uid),
 			   priv->magic);
 		rcu_read_unlock();
+#else
+		struct thread *td;
+
+		td = tdfind(priv->pid, -1);
+		uid = td ? td->td_ucred->cr_uid : 0;
+		seq_printf(m, "%20s %5d %3d   %c    %c %5d %10u\n",
+			   td ? td->td_name : "<unknown>",
+			   priv->pid,
+			   priv->minor->index,
+			   drm_is_current_master(priv) ? 'y' : 'n',
+			   priv->authenticated ? 'y' : 'n',
+			   0,
+			   priv->magic);
+#endif
+
 	}
 	mutex_unlock(&dev->filelist_mutex);
 	return 0;
