@@ -23,19 +23,19 @@ start() {
 		eend $?
 	fi
 
-	if [ -n "$keymap" ]; then
+	if [ -n "$keymap" -a "$keymap" != "NO" ]; then
 		ebegin "Setting keymap to $keymap"
 		kbdcontrol -l $keymap </dev/console
 		eend $?
 	fi
 
-	if [ -n "$keyrate" ]; then
+	if [ -n "$keyrate" -a "$keyrate" != "NO" ]; then
 		ebegin "Setting keyrate to $keyrate"
 		kbdcontrol -r $keyrate </dev/console
 		eend $?
 	fi
 
-	if [ -n "$keychange" ]; then
+	if [ -n "$keychange" -a "$keychange" != "NO" ]; then
 		ebegin "Changing function keys"
 		eval set -- "$keychange"
 		eindent
@@ -48,7 +48,7 @@ start() {
 		eoutdent
 	fi
 
-	if [ -n "$cursor" ]; then
+	if [ -n "$cursor" -a "$cursor" != "NO" ]; then
 		ebegin "Setting cursor"
 		vidcontrol -c $cursor
 		eend $?
@@ -57,20 +57,20 @@ start() {
 	local v= f=
 	for v in font8x16 font8x14 font8x8; do
 		eval f=\$$v
-		if [ -n "$f" ]; then
+		if [ -n "$f" -a "$f" != "NO" ]; then
 			ebegin "Setting font $f"
 			vidcontrol -f ${v##font} $f
 			eend $?
 		fi
 	done
 
-	if [ -n "$blanktime" ]; then
+	if [ -n "$blanktime" -a "$blanktime" != "NO" ]; then
 		ebegin "Setting blanktime"
 		vidcontrol -t $blanktime
 		eend $?
 	fi
 
-	if [ -n "$saver" ]; then
+	if [ -n "$saver" -a "$saver" != "NO" ]; then
 		local i=
 		for i in $(kldstat | sed -n -e 's/.* \(splash_.*\)/\1/p'); do
 			kldunload "$i"
@@ -78,7 +78,7 @@ start() {
 		kldstat -v | grep -q _saver || load_kld ${saver}_saver
 	fi
 
-	if [ -n "$kbdflags" ]; then
+	if [ -n "$kbdflags" -a "$kbdflags" != "NO" ]; then
 		ebegin "Setting keyboard flags for all screens"
 		for v in /dev/ttyv*; do
 			kbdcontrol $kbdflags <$v
