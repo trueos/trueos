@@ -89,14 +89,10 @@ SRCS	= \
 	eventmgr.c \
 	eventsubchains.c \
 	eventtasks.c \
-	fiji_clockpowergating.c \
 	fiji_dpm.c \
-	fiji_hwmgr.c \
-	fiji_powertune.c \
 	fiji_smc.c \
 	fiji_smumgr.c \
 	fiji_smumgr_smc.c \
-	fiji_thermal.c \
 	functiontables.c \
 	gfx_v6_0.c \
 	gfx_v7_0.c \
@@ -107,22 +103,15 @@ SRCS	= \
 	gpu_scheduler.c \
 	hardwaremanager.c \
 	hwmgr.c \
-	iceland_clockpowergating.c \
 	iceland_dpm.c \
-	iceland_hwmgr.c \
 	iceland_ih.c \
-	iceland_powertune.c \
 	iceland_smc.c \
 	iceland_smumgr.c \
-	iceland_thermal.c \
+	iceland_smumgr_smc.c \
 	kv_dpm.c \
 	kv_smc.c \
-	polaris10_clockpowergating.c \
-	polaris10_hwmgr.c \
-	polaris10_powertune.c \
 	polaris10_smc.c \
 	polaris10_smumgr.c \
-	polaris10_thermal.c \
 	pp_acpi.c \
 	ppatomctrl.c \
 	pppcielanes.c \
@@ -143,15 +132,11 @@ SRCS	= \
 	smu7_powertune.c \
 	smu7_smumgr.c \
 	smu7_thermal.c \
-	tonga_clockpowergating.c \
 	tonga_dpm.c \
-	tonga_hwmgr.c \
 	tonga_ih.c \
-	tonga_powertune.c \
 	tonga_smc.c \
 	tonga_smumgr.c \
 	tonga_smumgr_smc.c \
-	tonga_thermal.c \
 	uvd_v4_2.c \
 	uvd_v5_0.c \
 	uvd_v6_0.c \
@@ -237,6 +222,7 @@ CWARNFLAGS.gpu_scheduler.c=	-Wno-missing-prototypes
 CWARNFLAGS.iceland_hwmgr.c=	-Wno-missing-prototypes  -Wno-cast-qual
 CWARNFLAGS.iceland_smc.c=	-Wno-missing-prototypes
 CWARNFLAGS.iceland_smumgr.c=	-Wno-missing-prototypes
+CWARNFLAGS.iceland_smumgr_smc.c=	-Wno-missing-prototypes
 CWARNFLAGS.iceland_thermal.c=	-Wno-missing-prototypes
 CWARNFLAGS.kv_dpm.c=	-Wno-unused-const-variable
 CWARNFLAGS.polaris10_clockpowergating.c=	-Wno-missing-prototypes -Wno-enum-conversion
