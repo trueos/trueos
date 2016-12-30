@@ -69,7 +69,7 @@ struct lro_entry {
 	uint16_t		timestamp;	/* flag, not a TCP hdr field. */
 	struct timeval		mtime;
 };
-LIST_HEAD(lro_head, lro_entry);
+BSD_LIST_HEAD(lro_head, lro_entry);
 
 #define	le_ip4			leip.ip4
 #define	le_ip6			leip.ip6
