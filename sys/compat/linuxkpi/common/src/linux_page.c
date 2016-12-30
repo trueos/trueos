@@ -456,6 +456,18 @@ set_pages_wb(vm_page_t page, int numpages)
 	return set_memory_wb(addr, numpages);
 }
 
+int
+arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size)
+{
+	return (set_memory_wc(start, size >> PAGE_SHIFT));
+}
+
+void
+arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
+{
+	set_memory_wb(start, size >> PAGE_SHIFT);
+}
+
 
 /* look at actual flags e.g. GFP_KERNEL | GFP_DMA32 | __GFP_ZERO */
 vm_page_t
