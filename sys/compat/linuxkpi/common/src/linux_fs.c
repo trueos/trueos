@@ -441,24 +441,24 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 long
 get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 		      unsigned long start, unsigned long nr_pages,
-		      int write, int force, struct page **pages,
+		      int gup_flags, struct page **pages,
 		      struct vm_area_struct **vmas)
 {
 	vm_map_t map;
 
 	map = &tsk->task_thread->td_proc->p_vmspace->vm_map;
-	return (__get_user_pages_internal(map, start, nr_pages, write, pages));
+	return (__get_user_pages_internal(map, start, nr_pages, !!(gup_flags & FOLL_WRITE), pages));
 }
 
 long
 get_user_pages(unsigned long start, unsigned long nr_pages,
-		int write, int force, struct page **pages,
+		int gup_flags, struct page **pages,
 		    struct vm_area_struct **vmas)
 {
 	vm_map_t map;
 
 	map = &curthread->td_proc->p_vmspace->vm_map;
-	return (__get_user_pages_internal(map, start, nr_pages, write, pages));
+	return (__get_user_pages_internal(map, start, nr_pages, !!(gup_flags & FOLL_WRITE), pages));
 }
 
 
