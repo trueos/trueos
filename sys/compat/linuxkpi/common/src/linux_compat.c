@@ -1794,6 +1794,22 @@ bit_waitqueue(void *word, int bit)
 #endif
 }
 
+int
+bit_wait_timeout(struct wait_bit_key *key, int timeout)
+{
+
+	panic("XXX implement me");
+	return (0);
+}
+
+int
+wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
+{
+
+	panic("XXX implement me");
+	return (0);
+}
+
 static void
 async_run_entry_fn(struct work_struct *work)
 {
