@@ -39,7 +39,6 @@ SRCS	= \
 	i915_trace_points.c \
 	i915_vgpu.c \
 	intel_acpi.c \
-	intel_agp_freebsd.c \
 	intel_atomic.c \
 	intel_atomic_plane.c \
 	intel_audio.c \
@@ -66,6 +65,7 @@ SRCS	= \
 	intel_engine_cs.c \
 	intel_fbdev.c \
 	intel_fifo_underrun.c \
+	intel_freebsd.c \
 	intel_frontbuffer.c \
 	intel_guc_loader.c \
 	intel_hdmi.c \
