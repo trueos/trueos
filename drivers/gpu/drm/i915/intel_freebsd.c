@@ -5,10 +5,13 @@ __FBSDID("$FreeBSD$");
 #include <linux/acpi.h>
 #include <drm/drmP.h>
 #include <drm/i915_drm.h>
-#include "i915_drv.h"
 #include "i915_trace.h"
-#include "intel_drv.h"
+#include <linux/mm.h>
+#include <linux/io-mapping.h>
 
+#include <asm/pgtable.h>
+
+#include "i915_drv.h"
 #include <linux/apple-gmux.h>
 #include <linux/console.h>
 #include <linux/module.h>
@@ -190,6 +193,47 @@ i915_locks_destroy(struct drm_i915_private *dev_priv)
 	mutex_destroy(&dev_priv->sb_lock);
 	mutex_destroy(&dev_priv->modeset_restore_lock);
 	mutex_destroy(&dev_priv->av_mutex);
+}
+
+
+/**
+ * remap_io_mapping - remap an IO mapping to userspace
+ * @vma: user vma to map to
+ * @addr: target user address to start at
+ * @pfn: physical address of kernel memory
+ * @size: size of map area
+ * @iomap: the source io_mapping
+ *
+ *  Note: this is only safe if the mm semaphore is held when called.
+ */
+int remap_io_mapping(struct vm_area_struct *vma,
+		     unsigned long addr, unsigned long pfn, unsigned long size,
+		     struct io_mapping *iomap)
+{
+	vm_memattr_t attr;
+	pmap_t pmap;
+	vm_page_t m;
+	vm_paddr_t pa;
+	vm_prot_t prot;
+	vm_offset_t va;
+	int rc;
+	
+	attr = pgprot2cachemode(iomap->prot);
+	pmap = vma->vm_cached_map->pmap;
+	pa = pfn << PAGE_SHIFT;
+	prot = vma->vm_page_prot;
+	for (va = addr; va < addr + size; va += PAGE_SIZE, pa += PAGE_SIZE) {
+		m = PHYS_TO_VM_PAGE(pa);
+		pmap_page_set_memattr(m, attr);
+		rc = pmap_enter(pmap, va, PHYS_TO_VM_PAGE(pa), prot, 0, 0);
+		if (rc != KERN_SUCCESS)
+			break;
+	}
+	if (__predict_false(rc)) {
+		pmap_remove(pmap, addr, va);
+		return (-ENOMEM);
+	}
+	return (0);
 }
 
 
