@@ -1795,18 +1795,33 @@ bit_waitqueue(void *word, int bit)
 }
 
 int
-bit_wait_timeout(struct wait_bit_key *key, int timeout)
+bit_wait_timeout(struct wait_bit_key *key, int mode)
 {
+	unsigned long now = READ_ONCE(jiffies);
 
-	panic("XXX implement me");
+	if (time_after_eq(now, key->timeout))
+		return (-EAGAIN);
+	schedule_timeout(key->timeout - now);
+#ifdef __notyet__
+	if (signal_pending_state(mode, current))
+		return (-EINTR);
+#endif
 	return (0);
 }
 
 int
-wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
+wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key_arg)
 {
+	struct wait_bit_key *key = key_arg;
+	struct wait_bit_queue *wait_bit
+		= container_of(wait, struct wait_bit_queue, wait);
 
-	panic("XXX implement me");
+	if (wait_bit->key.flags != key->flags ||
+			wait_bit->key.bit_nr != key->bit_nr ||
+			test_bit(key->bit_nr, key->flags))
+		return 0;
+	else
+		return autoremove_wake_function(wait, mode, sync, key);
 	return (0);
 }
 
