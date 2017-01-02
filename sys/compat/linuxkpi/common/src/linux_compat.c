@@ -697,11 +697,12 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 	vm_object_pip_add(vm_obj, 1);
 	vmf.virtual_address = (void *)(pidx << PAGE_SHIFT);
 	vmf.flags = (fault_type & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
-	memcpy(&cvma, vmap, sizeof(cvma));
+	memcpy(&cvma, vmap, sizeof(*vmap));
+	MPASS(cvma.vm_private_data == vm_obj->handle);
+
 	cvma.vm_pfn_count = 0;
 	cvma.vm_pfn_pcount = &cvma.vm_pfn_count;
 	cvma.vm_obj = vm_obj;
-	cvma.vm_private_data = vm_obj->handle;
 
 	VM_OBJECT_WUNLOCK(vm_obj);
 	err = vmap->vm_ops->fault(&cvma, &vmf);
@@ -830,6 +831,7 @@ linux_cdev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 	vmap = linux_cdev_handle_find(handle);
 	MPASS(vmap != NULL);
+	vmap->vm_private_data = handle;
 
 	*color = 0;
 	vmap->vm_ops->open(vmap);
@@ -845,6 +847,7 @@ linux_cdev_pager_dtor(void *handle)
 	MPASS(vmap != NULL);
 
 	vmap->vm_ops->close(vmap);
+	vmap->vm_private_data = handle;
 	linux_cdev_handle_remove(handle);
 }
 
@@ -1242,6 +1245,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 		return (ENODEV);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
+	bzero(&vma, sizeof(struct vm_area_struct));
 	filp->f_flags = file->f_flag;
 	linux_set_current();
 	vma.vm_start = 0;
@@ -1261,7 +1265,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 				MPASS(vma.vm_ops->open != NULL);
 				MPASS(vma.vm_ops->close != NULL);
 
-				linux_cdev_handle_insert(vma.vm_private_data, &vma, sizeof(vma));
+				linux_cdev_handle_insert(vma.vm_private_data, &vma, sizeof(struct vm_area_struct));
 				*object = cdev_pager_allocate(vma.vm_private_data, OBJT_MGTDEVICE,
 							      &linux_cdev_pager_ops, size, nprot,
 							      0, curthread->td_ucred);
