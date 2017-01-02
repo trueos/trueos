@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
-#include <vm/vm_eventhandler.h>
 
 vm_map_t kernel_map;
 vm_map_t exec_map;
@@ -392,10 +391,7 @@ kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	KASSERT(object == kmem_object || object == kernel_object,
 	    ("kmem_unback: only supports kernel objects."));
 
-	vme_invalidate_range_start(kernel_map, addr, addr + size);
 	pmap_remove(kernel_pmap, addr, addr + size);
-	vme_invalidate_range_end(kernel_map, addr, addr + size);
-
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	VM_OBJECT_WLOCK(object);
 	for (i = 0; i < size; i += PAGE_SIZE) {

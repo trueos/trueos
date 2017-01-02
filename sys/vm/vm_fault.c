@@ -915,9 +915,7 @@ readrest:
 				ahead = ulmin(ahead, atop(e_end - vaddr) - 1);
 			}
 			rv = vm_pager_get_pages(fs.object, &fs.m, 1,
-			     &behind, &ahead, fault_type);
-			if (rv == VM_PAGER_NOPAGE)
-				return (KERN_SUCCESS);
+			    &behind, &ahead);
 			if (rv == VM_PAGER_OK) {
 				faultcount = behind + 1 + ahead;
 				hardfault = true;

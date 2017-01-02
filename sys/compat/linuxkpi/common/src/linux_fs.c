@@ -292,7 +292,7 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (page->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
-			rv = vm_pager_get_pages(object, &page, 1, NULL, NULL, VM_PROT_READ|VM_PROT_WRITE);
+			rv = vm_pager_get_pages(object, &page, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
 				vm_page_lock(page);
 				vm_page_free(page);
