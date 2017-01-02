@@ -76,6 +76,7 @@ static int ttm_bo_vm_fault_idle(struct ttm_buffer_object *bo,
 	 */
 	ret = fence_wait(bo->moving, true);
 	if (unlikely(ret != 0)) {
+		printf("fence_wait returned with error %d\n", ret);
 		ret = (ret != -ERESTARTSYS) ? VM_FAULT_SIGBUS :
 			VM_FAULT_NOPAGE;
 		goto out_unlock;
@@ -140,6 +141,8 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * (if at all) by redirecting mmap to the exporter.
 	 */
 	if (bo->ttm && (bo->ttm->page_flags & TTM_PAGE_FLAG_SG)) {
+		printf("refused to fault all pages\n");
+
 		retval = VM_FAULT_SIGBUS;
 		goto out_unlock;
 	}
@@ -154,6 +157,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			retval = VM_FAULT_NOPAGE;
 			goto out_unlock;
 		default:
+			printf("reverse_notify failed\n");
 			retval = VM_FAULT_SIGBUS;
 			goto out_unlock;
 		}
@@ -176,6 +180,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 	ret = ttm_mem_io_reserve_vm(bo);
 	if (unlikely(ret != 0)) {
+		printf("mem_io_reserve failed\n");
 		retval = VM_FAULT_SIGBUS;
 		goto out_io_unlock;
 	}
@@ -186,6 +191,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		drm_vma_node_start(&bo->vma_node);
 
 	if (unlikely(page_offset >= bo->num_pages)) {
+		printf("page_offset past num_pages\n");
 		retval = VM_FAULT_SIGBUS;
 		goto out_io_unlock;
 	}
@@ -217,6 +223,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * Speculatively prefault a number of pages. Only error on
 	 * first page.
 	 */
+#ifdef __linux__
 	for (i = 0; i < TTM_BO_VM_NUM_PREFAULT; ++i) {
 		if (bo->mem.bus.is_iomem)
 			pfn = ((bo->mem.bus.base + bo->mem.bus.offset) >> PAGE_SHIFT) + page_offset;
@@ -228,11 +235,9 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			} else if (unlikely(!page)) {
 				break;
 			}
-#ifdef __linux__
 			page->mapping = vma->vm_file->f_mapping;
 			page->index = drm_vma_node_start(&bo->vma_node) +
 				page_offset;
-#endif
 			pfn = page_to_pfn(page);
 		}
 
@@ -259,6 +264,48 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		if (unlikely(++page_offset >= page_last))
 			break;
 	}
+#else
+	{
+		vm_object_t vm_obj = vma->vm_obj;
+		int pidx = address >> PAGE_SHIFT;;
+
+		VM_OBJECT_WLOCK(vm_obj);
+		for (i = 0; i < TTM_BO_VM_NUM_PREFAULT; ++i) {
+			page = vm_page_lookup(vm_obj, pidx);
+			if (page != NULL) {
+				if (vm_page_busied(page))
+					break;
+				else
+					goto have_page;
+			}
+			if (bo->mem.bus.is_iomem) {
+				pfn = ((bo->mem.bus.base + bo->mem.bus.offset) >> PAGE_SHIFT) + page_offset;
+				page = PHYS_TO_VM_PAGE(pfn << PAGE_SHIFT);
+			} else {
+				page = ttm->pages[page_offset];
+				if (unlikely(!page && i == 0)) {
+					retval = VM_FAULT_OOM;
+					goto out_io_unlock;
+				} else if (unlikely(!page)) {
+					break;
+				}
+			}
+			if (vm_page_busied(page))
+				break;
+			if (vm_page_insert(page, vm_obj, pidx))
+				break;
+			page->valid = VM_PAGE_BITS_ALL;
+		have_page:
+			vm_page_xbusy(page);
+			vma->vm_pfn_count++;
+			pidx++;
+			if (unlikely(++page_offset >= page_last))
+				break;
+		}
+		VM_OBJECT_WUNLOCK(vm_obj);
+
+	}
+#endif
 out_io_unlock:
 	ttm_mem_io_unlock(man);
 out_unlock:
