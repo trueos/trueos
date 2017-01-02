@@ -693,14 +693,15 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 
 	linux_set_current();
 
+	vmap = linux_cdev_handle_find(vm_obj->handle);
 	vm_object_pip_add(vm_obj, 1);
 	vmf.virtual_address = (void *)(pidx << PAGE_SHIFT);
 	vmf.flags = (fault_type & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
+	memcpy(&cvma, vmap, sizeof(cvma));
 	cvma.vm_pfn_count = 0;
 	cvma.vm_pfn_pcount = &cvma.vm_pfn_count;
 	cvma.vm_obj = vm_obj;
 	cvma.vm_private_data = vm_obj->handle;
-	vmap = linux_cdev_handle_find(vm_obj->handle);
 
 	VM_OBJECT_WUNLOCK(vm_obj);
 	err = vmap->vm_ops->fault(&cvma, &vmf);
