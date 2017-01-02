@@ -267,7 +267,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 #else
 	{
 		vm_object_t vm_obj = vma->vm_obj;
-		int pidx = address >> PAGE_SHIFT;;
+		vm_pindex_t pidx = address >> PAGE_SHIFT;;
 
 		VM_OBJECT_WLOCK(vm_obj);
 		for (i = 0; i < TTM_BO_VM_NUM_PREFAULT; ++i) {
