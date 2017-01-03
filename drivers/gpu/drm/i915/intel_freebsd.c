@@ -211,29 +211,53 @@ int remap_io_mapping(struct vm_area_struct *vma,
 		     struct io_mapping *iomap)
 {
 	vm_memattr_t attr;
-	pmap_t pmap;
 	vm_page_t m;
 	vm_paddr_t pa;
-	vm_prot_t prot;
-	vm_offset_t va;
-	int rc;
+	vm_object_t vm_obj = vma->vm_obj;
+	int rc = 0;
+	int count = size >> PAGE_SHIFT;
+	vm_pindex_t pidx, pidx_start = addr >> PAGE_SHIFT;
 	
 	attr = pgprot2cachemode(iomap->prot);
-	pmap = vma->vm_cached_map->pmap;
 	pa = pfn << PAGE_SHIFT;
-	prot = vma->vm_page_prot;
-	for (va = addr; va < addr + size; va += PAGE_SIZE, pa += PAGE_SIZE) {
+	VM_OBJECT_WLOCK(vm_obj);
+	for (pidx = pidx_start; pidx < pidx_start + count; pidx++, pa += PAGE_SIZE) {
+		m = vm_page_lookup(vm_obj, pidx);
+		if (m != NULL) {
+			if (vm_page_busied(m))
+				break;
+			else
+				goto have_page;
+		}
 		m = PHYS_TO_VM_PAGE(pa);
-		pmap_page_set_memattr(m, attr);
-		rc = pmap_enter(pmap, va, PHYS_TO_VM_PAGE(pa), prot, 0, 0);
-		if (rc != KERN_SUCCESS)
+		if (vm_page_busied(m))
 			break;
+		if (vm_page_insert(m, vm_obj, pidx))
+			break;
+		m->valid = VM_PAGE_BITS_ALL;
+	have_page:
+		vm_page_xbusy(m);
+		pmap_page_set_memattr(m, attr);
+		vma->vm_pfn_count++;
 	}
-	if (__predict_false(rc)) {
-		pmap_remove(pmap, addr, va);
-		return (-ENOMEM);
+	/*
+	 * In order to adhere to the semantics expected by the latest i915_gem_fault
+	 * we make this an all or nothing. The implicit assumption here is that overlaps
+	 * in page faults will not be sufficiently common to impair performance.
+	 */
+	if (__predict_false((pidx < pidx_start + count) && pidx > pidx_start)) {
+		count = pidx - pidx_start - 1;
+		pa = pfn << PAGE_SHIFT;
+		for (pidx = pidx_start; pidx < pidx_start + count; pidx++, pa += PAGE_SIZE) {
+			m = PHYS_TO_VM_PAGE(pa);
+			if (vm_page_busied(m))
+				vm_page_xunbusy(m);
+		}
+		rc = -EBUSY;
 	}
-	return (0);
+	VM_OBJECT_WUNLOCK(vm_obj);
+
+	return (rc);
 }
 
 
