@@ -283,7 +283,7 @@ vm_pager_assert_in(vm_object_t object, vm_page_t *m, int count)
  */
 int
 vm_pager_get_pages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
-    int *rahead, int prot)
+    int *rahead)
 {
 #ifdef INVARIANTS
 	vm_pindex_t pindex = m[0]->pindex;
@@ -293,12 +293,9 @@ vm_pager_get_pages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
 	vm_pager_assert_in(object, m, count);
 
 	r = (*pagertab[object->type]->pgo_getpages)(object, m, count, rbehind,
-	     rahead);
+	    rahead);
 	if (r != VM_PAGER_OK)
 		return (r);
-
-	if (object->flags2 & OBJ2_GRAPHICS)
-		return (VM_PAGER_OK);
 
 	for (int i = 0; i < count; i++) {
 		/*

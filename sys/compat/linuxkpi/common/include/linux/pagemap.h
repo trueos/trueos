@@ -64,6 +64,18 @@ fault_in_multipages_writeable(char __user *uaddr, int size)
 	return ret;
 }
 
+static inline int
+fault_in_pages_writeable(char __user *uaddr, int size)
+{
+	return (fault_in_multipages_writeable(uaddr, size));
+}
+
+static inline int
+fault_in_pages_readable(char __user *uaddr, int size)
+{
+	return (fault_in_multipages_readable(uaddr, size));
+}
+	
 /* Restricts the given gfp_mask to what the mapping allows. */
 static inline gfp_t
 mapping_gfp_constraint(struct address_space *mapping, gfp_t gfp_mask)

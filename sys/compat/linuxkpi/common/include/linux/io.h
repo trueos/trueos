@@ -259,4 +259,20 @@ memunmap(void *addr)
 	iounmap(addr);
 }
 
+#if defined(__amd64__) || defined(__i386__)
+extern int arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size);
+extern void arch_io_free_memtype_wc(resource_size_t start, resource_size_t size);
+#else
+static inline int arch_io_reserve_memtype_wc(resource_size_t base,
+					     resource_size_t size)
+{
+	return 0;
+}
+
+static inline void arch_io_free_memtype_wc(resource_size_t base,
+					   resource_size_t size)
+{
+}
+#endif
+
 #endif	/* _LINUX_IO_H_ */

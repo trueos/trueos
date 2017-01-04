@@ -290,6 +290,7 @@ __lkpi_mtx_init(volatile uintptr_t *c, const char *name, const char *type, int o
 
 	m = mtxlock2mtx(c);
 
+	bzero(m, sizeof(*m));
 	MPASS((opts & ~(MTX_SPIN | MTX_QUIET | MTX_RECURSE |
 	    MTX_NOWITNESS | MTX_DUPOK | MTX_NOPROFILE | MTX_NEW)) == 0);
 	ASSERT_ATOMIC_LOAD_PTR(m->mtx_lock,

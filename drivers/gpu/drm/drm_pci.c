@@ -198,7 +198,7 @@ int drm_irq_by_busid(struct drm_device *dev, void *data,
 {
 	struct drm_irq_busid *p = data;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
 		return -EINVAL;
 
 	/* UMS was only ever support on PCI devices. */
@@ -259,8 +259,8 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	DRM_DEBUG("\n");
 
 	dev = drm_dev_alloc(driver, &pdev->dev);
-	if (!dev)
-		return -ENOMEM;
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
 	ret = pci_enable_device(pdev);
 	if (ret)
@@ -286,7 +286,7 @@ int drm_get_pci_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 
 	/* No locking needed since shadow-attach is single-threaded since it may
 	 * only be called from the per-driver module init hook. */
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		list_add_tail(&dev->legacy_dev_list, &driver->legacy_dev_list);
 
 	return 0;
@@ -327,7 +327,7 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 	pdriver->bsdclass = &drm_devclass;
 	pdriver->name = "drmn";
 
-	if (driver->driver_features & DRIVER_MODESET)
+	if (!(driver->driver_features & DRIVER_LEGACY))
 		return pci_register_driver(pdriver);
 
 	DRM_ERROR("FreeBSD needs DRIVER_MODESET");
@@ -454,7 +454,7 @@ void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver)
 	struct drm_device *dev, *tmp;
 	DRM_DEBUG("\n");
 
-	if (driver->driver_features & DRIVER_MODESET) {
+	if (!(driver->driver_features & DRIVER_LEGACY)) {
 		pci_unregister_driver(pdriver);
 	} else {
 		list_for_each_entry_safe(dev, tmp, &driver->legacy_dev_list,

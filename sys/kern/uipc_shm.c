@@ -186,7 +186,7 @@ uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		vm_page_xbusy(m);
 		if (vm_pager_has_page(obj, idx, NULL, NULL)) {
-			rv = vm_pager_get_pages(obj, &m, 1, NULL, NULL, VM_PROT_READ|VM_PROT_WRITE);
+			rv = vm_pager_get_pages(obj, &m, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
 				printf(
 	    "uiomove_object: vm_obj %p idx %jd valid %x pager error %d\n",
@@ -455,12 +455,9 @@ retry:
 					VM_WAIT;
 					VM_OBJECT_WLOCK(object);
 					goto retry;
-				} else if (m->valid != VM_PAGE_BITS_ALL)
-					rv = vm_pager_get_pages(object, &m, 1,
-					    NULL, NULL, VM_PROT_READ|VM_PROT_WRITE);
-				else
-					/* A cached page was reactivated. */
-					rv = VM_PAGER_OK;
+				}
+				rv = vm_pager_get_pages(object, &m, 1, NULL,
+				    NULL);
 				vm_page_lock(m);
 				if (rv == VM_PAGER_OK) {
 					/*

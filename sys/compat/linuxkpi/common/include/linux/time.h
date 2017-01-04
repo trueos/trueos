@@ -55,6 +55,12 @@ jiffies_to_usecs(const unsigned long j)
 	return (USEC_PER_SEC / hz) * j;
 }
 
+static inline unsigned long
+jiffies_to_nsecs(const unsigned long j)
+{
+	return (NSEC_PER_SEC / hz) * j;
+}
+
 static inline struct timeval
 ns_to_timeval(const int64_t nsec)
 {

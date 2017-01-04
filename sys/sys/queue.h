@@ -446,6 +446,10 @@ struct {								\
 struct name {								\
 	struct type *lh_first;	/* first element */			\
 }
+#define	BSD_LIST_HEAD(name, type)						\
+struct name {								\
+	struct type *lh_first;	/* first element */			\
+}
 
 #define	LIST_CLASS_HEAD(name, type)					\
 struct name {								\

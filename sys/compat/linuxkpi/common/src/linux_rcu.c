@@ -32,6 +32,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 
 
@@ -136,6 +137,18 @@ __rcu_read_unlock(void)
 	record = DPCPU_GET(epoch_record);
 	ck_epoch_end(record, NULL);
 	critical_exit();
+}
+
+void
+synchronize_rcu(void)
+{
+	ck_epoch_record_t *record;
+
+	sched_pin();
+	record = DPCPU_GET(epoch_record);
+	MPASS(record != NULL);
+	ck_epoch_synchronize(record);
+	sched_unpin();
 }
 
 void

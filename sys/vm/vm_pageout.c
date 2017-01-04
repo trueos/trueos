@@ -111,7 +111,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
-#include <vm/vm_eventhandler.h>
 
 /*
  * System initialization
@@ -758,10 +757,8 @@ vm_pageout_map_deactivate_pages(map, desired)
 	 * table pages.
 	 */
 	if (desired == 0 && nothingwired) {
-		vme_invalidate_range_start(map, vm_map_min(map), vm_map_max(map));
 		pmap_remove(vm_map_pmap(map), vm_map_min(map),
-			    vm_map_max(map));
-		vme_invalidate_range_end(map, vm_map_min(map), vm_map_max(map));
+		    vm_map_max(map));
 	}
 
 	vm_map_unlock(map);

@@ -1012,7 +1012,7 @@ exec_map_first_page(imgp)
 			}
 		}
 		initial_pagein = i;
-		rv = vm_pager_get_pages(object, ma, initial_pagein, NULL, NULL, VM_PROT_READ|VM_PROT_EXECUTE);
+		rv = vm_pager_get_pages(object, ma, initial_pagein, NULL, NULL);
 		if (rv != VM_PAGER_OK) {
 			for (i = 0; i < initial_pagein; i++) {
 				vm_page_lock(ma[i]);

@@ -79,6 +79,17 @@
  *
  *	vm_object_t		Virtual memory object.
  *
+ *	The root of cached pages pool is protected by both the per-object lock
+ *	and the free pages queue mutex.
+ *	On insert in the cache radix trie, the per-object lock is expected
+ *	to be already held and the free pages queue mutex will be
+ *	acquired during the operation too.
+ *	On remove and lookup from the cache radix trie, only the free
+ *	pages queue mutex is expected to be locked.
+ *	These rules allow for reliably checking for the presence of cached
+ *	pages with only the per-object lock held, thereby reducing contention
+ *	for the free pages queue mutex.
+ *
  * List of locks
  *	(c)	const until freed
  *	(o)	per-object lock 
@@ -163,7 +174,6 @@ struct vm_object {
 	struct ucred *cred;
 	vm_ooffset_t charge;
 	void *umtx_data;
-	uint64_t flags2;
 };
 
 /*
@@ -183,8 +193,6 @@ struct vm_object {
 #define	OBJ_ONEMAPPING	0x2000		/* One USE (a single, non-forked) mapping flag */
 #define	OBJ_DISCONNECTWNT 0x4000	/* disconnect from vnode wanted */
 #define	OBJ_TMPFS	0x8000		/* has tmpfs vnode allocated */
-
-#define	OBJ2_GRAPHICS	0x0001		/* device pager for graphics */
 
 #define IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
 #define OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))

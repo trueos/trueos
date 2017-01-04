@@ -1,3 +1,4 @@
+#ifdef __notyet__
 #define RB_AUGMENT(entry) interval_tree_augment_entry(entry)
 
 
@@ -167,3 +168,58 @@ interval_tree_iter_next(struct interval_tree_node *node,
 
 	return (NULL);
 }
+#else
+#include <linux/interval_tree.h>
+#include <linux/interval_tree_generic.h>
+#include <linux/compiler.h>
+#include <linux/export.h>
+
+#define START(node) ((node)->start)
+#define LAST(node)  ((node)->last)
+
+static void
+interval_tree__insert(struct interval_tree_node *node, struct rb_root *root);
+
+static void
+interval_tree__remove(struct interval_tree_node *node, struct rb_root *root);
+
+static struct interval_tree_node *
+interval_tree__iter_first(struct rb_root *root,
+			 unsigned long start, unsigned long last);
+
+static struct interval_tree_node *
+interval_tree__iter_next(struct interval_tree_node *node,
+			unsigned long start, unsigned long last);
+
+
+
+INTERVAL_TREE_DEFINE(struct interval_tree_node, rb,
+                     unsigned long, __subtree_last,
+                     START, LAST,, interval_tree_)
+
+void
+interval_tree_insert(struct interval_tree_node *node, struct rb_root *root)
+{
+	interval_tree__insert(node, root);
+}
+
+void
+interval_tree_remove(struct interval_tree_node *node, struct rb_root *root)
+{
+	interval_tree__remove(node, root);
+}
+
+struct interval_tree_node *
+interval_tree_iter_first(struct rb_root *root,
+			 unsigned long start, unsigned long last)
+{
+	return interval_tree__iter_first(root, start, last);
+}
+
+struct interval_tree_node *
+interval_tree_iter_next(struct interval_tree_node *node,
+			unsigned long start, unsigned long last)
+{
+	return interval_tree__iter_next(node, start, last);
+}
+#endif

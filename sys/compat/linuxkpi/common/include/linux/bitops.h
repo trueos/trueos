@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_BITOPS_H_
-#define	_LINUX_BITOPS_H_
+#ifndef	_LINUX_BITOPS_H
+#define	_LINUX_BITOPS_H
 
 #include <sys/types.h>
 #include <sys/systm.h>
@@ -41,6 +41,8 @@
 #else
 #define	BITS_PER_LONG		32
 #endif
+
+#include <asm/bitops.h>
 #define	BITMAP_FIRST_WORD_MASK(start)	(~0UL << ((start) % BITS_PER_LONG))
 #define	BITMAP_LAST_WORD_MASK(n)	(~0UL >> (BITS_PER_LONG - (n)))
 #define	BITS_TO_LONGS(n)	howmany((n), BITS_PER_LONG)

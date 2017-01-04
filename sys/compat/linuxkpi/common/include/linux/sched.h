@@ -59,6 +59,7 @@
 #define PF_EXITING	0x00000004
 #define PF_USED_ASYNC	TDP_UNUSED9
 
+struct seq_file;
 
 #define task_pid(task) ((task)->task_thread->td_proc->p_pid)
 #define get_pid(x) (x)
@@ -247,9 +248,16 @@ io_schedule(void)
 static inline void
 schedule(void)
 {
-
 	schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 }
+
+
+static inline void
+schedule_short(void)
+{
+	schedule_timeout(hz/10);
+}
+
 
 #define yield() kern_yield(0)
 

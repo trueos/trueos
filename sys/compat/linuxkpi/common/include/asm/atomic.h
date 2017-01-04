@@ -33,6 +33,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <sys/lock.h>
 #include <machine/atomic.h>
 #include <linux/types.h>
 #include <asm/cmpxchg.h>
@@ -79,11 +80,17 @@ atomic_set_mask(unsigned int mask, atomic_t *v)
 	atomic_set_int(&v->counter, mask);
 }
 
+#ifndef atomic_set_release
+#define  atomic_set_release(v, i)	smp_store_release(&(v)->counter, (i))
+#endif
+
 static inline int
-atomic_read(atomic_t *v)
+atomic_read_(atomic_t *v)
 {
 	return atomic_load_acq_int(&v->counter);
 }
+
+#define atomic_read(v) (atomic_read_(__DECONST(atomic_t *, (v))))
 
 static inline int
 atomic_inc(atomic_t *v)
@@ -168,9 +175,24 @@ static inline void atomic_##op(int i, atomic_t *v)		\
 		c = old;					\
 }
 
+#define LINUX_ATOMIC_FETCH_OP(op, c_op)					\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	int ret;							\
+									\
+	spinlock_enter();\
+	ret = v->counter;						\
+	v->counter = v->counter c_op i;					\
+	spinlock_exit();\
+									\
+	return (ret);							\
+}
+
 LINUX_ATOMIC_OP(or, |)
 LINUX_ATOMIC_OP(and, &)
 LINUX_ATOMIC_OP(andnot, &~)
 LINUX_ATOMIC_OP(xor, ^)
+LINUX_ATOMIC_FETCH_OP(xor, ^)
+
 
 #endif					/* _ASM_ATOMIC_H_ */

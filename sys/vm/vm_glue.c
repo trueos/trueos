@@ -239,7 +239,7 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 	m = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		vm_page_xbusy(m);
-		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL, VM_PROT_READ|VM_PROT_EXECUTE);
+		rv = vm_pager_get_pages(object, &m, 1, NULL, NULL);
 		if (rv != VM_PAGER_OK) {
 			vm_page_lock(m);
 			vm_page_free(m);
@@ -592,7 +592,7 @@ vm_thread_swapin(struct thread *td)
 		rv = vm_pager_has_page(ksobj, ma[i]->pindex, NULL, &a);
 		KASSERT(rv == 1, ("%s: missing page %p", __func__, ma[i]));
 		count = min(a + 1, j - i);
-		rv = vm_pager_get_pages(ksobj, ma + i, count, NULL, NULL, VM_PROT_READ|VM_PROT_WRITE);
+		rv = vm_pager_get_pages(ksobj, ma + i, count, NULL, NULL);
 		KASSERT(rv == VM_PAGER_OK, ("%s: cannot get kstack for proc %d",
 		    __func__, td->td_proc->p_pid));
 		vm_object_pip_wakeup(ksobj);

@@ -48,6 +48,13 @@ typedef unsigned long pmd_t;
 typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
+#define	PAGE_KERNEL	0x0000
+#define PAGE_KERNEL_IO  PAGE_KERNEL
+/*
+#define __PAGE_KERNEL_EXEC						\
+	(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_GLOBAL)
+#define __PAGE_KERNEL		(__PAGE_KERNEL_EXEC | _PAGE_NX)
+*/
 
 #define PROT_VALID (1 << 4)
 #define CACHE_MODE_SHIFT 3
@@ -141,5 +148,7 @@ void *acpi_os_ioremap(vm_paddr_t pa, vm_size_t size);
 void unmap_mapping_range(void *obj,
 			 loff_t const holebegin, loff_t const holelen, int even_cows);
 
-extern void linux_clflushopt(u_long addr);
+#define linux_clflushopt(arg) __linux_clflushopt((u_long)(arg))
+extern void __linux_clflushopt(u_long addr);
+
 #endif	/* _LINUX_PAGE_H_ */

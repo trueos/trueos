@@ -2413,7 +2413,6 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 				kve->kve_type = KVME_TYPE_SG;
 				break;
 			case OBJT_MGTDEVICE:
-			case OBJT_SELFMGTDEVICE:
 				kve->kve_type = KVME_TYPE_MGTDEVICE;
 				break;
 			default:

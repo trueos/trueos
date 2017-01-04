@@ -128,8 +128,8 @@ typedef uint64_t vm_page_bits_t;
 #ifndef LIST_HEAD_DEF
 #define  LIST_HEAD_DEF
 struct list_head {
-	struct list_head *next;
-	struct list_head *prev;
+       struct list_head *next;
+       struct list_head *prev;
 };
 #endif
 
@@ -259,7 +259,7 @@ vm_pagequeue_cnt_add(struct vm_pagequeue *pq, int addend)
 	vm_pagequeue_assert_locked(pq);
 #endif
 	pq->pq_cnt += addend;
-	atomic_add_int((volatile u_int *)pq->pq_vcnt, addend);
+	atomic_add_int(pq->pq_vcnt, addend);
 }
 #define	vm_pagequeue_cnt_inc(pq)	vm_pagequeue_cnt_add((pq), 1)
 #define	vm_pagequeue_cnt_dec(pq)	vm_pagequeue_cnt_add((pq), -1)
@@ -361,16 +361,19 @@ extern struct mtx_padalign pa_lock[];
  *	free
  *		Available for allocation now.
  *
+ *	cache
+ *		Almost available for allocation. Still associated with
+ *		an object, but clean and immediately freeable.
+ *
+ * The following lists are LRU sorted:
+ *
  *	inactive
  *		Low activity, candidates for reclamation.
- *		This list is approximately LRU ordered.
- *
- *	laundry
  *		This is the list of pages that should be
  *		paged out next.
  *
  *	active
- *		Pages that are "active", i.e., they have been
+ *		Pages that are "active" i.e. they have been
  *		recently referenced.
  *
  */

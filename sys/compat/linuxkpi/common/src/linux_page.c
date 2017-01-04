@@ -136,7 +136,7 @@ vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr, pfn_t pfn)
 
 
 void
-linux_clflushopt(u_long addr)
+__linux_clflushopt(u_long addr)
 {
 	if (cpu_stdext_feature & CPUID_STDEXT_CLFLUSHOPT)
 		clflushopt(addr);
@@ -454,6 +454,18 @@ set_pages_wb(vm_page_t page, int numpages)
 	unsigned long addr = (unsigned long)VM_PAGE_TO_PHYS(page);
 
 	return set_memory_wb(addr, numpages);
+}
+
+int
+arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size)
+{
+	return (set_memory_wc(start, size >> PAGE_SHIFT));
+}
+
+void
+arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
+{
+	set_memory_wb(start, size >> PAGE_SHIFT);
 }
 
 

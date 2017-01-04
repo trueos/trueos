@@ -45,6 +45,8 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 
+#define ___GFP_DIRECT_RECLAIM	0x400000u
+
 #define	__GFP_NOWARN	0
 #define	__GFP_HIGHMEM	0
 #define	__GFP_ZERO	M_ZERO
@@ -56,6 +58,8 @@
 #define	__GFP_NO_KSWAPD	0
 #define	__GFP_WAIT	M_WAITOK
 #define	__GFP_DMA32     0
+
+#define __GFP_DIRECT_RECLAIM	((__force gfp_t)___GFP_DIRECT_RECLAIM) /* Caller can reclaim */
 
 #define	GFP_NOWAIT	M_NOWAIT
 #define	GFP_ATOMIC	(M_NOWAIT | M_USE_RESERVE)
@@ -179,6 +183,12 @@ static inline uintptr_t __get_free_pages(gfp_t gfp_mask, unsigned int order)
 #define alloc_pages_node(node, mask, order)     alloc_pages(mask, order)
 
 #define kmalloc_node(chunk, mask, node)         kmalloc(chunk, mask)
+
+static inline bool
+gfpflags_allow_blocking(const gfp_t gfp_flags)
+{
+	return !!(gfp_flags & __GFP_DIRECT_RECLAIM);
+}
 
 /*
  * XXX this actually translates to wired

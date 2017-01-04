@@ -80,5 +80,11 @@ trace_amdgpu_vm_bo_mapping(struct amdgpu_bo_va_mapping * mapping){
 		CTR3(KTR_DRM, "amdgpu_ttm_bo_move %p new %d old %d", (bo), (new), (old_mem_type)); \
 	} while (0)
 
+#define trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags)	\
+	CTR5(KTR_DRM, "amdgpu_vm_set_ptes %lx %lx %u %u %x", pe, addr, count, incr, flags)
+
+#define trace_amdgpu_vm_copy_ptes(pe, src, count)	\
+	CTR3(KTR_DRM, "amdgpu_vm_copy_ptes %lx %lx %u", pe, src, count)
+
 #endif
 

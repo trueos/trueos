@@ -135,7 +135,8 @@ sg_pager_dealloc(vm_object_t object)
 }
 
 static int
-sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,	    int *rahead)
+sg_pager_getpages(vm_object_t object, vm_page_t *m, int count, int *rbehind,
+    int *rahead)
 {
 	struct sglist *sg;
 	vm_page_t m_paddr, page;
