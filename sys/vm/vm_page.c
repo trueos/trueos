@@ -393,6 +393,11 @@ vm_page_domain_init(struct vm_domain *vmd)
 	    "vm laundry pagequeue";
 	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_vcnt) =
 	    &vm_cnt.v_laundry_count;
+	*__DECONST(char **, &vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_name) =
+	    "vm unswappable pagequeue";
+	/* Unswappable dirty pages are counted as being in the laundry. */
+	*__DECONST(int **, &vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_vcnt) =
+	    &vm_cnt.v_laundry_count;
 	vmd->vmd_page_count = 0;
 	vmd->vmd_free_count = 0;
 	vmd->vmd_segs = 0;
@@ -1328,9 +1333,11 @@ vm_page_next(vm_page_t m)
 	vm_page_t next;
 
 	VM_OBJECT_ASSERT_LOCKED(m->object);
-	if ((next = TAILQ_NEXT(m, listq)) != NULL &&
-	    next->pindex != m->pindex + 1)
-		next = NULL;
+	if ((next = TAILQ_NEXT(m, listq)) != NULL) {
+		MPASS(next->object == m->object);
+		if (next->pindex != m->pindex + 1)
+			next = NULL;
+	}
 	return (next);
 }
 
@@ -1346,9 +1353,11 @@ vm_page_prev(vm_page_t m)
 	vm_page_t prev;
 
 	VM_OBJECT_ASSERT_LOCKED(m->object);
-	if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL &&
-	    prev->pindex != m->pindex - 1)
-		prev = NULL;
+	if ((prev = TAILQ_PREV(m, pglist, listq)) != NULL) {
+		MPASS(prev->object == m->object);
+		if (prev->pindex != m->pindex - 1)
+			prev = NULL;
+	}
 	return (prev);
 }
 
@@ -1488,13 +1497,12 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	vm_page_t m, mpred;
 	int flags, req_class;
 
-	mpred = 0;	/* XXX: pacify gcc */
+	mpred = NULL;	/* XXX: pacify gcc */
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0) &&
 	    (object != NULL || (req & VM_ALLOC_SBUSY) == 0) &&
 	    ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) !=
 	    (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)),
-	    ("vm_page_alloc: inconsistent object(%p)/req(%x)", (void *)object,
-	    req));
+	    ("vm_page_alloc: inconsistent object(%p)/req(%x)", object, req));
 	if (object != NULL)
 		VM_OBJECT_ASSERT_WLOCKED(object);
 
@@ -1598,10 +1606,11 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 				atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 				m->wire_count = 0;
 			}
-			m->object = NULL;
+			KASSERT(m->object == NULL, ("page %p has object", m));
 			m->oflags = VPO_UNMANAGED;
 			m->busy_lock = VPB_UNBUSIED;
-			vm_page_free(m);
+			/* Don't change PG_ZERO. */
+			vm_page_free_toq(m);
 			return (NULL);
 		}
 
@@ -1643,6 +1652,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
  *	memory attribute setting for the physical pages cannot be configured
  *	to VM_MEMATTR_DEFAULT.
  *
+ *	The specified object may not contain fictitious pages.
+ *
  *	The caller must always specify an allocation class.
  *
  *	allocation classes:
@@ -1666,20 +1677,21 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr)
 {
-	vm_page_t m, m_tmp, m_ret;
-	u_int flags;
+	vm_page_t m, m_ret, mpred;
+	u_int busy_lock, flags, oflags;
 	int req_class;
 
+	mpred = NULL;	/* XXX: pacify gcc */
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0) &&
 	    (object != NULL || (req & VM_ALLOC_SBUSY) == 0) &&
 	    ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) !=
 	    (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)),
-	    ("vm_page_alloc: inconsistent object(%p)/req(%x)", (void *)object,
+	    ("vm_page_alloc_contig: inconsistent object(%p)/req(%x)", object,
 	    req));
 	if (object != NULL) {
 		VM_OBJECT_ASSERT_WLOCKED(object);
-		KASSERT(object->type == OBJT_PHYS,
-		    ("vm_page_alloc_contig: object %p isn't OBJT_PHYS",
+		KASSERT((object->flags & OBJ_FICTITIOUS) == 0,
+		    ("vm_page_alloc_contig: object %p has fictitious pages",
 		    object));
 	}
 	KASSERT(npages > 0, ("vm_page_alloc_contig: npages is zero"));
@@ -1691,18 +1703,34 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 	if (curproc == pageproc && req_class != VM_ALLOC_INTERRUPT)
 		req_class = VM_ALLOC_SYSTEM;
 
+	if (object != NULL) {
+		mpred = vm_radix_lookup_le(&object->rtree, pindex);
+		KASSERT(mpred == NULL || mpred->pindex != pindex,
+		    ("vm_page_alloc_contig: pindex already allocated"));
+	}
+
+	/*
+	 * Can we allocate the pages without the number of free pages falling
+	 * below the lower bound for the allocation class?
+	 */
 	mtx_lock(&vm_page_queue_free_mtx);
 	if (vm_cnt.v_free_count >= npages + vm_cnt.v_free_reserved ||
 	    (req_class == VM_ALLOC_SYSTEM &&
 	    vm_cnt.v_free_count >= npages + vm_cnt.v_interrupt_free_min) ||
 	    (req_class == VM_ALLOC_INTERRUPT &&
 	    vm_cnt.v_free_count >= npages)) {
+		/*
+		 * Can we allocate the pages from a reservation?
+		 */
 #if VM_NRESERVLEVEL > 0
 retry:
 		if (object == NULL || (object->flags & OBJ_COLORED) == 0 ||
 		    (m_ret = vm_reserv_alloc_contig(object, pindex, npages,
-		    low, high, alignment, boundary)) == NULL)
+		    low, high, alignment, boundary, mpred)) == NULL)
 #endif
+			/*
+			 * If not, allocate them from the free page queues.
+			 */
 			m_ret = vm_phys_alloc_contig(npages, low, high,
 			    alignment, boundary);
 	} else {
@@ -1734,6 +1762,13 @@ retry:
 		flags = PG_ZERO;
 	if ((req & VM_ALLOC_NODUMP) != 0)
 		flags |= PG_NODUMP;
+	oflags = object == NULL || (object->flags & OBJ_UNMANAGED) != 0 ?
+	    VPO_UNMANAGED : 0;
+	busy_lock = VPB_UNBUSIED;
+	if ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ | VM_ALLOC_SBUSY)) == 0)
+		busy_lock = VPB_SINGLE_EXCLUSIVER;
+	if ((req & VM_ALLOC_SBUSY) != 0)
+		busy_lock = VPB_SHARERS_WORD(1);
 	if ((req & VM_ALLOC_WIRED) != 0)
 		atomic_add_int(&vm_cnt.v_wire_count, npages);
 	if (object != NULL) {
@@ -1744,37 +1779,32 @@ retry:
 	for (m = m_ret; m < &m_ret[npages]; m++) {
 		m->aflags = 0;
 		m->flags = (m->flags | PG_NODUMP) & flags;
-		m->busy_lock = VPB_UNBUSIED;
-		if (object != NULL) {
-			if ((req & (VM_ALLOC_NOBUSY | VM_ALLOC_SBUSY)) == 0)
-				m->busy_lock = VPB_SINGLE_EXCLUSIVER;
-			if ((req & VM_ALLOC_SBUSY) != 0)
-				m->busy_lock = VPB_SHARERS_WORD(1);
-		}
+		m->busy_lock = busy_lock;
 		if ((req & VM_ALLOC_WIRED) != 0)
 			m->wire_count = 1;
-		/* Unmanaged pages don't use "act_count". */
-		m->oflags = VPO_UNMANAGED;
+		m->act_count = 0;
+		m->oflags = oflags;
 		if (object != NULL) {
-			if (vm_page_insert(m, object, pindex)) {
-				if (vm_paging_needed())
-					pagedaemon_wakeup();
+			if (vm_page_insert_after(m, object, pindex, mpred)) {
+				pagedaemon_wakeup();
 				if ((req & VM_ALLOC_WIRED) != 0)
-					atomic_subtract_int(&vm_cnt.v_wire_count,
-					    npages);
-				for (m_tmp = m, m = m_ret;
-				    m < &m_ret[npages]; m++) {
-					if ((req & VM_ALLOC_WIRED) != 0)
+					atomic_subtract_int(
+					    &vm_cnt.v_wire_count, npages);
+				KASSERT(m->object == NULL,
+				    ("page %p has object", m));
+				mpred = m;
+				for (m = m_ret; m < &m_ret[npages]; m++) {
+					if (m <= mpred &&
+					    (req & VM_ALLOC_WIRED) != 0)
 						m->wire_count = 0;
-					if (m >= m_tmp) {
-						m->object = NULL;
-						m->oflags |= VPO_UNMANAGED;
-					}
+					m->oflags = VPO_UNMANAGED;
 					m->busy_lock = VPB_UNBUSIED;
-					vm_page_free(m);
+					/* Don't change PG_ZERO. */
+					vm_page_free_toq(m);
 				}
 				return (NULL);
 			}
+			mpred = m;
 		} else
 			m->pindex = pindex;
 		if (memattr != VM_MEMATTR_DEFAULT)
@@ -1793,6 +1823,7 @@ static void
 vm_page_alloc_check(vm_page_t m)
 {
 
+	KASSERT(m->object == NULL, ("page %p has object", m));
 	KASSERT(m->queue == PQ_NONE,
 	    ("page %p has unexpected queue %d", m, m->queue));
 	KASSERT(m->wire_count == 0, ("page %p is wired", m));
@@ -2555,7 +2586,7 @@ vm_page_enqueue(uint8_t queue, vm_page_t m)
 	KASSERT(queue < PQ_COUNT,
 	    ("vm_page_enqueue: invalid queue %u request for page %p",
 	    queue, m));
-	if (queue == PQ_LAUNDRY)
+	if (queue == PQ_LAUNDRY || queue == PQ_UNSWAPPABLE)
 		pq = &vm_dom[0].vmd_pagequeues[queue];
 	else
 		pq = &vm_phys_domain(m)->vmd_pagequeues[queue];
@@ -2933,6 +2964,23 @@ vm_page_launder(vm_page_t m)
 			KASSERT(queue == PQ_NONE,
 			    ("wired page %p is queued", m));
 	}
+}
+
+/*
+ * vm_page_unswappable
+ *
+ *	Put a page in the PQ_UNSWAPPABLE holding queue.
+ */
+void
+vm_page_unswappable(vm_page_t m)
+{
+
+	vm_page_assert_locked(m);
+	KASSERT(m->wire_count == 0 && (m->oflags & VPO_UNMANAGED) == 0,
+	    ("page %p already unswappable", m));
+	if (m->queue != PQ_NONE)
+		vm_page_dequeue(m);
+	vm_page_enqueue(PQ_UNSWAPPABLE, m);
 }
 
 /*
@@ -3530,13 +3578,14 @@ DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
 	db_printf("pq_free %d\n", vm_cnt.v_free_count);
 	for (dom = 0; dom < vm_ndomains; dom++) {
 		db_printf(
-	    "dom %d page_cnt %d free %d pq_act %d pq_inact %d pq_laund %d\n",
+    "dom %d page_cnt %d free %d pq_act %d pq_inact %d pq_laund %d pq_unsw %d\n",
 		    dom,
 		    vm_dom[dom].vmd_page_count,
 		    vm_dom[dom].vmd_free_count,
 		    vm_dom[dom].vmd_pagequeues[PQ_ACTIVE].pq_cnt,
 		    vm_dom[dom].vmd_pagequeues[PQ_INACTIVE].pq_cnt,
-		    vm_dom[dom].vmd_pagequeues[PQ_LAUNDRY].pq_cnt);
+		    vm_dom[dom].vmd_pagequeues[PQ_LAUNDRY].pq_cnt,
+		    vm_dom[dom].vmd_pagequeues[PQ_UNSWAPPABLE].pq_cnt);
 	}
 }
 

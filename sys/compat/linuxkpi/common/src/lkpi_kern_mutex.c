@@ -91,8 +91,6 @@ SYSINIT(lkpi_kern_mutex_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, lkpi_interop_init,
 
 #define	mtx_destroyed(m) ((m)->mtx_lock == MTX_DESTROYED)
 
-#define	mtx_owner(m)	((struct thread *)((m)->mtx_lock & ~MTX_FLAGMASK))
-
 
 
 static void

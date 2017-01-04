@@ -216,7 +216,8 @@ struct vm_page {
 #define	PQ_INACTIVE	0
 #define	PQ_ACTIVE	1
 #define	PQ_LAUNDRY	2
-#define	PQ_COUNT	3
+#define	PQ_UNSWAPPABLE	3
+#define	PQ_COUNT	4
 
 TAILQ_HEAD(pglist, vm_page);
 SLIST_HEAD(spglist, vm_page);
@@ -356,7 +357,7 @@ extern struct mtx_padalign pa_lock[];
 #include <machine/atomic.h>
 
 /*
- * Each pageable resident page falls into one of four lists:
+ * Each pageable resident page falls into one of five lists:
  *
  *	free
  *		Available for allocation now.
@@ -371,6 +372,10 @@ extern struct mtx_padalign pa_lock[];
  *		Low activity, candidates for reclamation.
  *		This is the list of pages that should be
  *		paged out next.
+ *
+ *	unswappable
+ *		Dirty anonymous pages that cannot be paged
+ *		out because no swap device is configured.
  *
  *	active
  *		Pages that are "active" i.e. they have been
@@ -495,6 +500,7 @@ vm_offset_t vm_page_startup(vm_offset_t vaddr);
 void vm_page_sunbusy(vm_page_t m);
 int vm_page_trysbusy(vm_page_t m);
 void vm_page_unhold_pages(vm_page_t *ma, int count);
+void vm_page_unswappable(vm_page_t m);
 boolean_t vm_page_unwire(vm_page_t m, uint8_t queue);
 void vm_page_updatefake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_wire (vm_page_t);
@@ -719,7 +725,7 @@ static inline bool
 vm_page_in_laundry(vm_page_t m)
 {
 
-	return (m->queue == PQ_LAUNDRY);
+	return (m->queue == PQ_LAUNDRY || m->queue == PQ_UNSWAPPABLE);
 }
 
 #endif				/* _KERNEL */

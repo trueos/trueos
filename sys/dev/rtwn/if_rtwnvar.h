@@ -26,7 +26,7 @@
 #define RTWN_TX_DESC_SIZE	64
 
 #define RTWN_RXBUFSZ		(8 * 1024)
-#define RTWN_TXBUFSZ		(RTWN_TX_DESC_SIZE + IEEE80211_MAX_LEN)
+#define RTWN_TXBUFSZ		(16 * 1024)
 
 #define RTWN_BCN_MAX_SIZE	512
 #define RTWN_CAM_ENTRY_LIMIT	64
@@ -109,6 +109,7 @@ struct rtwn_vap {
 
 	struct rtwn_tx_buf	bcn_desc;
 	struct mbuf		*bcn_mbuf;
+	struct timeout_task	tx_beacon_csa;
 
 	struct callout		tsf_sync_adhoc;
 	struct task		tsf_sync_adhoc_task;

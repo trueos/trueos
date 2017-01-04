@@ -2021,6 +2021,10 @@ async_schedule(async_func_t func, void *data)
 #define MAX_WQ_CPUS 1
 #endif
 
+#if defined(__i386__) || defined(__amd64__)
+bool linux_cpu_has_clflush;
+#endif
+
 static void
 linux_compat_init(void *arg)
 {

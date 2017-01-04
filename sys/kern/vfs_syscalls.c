@@ -244,6 +244,43 @@ statfs_scale_blocks(struct statfs *sf, long max_size)
 	sf->f_bavail >>= shift;
 }
 
+static int
+kern_do_statfs(struct thread *td, struct mount *mp, struct statfs *buf)
+{
+	struct statfs *sp;
+	int error;
+
+	if (mp == NULL)
+		return (EBADF);
+	error = vfs_busy(mp, 0);
+	vfs_rel(mp);
+	if (error != 0)
+		return (error);
+#ifdef MAC
+	error = mac_mount_check_stat(td->td_ucred, mp);
+	if (error != 0)
+		goto out;
+#endif
+	/*
+	 * Set these in case the underlying filesystem fails to do so.
+	 */
+	sp = &mp->mnt_stat;
+	sp->f_version = STATFS_VERSION;
+	sp->f_namemax = NAME_MAX;
+	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
+	error = VFS_STATFS(mp, sp);
+	if (error != 0)
+		goto out;
+	*buf = *sp;
+	if (priv_check(td, PRIV_VFS_GENERATION)) {
+		buf->f_fsid.val[0] = buf->f_fsid.val[1] = 0;
+		prison_enforce_statfs(td->td_ucred, mp, buf);
+	}
+out:
+	vfs_unbusy(mp);
+	return (error);
+}
+
 /*
  * Get filesystem statistics.
  */
@@ -275,7 +312,6 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
     struct statfs *buf)
 {
 	struct mount *mp;
-	struct statfs *sp, sb;
 	struct nameidata nd;
 	int error;
 
@@ -288,35 +324,7 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	vfs_ref(mp);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
-	error = vfs_busy(mp, 0);
-	vfs_rel(mp);
-	if (error != 0)
-		return (error);
-#ifdef MAC
-	error = mac_mount_check_stat(td->td_ucred, mp);
-	if (error != 0)
-		goto out;
-#endif
-	/*
-	 * Set these in case the underlying filesystem fails to do so.
-	 */
-	sp = &mp->mnt_stat;
-	sp->f_version = STATFS_VERSION;
-	sp->f_namemax = NAME_MAX;
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	error = VFS_STATFS(mp, sp);
-	if (error != 0)
-		goto out;
-	if (priv_check(td, PRIV_VFS_GENERATION)) {
-		bcopy(sp, &sb, sizeof(sb));
-		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
-		prison_enforce_statfs(td->td_ucred, mp, &sb);
-		sp = &sb;
-	}
-	*buf = *sp;
-out:
-	vfs_unbusy(mp);
-	return (error);
+	return (kern_do_statfs(td, mp, buf));
 }
 
 /*
@@ -350,7 +358,6 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 {
 	struct file *fp;
 	struct mount *mp;
-	struct statfs *sp, sb;
 	struct vnode *vp;
 	cap_rights_t rights;
 	int error;
@@ -365,44 +372,11 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	AUDIT_ARG_VNODE1(vp);
 #endif
 	mp = vp->v_mount;
-	if (mp)
+	if (mp != NULL)
 		vfs_ref(mp);
 	VOP_UNLOCK(vp, 0);
 	fdrop(fp, td);
-	if (mp == NULL) {
-		error = EBADF;
-		goto out;
-	}
-	error = vfs_busy(mp, 0);
-	vfs_rel(mp);
-	if (error != 0)
-		return (error);
-#ifdef MAC
-	error = mac_mount_check_stat(td->td_ucred, mp);
-	if (error != 0)
-		goto out;
-#endif
-	/*
-	 * Set these in case the underlying filesystem fails to do so.
-	 */
-	sp = &mp->mnt_stat;
-	sp->f_version = STATFS_VERSION;
-	sp->f_namemax = NAME_MAX;
-	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	error = VFS_STATFS(mp, sp);
-	if (error != 0)
-		goto out;
-	if (priv_check(td, PRIV_VFS_GENERATION)) {
-		bcopy(sp, &sb, sizeof(sb));
-		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
-		prison_enforce_statfs(td->td_ucred, mp, &sb);
-		sp = &sb;
-	}
-	*buf = *sp;
-out:
-	if (mp)
-		vfs_unbusy(mp);
-	return (error);
+	return (kern_do_statfs(td, mp, buf));
 }
 
 /*
@@ -412,7 +386,7 @@ out:
 struct getfsstat_args {
 	struct statfs *buf;
 	long bufsize;
-	int flags;
+	int mode;
 };
 #endif
 int
@@ -421,7 +395,7 @@ sys_getfsstat(td, uap)
 	register struct getfsstat_args /* {
 		struct statfs *buf;
 		long bufsize;
-		int flags;
+		int mode;
 	} */ *uap;
 {
 	size_t count;
@@ -430,7 +404,7 @@ sys_getfsstat(td, uap)
 	if (uap->bufsize < 0 || uap->bufsize > SIZE_MAX)
 		return (EINVAL);
 	error = kern_getfsstat(td, &uap->buf, uap->bufsize, &count,
-	    UIO_USERSPACE, uap->flags);
+	    UIO_USERSPACE, uap->mode);
 	if (error == 0)
 		td->td_retval[0] = count;
 	return (error);
@@ -443,13 +417,22 @@ sys_getfsstat(td, uap)
  */
 int
 kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
-    size_t *countp, enum uio_seg bufseg, int flags)
+    size_t *countp, enum uio_seg bufseg, int mode)
 {
 	struct mount *mp, *nmp;
 	struct statfs *sfsp, *sp, sb, *tofree;
 	size_t count, maxcount;
 	int error;
 
+	switch (mode) {
+	case MNT_WAIT:
+	case MNT_NOWAIT:
+		break;
+	default:
+		if (bufseg == UIO_SYSSPACE)
+			*buf = NULL;
+		return (EINVAL);
+	}
 restart:
 	maxcount = bufsize / sizeof(struct statfs);
 	if (bufsize == 0) {
@@ -483,7 +466,7 @@ restart:
 			continue;
 		}
 #endif
-		if (flags == MNT_WAIT) {
+		if (mode == MNT_WAIT) {
 			if (vfs_busy(mp, MBF_MNTLSTLOCK) != 0) {
 				/*
 				 * If vfs_busy() failed, and MBF_NOWAIT
@@ -512,10 +495,10 @@ restart:
 			sp->f_namemax = NAME_MAX;
 			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 			/*
-			 * If MNT_NOWAIT or MNT_LAZY is specified, do not
-			 * refresh the fsstat cache.
+			 * If MNT_NOWAIT is specified, do not refresh
+			 * the fsstat cache.
 			 */
-			if (flags != MNT_LAZY && flags != MNT_NOWAIT) {
+			if (mode != MNT_NOWAIT) {
 				error = VFS_STATFS(mp, sp);
 				if (error != 0) {
 					mtx_lock(&mountlist_mtx);
@@ -620,7 +603,7 @@ freebsd4_fstatfs(td, uap)
 struct freebsd4_getfsstat_args {
 	struct ostatfs *buf;
 	long bufsize;
-	int flags;
+	int mode;
 };
 #endif
 int
@@ -629,7 +612,7 @@ freebsd4_getfsstat(td, uap)
 	register struct freebsd4_getfsstat_args /* {
 		struct ostatfs *buf;
 		long bufsize;
-		int flags;
+		int mode;
 	} */ *uap;
 {
 	struct statfs *buf, *sp;
@@ -644,7 +627,7 @@ freebsd4_getfsstat(td, uap)
 		return (EINVAL);
 	size = count * sizeof(struct statfs);
 	error = kern_getfsstat(td, &buf, size, &count, UIO_SYSSPACE,
-	    uap->flags);
+	    uap->mode);
 	td->td_retval[0] = count;
 	if (size != 0) {
 		sp = buf;
