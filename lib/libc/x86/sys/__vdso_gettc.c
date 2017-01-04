@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012 Konstantin Belousov <kib@FreeBSD.org>
- * Copyright (c) 2016 The FreeBSD Foundation
+ * Copyright (c) 2016, 2017 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Konstantin Belousov
@@ -42,9 +42,13 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include "un-namespace.h"
+#include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
 #include <dev/acpica/acpi_hpet.h>
+#ifdef __amd64__
+#include <dev/hyperv/hyperv.h>
+#endif
 #include "libc_private.h"
 
 static void
@@ -111,44 +115,116 @@ __vdso_rdtsc32(void)
 	return (rdtsc32());
 }
 
-static char *hpet_dev_map = NULL;
-static uint32_t hpet_idx = 0xffffffff;
+#define	HPET_DEV_MAP_MAX	10
+static volatile char *hpet_dev_map[HPET_DEV_MAP_MAX];
 
 static void
 __vdso_init_hpet(uint32_t u)
 {
 	static const char devprefix[] = "/dev/hpet";
 	char devname[64], *c, *c1, t;
+	volatile char *new_map, *old_map;
+	uint32_t u1;
 	int fd;
 
 	c1 = c = stpcpy(devname, devprefix);
-	u = hpet_idx;
+	u1 = u;
 	do {
-		*c++ = u % 10 + '0';
-		u /= 10;
-	} while (u != 0);
+		*c++ = u1 % 10 + '0';
+		u1 /= 10;
+	} while (u1 != 0);
 	*c = '\0';
 	for (c--; c1 != c; c1++, c--) {
 		t = *c1;
 		*c1 = *c;
 		*c = t;
 	}
+
+	old_map = hpet_dev_map[u];
+	if (old_map != NULL)
+		return;
+
 	fd = _open(devname, O_RDONLY);
 	if (fd == -1) {
-		hpet_dev_map = MAP_FAILED;
+		atomic_cmpset_rel_ptr((volatile uintptr_t *)&hpet_dev_map[u],
+		    (uintptr_t)old_map, (uintptr_t)MAP_FAILED);
 		return;
 	}
-	if (hpet_dev_map != NULL && hpet_dev_map != MAP_FAILED)
-		munmap(hpet_dev_map, PAGE_SIZE);
-	hpet_dev_map = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_SHARED, fd, 0);
+	new_map = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_SHARED, fd, 0);
+	_close(fd);
+	if (atomic_cmpset_rel_ptr((volatile uintptr_t *)&hpet_dev_map[u],
+	    (uintptr_t)old_map, (uintptr_t)new_map) == 0 &&
+	    new_map != MAP_FAILED)
+		munmap((void *)new_map, PAGE_SIZE);
+}
+
+#ifdef __amd64__
+
+#define HYPERV_REFTSC_DEVPATH	"/dev/" HYPERV_REFTSC_DEVNAME
+
+/*
+ * NOTE:
+ * We use 'NULL' for this variable to indicate that initialization
+ * is required.  And if this variable is 'MAP_FAILED', then Hyper-V
+ * reference TSC can not be used, e.g. in misconfigured jail.
+ */
+static struct hyperv_reftsc *hyperv_ref_tsc;
+
+static void
+__vdso_init_hyperv_tsc(void)
+{
+	int fd;
+
+	fd = _open(HYPERV_REFTSC_DEVPATH, O_RDONLY);
+	if (fd < 0) {
+		/* Prevent the caller from re-entering. */
+		hyperv_ref_tsc = MAP_FAILED;
+		return;
+	}
+	hyperv_ref_tsc = mmap(NULL, sizeof(*hyperv_ref_tsc), PROT_READ,
+	    MAP_SHARED, fd, 0);
 	_close(fd);
 }
+
+static int
+__vdso_hyperv_tsc(struct hyperv_reftsc *tsc_ref, u_int *tc)
+{
+	uint64_t disc, ret, tsc, scale;
+	uint32_t seq;
+	int64_t ofs;
+
+	while ((seq = atomic_load_acq_int(&tsc_ref->tsc_seq)) != 0) {
+		scale = tsc_ref->tsc_scale;
+		ofs = tsc_ref->tsc_ofs;
+
+		lfence_mb();
+		tsc = rdtsc();
+
+		/* ret = ((tsc * scale) >> 64) + ofs */
+		__asm__ __volatile__ ("mulq %3" :
+		    "=d" (ret), "=a" (disc) :
+		    "a" (tsc), "r" (scale));
+		ret += ofs;
+
+		atomic_thread_fence_acq();
+		if (tsc_ref->tsc_seq == seq) {
+			*tc = ret;
+			return (0);
+		}
+
+		/* Sequence changed; re-sync. */
+	}
+	return (ENOSYS);
+}
+
+#endif	/* __amd64__ */
 
 #pragma weak __vdso_gettc
 int
 __vdso_gettc(const struct vdso_timehands *th, u_int *tc)
 {
-	uint32_t tmp;
+	volatile char *map;
+	uint32_t idx;
 
 	switch (th->th_algo) {
 	case VDSO_TH_ALGO_X86_TSC:
@@ -156,15 +232,28 @@ __vdso_gettc(const struct vdso_timehands *th, u_int *tc)
 		    __vdso_rdtsc32();
 		return (0);
 	case VDSO_TH_ALGO_X86_HPET:
-		tmp = th->th_x86_hpet_idx;
-		if (hpet_dev_map == NULL || tmp != hpet_idx) {
-			hpet_idx = tmp;
-			__vdso_init_hpet(hpet_idx);
-		}
-		if (hpet_dev_map == MAP_FAILED)
+		idx = th->th_x86_hpet_idx;
+		if (idx >= HPET_DEV_MAP_MAX)
 			return (ENOSYS);
-		*tc = *(volatile uint32_t *)(hpet_dev_map + HPET_MAIN_COUNTER);
+		map = (volatile char *)atomic_load_acq_ptr(
+		    (volatile uintptr_t *)&hpet_dev_map[idx]);
+		if (map == NULL) {
+			__vdso_init_hpet(idx);
+			map = (volatile char *)atomic_load_acq_ptr(
+			    (volatile uintptr_t *)&hpet_dev_map[idx]);
+		}
+		if (map == MAP_FAILED)
+			return (ENOSYS);
+		*tc = *(volatile uint32_t *)(map + HPET_MAIN_COUNTER);
 		return (0);
+#ifdef __amd64__
+	case VDSO_TH_ALGO_X86_HVTSC:
+		if (hyperv_ref_tsc == NULL)
+			__vdso_init_hyperv_tsc();
+		if (hyperv_ref_tsc == MAP_FAILED)
+			return (ENOSYS);
+		return (__vdso_hyperv_tsc(hyperv_ref_tsc, tc));
+#endif
 	default:
 		return (ENOSYS);
 	}

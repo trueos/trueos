@@ -308,7 +308,7 @@ struct archive_write_disk {
 #define	MAXIMUM_DIR_MODE 0775
 
 /*
- * Maxinum uncompressed size of a decmpfs block.
+ * Maximum uncompressed size of a decmpfs block.
  */
 #define MAX_DECMPFS_BLOCK_SIZE	(64 * 1024)
 /*
@@ -323,7 +323,7 @@ struct archive_write_disk {
 #define RSRC_F_SIZE	50	/* Size of Resource fork footer. */
 /* Size to write compressed data to resource fork. */
 #define COMPRESSED_W_SIZE	(64 * 1024)
-/* decmpfs difinitions. */
+/* decmpfs definitions. */
 #define MAX_DECMPFS_XATTR_SIZE		3802
 #ifndef DECMPFS_XATTR_NAME
 #define DECMPFS_XATTR_NAME		"com.apple.decmpfs"
@@ -632,9 +632,9 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 		/*
 		 * NOTE: UF_COMPRESSED is ignored even if the filesystem
 		 * supports HFS+ Compression because the file should
-		 * have at least an extended attriute "com.apple.decmpfs"
+		 * have at least an extended attribute "com.apple.decmpfs"
 		 * before the flag is set to indicate that the file have
-		 * been compressed. If hte filesystem does not support
+		 * been compressed. If the filesystem does not support
 		 * HFS+ Compression the system call will fail.
 		 */
 		if (a->fd < 0 || fchflags(a->fd, UF_COMPRESSED) != 0)
@@ -1247,7 +1247,7 @@ hfs_drive_compressor(struct archive_write_disk *a, const char *buff,
 		ret = hfs_write_compressed_data(a, bytes_used + rsrc_size);
 		a->compressed_buffer_remaining = a->compressed_buffer_size;
 
-		/* If the compressed size is not enouph smaller than
+		/* If the compressed size is not enough smaller than
 		 * the uncompressed size. cancel HFS+ compression.
 		 * TODO: study a behavior of ditto utility and improve
 		 * the condition to fall back into no HFS+ compression. */
@@ -1352,7 +1352,7 @@ hfs_write_decmpfs_block(struct archive_write_disk *a, const char *buff,
 		    (uint32_t *)(a->resource_fork + RSRC_H_SIZE);
 		/* Set the block count to the resource fork. */
 		archive_le32enc(a->decmpfs_block_info++, block_count);
-		/* Get the position where we are goint to set compressed
+		/* Get the position where we are going to set compressed
 		 * data. */
 		a->compressed_rsrc_position =
 		    RSRC_H_SIZE + 4 + (block_count * 8);
@@ -1425,7 +1425,7 @@ hfs_write_data_block(struct archive_write_disk *a, const char *buff,
 		bytes_to_write = size;
 		/* Seek if necessary to the specified offset. */
 		if (a->offset < a->fd_offset) {
-			/* Can't support backword move. */
+			/* Can't support backward move. */
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Seek failed");
 			return (ARCHIVE_FATAL);
@@ -1779,10 +1779,9 @@ archive_write_disk_new(void)
 {
 	struct archive_write_disk *a;
 
-	a = (struct archive_write_disk *)malloc(sizeof(*a));
+	a = (struct archive_write_disk *)calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
-	memset(a, 0, sizeof(*a));
 	a->archive.magic = ARCHIVE_WRITE_DISK_MAGIC;
 	/* We're ready to write a header immediately. */
 	a->archive.state = ARCHIVE_STATE_HEADER;
@@ -2701,7 +2700,7 @@ check_symlinks(struct archive_write_disk *a)
  * See also : http://msdn.microsoft.com/en-us/library/aa365247.aspx
  */
 static void
-cleanup_pathname_win(struct archive_write_disk *a)
+cleanup_pathname_win(char *path)
 {
 	wchar_t wc;
 	char *p;
@@ -2712,7 +2711,7 @@ cleanup_pathname_win(struct archive_write_disk *a)
 	mb = 0;
 	complete = 1;
 	utf8 = (strcmp(nl_langinfo(CODESET), "UTF-8") == 0)? 1: 0;
-	for (p = a->name; *p != '\0'; p++) {
+	for (p = path; *p != '\0'; p++) {
 		++alen;
 		if (*p == '\\') {
 			/* If previous byte is smaller than 128,
@@ -2737,7 +2736,7 @@ cleanup_pathname_win(struct archive_write_disk *a)
 	/*
 	 * Convert path separator in wide-character.
 	 */
-	p = a->name;
+	p = path;
 	while (*p != '\0' && alen) {
 		l = mbtowc(&wc, p, alen);
 		if (l == (size_t)-1) {
@@ -2778,7 +2777,7 @@ cleanup_pathname_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 	}
 
 #if defined(__CYGWIN__)
-	cleanup_pathname_win(a);
+	cleanup_pathname_win(path);
 #endif
 	/* Skip leading '/'. */
 	if (*src == '/') {
