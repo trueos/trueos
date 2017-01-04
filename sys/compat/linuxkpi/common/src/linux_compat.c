@@ -2042,7 +2042,6 @@ linux_compat_init(void *arg)
 	system_wq = alloc_workqueue("events", 0, MAX_WQ_CPUS);
 	system_power_efficient_wq = alloc_workqueue("power efficient", 0, MAX_WQ_CPUS);
 	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, MAX_WQ_CPUS);
-	INIT_LIST_HEAD(&cdev_list);
 	INIT_LIST_HEAD(&lcdev_handle_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
