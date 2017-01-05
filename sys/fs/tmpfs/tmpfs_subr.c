@@ -1373,7 +1373,7 @@ retry:
 					goto retry;
 				} else if (m->valid != VM_PAGE_BITS_ALL)
 					rv = vm_pager_get_pages(uobj, &m, 1,
-					    NULL, NULL, VM_PROT_READ|VM_PROT_WRITE);
+					    NULL, NULL);
 				else
 					/* A cached page was reactivated. */
 					rv = VM_PAGER_OK;
