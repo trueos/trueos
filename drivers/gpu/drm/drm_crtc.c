@@ -57,7 +57,6 @@ static const struct drm_prop_enum_list drm_plane_type_enum_list[] = {
 /*
  * Optional properties
  */
-
 /**
  * drm_crtc_force_disable - Forcibly turn off a CRTC
  * @crtc: CRTC to turn off
