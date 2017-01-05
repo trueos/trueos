@@ -1205,7 +1205,7 @@ extern int drm_platform_init(struct drm_driver *driver, struct platform_device *
 /* returns true if currently okay to sleep */
 static __inline__ bool drm_can_sleep(void)
 {
-	if (in_atomic() || in_dbg_master() || irqs_disabled())
+	if (in_atomic() || in_dbg_master() || irqs_disabled() || cold)
 		return false;
 	return true;
 }
