@@ -5,7 +5,7 @@ command=/sbin/ldconfig
 depend() {
   need localmount
   after bootmisc
-  keyword -jail -prefix
+  keyword -jail -prefix -stop
 }
 
 

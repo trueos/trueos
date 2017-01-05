@@ -19,7 +19,7 @@ SYSCTL="/sbin/sysctl"
 depend() {
 	before net
 	provide firewall
-	keyword -jail
+	keyword -jail -stop -shutdown
 }
 
 start_pre()

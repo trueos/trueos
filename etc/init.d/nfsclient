@@ -18,6 +18,7 @@ depend()
 	need localmount rpcbind
 	use net logger dns
 	before inetd xinetd
+	keyword -stop -shutdown
 }
 
 nfsclient_start()

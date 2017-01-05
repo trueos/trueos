@@ -21,7 +21,7 @@ depend()
 	need localmount
 	use net
 	before inetd xinetd
-	keyword -jail
+	keyword -jail -stop
 }
 
 glob_int() {

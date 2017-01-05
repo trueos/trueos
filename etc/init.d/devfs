@@ -5,7 +5,7 @@ devfs_rulesets="/etc/devfs.rules"
 
 depend() {
         need localmount
-        keyword -jail -prefix
+        keyword -jail -prefix -stop
 }
 
 # devfs_rulesets_from_file file

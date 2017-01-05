@@ -17,7 +17,7 @@ depend()
 {
 	need localmount
 	use net
-	keyword -jail -shutdown
+	keyword -jail -shutdown -stop
 }
 
 #. /etc/rc.subr
