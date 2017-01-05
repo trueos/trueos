@@ -4101,6 +4101,9 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 	if (!intel_dp_get_dpcd(intel_dp))
 		return connector_status_disconnected;
 
+	if (is_edp(intel_dp))
+		return connector_status_connected;
+
 	/* if there's no downstream port, we're done */
 	if (!(dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT))
 		return connector_status_connected;

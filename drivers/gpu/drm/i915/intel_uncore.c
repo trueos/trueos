@@ -26,7 +26,6 @@
 #include "i915_vgpu.h"
 
 #include <linux/pm_runtime.h>
-#include <linux/io.h>
 
 #define FORCEWAKE_ACK_TIMEOUT_MS 50
 

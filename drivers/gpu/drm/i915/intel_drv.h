@@ -50,8 +50,7 @@
  * drm_can_sleep() can be removed and in_atomic()/!in_atomic() asserts
  * added.
  */
-
-#define _wait_for(COND, US, W) ({					\
+#define _wait_for(COND, US, W) ({ \
 	unsigned long timeout__ = jiffies + usecs_to_jiffies(US) + 1;	\
 	int ret__;							\
 	for (;;) {							\
@@ -64,10 +63,7 @@
 			ret__ = -ETIMEDOUT;				\
 			break;						\
 		}							\
-		if (cold) {	/* FreeBSD FIX */			\
-			DELAY(1);					\
-			timeout__ -= howmany(hz, 1);			\
-		} else if ((W) && drm_can_sleep()) {			\
+		if ((W) && drm_can_sleep()) {				\
 			usleep_range((W), (W)*2);			\
 		} else {						\
 			cpu_relax();					\
@@ -370,10 +366,7 @@ struct intel_atomic_state {
 
 struct intel_plane_state {
 	struct drm_plane_state base;
-	struct drm_rect src;
-	struct drm_rect dst;
 	struct drm_rect clip;
-	bool visible;
 
 	struct {
 		u32 offset;
@@ -1332,8 +1325,8 @@ void intel_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_finish_reset(struct drm_i915_private *dev_priv);
 void hsw_enable_pc8(struct drm_i915_private *dev_priv);
 void hsw_disable_pc8(struct drm_i915_private *dev_priv);
-void broxton_init_cdclk(struct drm_i915_private *dev_priv);
-void broxton_uninit_cdclk(struct drm_i915_private *dev_priv);
+void bxt_init_cdclk(struct drm_i915_private *dev_priv);
+void bxt_uninit_cdclk(struct drm_i915_private *dev_priv);
 void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy);
 void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy);
 bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,

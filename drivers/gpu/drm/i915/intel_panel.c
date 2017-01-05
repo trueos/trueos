@@ -1121,7 +1121,7 @@ void intel_panel_enable_backlight(struct intel_connector *connector)
 	mutex_unlock(&dev_priv->backlight_lock);
 }
 
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+#if IS_ENABLED(CONFIG_BACKLIGHT_CLASS_DEVICE)
 static int intel_backlight_device_update_status(struct backlight_device *bd)
 {
 	struct intel_connector *connector = bl_get_data(bd);
