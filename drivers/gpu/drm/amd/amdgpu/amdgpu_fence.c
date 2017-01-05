@@ -227,7 +227,7 @@ void amdgpu_fence_process(struct amdgpu_ring *ring)
 
 		r = fence_signal(fence);
 		if (!r)
-			CTR1(KTR_DRM, "signaled from irq context\n %d",r);
+			FENCE_TRACE(fence, "signaled from irq context\n");
 		else
 			BUG();
 
@@ -569,7 +569,7 @@ static bool amdgpu_fence_enable_signaling(struct fence *f)
 	if (!timer_pending(&ring->fence_drv.fallback_timer))
 		amdgpu_fence_schedule_fallback(ring);
 
-	CTR1(KTR_DRM, "armed on ring %i!\n", ring->idx);
+	FENCE_TRACE(&fence->base, "armed on ring %i!\n", ring->idx);
 
 	return true;
 }

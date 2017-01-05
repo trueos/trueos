@@ -14,6 +14,7 @@
 
 #include "amd_acpi.h"
 
+#define pci_get_class linux_pci_get_class
 struct amdgpu_atpx_functions {
 	bool px_params;
 	bool power_cntl;
@@ -563,7 +564,7 @@ static bool amdgpu_atpx_detect(void)
 	bool d3_supported = false;
 	struct pci_dev *parent_pdev;
 
-	while ((pdev = linux_pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
+	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
 		vga_count++;
 
 		has_atpx |= (amdgpu_atpx_pci_probe_handle(pdev) == true);
@@ -572,7 +573,7 @@ static bool amdgpu_atpx_detect(void)
 		d3_supported |= parent_pdev && parent_pdev->bridge_d3;
 	}
 
-	while ((pdev = linux_pci_get_class(PCI_CLASS_DISPLAY_OTHER << 8, pdev)) != NULL) {
+	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_OTHER << 8, pdev)) != NULL) {
 		vga_count++;
 
 		has_atpx |= (amdgpu_atpx_pci_probe_handle(pdev) == true);

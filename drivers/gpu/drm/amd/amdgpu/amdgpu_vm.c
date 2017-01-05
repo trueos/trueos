@@ -1133,25 +1133,29 @@ static int amdgpu_vm_bo_split_mapping(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  * @bo_va: requested BO and VM object
- * @mem: ttm mem
+ * @clear: if true clear the entries
  *
  * Fill in the page table entries for @bo_va.
  * Returns 0 for success, -EINVAL for failure.
  */
 int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			struct amdgpu_bo_va *bo_va,
-			struct ttm_mem_reg *mem)
-
+			bool clear)
 {
 	struct amdgpu_vm *vm = bo_va->vm;
 	struct amdgpu_bo_va_mapping *mapping;
 	dma_addr_t *pages_addr = NULL;
 	uint32_t gtt_flags, flags;
+	struct ttm_mem_reg *mem;
 	struct fence *exclusive;
 	uint64_t addr;
 	int r;
 
-	if (mem) {
+	if (clear) {
+		mem = NULL;
+		addr = 0;
+		exclusive = NULL;
+	} else {
 		struct ttm_dma_tt *ttm;
 
 		mem = &bo_va->bo->tbo.mem;
@@ -1172,9 +1176,6 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 		}
 
 		exclusive = reservation_object_get_excl(bo_va->bo->tbo.resv);
-	} else {
-		addr = 0;
-		exclusive = NULL;
 	}
 
 	flags = amdgpu_ttm_tt_pte_flags(adev, bo_va->bo->tbo.ttm, mem);
@@ -1206,7 +1207,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	spin_lock(&vm->status_lock);
 	list_splice_init(&bo_va->invalids, &bo_va->valids);
 	list_del_init(&bo_va->vm_status);
-	if (!mem)
+	if (clear)
 		list_add(&bo_va->vm_status, &vm->cleared);
 	spin_unlock(&vm->status_lock);
 
@@ -1269,7 +1270,7 @@ int amdgpu_vm_clear_invalids(struct amdgpu_device *adev,
 			struct amdgpu_bo_va, vm_status);
 		spin_unlock(&vm->status_lock);
 
-		r = amdgpu_vm_bo_update(adev, bo_va, NULL);
+		r = amdgpu_vm_bo_update(adev, bo_va, true);
 		if (r)
 			return r;
 
@@ -1737,7 +1738,7 @@ void amdgpu_vm_manager_init(struct amdgpu_device *adev)
 		adev->vm_manager.seqno[i] = 0;
 
 	atomic_set(&adev->vm_manager.vm_pte_next_ring, 0);
-	atomic64_set(&adev->vm_manager.client_counter, AMDGPU_CLIENT_ID_RESERVED);
+	atomic64_set(&adev->vm_manager.client_counter, 0);
 }
 
 /**

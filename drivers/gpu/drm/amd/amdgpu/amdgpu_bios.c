@@ -35,6 +35,7 @@
  * BIOS.
  */
 
+#define pci_get_class linux_pci_get_class
 #define AMD_VBIOS_SIGNATURE " 761295520"
 #define AMD_VBIOS_SIGNATURE_OFFSET 0x30
 #define AMD_VBIOS_SIGNATURE_SIZE sizeof(AMD_VBIOS_SIGNATURE)
@@ -225,7 +226,7 @@ static bool amdgpu_atrm_get_bios(struct amdgpu_device *adev)
 	if (adev->flags & AMD_IS_APU)
 		return false;
 
-	while ((pdev = linux_pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
+	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
 		dhandle = ACPI_HANDLE(&pdev->dev);
 		if (!dhandle)
 			continue;
@@ -238,7 +239,7 @@ static bool amdgpu_atrm_get_bios(struct amdgpu_device *adev)
 	}
 
 	if (!found) {
-		while ((pdev = linux_pci_get_class(PCI_CLASS_DISPLAY_OTHER << 8, pdev)) != NULL) {
+		while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_OTHER << 8, pdev)) != NULL) {
 			dhandle = ACPI_HANDLE(&pdev->dev);
 			if (!dhandle)
 				continue;

@@ -36,7 +36,6 @@
 #include <linux/hashtable.h>
 #include <linux/fence.h>
 
-#include <linux/io.h>
 #include <ttm/ttm_bo_api.h>
 #include <ttm/ttm_bo_driver.h>
 #include <ttm/ttm_placement.h>
@@ -61,7 +60,6 @@
 #include "amdgpu_virt.h"
 
 #define firmware linux_firmware
-
 /*
  * Modules parameters.
  */
@@ -387,7 +385,6 @@ struct amdgpu_fence_driver {
 /* some special values for the owner field */
 #define AMDGPU_FENCE_OWNER_UNDEFINED	((void*)0ul)
 #define AMDGPU_FENCE_OWNER_VM		((void*)1ul)
-#define AMDGPU_CLIENT_ID_RESERVED       2
 
 #define AMDGPU_FENCE_FLAG_64BIT         (1 << 0)
 #define AMDGPU_FENCE_FLAG_INT           (1 << 1)
@@ -938,7 +935,7 @@ int amdgpu_vm_clear_invalids(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			     struct amdgpu_sync *sync);
 int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			struct amdgpu_bo_va *bo_va,
-			struct ttm_mem_reg *mem);
+			bool clear);
 void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 			     struct amdgpu_bo *bo);
 struct amdgpu_bo_va *amdgpu_vm_bo_find(struct amdgpu_vm *vm,

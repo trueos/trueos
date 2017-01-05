@@ -246,7 +246,8 @@ static int amdgpu_verify_access(struct ttm_buffer_object *bo, struct file *filp)
 
 	if (amdgpu_ttm_tt_get_usermm(bo->ttm))
 		return -EPERM;
-	return drm_vma_node_verify_access(&abo->gem_base.vma_node, filp->private_data);
+	return drm_vma_node_verify_access(&abo->gem_base.vma_node,
+					  filp->private_data);
 }
 
 static void amdgpu_move_null(struct ttm_buffer_object *bo,
@@ -1084,10 +1085,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	unsigned i, j;
 	int r;
 
-	r = amdgpu_ttm_global_init(adev);
-	if (r) {
-		return r;
-	}
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&adev->mman.bdev,
 			       adev->mman.bo_global_ref.ref.object,

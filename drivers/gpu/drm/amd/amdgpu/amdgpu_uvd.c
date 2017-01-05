@@ -189,7 +189,6 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	    ((version_major == 0x01) && (version_minor >= 0x50)))
 		adev->uvd.max_handles = AMDGPU_MAX_UVD_HANDLES;
 
-
 	adev->uvd.fw_version = ((version_major << 24) | (version_minor << 16) |
 				(family_id << 8));
 

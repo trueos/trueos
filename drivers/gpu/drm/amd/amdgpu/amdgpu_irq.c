@@ -37,6 +37,8 @@
 #include <linux/pm_runtime.h>
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT 200
+#define pci_enable_msi linux_pci_enable_msi
+#define pci_disable_msi linux_pci_disable_msi
 
 /*
  * Handle hotplug events outside the interrupt handler proper.
@@ -224,7 +226,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	adev->irq.msi_enabled = false;
 
 	if (amdgpu_msi_ok(adev)) {
-		int ret = linux_pci_enable_msi(adev->pdev);
+		int ret = pci_enable_msi(adev->pdev);
 		if (!ret) {
 			adev->irq.msi_enabled = true;
 			dev_info(adev->dev, "amdgpu: using MSI.\n");
@@ -263,7 +265,7 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 		drm_irq_uninstall(adev->ddev);
 		adev->irq.installed = false;
 		if (adev->irq.msi_enabled)
-			linux_pci_disable_msi(adev->pdev);
+			pci_disable_msi(adev->pdev);
 		flush_work(&adev->hotplug_work);
 		cancel_work_sync(&adev->reset_work);
 	}
