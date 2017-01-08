@@ -45,7 +45,7 @@ vc4_atomic_complete_commit(struct vc4_commit *c)
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
-	drm_atomic_helper_commit_planes(dev, state, false);
+	drm_atomic_helper_commit_planes(dev, state, 0);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
@@ -152,7 +152,7 @@ static int vc4_atomic_commit(struct drm_device *dev,
 	 * the software side now.
 	 */
 
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	/*
 	 * Everything below can be run asynchronously without the need to grab

@@ -105,7 +105,7 @@ static void exynos_atomic_commit_complete(struct exynos_atomic_commit *commit)
 		atomic_inc(&exynos_crtc->pending_update);
 	}
 
-	drm_atomic_helper_commit_planes(dev, state, false);
+	drm_atomic_helper_commit_planes(dev, state, 0);
 
 	exynos_atomic_wait_for_commit(state);
 
@@ -299,7 +299,7 @@ int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
 	priv->pending |= commit->crtcs;
 	spin_unlock(&priv->lock);
 
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	if (nonblock)
 		schedule_work(&commit->work);
@@ -307,6 +307,26 @@ int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
 		exynos_atomic_commit_complete(commit);
 
 	return 0;
+}
+
+int exynos_atomic_check(struct drm_device *dev,
+			struct drm_atomic_state *state)
+{
+	int ret;
+
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_normalize_zpos(dev, state);
+	if (ret)
+		return ret;
+
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		return ret;
+
+	return ret;
 }
 
 static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
@@ -407,7 +427,6 @@ static struct drm_driver exynos_drm_driver = {
 	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
 	.postclose		= exynos_drm_postclose,
-	.set_busid		= drm_platform_set_busid,
 	.get_vblank_counter	= drm_vblank_no_hw_counter,
 	.enable_vblank		= exynos_drm_crtc_enable_vblank,
 	.disable_vblank		= exynos_drm_crtc_disable_vblank,

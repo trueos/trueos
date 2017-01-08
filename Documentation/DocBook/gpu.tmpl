@@ -1018,6 +1018,11 @@ int max_width, max_height;</synopsis>
       </para>
     </sect2>
     <sect2>
+      <title>DRM Format Handling</title>
+!Iinclude/drm/drm_fourcc.h
+!Edrivers/gpu/drm/drm_fourcc.c
+    </sect2>
+    <sect2>
       <title>Dumb Buffer Objects</title>
       <para>
 	The KMS API doesn't standardize backing storage object creation and
@@ -1090,22 +1095,6 @@ int max_width, max_height;</synopsis>
         connectors has changed. Drivers that use the fb helper can just call the
         <function>drm_fb_helper_hotplug_event</function> function to handle this
         operation.
-      </para>
-    </sect2>
-    <sect2>
-      <title>Locking</title>
-      <para>
-        Beside some lookup structures with their own locking (which is hidden
-	behind the interface functions) most of the modeset state is protected
-	by the <code>dev-&lt;mode_config.lock</code> mutex and additionally
-	per-crtc locks to allow cursor updates, pageflips and similar operations
-	to occur concurrently with background tasks like output detection.
-	Operations which cross domains like a full modeset always grab all
-	locks. Drivers there need to protect resources shared between crtcs with
-	additional locking. They also need to be careful to always grab the
-	relevant crtc locks if a modset functions touches crtc state, e.g. for
-	load detection (which does only grab the <code>mode_config.lock</code>
-	to allow concurrent screen updates on live crtcs).
       </para>
     </sect2>
   </sect1>
@@ -1698,6 +1687,12 @@ void intel_crt_init(struct drm_device *dev)
 !Iinclude/drm/drm_panel.h
 !Edrivers/gpu/drm/drm_panel.c
 !Pdrivers/gpu/drm/drm_panel.c drm panel
+    </sect2>
+    <sect2>
+      <title>Simple KMS Helper Reference</title>
+!Iinclude/drm/drm_simple_kms_helper.h
+!Edrivers/gpu/drm/drm_simple_kms_helper.c
+!Pdrivers/gpu/drm/drm_simple_kms_helper.c overview
     </sect2>
   </sect1>
 

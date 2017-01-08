@@ -264,6 +264,7 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_IEEE80211_OFDM27	23	/* OFDM 27Mbps */
 /* NB: not enough bits to express MCS fully */
 #define	IFM_IEEE80211_MCS	24	/* HT MCS rate */
+#define	IFM_IEEE80211_VHT	25	/* HT MCS rate */
 
 #define	IFM_IEEE80211_ADHOC	0x00000100	/* Operate in Adhoc mode */
 #define	IFM_IEEE80211_HOSTAP	0x00000200	/* Operate in Host AP mode */
@@ -280,6 +281,8 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_IEEE80211_FH	0x00040000	/* 2Ghz, GFSK mode */
 #define	IFM_IEEE80211_11NA	0x00050000	/* 5Ghz, HT mode */
 #define	IFM_IEEE80211_11NG	0x00060000	/* 2Ghz, HT mode */
+#define	IFM_IEEE80211_VHT5G	0x00070000	/* 5Ghz, VHT mode */
+#define	IFM_IEEE80211_VHT2G	0x00080000	/* 2Ghz, VHT mode */
 
 /*
  * ATM
@@ -570,6 +573,7 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_OFDM4, "OFDM/4.5Mbps" },			\
 	{ IFM_IEEE80211_OFDM27, "OFDM/27Mbps" },			\
 	{ IFM_IEEE80211_MCS, "MCS" },					\
+	{ IFM_IEEE80211_VHT, "VHT" },					\
 	{ 0, NULL },							\
 }
 
@@ -609,6 +613,7 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_OFDM4, "OFDM4.5" },				\
 	{ IFM_IEEE80211_OFDM27, "OFDM27" },				\
 	{ IFM_IEEE80211_MCS, "MCS" },					\
+	{ IFM_IEEE80211_VHT, "VHT" },					\
 	{ 0, NULL },							\
 }
 
@@ -631,6 +636,8 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_FH, "fh" },					\
 	{ IFM_IEEE80211_11NA, "11na" },					\
 	{ IFM_IEEE80211_11NG, "11ng" },					\
+	{ IFM_IEEE80211_VHT5G, "11ac" },				\
+	{ IFM_IEEE80211_VHT2G, "11ac2" },				\
 	{ 0, NULL },							\
 }
 

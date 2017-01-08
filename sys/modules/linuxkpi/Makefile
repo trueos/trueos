@@ -17,6 +17,7 @@ SRCS=	interval_tree.c \
 	linux_idr.c \
 	linux_irq.c \
 	linux_kmod.c \
+	linux_kthread.c \
 	linux_lock.c \
 	linux_mtrr.c \
 	linux_notifier.c \
@@ -28,6 +29,7 @@ SRCS=	interval_tree.c \
 	linux_reservation.c \
 	linux_schedule.c \
 	linux_seq_file.c \
+	linux_sort.c \
 	linux_string.c \
 	linux_sysfs.c \
 	linux_tasklet.c \

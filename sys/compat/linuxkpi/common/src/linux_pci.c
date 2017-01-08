@@ -393,7 +393,7 @@ pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 	type = 0;
 	if (pdev->pcir.r[bar] == NULL) {
 		rid = PCIR_BAR(bar);
-		type = ffs(pci_resource_flags(pdev, bar)) -1;
+		type = pci_resource_type(pdev, bar);
 		if ((res = bus_alloc_resource_any(pdev->dev.bsddev, type,
 						  &rid, RF_ACTIVE)) == NULL)
 			return (NULL);

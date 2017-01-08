@@ -10,6 +10,8 @@ struct shrink_control {
 	 * to modify.
 	 */
 	unsigned long nr_to_scan;
+
+	int nid;
 };
 
 
@@ -31,6 +33,9 @@ struct shrinker {
 	atomic_long_t *nr_deferred;
 };
 #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
+
+#define SHRINKER_NUMA_AWARE     (1 << 0)
+#define SHRINKER_MEMCG_AWARE    (1 << 1)
 
 extern int register_shrinker(struct shrinker *);
 extern void unregister_shrinker(struct shrinker *);

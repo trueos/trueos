@@ -63,6 +63,7 @@ SUBDIR=	adduser \
 	pkg_sanity \
 	powerd \
 	procctl \
+	prometheus_sysctl_exporter \
 	pstat \
 	pw \
 	pwd_mkdb \

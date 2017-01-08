@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
-#include <vm/vm_eventhandler.h>
 
 vm_map_t kernel_map;
 vm_map_t exec_map;
@@ -97,6 +96,9 @@ CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
 
 /* NB: Used by kernel debuggers. */
 const u_long vm_maxuser_address = VM_MAXUSER_ADDRESS;
+
+u_int exec_map_entry_size;
+u_int exec_map_entries;
 
 SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD,
     SYSCTL_NULL_ULONG_PTR, VM_MIN_KERNEL_ADDRESS, "Min kernel address");
@@ -392,10 +394,7 @@ kmem_unback(vm_object_t object, vm_offset_t addr, vm_size_t size)
 	KASSERT(object == kmem_object || object == kernel_object,
 	    ("kmem_unback: only supports kernel objects."));
 
-	vme_invalidate_range_start(kernel_map, addr, addr + size);
 	pmap_remove(kernel_pmap, addr, addr + size);
-	vme_invalidate_range_end(kernel_map, addr, addr + size);
-
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	VM_OBJECT_WLOCK(object);
 	for (i = 0; i < size; i += PAGE_SIZE) {

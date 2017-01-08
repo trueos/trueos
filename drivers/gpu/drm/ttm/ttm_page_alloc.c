@@ -773,8 +773,13 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 		list_for_each_entry(p, &plist, lru) {
 			if (PageHighMem(p))
 				clear_highpage(p);
-			else
+			else {
+#ifdef __linux__
 				clear_page(page_address(p));
+#else
+				pmap_zero_page(p);
+#endif
+			}
 		}
 	}
 

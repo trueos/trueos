@@ -53,6 +53,7 @@
 #define	M_NODUMP	0x0800		/* don't dump pages in this allocation */
 #define	M_FIRSTFIT	0x1000		/* Only for vmem, fast fit. */
 #define	M_BESTFIT	0x2000		/* Only for vmem, low fragmentation. */
+#define	M_CONTIG	0x4000		/* contiguous allocaion - lkpi only */
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 

@@ -1373,7 +1373,7 @@ retry:
 					goto retry;
 				} else if (m->valid != VM_PAGE_BITS_ALL)
 					rv = vm_pager_get_pages(uobj, &m, 1,
-					    NULL, NULL, VM_PROT_READ|VM_PROT_WRITE);
+					    NULL, NULL);
 				else
 					/* A cached page was reactivated. */
 					rv = VM_PAGER_OK;
@@ -1465,7 +1465,7 @@ tmpfs_chflags(struct vnode *vp, u_long flags, struct ucred *cred,
 	int error;
 	struct tmpfs_node *node;
 
-	MPASS(VOP_ISLOCKED(vp));
+	ASSERT_VOP_ELOCKED(vp, "chflags");
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -1505,9 +1505,9 @@ tmpfs_chflags(struct vnode *vp, u_long flags, struct ucred *cred,
 	node->tn_flags = flags;
 	node->tn_status |= TMPFS_NODE_CHANGED;
 
-	MPASS(VOP_ISLOCKED(vp));
+	ASSERT_VOP_ELOCKED(vp, "chflags2");
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1521,7 +1521,7 @@ tmpfs_chmod(struct vnode *vp, mode_t mode, struct ucred *cred, struct thread *p)
 	int error;
 	struct tmpfs_node *node;
 
-	MPASS(VOP_ISLOCKED(vp));
+	ASSERT_VOP_ELOCKED(vp, "chmod");
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -1561,9 +1561,9 @@ tmpfs_chmod(struct vnode *vp, mode_t mode, struct ucred *cred, struct thread *p)
 
 	node->tn_status |= TMPFS_NODE_CHANGED;
 
-	MPASS(VOP_ISLOCKED(vp));
+	ASSERT_VOP_ELOCKED(vp, "chmod2");
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1582,7 +1582,7 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	uid_t ouid;
 	gid_t ogid;
 
-	MPASS(VOP_ISLOCKED(vp));
+	ASSERT_VOP_ELOCKED(vp, "chown");
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -1632,9 +1632,9 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 			node->tn_mode &= ~(S_ISUID | S_ISGID);
 	}
 
-	MPASS(VOP_ISLOCKED(vp));
+	ASSERT_VOP_ELOCKED(vp, "chown2");
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1649,7 +1649,7 @@ tmpfs_chsize(struct vnode *vp, u_quad_t size, struct ucred *cred,
 	int error;
 	struct tmpfs_node *node;
 
-	MPASS(VOP_ISLOCKED(vp));
+	ASSERT_VOP_ELOCKED(vp, "chsize");
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -1687,9 +1687,9 @@ tmpfs_chsize(struct vnode *vp, u_quad_t size, struct ucred *cred,
 	/* tmpfs_truncate will raise the NOTE_EXTEND and NOTE_ATTRIB kevents
 	 * for us, as will update tn_status; no need to do that here. */
 
-	MPASS(VOP_ISLOCKED(vp));
+	ASSERT_VOP_ELOCKED(vp, "chsize2");
 
-	return error;
+	return (error);
 }
 
 /*
@@ -1704,7 +1704,7 @@ tmpfs_chtimes(struct vnode *vp, struct vattr *vap,
 	int error;
 	struct tmpfs_node *node;
 
-	MPASS(VOP_ISLOCKED(vp));
+	ASSERT_VOP_ELOCKED(vp, "chtimes");
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -1733,9 +1733,9 @@ tmpfs_chtimes(struct vnode *vp, struct vattr *vap,
 
 	if (vap->va_birthtime.tv_sec != VNOVAL)
 		node->tn_birthtime = vap->va_birthtime;
-	MPASS(VOP_ISLOCKED(vp));
+	ASSERT_VOP_ELOCKED(vp, "chtimes2");
 
-	return 0;
+	return (0);
 }
 
 /* Sync timestamps */

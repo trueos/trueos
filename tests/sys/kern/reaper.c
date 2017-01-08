@@ -35,6 +35,11 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <unistd.h>
 
+static void
+dummy_sighandler(int sig __unused, siginfo_t *info __unused, void *ctx __unused)
+{
+}
+
 ATF_TC_WITHOUT_HEAD(reaper_wait_child_first);
 ATF_TC_BODY(reaper_wait_child_first, tc)
 {
@@ -127,6 +132,161 @@ ATF_TC_BODY(reaper_wait_grandchild_first, tc)
 	ATF_REQUIRE(pid > 0 && pid != child);
 	r = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 	ATF_CHECK_EQ(2, r);
+}
+
+ATF_TC(reaper_sigchld_child_first);
+ATF_TC_HEAD(reaper_sigchld_child_first, tc)
+{
+	atf_tc_set_md_var(tc, "timeout", "2");
+}
+ATF_TC_BODY(reaper_sigchld_child_first, tc)
+{
+	struct sigaction act;
+	sigset_t mask;
+	siginfo_t info;
+	pid_t parent, child, grandchild, pid;
+	int r;
+	int pip[2];
+
+	/* Be paranoid. */
+	pid = waitpid(-1, NULL, WNOHANG);
+	ATF_REQUIRE(pid == -1 && errno == ECHILD);
+
+	act.sa_sigaction = dummy_sighandler;
+	act.sa_flags = SA_SIGINFO | SA_RESTART;
+	r = sigemptyset(&act.sa_mask);
+	ATF_REQUIRE_EQ(0, r);
+	r = sigaction(SIGCHLD, &act, NULL);
+	ATF_REQUIRE_EQ(0, r);
+
+	r = sigemptyset(&mask);
+	ATF_REQUIRE_EQ(0, r);
+	r = sigaddset(&mask, SIGCHLD);
+	ATF_REQUIRE_EQ(0, r);
+	r = sigprocmask(SIG_BLOCK, &mask, NULL);
+	ATF_REQUIRE_EQ(0, r);
+
+	parent = getpid();
+	r = procctl(P_PID, parent, PROC_REAP_ACQUIRE, NULL);
+	ATF_REQUIRE_EQ(0, r);
+
+	r = pipe(pip);
+	ATF_REQUIRE_EQ(0, r);
+
+	child = fork();
+	ATF_REQUIRE(child != -1);
+	if (child == 0) {
+		if (close(pip[1]) != 0)
+			_exit(100);
+		grandchild = fork();
+		if (grandchild == -1)
+			_exit(101);
+		else if (grandchild == 0) {
+			if (read(pip[0], &(uint8_t){ 0 }, 1) != 0)
+				_exit(102);
+			if (getppid() != parent)
+				_exit(103);
+			_exit(2);
+		} else
+			_exit(3);
+	}
+
+	r = sigwaitinfo(&mask, &info);
+	ATF_REQUIRE_EQ(SIGCHLD, r);
+	ATF_CHECK_EQ(SIGCHLD, info.si_signo);
+	ATF_CHECK_EQ(CLD_EXITED, info.si_code);
+	ATF_CHECK_EQ(3, info.si_status);
+	ATF_CHECK_EQ(child, info.si_pid);
+
+	pid = waitpid(child, NULL, 0);
+	ATF_REQUIRE_EQ(child, pid);
+
+	r = close(pip[1]);
+	ATF_REQUIRE_EQ(0, r);
+
+	r = sigwaitinfo(&mask, &info);
+	ATF_REQUIRE_EQ(SIGCHLD, r);
+	ATF_CHECK_EQ(SIGCHLD, info.si_signo);
+	ATF_CHECK_EQ(CLD_EXITED, info.si_code);
+	ATF_CHECK_EQ(2, info.si_status);
+	grandchild = info.si_pid;
+	ATF_REQUIRE(grandchild > 0);
+	ATF_REQUIRE(grandchild != parent);
+	ATF_REQUIRE(grandchild != child);
+
+	pid = waitpid(-1, NULL, 0);
+	ATF_REQUIRE_EQ(grandchild, pid);
+
+	r = close(pip[0]);
+	ATF_REQUIRE_EQ(0, r);
+}
+
+ATF_TC(reaper_sigchld_grandchild_first);
+ATF_TC_HEAD(reaper_sigchld_grandchild_first, tc)
+{
+	atf_tc_set_md_var(tc, "timeout", "2");
+}
+ATF_TC_BODY(reaper_sigchld_grandchild_first, tc)
+{
+	struct sigaction act;
+	sigset_t mask;
+	siginfo_t info;
+	pid_t parent, child, grandchild, pid;
+	int r;
+
+	/* Be paranoid. */
+	pid = waitpid(-1, NULL, WNOHANG);
+	ATF_REQUIRE(pid == -1 && errno == ECHILD);
+
+	act.sa_sigaction = dummy_sighandler;
+	act.sa_flags = SA_SIGINFO | SA_RESTART;
+	r = sigemptyset(&act.sa_mask);
+	ATF_REQUIRE_EQ(0, r);
+	r = sigaction(SIGCHLD, &act, NULL);
+	ATF_REQUIRE_EQ(0, r);
+
+	r = sigemptyset(&mask);
+	ATF_REQUIRE_EQ(0, r);
+	r = sigaddset(&mask, SIGCHLD);
+	ATF_REQUIRE_EQ(0, r);
+	r = sigprocmask(SIG_BLOCK, &mask, NULL);
+	ATF_REQUIRE_EQ(0, r);
+
+	parent = getpid();
+	r = procctl(P_PID, parent, PROC_REAP_ACQUIRE, NULL);
+	ATF_REQUIRE_EQ(0, r);
+
+	child = fork();
+	ATF_REQUIRE(child != -1);
+	if (child == 0) {
+		grandchild = fork();
+		if (grandchild == -1)
+			_exit(101);
+		else if (grandchild == 0)
+			_exit(2);
+		else {
+			if (waitid(P_PID, grandchild, NULL,
+			    WNOWAIT | WEXITED) != 0)
+				_exit(102);
+			_exit(3);
+		}
+	}
+
+	pid = waitpid(child, NULL, 0);
+	ATF_REQUIRE_EQ(child, pid);
+
+	r = sigwaitinfo(&mask, &info);
+	ATF_REQUIRE_EQ(SIGCHLD, r);
+	ATF_CHECK_EQ(SIGCHLD, info.si_signo);
+	ATF_CHECK_EQ(CLD_EXITED, info.si_code);
+	ATF_CHECK_EQ(2, info.si_status);
+	grandchild = info.si_pid;
+	ATF_REQUIRE(grandchild > 0);
+	ATF_REQUIRE(grandchild != parent);
+	ATF_REQUIRE(grandchild != child);
+
+	pid = waitpid(-1, NULL, 0);
+	ATF_REQUIRE_EQ(grandchild, pid);
 }
 
 ATF_TC_WITHOUT_HEAD(reaper_status);
@@ -479,16 +639,120 @@ ATF_TC_BODY(reaper_kill_normal, tc)
 	ATF_REQUIRE_EQ(0, r);
 }
 
+ATF_TC_WITHOUT_HEAD(reaper_kill_subtree);
+ATF_TC_BODY(reaper_kill_subtree, tc)
+{
+	struct procctl_reaper_kill params;
+	ssize_t sr;
+	pid_t parent, child1, child2, grandchild1, grandchild2, pid;
+	int r, status;
+	int pip[2];
+
+	parent = getpid();
+	r = procctl(P_PID, parent, PROC_REAP_ACQUIRE, NULL);
+	ATF_REQUIRE_EQ(0, r);
+
+	r = pipe(pip);
+	ATF_REQUIRE_EQ(0, r);
+	child1 = fork();
+	ATF_REQUIRE(child1 != -1);
+	if (child1 == 0) {
+		if (close(pip[0]) != 0)
+			_exit(100);
+		grandchild1 = fork();
+		if (grandchild1 == -1)
+			_exit(101);
+		if (grandchild1 == 0) {
+			if (write(pip[1], &(uint8_t){ 0 }, 1) != 1)
+				_exit(102);
+			for (;;)
+				pause();
+		}
+		for (;;)
+			pause();
+	}
+	child2 = fork();
+	ATF_REQUIRE(child2 != -1);
+	if (child2 == 0) {
+		if (close(pip[0]) != 0)
+			_exit(100);
+		grandchild2 = fork();
+		if (grandchild2 == -1)
+			_exit(101);
+		if (grandchild2 == 0) {
+			if (write(pip[1], &(uint8_t){ 0 }, 1) != 1)
+				_exit(102);
+			for (;;)
+				pause();
+		}
+		for (;;)
+			pause();
+	}
+	r = close(pip[1]);
+	ATF_REQUIRE_EQ(0, r);
+
+	sr = read(pip[0], &(uint8_t){ 0 }, 1);
+	ATF_REQUIRE_EQ(1, sr);
+	sr = read(pip[0], &(uint8_t){ 0 }, 1);
+	ATF_REQUIRE_EQ(1, sr);
+
+	params.rk_sig = SIGUSR1;
+	params.rk_flags = REAPER_KILL_SUBTREE;
+	params.rk_subtree = child1;
+	params.rk_killed = 77;
+	r = procctl(P_PID, parent, PROC_REAP_KILL, &params);
+	ATF_REQUIRE_EQ(0, r);
+	ATF_REQUIRE_EQ(2, params.rk_killed);
+	ATF_CHECK_EQ(-1, params.rk_fpid);
+
+	pid = waitpid(child1, &status, 0);
+	ATF_REQUIRE_EQ(child1, pid);
+	ATF_CHECK(WIFSIGNALED(status) && WTERMSIG(status) == SIGUSR1);
+
+	pid = waitpid(-1, &status, 0);
+	ATF_REQUIRE(pid > 0);
+	ATF_CHECK(pid != parent);
+	ATF_CHECK(pid != child1);
+	ATF_CHECK(pid != child2);
+	ATF_CHECK(WIFSIGNALED(status) && WTERMSIG(status) == SIGUSR1);
+
+	params.rk_sig = SIGUSR2;
+	params.rk_flags = REAPER_KILL_SUBTREE;
+	params.rk_subtree = child2;
+	params.rk_killed = 77;
+	r = procctl(P_PID, parent, PROC_REAP_KILL, &params);
+	ATF_REQUIRE_EQ(0, r);
+	ATF_REQUIRE_EQ(2, params.rk_killed);
+	ATF_CHECK_EQ(-1, params.rk_fpid);
+
+	pid = waitpid(child2, &status, 0);
+	ATF_REQUIRE_EQ(child2, pid);
+	ATF_CHECK(WIFSIGNALED(status) && WTERMSIG(status) == SIGUSR2);
+
+	pid = waitpid(-1, &status, 0);
+	ATF_REQUIRE(pid > 0);
+	ATF_CHECK(pid != parent);
+	ATF_CHECK(pid != child1);
+	ATF_CHECK(pid != child2);
+	ATF_CHECK(WIFSIGNALED(status) && WTERMSIG(status) == SIGUSR2);
+
+	r = close(pip[0]);
+	ATF_REQUIRE_EQ(0, r);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, reaper_wait_child_first);
 	ATF_TP_ADD_TC(tp, reaper_wait_grandchild_first);
+	ATF_TP_ADD_TC(tp, reaper_sigchld_child_first);
+	ATF_TP_ADD_TC(tp, reaper_sigchld_grandchild_first);
 	ATF_TP_ADD_TC(tp, reaper_status);
 	ATF_TP_ADD_TC(tp, reaper_getpids);
 	ATF_TP_ADD_TC(tp, reaper_kill_badsig);
 	ATF_TP_ADD_TC(tp, reaper_kill_sigzero);
 	ATF_TP_ADD_TC(tp, reaper_kill_empty);
 	ATF_TP_ADD_TC(tp, reaper_kill_normal);
+	ATF_TP_ADD_TC(tp, reaper_kill_subtree);
 	return (atf_no_error());
 }

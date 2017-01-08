@@ -47,6 +47,7 @@ SOC_ALLWINNER_A13	opt_global.h
 SOC_ALLWINNER_A20	opt_global.h
 SOC_ALLWINNER_A31	opt_global.h
 SOC_ALLWINNER_A31S	opt_global.h
+SOC_ALLWINNER_A33	opt_global.h
 SOC_ALLWINNER_A83T	opt_global.h
 SOC_ALLWINNER_H3	opt_global.h
 SOC_BCM2835		opt_global.h
@@ -64,6 +65,7 @@ SOC_MV_LOKIPLUS		opt_global.h
 SOC_MV_ORION		opt_global.h
 SOC_OMAP3		opt_global.h
 SOC_OMAP4		opt_global.h
+SOC_ROCKCHIP_RK3188	opt_global.h
 SOC_TI_AM335X		opt_global.h
 SOC_TEGRA2		opt_global.h
 XSCALE_CACHE_READ_WRITE_ALLOCATE	opt_global.h

@@ -100,10 +100,8 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 options 	DEVICE_NUMA		# I/O Device Affinity
 
 # Enable /dev/input/eventX for input devices
-options		EVDEV_SUPPORT
 device		evdev
-device		uinput
-
+options		EVDEV_SUPPORT
 
 # CPU frequency control
 device		cpufreq
@@ -218,7 +216,6 @@ device		bce			# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bfe			# Broadcom BCM440x 10/100 Ethernet
 device		bge			# Broadcom BCM570xx Gigabit Ethernet
 device		re			# RealTek 8139C+/8169/8169S/8110S
-
 
 # Wireless NIC cards
 device		wlan			# 802.11 support

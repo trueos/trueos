@@ -88,6 +88,8 @@ __FBSDID("$FreeBSD$");
 
 extern u_int cpu_clflush_line_size;
 extern u_int cpu_id;
+pteval_t __supported_pte_mask __read_mostly = ~0;
+
 
 struct workqueue_struct *system_long_wq;
 struct workqueue_struct *system_wq;
@@ -107,13 +109,11 @@ SYSCTL_INT(_compat_linuxkpi, OID_AUTO, cdev_pfn_found_count, CTLFLAG_RW, &cdev_p
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 MALLOC_DEFINE(M_LCINT, "linuxint", "Linux compat internal");
 
-#include <linux/rbtree.h>
-/* Undo Linux compat changes. */
-#undef RB_ROOT
+
 #undef file
 #undef cdev
-#define	RB_ROOT(head)	(head)->rbh_root
 
+static void *linux_cdev_handle_find(void *handle);
 
 struct cpuinfo_x86 boot_cpu_data; 
 
@@ -125,6 +125,7 @@ struct list_head pci_devices;
 struct net init_net;
 spinlock_t pci_lock;
 struct sx linux_global_lock;
+struct rwlock linux_global_rw;
 
 unsigned long linux_timer_hz_mask;
 struct ida *hwmon_idap;
@@ -243,14 +244,6 @@ clear_user(void *uptr, unsigned long len)
 	return (0);
 }
 
-
-int
-panic_cmp(struct rb_node *one, struct rb_node *two)
-{
-	panic("no cmp");
-}
-
-RB_GENERATE(linux_root, rb_node, __entry, panic_cmp);
 
 int
 kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
@@ -575,6 +568,7 @@ linux_file_dtor(void *cdp)
 
 #define PFN_TO_VM_PAGE(pfn) PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT)
 
+#ifdef old
 static inline vm_map_entry_t
 vm_map_find_object_entry(vm_map_t map, vm_object_t obj)
 {
@@ -690,30 +684,180 @@ err:
 	vm_object_pip_wakeup(vm_obj);
 	return (rc);
 }
+#endif
 
+
+static int
+linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
+			  vm_prot_t max_prot, vm_pindex_t *first,
+			  vm_pindex_t *last)
+{
+	struct vm_fault vmf;
+	struct vm_area_struct cvma, *vmap;
+	int rc, err;
+
+	linux_set_current();
+
+	vmap = linux_cdev_handle_find(vm_obj->handle);
+	vm_object_pip_add(vm_obj, 1);
+	vmf.virtual_address = (void *)(pidx << PAGE_SHIFT);
+	vmf.flags = (fault_type & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
+	memcpy(&cvma, vmap, sizeof(*vmap));
+	MPASS(cvma.vm_private_data == vm_obj->handle);
+
+	cvma.vm_pfn_count = 0;
+	cvma.vm_pfn_pcount = &cvma.vm_pfn_count;
+	cvma.vm_obj = vm_obj;
+
+	VM_OBJECT_WUNLOCK(vm_obj);
+	err = vmap->vm_ops->fault(&cvma, &vmf);
+	while (cvma.vm_pfn_count == 0 && err == VM_FAULT_NOPAGE) {
+		kern_yield(0);
+		err = vmap->vm_ops->fault(&cvma, &vmf);
+	}
+	atomic_add_int(&cdev_pfn_found_count, cvma.vm_pfn_count);
+	VM_OBJECT_WLOCK(vm_obj);
+	if (err != VM_FAULT_NOPAGE) {
+		printf("%s failed with %d\n", __FUNCTION__, err);
+		goto err;
+	}
+	/*
+	 * By contract the fault handler will return having
+	 * busied all the pages itself. If pidx is already
+	 * found in the object, it will simply xbusy the first
+	 * page and return with vm_pfn_count set to 1.
+	 */
+	*first = pidx;
+	*last = pidx + cvma.vm_pfn_count - 1;
+err:
+	switch (err) {
+	case VM_FAULT_OOM:
+		rc = VM_PAGER_AGAIN;
+		break;
+	case VM_FAULT_SIGBUS:
+		rc = VM_PAGER_BAD;
+		break;
+	case VM_FAULT_NOPAGE:
+		rc = VM_PAGER_OK;
+		break;
+	default:
+		panic("unexpected error %d\n", err);
+		rc = VM_PAGER_ERROR;
+	}
+	vm_object_pip_wakeup(vm_obj);
+	return (rc);
+}
+
+struct list_head lcdev_handle_list;
+struct lcdev_handle_ref {
+	volatile int refcnt;
+	void *handle;
+	void *data;
+	struct list_head list;
+};
+
+static void
+linux_cdev_handle_insert(void *handle, void *data, int size)
+{
+	struct list_head *h;
+	struct lcdev_handle_ref *r;
+	void *datap;
+
+	rw_rlock(&linux_global_rw);
+	list_for_each(h, &lcdev_handle_list) {
+		r = __containerof(h, struct lcdev_handle_ref, list);
+		if (r->handle == handle)
+			break;
+	}
+	if (r && r->handle == handle) {
+		atomic_add_int(&r->refcnt, 1);
+		rw_runlock(&linux_global_rw);
+		return;
+	}
+	rw_runlock(&linux_global_rw);
+	r = lkpi_malloc(sizeof(struct lcdev_handle_ref), M_KMALLOC, M_WAITOK);
+	r->refcnt = 1;
+	r->handle = handle;
+	datap = lkpi_malloc(size, M_KMALLOC, M_WAITOK);
+	memcpy(datap, data, size);
+	r->data = datap;
+	INIT_LIST_HEAD(&r->list);
+	rw_wlock(&linux_global_rw);
+	list_add_tail(&r->list, &lcdev_handle_list);
+	rw_wunlock(&linux_global_rw);
+}
+
+static void
+linux_cdev_handle_remove(void *handle)
+{
+	struct list_head *h;
+	struct lcdev_handle_ref *r;
+
+	rw_wlock(&linux_global_rw);	
+	list_for_each(h, &lcdev_handle_list) {
+		r = __containerof(h, struct lcdev_handle_ref, list);
+		if (r->handle == handle)
+			break;
+	}
+	MPASS (r && r->handle == handle);
+	if (atomic_fetchadd_int(&r->refcnt, -1) == 0) {
+		list_del(&r->list);
+		rw_wunlock(&linux_global_rw);
+		lkpi_free(r->data, M_KMALLOC);
+		lkpi_free(r, M_KMALLOC);
+	} else
+		rw_wunlock(&linux_global_rw);
+}
+
+static void *
+linux_cdev_handle_find(void *handle)
+{
+	struct list_head *h;
+	struct lcdev_handle_ref *r;
+	void *data;
+
+	rw_rlock(&linux_global_rw);
+	list_for_each(h, &lcdev_handle_list) {
+		r = __containerof(h, struct lcdev_handle_ref, list);
+		if (r->handle == handle)
+			break;
+	}
+	MPASS (r && r->handle == handle);
+	data = r->data;
+	rw_runlock(&linux_global_rw);
+	return (data);
+}
 
 static int
 linux_cdev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		      vm_ooffset_t foff, struct ucred *cred, u_short *color)
 {
-	struct vm_area_struct *vmap = handle;
+	struct vm_area_struct *vmap;
 
-	vmap->vm_ops->open(vmap);
+	vmap = linux_cdev_handle_find(handle);
+	MPASS(vmap != NULL);
+	vmap->vm_private_data = handle;
+
 	*color = 0;
+	vmap->vm_ops->open(vmap);
 	return (0);
 }
 
 static void
 linux_cdev_pager_dtor(void *handle)
 {
-	struct vm_area_struct *vmap = handle;
+	struct vm_area_struct *vmap;
+
+	vmap = linux_cdev_handle_find(handle);
+	MPASS(vmap != NULL);
 
 	vmap->vm_ops->close(vmap);
-	free(vmap, M_LCINT);
+	vmap->vm_private_data = handle;
+	linux_cdev_handle_remove(handle);
 }
 
 static struct cdev_pager_ops linux_cdev_pager_ops = {
-	.cdev_pg_fault	= linux_cdev_pager_fault,
+	.cdev_pg_populate	= linux_cdev_pager_populate,
 	.cdev_pg_ctor	= linux_cdev_pager_ctor,
 	.cdev_pg_dtor	= linux_cdev_pager_dtor
 };
@@ -1095,7 +1239,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	struct linux_file *filp;
 	struct thread *td;
 	struct file *file;
-	struct vm_area_struct vma, *vmap;
+	struct vm_area_struct vma;
 	vm_memattr_t attr;
 	int error;
 
@@ -1106,6 +1250,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 		return (ENODEV);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
+	bzero(&vma, sizeof(struct vm_area_struct));
 	filp->f_flags = file->f_flag;
 	linux_set_current();
 	vma.vm_start = 0;
@@ -1124,17 +1269,14 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 			if (vma.vm_ops != NULL && vma.vm_ops->fault != NULL) {
 				MPASS(vma.vm_ops->open != NULL);
 				MPASS(vma.vm_ops->close != NULL);
-				vmap = malloc(sizeof(*vmap), M_LCINT, M_WAITOK);
-				memcpy(vmap, &vma, sizeof(*vmap));
-				*object = cdev_pager_allocate(vmap, OBJT_MGTDEVICE, &linux_cdev_pager_ops,
-							      size, nprot,
+
+				linux_cdev_handle_insert(vma.vm_private_data, &vma, sizeof(struct vm_area_struct));
+				*object = cdev_pager_allocate(vma.vm_private_data, OBJT_MGTDEVICE,
+							      &linux_cdev_pager_ops, size, nprot,
 							      0, curthread->td_ucred);
 
-				VM_OBJECT_WLOCK(*object);
-				(*object)->flags2 |= OBJ2_GRAPHICS;
-				VM_OBJECT_WUNLOCK(*object);
-				if (*object != NULL)
-					vmap->vm_obj = *object;
+				if (*object == NULL)
+					linux_cdev_handle_remove(vma.vm_private_data);
 			} else {
 				sg = sglist_alloc(1, M_WAITOK);
 				sglist_append_phys(sg,
@@ -1781,13 +1923,53 @@ __unregister_chrdev(unsigned int major, unsigned int baseminor,
 }
 
 static DECLARE_WAIT_QUEUE_HEAD(async_done);
+static DECLARE_WAIT_QUEUE_HEAD(global_wait_queue_head);
 static async_cookie_t nextcookie;
 static atomic_t entry_count;
 
-void
-async_synchronize_full(void)
+wait_queue_head_t *
+bit_waitqueue(void *word, int bit)
 {
-	UNIMPLEMENTED();
+#ifdef __linux__
+	const int shift = BITS_PER_LONG == 32 ? 5 : 6;
+	const struct zone *zone = page_zone(virt_to_page(word));
+	unsigned long val = (unsigned long)word << shift | bit;
+
+	return &zone->wait_table[hash_long(val, zone->wait_table_bits)];
+#else
+	return (&global_wait_queue_head);
+#endif
+}
+
+int
+bit_wait_timeout(struct wait_bit_key *key, int mode)
+{
+	unsigned long now = READ_ONCE(jiffies);
+
+	if (time_after_eq(now, key->timeout))
+		return (-EAGAIN);
+	schedule_timeout(key->timeout - now);
+#ifdef __notyet__
+	if (signal_pending_state(mode, current))
+		return (-EINTR);
+#endif
+	return (0);
+}
+
+int
+wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key_arg)
+{
+	struct wait_bit_key *key = key_arg;
+	struct wait_bit_queue *wait_bit
+		= container_of(wait, struct wait_bit_queue, wait);
+
+	if (wait_bit->key.flags != key->flags ||
+			wait_bit->key.bit_nr != key->bit_nr ||
+			test_bit(key->bit_nr, key->flags))
+		return 0;
+	else
+		return autoremove_wake_function(wait, mode, sync, key);
+	return (0);
 }
 
 static void
@@ -1845,6 +2027,10 @@ async_schedule(async_func_t func, void *data)
 #define MAX_WQ_CPUS 1
 #endif
 
+#if defined(__i386__) || defined(__amd64__)
+bool linux_cpu_has_clflush;
+#endif
+
 static void
 linux_compat_init(void *arg)
 {
@@ -1858,6 +2044,7 @@ linux_compat_init(void *arg)
 #endif
 	hwmon_idap = &hwmon_ida;
 	sx_init(&linux_global_lock, "LinuxBKL");
+	rw_init(&linux_global_rw, "LinuxBKRW");
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	boot_cpu_data.x86 = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 
@@ -1865,6 +2052,7 @@ linux_compat_init(void *arg)
 	system_wq = alloc_workqueue("events", 0, MAX_WQ_CPUS);
 	system_power_efficient_wq = alloc_workqueue("power efficient", 0, MAX_WQ_CPUS);
 	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, MAX_WQ_CPUS);
+	INIT_LIST_HEAD(&lcdev_handle_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
 

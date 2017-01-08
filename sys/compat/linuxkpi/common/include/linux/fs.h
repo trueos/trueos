@@ -279,7 +279,7 @@ static inline dev_t
 iminor(struct inode *inode)
 {
 
-	return (MINOR(dev2unit(inode->v_rdev)));
+	return (minor(dev2unit(inode->v_rdev)));
 }
 
 static inline struct inode *

@@ -2,6 +2,7 @@
 #define _ASM_X86_PROCESSOR_H
 
 #include <asm/cpufeatures.h>
+#include <asm/cmpxchg.h>
 
 
 struct cpuinfo_x86 {
@@ -82,7 +83,9 @@ static __always_inline void cpu_relax(void)
 
 extern struct cpuinfo_x86	boot_cpu_data;
 
-/* XXX check for correctness */
-#define smp_store_mb(var, value) do { (void)atomic_xchg((atomic_t *)&var, value); } while (0)
+#define __smp_store_mb(var, value) do { (void)xchg(&(var), value); } while (0)
+
+#define smp_store_mb __smp_store_mb
+
 
 #endif

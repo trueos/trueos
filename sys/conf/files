@@ -496,7 +496,7 @@ contrib/dev/acpica/components/utilities/utuuid.c	optional acpi acpi_debug
 contrib/dev/acpica/components/utilities/utxface.c	optional acpi
 contrib/dev/acpica/components/utilities/utxferror.c	optional acpi
 contrib/dev/acpica/components/utilities/utxfinit.c	optional acpi
-#contrib/dev/acpica/components/utilities/utxfmutex.c	optional acpi
+contrib/dev/acpica/os_specific/service_layers/osgendbg.c	optional acpi acpi_debug
 contrib/ipfilter/netinet/fil.c	optional ipfilter inet \
 	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -Wno-unused -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_auth.c optional ipfilter inet \
@@ -1236,16 +1236,21 @@ dev/bhnd/nvram/bhnd_nvram_data_bcm.c	optional bhnd
 dev/bhnd/nvram/bhnd_nvram_data_bcmraw.c	optional bhnd
 dev/bhnd/nvram/bhnd_nvram_data_btxt.c	optional bhnd
 dev/bhnd/nvram/bhnd_nvram_data_sprom.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_data_sprom_subr.c	optional bhnd
 dev/bhnd/nvram/bhnd_nvram_data_tlv.c	optional bhnd
 dev/bhnd/nvram/bhnd_nvram_if.m		optional bhnd
 dev/bhnd/nvram/bhnd_nvram_io.c		optional bhnd
 dev/bhnd/nvram/bhnd_nvram_iobuf.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_ioptr.c	optional bhnd
 dev/bhnd/nvram/bhnd_nvram_iores.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_plist.c	optional bhnd
 dev/bhnd/nvram/bhnd_nvram_store.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_store_subr.c	optional bhnd
 dev/bhnd/nvram/bhnd_nvram_subr.c	optional bhnd
 dev/bhnd/nvram/bhnd_nvram_value.c	optional bhnd
 dev/bhnd/nvram/bhnd_nvram_value_fmts.c	optional bhnd
 dev/bhnd/nvram/bhnd_nvram_value_prf.c	optional bhnd
+dev/bhnd/nvram/bhnd_nvram_value_subr.c	optional bhnd
 dev/bhnd/nvram/bhnd_sprom.c		optional bhnd
 dev/bhnd/siba/siba.c			optional siba bhnd
 dev/bhnd/siba/siba_bhndb.c		optional siba bhnd bhndb
@@ -1381,7 +1386,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.16.22.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.16.26.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1405,7 +1410,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.16.22.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.16.26.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -1429,7 +1434,7 @@ t6fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t6fw.fwo"
 t6fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t6fw-1.16.22.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t6fw-1.16.26.0.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"
@@ -1539,6 +1544,7 @@ dev/drm2/drm_memory.c		optional drm2
 dev/drm2/drm_mm.c		optional drm2
 dev/drm2/drm_modes.c		optional drm2
 dev/drm2/drm_pci.c		optional drm2
+dev/drm2/drm_platform.c		optional drm2
 dev/drm2/drm_scatter.c		optional drm2
 dev/drm2/drm_stub.c		optional drm2
 dev/drm2/drm_sysctl.c		optional drm2
@@ -1633,6 +1639,7 @@ dev/etherswitch/ip17x/ip17x_phy.c	optional ip17x
 dev/etherswitch/ip17x/ip17x_vlans.c	optional ip17x
 dev/etherswitch/miiproxy.c		optional miiproxy
 dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
+dev/etherswitch/e6000sw/e6000sw.c	optional e6000sw
 dev/etherswitch/ukswitch/ukswitch.c	optional ukswitch
 dev/evdev/cdev.c			optional evdev
 dev/evdev/evdev.c			optional evdev
@@ -1724,6 +1731,7 @@ dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc
 dev/hwpmc/hwpmc_soft.c		optional hwpmc
+dev/ichiic/ig4_acpi.c		optional ig4 acpi iicbus
 dev/ichiic/ig4_iic.c		optional ig4 iicbus
 dev/ichiic/ig4_pci.c		optional ig4 pci iicbus
 dev/ichsmb/ichsmb.c		optional ichsmb
@@ -3257,6 +3265,9 @@ wpi.fw			optional wpifw					\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"wpi.fw"
+dev/xdma/xdma.c			optional xdma
+dev/xdma/xdma_if.m		optional xdma
+dev/xdma/xdma_fdt_test.c	optional xdma xdma_test fdt
 dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe pccard
 dev/xen/balloon/balloon.c	optional xenhvm
@@ -4132,6 +4143,7 @@ netinet6/in6_proto.c		optional inet6
 netinet6/in6_rmx.c		optional inet6
 netinet6/in6_rss.c		optional inet6 rss
 netinet6/in6_src.c		optional inet6
+netinet6/ip6_fastfwd.c		optional inet6
 netinet6/ip6_forward.c		optional inet6
 netinet6/ip6_gre.c		optional gre inet6
 netinet6/ip6_id.c		optional inet6

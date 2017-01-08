@@ -606,7 +606,7 @@ void uma_zone_set_freef(uma_zone_t zone, uma_free freef);
 #define UMA_SLAB_PRIV	0x08		/* Slab alloced from priv allocator */
 #define UMA_SLAB_OFFP	0x10		/* Slab is managed separately  */
 #define UMA_SLAB_MALLOC	0x20		/* Slab is a large malloc slab */
-#define UMA_SLAB_LKPI	0x40		/* Slab is allocated by lkpi */
+#define UMA_SLAB_LKPI   0x40            /* Slab is allocated by lkpi */
 /* 0x80 is available */
 
 /*

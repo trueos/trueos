@@ -6,7 +6,6 @@
 int		db_printf(const char *fmt, ...) __printflike(1, 2);
 
 #define	mtxlock2mtx(c)	(__containerof(c, struct mtx, mtx_lock))
-#define	mtx_owner(m)	((struct thread *)((m)->mtx_lock & ~MTX_FLAGMASK))
 #define mtx_unowned(m)	((m)->mtx_lock == MTX_UNOWNED)
 #define	mtx_destroyed(m) ((m)->mtx_lock == MTX_DESTROYED)
 

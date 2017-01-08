@@ -29,10 +29,9 @@ static inline void
 trace_amdgpu_bo_list_set(void *a, void *b) {
 	CTR2(KTR_DRM, "amdgpu_bo_list_set %p %p", a, b);
 }
-static inline void
-trace_amdgpu_vm_grab_id(struct amdgpu_vm *vm, int idx, unsigned vm_id, uint64_t vm_pd_addr){
-        CTR4(KTR_DRM, "amdgpu_vm_grab_id %p %u %u %x", vm, idx, vm_id, vm_pd_addr);
-}
+
+#define	trace_amdgpu_vm_grab_id(vm, idx, job) \
+        CTR3(KTR_DRM, "amdgpu_vm_grab_id %p %u %p", (vm), (idx), (job));
 
 static inline void
 trace_amdgpu_vm_flush(uint64_t pd_addr, int idx, unsigned vm_id){
@@ -64,6 +63,28 @@ static inline void
 trace_amdgpu_vm_bo_mapping(struct amdgpu_bo_va_mapping * mapping){
 	CTR1(KTR_DRM, "amdgpu_vm_bo_mapping %p", mapping);
 }
+
+#define trace_amdgpu_mm_rreg(dev, reg, ret)	\
+	CTR3(KTR_DRM, "amdgpu_mm_rreg %p %x %d", (dev), (reg), (ret))
+
+#define trace_amdgpu_mm_wreg(dev, reg, x)	\
+	CTR3(KTR_DRM, "amdgpu_mm_wreg %p %x %x", (dev), (reg), (x))
+
+#define trace_amdgpu_cs_bo_status(entries, size)	\
+	CTR2(KTR_DRM, "amdgpu_cs_bo_status entries %d size %d", (entries), (size))
+
+#define trace_amdgpu_ttm_bo_move(bo, new, old)	\
+	do {					\
+		u32 old_mem_type;	\
+		old_mem_type = (old);					\
+		CTR3(KTR_DRM, "amdgpu_ttm_bo_move %p new %d old %d", (bo), (new), (old_mem_type)); \
+	} while (0)
+
+#define trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags)	\
+	CTR5(KTR_DRM, "amdgpu_vm_set_ptes %lx %lx %u %u %x", pe, addr, count, incr, flags)
+
+#define trace_amdgpu_vm_copy_ptes(pe, src, count)	\
+	CTR3(KTR_DRM, "amdgpu_vm_copy_ptes %lx %lx %u", pe, src, count)
 
 #endif
 

@@ -96,7 +96,7 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 	dispc_runtime_get();
 
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-	drm_atomic_helper_commit_planes(dev, old_state, false);
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
 	omap_atomic_wait_for_completion(dev, old_state);
@@ -175,7 +175,7 @@ static int omap_atomic_commit(struct drm_device *dev,
 	spin_unlock(&priv->commit.lock);
 
 	/* Swap the state, this is the point of no return. */
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
 
 	if (nonblock)
 		schedule_work(&commit->work);
@@ -800,7 +800,6 @@ static struct drm_driver omap_drm_driver = {
 	.unload = dev_unload,
 	.open = dev_open,
 	.lastclose = dev_lastclose,
-	.set_busid = drm_platform_set_busid,
 	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = omap_irq_enable_vblank,
 	.disable_vblank = omap_irq_disable_vblank,

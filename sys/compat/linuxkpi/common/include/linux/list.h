@@ -58,21 +58,12 @@
 #include <net/if_media.h>
 #include <net/vnet.h>
 
-#include <netinet/in.h>
-#include <netinet/in_pcb.h>
-#include <netinet/in_var.h>
-#include <netinet/tcp_lro.h>
-
-#include <netinet6/in6_var.h>
-#include <netinet6/nd6.h>
-
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/pmap.h>
 
 /* CEM: TODO: Port some of the queue(9) invariants? */
 
-#define	prefetch(x)
 
 #define LINUX_LIST_HEAD_INIT(name) { &(name), &(name) }
 

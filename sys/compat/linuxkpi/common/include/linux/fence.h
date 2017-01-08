@@ -41,7 +41,8 @@ struct fence {
 	struct rcu_head rcu;
 	struct list_head cb_list;
 	spinlock_t *lock;
-	unsigned context, seqno;
+	u64 context;
+	unsigned seqno;
 	unsigned long flags;
 	ktime_t timestamp;
 	int status;
@@ -415,11 +416,11 @@ err_free_cb:
 	return (ret);
 }
 
-unsigned fence_context_alloc(unsigned num);
+u64 fence_context_alloc(unsigned num);
 
 static inline void
 fence_init(struct fence *fence, const struct fence_ops *ops,
-                spinlock_t *lock, unsigned context, unsigned seqno){
+                spinlock_t *lock, u64 context, unsigned seqno){
 	fence->ops = ops;
 	fence->lock = lock;
 	fence->context = context;

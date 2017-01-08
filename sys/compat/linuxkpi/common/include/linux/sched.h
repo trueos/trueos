@@ -59,6 +59,7 @@
 #define PF_EXITING	0x00000004
 #define PF_USED_ASYNC	TDP_UNUSED9
 
+struct seq_file;
 
 #define task_pid(task) ((task)->task_thread->td_proc->p_pid)
 #define get_pid(x) (x)
@@ -135,6 +136,15 @@ static inline int
 sched_setscheduler(struct task_struct *t, int policy,
 		   const struct sched_param *param)
 {
+	UNIMPLEMENTED();
+	return (0);
+}
+
+static inline int
+sched_setscheduler_nocheck(struct task_struct *t, int policy,
+		   const struct sched_param *param)
+{
+	UNIMPLEMENTED();
 	return (0);
 }
 
@@ -195,6 +205,7 @@ signal_pending_state(long state, struct task_struct *p)
 }
 
 long schedule_timeout(signed long timeout);
+long schedule_timeout_locked(signed long timeout, spinlock_t *lock);
 
 static inline unsigned long
 schedule_timeout_uninterruptible(signed long timeout)
@@ -231,19 +242,24 @@ io_schedule_timeout(long timeout)
 static inline void
 io_schedule(void)
 {
-#ifdef __notyet__
 	io_schedule_timeout(MAX_SCHEDULE_TIMEOUT);
-#endif
-	/* XXX not getting interrupts on skylake */
-	io_schedule_timeout(max(hz/100, 1));
 }
 
 static inline void
 schedule(void)
 {
-
 	schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 }
+
+
+static inline void
+schedule_short(void)
+{
+	schedule_timeout(hz/10);
+}
+
+
+#define yield() kern_yield(0)
 
 #include <linux/hrtimer.h>
 

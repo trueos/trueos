@@ -46,6 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/vnode.h>
 
+
+/*
+ * report errors when loading
+ */
+static int fw_verbose_error = TRUE;
+
 /*
  * Loadable firmware support. See sys/sys/firmware.h and firmware(9)
  * form more details on the subsystem.
@@ -272,8 +278,9 @@ loadimage(void *arg, int npending)
 	}
 	error = linker_reference_module(imagename, NULL, &result);
 	if (error != 0) {
-		printf("%s: could not load firmware image, error %d\n",
-		    imagename, error);
+		if (fw_verbose_error)
+			printf("%s: could not load firmware image, error %d\n",
+			       imagename, error);
 		goto done;
 	}
 
@@ -301,11 +308,12 @@ done:
  * release this reference for the image to be eligible for removal/unload.
  */
 const struct firmware *
-firmware_get(const char *imagename)
+firmware_get2(const char *imagename, int verbose)
 {
 	struct task fwload_task;
 	struct thread *td;
 	struct priv_fw *fp;
+	int verbose_prev;
 
 	mtx_lock(&firmware_mtx);
 	fp = lookup(imagename, NULL);
@@ -330,9 +338,12 @@ firmware_get(const char *imagename)
 	if (!cold) {
 		TASK_INIT(&fwload_task, 0, loadimage, __DECONST(void *,
 		    imagename));
+		verbose_prev = fw_verbose_error;
+		fw_verbose_error = verbose;
 		taskqueue_enqueue(firmware_tq, &fwload_task);
 		msleep(__DECONST(void *, imagename), &firmware_mtx, 0,
 		    "fwload", 0);
+		fw_verbose_error = verbose_prev;
 	}
 	/*
 	 * After attempting to load the module, see if the image is registered.
@@ -349,6 +360,14 @@ found:				/* common exit point on success */
 	mtx_unlock(&firmware_mtx);
 	return &fp->fw;
 }
+
+const struct firmware *
+firmware_get(const char *imagename)
+{
+
+	return (firmware_get2(imagename, TRUE));
+}
+
 
 /*
  * Release a reference to a firmware image returned by firmware_get.

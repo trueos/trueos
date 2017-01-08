@@ -36,6 +36,7 @@
 
 #include <linux/hardirq.h>
 
+struct seq_file;
 #undef resource
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
@@ -237,6 +238,12 @@ static inline void tasklet_schedule(struct tasklet_struct *t)
 		__tasklet_schedule(t);
 }
 
+static inline void tasklet_hi_schedule(struct tasklet_struct *t)
+{
+	/* XXX */
+	tasklet_schedule(t);
+}
+	
 extern void tasklet_kill(struct tasklet_struct *t);
 extern void tasklet_init(struct tasklet_struct *t,
 			 void (*func)(unsigned long), unsigned long data);

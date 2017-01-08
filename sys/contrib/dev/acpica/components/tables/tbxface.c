@@ -426,7 +426,7 @@ AcpiPutTable (
 
         if (TableDesc->Pointer != Table)
         {
-            continue;
+		continue;
         }
 
         AcpiTbPutTable (TableDesc);
@@ -437,7 +437,6 @@ AcpiPutTable (
     return_VOID;
 }
 ACPI_EXPORT_SYMBOL (AcpiPutTable)
-
 
 /*******************************************************************************
  *
@@ -466,6 +465,7 @@ AcpiGetTable (
 }
 
 ACPI_EXPORT_SYMBOL (AcpiGetTable)
+
 
 
 /*******************************************************************************

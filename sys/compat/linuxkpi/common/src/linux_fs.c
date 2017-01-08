@@ -134,7 +134,7 @@ simple_read_from_buffer(void __user *to, size_t count,
 	loff_t pos = *ppos;
 	size_t ret;
 
-	if (pos < 0)
+	if ((int64_t)pos < 0)
 		return (-EINVAL);
 	if (pos >= available || !count)
 		return 0;
@@ -155,7 +155,7 @@ simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 	loff_t pos = *ppos;
 	size_t res;
 
-	if (pos < 0)
+	if ((int64_t)pos < 0)
 		return (-EINVAL);
 	if (pos >= available || !count)
 		return 0;
@@ -295,7 +295,7 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
 	if (page->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
-			rv = vm_pager_get_pages(object, &page, 1, NULL, NULL, VM_PROT_READ|VM_PROT_WRITE);
+			rv = vm_pager_get_pages(object, &page, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
 				vm_page_lock(page);
 				vm_page_free(page);
@@ -332,7 +332,7 @@ shmem_file_setup(char *name, int size, int flags)
 
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_vnode = vp;
-	file_inode(filp)->i_mapping = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
+	filp->f_mapping = file_inode(filp)->i_mapping = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
 	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
 
 	if (file_inode(filp)->i_mapping == NULL)
@@ -406,10 +406,6 @@ __get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages, int w
 			}
 		}
 	}
-#ifdef INVARIANTS
-	if (count > 0)
-		atomic_add_int(&fs_held_pages, count);
-#endif
 	return (count == -1 ? -EFAULT : count);
 }
 
@@ -470,24 +466,24 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 long
 get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 		      unsigned long start, unsigned long nr_pages,
-		      int write, int force, struct page **pages,
+		      int gup_flags, struct page **pages,
 		      struct vm_area_struct **vmas)
 {
 	vm_map_t map;
 
 	map = &tsk->task_thread->td_proc->p_vmspace->vm_map;
-	return (__get_user_pages_internal(map, start, nr_pages, write, pages));
+	return (__get_user_pages_internal(map, start, nr_pages, !!(gup_flags & FOLL_WRITE), pages));
 }
 
 long
 get_user_pages(unsigned long start, unsigned long nr_pages,
-		int write, int force, struct page **pages,
+		int gup_flags, struct page **pages,
 		    struct vm_area_struct **vmas)
 {
 	vm_map_t map;
 
 	map = &curthread->td_proc->p_vmspace->vm_map;
-	return (__get_user_pages_internal(map, start, nr_pages, write, pages));
+	return (__get_user_pages_internal(map, start, nr_pages, !!(gup_flags & FOLL_WRITE), pages));
 }
 
 

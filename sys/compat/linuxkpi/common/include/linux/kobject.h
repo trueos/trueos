@@ -45,6 +45,10 @@
 #include <linux/atomic.h>
 #include <linux/workqueue.h>
 
+#define UEVENT_HELPER_PATH_LEN		256
+#define UEVENT_NUM_ENVP			32	/* number of env pointers */
+#define UEVENT_BUFFER_SIZE		2048	/* buffer for the variables */
+
 struct kobject;
 struct sysctl_oid;
 struct pfs_node;
@@ -79,6 +83,14 @@ struct kobj_type {
 	struct attribute **default_attrs;
 	const struct kobj_ns_type_operations *(*child_ns_type)(struct kobject *kobj);
 	const void *(*namespace)(struct kobject *kobj);	
+};
+
+struct kobj_uevent_env {
+	char *argv[3];
+	char *envp[UEVENT_NUM_ENVP];
+	int envp_idx;
+	char buf[UEVENT_BUFFER_SIZE];
+	int buflen;
 };
 
 extern const struct kobj_type linux_kfree_type;
@@ -214,5 +226,34 @@ kobject_del(struct kobject *kobj)
 
 static inline void
 kobject_uevent_env(struct kobject *kobj, enum kobject_action action, char *envp_ext[]) {}
+
+
+static inline int
+add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
+{
+	va_list args;
+	int len;
+
+	if (env->envp_idx >= ARRAY_SIZE(env->envp)) {
+		WARN(1, KERN_ERR "add_uevent_var: too many keys\n");
+		return -ENOMEM;
+	}
+
+	va_start(args, format);
+	len = vsnprintf(&env->buf[env->buflen],
+			sizeof(env->buf) - env->buflen,
+			format, args);
+	va_end(args);
+
+	if (len >= (sizeof(env->buf) - env->buflen)) {
+		WARN(1, KERN_ERR "add_uevent_var: buffer size too small\n");
+		return -ENOMEM;
+	}
+
+	env->envp[env->envp_idx++] = &env->buf[env->buflen];
+	env->buflen += len + 1;
+	return 0;
+}
+
 
 #endif /* _LINUX_KOBJECT_H_ */

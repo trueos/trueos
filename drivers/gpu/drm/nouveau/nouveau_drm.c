@@ -22,13 +22,11 @@
  * Authors: Ben Skeggs
  */
 
-#include <linux/apple-gmux.h>
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
-#include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 
 #include "drmP.h"
@@ -314,13 +312,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	bool boot = false;
 	int ret;
 
-	/*
-	 * apple-gmux is needed on dual GPU MacBook Pro
-	 * to probe the panel if we're the inactive GPU.
-	 */
-	if (IS_ENABLED(CONFIG_VGA_ARB) && IS_ENABLED(CONFIG_VGA_SWITCHEROO) &&
-	    apple_gmux_present() && pdev != vga_default_device() &&
-	    !vga_switcheroo_handler_flags())
+	if (vga_switcheroo_client_probe_defer(pdev))
 		return -EPROBE_DEFER;
 
 	/* remove conflicting drivers (vesafb, efifb etc) */
@@ -348,7 +340,7 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	boot = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 #endif
 	if (nouveau_modeset != 2)
-		remove_conflicting_framebuffers(aper, "nouveaufb", boot);
+		drm_fb_helper_remove_conflicting_framebuffers(aper, "nouveaufb", boot);
 	kfree(aper);
 
 	ret = nvkm_device_pci_new(pdev, nouveau_config, nouveau_debug,
@@ -1055,8 +1047,8 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 		goto err_free;
 
 	drm = drm_dev_alloc(&driver_platform, &pdev->dev);
-	if (!drm) {
-		err = -ENOMEM;
+	if (IS_ERR(drm)) {
+		err = PTR_ERR(drm);
 		goto err_free;
 	}
 
@@ -1077,7 +1069,6 @@ nouveau_drm_init(void)
 	driver_pci = driver_stub;
 	driver_pci.set_busid = drm_pci_set_busid;
 	driver_platform = driver_stub;
-	driver_platform.set_busid = drm_platform_set_busid;
 
 	nouveau_display_options();
 

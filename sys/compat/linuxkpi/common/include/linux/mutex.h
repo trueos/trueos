@@ -94,7 +94,6 @@ linux_mutex_destroy(mutex_t *m)
 {
 	if (mutex_is_owned(m))
 		mutex_unlock(m);
-	DELAY(2500);
 	sx_destroy(&m->sx);
 }
 

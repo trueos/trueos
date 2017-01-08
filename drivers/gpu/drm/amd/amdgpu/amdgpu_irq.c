@@ -37,6 +37,8 @@
 #include <linux/pm_runtime.h>
 
 #define AMDGPU_WAIT_IDLE_TIMEOUT 200
+#define pci_enable_msi linux_pci_enable_msi
+#define pci_disable_msi linux_pci_disable_msi
 
 /*
  * Handle hotplug events outside the interrupt handler proper.
@@ -224,7 +226,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	adev->irq.msi_enabled = false;
 
 	if (amdgpu_msi_ok(adev)) {
-		int ret = linux_pci_enable_msi(adev->pdev);
+		int ret = pci_enable_msi(adev->pdev);
 		if (!ret) {
 			adev->irq.msi_enabled = true;
 			dev_info(adev->dev, "amdgpu: using MSI.\n");
@@ -239,6 +241,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	if (r) {
 		adev->irq.installed = false;
 		flush_work(&adev->hotplug_work);
+		cancel_work_sync(&adev->reset_work);
 		return r;
 	}
 
@@ -262,8 +265,9 @@ void amdgpu_irq_fini(struct amdgpu_device *adev)
 		drm_irq_uninstall(adev->ddev);
 		adev->irq.installed = false;
 		if (adev->irq.msi_enabled)
-			linux_pci_disable_msi(adev->pdev);
+			pci_disable_msi(adev->pdev);
 		flush_work(&adev->hotplug_work);
+		cancel_work_sync(&adev->reset_work);
 	}
 
 	for (i = 0; i < AMDGPU_MAX_IRQ_SRC_ID; ++i) {
@@ -381,6 +385,18 @@ int amdgpu_irq_update(struct amdgpu_device *adev,
 	r = src->funcs->set(adev, src, type, state);
 	spin_unlock_irqrestore(&adev->irq.lock, irqflags);
 	return r;
+}
+
+void amdgpu_irq_gpu_reset_resume_helper(struct amdgpu_device *adev)
+{
+	int i, j;
+	for (i = 0; i < AMDGPU_MAX_IRQ_SRC_ID; i++) {
+		struct amdgpu_irq_src *src = adev->irq.sources[i];
+		if (!src)
+			continue;
+		for (j = 0; j < src->num_types; j++)
+			amdgpu_irq_update(adev, src, j);
+	}
 }
 
 /**

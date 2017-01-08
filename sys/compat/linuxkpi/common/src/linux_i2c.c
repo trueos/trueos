@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/sbuf.h>
 #include <sys/taskqueue.h>
-#include <sys/tree.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
@@ -94,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
@@ -105,6 +105,10 @@ static DEFINE_MUTEX(i2c_core);
 
 static struct class *i2c_class;
 
+/*
+ * XXX needs to be updated to use "virtual" lock_bus functions
+ *
+ */
 static int
 linux_i2c_init(void *arg __unused)
 {
@@ -115,9 +119,34 @@ linux_i2c_init(void *arg __unused)
 SYSINIT(linux_i2c, SI_SUB_VFS, SI_ORDER_ANY, linux_i2c_init, NULL);
 
 
-#define UDELAY(x) DELAY((x) + 2)
+#define UDELAY(x) udelay((x))
 
+static void
+i2c_adapter_lock_bus(struct i2c_adapter *adapter,
+				 unsigned int flags)
+{
+	mutex_lock(&adapter->bus_lock);
+}
 
+static int
+i2c_adapter_trylock_bus(struct i2c_adapter *adapter,
+				   unsigned int flags)
+{
+	return mutex_trylock(&adapter->bus_lock);
+}
+
+static void
+i2c_adapter_unlock_bus(struct i2c_adapter *adapter,
+				   unsigned int flags)
+{
+	mutex_unlock(&adapter->bus_lock);
+}
+
+static const struct i2c_lock_operations i2c_adapter_lock_ops = {
+	.lock_bus =    i2c_adapter_lock_bus,
+	.trylock_bus = i2c_adapter_trylock_bus,
+	.unlock_bus =  i2c_adapter_unlock_bus,
+};
 
 static int
 i2c_register_adapter(struct i2c_adapter *adap)
@@ -129,8 +158,11 @@ i2c_register_adapter(struct i2c_adapter *adap)
 	if (__predict_false(!adap->algo))
 		return (-EINVAL);
 
-	mutex_init(&adap->bus_lock);
 
+	mutex_init(&adap->bus_lock);
+	if (!adap->lock_ops)
+		adap->lock_ops = &i2c_adapter_lock_ops;
+ 
 	if (adap->timeout == 0)
 		adap->timeout = hz;
 

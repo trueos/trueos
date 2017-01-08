@@ -11,52 +11,60 @@ SRCS	= \
 	dvo_tfp410.c \
 	i915_cmd_parser.c \
 	i915_debugfs.c \
-	i915_dma.c \
 	i915_drv.c \
 	i915_gem.c \
 	i915_gem_batch_pool.c \
 	i915_gem_context.c \
-	i915_gem_debug.c \
 	i915_gem_dmabuf.c \
 	i915_gem_evict.c \
 	i915_gem_execbuffer.c \
 	i915_gem_fence.c \
 	i915_gem_gtt.c \
 	i915_gem_render_state.c \
+	i915_gem_request.c \
 	i915_gem_stolen.c \
 	i915_gem_shrinker.c \
 	i915_gem_tiling.c \
 	i915_gem_userptr.c \
 	i915_gpu_error.c \
 	i915_guc_submission.c \
+	i915_memcpy.c \
 	i915_params.c \
+	i915_pci.c \
 	i915_irq.c \
 	i915_suspend.c \
+	i915_sw_fence.c \
 	i915_sysfs.c \
 	i915_trace_points.c \
 	i915_vgpu.c \
 	intel_acpi.c \
-	intel_agp_freebsd.c \
 	intel_atomic.c \
 	intel_atomic_plane.c \
 	intel_audio.c \
 	intel_bios.c \
+	intel_breadcrumbs.c \
 	intel_color.c \
 	intel_crt.c \
 	intel_csr.c \
 	intel_ddi.c \
+	intel_device_info.c \
 	intel_display.c \
 	intel_dp.c \
+	intel_dp_aux_backlight.c \
 	intel_dp_link_training.c \
 	intel_dp_mst.c \
+	intel_dpio_phy.c \
 	intel_dpll_mgr.c \
 	intel_dsi.c \
+	intel_dsi_dcs_backlight.c \
 	intel_dsi_panel_vbt.c \
 	intel_dsi_pll.c \
 	intel_dvo.c \
 	intel_fbc.c \
+	intel_engine_cs.c \
 	intel_fbdev.c \
 	intel_fifo_underrun.c \
+	intel_freebsd.c \
 	intel_frontbuffer.c \
 	intel_guc_loader.c \
 	intel_hdmi.c \
@@ -117,12 +125,15 @@ CWARNFLAGS.intel_bios.c=	-Wno-cast-qual
 CWARNFLAGS.intel_csr.c=		-Wno-cast-qual
 CWARNFLAGS.intel_dp.c=		-Wno-enum-conversion -Wno-format -Wno-unused
 CWARNFLAGS.intel_ddi.c=		-Wno-compare-distinct-pointer-types		
-CWARNFLAGS.intel_dpll_mgr.c=	-Wno-compare-distinct-pointer-types
-CWARNFLAGS.intel_lvds.c=	-Wno-unused
 CWARNFLAGS.intel_display.c=	-Wno-tautological-pointer-compare -Wno-enum-conversion -Wno-cast-qual -Wno-incompatible-pointer-types-discards-qualifiers
+CWARNFLAGS.intel_dpll_mgr.c=	-Wno-compare-distinct-pointer-types
 CWARNFLAGS.intel_dsi_panel_vbt.c= -Wno-cast-qual
+CWARNFLAGS.intel_engine_cs.c= -Wno-cast-qual
 CWARNFLAGS.intel_guc_loader.c= 	-Wno-cast-qual
 CWARNFLAGS.intel_hdmi.c=	-Wno-enum-conversion
+CWARNFLAGS.intel_hotplug.c=	-Wno-missing-prototypes
+CWARNFLAGS.intel_lrc.c=		-Wno-cast-qual
+CWARNFLAGS.intel_lvds.c=	-Wno-unused
 CWARNFLAGS.intel_overlay.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.intel_pm.c=		-Wno-cast-qual -Wno-incompatible-pointer-types-discards-qualifiers -Wno-unused-const-variable
 CWARNFLAGS.intel_psr.c=		-Wno-cast-qual
@@ -131,8 +142,8 @@ CWARNFLAGS.intel_sdvo.c=	-Wno-cast-qual -Wno-enum-conversion
 CWARNFLAGS.intel_tv.c=		-Wno-unused
 CWARNFLAGS.i915_debugfs.c=	-Wno-unused-function -Wno-cast-qual -Wno-format -Wno-dangling-else
 CWARNFLAGS.i915_gem.c=		-Wno-tautological-pointer-compare -Wno-pointer-arith -Wno-cast-qual -Wno-int-conversion
-CWARNFLAGS.i915_dma.c=		-Wno-cast-qual
-CWARNFLAGS.i915_drv.c=		-Wno-initializer-overrides
+CWARNFLAGS.i915_drv.c=		-Wno-initializer-overrides -Wno-cast-qual -Wno-missing-prototypes
 CWARNFLAGS.i915_gem_gtt.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.i915_gem_tiling.c=	-Wno-tautological-pointer-compare
 CWARNFLAGS.i915_gem_execbuffer.c=	-Wno-tautological-pointer-compare  -Wno-pointer-arith
+CWARNFLAGS.i915_pci.c=		-Wno-initializer-overrides 

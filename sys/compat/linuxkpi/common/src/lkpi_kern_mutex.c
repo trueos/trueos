@@ -91,8 +91,6 @@ SYSINIT(lkpi_kern_mutex_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, lkpi_interop_init,
 
 #define	mtx_destroyed(m) ((m)->mtx_lock == MTX_DESTROYED)
 
-#define	mtx_owner(m)	((struct thread *)((m)->mtx_lock & ~MTX_FLAGMASK))
-
 
 
 static void
@@ -144,7 +142,12 @@ __lkpi_mtx_lock_flags(volatile uintptr_t *c, int opts, const char *file, int lin
 	if (!intrctx)
 		WITNESS_CHECKORDER(&m->lock_object, (opts & ~MTX_RECURSE) |
 				   LOP_NEWORDER | LOP_EXCLUSIVE, file, line, NULL);
-	
+	if (intrctx) {
+		uintptr_t v = m->mtx_lock;
+		struct thread *owner = (struct thread *)(v & ~MTX_FLAGMASK);
+		if (owner)
+			KASSERT(TD_IS_RUNNING(owner), ("lock owner %s preempted - can't acquire from critical section", owner->td_name));
+	}
 	__mtx_lock(m, curthread, opts, file, line);
 	if (!intrctx) {
 		LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
@@ -285,6 +288,7 @@ __lkpi_mtx_init(volatile uintptr_t *c, const char *name, const char *type, int o
 
 	m = mtxlock2mtx(c);
 
+	bzero(m, sizeof(*m));
 	MPASS((opts & ~(MTX_SPIN | MTX_QUIET | MTX_RECURSE |
 	    MTX_NOWITNESS | MTX_DUPOK | MTX_NOPROFILE | MTX_NEW)) == 0);
 	ASSERT_ATOMIC_LOAD_PTR(m->mtx_lock,

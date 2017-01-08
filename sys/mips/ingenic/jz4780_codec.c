@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
+#include <sys/gpio.h>
 
 #include <machine/bus.h>
 
@@ -50,14 +51,22 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <dev/gpio/gpiobusvar.h>
+
+#include <dev/extres/clk/clk.h>
+
 #include <mips/ingenic/jz4780_common.h>
 #include <mips/ingenic/jz4780_codec.h>
+
+#define	CI20_HP_PIN	13
+#define	CI20_HP_PORT	3
 
 struct codec_softc {
 	device_t		dev;
 	struct resource		*res[1];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
+	clk_t			clk;
 };
 
 static struct resource_spec codec_spec[] = {
@@ -75,6 +84,8 @@ codec_write(struct codec_softc *sc, uint32_t reg, uint32_t val)
 {
 	uint32_t tmp;
 
+	clk_enable(sc->clk);
+
 	tmp = (reg << RGADW_RGADDR_S);
 	tmp |= (val << RGADW_RGDIN_S);
 	tmp |= RGADW_RGWR;
@@ -84,6 +95,8 @@ codec_write(struct codec_softc *sc, uint32_t reg, uint32_t val)
 	while(READ4(sc, CODEC_RGADW) & RGADW_RGWR)
 		;
 
+	clk_disable(sc->clk);
+
 	return (0);
 }
 
@@ -92,10 +105,14 @@ codec_read(struct codec_softc *sc, uint32_t reg)
 {
 	uint32_t tmp;
 
+	clk_enable(sc->clk);
+
 	tmp = (reg << RGADW_RGADDR_S);
 	WRITE4(sc, CODEC_RGADW, tmp);
 
 	tmp = READ4(sc, CODEC_RGDATA);
+
+	clk_disable(sc->clk);
 
 	return (tmp);
 }
@@ -149,6 +166,41 @@ codec_print_registers(struct codec_softc *sc)
 	printf("codec DR_ADC_AGC %x\n", codec_read(sc, DR_ADC_AGC));
 }
 
+/*
+ * CI20 board-specific
+ */
+static int
+ci20_hp_unmute(struct codec_softc *sc)
+{
+	device_t dev;
+	int port;
+	int err;
+	int pin;
+
+	pin = CI20_HP_PIN;
+	port = CI20_HP_PORT;
+
+	dev = devclass_get_device(devclass_find("gpio"), port);
+	if (dev == NULL)
+		return (0);
+
+	err = GPIO_PIN_SETFLAGS(dev, pin, GPIO_PIN_OUTPUT);
+	if (err != 0) {
+		device_printf(dev, "Cannot configure GPIO pin %d on %s\n",
+		    pin, device_get_nameunit(dev));
+		return (err);
+	}
+
+	err = GPIO_PIN_SET(dev, pin, 0);
+	if (err != 0) {
+		device_printf(dev, "Cannot configure GPIO pin %d on %s\n",
+		    pin, device_get_nameunit(dev));
+		return (err);
+	}
+
+	return (0);
+}
+
 static int
 codec_probe(device_t dev)
 {
@@ -182,16 +234,26 @@ codec_attach(device_t dev)
 	sc->bst = rman_get_bustag(sc->res[0]);
 	sc->bsh = rman_get_bushandle(sc->res[0]);
 
+	if (clk_get_by_ofw_name(dev, 0, "i2s", &sc->clk) != 0) {
+		device_printf(dev, "could not get i2s clock\n");
+		bus_release_resources(dev, codec_spec, sc->res);
+		return (ENXIO);
+	}
+
 	/* Initialize codec. */
 	reg = codec_read(sc, CR_VIC);
 	reg &= ~(VIC_SB_SLEEP | VIC_SB);
 	codec_write(sc, CR_VIC, reg);
 
+	DELAY(20000);
+
 	reg = codec_read(sc, CR_DAC);
 	reg &= ~(DAC_SB | DAC_MUTE);
 	codec_write(sc, CR_DAC, reg);
 
-	/* I2S, 16-bit, 96 kHz. */
+	DELAY(10000);
+
+	/* I2S, 16-bit, 48 kHz. */
 	reg = codec_read(sc, AICR_DAC);
 	reg &= ~(AICR_DAC_SB | DAC_ADWL_M);
 	reg |= DAC_ADWL_16;
@@ -199,13 +261,19 @@ codec_attach(device_t dev)
 	reg |= AUDIOIF_I2S;
 	codec_write(sc, AICR_DAC, reg);
 
-	reg = FCR_DAC_96;
+	DELAY(10000);
+
+	reg = FCR_DAC_48;
 	codec_write(sc, FCR_DAC, reg);
+
+	DELAY(10000);
 
 	/* Unmute headphones. */
 	reg = codec_read(sc, CR_HP);
 	reg &= ~(HP_SB | HP_MUTE);
-	codec_write(sc, CR_HP, 0);
+	codec_write(sc, CR_HP, reg);
+
+	ci20_hp_unmute(sc);
 
 	return (0);
 }

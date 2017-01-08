@@ -31,7 +31,13 @@ __pm_runtime_suspend(struct device *dev, int rpmflags)
 	UNIMPLEMENTED_ONCE();
 	return (0);
 }
-extern int pm_runtime_get_if_in_use(struct device *dev);
+
+static inline int
+pm_runtime_get_if_in_use(struct device *dev)
+{
+	UNIMPLEMENTED();
+	return (1);
+}
 
 static inline void
 __pm_runtime_use_autosuspend(struct device *dev, bool use)
@@ -86,6 +92,11 @@ static inline int
 pm_runtime_put(struct device *dev)
 {
 	return (__pm_runtime_idle(dev, RPM_GET_PUT | RPM_ASYNC));
+}
+
+static inline void pm_runtime_put_noidle(struct device *dev)
+{
+	atomic_add_unless(&dev->power.usage_count, -1, 0);
 }
 
 static inline int
@@ -191,4 +202,11 @@ pm_runtime_allow(struct device *dev){
 	UNIMPLEMENTED();
 }
 
+static inline void pm_runtime_enable(struct device *dev) { UNIMPLEMENTED();}
+
+static inline void __pm_runtime_disable(struct device *dev, bool c) { 	UNIMPLEMENTED(); }
+static inline void pm_runtime_disable(struct device *dev)
+{
+	__pm_runtime_disable(dev, true);
+}
 #endif /*  _LINUX_PM_RUNTIME_H_ */

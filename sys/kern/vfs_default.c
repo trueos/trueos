@@ -768,7 +768,7 @@ vop_stdgetpages_async(struct vop_getpages_async_args *ap)
 	int error;
 
 	error = VOP_GETPAGES(ap->a_vp, ap->a_m, ap->a_count, ap->a_rbehind,
-	    ap->a_rahead, VM_PROT_READ);
+	    ap->a_rahead);
 	ap->a_iodone(ap->a_arg, ap->a_m, ap->a_count, error);
 	return (error);
 }
@@ -931,7 +931,8 @@ int
 vop_stdallocate(struct vop_allocate_args *ap)
 {
 #ifdef __notyet__
-	struct statfs sfs;
+	struct statfs *sfs;
+	off_t maxfilesize = 0;
 #endif
 	struct iovec aiov;
 	struct vattr vattr, *vap;
@@ -967,12 +968,16 @@ vop_stdallocate(struct vop_allocate_args *ap)
 	 * Check if the filesystem sets f_maxfilesize; if not use
 	 * VOP_SETATTR to perform the check.
 	 */
-	error = VFS_STATFS(vp->v_mount, &sfs, td);
+	sfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = VFS_STATFS(vp->v_mount, sfs, td);
+	if (error == 0)
+		maxfilesize = sfs->f_maxfilesize;
+	free(sfs, M_STATFS);
 	if (error != 0)
 		goto out;
-	if (sfs.f_maxfilesize) {
-		if (offset > sfs.f_maxfilesize || len > sfs.f_maxfilesize ||
-		    offset + len > sfs.f_maxfilesize) {
+	if (maxfilesize) {
+		if (offset > maxfilesize || len > maxfilesize ||
+		    offset + len > maxfilesize) {
 			error = EFBIG;
 			goto out;
 		}

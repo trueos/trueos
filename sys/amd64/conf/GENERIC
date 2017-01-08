@@ -88,12 +88,11 @@ options		DDB			# Support DDB.
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 options 	DEVICE_NUMA		# I/O Device Affinity
+options 	EARLY_AP_STARTUP
 
 # Enable /dev/input/eventX for input devices
-
-options		EVDEV_SUPPORT
 device		evdev
-device		uinput
+options		EVDEV_SUPPORT
 
 # CPU frequency control
 device		cpufreq

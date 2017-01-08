@@ -287,7 +287,7 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 
 #define container_of(ptr, type, member)				\
 ({								\
-	__typeof(((type *)0)->member) *_p = (ptr);		\
+	__typeof(((type *)0)->member) *_p = __DECONST(void *,(ptr));	\
 	(type *)((char *)_p - offsetof(type, member));		\
 })
   
@@ -381,8 +381,11 @@ abs64(int64_t x)
 }
 
 
-/* XXX move me */
+/* XXX move us */
 #define rdmsrl(msr, val)			\
 	((val) = rdmsr((msr)))
+
+#define static_branch_enable(x) do { (x)->state = 1; } while (0)
+#define DEFINE_STATIC_KEY_FALSE(x) struct { int state; } x
 
 #endif	/* _LINUX_KERNEL_H_ */

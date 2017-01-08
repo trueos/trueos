@@ -32,6 +32,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 
 
@@ -85,11 +86,13 @@ rcu_get_record(int canblock)
 
 	if (__predict_true((record = ck_epoch_recycle(&lr_epoch)) != NULL))
 		return (record);
-
-	if (!canblock)
+	if ((record = malloc(sizeof *record, M_LRCU, M_NOWAIT|M_ZERO)) != NULL) {
+		ck_epoch_register(&lr_epoch, record);
+		return (record);
+	} else if (!canblock)
 		return (NULL);
 
-	record = malloc(sizeof *record, M_LRCU, M_WAITOK);
+	record = malloc(sizeof *record, M_LRCU, M_WAITOK|M_ZERO);
 	ck_epoch_register(&lr_epoch, record);
 	return (record);
 }
@@ -97,13 +100,11 @@ rcu_get_record(int canblock)
 static void
 rcu_destroy_object(ck_epoch_entry_t *e)
 {
-	ck_epoch_record_t *record;
 	struct rcu_head *rcu = rcu_head_container(e);
 
-	record = rcu->epoch_record;
-	rcu->epoch_record = NULL;
-	rcu->func(rcu);
-	ck_epoch_unregister(record);
+	MPASS(rcu->task.ta_pending == 0);
+	if (rcu->func != NULL)
+		rcu->func(rcu);
 }
 
 static void
@@ -113,6 +114,7 @@ rcu_cleaner_func(void *context, int pending __unused)
 	ck_epoch_record_t *record = rcu->epoch_record;
 
 	ck_epoch_barrier(record);
+	ck_epoch_unregister(record);
 }
 
 void
@@ -138,12 +140,25 @@ __rcu_read_unlock(void)
 }
 
 void
+synchronize_rcu(void)
+{
+	ck_epoch_record_t *record;
+
+	sched_pin();
+	record = DPCPU_GET(epoch_record);
+	MPASS(record != NULL);
+	ck_epoch_synchronize(record);
+	sched_unpin();
+}
+
+void
 rcu_barrier(void)
 {
 	ck_epoch_record_t *record;
 
 	record = rcu_get_record(0);
 	ck_epoch_barrier(record);
+	ck_epoch_unregister(record);
 }
 
 void
@@ -151,8 +166,9 @@ call_rcu(struct rcu_head *ptr, rcu_callback_t func)
 {
 	ck_epoch_record_t *record;
 
+	record = rcu_get_record(0);
+
 	critical_enter();
-	record = ck_epoch_recycle(&lr_epoch);
 	MPASS(record != NULL);
 	ptr->func = func;
 	ptr->epoch_record = record;

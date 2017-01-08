@@ -61,6 +61,8 @@ typedef unsigned long	pgprotval_t;
 #define _PAGE_BIT_PKEY_BIT3	62	/* Protection Keys, bit 4/4 */
 #define _PAGE_BIT_NX		63	/* No execute: only valid after cpuid check */
 
+#define _PAGE_BIT_SPECIAL	_PAGE_BIT_SOFTW1
+#define _PAGE_BIT_CPA_TEST	_PAGE_BIT_SOFTW1
 
 #define _PAGE_PRESENT	(_AT(pteval_t, 1) << _PAGE_BIT_PRESENT)
 #define _PAGE_RW	(_AT(pteval_t, 1) << _PAGE_BIT_RW)
@@ -75,6 +77,79 @@ typedef unsigned long	pgprotval_t;
 #define _PAGE_SOFTW2	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW2)
 #define _PAGE_PAT	(_AT(pteval_t, 1) << _PAGE_BIT_PAT)
 #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
+#define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+#define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
+
+#define _PAGE_CACHE_MASK	(_PAGE_PAT | _PAGE_PCD | _PAGE_PWT)
+
+#define __PAGE_KERNEL_EXEC						\
+	(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_GLOBAL)
+#define __PAGE_KERNEL		(__PAGE_KERNEL_EXEC | _PAGE_NX)
+
+#define __PAGE_KERNEL_IO		(__PAGE_KERNEL)
+
+typedef struct page *pgtable_t;
+extern pteval_t __supported_pte_mask;
+
+#define pgprot_val(x)	((x))
+#define __pgprot(x)	((pgprot_t) { (x) } )
+
+
+#define pte_val(x)	native_pte_val(x)
+#define __pte(x)	native_make_pte(x)
+
+static inline pgprotval_t massage_pgprot(pgprot_t pgprot)
+{
+	pgprotval_t protval = pgprot_val(pgprot);
+
+	if (protval & _PAGE_PRESENT)
+		protval &= __supported_pte_mask;
+
+	return protval;
+}
+
+static inline pteval_t native_pte_val(pte_t pte)
+{
+	return pte;
+}
+
+static inline pte_t native_make_pte(pteval_t val)
+{
+	return (pte_t) (val);
+}
+
+static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
+{
+	return __pte(((phys_addr_t)page_nr << PAGE_SHIFT) |
+		     massage_pgprot(pgprot));
+}
+
+static inline pte_t pte_set_flags(pte_t pte, pteval_t set)
+{
+	pteval_t v = native_pte_val(pte);
+
+	return native_make_pte(v | set);
+}
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	return pte_set_flags(pte, _PAGE_SPECIAL);
+}
+
+static inline void native_set_pte(pte_t *ptep, pte_t pte)
+{
+	*ptep = pte;
+}
+
+static inline void native_set_pte_at(struct mm_struct *mm, unsigned long addr,
+				     pte_t *ptep , pte_t pte)
+{
+	native_set_pte(ptep, pte);
+}
+
+#define set_pte(ptep, pte)		native_set_pte(ptep, pte)
+#define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
+#define set_pmd_at(mm, addr, pmdp, pmd)	native_set_pmd_at(mm, addr, pmdp, pmd)
 
 
 

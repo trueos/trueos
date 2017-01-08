@@ -211,6 +211,8 @@ fget_locked(struct filedesc *fdp, int fd)
 	return (fdp->fd_ofiles[fd].fde_file);
 }
 
+bool fd_modified(struct filedesc *fdp, int fd, uint32_t seq);
+
 static __inline struct filedescent *
 fdeget_locked(struct filedesc *fdp, int fd)
 {
@@ -227,9 +229,6 @@ fdeget_locked(struct filedesc *fdp, int fd)
 
 	return (fde);
 }
-#ifdef CAPABILITIES
-bool fd_modified(struct filedesc *fdp, int fd, uint32_t seq);
-#endif
 
 /* cdir/rdir/jdir manipulation functions. */
 void	pwd_chdir(struct thread *td, struct vnode *vp);

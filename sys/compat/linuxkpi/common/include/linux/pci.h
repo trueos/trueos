@@ -399,6 +399,7 @@ struct pci_dev {
 	unsigned int	d2_support:1;	/* Low power state D2 is supported */
 	unsigned int	no_d1d2:1;	/* D1 and D2 are forbidden */
 	unsigned int	no_d3cold:1;	/* D3cold is forbidden */
+	unsigned int	bridge_d3:1;	/* Allow D3 for bridge */
 	unsigned int	d3cold_allowed:1;	/* D3cold is allowed by user */
 	unsigned int	mmio_always_on:1;	/* disallow turning off io/mem
 						   decoding during bar sizing */
@@ -454,18 +455,19 @@ static inline struct device *
 linux_pci_find_irq_dev(unsigned int irq)
 {
 	struct pci_dev *pdev;
+	struct device *found;
 
+	found = NULL;
 	spin_lock(&pci_lock);
 	list_for_each_entry(pdev, &pci_devices, links) {
-		if (irq == pdev->dev.irq)
+		if (irq == pdev->dev.irq ||
+		    (irq >= pdev->dev.msix && irq < pdev->dev.msix_max)) {
+			found = &pdev->dev;
 			break;
-		if (irq >= pdev->dev.msix && irq < pdev->dev.msix_max)
-			break;
+		}
 	}
 	spin_unlock(&pci_lock);
-	if (pdev)
-		return &pdev->dev;
-	return (NULL);
+	return (found);
 }
 
 static inline unsigned long
@@ -1171,6 +1173,20 @@ static inline bool pci_is_root_bus(struct pci_bus *pbus)
 {
 
 	return (pbus->self == NULL);
+}
+
+static inline struct pci_dev *pci_upstream_bridge(struct pci_dev *dev)
+{
+#ifdef __linux__
+	dev = pci_physfn(dev);
+	if (pci_is_root_bus(dev->bus))
+		return NULL;
+
+	return dev->bus->self;
+#else
+	UNIMPLEMENTED();
+	return (NULL);
+#endif
 }
 
 void *pci_platform_rom(struct pci_dev *pdev, size_t *size);
