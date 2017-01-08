@@ -1690,11 +1690,7 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 #	lib/clang/libllvmminimal \
 #	usr.bin/clang/llvm-tblgen \
 #	usr.bin/clang/clang-tblgen
-<<<<<<< HEAD
-
-=======
 #
->>>>>>> 87ec42c0757c8057e779b0fbf222b2a9d9e9bfef
 #${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmminimal
 #${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
 #.endif
