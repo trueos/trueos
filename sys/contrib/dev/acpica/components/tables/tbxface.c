@@ -467,36 +467,6 @@ AcpiGetTable (
 ACPI_EXPORT_SYMBOL (AcpiGetTable)
 
 
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiGetTable
- *
- * PARAMETERS:  Signature           - ACPI signature of needed table
- *              Instance            - Which instance (for SSDTs)
- *              OutTable            - Where the pointer to the table is returned
- *
- * RETURN:      Status and pointer to the requested table
- *
- * DESCRIPTION: Finds and verifies an ACPI table. Table must be in the
- *              RSDT/XSDT.
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiGetTable (
-    char                    *Signature,
-    UINT32                  Instance,
-    ACPI_TABLE_HEADER       **OutTable)
-{
-    ACPI_SIZE             Size;
-
-    return (AcpiGetTableWithSize(Signature, Instance, OutTable, &Size));
-}
-
-ACPI_EXPORT_SYMBOL (AcpiGetTable)
-
-
 /*******************************************************************************
  *
  * FUNCTION:    AcpiGetTableByIndex
