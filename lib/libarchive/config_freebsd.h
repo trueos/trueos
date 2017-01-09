@@ -246,6 +246,8 @@
 #define uintmax_t uint64_t
 #endif
 
+#define HAVE_LIBRESSL	1
+
 /* FreeBSD defines for archive_hash.h */
 #ifdef WITH_OPENSSL
 #define ARCHIVE_CRYPTO_MD5_OPENSSL 1
