@@ -99,6 +99,15 @@ tasklet_init(struct tasklet_struct *t, void (*func)(unsigned long), unsigned lon
 }
 
 void
+raise_softirq(void)
+{
+	struct grouptask *gtask;
+
+	gtask = (struct grouptask *)&tasklet_gtask_array[curcpu];
+	GROUPTASK_ENQUEUE(gtask);
+}
+
+void
 __tasklet_schedule(struct tasklet_struct *t)
 {
 	struct tasklet_head *head;
