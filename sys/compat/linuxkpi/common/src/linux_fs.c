@@ -289,8 +289,9 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 
 	object = as;
 	VM_OBJECT_WLOCK(object);
-	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
+	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
 	if (page->valid != VM_PAGE_BITS_ALL) {
+		vm_page_xbusy(page);
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
 			rv = vm_pager_get_pages(object, &page, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
@@ -305,13 +306,12 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 			page->valid = VM_PAGE_BITS_ALL;
 			page->dirty = 0;
 		}
+		vm_page_xunbusy(page);
 	}
 	vm_page_lock(page);
 	vm_page_wire(page);
 	vm_page_unlock(page);
-	vm_page_xunbusy(page);
 	VM_OBJECT_WUNLOCK(object);
-
 	return (page);
 }
 
