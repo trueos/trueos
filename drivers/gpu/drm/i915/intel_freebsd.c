@@ -210,36 +210,52 @@ int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,
 		     struct io_mapping *iomap)
 {
-	vm_memattr_t attr;
 	vm_page_t m;
+	vm_object_t vm_obj;
+	vm_memattr_t attr;
 	vm_paddr_t pa;
-	vm_object_t vm_obj = vma->vm_obj;
-	int rc = 0;
-	int count = size >> PAGE_SHIFT;
-	vm_pindex_t pidx, pidx_start = addr >> PAGE_SHIFT;
-	
+	vm_pindex_t pidx, pidx_start;
+	int count, rc;
+
 	attr = pgprot2cachemode(iomap->prot);
+	count = size >> PAGE_SHIFT;
 	pa = pfn << PAGE_SHIFT;
+	pidx_start = OFF_TO_IDX(addr);
+	rc = 0;
+	vm_obj = vma->vm_obj;
+
+	vma->vm_pfn_first = pidx_start;
+
 	VM_OBJECT_WLOCK(vm_obj);
-	for (pidx = pidx_start; pidx < pidx_start + count; pidx++, pa += PAGE_SIZE) {
+	for (pidx = pidx_start; pidx < pidx_start + count;
+	    pidx++, pa += PAGE_SIZE) {
+retry:
 		m = vm_page_lookup(vm_obj, pidx);
 		if (m != NULL) {
-			if (vm_page_busied(m))
-				break;
-			else
-				goto have_page;
+			/* XXX need to unpin object first */
+			if (vm_page_sleep_if_busy(m, "i915flt"))
+				goto retry;
+		} else {
+			m = PHYS_TO_VM_PAGE(pa);
+			if (vm_page_busied(m)) {
+				vm_page_lock(m);
+				VM_OBJECT_WUNLOCK(vm_obj);
+				vm_page_busy_sleep(m, "i915flt", false);
+				VM_OBJECT_WLOCK(vm_obj);
+				goto retry;
+			}
+			if (vm_page_insert(m, vm_obj, pidx)) {
+				VM_OBJECT_WUNLOCK(vm_obj);
+				VM_WAIT;
+				goto retry;
+			}
+			m->valid = VM_PAGE_BITS_ALL;
 		}
-		m = PHYS_TO_VM_PAGE(pa);
-		if (vm_page_busied(m))
-			break;
-		if (vm_page_insert(m, vm_obj, pidx))
-			break;
-		m->valid = VM_PAGE_BITS_ALL;
-	have_page:
 		vm_page_xbusy(m);
 		pmap_page_set_memattr(m, attr);
 		vma->vm_pfn_count++;
 	}
+
 	/*
 	 * In order to adhere to the semantics expected by the latest i915_gem_fault
 	 * we make this an all or nothing. The implicit assumption here is that overlaps
@@ -256,10 +272,8 @@ int remap_io_mapping(struct vm_area_struct *vma,
 		rc = -EBUSY;
 	}
 	VM_OBJECT_WUNLOCK(vm_obj);
-
 	return (rc);
 }
-
 
 MODULE_DEPEND(i915kms, drmn, 1, 1, 1);
 MODULE_DEPEND(i915kms, agp, 1, 1, 1);

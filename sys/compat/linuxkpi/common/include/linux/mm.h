@@ -85,11 +85,13 @@ struct vm_area_struct {
 	void * vm_private_data;		/* was vm_pte (shared mem) */
 	const struct vm_operations_struct *vm_ops;
 	struct linux_file *vm_file;
+
 	/* internal operation */
-	int vm_pfn_count;
-	int *vm_pfn_pcount;
-	vm_object_t vm_obj;
-	vm_map_t vm_cached_map;
+	vm_pindex_t	vm_pfn_first;
+	int		vm_pfn_count;
+	int		*vm_pfn_pcount;
+	vm_object_t	vm_obj;
+	vm_map_t	vm_cached_map;
 };
 
 /*

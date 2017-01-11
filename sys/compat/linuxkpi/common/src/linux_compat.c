@@ -721,8 +721,8 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 	 * found in the object, it will simply xbusy the first
 	 * page and return with vm_pfn_count set to 1.
 	 */
-	*first = pidx;
-	*last = pidx + cvma.vm_pfn_count - 1;
+	*first = cvma.vm_pfn_first;
+	*last = *first + cvma.vm_pfn_count - 1;
 err:
 	switch (err) {
 	case VM_FAULT_OOM:
