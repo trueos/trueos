@@ -693,7 +693,6 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 	linux_set_current();
 
 	vmap = linux_cdev_handle_find(vm_obj->handle);
-	vm_object_pip_add(vm_obj, 1);
 	vmf.virtual_address = (void *)(pidx << PAGE_SHIFT);
 	vmf.flags = (fault_type & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
 	memcpy(&cvma, vmap, sizeof(*vmap));
@@ -738,7 +737,6 @@ err:
 		panic("unexpected error %d\n", err);
 		rc = VM_PAGER_ERROR;
 	}
-	vm_object_pip_wakeup(vm_obj);
 	return (rc);
 }
 
