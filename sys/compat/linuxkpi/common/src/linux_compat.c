@@ -1265,7 +1265,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 				linux_cdev_handle_insert(vma.vm_private_data, &vma, sizeof(struct vm_area_struct));
 				*object = cdev_pager_allocate(vma.vm_private_data, OBJT_MGTDEVICE,
 							      &linux_cdev_pager_ops, size, nprot,
-							      0, curthread->td_ucred);
+							      *offset, curthread->td_ucred);
 
 				if (*object == NULL)
 					linux_cdev_handle_remove(vma.vm_private_data);
