@@ -54,15 +54,8 @@ acpi_dev_name(struct acpi_device *adev)
 void acpi_scan_drop_device(acpi_handle handle, void *context);
 
 
-int acpi_get_device_data(acpi_handle handle, struct acpi_device **device,
-			 void (*callback)(void *));
-
 struct pci_dev *acpi_get_pci_dev(acpi_handle handle);
 
-static inline int
-acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
-{
-	return acpi_get_device_data(handle, device, NULL);
-}
+int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
 
 #endif

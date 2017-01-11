@@ -13,10 +13,6 @@ extern acpi_handle acpi_lid_handle;
 
 #define acpi_handle_warn(handle, fmt, ...)
 
-extern acpi_status
-AcpiGetDataFull(acpi_handle obj_handle, acpi_object_handler handler,
-		void **data, void (*callback)(void *));
-
 acpi_status
 AcpiGetData(acpi_handle obj_handle, acpi_object_handler handler, void **data);
 
@@ -51,11 +47,6 @@ AcpiGetName(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer);
 acpi_status
 AcpiGetHandle(acpi_handle parent,
     acpi_string pathname, acpi_handle * ret_handle);
-
-acpi_status
-AcpiGetTableWithSize(char *signature,
-		     u32 instance, struct acpi_table_header **out_table,
-		     acpi_size *tbl_size);
 
 
 
@@ -130,14 +121,6 @@ acpi_evaluate_object_typed(acpi_handle handle,
 }
 
 acpi_status
-acpi_get_data_full(acpi_handle obj_handle, acpi_object_handler handler,
-		   void **data, void (*callback)(void *))
-{
-
-	return (AcpiGetDataFull(obj_handle, handler, data, callback));
-}
-
-acpi_status
 acpi_get_data(acpi_handle obj_handle, acpi_object_handler handler, void **data)
 {
 
@@ -168,15 +151,6 @@ acpi_get_handle(acpi_handle parent,
 {
 
 	return (AcpiGetHandle(parent, pathname, ret_handle));
-}
-
-acpi_status
-acpi_get_table_with_size(char *signature,
-	       u32 instance, struct acpi_table_header **out_table,
-	       acpi_size *tbl_size)
-{
-
-	return (AcpiGetTableWithSize(signature, instance, out_table, tbl_size));
 }
 
 bool
@@ -389,16 +363,14 @@ acpi_scan_drop_device(acpi_handle handle, void *context)
 }
 
 int
-acpi_get_device_data(acpi_handle handle, struct acpi_device **device,
-				void (*callback)(void *))
+acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
 {
 	acpi_status status;
 
 	if (!device)
 		return -EINVAL;
 
-	status = acpi_get_data_full(handle, acpi_scan_drop_device,
-				    (void **)device, callback);
+	status = acpi_get_data(handle, acpi_scan_drop_device, (void **)device);
 	if (ACPI_FAILURE(status) || !*device) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No context for object [%p]\n",
 				  handle));
