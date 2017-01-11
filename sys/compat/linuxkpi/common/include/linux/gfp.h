@@ -108,7 +108,7 @@ __free_hot_cold_page(vm_page_t page)
 	}
 	if (page->wire_count) {
 		MPASS(page->wire_count == 1);
-		vm_page_unwire(page, PQ_INACTIVE);
+		vm_page_unwire(page, PQ_NONE);
 	}
 	if (pmap_page_is_mapped(page))
 		pmap_remove_all(page);
