@@ -49,7 +49,7 @@ AcpiGetHandle(acpi_handle parent,
     acpi_string pathname, acpi_handle * ret_handle);
 
 acpi_status
-AcpiGetTable(acpi_string signature, u32 instance, struct acpi_table_header **OutTable);
+AcpiGetTable(acpi_string signature, u32 instance, struct acpi_table_header **out_table);
 
 
 
