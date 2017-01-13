@@ -48,6 +48,9 @@ acpi_status
 AcpiGetHandle(acpi_handle parent,
     acpi_string pathname, acpi_handle * ret_handle);
 
+acpi_status
+AcpiGetTable(acpi_string signature, u32 instance, struct acpi_table_header **OutTable);
+
 
 
 
@@ -151,6 +154,13 @@ acpi_get_handle(acpi_handle parent,
 {
 
 	return (AcpiGetHandle(parent, pathname, ret_handle));
+}
+
+acpi_status
+acpi_get_table(acpi_string signature, u32 instance, struct acpi_table_header **out_table)
+{
+
+	return (AcpiGetTable(signature, instance, out_table));
 }
 
 bool
