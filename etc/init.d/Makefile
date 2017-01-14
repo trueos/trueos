@@ -16,7 +16,9 @@ FILES=          abi accounting adjkerntz amd auditd auditdistd automount automou
 		natd netmount network newsyslog nfsclient nfsd nfsuserd nisdomain nsswitch \
 		nscd osclock pf powerd rarpd rc-enabled root routing rpcbind runsvdir \
 		s6-svscan savecache savecore sendmail \
-		sshd statd staticroute swap swclock syscons sysctl syslogd tmpfiles.setup urandom zfs zvol
+		sshd statd staticroute swap swclock syscons sysctl syslogd tmpfiles.setup urandom \
+	       	ypbind ypldap yppasswdd ypserv ypset ypupdated ypxfrd \
+		zfs zvol
 FILESMODE=	755
 
 .for fg in ${FILESGROUPS}
