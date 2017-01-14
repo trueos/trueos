@@ -13,7 +13,7 @@ FILES=          abi accounting adjkerntz amd auditd auditdistd automount automou
 	       	gssd hostid hostname ipfw jail \
 		ldconfig local localmount local_unbound lockd loopback hostapd \
 		mixer modules modules-load mountd moused motd \
-		natd netmount network newsyslog nfsclient nfsd nfsuserd nisdomain \
+		natd netmount network newsyslog nfsclient nfsd nfsuserd nisdomain nsswitch \
 		nscd osclock pf powerd rarpd rc-enabled root routing rpcbind runsvdir \
 		s6-svscan savecache savecore sendmail \
 		sshd statd staticroute swap swclock syscons sysctl syslogd tmpfiles.setup urandom zfs zvol

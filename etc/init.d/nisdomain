@@ -3,9 +3,6 @@
 # $FreeBSD$
 #
 
-# REQUIRE: SERVERS rpcbind
-# BEFORE:  ypset ypbind ypserv ypxfrd
-
 name="nisdomain"
 description="Set NIS domain name"
 
