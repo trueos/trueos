@@ -29,6 +29,7 @@ OPENRC_BOOT_LINK=	abi \
 			motd \
 			network \
 			newsyslog \
+			nisdomain \
 			root \
 			routing \
 			savecore \
