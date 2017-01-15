@@ -216,12 +216,10 @@ also menu-namespace also menu-command-helpers
 
 : verbose_enable ( -- )
 	s" set boot_verbose=YES" evaluate
-	s" boot_mute" unsetenv
 ;
 
 : verbose_disable ( -- )
 	s" boot_verbose" unsetenv
-	s" set boot_mute=YES" evaluate
 ;
 
 : init_verbose ( N -- N )
