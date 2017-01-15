@@ -9,7 +9,10 @@
 # This file may not be copied, modified, propagated, or distributed
 # except according to the terms contained in the LICENSE file.
 
+name="newsyslog"
 required_files="/etc/newsyslog.conf"
+command="/usr/sbin/${name}"
+
 
 depend()
 {
@@ -21,6 +24,7 @@ depend()
 start()
 {
 	ebegin "Creating and/or trimming log files"
+	${command} ${newsyslog_flags}
 	newsyslog -CCN
 	eend $?
 }
