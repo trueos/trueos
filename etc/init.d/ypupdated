@@ -1,4 +1,4 @@
-#!/bin/openrc-run
+#!/sbin/openrc-run
 #
 # $FreeBSD$
 #
