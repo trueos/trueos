@@ -62,14 +62,6 @@
 
 #define TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
 
-
-/*
- * A task_struct is only provided for those tasks created with kthread.
- * Using these routines with threads not started via kthread will cause
- * panics because no task_struct is allocated and td_retval[1] is
- * overwritten by syscalls which kernel threads will not make use of.
- */
-
 #define	current			task_struct_get(curthread)
 #define	task_struct_get(x)	((struct task_struct *)(uintptr_t)(x)->td_lkpi_task)
 
