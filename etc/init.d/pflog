@@ -11,8 +11,11 @@
 
 name="pflog"
 description="Packet filter logging interface"
-command="/sbin/pflogd"
+: ${pflog_dev:="pflog0"}
 : ${pidfile:="/var/run/pflogd.pid"}
+: ${pflog_logfile:="/var/log/pflog"}
+: ${pflog_flags:=""}
+export pflog_dev pflog_logfile pidfile pflog_flags
 
 extra_started_commands="reload resync"
 
@@ -24,127 +27,114 @@ depend()
     keyword -jail
 }
 
-config_instance()
+execution_sequence()
 {
-	# Set required variables
-	eval pflog_dev=\$pflog_${instance}_dev
-	eval pflog_logfile=\$pflog_${instance}_logfile
-	eval pflog_flags=\$pflog_${instance}_flags
-	# Check that required vars have non-zero length, warn if not.
-	if [ -z ${pflog_dev} ]; then
-		ewarn "pflog_dev not set"
-		continue
-	fi
-	if [ -z ${pflog_logfile} ]; then
-		ewarn "pflog_logfile not set"
-		continue
-	fi
+    # Check if spawning multiple pflogd and not told what to spawn
+    if [ "${pflog_instances}" ] && [ -n "${pflog_instances}" ]; then
+        # Interate through requested instances.
+        for instance in ${pflog_instances}; do
+            # Set required variables
+            eval pflog_dev=\$pflog_${instance}_dev
+            eval pflog_logfile=\$pflog_${instance}_logfile
+            eval pflog_flags=\$pflog_${instance}_flags
+            # Check that required vars have non-zero length, warn if not.
+            if [ -z ${pflog_dev} ]; then
+                ewarn "pflog_dev not set"
+                continue
+            fi
+            if [ -z ${pflog_logfile} ]; then
+                ewarn "pflog_logfile not set"
+                continue
+            fi
 
-	# Provide a unique pidfile name for pflogd -p <pidfile> flag
-	pidfile="/var/run/pflogd.${instance}.pid"
+            # Provide a unique pidfile name for pflogd -p <pidfile> flag
+            pidfile="/var/run/pflogd.${instance}.pid"
+            export pflog_dev pflog_logfile pidfile pflog_flags
+            if [ "${RC_CMD}" = "stop" -o "${RC_CMD}" = "restart" ]; then
+                if ! ifconfig ${pflog_dev} down; then
+                    ewarn "could not bring down ${pflog_dev}."
+                    return 1
+                fi
 
-	return 0
-}
+                kill `cat ${pidfile}`
+                rm ${pidfile}
+            fi
+            if [ "${RC_CMD}" = "start" -o "${RC_CMD}" = "restart" ]; then
+                pflog_prestart
+                # veinfo "Invoking /sbin/pflogd ${command_flags}"
+                /sbin/pflogd ${command_flags}
+            fi
+        done
+    else
+        # Typical case, spawn single instance only.
+        if [ "${RC_CMD}" = "stop" -o "${RC_CMD}" = "restart" ]; then
+            if ! ifconfig ${pflog_dev} down; then
+                ewarn "could not bring down ${pflog_dev}."
+                return 1
+            fi
 
-pflog_prestart()
-{
-	load_kld pflog 2>/dev/null || return 1
-	if ! ifconfig ${pflog_dev} > /dev/null 2>&1; then
-		if ! ifconfig ${pflog_dev} create; then
-			ewarn "could not create ${pflog_dev}."
-			return 1
-		fi
-	fi
-
-	# set pflog_dev interface to up state
-	if ! ifconfig ${pflog_dev} up; then
-		ewarn "could not bring up ${pflog_dev}."
-		return 1
-	fi
-
-	# -p flag requires stripping pidfile's leading /var/run and trailing .pid
-	pidfile=$(echo ${pidfile} | sed -e 's|/var/run/||' -e 's|.pid$||')
-
-	# prepare the command line for pflogd
-	command_args="-p ${pidfile} -f ${pflog_logfile} -i ${pflog_dev} ${pflog_flags}"
-
-	# report we're ready to run pflogd
-	return 0
+            kill `cat ${pidfile}`
+            rm ${pidfile}
+        fi
+        if [ "${RC_CMD}" = "start" -o "${RC_CMD}" = "restart" ]; then
+            pflog_prestart
+            # veinfo "Invoking /sbin/pflogd ${command_flags}"
+            /sbin/pflogd ${command_flags}
+        fi
+    fi
+    if [ "${RC_CMD}" = "stop" ]; then
+        kldunload pflog 2>/dev/null
+    fi
+    return 0
 }
 
 start()
 {
-	ebegin "Starting ${name}"
-	# Check if spawning multiple pflogd and not told what to spawn
-	if [ "${pflog_instances}" ] && [ -n "${pflog_instances}" ]; then
-		# Interate through requested instances.
-		for instance in ${pflog_instances}; do
-			config_instance
-			pflog_prestart
-			${command} ${command_args}
-		done
-	else
-		# Typical case, spawn single instance only.
-		pflog_dev=${pflog_dev:-"pflog0"}
-		pflog_prestart
-		${command} ${command_args}
-	fi
-	eend $?
-}
-
-pflog_poststop()
-{
-	if ! ifconfig ${pflog_dev} down; then
-		ewarn "could not bring down ${pflog_dev}."
-		return 1
-	fi
-
-	if [ "${pflog_instances}" ] && [ -n "${pflog_instances}" ]; then
-		rm ${pidfile}
-	fi
-
-	return 0
+    ebegin "Starting ${name}"
+        execution_sequence
+    eend $?
 }
 
 stop()
 {
-	ebegin "Stopping ${name}"
-	# Check if spawning multiple pflogd and not told what to spawn
-	if [ "${pflog_instances}" ] && [ -n "${pflog_instances}" ]; then
-		# Interate through requested instances.
-		for instance in ${pflog_instances}; do
-			config_instance
-			${command} ${command_args}
-			pflog_poststop
-		done
-	else
-		# Typical case, spawn single instance only.
-		pflog_dev=${pflog_dev:-"pflog0"}
-		${command} ${command_args}
-		pflog_poststop
-	fi
-	eend $?
+    ebegin "Stopping ${name}"
+        execution_sequence
+    eend $?
 }
 
 reload()
 {
-	ebegin "Reloading ${name}"
-	# Check if spawning multiple pflogd and not told what to spawn
-	if [ "${pflog_instances}" ] && [ -n "${pflog_instances}" ]; then
-		# Interate through requested instances.
-		for instance in ${pflog_instances}; do
-			config_instance
-			${command} ${command_args}
-		done
-	else
-		# Typical case, spawn single instance only.
-		pflog_dev=${pflog_dev:-"pflog0"}
-		${command} ${command_args}
-	fi
-	eend $?
+    ewarn "This is a no-op"
 }
 
 resync()
 {
-	reload
+    reload
+}
+
+pflog_prestart()
+{
+    load_kld pflog 2>/dev/null || return 1
+    if ! ifconfig ${pflog_dev} > /dev/null 2>&1; then
+        if ! ifconfig ${pflog_dev} create; then
+            ewarn "could not create ${pflog_dev}."
+            return 1
+        fi
+    fi
+
+    # set pflog_dev interface to up state
+    if ! ifconfig ${pflog_dev} up; then
+        ewarn "could not bring up ${pflog_dev}."
+        return 1
+    fi
+
+    # -p flag requires stripping pidfile's leading /var/run and trailing .pid
+    pidfile_base=$(echo ${pidfile} | sed -e 's|/var/run/||' -e 's|.pid$||')
+
+    # prepare the command line for pflogd
+    command_flags="-p ${pidfile_base} -f ${pflog_logfile} -i ${pflog_dev} ${pflog_flags}"
+    export command_flags
+
+    # report we're ready to run pflogd
+    return 0
 }
