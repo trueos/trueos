@@ -1,0 +1,150 @@
+#!/sbin/openrc-run
+# Copyright (c) 2007-2015 The OpenRC Authors.
+# See the Authors file at the top-level directory of this distribution and
+# https://github.com/OpenRC/openrc/blob/master/AUTHORS
+#
+# This file is part of OpenRC. It is subject to the license terms in
+# the LICENSE file found in the top-level directory of this
+# distribution and at https://github.com/OpenRC/openrc/blob/master/LICENSE
+# This file may not be copied, modified, propagated, or distributed
+# except according to the terms contained in the LICENSE file.
+
+name="pflog"
+description="Packet filter logging interface"
+command="/sbin/pflogd"
+: ${pidfile:="/var/run/pflogd.pid"}
+
+extra_started_commands="reload resync"
+
+depend()
+{
+    provide pflog
+    need localmount network
+    before pf
+    keyword -jail
+}
+
+config_instance()
+{
+	# Set required variables
+	eval pflog_dev=\$pflog_${instance}_dev
+	eval pflog_logfile=\$pflog_${instance}_logfile
+	eval pflog_flags=\$pflog_${instance}_flags
+	# Check that required vars have non-zero length, warn if not.
+	if [ -z ${pflog_dev} ]; then
+		ewarn "pflog_dev not set"
+		continue
+	fi
+	if [ -z ${pflog_logfile} ]; then
+		ewarn "pflog_logfile not set"
+		continue
+	fi
+
+	# Provide a unique pidfile name for pflogd -p <pidfile> flag
+	pidfile="/var/run/pflogd.${instance}.pid"
+
+	return 0
+}
+
+pflog_prestart()
+{
+	load_kld pflog 2>/dev/null || return 1
+	if ! ifconfig ${pflog_dev} > /dev/null 2>&1; then
+		if ! ifconfig ${pflog_dev} create; then
+			ewarn "could not create ${pflog_dev}."
+			return 1
+		fi
+	fi
+
+	# set pflog_dev interface to up state
+	if ! ifconfig ${pflog_dev} up; then
+		ewarn "could not bring up ${pflog_dev}."
+		return 1
+	fi
+
+	# -p flag requires stripping pidfile's leading /var/run and trailing .pid
+	pidfile=$(echo ${pidfile} | sed -e 's|/var/run/||' -e 's|.pid$||')
+
+	# prepare the command line for pflogd
+	command_args="-p ${pidfile} -f ${pflog_logfile} -i ${pflog_dev} ${pflog_flags}"
+
+	# report we're ready to run pflogd
+	return 0
+}
+
+start()
+{
+	ebegin "Starting ${name}"
+	# Check if spawning multiple pflogd and not told what to spawn
+	if [ "${pflog_instances}" ] && [ -n "${pflog_instances}" ]; then
+		# Interate through requested instances.
+		for instance in ${pflog_instances}; do
+			config_instance
+			pflog_prestart
+			${command} ${command_args}
+		done
+	else
+		# Typical case, spawn single instance only.
+		pflog_dev=${pflog_dev:-"pflog0"}
+		pflog_prestart
+		${command} ${command_args}
+	fi
+	eend $?
+}
+
+pflog_poststop()
+{
+	if ! ifconfig ${pflog_dev} down; then
+		ewarn "could not bring down ${pflog_dev}."
+		return 1
+	fi
+
+	if [ "${pflog_instances}" ] && [ -n "${pflog_instances}" ]; then
+		rm ${pidfile}
+	fi
+
+	return 0
+}
+
+stop()
+{
+	ebegin "Stopping ${name}"
+	# Check if spawning multiple pflogd and not told what to spawn
+	if [ "${pflog_instances}" ] && [ -n "${pflog_instances}" ]; then
+		# Interate through requested instances.
+		for instance in ${pflog_instances}; do
+			config_instance
+			${command} ${command_args}
+			pflog_poststop
+		done
+	else
+		# Typical case, spawn single instance only.
+		pflog_dev=${pflog_dev:-"pflog0"}
+		${command} ${command_args}
+		pflog_poststop
+	fi
+	eend $?
+}
+
+reload()
+{
+	ebegin "Reloading ${name}"
+	# Check if spawning multiple pflogd and not told what to spawn
+	if [ "${pflog_instances}" ] && [ -n "${pflog_instances}" ]; then
+		# Interate through requested instances.
+		for instance in ${pflog_instances}; do
+			config_instance
+			${command} ${command_args}
+		done
+	else
+		# Typical case, spawn single instance only.
+		pflog_dev=${pflog_dev:-"pflog0"}
+		${command} ${command_args}
+	fi
+	eend $?
+}
+
+resync()
+{
+	reload
+}
