@@ -257,7 +257,7 @@ tmpfs_mount(struct mount *mp)
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
+	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
 
 	mp->mnt_data = tmp;
@@ -397,7 +397,7 @@ tmpfs_statfs(struct mount *mp, struct statfs *sbp)
 	sbp->f_bsize = PAGE_SIZE;
 
 	used = tmpfs_pages_used(tmp);
-	if (tmp->tm_pages_max != SIZE_MAX)
+	if (tmp->tm_pages_max != ULONG_MAX)
 		 sbp->f_blocks = tmp->tm_pages_max;
 	else
 		 sbp->f_blocks = used + tmpfs_mem_avail();
