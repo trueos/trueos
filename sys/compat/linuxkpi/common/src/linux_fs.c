@@ -289,8 +289,9 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 
 	object = as;
 	VM_OBJECT_WLOCK(object);
-	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL);
+	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
 	if (page->valid != VM_PAGE_BITS_ALL) {
+		vm_page_xbusy(page);
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
 			rv = vm_pager_get_pages(object, &page, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
@@ -305,13 +306,12 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 			page->valid = VM_PAGE_BITS_ALL;
 			page->dirty = 0;
 		}
+		vm_page_xunbusy(page);
 	}
 	vm_page_lock(page);
 	vm_page_wire(page);
 	vm_page_unlock(page);
-	vm_page_xunbusy(page);
 	VM_OBJECT_WUNLOCK(object);
-
 	return (page);
 }
 
@@ -408,8 +408,7 @@ __get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages, int w
 
 int
 __get_user_pages_fast(unsigned long start, int nr_pages, int write,
-			  struct page **pages)
-
+    struct page **pages)
 {
 	vm_map_t map;
 	vm_page_t *mp;
@@ -429,7 +428,8 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	prot = VM_PROT_READ;
 	if (write)
 		prot |= VM_PROT_WRITE;
-	for (count= 0, mp = pages, va = start; va < end; mp++, va += PAGE_SIZE, count++) {
+	for (count = 0, mp = pages, va = start; va < end;
+	    mp++, va += PAGE_SIZE, count++) {
 		*mp = pmap_extract_and_hold(map->pmap, va, prot);
 		if (*mp == NULL)
 			break;
@@ -458,32 +458,29 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 
 long
 get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
-		      unsigned long start, unsigned long nr_pages,
-		      int gup_flags, struct page **pages,
-		      struct vm_area_struct **vmas)
+    unsigned long start, unsigned long nr_pages, int gup_flags,
+    struct page **pages, struct vm_area_struct **vmas)
 {
 	vm_map_t map;
 
 	map = &tsk->task_thread->td_proc->p_vmspace->vm_map;
-	return (__get_user_pages_internal(map, start, nr_pages, !!(gup_flags & FOLL_WRITE), pages));
+	return (__get_user_pages_internal(map, start, nr_pages,
+	    !!(gup_flags & FOLL_WRITE), pages));
 }
 
 long
-get_user_pages(unsigned long start, unsigned long nr_pages,
-		int gup_flags, struct page **pages,
-		    struct vm_area_struct **vmas)
+get_user_pages(unsigned long start, unsigned long nr_pages, int gup_flags,
+    struct page **pages, struct vm_area_struct **vmas)
 {
 	vm_map_t map;
 
 	map = &curthread->td_proc->p_vmspace->vm_map;
-	return (__get_user_pages_internal(map, start, nr_pages, !!(gup_flags & FOLL_WRITE), pages));
+	return (__get_user_pages_internal(map, start, nr_pages,
+	    !!(gup_flags & FOLL_WRITE), pages));
 }
-
-
 
 #include <sys/mount.h>
 #include <fs/pseudofs/pseudofs.h>
-
 
 static int
 linpseudofs_init(PFS_INIT_ARGS)
@@ -498,5 +495,3 @@ linpseudofs_uninit(PFS_INIT_ARGS)
 }
 
 PSEUDOFS(linpseudofs, 1, PR_ALLOW_MOUNT);
-
-
