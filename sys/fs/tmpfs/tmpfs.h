@@ -199,7 +199,9 @@ struct tmpfs_node {
 	 * allocated for it or it has been reclaimed). */
 	struct vnode *		tn_vnode;
 
-	/* interlock to protect tn_vpstate */
+	/* Interlock to protect tn_vpstate, and tn_status under shared
+	 * vnode lock.
+	 */
 	struct mtx	tn_interlock;
 
 	/* Identify if current node has vnode assiocate with
@@ -310,12 +312,12 @@ struct tmpfs_mount {
 	/* Maximum number of memory pages available for use by the file
 	 * system, set during mount time.  This variable must never be
 	 * used directly as it may be bigger than the current amount of
-	 * free memory; in the extreme case, it will hold the SIZE_MAX
+	 * free memory; in the extreme case, it will hold the ULONG_MAX
 	 * value. */
-	size_t			tm_pages_max;
+	u_long			tm_pages_max;
 
 	/* Number of pages in use by the file system. */
-	size_t			tm_pages_used;
+	u_long			tm_pages_used;
 
 	/* Pointer to the node representing the root directory of this
 	 * file system. */
@@ -420,6 +422,7 @@ int	tmpfs_chtimes(struct vnode *, struct vattr *, struct ucred *cred,
 void	tmpfs_itimes(struct vnode *, const struct timespec *,
 	    const struct timespec *);
 
+void	tmpfs_set_status(struct tmpfs_node *node, int status);
 void	tmpfs_update(struct vnode *);
 int	tmpfs_truncate(struct vnode *, off_t);
 
