@@ -327,6 +327,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
 					pgoff_t start, pgoff_t end);
 
 struct page *shmem_read_mapping_page_gfp(struct address_space *as, int idx, gfp_t gfp);
+
 static inline struct page *
 shmem_read_mapping_page(struct address_space *as, int idx)
 {

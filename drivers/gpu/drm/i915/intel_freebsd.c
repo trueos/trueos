@@ -206,9 +206,9 @@ i915_locks_destroy(struct drm_i915_private *dev_priv)
  *
  *  Note: this is only safe if the mm semaphore is held when called.
  */
-int remap_io_mapping(struct vm_area_struct *vma,
-		     unsigned long addr, unsigned long pfn, unsigned long size,
-		     struct io_mapping *iomap)
+int
+remap_io_mapping(struct vm_area_struct *vma, unsigned long addr,
+    unsigned long pfn, unsigned long size, struct io_mapping *iomap)
 {
 	vm_page_t m;
 	vm_object_t vm_obj;

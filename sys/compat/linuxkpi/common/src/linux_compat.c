@@ -560,9 +560,7 @@ linux_file_dtor(void *cdp)
 }
 
 
-#define PFN_TO_VM_PAGE(pfn) PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT)
-
-#ifdef old
+#if 0
 static inline vm_map_entry_t
 vm_map_find_object_entry(vm_map_t map, vm_object_t obj)
 {
@@ -680,11 +678,9 @@ err:
 }
 #endif
 
-
 static int
 linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
-			  vm_prot_t max_prot, vm_pindex_t *first,
-			  vm_pindex_t *last)
+    vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
 {
 	struct vm_fault vmf;
 	struct vm_area_struct cvma, *vmap;

@@ -135,7 +135,7 @@ debugfs_create_file(const char *name, umode_t mode,
 	struct pfs_node *pnode;
 	int flags;
 
-	dm = malloc(sizeof(struct dentry_meta), M_DFSINT, M_NOWAIT|M_ZERO);
+	dm = malloc(sizeof(*dm), M_DFSINT, M_NOWAIT | M_ZERO);
 	if (dm == NULL)
 		return (NULL);
 	dnode = &dm->dm_dnode;
@@ -148,7 +148,8 @@ debugfs_create_file(const char *name, umode_t mode,
 		pnode = debugfs_root;
 	
 	flags = fops->write ? PFS_RDWR : PFS_RD;
-	dnode->d_pfs_node  = pfs_create_file(pnode, name, debugfs_fill, debugfs_attr, NULL, debugfs_destroy, flags);
+	dnode->d_pfs_node = pfs_create_file(pnode, name, debugfs_fill,
+	    debugfs_attr, NULL, debugfs_destroy, flags);
 	dnode->d_pfs_node->pn_data = dm;
 
 	return (dnode);

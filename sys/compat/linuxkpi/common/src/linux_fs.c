@@ -280,7 +280,6 @@ default_llseek(struct file *file, loff_t offset, int whence)
 	return (0);
 }
 
-
 struct page *
 shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 {
