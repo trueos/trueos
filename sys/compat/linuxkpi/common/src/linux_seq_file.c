@@ -1,7 +1,6 @@
 #include <linux/seq_file.h>
 #include <linux/seq_file.h>
 
-
 ssize_t
 linux_seq_read(struct file *f, char __user *ubuf, size_t size, loff_t *ppos)
 {
@@ -24,7 +23,6 @@ seq_write(struct seq_file *seq, const void *data, size_t len)
 	return (sbuf_bcpy(seq->buf, data, len));
 }
 
-
 /*
  * This only needs to be a valid address for lkpi 
  * drivers it should never actually be called
@@ -36,22 +34,23 @@ seq_lseek(struct file *file, loff_t offset, int whence)
 	return (0);
 }
 
-
-static void *single_start(struct seq_file *p, loff_t *pos)
+static void *
+single_start(struct seq_file *p, loff_t *pos)
 {
 	return NULL + (*pos == 0);
 }
 
-static void *single_next(struct seq_file *p, void *v, loff_t *pos)
+static void *
+single_next(struct seq_file *p, void *v, loff_t *pos)
 {
 	++*pos;
 	return NULL;
 }
 
-static void single_stop(struct seq_file *p, void *v)
+static void
+single_stop(struct seq_file *p, void *v)
 {
 }
-
 
 static int
 seq_open(struct file *f, const struct seq_operations *op)
@@ -95,7 +94,9 @@ single_open(struct file *f, int (*show)(struct seq_file *, void *), void *d)
 static int
 seq_release(struct inode *inode, struct file *file)
 {
-	struct seq_file *m = file->private_data;
+	struct seq_file *m;
+
+	m = file->private_data;
 	kfree(m);
 	return (0);
 }

@@ -78,7 +78,7 @@ mount_pseudo(struct file_system_type *fs_type, char *name,
 void
 kill_anon_super(struct super_block *sb)
 {
-	UNIMPLEMENTED();	
+	UNIMPLEMENTED();
 }
 
 
@@ -135,15 +135,14 @@ simple_read_from_buffer(void __user *to, size_t count,
 	if ((int64_t)pos < 0)
 		return (-EINVAL);
 	if (pos >= available || !count)
-		return 0;
+		return (0);
 	if (count > available - pos)
 		count = available - pos;
-	ret = copy_to_user(to, from + pos, count);
-	if (ret == count)
+	ret = copyout(from, to + pos, count);
+	if (ret != 0)
 		return (-EFAULT);
-	count -= ret;
 	*ppos = pos + count;
-	return (count);
+	return (0);
 }
 
 ssize_t
@@ -156,15 +155,14 @@ simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 	if ((int64_t)pos < 0)
 		return (-EINVAL);
 	if (pos >= available || !count)
-		return 0;
+		return (0);
 	if (count > available - pos)
 		count = available - pos;
-	res = copy_from_user(to + pos, from, count);
-	if (res == count)
+	res = copyin(from, to + pos, count);
+	if (res != 0)
 		return (-EFAULT);
-	count -= res;
 	*ppos = pos + count;
-	return (count);	
+	return (0);
 }
 
 int
@@ -197,11 +195,10 @@ simple_attr_release(struct inode *inode, struct file *file)
 }
 
 ssize_t
-simple_attr_read(struct file *file, char __user *buf,
-			 size_t len, loff_t *ppos)
+simple_attr_read(struct file *file, char __user *buf, size_t len, loff_t *ppos)
 {
+	struct sbuf *sb;
 	struct simple_attr *attr;
-	size_t size;
 	ssize_t ret;
 
 	attr = file->private_data;
@@ -213,32 +210,25 @@ simple_attr_read(struct file *file, char __user *buf,
 	if (ret)
 		return ret;
 
-	if (*ppos)
-		size = strlen(attr->get_buf);
-	else {
+	sb = attr->sb;
+	if (*ppos == 0) {
 		u64 val;
 		ret = attr->get(attr->data, &val);
 		if (ret)
 			goto out;
-
-		size = scnprintf(attr->get_buf, sizeof(attr->get_buf),
-				 attr->fmt, (unsigned long long)val);
+		(void)sbuf_printf(sb, attr->fmt, (unsigned long long)val);
 	}
-
-	ret = simple_read_from_buffer(buf, len, ppos, attr->get_buf, size);
 out:
 	mutex_unlock(&attr->mutex);
 	return ret;
 }
 
-
 ssize_t
-simple_attr_write(struct file *file, const char __user *buf,
-		  size_t len, loff_t *ppos)
+simple_attr_write(struct file *file, const char *buf, size_t len, loff_t *ppos)
 {
+	struct sbuf *sb;
 	struct simple_attr *attr;
 	u64 val;
-	size_t size;
 	ssize_t ret;
 
 	attr = file->private_data;
@@ -249,17 +239,10 @@ simple_attr_write(struct file *file, const char __user *buf,
 	if (ret)
 		return ret;
 
-	ret = -EFAULT;
-	size = min(sizeof(attr->set_buf) - 1, len);
-	if (copy_from_user(attr->set_buf, buf, size))
-		goto out;
-
-	attr->set_buf[size] = '\0';
-	val = simple_strtoll(attr->set_buf, NULL, 0);
+	sb = attr->sb;
+	(void)sbuf_finish(sb);
+	val = simple_strtoll(sbuf_data(sb), NULL, 0);
 	ret = attr->set(attr->data, val);
-	if (ret == 0)
-		ret = len; /* on success, claim we got the whole input */
-out:
 	mutex_unlock(&attr->mutex);
 	return (ret);
 }

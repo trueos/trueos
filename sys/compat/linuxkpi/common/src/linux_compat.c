@@ -534,9 +534,9 @@ linux_alloc_current(int flags)
 	struct thread *td;
 
 	td = curthread;
-	MPASS(__predict_true(td->td_lkpi_task == NULL));
+	MPASS(td->td_lkpi_task == NULL);
 
-	if ((t = malloc(sizeof(*t), M_LCINT, flags|M_ZERO)) == NULL)
+	if ((t = malloc(sizeof(*t), M_LCINT, flags | M_ZERO)) == NULL)
 		return (ENOMEM);
 	task_struct_fill(td, t);
 	mm = t->mm;
