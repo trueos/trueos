@@ -48,9 +48,10 @@ typedef struct {
 	struct mtx m;
 } spinlock_t;
 
-
 #define	spin_lock(_l)		lkpi_mtx_lock(&(_l)->m)
+#define	spin_lock_bh(_l)	spin_lock(_l)
 #define	spin_unlock(_l)		lkpi_mtx_unlock(&(_l)->m)
+#define	spin_unlock_bh(_l)	spin_unlock(_l)
 #define	spin_trylock(_l)	mtx_trylock(&(_l)->m)
 #define	spin_lock_nested(_l, _n) mtx_lock_flags(&(_l)->m, MTX_DUPOK)
 
@@ -98,15 +99,11 @@ void	linux_mtx_sysinit(void *arg);
 	spinlock_t lock;						\
 	LINUX_MTX_SYSINIT(lock, &(lock).m, #lock, 0)
 
-
 static inline void
 assert_spin_locked(spinlock_t *lock)
 {
 	mtx_assert(&lock->m, MA_OWNED);
 }
-
-#define spin_lock_bh(lock) _spin_lock_bh((lock), __FILE__, __LINE__)
-
 
 #define	spin_lock_irq(_l)	lkpi_mtx_lock_spin(&(_l)->m)
 #define	spin_unlock_irq(_l)	lkpi_mtx_unlock_spin(&(_l)->m)
@@ -124,16 +121,4 @@ assert_spin_locked(spinlock_t *lock)
 		flags = 0;				\
 	} while (0)
 
-
-static inline void _spin_lock_bh(spinlock_t *lock, char *file, int line) {
-	critical_enter();
-	spin_lock(lock);
-}
-static inline void spin_unlock_bh(spinlock_t *lock) {
-	spin_unlock(lock);
-	critical_exit();
-}
-
-
-
-#endif	/* _LINUX_SPINLOCK_H_ */
+#endif /* _LINUX_SPINLOCK_H_ */

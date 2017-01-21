@@ -197,7 +197,7 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 	return i;
 }
 
-#define	irqs_disabled() (curthread->td_critnest >= 1)
+#define	irqs_disabled() (curthread->td_critnest != 0 || curthread->td_intr_nesting_level != 0)
 
 
 /*

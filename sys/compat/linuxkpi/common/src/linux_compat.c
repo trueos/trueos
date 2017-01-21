@@ -699,7 +699,6 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 	linux_set_current();
 
 	vmap = linux_cdev_handle_find(vm_obj->handle);
-	vm_object_pip_add(vm_obj, 1);
 	vmf.virtual_address = (void *)(pidx << PAGE_SHIFT);
 	vmf.flags = (fault_type & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
 	memcpy(&cvma, vmap, sizeof(*vmap));
@@ -727,8 +726,8 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 	 * found in the object, it will simply xbusy the first
 	 * page and return with vm_pfn_count set to 1.
 	 */
-	*first = pidx;
-	*last = pidx + cvma.vm_pfn_count - 1;
+	*first = cvma.vm_pfn_first;
+	*last = *first + cvma.vm_pfn_count - 1;
 err:
 	switch (err) {
 	case VM_FAULT_OOM:
@@ -744,7 +743,6 @@ err:
 		panic("unexpected error %d\n", err);
 		rc = VM_PAGER_ERROR;
 	}
-	vm_object_pip_wakeup(vm_obj);
 	return (rc);
 }
 
@@ -1273,7 +1271,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 				linux_cdev_handle_insert(vma.vm_private_data, &vma, sizeof(struct vm_area_struct));
 				*object = cdev_pager_allocate(vma.vm_private_data, OBJT_MGTDEVICE,
 							      &linux_cdev_pager_ops, size, nprot,
-							      0, curthread->td_ucred);
+							      *offset, curthread->td_ucred);
 
 				if (*object == NULL)
 					linux_cdev_handle_remove(vma.vm_private_data);

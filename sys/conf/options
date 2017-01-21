@@ -412,6 +412,7 @@ BOOTP_NFSV3		opt_bootp.h
 BOOTP_WIRED_TO		opt_bootp.h
 DEVICE_POLLING
 DUMMYNET		opt_ipdn.h
+RATELIMIT		opt_ratelimit.h
 INET			opt_inet.h
 INET6			opt_inet6.h
 IPDIVERT
@@ -986,9 +987,6 @@ RANDOM_LOADABLE	opt_global.h
 # This turns on high-rate and potentially expensive harvesting in
 # the uma slab allocator.
 RANDOM_ENABLE_UMA	opt_global.h
-
-# Intel em(4) driver
-EM_MULTIQUEUE	opt_em.h
 
 # BHND(4) driver
 BHND_LOGLEVEL	opt_global.h
