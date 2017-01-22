@@ -48,11 +48,12 @@ typedef struct {
 	struct mtx m;
 } spinlock_t;
 
+
 #define	spin_lock(_l)		lkpi_mtx_lock(&(_l)->m)
 #define	spin_lock_bh(_l)	spin_lock(_l)
 #define	spin_unlock(_l)		lkpi_mtx_unlock(&(_l)->m)
 #define	spin_unlock_bh(_l)	spin_unlock(_l)
-#define	spin_trylock(_l)	mtx_trylock(&(_l)->m)
+#define	spin_trylock(_l)	lkpi_mtx_trylock(&(_l)->m)
 #define	spin_lock_nested(_l, _n) mtx_lock_flags(&(_l)->m, MTX_DUPOK)
 
 void	_linux_mtx_init(volatile uintptr_t *c, const char *name, const char *type,
