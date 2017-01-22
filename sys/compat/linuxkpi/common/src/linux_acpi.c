@@ -518,3 +518,12 @@ linux_acpi_match_device(struct acpi_device *device, const struct acpi_device_id 
 	}
 	return NULL;
 }
+
+#ifdef CONFIG_ACPI_SLEEP
+static u32 acpi_target_sleep_state = ACPI_STATE_S0;
+
+u32 acpi_target_system_state(void)
+{
+        return acpi_target_sleep_state;
+}
+#endif
