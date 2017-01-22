@@ -4,6 +4,6 @@
 #include <linux/linkage.h>
 #include <linux/list.h>
 
-#define in_interrupt() 	(curthread->td_intr_nesting_level)
+#define in_interrupt() 	(curthread->td_intr_nesting_level || curthread->td_critnest)
 
 #endif
