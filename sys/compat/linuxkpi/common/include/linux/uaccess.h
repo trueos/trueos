@@ -29,15 +29,17 @@
  *
  * $FreeBSD$
  */
+
 #ifndef	_LINUX_UACCESS_H_
 #define	_LINUX_UACCESS_H_
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+
 #include <linux/compiler.h>
 
 #define	VERIFY_READ	VM_PROT_READ
@@ -63,13 +65,8 @@ unsigned long clear_user(void *uptr, unsigned long len);
 extern int linux_copyin(const void *uaddr, void *kaddr, size_t len);
 extern int linux_copyout(const void *kaddr, void *uaddr, size_t len);
 
-static inline int
-access_ok(int rw, const void *addr, int len)
-{
-	if (len == 0)
-		return (TRUE);
-	return (useracc(__DECONST(void *, addr), len, rw));
-}
+extern int linux_access_ok(int rw, const void *addr, int len);
+#define	access_ok	linux_access_ok
 
 static inline void
 pagefault_disable(void)
@@ -89,6 +86,5 @@ pagefault_enable(void)
 }
 
 #define pagefault_disabled() (curthread->td_pflags & TDP_NOFAULTING)
-
 
 #endif	/* _LINUX_UACCESS_H_ */

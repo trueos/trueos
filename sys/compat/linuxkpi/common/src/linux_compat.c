@@ -1818,6 +1818,13 @@ list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 }
 
 int
+linux_access_ok(int rw, const void *addr, int len)
+{
+
+	return (len == 0 || (uintptr_t)addr <= VM_MAXUSER_ADDRESS);
+}
+
+int
 linux_irq_handler(void *ent)
 {
 	struct irq_ent *irqe;
