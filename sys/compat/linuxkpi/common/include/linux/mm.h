@@ -82,7 +82,7 @@ struct vm_area_struct {
 	pgprot_t	vm_page_prot;
 	unsigned long vm_flags;		/* Flags, see mm.h. */
 	struct mm_struct *vm_mm;	/* The address space we belong to. */
-	void * vm_private_data;		/* was vm_pte (shared mem) */
+	void *vm_private_data;		/* was vm_pte (shared mem) */
 	const struct vm_operations_struct *vm_ops;
 	struct linux_file *vm_file;
 

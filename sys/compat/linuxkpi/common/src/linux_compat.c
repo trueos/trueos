@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/smp.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/list.h>
 #include <linux/compat.h>
 #include <linux/poll.h>
 
@@ -543,7 +542,8 @@ linux_alloc_current(int flags)
 	init_rwsem(&mm->mmap_sem);
 	mm->mm_count.counter = 1;
 	mm->mm_users.counter = 1;
-	curthread->td_lkpi_task = t;
+	mm->vmspace = &td->td_proc->p_vmspace;
+	td->td_lkpi_task = t;
 	return (0);
 }
 
