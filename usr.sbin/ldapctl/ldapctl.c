@@ -21,6 +21,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/queue.h>
@@ -254,6 +255,7 @@ main(int argc, char *argv[])
 	struct sockaddr_un	 sun;
 	struct imsg		 imsg;
 	struct imsgbuf		 ibuf;
+	cap_rights_t		 rights;
 
 	log_init(1);
 
@@ -311,10 +313,9 @@ main(int argc, char *argv[])
 		if (parse_config(conffile) != 0)
 			exit(2);
 
-/*
-		if (pledge("stdio rpath wpath cpath flock", NULL) == -1)
-			err(1, "pledge");
-*/
+		/* pledge("stdio rpath wpath cpath flock", NULL) */
+		if (cap_enter() < 0 && errno != ENOSYS)
+			err(EXIT_FAILURE, "unable to enter capability mode");
 
 		if (action == COMPACT_DB)
 			return compact_namespaces(datadir);
@@ -335,10 +336,18 @@ main(int argc, char *argv[])
 	imsg_init(&ibuf, ctl_sock);
 	done = 0;
 
-/*
-	if (pledge("stdio", NULL) == -1)
-		err(1, "pledge");
-*/
+	/* pledge("stdio", NULL) */
+	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_IOCTL, CAP_READ);
+	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "cap_rights_limit");
+
+	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_IOCTL, CAP_WRITE);
+	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "cap_rights_limit");
+
+	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_IOCTL, CAP_WRITE);
+	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "cap_rights_limit");
 
 	/* process user request */
 	switch (action) {

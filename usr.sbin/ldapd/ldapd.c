@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/wait.h>
 
 #include <assert.h>
@@ -221,11 +222,9 @@ main(int argc, char *argv[])
 	imsgev_init(iev_ldape, pipe_parent2ldap[0], NULL, ldapd_imsgev,
 	    ldapd_needfd);
 
-	/*
-	if (pledge("stdio rpath wpath cpath getpw sendfd proc exec",
-	    NULL) == -1)
-		err(1, "pledge");
-	*/
+	/* pledge("stdio rpath wpath cpath getpw sendfd proc exec", NULL) */
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(EXIT_FAILURE, "unable to enter capability mode");
 
 	event_dispatch();
 
