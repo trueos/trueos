@@ -737,8 +737,8 @@ err:
 }
 
 struct list_head lcdev_handle_list;
+
 struct lcdev_handle_ref {
-	volatile int refcnt;
 	void *handle;
 	void *data;
 	struct list_head list;
@@ -754,23 +754,20 @@ linux_cdev_handle_insert(void *handle, void *data, int size)
 	rw_rlock(&linux_global_rw);
 	list_for_each(h, &lcdev_handle_list) {
 		r = __containerof(h, struct lcdev_handle_ref, list);
-		if (r->handle == handle)
-			break;
-	}
-	if (r && r->handle == handle) {
-		atomic_add_int(&r->refcnt, 1);
-		rw_runlock(&linux_global_rw);
-		return;
+		if (r->handle == handle) {
+			rw_runlock(&linux_global_rw);
+			return;
+		}
 	}
 	rw_runlock(&linux_global_rw);
 	r = lkpi_malloc(sizeof(struct lcdev_handle_ref), M_KMALLOC, M_WAITOK);
-	r->refcnt = 1;
 	r->handle = handle;
 	datap = lkpi_malloc(size, M_KMALLOC, M_WAITOK);
 	memcpy(datap, data, size);
 	r->data = datap;
-	INIT_LIST_HEAD(&r->list);
+	INIT_LIST_HEAD(&r->list); /* XXX why _HEAD? */
 	rw_wlock(&linux_global_rw);
+	/* XXX need to re-lookup */
 	list_add_tail(&r->list, &lcdev_handle_list);
 	rw_wunlock(&linux_global_rw);
 }
@@ -788,13 +785,10 @@ linux_cdev_handle_remove(void *handle)
 			break;
 	}
 	MPASS (r && r->handle == handle);
-	if (atomic_fetchadd_int(&r->refcnt, -1) == 0) {
-		list_del(&r->list);
-		rw_wunlock(&linux_global_rw);
-		lkpi_free(r->data, M_KMALLOC);
-		lkpi_free(r, M_KMALLOC);
-	} else
-		rw_wunlock(&linux_global_rw);
+	list_del(&r->list);
+	rw_wunlock(&linux_global_rw);
+	lkpi_free(r->data, M_KMALLOC);
+	lkpi_free(r, M_KMALLOC);
 }
 
 static void *
