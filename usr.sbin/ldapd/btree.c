@@ -26,6 +26,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -836,7 +837,7 @@ done:
 static int
 btree_write_header(struct btree *bt, int fd)
 {
-	//struct stat	 sb;
+	struct stat	 sb;
 	struct bt_head	*h;
 	struct page	*p;
 	ssize_t		 rc;
@@ -847,13 +848,11 @@ btree_write_header(struct btree *bt, int fd)
 
 	/* Ask stat for 'optimal blocksize for I/O'.
 	 */
-	/*
-	if (fstat(fd, &sb) == 0)
-		psize = sb.st_blksize;
-	else
+	if (fstat(fd, &sb) == 0) {
+		if ((psize = sb.st_blksize) >= USHRT_MAX)
+			psize = PAGESIZE;
+	} else
 		psize = PAGESIZE;
-	*/
-	psize = PAGESIZE;
 
 	if ((p = calloc(1, psize)) == NULL)
 		return -1;
@@ -1857,12 +1856,6 @@ btree_new_page(struct btree *bt, uint32_t flags)
 	mp->page->flags = flags;
 	mp->page->lower = PAGEHDRSZ;
 	mp->page->upper = bt->head.psize;
-
-DPRINTF("xxx: PAGEHDRSZ = %lu", PAGEHDRSZ);
-DPRINTF("xxx: bt->head.psize = %u", bt->head.psize);
-
-DPRINTF("xxx: new_page: mp->page->lower = %u", mp->page->lower);
-DPRINTF("xxx: new_page: mp->page->upper = %u", mp->page->upper);
 
 	if (IS_BRANCH(mp))
 		bt->meta.branch_pages++;
@@ -2973,9 +2966,6 @@ DPRINTF("111: mp->page->upper = %u", mp->page->upper);
 	 */
 	xkey.data = key->data;
 	xkey.size = key->size;
-
-DPRINTF("xxx: mp->page->lower = %u", mp->page->lower);
-DPRINTF("xxx: mp->page->upper = %u", mp->page->upper);
 
 	if (SIZELEFT(mp) < bt_leaf_size(bt, key, data)) {
 		rc = btree_split(bt, &mp, &ki, &xkey, data, P_INVALID);
