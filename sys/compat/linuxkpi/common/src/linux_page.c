@@ -468,37 +468,88 @@ arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 	set_memory_wb(start, size >> PAGE_SHIFT);
 }
 
-
 /* look at actual flags e.g. GFP_KERNEL | GFP_DMA32 | __GFP_ZERO */
 vm_page_t
-alloc_page(gfp_t flags)
+linux_alloc_pages(gfp_t flags, unsigned int order)
 {
+	size_t size = ((size_t)PAGE_SIZE) << order;
+	int req = (flags & M_ZERO) ? (VM_ALLOC_ZERO | VM_ALLOC_NOOBJ |
+	    VM_ALLOC_NORMAL) : (VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL);
 	vm_page_t page;
-	int tries;
-	int req;
 
-	req = VM_ALLOC_ZERO | VM_ALLOC_NOOBJ;
-	tries = 0;
+	if (order == 0 && (flags & GFP_DMA32) == 0) {
+		page = vm_page_alloc(NULL, 0, req);
+		if (page == NULL)
+			return (NULL);
+	} else {
+		vm_paddr_t pmax = (flags & GFP_DMA32) ?
+		    0xFFFFFFFFUL : ~(vm_paddr_t)0;
 retry:
-	if (flags & GFP_DMA32) {
-		page = vm_page_alloc_contig(NULL, 0, req, 1, 0, 0xffffffff,
-					    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
+		page = vm_page_alloc_contig(NULL, 0, req,
+		    1, 0, pmax, size, 0, VM_MEMATTR_DEFAULT);
+
 		if (page == NULL) {
-			if (tries < 1) {
-				if (!vm_page_reclaim_contig(req, 1, 0, 0xffffffff,
-							    PAGE_SIZE, 0))
+			if (flags & M_WAITOK) {
+				if (!vm_page_reclaim_contig(req,
+				    1, 0, pmax, size, 0)) {
 					VM_WAIT;
-				tries++;
+				}
+				flags &= ~M_WAITOK;
 				goto retry;
 			}
 			return (NULL);
 		}
-	} else
-		page = vm_page_alloc(NULL, -1, req | VM_ALLOC_NORMAL);
+	}
+	if (flags & M_ZERO) {
+		size_t off;
 
-	if ((flags & __GFP_ZERO) && ((page->flags & PG_ZERO) == 0))
-		pmap_zero_page(page);
+		for (off = 0; off != size; off += PAGE_SIZE) {
+			vm_page_t pgo = page + (off >> PAGE_SHIFT);
+
+			if ((pgo->flags & PG_ZERO) == 0)
+				pmap_zero_page(pgo);
+		}
+	}
 	return (page);
+}
+
+void
+linux_free_pages(vm_page_t page, unsigned int order)
+{
+	size_t size = ((size_t)PAGE_SIZE) << order;
+	size_t off;
+
+	for (off = 0; off != size; off += PAGE_SIZE) {
+		vm_page_t pgo = page + (off >> PAGE_SHIFT);
+
+		vm_page_lock(pgo);
+		vm_page_free(pgo);
+		vm_page_unlock(pgo);
+	}
+}
+
+vm_offset_t
+linux_alloc_kmem(gfp_t flags, unsigned int order)
+{
+	size_t size = ((size_t)PAGE_SIZE) << order;
+	vm_offset_t addr;
+
+	if ((flags & GFP_DMA32) == 0) {
+		addr = kmem_malloc(kmem_arena, size, flags & GFP_NATIVE_MASK);
+	} else {
+		addr = kmem_alloc_contig(kmem_arena, size,
+		    flags & GFP_NATIVE_MASK, 0, 0xFFFFFFFFUL, size, 0,
+		    VM_MEMATTR_DEFAULT);
+	}
+	return (addr);
+}
+
+void
+linux_free_kmem(vm_offset_t addr, unsigned int order)
+{
+	size_t size = ((size_t)PAGE_SIZE) << order;
+
+	kmem_free(kmem_arena, addr, size);
 }
 
 vm_paddr_t

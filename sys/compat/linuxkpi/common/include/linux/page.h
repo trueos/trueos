@@ -124,8 +124,6 @@ page_count(vm_page_t page __unused)
 int set_pages_array_wb(struct page **pages, int addrinarray);
 int set_pages_array_uc(struct page **pages, int addrinarray);
 int set_pages_array_wc(struct page **pages, int addrinarray);
-vm_page_t alloc_page(gfp_t gfp);
-void __free_page(vm_page_t page);
 
 /* bump refcount */
 

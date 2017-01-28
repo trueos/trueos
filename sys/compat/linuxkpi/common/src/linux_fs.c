@@ -311,6 +311,7 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 	}
 	vm_page_lock(page);
 	vm_page_wire(page);
+	vm_page_hold(page);
 	vm_page_unlock(page);
 	VM_OBJECT_WUNLOCK(object);
 	return (page);
@@ -394,27 +395,25 @@ static int
 __get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages, int write,
 			  struct page **pages)
 {
-	int i, count, len;
 	vm_prot_t prot;
-	vm_page_t *mp;
+	size_t len;
+	int count;
+	int i;
 
-	prot = VM_PROT_READ;
-	if (write)
-		prot |= VM_PROT_WRITE;
-	len = nr_pages << PAGE_SHIFT;
+	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
+	len = ((size_t)nr_pages) << PAGE_SHIFT;
 	count = vm_fault_quick_hold_pages(map, start, len, prot, pages, nr_pages);
-	if (count > 0) {
-		mp = pages;
-		for (i = 0; i < count; i++, mp++) {
-			if ((*mp)->hold_count > 1) {
-				vm_page_lock(*mp);
-				MPASS((*mp)->hold_count == 2);
-				(*mp)->hold_count--;
-				vm_page_unlock(*mp);
-			}
-		}
+	if (count == -1)
+		return (-EFAULT);
+
+	for (i = 0; i != nr_pages; i++) {
+		struct page *pg = pages[i];
+
+		vm_page_lock(pg);
+		vm_page_wire(pg);
+		vm_page_unlock(pg);
 	}
-	return (count == -1 ? -EFAULT : count);
+	return (nr_pages);
 }
 
 int
@@ -423,9 +422,10 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 {
 	vm_map_t map;
 	vm_page_t *mp;
-	vm_offset_t va, end;
-	int count;
+	vm_offset_t va;
+	vm_offset_t end;
 	vm_prot_t prot;
+	int count;
 
 	if (nr_pages == 0 || in_interrupt())
 		return (0);
@@ -433,23 +433,20 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	MPASS(pages != NULL);
 	va = start;
 	map = &curthread->td_proc->p_vmspace->vm_map;
-	end = start + (nr_pages << PAGE_SHIFT);
+	end = start + (((size_t)nr_pages) << PAGE_SHIFT);
 	if (start < vm_map_min(map) ||  end > vm_map_max(map))
 		return (-EINVAL);
-	prot = VM_PROT_READ;
-	if (write)
-		prot |= VM_PROT_WRITE;
+	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
 	for (count = 0, mp = pages, va = start; va < end;
 	    mp++, va += PAGE_SIZE, count++) {
 		*mp = pmap_extract_and_hold(map->pmap, va, prot);
 		if (*mp == NULL)
 			break;
-		if ((*mp)->hold_count > 1) {
-			vm_page_lock(*mp);
-			MPASS((*mp)->hold_count == 2);
-			(*mp)->hold_count--;
-			vm_page_unlock(*mp);
-		}
+
+		vm_page_lock(*mp);
+		vm_page_wire(*mp);
+		vm_page_unlock(*mp);
+
 		if ((prot & VM_PROT_WRITE) != 0 &&
 		    (*mp)->dirty != VM_PAGE_BITS_ALL) {
 			/*
