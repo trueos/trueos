@@ -247,6 +247,7 @@ retry:
 			if (vm_page_insert(m, vm_obj, pidx)) {
 				VM_OBJECT_WUNLOCK(vm_obj);
 				VM_WAIT;
+				VM_OBJECT_WLOCK(vm_obj);
 				goto retry;
 			}
 			m->valid = VM_PAGE_BITS_ALL;
