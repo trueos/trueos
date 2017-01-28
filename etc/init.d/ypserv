@@ -1,7 +1,4 @@
 #!/sbin/openrc-run
-#
-# $FreeBSD$
-#
 
 name="ypserv"
 description="NIS database server"

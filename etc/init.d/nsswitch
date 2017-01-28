@@ -1,7 +1,4 @@
 #!/sbin/openrc-run
-#
-# $FreeBSD$
-#
 
 name="nsswitch"
 description="Name-service switch"

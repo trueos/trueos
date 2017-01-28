@@ -1,7 +1,4 @@
 #!/sbin/openrc-run
-#
-# $FreeBSD$
-#
 
 name="ypldap"
 description="NIS LDAP binding daemon"

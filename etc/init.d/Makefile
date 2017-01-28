@@ -12,11 +12,11 @@ FILES=          abi accounting adjkerntz amd auditd auditdistd automount automou
 	       	devd devfs dumpon encswap fsck ftpd \
 	       	gssd hostid hostname iscsictl iscsid ipfw jail \
 		ldconfig local localmount local_unbound lockd loopback hostapd \
-		mixer modules modules-load mountd moused motd \
+		mixer modules mountd moused motd \
 		natd netmount network newsyslog nfsclient nfsd nfsuserd nisdomain nsswitch \
-		nscd osclock pf pflog powerd rarpd rc-enabled root routing rpcbind runsvdir \
+		nscd pf pflog powerd rarpd rc-enabled root routing rpcbind runsvdir \
 		s6-svscan savecache savecore sendmail \
-		sshd statd staticroute swap swclock syscons sysctl syslogd tmpfiles.setup urandom \
+		sshd statd staticroute swap syscons sysctl syslogd tmpfiles.setup urandom \
 	       	ypbind ypldap yppasswdd ypserv ypset ypupdated ypxfrd \
 		zfs zvol
 FILESMODE=	755

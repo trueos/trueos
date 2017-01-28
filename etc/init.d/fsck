@@ -1,4 +1,5 @@
 #!/sbin/openrc-run
+# Copyright (c) 2016 - Kris Moore <kris@ixsystems.com>
 # Copyright (c) 2007-2015 The OpenRC Authors.
 # See the Authors file at the top-level directory of this distribution and
 # https://github.com/OpenRC/openrc/blob/master/AUTHORS
@@ -8,6 +9,7 @@
 # distribution and at https://github.com/OpenRC/openrc/blob/master/LICENSE
 # This file may not be copied, modified, propagated, or distributed
 # except according to the terms contained in the LICENSE file.
+#
 
 description="Check and repair filesystems according to /etc/fstab"
 _IFS="
@@ -16,7 +18,7 @@ _IFS="
 depend()
 {
 	use dev clock modules
-	keyword -docker -jail -lxc -openvz -prefix -systemd-nspawn -timeout -vserver -uml
+	keyword -jail -prefix -timeout -uml
 }
 
 _abort() {

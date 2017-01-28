@@ -1,7 +1,4 @@
 #!/sbin/openrc-run
-#
-# $FreeBSD$
-#
 
 name="ypxfrd"
 description="NIS map transfer server"

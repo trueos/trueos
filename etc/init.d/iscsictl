@@ -1,7 +1,4 @@
 #!/sbin/openrc-run
-#
-# $TrueOS$
-#
 
 name="iscsictl"
 command="/usr/bin/${name}"

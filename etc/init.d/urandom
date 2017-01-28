@@ -16,7 +16,7 @@ depend()
 {
 	need localmount
 	after root
-	keyword -docker -jail -lxc -openvz -prefix -systemd-nspawn
+	keyword -jail -prefix
 }
 
 save_seed()

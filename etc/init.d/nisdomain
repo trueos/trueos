@@ -1,7 +1,4 @@
 #!/sbin/openrc-run
-#
-# $FreeBSD$
-#
 
 name="nisdomain"
 description="Set NIS domain name"
