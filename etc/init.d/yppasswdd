@@ -1,7 +1,4 @@
 #!/sbin/openrc-run
-#
-# $FreeBSD$
-#
 
 name="yppasswdd"
 description="Server for updating NIS passwords"

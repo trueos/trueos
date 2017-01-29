@@ -27,6 +27,7 @@ LDIRS=	BSD_daemon \
 	ipfw \
 	jails \
 	kld \
+	ldapd \
 	libvgl \
 	mdoc \
 	netgraph \
@@ -102,6 +103,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	kld/syscall/module/syscall.c \
 	kld/syscall/test/Makefile \
 	kld/syscall/test/call.c \
+	ldapd/ldapd.conf \
 	libvgl/Makefile \
 	libvgl/demo.c \
 	mdoc/POSIX-copyright \

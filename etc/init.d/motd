@@ -1,7 +1,5 @@
 #!/sbin/openrc-run
 
-. /etc/rc.subr
-
 name="motd"
 desc="Update /etc/motd"
 rcvar="update_motd"

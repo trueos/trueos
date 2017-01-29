@@ -221,7 +221,7 @@ start()
 		if $logw || checkpath -W /var/log; then
 			# Create an 'after-boot' dmesg log
 			case "$RC_SYS" in
-				VSERVER|OPENVZ|LXC|SYSTEMD-NSPAWN) ;;
+				JAIL) ;;
 				*)
 					if yesno ${previous_dmesg:-no}; then
 						mv /var/log/dmesg /var/log/dmesg.old

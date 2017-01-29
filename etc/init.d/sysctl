@@ -12,7 +12,7 @@
 depend()
 {
 	before bootmisc logger
-	keyword -prefix -systemd-nspawn -vserver -jail
+	keyword -jail -prefix
 }
 
 BSD_sysctl()
@@ -36,14 +36,6 @@ BSD_sysctl()
 	return $retval
 }
 
-Linux_sysctl()
-{
-	local quiet
-	yesno $rc_verbose || quiet=-q
-
-	sysctl ${quiet} --system
-}
-
 start()
 {
 	local rc=0
@@ -51,7 +43,6 @@ start()
 	ebegin "Configuring kernel parameters"
 	case "$RC_UNAME" in
 	*BSD|GNU) BSD_sysctl; rc=$? ;;
-	Linux) Linux_sysctl; rc=$? ;;
 	esac
 	eend $rc "Unable to configure some kernel parameters"
 }
