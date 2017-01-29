@@ -383,11 +383,10 @@ invalidate_mapping_pages(vm_object_t obj, pgoff_t start, pgoff_t end)
 void
 shmem_truncate_range(struct vnode *vp, loff_t lstart, loff_t lend)
 {
-	vm_object_t vm_obj;
-	vm_pindex_t start = (lstart + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	vm_pindex_t end = (lend + 1) >> PAGE_SHIFT;
+	vm_object_t vm_obj = vp->i_mapping;
+	vm_pindex_t start = OFF_TO_IDX(lstart + PAGE_SIZE - 1);
+	vm_pindex_t end = OFF_TO_IDX(lend + 1);
 
-	vm_obj = vp->i_mapping;
 	(void)invalidate_mapping_pages(vm_obj, start, end);
 }
 
