@@ -18,7 +18,7 @@ FILES+=	hyperv.conf
 .endif
 
 .if ${MK_USB} != "no"
-FILES+=	uath.conf ulpt.conf usb.conf
+FILES+=	automount.conf uath.conf ulpt.conf usb.conf
 .endif
 
 .if ${MK_ZFS} != "no"
