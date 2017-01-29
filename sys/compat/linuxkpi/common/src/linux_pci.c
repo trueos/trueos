@@ -309,28 +309,35 @@ linux_pci_shutdown(device_t dev)
 	return (0);
 }
 
-int pci_default_suspend(struct pci_dev *dev,
+int
+pci_default_suspend(struct pci_dev *dev,
                         pm_message_t state __unused)
 {
-        int err;
+        int err = 0;
 
-        if(dev->pdrv->driver.pm->suspend != NULL)
+        if(dev->pdrv->driver.pm->suspend != NULL) {
                 err = -dev->pdrv->driver.pm->suspend(&(dev->dev));
-        else
-                err = 0;
+		if (err == 0 && dev->pdrv->driver.pm->suspend_late != NULL)
+			err = -dev->pdrv->driver.pm->suspend_late(&(dev->dev));
+	}
 
         return (err);
 }
 
-int pci_default_resume(struct pci_dev *dev)
+int
+pci_default_resume(struct pci_dev *dev)
 {
-        int err;
+        int err = 0;
 
+	if(dev->pdrv->driver.pm->resume_early != NULL )
+		if ((err = -dev->pdrv->driver.pm->resume_early(&(dev->dev)))) {
+			printf("resume early failed: %d\n", -err);
+			return (err);
+		}
         if(dev->pdrv->driver.pm->resume != NULL)
                 err = -dev->pdrv->driver.pm->resume(&(dev->dev));
-        else
-                err = 0;
-
+	if (err)
+		printf("resume failed: %d\n", -err);
         return (err);
 }
 

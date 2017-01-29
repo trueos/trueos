@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #define	ADAPTIVE_MUTEXES
 #endif
 
+#define in_interrupt() 	(curthread->td_intr_nesting_level || curthread->td_critnest)
 static void lkpi_interop_init(void *arg __unused);
 SYSINIT(lkpi_kern_mutex_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, lkpi_interop_init, NULL);
 
@@ -263,7 +264,8 @@ __lkpi_mtx_trylock_flags(volatile uintptr_t *c, int opts, const char *file, int 
 	if (rval) {
 		WITNESS_LOCK(&m->lock_object, opts | LOP_EXCLUSIVE | LOP_TRYLOCK,
 		    file, line);
-		TD_LOCKS_INC(curthread);
+		if (!in_interrupt())
+			TD_LOCKS_INC(curthread);
 		if (m->mtx_recurse == 0)
 			LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(adaptive__acquire,
 			    m, contested, waittime, file, line);

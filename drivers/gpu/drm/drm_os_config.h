@@ -24,6 +24,7 @@
 #if defined(__i386__) || defined(__amd64__)
 #define CONFIG_PCI 1
 #define	CONFIG_ACPI 1 
+#define	CONFIG_ACPI_SLEEP 1 
 #define	CONFIG_DRM_I915_KMS 1
 #undef	CONFIG_INTEL_IOMMU
 #endif

@@ -722,14 +722,18 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 	dst->page_count = num_pages;
 	while (num_pages--) {
+#ifdef __linux__
 		unsigned long flags;
+#endif
 		void *d;
 
 		d = kmalloc(PAGE_SIZE, GFP_ATOMIC);
 		if (d == NULL)
 			goto unwind;
 
+#ifdef __linux__
 		local_irq_save(flags);
+#endif
 		if (use_ggtt) {
 			void __iomem *s;
 
@@ -756,7 +760,9 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 
 			drm_clflush_pages(&page, 1);
 		}
+#ifdef __linux__
 		local_irq_restore(flags);
+#endif
 
 		dst->pages[i++] = d;
 		reloc_offset += PAGE_SIZE;
@@ -1207,6 +1213,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 				rcu_read_unlock();
 #else
 				struct thread *td = tdfind(pid, -1);
+				PROC_UNLOCK(td->td_proc);
 				if (td) {
 					strcpy(ee->comm, td->td_proc->p_comm);
 					ee->pid = td->td_proc->p_pid;
