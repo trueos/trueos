@@ -46,6 +46,8 @@ struct scatterlist {
 	dma_addr_t address;
 };
 
+CTASSERT((sizeof(struct scatterlist) & 0x3) == 0);
+
 struct sg_table {
 	struct scatterlist *sgl;
 	unsigned int nents;
