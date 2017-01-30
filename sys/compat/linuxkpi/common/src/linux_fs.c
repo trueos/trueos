@@ -350,18 +350,25 @@ alloc_anon_inode(struct super_block *s)
 	return (vp);
 }
 
-unsigned long
-invalidate_mapping_pages(vm_object_t obj, pgoff_t start, pgoff_t end)
+static vm_ooffset_t
+_invalidate_mapping_pages(vm_object_t obj, vm_pindex_t start, vm_pindex_t end,
+    int flags)
 {
 	int start_count, end_count;
 
 	VM_OBJECT_WLOCK(obj);
 	start_count = obj->resident_page_count;
-	vm_object_page_remove(obj, start, end, false);
+	vm_object_page_remove(obj, start, end, flags);
 	end_count = obj->resident_page_count;
 	VM_OBJECT_WUNLOCK(obj);
-
 	return (start_count - end_count);
+}
+
+unsigned long
+invalidate_mapping_pages(vm_object_t obj, pgoff_t start, pgoff_t end)
+{
+
+	return (_invalidate_mapping_pages(obj, start, end, OBJPR_CLEANONLY));
 }
 
 void
@@ -371,7 +378,7 @@ shmem_truncate_range(struct vnode *vp, loff_t lstart, loff_t lend)
 	vm_pindex_t start = OFF_TO_IDX(lstart + PAGE_SIZE - 1);
 	vm_pindex_t end = OFF_TO_IDX(lend + 1);
 
-	(void)invalidate_mapping_pages(vm_obj, start, end);
+	(void)_invalidate_mapping_pages(vm_obj, start, end, 0);
 }
 
 static int
