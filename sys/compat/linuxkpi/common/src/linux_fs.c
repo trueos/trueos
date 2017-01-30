@@ -428,7 +428,7 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	int count;
 	vm_prot_t prot;
 
-	if (nr_pages == 0)
+	if (nr_pages == 0 || in_interrupt())
 		return (0);
 
 	MPASS(pages != NULL);
