@@ -106,6 +106,7 @@ void
 simple_release_fs(struct vfsmount **mount, int *count)
 {
 	free(*mount, M_LKFS);
+	*mount = NULL;
 }
 
 int
