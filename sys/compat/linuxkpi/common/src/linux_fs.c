@@ -320,37 +320,48 @@ shmem_file_setup(char *name, int size, int flags)
 {
 	struct linux_file *filp;
 	struct vnode *vp;
+	int error;
 
-	if ((filp = malloc(sizeof(*filp), M_LKFS, M_NOWAIT|M_ZERO)) == NULL)
-		return (NULL);
+	filp = malloc(sizeof(*filp), M_LKFS, M_NOWAIT | M_ZERO);
+	if (filp == NULL) {
+		error = -ENOMEM;
+		goto err_0;
+	}
 
-	if (getnewvnode("LINUX", NULL, &dead_vnodeops, &vp))
+	error = -getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
+	if (error != 0)
 		goto err_1;
 
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_vnode = vp;
-	filp->f_mapping = file_inode(filp)->i_mapping = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
+	filp->f_mapping = file_inode(filp)->i_mapping =
+	    vm_pager_allocate(OBJT_DEFAULT, NULL, size,
 	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
 
-	if (file_inode(filp)->i_mapping == NULL)
+	if (file_inode(filp)->i_mapping == NULL) {
+		error = -ENOMEM;
 		goto err_2;
+	}
 
 	return (filp);
 err_2:
 	_vdrop(vp, 0);
 err_1:
 	free(filp, M_LKFS);
-	return (NULL);
+err_0:
+	return (ERR_PTR(error));
 }
-
 
 struct inode *
 alloc_anon_inode(struct super_block *s)
 {
 	struct vnode *vp;
+	int error;
 
-	if (getnewvnode("LINUX", NULL, &dead_vnodeops, &vp))
-		return (NULL);
+	error = -getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
+	if (error != 0)
+		return (ERR_PTR(error));
+
 	return (vp);
 }
 
