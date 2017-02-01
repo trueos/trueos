@@ -111,11 +111,6 @@ void kunmap(vm_page_t page);
 void kunmap_atomic(void *vaddr);
 void page_cache_release(vm_page_t page);
 
-void *acpi_os_ioremap(vm_paddr_t pa, vm_size_t size);
-
-
-extern void unmap_mapping_range(void *obj,
-				loff_t const holebegin, loff_t const holelen, int even_cows);
 extern void * iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
 
 void iounmap_atomic(void *vaddr);
