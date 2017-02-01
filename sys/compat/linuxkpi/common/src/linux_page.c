@@ -514,7 +514,7 @@ acpi_os_ioremap(vm_paddr_t pa, vm_size_t size)
 }
 
 void
-unmap_mapping_range(void *obj, loff_t const holebegin, loff_t const holelen, int even_cows)
+unmap_mapping_range(vm_object_t obj, loff_t const holebegin, loff_t const holelen, int even_cows)
 {
 	vm_object_t devobj;
 	vm_page_t page;
