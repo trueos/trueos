@@ -636,7 +636,7 @@ retry:
 	cvma.vm_pfn_count = 0;
 	cvma.vm_pfn_pcount = &cvma.vm_pfn_count;
 	err = vmap->vm_ops->fault(&cvma, &vmf);
-	if (cvma.vm_pfn_count == 0) {
+	if (err == VM_FAULT_NOPAGE && cvma.vm_pfn_count == 0) {
 		kern_yield(0);
 		goto retry;
 	}
