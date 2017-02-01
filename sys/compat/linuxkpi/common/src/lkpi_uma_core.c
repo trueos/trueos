@@ -143,6 +143,7 @@ __FBSDID("$FreeBSD$");
 #define	ZONE_UNLOCK(z)	mtx_unlock_spin((z)->uz_lockptr)
 #define	ZONE_LOCK_FINI(z)	mtx_destroy(&(z)->uz_lock)
 
+#define	in_interrupt()	(curthread->td_intr_nesting_level || curthread->td_critnest)
 
 /*
  * This is the zone and keg from which all zones are spawned.  The idea is that
@@ -2617,7 +2618,10 @@ zfree_start:
 #ifdef UMA_DEBUG_ALLOC
 	printf("uma_zfree: Allocating new free bucket.\n");
 #endif
-	bucket = bucket_alloc(zone, udata, M_NOWAIT);
+	if (in_interrupt())
+		bucket = NULL;
+	else
+		bucket = bucket_alloc(zone, udata, M_NOWAIT);
 	if (bucket) {
 		spinlock_enter();
 		cpu = curcpu;
