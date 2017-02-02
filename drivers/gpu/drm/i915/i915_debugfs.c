@@ -689,6 +689,8 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 				   (int) (jiffies - req->emitted_jiffies),
 				   td ? td->td_name : "<unknown>",
 				   td ? td->td_tid : -1);
+			if (td != NULL)
+				PROC_UNLOCK(td->td_proc);
 #endif
 		}
 
@@ -1942,7 +1944,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 			struct thread *td = tdfind(pid, -1);
 			if (td) {
 				seq_printf(m, "(%s [%d]) ",
-					   td->td_name, td->td_proc->p_pid);
+				    td->td_name, td->td_proc->p_pid);
+				PROC_UNLOCK(td->td_proc);
 			}
 #endif
 		} else if (IS_ERR(ctx->file_priv)) {

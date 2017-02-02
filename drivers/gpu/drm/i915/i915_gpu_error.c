@@ -1213,10 +1213,10 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 				rcu_read_unlock();
 #else
 				struct thread *td = tdfind(pid, -1);
-				PROC_UNLOCK(td->td_proc);
 				if (td) {
 					strcpy(ee->comm, td->td_proc->p_comm);
 					ee->pid = td->td_proc->p_pid;
+					PROC_UNLOCK(td->td_proc);
 				}
 #endif
 			}
