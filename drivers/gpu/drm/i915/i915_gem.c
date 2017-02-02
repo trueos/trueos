@@ -1993,6 +1993,13 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 	if (!obj->fault_mappable)
 		return;
 
+#ifdef __FreeBSD__
+	struct drm_vma_offset_node *node;
+
+	node = &obj->base.vma_node;
+	unmap_mapping_range(obj, drm_vma_node_offset_addr(node),
+	    drm_vma_node_size(node) << PAGE_SHIFT, 1);
+#else
 	drm_vma_node_unmap(&obj->base.vma_node,
 			   obj->base.dev->anon_inode->i_mapping);
 
@@ -2004,6 +2011,7 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 	 * memory writes before touching registers / GSM.
 	 */
 	wmb();
+#endif
 
 	obj->fault_mappable = false;
 }
