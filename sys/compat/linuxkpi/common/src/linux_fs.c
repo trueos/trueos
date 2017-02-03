@@ -299,6 +299,7 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 				vm_page_lock(page);
 				vm_page_free(page);
 				vm_page_unlock(page);
+				VM_OBJECT_WUNLOCK(object);
 				return (ERR_PTR(-EINVAL));
 			}
 			MPASS(page->valid == VM_PAGE_BITS_ALL);
