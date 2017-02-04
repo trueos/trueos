@@ -92,9 +92,8 @@ release_pages(struct page **pages, int nr, bool cold)
 {
 	int i;
 
-	for (i = 0; i < nr; i++, pages++)
-		__free_hot_cold_page(*pages);
+	for (i = 0; i < nr; i++)
+		put_page(pages[i]);
 }
-
 
 #endif

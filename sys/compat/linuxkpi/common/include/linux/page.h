@@ -111,11 +111,6 @@ void kunmap(vm_page_t page);
 void kunmap_atomic(void *vaddr);
 void page_cache_release(vm_page_t page);
 
-void *acpi_os_ioremap(vm_paddr_t pa, vm_size_t size);
-
-
-extern void unmap_mapping_range(void *obj,
-				loff_t const holebegin, loff_t const holelen, int even_cows);
 extern void * iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
 
 void iounmap_atomic(void *vaddr);
@@ -129,8 +124,6 @@ page_count(vm_page_t page __unused)
 int set_pages_array_wb(struct page **pages, int addrinarray);
 int set_pages_array_uc(struct page **pages, int addrinarray);
 int set_pages_array_wc(struct page **pages, int addrinarray);
-vm_page_t alloc_page(gfp_t gfp);
-void __free_page(vm_page_t page);
 
 /* bump refcount */
 
@@ -145,7 +138,7 @@ vm_paddr_t page_to_phys(vm_page_t page);
 
 void *acpi_os_ioremap(vm_paddr_t pa, vm_size_t size);
 
-void unmap_mapping_range(void *obj,
+void unmap_mapping_range(vm_object_t obj,
 			 loff_t const holebegin, loff_t const holelen, int even_cows);
 
 #define linux_clflushopt(arg) __linux_clflushopt((u_long)(arg))

@@ -247,6 +247,7 @@ retry:
 			if (vm_page_insert(m, vm_obj, pidx)) {
 				VM_OBJECT_WUNLOCK(vm_obj);
 				VM_WAIT;
+				VM_OBJECT_WLOCK(vm_obj);
 				goto retry;
 			}
 			m->valid = VM_PAGE_BITS_ALL;
@@ -261,15 +262,18 @@ retry:
 	 * we make this an all or nothing. The implicit assumption here is that overlaps
 	 * in page faults will not be sufficiently common to impair performance.
 	 */
-	if (__predict_false((pidx < pidx_start + count) && pidx > pidx_start)) {
-		count = pidx - pidx_start - 1;
+	if (__predict_false(rc != 0)) {
+		count = pidx - pidx_start;
 		pa = pfn << PAGE_SHIFT;
 		for (pidx = pidx_start; pidx < pidx_start + count; pidx++, pa += PAGE_SIZE) {
 			m = PHYS_TO_VM_PAGE(pa);
 			if (vm_page_busied(m))
 				vm_page_xunbusy(m);
+			vm_page_lock(m);
+			vm_page_remove(m);
+			vm_page_unlock(m);
 		}
-		rc = -EBUSY;
+		vma->vm_pfn_count = 0;
 	}
 	VM_OBJECT_WUNLOCK(vm_obj);
 	return (rc);

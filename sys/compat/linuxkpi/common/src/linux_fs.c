@@ -106,6 +106,7 @@ void
 simple_release_fs(struct vfsmount **mount, int *count)
 {
 	free(*mount, M_LKFS);
+	*mount = NULL;
 }
 
 int
@@ -298,7 +299,8 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 				vm_page_lock(page);
 				vm_page_free(page);
 				vm_page_unlock(page);
-				return (NULL);
+				VM_OBJECT_WUNLOCK(object);
+				return (ERR_PTR(-EINVAL));
 			}
 			MPASS(page->valid == VM_PAGE_BITS_ALL);
 		} else {
@@ -310,6 +312,7 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 	}
 	vm_page_lock(page);
 	vm_page_wire(page);
+	vm_page_hold(page);
 	vm_page_unlock(page);
 	VM_OBJECT_WUNLOCK(object);
 	return (page);
@@ -320,37 +323,48 @@ shmem_file_setup(char *name, int size, int flags)
 {
 	struct linux_file *filp;
 	struct vnode *vp;
+	int error;
 
-	if ((filp = malloc(sizeof(*filp), M_LKFS, M_NOWAIT|M_ZERO)) == NULL)
-		return (NULL);
+	filp = malloc(sizeof(*filp), M_LKFS, M_NOWAIT | M_ZERO);
+	if (filp == NULL) {
+		error = -ENOMEM;
+		goto err_0;
+	}
 
-	if (getnewvnode("LINUX", NULL, &dead_vnodeops, &vp))
+	error = -getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
+	if (error != 0)
 		goto err_1;
 
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_vnode = vp;
-	filp->f_mapping = file_inode(filp)->i_mapping = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
+	filp->f_mapping = file_inode(filp)->i_mapping =
+	    vm_pager_allocate(OBJT_DEFAULT, NULL, size,
 	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
 
-	if (file_inode(filp)->i_mapping == NULL)
+	if (file_inode(filp)->i_mapping == NULL) {
+		error = -ENOMEM;
 		goto err_2;
+	}
 
 	return (filp);
 err_2:
 	_vdrop(vp, 0);
 err_1:
 	free(filp, M_LKFS);
-	return (NULL);
+err_0:
+	return (ERR_PTR(error));
 }
-
 
 struct inode *
 alloc_anon_inode(struct super_block *s)
 {
 	struct vnode *vp;
+	int error;
 
-	if (getnewvnode("LINUX", NULL, &dead_vnodeops, &vp))
-		return (NULL);
+	error = -getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
+	if (error != 0)
+		return (ERR_PTR(error));
+
 	return (vp);
 }
 
@@ -371,11 +385,10 @@ invalidate_mapping_pages(vm_object_t obj, pgoff_t start, pgoff_t end)
 void
 shmem_truncate_range(struct vnode *vp, loff_t lstart, loff_t lend)
 {
-	vm_object_t vm_obj;
-	vm_pindex_t start = (lstart + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	vm_pindex_t end = (lend + 1) >> PAGE_SHIFT;
+	vm_object_t vm_obj = vp->i_mapping;
+	vm_pindex_t start = OFF_TO_IDX(lstart + PAGE_SIZE - 1);
+	vm_pindex_t end = OFF_TO_IDX(lend + 1);
 
-	vm_obj = vp->i_mapping;
 	(void)invalidate_mapping_pages(vm_obj, start, end);
 }
 
@@ -383,27 +396,25 @@ static int
 __get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages, int write,
 			  struct page **pages)
 {
-	int i, count, len;
 	vm_prot_t prot;
-	vm_page_t *mp;
+	size_t len;
+	int count;
+	int i;
 
-	prot = VM_PROT_READ;
-	if (write)
-		prot |= VM_PROT_WRITE;
-	len = nr_pages << PAGE_SHIFT;
+	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
+	len = ((size_t)nr_pages) << PAGE_SHIFT;
 	count = vm_fault_quick_hold_pages(map, start, len, prot, pages, nr_pages);
-	if (count > 0) {
-		mp = pages;
-		for (i = 0; i < count; i++, mp++) {
-			if ((*mp)->hold_count > 1) {
-				vm_page_lock(*mp);
-				MPASS((*mp)->hold_count == 2);
-				(*mp)->hold_count--;
-				vm_page_unlock(*mp);
-			}
-		}
+	if (count == -1)
+		return (-EFAULT);
+
+	for (i = 0; i != nr_pages; i++) {
+		struct page *pg = pages[i];
+
+		vm_page_lock(pg);
+		vm_page_wire(pg);
+		vm_page_unlock(pg);
 	}
-	return (count == -1 ? -EFAULT : count);
+	return (nr_pages);
 }
 
 int
@@ -412,33 +423,31 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 {
 	vm_map_t map;
 	vm_page_t *mp;
-	vm_offset_t va, end;
-	int count;
+	vm_offset_t va;
+	vm_offset_t end;
 	vm_prot_t prot;
+	int count;
 
-	if (nr_pages == 0)
+	if (nr_pages == 0 || in_interrupt())
 		return (0);
 
 	MPASS(pages != NULL);
 	va = start;
 	map = &curthread->td_proc->p_vmspace->vm_map;
-	end = start + (nr_pages << PAGE_SHIFT);
+	end = start + (((size_t)nr_pages) << PAGE_SHIFT);
 	if (start < vm_map_min(map) ||  end > vm_map_max(map))
 		return (-EINVAL);
-	prot = VM_PROT_READ;
-	if (write)
-		prot |= VM_PROT_WRITE;
+	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
 	for (count = 0, mp = pages, va = start; va < end;
 	    mp++, va += PAGE_SIZE, count++) {
 		*mp = pmap_extract_and_hold(map->pmap, va, prot);
 		if (*mp == NULL)
 			break;
-		if ((*mp)->hold_count > 1) {
-			vm_page_lock(*mp);
-			MPASS((*mp)->hold_count == 2);
-			(*mp)->hold_count--;
-			vm_page_unlock(*mp);
-		}
+
+		vm_page_lock(*mp);
+		vm_page_wire(*mp);
+		vm_page_unlock(*mp);
+
 		if ((prot & VM_PROT_WRITE) != 0 &&
 		    (*mp)->dirty != VM_PAGE_BITS_ALL) {
 			/*
