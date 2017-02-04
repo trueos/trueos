@@ -309,7 +309,7 @@ linux_pci_shutdown(device_t dev)
 	return (0);
 }
 
-int
+static int
 pci_default_suspend(struct pci_dev *dev,
                         pm_message_t state __unused)
 {
@@ -324,7 +324,7 @@ pci_default_suspend(struct pci_dev *dev,
         return (err);
 }
 
-int
+static int
 pci_default_resume(struct pci_dev *dev)
 {
         int err = 0;
@@ -358,6 +358,11 @@ pci_register_driver(struct pci_driver *pdrv)
 	spin_unlock(&pci_lock);
 	pdrv->bsd_driver.name = pdrv->name;
 	pdrv->bsd_driver.methods = pci_methods;
+	if (pdrv->suspend == NULL)
+		pdrv->suspend = pci_default_suspend;
+	if (pdrv->resume == NULL)
+		pdrv->resume = pci_default_resume;
+
 	pdrv->bsd_driver.size = sizeof(struct pci_dev);
 
 	mtx_lock(&Giant);
