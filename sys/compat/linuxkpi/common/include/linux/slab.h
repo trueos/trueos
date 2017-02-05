@@ -54,15 +54,8 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	vmalloc_node(size, node)        __vmalloc(size, GFP_KERNEL, 0)
 #define	vmalloc_user(size)              __vmalloc(size, GFP_KERNEL | __GFP_ZERO, 0)
 #define	vmalloc(size)                   __vmalloc(size, GFP_KERNEL | __GFP_ZERO, 0)
-#define __kmalloc			kmalloc
-
-/**
- * kmalloc_array - allocate memory for an array.
- * @n: number of elements.
- * @size: element size.
- * @flags: the type of memory to allocate (see kmalloc).
- */
-
+#define	__kmalloc(...)			kmalloc(__VA_ARGS__)
+#define	kmalloc_node(chunk, mask, node)	kmalloc(chunk, mask)
 
 /*
  * Prefix some functions with linux_ to avoid namespace conflict
