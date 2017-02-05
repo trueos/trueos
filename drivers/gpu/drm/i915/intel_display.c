@@ -12142,7 +12142,9 @@ void intel_check_page_flip(struct drm_i915_private *dev_priv, int pipe)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_flip_work *work;
 
+#ifdef __linux__
 	WARN_ON(!in_interrupt());
+#endif
 
 	if (crtc == NULL)
 		return;
