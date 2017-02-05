@@ -44,15 +44,12 @@ typedef struct mutex {
 	struct sx sx;
 } mutex_t;
 
+#define	sx_is_owned(sx) \
+	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK & ~SX_LOCK_SHARED)) == \
+	(uintptr_t)curthread)
 
-#define	sx_is_owned(sx)							\
-	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK & ~SX_LOCK_SHARED)) ==	\
-	    (uintptr_t)curthread)
-
-#define	sx_is_xlocked(sx)							\
-	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK)) !=	\
-	    (uintptr_t)NULL)
-
+#define	sx_is_xlocked(sx) \
+	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK)) != (uintptr_t)NULL)
 
 #define	mutex_lock(_m)			sx_xlock(&(_m)->sx)
 #define	mutex_lock_nested(_m, _s)	mutex_lock(_m)

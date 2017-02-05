@@ -165,7 +165,7 @@ done:
 	return (ret);
 }
 
- void
+void
 __wake_up(wait_queue_head_t *q, int mode, int nr, void *key)
 {
 	int flags;

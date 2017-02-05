@@ -32,7 +32,6 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 
-
 typedef struct {
 	volatile int64_t counter;
 } atomic64_t;
