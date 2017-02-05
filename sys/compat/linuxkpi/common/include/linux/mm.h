@@ -264,7 +264,7 @@ vmalloc_32(unsigned long size)
 
 }
 
-int is_vmalloc_addr(void *addr);
+int is_vmalloc_addr(const void *addr);
 
 #define VM_FAULT_OOM	0x0001
 #define VM_FAULT_SIGBUS	0x0002
