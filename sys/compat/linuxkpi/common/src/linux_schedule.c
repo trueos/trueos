@@ -36,78 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/fs.h>
 #include <linux/list.h>
 
-static int
-lkpi_msleep_spin_sbt(void *ident, struct mtx *mtx, int prio, const char *wmesg,
-    sbintime_t sbt, sbintime_t pr, int flags)
-{
-	struct thread *td;
-	struct proc *p;
-	int rval;
-	int catch, pri;
-	WITNESS_SAVE_DECL(mtx);
-
-	td = curthread;
-	p = td->td_proc;
-	KASSERT(mtx != NULL, ("sleeping without a mutex"));
-	KASSERT(p != NULL, ("msleep1"));
-	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
-
-	if (SCHEDULER_STOPPED())
-		return (0);
-
-	catch = prio & PCATCH;
-	pri = prio & PRIMASK;
-	sleepq_lock(ident);
-	CTR5(KTR_PROC, "msleep_spin: thread %ld (pid %ld, %s) on %s (%p)",
-	    td->td_tid, p->p_pid, td->td_name, wmesg, ident);
-
-	DROP_GIANT();
-	mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
-	WITNESS_SAVE(&mtx->lock_object, mtx);
-	lkpi_mtx_unlock_spin(mtx);
-
-	/*
-	 * We put ourselves on the sleep queue and start our timeout.
-	 */
-	sleepq_add(ident, &mtx->lock_object, wmesg, SLEEPQ_SLEEP, 0);
-	if (sbt != 0)
-		sleepq_set_timeout_sbt(ident, sbt, pr, flags);
-
-	/*
-	 * Can't call ktrace with any spin locks held so it can lock the
-	 * ktrace_mtx lock, and WITNESS_WARN considers it an error to hold
-	 * any spin lock.  Thus, we have to drop the sleepq spin lock while
-	 * we handle those requests.  This is safe since we have placed our
-	 * thread on the sleep queue already.
-	 */
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_CSW)) {
-		sleepq_release(ident);
-		ktrcsw(1, 0, wmesg);
-		sleepq_lock(ident);
-	}
-#endif
-	if (sbt != 0 && catch)
-		rval = sleepq_timedwait_sig(ident, pri);
-	else if (sbt != 0)
-		rval = sleepq_timedwait(ident, pri);
-	else if (catch)
-		rval = sleepq_wait_sig(ident, pri);
-	else {
-		sleepq_wait(ident, pri);
-		rval = 0;
-	}
-
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0, wmesg);
-#endif
-	PICKUP_GIANT();
-	if (!(prio & PDROP))
-		lkpi_mtx_lock_spin(mtx);
-	return (rval);
-}
-
 long
 schedule_timeout(signed long timeout)
 {
@@ -117,7 +45,7 @@ schedule_timeout(signed long timeout)
 long
 schedule_timeout_locked(signed long timeout, spinlock_t *lock)
 {
-	int flags, sleepable, expire;
+	int flags, expire;
 	long ret;
 	struct mtx *m;
 	struct mtx stackm;
@@ -128,7 +56,6 @@ schedule_timeout_locked(signed long timeout, spinlock_t *lock)
 	if (SKIP_SLEEP())
 		return (0);
 	MPASS(current);
-	sleepable = 0;
 	if (current->state == TASK_WAKING)
 		goto done;
 
@@ -136,26 +63,21 @@ schedule_timeout_locked(signed long timeout, spinlock_t *lock)
 		m = &lock->m;
 	} else if (current->sleep_wq != NULL) {
 		m = &current->sleep_wq->lock.m;
-		lkpi_mtx_lock_spin(m);
+		mtx_lock(m);
 	} else {
 		m = &stackm;
 		bzero(m, sizeof(*m));
-		mtx_init(m, "stack", NULL, MTX_DEF|MTX_NOWITNESS);
+		mtx_init(m, "stack", NULL, MTX_DEF | MTX_NOWITNESS);
 		mtx_lock(m);
-		sleepable = 1;
 	}
 
 	flags = (current->state == TASK_INTERRUPTIBLE) ? PCATCH : 0;
 	if (lock == NULL)
 		flags |= PDROP;
-	if (sleepable)
-		ret = _sleep(current, &(m->lock_object), flags,
-			     "lsti", tick_sbt * timeout, 0 , C_HARDCLOCK);
-	else 
-		ret = lkpi_msleep_spin_sbt(current, m, flags, "lstisp",
-				      tick_sbt * timeout, 0, C_HARDCLOCK);
+	ret = _sleep(current, &(m->lock_object), flags,
+	     "lsti", tick_sbt * timeout, 0 , C_HARDCLOCK);
+
 done:
-	
 	set_current_state(TASK_RUNNING);
 	if (timeout == MAX_SCHEDULE_TIMEOUT)
 		ret = MAX_SCHEDULE_TIMEOUT;

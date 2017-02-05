@@ -31,15 +31,12 @@ SRCS=	interval_tree.c \
 	linux_seq_file.c \
 	linux_sort.c \
 	linux_string.c \
+	linux_stubs.c \
 	linux_sysfs.c \
 	linux_tasklet.c \
 	linux_usb.c \
 	linux_video.c \
-	linux_work.c \
-	lkpi_kern_malloc.c \
-	lkpi_kern_mutex.c \
-	lkpi_stubs.c \
-	lkpi_uma_core.c
+	linux_work.c
 
 
 SRCS+=	bus_if.h \
