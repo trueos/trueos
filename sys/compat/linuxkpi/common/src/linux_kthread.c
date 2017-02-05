@@ -1,6 +1,9 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>
-
+#include <sys/bus.h>
+#include <sys/interrupt.h>
+#include <sys/priority.h>
+#include <sys/sched.h>
 
 enum KTHREAD_BITS {
 	KTHREAD_IS_PER_CPU = 0,
@@ -95,4 +98,33 @@ kthread_stop(struct task_struct *task)
 	return (task->task_ret);
 }
 
+void
+linux_kthread_fn(void *arg)
+{
+	struct mm_struct *mm;
+	struct task_struct *task;
+	struct thread *td = curthread;
 
+	/* make sure the scheduler priority is raised */
+	thread_lock(td);
+	sched_prio(td, PI_SWI(SWI_NET));
+	thread_unlock(td);
+
+	task = arg;
+	task_struct_fill(td, task);
+	mm = task->mm;
+	init_rwsem(&mm->mmap_sem);
+	mm->mm_count.counter = 1;
+	mm->mm_users.counter = 1;
+	mm->vmspace = NULL;
+	td->td_lkpi_task = task;
+	if (task->should_stop == 0)
+		task->task_ret = task->task_fn(task->task_data);
+	PROC_LOCK(td->td_proc);
+	task->should_stop = TASK_STOPPED;
+	wakeup(task);
+	PROC_UNLOCK(td->td_proc);
+
+	td->td_lkpi_task = NULL;
+	kthread_exit();
+}

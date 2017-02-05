@@ -83,7 +83,7 @@ mount_pseudo(struct file_system_type *fs_type, char *name,
 void
 kill_anon_super(struct super_block *sb)
 {
-	UNIMPLEMENTED();	
+	UNIMPLEMENTED();
 }
 
 char *
@@ -109,6 +109,7 @@ void
 simple_release_fs(struct vfsmount **mount, int *count)
 {
 	free(*mount, M_LKFS);
+	*mount = NULL;
 }
 
 int
@@ -137,15 +138,14 @@ simple_read_from_buffer(void __user *to, size_t count,
 	if ((int64_t)pos < 0)
 		return (-EINVAL);
 	if (pos >= available || !count)
-		return 0;
+		return (0);
 	if (count > available - pos)
 		count = available - pos;
-	ret = copy_to_user(to, from + pos, count);
-	if (ret == count)
+	ret = copyout(from, to + pos, count);
+	if (ret != 0)
 		return (-EFAULT);
-	count -= ret;
 	*ppos = pos + count;
-	return (count);
+	return (0);
 }
 
 ssize_t
@@ -158,15 +158,14 @@ simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 	if ((int64_t)pos < 0)
 		return (-EINVAL);
 	if (pos >= available || !count)
-		return 0;
+		return (0);
 	if (count > available - pos)
 		count = available - pos;
-	res = copy_from_user(to + pos, from, count);
-	if (res == count)
+	res = copyin(from, to + pos, count);
+	if (res != 0)
 		return (-EFAULT);
-	count -= res;
 	*ppos = pos + count;
-	return (count);	
+	return (0);
 }
 
 int
@@ -199,11 +198,10 @@ simple_attr_release(struct inode *inode, struct file *file)
 }
 
 ssize_t
-simple_attr_read(struct file *file, char __user *buf,
-			 size_t len, loff_t *ppos)
+simple_attr_read(struct file *file, char __user *buf, size_t len, loff_t *ppos)
 {
+	struct sbuf *sb;
 	struct simple_attr *attr;
-	size_t size;
 	ssize_t ret;
 
 	attr = file->private_data;
@@ -215,32 +213,25 @@ simple_attr_read(struct file *file, char __user *buf,
 	if (ret)
 		return ret;
 
-	if (*ppos)
-		size = strlen(attr->get_buf);
-	else {
+	sb = attr->sb;
+	if (*ppos == 0) {
 		u64 val;
 		ret = attr->get(attr->data, &val);
 		if (ret)
 			goto out;
-
-		size = scnprintf(attr->get_buf, sizeof(attr->get_buf),
-				 attr->fmt, (unsigned long long)val);
+		(void)sbuf_printf(sb, attr->fmt, (unsigned long long)val);
 	}
-
-	ret = simple_read_from_buffer(buf, len, ppos, attr->get_buf, size);
 out:
 	mutex_unlock(&attr->mutex);
 	return ret;
 }
 
-
 ssize_t
-simple_attr_write(struct file *file, const char __user *buf,
-		  size_t len, loff_t *ppos)
+simple_attr_write(struct file *file, const char *buf, size_t len, loff_t *ppos)
 {
+	struct sbuf *sb;
 	struct simple_attr *attr;
 	u64 val;
-	size_t size;
 	ssize_t ret;
 
 	attr = file->private_data;
@@ -251,17 +242,10 @@ simple_attr_write(struct file *file, const char __user *buf,
 	if (ret)
 		return ret;
 
-	ret = -EFAULT;
-	size = min(sizeof(attr->set_buf) - 1, len);
-	if (copy_from_user(attr->set_buf, buf, size))
-		goto out;
-
-	attr->set_buf[size] = '\0';
-	val = simple_strtoll(attr->set_buf, NULL, 0);
+	sb = attr->sb;
+	(void)sbuf_finish(sb);
+	val = simple_strtoll(sbuf_data(sb), NULL, 0);
 	ret = attr->set(attr->data, val);
-	if (ret == 0)
-		ret = len; /* on success, claim we got the whole input */
-out:
 	mutex_unlock(&attr->mutex);
 	return (ret);
 }
@@ -282,7 +266,6 @@ default_llseek(struct file *file, loff_t offset, int whence)
 	return (0);
 }
 
-
 struct page *
 shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 {
@@ -292,15 +275,19 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 
 	object = as;
 	VM_OBJECT_WLOCK(object);
-	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY);
+	/* XXXMJ should handle ALLOC_NOWAIT? */
+	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
+	    VM_ALLOC_WIRED);
 	if (page->valid != VM_PAGE_BITS_ALL) {
 		vm_page_xbusy(page);
 		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
 			rv = vm_pager_get_pages(object, &page, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
 				vm_page_lock(page);
+				vm_page_unwire(page, PQ_NONE);
 				vm_page_free(page);
 				vm_page_unlock(page);
+				VM_OBJECT_WUNLOCK(object);
 				return (ERR_PTR(-EINVAL));
 			}
 			MPASS(page->valid == VM_PAGE_BITS_ALL);
@@ -312,7 +299,7 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 		vm_page_xunbusy(page);
 	}
 	vm_page_lock(page);
-	vm_page_wire(page);
+	vm_page_hold(page);
 	vm_page_unlock(page);
 	VM_OBJECT_WUNLOCK(object);
 	return (page);
@@ -323,90 +310,105 @@ shmem_file_setup(char *name, int size, int flags)
 {
 	struct linux_file *filp;
 	struct vnode *vp;
+	int error;
 
-	if ((filp = malloc(sizeof(*filp), M_LKFS, M_NOWAIT|M_ZERO)) == NULL)
-		return (NULL);
+	filp = malloc(sizeof(*filp), M_LKFS, M_NOWAIT | M_ZERO);
+	if (filp == NULL) {
+		error = -ENOMEM;
+		goto err_0;
+	}
 
-	if (getnewvnode("LINUX", NULL, &dead_vnodeops, &vp))
+	error = -getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
+	if (error != 0)
 		goto err_1;
 
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_vnode = vp;
-	filp->f_mapping = file_inode(filp)->i_mapping = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
+	filp->f_mapping = file_inode(filp)->i_mapping =
+	    vm_pager_allocate(OBJT_DEFAULT, NULL, size,
 	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
 
-	if (file_inode(filp)->i_mapping == NULL)
+	if (file_inode(filp)->i_mapping == NULL) {
+		error = -ENOMEM;
 		goto err_2;
+	}
 
 	return (filp);
 err_2:
 	_vdrop(vp, 0);
 err_1:
 	free(filp, M_LKFS);
-	return (NULL);
+err_0:
+	return (ERR_PTR(error));
 }
-
 
 struct inode *
 alloc_anon_inode(struct super_block *s)
 {
 	struct vnode *vp;
+	int error;
 
-	if (getnewvnode("LINUX", NULL, &dead_vnodeops, &vp))
-		return (NULL);
+	error = -getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
+	if (error != 0)
+		return (ERR_PTR(error));
+
 	return (vp);
 }
 
-unsigned long
-invalidate_mapping_pages(vm_object_t obj, pgoff_t start, pgoff_t end)
+static vm_ooffset_t
+_invalidate_mapping_pages(vm_object_t obj, vm_pindex_t start, vm_pindex_t end,
+    int flags)
 {
 	int start_count, end_count;
 
 	VM_OBJECT_WLOCK(obj);
 	start_count = obj->resident_page_count;
-	vm_object_page_remove(obj, start, end, false);
+	vm_object_page_remove(obj, start, end, flags);
 	end_count = obj->resident_page_count;
 	VM_OBJECT_WUNLOCK(obj);
-
 	return (start_count - end_count);
+}
+
+unsigned long
+invalidate_mapping_pages(vm_object_t obj, pgoff_t start, pgoff_t end)
+{
+
+	return (_invalidate_mapping_pages(obj, start, end, OBJPR_CLEANONLY));
 }
 
 void
 shmem_truncate_range(struct vnode *vp, loff_t lstart, loff_t lend)
 {
-	vm_object_t vm_obj;
-	vm_pindex_t start = (lstart + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	vm_pindex_t end = (lend + 1) >> PAGE_SHIFT;
+	vm_object_t vm_obj = vp->i_mapping;
+	vm_pindex_t start = OFF_TO_IDX(lstart + PAGE_SIZE - 1);
+	vm_pindex_t end = OFF_TO_IDX(lend + 1);
 
-	vm_obj = vp->i_mapping;
-	(void)invalidate_mapping_pages(vm_obj, start, end);
+	(void)_invalidate_mapping_pages(vm_obj, start, end, 0);
 }
 
 static int
 __get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages, int write,
 			  struct page **pages)
 {
-	int i, count, len;
 	vm_prot_t prot;
-	vm_page_t *mp;
+	size_t len;
+	int count;
+	int i;
 
-	prot = VM_PROT_READ;
-	if (write)
-		prot |= VM_PROT_WRITE;
-	len = nr_pages << PAGE_SHIFT;
+	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
+	len = ((size_t)nr_pages) << PAGE_SHIFT;
 	count = vm_fault_quick_hold_pages(map, start, len, prot, pages, nr_pages);
-	if (count > 0) {
-		mp = pages;
-		for (i = 0; i < count; i++, mp++) {
-			if ((*mp)->hold_count > 1) {
-				vm_page_lock(*mp);
-				MPASS((*mp)->hold_count == 2);
-				(*mp)->hold_count--;
-				vm_page_unlock(*mp);
-			}
-		}
+	if (count == -1)
+		return (-EFAULT);
+
+	for (i = 0; i != nr_pages; i++) {
+		struct page *pg = pages[i];
+
+		vm_page_lock(pg);
+		vm_page_wire(pg);
+		vm_page_unlock(pg);
 	}
-	return (count == -1 ? -EFAULT : count);
+	return (nr_pages);
 }
 
 int
@@ -415,33 +417,31 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 {
 	vm_map_t map;
 	vm_page_t *mp;
-	vm_offset_t va, end;
-	int count;
+	vm_offset_t va;
+	vm_offset_t end;
 	vm_prot_t prot;
+	int count;
 
-	if (nr_pages == 0)
+	if (nr_pages == 0 || in_interrupt())
 		return (0);
 
 	MPASS(pages != NULL);
 	va = start;
 	map = &curthread->td_proc->p_vmspace->vm_map;
-	end = start + (nr_pages << PAGE_SHIFT);
+	end = start + (((size_t)nr_pages) << PAGE_SHIFT);
 	if (start < vm_map_min(map) ||  end > vm_map_max(map))
 		return (-EINVAL);
-	prot = VM_PROT_READ;
-	if (write)
-		prot |= VM_PROT_WRITE;
+	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
 	for (count = 0, mp = pages, va = start; va < end;
 	    mp++, va += PAGE_SIZE, count++) {
 		*mp = pmap_extract_and_hold(map->pmap, va, prot);
 		if (*mp == NULL)
 			break;
-		if ((*mp)->hold_count > 1) {
-			vm_page_lock(*mp);
-			MPASS((*mp)->hold_count == 2);
-			(*mp)->hold_count--;
-			vm_page_unlock(*mp);
-		}
+
+		vm_page_lock(*mp);
+		vm_page_wire(*mp);
+		vm_page_unlock(*mp);
+
 		if ((prot & VM_PROT_WRITE) != 0 &&
 		    (*mp)->dirty != VM_PAGE_BITS_ALL) {
 			/*
@@ -470,7 +470,7 @@ get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 {
 	vm_map_t map;
 
-	map = &tsk->task_thread->td_proc->p_vmspace->vm_map;
+	map = &((struct vmspace *)mm->vmspace)->vm_map;
 	return (__get_user_pages_internal(map, start, nr_pages,
 	    !!(gup_flags & FOLL_WRITE), pages));
 }

@@ -62,14 +62,6 @@
 
 #define TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
 
-
-/*
- * A task_struct is only provided for those tasks created with kthread.
- * Using these routines with threads not started via kthread will cause
- * panics because no task_struct is allocated and td_retval[1] is
- * overwritten by syscalls which kernel threads will not make use of.
- */
-
 #define	current			task_struct_get(curthread)
 #define	task_struct_get(x)	((struct task_struct *)(uintptr_t)(x)->td_lkpi_task)
 
@@ -109,29 +101,7 @@ struct task_struct {
 	struct kthread kthread;
 };
 
-static inline void
-linux_kthread_fn(void *arg)
-{
-	struct mm_struct *mm;
-	struct task_struct *task;
-	struct thread *td = curthread;
-
-	task = arg;
-	task_struct_fill(td, task);
-	mm = task->mm;
-	init_rwsem(&mm->mmap_sem);
-	mm->mm_count.counter = 1;
-	mm->mm_users.counter = 1;
-	td->td_lkpi_task = task;
-	if (task->should_stop == 0)
-		task->task_ret = task->task_fn(task->task_data);
-	PROC_LOCK(td->td_proc);
-	task->should_stop = TASK_STOPPED;
-	wakeup(task);
-	PROC_UNLOCK(td->td_proc);
-	td->td_lkpi_task = NULL;
-	kthread_exit();
-}
+extern void linux_kthread_fn(void *);
 
 static inline struct task_struct *
 linux_kthread_create(int (*threadfn)(void *data), void *data)

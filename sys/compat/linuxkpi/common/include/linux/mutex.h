@@ -74,7 +74,7 @@ linux_mutex_init(mutex_t *m, const char *name, int flags, char *file, int line)
 	char buf[64];
 #endif
 
-	memset(&m->sx, 0, sizeof(m->sx));
+	memset(m, 0, sizeof(*m));
 #ifdef WITNESS_ALL
 	snprintf(buf, 64, "%s:%s:%d", name, file, line);
 	sx_init_flags(&m->sx, strdup(buf, M_DEVBUF),  flags);

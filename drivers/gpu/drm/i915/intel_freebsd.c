@@ -206,9 +206,9 @@ i915_locks_destroy(struct drm_i915_private *dev_priv)
  *
  *  Note: this is only safe if the mm semaphore is held when called.
  */
-int remap_io_mapping(struct vm_area_struct *vma,
-		     unsigned long addr, unsigned long pfn, unsigned long size,
-		     struct io_mapping *iomap)
+int
+remap_io_mapping(struct vm_area_struct *vma, unsigned long addr,
+    unsigned long pfn, unsigned long size, struct io_mapping *iomap)
 {
 	vm_page_t m;
 	vm_object_t vm_obj;
@@ -262,15 +262,18 @@ retry:
 	 * we make this an all or nothing. The implicit assumption here is that overlaps
 	 * in page faults will not be sufficiently common to impair performance.
 	 */
-	if (__predict_false((pidx < pidx_start + count) && pidx > pidx_start)) {
-		count = pidx - pidx_start - 1;
+	if (__predict_false(rc != 0)) {
+		count = pidx - pidx_start;
 		pa = pfn << PAGE_SHIFT;
 		for (pidx = pidx_start; pidx < pidx_start + count; pidx++, pa += PAGE_SIZE) {
 			m = PHYS_TO_VM_PAGE(pa);
 			if (vm_page_busied(m))
 				vm_page_xunbusy(m);
+			vm_page_lock(m);
+			vm_page_remove(m);
+			vm_page_unlock(m);
 		}
-		rc = -EBUSY;
+		vma->vm_pfn_count = 0;
 	}
 	VM_OBJECT_WUNLOCK(vm_obj);
 	return (rc);

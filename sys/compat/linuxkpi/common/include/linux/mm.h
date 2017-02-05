@@ -82,7 +82,7 @@ struct vm_area_struct {
 	pgprot_t	vm_page_prot;
 	unsigned long vm_flags;		/* Flags, see mm.h. */
 	struct mm_struct *vm_mm;	/* The address space we belong to. */
-	void * vm_private_data;		/* was vm_pte (shared mem) */
+	void *vm_private_data;		/* was vm_pte (shared mem) */
 	const struct vm_operations_struct *vm_ops;
 	struct linux_file *vm_file;
 
@@ -176,12 +176,12 @@ mark_page_accessed(struct vm_page *page)
 	vm_page_reference(page);
 }
 
-
 static inline void
 get_page(struct vm_page *page)
 {
 	vm_page_lock(page);
 	vm_page_hold(page);
+	vm_page_wire(page);
 	vm_page_unlock(page);
 }
 
@@ -201,7 +201,15 @@ long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 			   int gup_flags, struct page **pages,
 			   struct vm_area_struct **vmas);
 
-#define put_page(page) __free_hot_cold_page(page);
+static inline void
+put_page(struct vm_page *page)
+{
+	vm_page_lock(page);
+	vm_page_unwire(page, PQ_ACTIVE);
+	vm_page_unhold(page);
+	vm_page_unlock(page);
+}
+
 #define copy_highpage(to, from) pmap_copy_page(from, to)
 
 extern struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr);

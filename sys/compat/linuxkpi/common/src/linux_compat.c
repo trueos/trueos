@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/smp.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/list.h>
 #include <linux/compat.h>
 #include <linux/poll.h>
 
@@ -540,16 +539,17 @@ linux_alloc_current(int flags)
 	struct thread *td;
 
 	td = curthread;
-	MPASS(__predict_true(td->td_lkpi_task == NULL));
+	MPASS(td->td_lkpi_task == NULL);
 
-	if ((t = malloc(sizeof(*t), M_LCINT, flags|M_ZERO)) == NULL)
+	if ((t = malloc(sizeof(*t), M_LCINT, flags | M_ZERO)) == NULL)
 		return (ENOMEM);
 	task_struct_fill(td, t);
 	mm = t->mm;
 	init_rwsem(&mm->mmap_sem);
 	mm->mm_count.counter = 1;
 	mm->mm_users.counter = 1;
-	curthread->td_lkpi_task = t;
+	mm->vmspace = &td->td_proc->p_vmspace;
+	td->td_lkpi_task = t;
 	return (0);
 }
 
@@ -566,9 +566,7 @@ linux_file_dtor(void *cdp)
 }
 
 
-#define PFN_TO_VM_PAGE(pfn) PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT)
-
-#ifdef old
+#if 0
 static inline vm_map_entry_t
 vm_map_find_object_entry(vm_map_t map, vm_object_t obj)
 {
@@ -642,7 +640,7 @@ retry:
 	cvma.vm_pfn_count = 0;
 	cvma.vm_pfn_pcount = &cvma.vm_pfn_count;
 	err = vmap->vm_ops->fault(&cvma, &vmf);
-	if (cvma.vm_pfn_count == 0) {
+	if (err == VM_FAULT_NOPAGE && cvma.vm_pfn_count == 0) {
 		kern_yield(0);
 		goto retry;
 	}
@@ -686,11 +684,9 @@ err:
 }
 #endif
 
-
 static int
 linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
-			  vm_prot_t max_prot, vm_pindex_t *first,
-			  vm_pindex_t *last)
+    vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
 {
 	struct vm_fault vmf;
 	struct vm_area_struct cvma, *vmap;
@@ -747,8 +743,8 @@ err:
 }
 
 struct list_head lcdev_handle_list;
+
 struct lcdev_handle_ref {
-	volatile int refcnt;
 	void *handle;
 	void *data;
 	struct list_head list;
@@ -764,23 +760,20 @@ linux_cdev_handle_insert(void *handle, void *data, int size)
 	rw_rlock(&linux_global_rw);
 	list_for_each(h, &lcdev_handle_list) {
 		r = __containerof(h, struct lcdev_handle_ref, list);
-		if (r->handle == handle)
-			break;
-	}
-	if (r && r->handle == handle) {
-		atomic_add_int(&r->refcnt, 1);
-		rw_runlock(&linux_global_rw);
-		return;
+		if (r->handle == handle) {
+			rw_runlock(&linux_global_rw);
+			return;
+		}
 	}
 	rw_runlock(&linux_global_rw);
 	r = lkpi_malloc(sizeof(struct lcdev_handle_ref), M_KMALLOC, M_WAITOK);
-	r->refcnt = 1;
 	r->handle = handle;
 	datap = lkpi_malloc(size, M_KMALLOC, M_WAITOK);
 	memcpy(datap, data, size);
 	r->data = datap;
-	INIT_LIST_HEAD(&r->list);
+	INIT_LIST_HEAD(&r->list); /* XXX why _HEAD? */
 	rw_wlock(&linux_global_rw);
+	/* XXX need to re-lookup */
 	list_add_tail(&r->list, &lcdev_handle_list);
 	rw_wunlock(&linux_global_rw);
 }
@@ -798,13 +791,10 @@ linux_cdev_handle_remove(void *handle)
 			break;
 	}
 	MPASS (r && r->handle == handle);
-	if (atomic_fetchadd_int(&r->refcnt, -1) == 0) {
-		list_del(&r->list);
-		rw_wunlock(&linux_global_rw);
-		lkpi_free(r->data, M_KMALLOC);
-		lkpi_free(r, M_KMALLOC);
-	} else
-		rw_wunlock(&linux_global_rw);
+	list_del(&r->list);
+	rw_wunlock(&linux_global_rw);
+	lkpi_free(r->data, M_KMALLOC);
+	lkpi_free(r, M_KMALLOC);
 }
 
 static void *
@@ -1825,6 +1815,13 @@ list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 	for (i = 0; i < count; i++)
 		list_add_tail(ar[i], head);
 	lkpi_free(ar, M_KMALLOC);
+}
+
+int
+linux_access_ok(int rw, const void *addr, int len)
+{
+
+	return (len == 0 || (uintptr_t)addr <= VM_MAXUSER_ADDRESS);
 }
 
 int

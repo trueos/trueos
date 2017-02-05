@@ -118,6 +118,8 @@ int drm_clients_info(struct seq_file *m, void *data)
 			   priv->authenticated ? 'y' : 'n',
 			   0,
 			   priv->magic);
+		if (td != NULL)
+			PROC_UNLOCK(td->td_proc);
 #endif
 
 	}

@@ -280,9 +280,12 @@ struct pci_driver {
 	const struct pci_device_id		*id_table;
 	int  (*probe)(struct pci_dev *dev, const struct pci_device_id *id);
 	void (*remove)(struct pci_dev *dev);
-	int  (*suspend) (struct pci_dev *dev, pm_message_t state);	/* Device suspended */
-	int  (*resume) (struct pci_dev *dev);		/* Device woken up */
+        int  (*suspend) (struct pci_dev *dev, pm_message_t state);      /* Device suspended */
+        int  (*suspend_late) (struct pci_dev *dev, pm_message_t state);
+        int  (*resume_early) (struct pci_dev *dev);
+        int  (*resume) (struct pci_dev *dev);                   /* Device woken up */
 	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
+	int (*sriov_configure) (struct pci_dev *dev, int num_vfs); /* PF pdev */
 	driver_t			bsd_driver;
 	devclass_t			*bsdclass;
 	char				*busname;
@@ -1167,9 +1170,6 @@ int pci_reset_function(struct pci_dev *dev);
 struct pci_bus *pci_find_next_bus(const struct pci_bus *from);
 void pci_stop_and_remove_bus_device(struct pci_dev *dev);
 void pci_stop_and_remove_bus_device_locked(struct pci_dev *dev);
-
-int pci_default_suspend(struct pci_dev *dev, pm_message_t state);
-int pci_default_resume(struct pci_dev *dev);
 
 static inline bool pci_is_root_bus(struct pci_bus *pbus)
 {

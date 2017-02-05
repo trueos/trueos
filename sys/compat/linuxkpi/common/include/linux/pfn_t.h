@@ -2,6 +2,7 @@
 #define _LINUX_PFN_T_H_
 #include <linux/mm.h>
 
+CTASSERT((uintptr_t)PAGE_MASK > (uintptr_t)PAGE_SIZE);
 
 /*
  * PFN_FLAGS_MASK - mask of all the possible valid pfn_t flags

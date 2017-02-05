@@ -62,7 +62,7 @@ struct vm_area_struct;
 struct poll_table_struct;
 struct files_struct;
 struct kstatfs;
-
+struct super_block;
 
 #define	inode	vnode
 #define	i_cdev	v_rdev
@@ -70,20 +70,16 @@ struct kstatfs;
 #define	S_IRUGO	(S_IRUSR | S_IRGRP | S_IROTH)
 #define	S_IWUGO	(S_IWUSR | S_IWGRP | S_IWOTH)
 
-
-struct super_block {
-};
-
 struct super_operations {
 	int (*statfs) (struct dentry *, struct kstatfs *);
 };
+
 struct file_system_type {
 		const char *name;
 	struct module *owner;
 	struct dentry *(*mount) (struct file_system_type *, int,
 				 const char *, void *);
 	void (*kill_sb) (struct super_block *);
-
 };
 
 extern struct dentry *mount_pseudo(struct file_system_type *, char *,
@@ -327,6 +323,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
 					pgoff_t start, pgoff_t end);
 
 struct page *shmem_read_mapping_page_gfp(struct address_space *as, int idx, gfp_t gfp);
+
 static inline struct page *
 shmem_read_mapping_page(struct address_space *as, int idx)
 {
@@ -356,16 +353,13 @@ extern struct inode *alloc_anon_inode(struct super_block *);
 
 
 struct simple_attr {
+	struct sbuf *sb;	/* must be first */
 	int (*get)(void *, u64 *);
 	int (*set)(void *, u64);
-	char get_buf[24];	/* enough to store a u64 and "\n\0" */
-	char set_buf[24];
 	void *data;
 	const char *fmt;	/* format for read operation */
 	struct mutex mutex;	/* protects access to these buffers */
 };
-
-
 
 extern ssize_t simple_read_from_buffer(void __user *to, size_t count,
 			loff_t *ppos, const void *from, size_t available);
