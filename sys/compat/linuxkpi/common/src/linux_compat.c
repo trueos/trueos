@@ -183,13 +183,15 @@ on_each_cpu(void callback(void *data), void *data, int wait)
 	rsp->rs_data = data;
 	rsp->rs_func = callback;
 	rsp->rs_count = mp_ncpus;
-	mtx_init(&rsp->rs_mtx, "rs lock", NULL, MTX_SPIN|MTX_RECURSE|MTX_NOWITNESS);
+	mtx_init(&rsp->rs_mtx, "rslock", NULL, MTX_SPIN | MTX_RECURSE | MTX_NOWITNESS);
 
 	if (wait) {
 		rsp->rs_free = false;
 		mtx_lock_spin(&rsp->rs_mtx);
 		smp_rendezvous(NULL, rendezvous_callback, rendezvous_wait, rsp);
-		msleep_spin(rsp, &rsp->rs_mtx, "rendezvous", 0);
+		if (rsp->rs_count != 0)
+			msleep_spin(rsp, &rsp->rs_mtx, "rendezvous", 0);
+		mtx_unlock_spin(&rsp->rs_mtx);
 	} else {
 		rsp->rs_free = true;
 		smp_rendezvous(NULL, callback, NULL, rsp);
