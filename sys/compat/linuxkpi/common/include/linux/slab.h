@@ -42,20 +42,20 @@
 
 MALLOC_DECLARE(M_KMALLOC);
 
-#define	kvmalloc(size)			kmalloc((size), 0)
-#define	kzalloc(size, flags)		kmalloc((size), M_ZERO | ((flags) ? (flags) : M_NOWAIT))
-#define	kzalloc_node(size, flags, node)	kzalloc(size, flags)
+#define	kvmalloc(size)			kmalloc(size, 0)
+#define	kzalloc(size, flags)		kmalloc(size, (flags) | __GFP_ZERO)
+#define	kzalloc_node(size, flags, node)	kmalloc(size, (flags) | __GFP_ZERO)
 #define	kfree_const(ptr)		kfree(ptr)
-#define	krealloc(ptr, size, flags)	realloc((ptr), (size), M_KMALLOC, (flags))
-#define	kcalloc(n, size, flags)	        kmalloc((n) * (size), flags | M_ZERO)
-#define	vzalloc(size)			kzalloc(size, GFP_KERNEL | __GFP_NOWARN)
+#define	krealloc(ptr, size, flags)	realloc(ptr, size, M_KMALLOC, flags)
+#define	kcalloc(n, size, flags)	        kmalloc((n) * (size), (flags) | __GFP_ZERO)
+#define	vzalloc(size)			kmalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO)
 #define	vfree(arg)			kfree(arg)
 #define	kvfree(arg)			kfree(arg)
 #define	vmalloc_node(size, node)        __vmalloc(size, GFP_KERNEL, 0)
 #define	vmalloc_user(size)              __vmalloc(size, GFP_KERNEL | __GFP_ZERO, 0)
 #define	vmalloc(size)                   __vmalloc(size, GFP_KERNEL | __GFP_ZERO, 0)
 #define	__kmalloc(...)			kmalloc(__VA_ARGS__)
-#define	kmalloc_node(chunk, mask, node)	kmalloc(chunk, mask)
+#define	kmalloc_node(chunk, flags, n)	kmalloc(chunk, flags)
 
 /*
  * Prefix some functions with linux_ to avoid namespace conflict
@@ -114,17 +114,29 @@ struct linux_kmem_cache {
 
 
 static inline void *
-kmalloc(int size, gfp_t flags)
+kmalloc(size_t size, gfp_t flags)
 {
+	const gfp_t m = M_NOWAIT | M_WAITOK;
 
-	return (malloc(size, M_KMALLOC, (flags ? flags : M_NOWAIT) | M_CONTIG));
+	if ((flags & m) == 0)
+		flags |= M_NOWAIT;
+	else if ((flags & m) == m)
+		flags &= ~M_WAITOK;
+
+	return (malloc(size, M_KMALLOC, flags | M_CONTIG));
 }
 
 static inline void *
-__vmalloc(int size, gfp_t flags, int other)
+__vmalloc(size_t size, gfp_t flags, int other)
 {
+	const gfp_t m = M_NOWAIT | M_WAITOK;
 
-	return (malloc(size, M_KMALLOC, flags ? flags : M_NOWAIT));
+	if ((flags & m) == 0)
+		flags |= M_NOWAIT;
+	else if ((flags & m) == m)
+		flags &= ~M_WAITOK;
+
+	return (malloc(size, M_KMALLOC, flags));
 }
 
 static inline void *
