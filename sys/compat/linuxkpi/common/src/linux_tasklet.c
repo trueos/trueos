@@ -1,8 +1,11 @@
 #include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/gtaskqueue.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
 
 #include <linux/interrupt.h>
+
 struct tasklet_head {
 	struct tasklet_struct *head;
 	struct tasklet_struct **tail;
@@ -26,12 +29,12 @@ tasklet_handler(void *arg)
 
 	MPASS(curcpu == cpuid);
 
-	disable_intr();
+	spinlock_enter();
 	h = &DPCPU_GET(tasklet_head);
 	l = h->head;
 	h->head = NULL;
 	h->tail = &h->head;
-	enable_intr();
+	spinlock_exit();
 
 #ifdef INVARIANTS
 	atomic_add_int(&tasklet_handler_cnt, 1);
@@ -105,6 +108,19 @@ raise_softirq(void)
 
 	gtask = (struct grouptask *)&tasklet_gtask_array[curcpu];
 	GROUPTASK_ENQUEUE(gtask);
+}
+
+void
+local_bh_enable(void)
+{
+	raise_softirq();
+	sched_unpin();
+}
+
+void
+local_bh_disable(void)
+{
+	sched_pin();
 }
 
 void
