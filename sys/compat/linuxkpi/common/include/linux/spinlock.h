@@ -47,10 +47,16 @@ typedef struct {
 } spinlock_t;
 
 #define	spin_lock(_l)		mtx_lock(&(_l)->m)
-#define	spin_lock_bh(_l)	mtx_lock(&(_l)->m)
+#define	spin_lock_bh(_l) do {			\
+	local_bh_disable();			\
+	mtx_lock(&(_l)->m);			\
+} while (0)
 #define	spin_lock_irq(_l)	mtx_lock(&(_l)->m)
 #define	spin_unlock(_l)		mtx_unlock(&(_l)->m)
-#define	spin_unlock_bh(_l)	mtx_unlock(&(_l)->m)
+#define	spin_unlock_bh(_l) do {			\
+	mtx_unlock(&(_l)->m);			\
+	local_bh_enable();			\
+} while (0)
 #define	spin_unlock_irq(_l)	mtx_unlock(&(_l)->m)
 #define	spin_trylock(_l)	mtx_trylock(&(_l)->m)
 #define	spin_lock_nested(_l, _n) mtx_lock_flags(&(_l)->m, MTX_DUPOK)
