@@ -302,6 +302,18 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 	return (page);
 }
 
+static struct vnode *
+linux_get_new_vnode(void)
+{
+	struct vnode *vp;
+	int error;
+
+	error = getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
+	if (error != 0)
+		return (NULL);
+	return (vp);
+}
+
 struct linux_file *
 shmem_file_setup(char *name, int size, int flags)
 {
@@ -315,9 +327,11 @@ shmem_file_setup(char *name, int size, int flags)
 		goto err_0;
 	}
 
-	error = -getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
-	if (error != 0)
+	vp = linux_get_new_vnode();
+	if (vp == NULL) {
+		error = -EINVAL;
 		goto err_1;
+	}
 
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_vnode = vp;
@@ -332,7 +346,7 @@ shmem_file_setup(char *name, int size, int flags)
 
 	return (filp);
 err_2:
-	_vdrop(vp, 0);
+	vdrop(vp);
 err_1:
 	free(filp, M_LKFS);
 err_0:
@@ -343,12 +357,10 @@ struct inode *
 alloc_anon_inode(struct super_block *s)
 {
 	struct vnode *vp;
-	int error;
 
-	error = -getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
-	if (error != 0)
-		return (ERR_PTR(error));
-
+	vp = linux_get_new_vnode();
+	if (vp == NULL)
+		return (ERR_PTR(-EINVAL));
 	return (vp);
 }
 

@@ -2929,21 +2929,27 @@ _vdrop(struct vnode *vp, bool locked)
 		if ((vp->v_iflag & VI_OWEINACT) == 0) {
 			vp->v_iflag &= ~VI_ACTIVE;
 			mp = vp->v_mount;
-			mtx_lock(&mp->mnt_listmtx);
-			if (active) {
-				TAILQ_REMOVE(&mp->mnt_activevnodelist, vp,
+			/* check if there is a mount point */
+			if (mp != NULL) {
+				mtx_lock(&mp->mnt_listmtx);
+				if (active) {
+					TAILQ_REMOVE(&mp->mnt_activevnodelist, vp,
+					    v_actfreelist);
+					mp->mnt_activevnodelistsize--;
+				}
+				TAILQ_INSERT_TAIL(&mp->mnt_tmpfreevnodelist, vp,
 				    v_actfreelist);
-				mp->mnt_activevnodelistsize--;
+				mp->mnt_tmpfreevnodelistsize++;
+				vp->v_mflag |= VMP_TMPMNTFREELIST;
 			}
-			TAILQ_INSERT_TAIL(&mp->mnt_tmpfreevnodelist, vp,
-			    v_actfreelist);
-			mp->mnt_tmpfreevnodelistsize++;
 			vp->v_iflag |= VI_FREE;
-			vp->v_mflag |= VMP_TMPMNTFREELIST;
 			VI_UNLOCK(vp);
-			if (mp->mnt_tmpfreevnodelistsize >= mnt_free_list_batch)
-				vnlru_return_batch_locked(mp);
-			mtx_unlock(&mp->mnt_listmtx);
+			/* check if there is a mount point */
+			if (mp != NULL) {
+				if (mp->mnt_tmpfreevnodelistsize >= mnt_free_list_batch)
+					vnlru_return_batch_locked(mp);
+				mtx_unlock(&mp->mnt_listmtx);
+			}
 		} else {
 			VI_UNLOCK(vp);
 			counter_u64_add(free_owe_inact, 1);

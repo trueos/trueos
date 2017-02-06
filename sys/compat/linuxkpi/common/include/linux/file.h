@@ -63,10 +63,11 @@ static inline void
 fput(struct linux_file *filp)
 {
 	if (filp->_file == NULL) {
+		struct vnode *vp = filp->f_vnode;
+		if (vp != NULL)
+			vdrop(vp);
 		kfree(filp);
-		return;
-	}
-	if (refcount_release(&filp->_file->f_count)) {
+	} else if (refcount_release(&filp->_file->f_count)) {
 		_fdrop(filp->_file, curthread);
 		kfree(filp);
 	}
