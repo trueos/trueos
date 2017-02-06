@@ -177,29 +177,34 @@ extern int bit_wait_io_timeout(struct wait_bit_key *, int);
 
 
 #define DECLARE_WAIT_QUEUE_HEAD(name)		\
-        wait_queue_head_t name = LINUX_WAIT_QUEUE_HEAD_INITIALIZER(name); \
+	wait_queue_head_t name = LINUX_WAIT_QUEUE_HEAD_INITIALIZER(name); \
 	MTX_SYSINIT(name, &(name).lock.m, spin_lock_name("wqhead"), MTX_DEF)
 
-#define	init_waitqueue_head(x) do {					\
-	mtx_init(&((x)->lock.m), "wq", NULL, MTX_DEF | MTX_NOWITNESS);  \
-	INIT_LIST_HEAD(&(x)->task_list);				\
-	INIT_LIST_HEAD(&(x)->wqh_file_list);				\
-} while (0)
-
 static inline void
-init_waitqueue_entry(wait_queue_t *q, struct task_struct *p)
+init_waitqueue_head(wait_queue_head_t *wh)
 {
-	q->flags	= 0;
-	q->private	= p;
-	q->func		= default_wake_function;
+
+	memset(wh, 0, sizeof(*wh));
+	mtx_init(&wh->lock.m, spin_lock_name("wqhead"),
+	    NULL, MTX_DEF | MTX_NOWITNESS);
+	INIT_LIST_HEAD(&wh->task_list);
+	INIT_LIST_HEAD(&wh->wqh_file_list);
 }
 
 static inline void
-init_waitqueue_func_entry(wait_queue_t *q, wait_queue_func_t func)
+init_waitqueue_entry(wait_queue_t *wq, struct task_struct *p)
 {
-	q->flags	= 0;
-	q->private	= NULL;
-	q->func		= func;
+	wq->flags	= 0;
+	wq->private	= p;
+	wq->func	= default_wake_function;
+}
+
+static inline void
+init_waitqueue_func_entry(wait_queue_t *wq, wait_queue_func_t func)
+{
+	wq->flags	= 0;
+	wq->private	= NULL;
+	wq->func	= func;
 }
 
 
