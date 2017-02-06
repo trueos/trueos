@@ -37,54 +37,67 @@ __FBSDID("$FreeBSD$");
 #include <linux/list.h>
 
 long
-schedule_timeout(signed long timeout)
+schedule_timeout(long timeout)
 {
-	return (schedule_timeout_locked(timeout, NULL));
-}
-
-long
-schedule_timeout_locked(signed long timeout, spinlock_t *lock)
-{
-	int flags, expire;
-	long ret;
-	struct mtx *m;
 	struct mtx stackm;
+	struct mtx *m;
+	sbintime_t sbt;
+	long ret = 0;
+	int delta;
+	int flags;
 
-	if (timeout < 0)
-		return 0;
-	expire = ticks + (unsigned int)timeout;
-	if (SKIP_SLEEP())
-		return (0);
+	/* check for invalid timeout or panic */
+	if (timeout < 0 || SKIP_SLEEP())
+		goto done;
+
+	/* store current ticks value */
+	delta = ticks;
+
 	MPASS(current);
+
+	/* check if about to wake up */
 	if (current->state == TASK_WAKING)
 		goto done;
 
-	if (lock != NULL) {
-		m = &lock->m;
-	} else if (current->sleep_wq != NULL) {
+	/* get mutex to use */
+	if (current->sleep_wq != NULL) {
 		m = &current->sleep_wq->lock.m;
-		mtx_lock(m);
 	} else {
 		m = &stackm;
-		bzero(m, sizeof(*m));
+		memset(m, 0, sizeof(*m));
 		mtx_init(m, "stack", NULL, MTX_DEF | MTX_NOWITNESS);
-		mtx_lock(m);
 	}
+	mtx_lock(m);
 
-	flags = (current->state == TASK_INTERRUPTIBLE) ? PCATCH : 0;
-	if (lock == NULL)
-		flags |= PDROP;
-	ret = _sleep(current, &(m->lock_object), flags,
-	     "lsti", tick_sbt * timeout, 0 , C_HARDCLOCK);
+	/* get sleep flags */
+	flags = (current->state == TASK_INTERRUPTIBLE) ?
+	    (PCATCH | PDROP) : PDROP;
 
+	/* compute timeout value to use */
+	if (timeout == MAX_SCHEDULE_TIMEOUT)
+		sbt = 0;			/* infinite timeout */
+	else if (timeout > INT_MAX)
+		sbt = tick_sbt * INT_MAX;	/* avoid overflow */
+	else if (timeout < 1)
+		sbt = tick_sbt;			/* avoid underflow */
+	else
+		sbt = tick_sbt * timeout;	/* normal case */
+
+	(void) _sleep(current, &m->lock_object, flags,
+	    "lsti", sbt, 0 , C_HARDCLOCK);
+
+	/* compute number of ticks consumed */
+	delta = (ticks - delta);
+
+	/* compute number of ticks left from timeout */
+	ret = timeout - delta;
+
+	/* check for underflow or overflow */
+	if (ret < 0 || delta < 0)
+		ret = 0;
 done:
 	set_current_state(TASK_RUNNING);
-	if (timeout == MAX_SCHEDULE_TIMEOUT)
-		ret = MAX_SCHEDULE_TIMEOUT;
-	else
-		ret = expire - ticks;
-
-	return (ret);
+	return ((timeout == MAX_SCHEDULE_TIMEOUT) ? timeout : ret);
 }
 
 void

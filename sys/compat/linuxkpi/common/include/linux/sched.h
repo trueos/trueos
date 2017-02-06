@@ -204,11 +204,10 @@ signal_pending_state(long state, struct task_struct *p)
 	return (state & TASK_INTERRUPTIBLE) || __fatal_signal_pending(p);
 }
 
-long schedule_timeout(signed long timeout);
-long schedule_timeout_locked(signed long timeout, spinlock_t *lock);
+long schedule_timeout(long timeout);
 
-static inline unsigned long
-schedule_timeout_uninterruptible(signed long timeout)
+static inline long
+schedule_timeout_uninterruptible(long timeout)
 {
 	MPASS(current);
 	current->state = TASK_UNINTERRUPTIBLE;
@@ -216,7 +215,7 @@ schedule_timeout_uninterruptible(signed long timeout)
 }
 
 static inline long
-schedule_timeout_interruptible(signed long timeout)
+schedule_timeout_interruptible(long timeout)
 {
 	MPASS(current);
 	current->state = TASK_INTERRUPTIBLE;
@@ -225,8 +224,8 @@ schedule_timeout_interruptible(signed long timeout)
 
 #define need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
 
-static inline signed long
-schedule_timeout_killable(signed long timeout)
+static inline long
+schedule_timeout_killable(long timeout)
 {
 	return (schedule_timeout(timeout));
 }
