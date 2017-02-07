@@ -46,32 +46,57 @@ typedef struct {
 	struct mtx m;
 } spinlock_t;
 
-#define	spin_lock(_l)		mtx_lock(&(_l)->m)
+#define	SPIN_SKIP(void)	unlikely(SCHEDULER_STOPPED() || kdb_active)
+
+#define	spin_lock(_l) do {			\
+	if (!SPIN_SKIP())			\
+		mtx_lock(&(_l)->m);		\
+} while (0)
+
 #define	spin_lock_bh(_l) do {			\
 	local_bh_disable();			\
-	mtx_lock(&(_l)->m);			\
+	spin_lock(_l);				\
 } while (0)
-#define	spin_lock_irq(_l)	mtx_lock(&(_l)->m)
-#define	spin_unlock(_l)		mtx_unlock(&(_l)->m)
+
+#define	spin_lock_irq(_l) do {			\
+	spin_lock(_l);				\
+} while (0)
+
+#define	spin_unlock(_l)	do {			\
+	if (!SPIN_SKIP())			\
+		mtx_unlock(&(_l)->m);		\
+} while (0)
+
 #define	spin_unlock_bh(_l) do {			\
-	mtx_unlock(&(_l)->m);			\
+	spin_unlock(_l);			\
 	local_bh_enable();			\
 } while (0)
-#define	spin_unlock_irq(_l)	mtx_unlock(&(_l)->m)
-#define	spin_trylock(_l)	mtx_trylock(&(_l)->m)
-#define	spin_lock_nested(_l, _n) mtx_lock_flags(&(_l)->m, MTX_DUPOK)
 
-#define	spin_lock_irqsave(lock, flags) do {	\
+#define	spin_unlock_irq(_l) do {		\
+	spin_unlock(_l);			\
+} while (0)
+
+#define	spin_trylock(_l) ({				\
+	SPIN_SKIP() ? 1 : mtx_trylock(&(_l)->m);	\
+})
+
+#define	spin_lock_nested(_l, _n) do {			\
+	if (!SPIN_SKIP())				\
+		mtx_lock_flags(&(_l)->m, MTX_DUPOK);	\
+} while (0)
+
+#define	spin_lock_irqsave(_l, flags) do {	\
 	(flags) = 0;				\
-	spin_lock(lock);			\
+	spin_lock(_l);				\
 } while (0)
 
-#define	spin_lock_irqsave_nested(lock, flags, x) do {	\
-	spin_lock(lock);				\
+#define	spin_lock_irqsave_nested(_l, flags, _n) do {	\
+	(flags) = 0;					\
+	spin_lock_nested(_l, _n);			\
 } while (0)
 
-#define	spin_unlock_irqrestore(lock, flags) do {	\
-	spin_unlock(lock);				\
+#define	spin_unlock_irqrestore(_l, flags) do {		\
+	spin_unlock(_l);				\
 } while (0)
 
 #ifdef WITNESS_ALL
@@ -106,8 +131,9 @@ spin_lock_destroy(spinlock_t *lock)
 	spinlock_t lock;					\
 	MTX_SYSINIT(lock, &(lock).m, spin_lock_name("lnxspin"), MTX_DEF)
 
-#define	assert_spin_locked(_l) do {	\
-	mtx_assert(&(_l)->m, MA_OWNED);	\
+#define	assert_spin_locked(_l) do {		\
+	if (!SPIN_SKIP())			\
+		mtx_assert(&(_l)->m, MA_OWNED);	\
 } while (0)
 
 #endif					/* _LINUX_SPINLOCK_H_ */
