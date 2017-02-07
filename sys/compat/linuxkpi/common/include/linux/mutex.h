@@ -43,6 +43,8 @@ typedef struct mutex {
 	struct sx sx;
 } mutex_t;
 
+#define	MUTEX_SKIP(void) unlikely(SCHEDULER_STOPPED() || kdb_active)
+
 #define	sx_is_owned(sx) \
 	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK & ~SX_LOCK_SHARED)) == \
 	(uintptr_t)curthread)
@@ -50,12 +52,29 @@ typedef struct mutex {
 #define	sx_is_xlocked(sx) \
 	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK)) != (uintptr_t)NULL)
 
-#define	mutex_lock(_m)			sx_xlock(&(_m)->sx)
+#define	mutex_lock(_m) do {			\
+	if (!MUTEX_SKIP())			\
+		sx_xlock(&(_m)->sx);		\
+} while (0)
+
 #define	mutex_lock_nested(_m, _s)	mutex_lock(_m)
 #define mutex_lock_nest_lock(_m, _s)	mutex_lock(_m)
-#define	mutex_lock_interruptible(_m)	({ int ret = sx_xlock_sig(&(_m)->sx); ret ? -EINTR : 0; })
-#define	mutex_unlock(_m)		sx_xunlock(&(_m)->sx)
-#define	mutex_trylock(_m)		!!sx_try_xlock(&(_m)->sx)
+
+#define	mutex_lock_interruptible(_m) ({		\
+	MUTEX_SKIP() ? 0 :			\
+	(sx_xlock_sig(&(_m)->sx) ? -EINTR : 0);	\
+})
+
+#define	mutex_unlock(_m) do {			\
+	if (!MUTEX_SKIP())			\
+		sx_xunlock(&(_m)->sx);		\
+} while (0)
+
+#define	mutex_trylock(_m) ({			\
+	MUTEX_SKIP() ? 1 :			\
+	!!sx_try_xlock(&(_m)->sx);		\
+})
+
 #define	mutex_is_locked(_m)		sx_is_xlocked(&(_m)->sx)
 #define	mutex_is_owned(_m)		sx_is_owned(&(_m)->sx)
 
