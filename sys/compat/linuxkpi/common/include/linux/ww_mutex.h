@@ -36,7 +36,7 @@ struct ww_mutex {
 #define __WW_CLASS_INITIALIZER(ww_class) \
 		{ .stamp = ATOMIC_LONG_INIT(0) \
 		, .acquire_name = #ww_class "_acquire" \
-		, .mutex_name = #ww_class "_mutex" }
+		, .mutex_name = mutex_name(#ww_class "_mutex") }
 
 #define __WW_MUTEX_INITIALIZER(lockname, class) \
 		{ .base = { \__MUTEX_INITIALIZER(lockname) } \
@@ -111,15 +111,13 @@ ww_acquire_init(struct ww_acquire_ctx *ctx, struct ww_class *ww_class)
 }
 
 
-#define ww_mutex_init(lock, class) _ww_mutex_init((lock), (class), __FILE__, __LINE__)
-
 static inline void
-_ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class, char *file, int line)
+ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class)
 {
 #ifdef WITNESS_ALL
-	linux_mutex_init(&lock->base, ww_class->mutex_name, SX_DUPOK, file, line);
+	linux_mutex_init(&lock->base, ww_class->mutex_name, SX_DUPOK);
 #else
-	linux_mutex_init(&lock->base, ww_class->mutex_name, SX_NOWITNESS, NULL, 0);
+	linux_mutex_init(&lock->base, ww_class->mutex_name, SX_NOWITNESS);
 #endif
 	lock->ctx = NULL;
 }
