@@ -171,7 +171,7 @@ static inline struct fd fdget(unsigned int fd)
 	return (struct fd){f};
 }
 
-#define	file	linux_file
-#define	fget	linux_fget
+#define	file		linux_file
+#define	fget(...)	linux_fget(__VA_ARGS__)
 
 #endif	/* _LINUX_FILE_H_ */
