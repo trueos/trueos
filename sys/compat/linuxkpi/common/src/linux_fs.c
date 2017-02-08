@@ -322,7 +322,7 @@ shmem_file_setup(char *name, int size, int flags)
 	struct vnode *vp;
 	int error;
 
-	filp = malloc(sizeof(*filp), M_LKFS, M_NOWAIT | M_ZERO);
+	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
 	if (filp == NULL) {
 		error = -ENOMEM;
 		goto err_0;
@@ -349,7 +349,7 @@ shmem_file_setup(char *name, int size, int flags)
 err_2:
 	vdrop(vp);
 err_1:
-	free(filp, M_LKFS);
+	kfree(filp);
 err_0:
 	return (ERR_PTR(error));
 }
