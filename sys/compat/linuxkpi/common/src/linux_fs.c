@@ -491,6 +491,26 @@ get_user_pages(unsigned long start, unsigned long nr_pages, int gup_flags,
 	    !!(gup_flags & FOLL_WRITE), pages));
 }
 
+void
+linux_file_free(struct linux_file *filp)
+{
+
+	if (filp->_file == NULL) {
+		struct vnode *vp = filp->f_vnode;
+		if (vp == NULL)
+			goto done;
+		if (vp->i_mapping != NULL) {
+			vm_object_deallocate(vp->i_mapping);
+			vp->i_mapping = NULL;
+		}
+		vdrop(vp);
+	} else {
+		_fdrop(filp->_file, curthread);
+	}
+done:
+	kfree(filp);
+}
+
 #include <sys/mount.h>
 #include <fs/pseudofs/pseudofs.h>
 

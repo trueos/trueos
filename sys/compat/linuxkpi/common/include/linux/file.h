@@ -59,18 +59,13 @@ linux_fget(unsigned int fd)
 	return (struct linux_file *)file->f_data;
 }
 
+extern void linux_file_free(struct linux_file *filp);
+
 static inline void
 fput(struct linux_file *filp)
 {
-	if (filp->_file == NULL) {
-		struct vnode *vp = filp->f_vnode;
-		if (vp != NULL)
-			vdrop(vp);
-		kfree(filp);
-	} else if (refcount_release(&filp->_file->f_count)) {
-		_fdrop(filp->_file, curthread);
-		kfree(filp);
-	}
+	if (filp->_file == NULL || refcount_release(&filp->_file->f_count))
+		linux_file_free(filp);
 }
 
 static inline void
