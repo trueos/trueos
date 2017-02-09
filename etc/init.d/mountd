@@ -37,6 +37,7 @@ start_pre()
 	if [ -e /etc/zfs/exports ]; then
 		command_args="${command_args} /etc/exports /etc/zfs/exports"
 	else
+		echo "/etc/exports does not exist, creating!"
 		touch /etc/exports
 	fi
         
