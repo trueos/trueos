@@ -36,6 +36,8 @@ start_pre()
 
 	if [ -e /etc/zfs/exports ]; then
 		command_args="${command_args} /etc/exports /etc/zfs/exports"
+	else
+		touch /etc/exports
 	fi
         
 	rm -f /var/db/mountdtab
