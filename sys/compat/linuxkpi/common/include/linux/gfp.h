@@ -166,8 +166,6 @@ free_page(uintptr_t addr)
 	linux_free_kmem(addr, 0);
 }
 
-#define	kmalloc_node(chunk, mask, node)         kmalloc(chunk, mask)
-
 static inline bool
 gfpflags_allow_blocking(const gfp_t gfp_flags)
 {

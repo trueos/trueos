@@ -132,7 +132,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	else if (flag & GFP_DMA32)
 		high = BUS_SPACE_MAXADDR_32BIT;
 	else
-		high = -1UL;
+		high = BUS_SPACE_MAXADDR;
 #ifdef __notyet__
 	/* the linux dma-api documentation indicates no alignment
 	 * requirements - users with alignment requirements are

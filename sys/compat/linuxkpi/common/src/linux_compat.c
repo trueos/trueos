@@ -48,6 +48,9 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_page.h>
+#include <vm/uma.h>
+#include <vm/uma_int.h>
 
 #include <machine/stdarg.h>
 
@@ -77,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/smp.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/compat.h>
 #include <linux/poll.h>
 
@@ -167,7 +171,7 @@ rendezvous_callback(void *arg)
 		needfree = (rsp->rs_count == 0);
 		mtx_unlock_spin(&rsp->rs_mtx);
 		if (needfree)
-			lkpi_free(rsp, M_LCINT);
+			free(rsp, M_LCINT);
 	}
 }
 
@@ -178,18 +182,20 @@ on_each_cpu(void callback(void *data), void *data, int wait)
 	if (wait)
 		rsp = &rs;
 	else
-		rsp = lkpi_malloc(sizeof(*rsp), M_LCINT, M_WAITOK);
+		rsp = malloc(sizeof(*rsp), M_LCINT, M_WAITOK);
 	bzero(rsp, sizeof(*rsp));
 	rsp->rs_data = data;
 	rsp->rs_func = callback;
 	rsp->rs_count = mp_ncpus;
-	mtx_init(&rsp->rs_mtx, "rs lock", NULL, MTX_SPIN|MTX_RECURSE|MTX_NOWITNESS);
+	mtx_init(&rsp->rs_mtx, "rslock", NULL, MTX_SPIN | MTX_RECURSE | MTX_NOWITNESS);
 
 	if (wait) {
 		rsp->rs_free = false;
 		mtx_lock_spin(&rsp->rs_mtx);
 		smp_rendezvous(NULL, rendezvous_callback, rendezvous_wait, rsp);
-		msleep_spin(rsp, &rsp->rs_mtx, "rendezvous", 0);
+		if (rsp->rs_count != 0)
+			msleep_spin(rsp, &rsp->rs_mtx, "rendezvous", 0);
+		mtx_unlock_spin(&rsp->rs_mtx);
 	} else {
 		rsp->rs_free = true;
 		smp_rendezvous(NULL, callback, NULL, rsp);
@@ -215,10 +221,10 @@ memdup_user(const void *ubuf, size_t len)
 	void *kbuf;
 	int rc;
 
-	kbuf = lkpi_malloc(len, M_KMALLOC, M_WAITOK);
+	kbuf = malloc(len, M_KMALLOC, M_WAITOK);
 	rc = copyin(ubuf, kbuf, len);
 	if (rc) {
-		lkpi_free(kbuf, M_KMALLOC);
+		free(kbuf, M_KMALLOC);
 		return ERR_PTR(-EFAULT);
 	}
 	return (kbuf);
@@ -548,8 +554,7 @@ linux_alloc_current(int flags)
 	init_rwsem(&mm->mmap_sem);
 	mm->mm_count.counter = 1;
 	mm->mm_users.counter = 1;
-	mm->vmspace = &td->td_proc->p_vmspace;
-	td->td_lkpi_task = t;
+	curthread->td_lkpi_task = t;
 	return (0);
 }
 
@@ -766,9 +771,9 @@ linux_cdev_handle_insert(void *handle, void *data, int size)
 		}
 	}
 	rw_runlock(&linux_global_rw);
-	r = lkpi_malloc(sizeof(struct lcdev_handle_ref), M_KMALLOC, M_WAITOK);
+	r = malloc(sizeof(struct lcdev_handle_ref), M_KMALLOC, M_WAITOK);
 	r->handle = handle;
-	datap = lkpi_malloc(size, M_KMALLOC, M_WAITOK);
+	datap = malloc(size, M_KMALLOC, M_WAITOK);
 	memcpy(datap, data, size);
 	r->data = datap;
 	INIT_LIST_HEAD(&r->list); /* XXX why _HEAD? */
@@ -793,8 +798,8 @@ linux_cdev_handle_remove(void *handle)
 	MPASS (r && r->handle == handle);
 	list_del(&r->list);
 	rw_wunlock(&linux_global_rw);
-	lkpi_free(r->data, M_KMALLOC);
-	lkpi_free(r, M_KMALLOC);
+	free(r->data, M_KMALLOC);
+	free(r, M_KMALLOC);
 }
 
 static void *
@@ -1804,7 +1809,7 @@ list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 	count = 0;
 	list_for_each(le, head)
 		count++;
-	ar = lkpi_malloc(sizeof(struct list_head *) * count, M_KMALLOC, M_WAITOK);
+	ar = malloc(sizeof(struct list_head *) * count, M_KMALLOC, M_WAITOK);
 	i = 0;
 	list_for_each(le, head)
 		ar[i++] = le;
@@ -1814,7 +1819,7 @@ list_sort(void *priv, struct list_head *head, int (*cmp)(void *priv,
 	INIT_LIST_HEAD(head);
 	for (i = 0; i < count; i++)
 		list_add_tail(ar[i], head);
-	lkpi_free(ar, M_KMALLOC);
+	free(ar, M_KMALLOC);
 }
 
 int
@@ -1824,14 +1829,13 @@ linux_access_ok(int rw, const void *addr, int len)
 	return (len == 0 || (uintptr_t)addr <= VM_MAXUSER_ADDRESS);
 }
 
-int
+void
 linux_irq_handler(void *ent)
 {
 	struct irq_ent *irqe;
 
 	irqe = ent;
 	irqe->handler(irqe->irq, irqe->arg);
-	return (FILTER_HANDLED);
 }
 
 int
@@ -2009,6 +2013,13 @@ async_schedule(async_func_t func, void *data)
 	curthread->td_pflags |= PF_USED_ASYNC;
 	queue_work(system_unbound_wq, &entry->work);
 	return (newcookie);
+}
+
+int
+is_vmalloc_addr(const void *addr)
+{
+
+	return (vtoslab((vm_offset_t)addr & ~UMA_SLAB_MASK) != NULL);
 }
 
 #ifdef __notyet__

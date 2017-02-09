@@ -36,7 +36,7 @@
 
 
 
-#define oops_in_progress (panicstr != NULL)
+#define oops_in_progress unlikely(SCHEDULER_STOPPED() || kdb_active)
 #define preempt_disable() critical_enter()
 #define preempt_enable() critical_exit()
 

@@ -420,16 +420,17 @@ u64 fence_context_alloc(unsigned num);
 
 static inline void
 fence_init(struct fence *fence, const struct fence_ops *ops,
-                spinlock_t *lock, u64 context, unsigned seqno){
+    spinlock_t *lock, u64 context, unsigned seqno)
+{
+
+	memset(fence, 0, sizeof(*fence));
 	fence->ops = ops;
 	fence->lock = lock;
 	fence->context = context;
 	fence->seqno = seqno;
 	INIT_LIST_HEAD(&fence->cb_list);
 	kref_init(&fence->refcount);
-	fence->flags = 0UL;
 }
-
 
 static inline bool
 fence_is_later(struct fence *f1, struct fence *f2){

@@ -77,7 +77,7 @@ linux_irq_rid(struct device *dev, unsigned int irq)
 	return irq - dev->msix + 1;
 }
 
-extern int linux_irq_handler(void *);
+extern void linux_irq_handler(void *);
 
 static inline struct irq_ent *
 linux_irq_ent(struct device *dev, unsigned int irq)
@@ -116,7 +116,7 @@ request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags,
 	irqe->handler = handler;
 	irqe->irq = irq;
 	error = bus_setup_intr(dev->bsddev, res, INTR_TYPE_NET | INTR_MPSAFE,
-	    linux_irq_handler, NULL, irqe, &irqe->tag);
+	    NULL, linux_irq_handler, irqe, &irqe->tag);
 	if (error) {
 		bus_release_resource(dev->bsddev, SYS_RES_IRQ, rid, irqe->res);
 		kfree(irqe);
@@ -186,66 +186,27 @@ free_irq(unsigned int irq, void *device)
      he makes it with spinlocks.
  */
 
-struct tasklet_struct
-{
-	struct tasklet_struct *next;
-	unsigned long state;
-	atomic_t count;
-	void (*func)(unsigned long);
+typedef void (tasklet_func_t) (unsigned long);
+
+struct tasklet_struct {
+	TAILQ_ENTRY(tasklet_struct) entry;
+	tasklet_func_t *func;
 	unsigned long data;
 };
 
-#define DECLARE_TASKLET(name, func, data) \
-struct tasklet_struct name = { NULL, 0, ATOMIC_INIT(0), func, data }
+#define	DECLARE_TASKLET(name, func, data) \
+struct tasklet_struct name = { { NULL, NULL }, func, data }
 
-#define DECLARE_TASKLET_DISABLED(name, func, data) \
-struct tasklet_struct name = { NULL, 0, ATOMIC_INIT(1), func, data }
+#define	DECLARE_TASKLET_DISABLED(name, func, data) \
+struct tasklet_struct name = { { NULL, NULL }, func, data }
 
+extern void linux_tasklet_schedule(struct tasklet_struct *t);
 
-enum
-{
-	TASKLET_STATE_SCHED,	/* Tasklet is scheduled for execution */
-	TASKLET_STATE_RUN	/* Tasklet is running (SMP only) */
-};
+#define	tasklet_schedule(t) linux_tasklet_schedule(t)
+#define	tasklet_hi_schedule(t) linux_tasklet_schedule(t)
 
-#ifdef CONFIG_SMP
-static inline int tasklet_trylock(struct tasklet_struct *t)
-{
-	return !test_and_set_bit(TASKLET_STATE_RUN, &(t)->state);
-}
-
-static inline void tasklet_unlock(struct tasklet_struct *t)
-{
-	smp_mb__before_atomic();
-	clear_bit(TASKLET_STATE_RUN, &(t)->state);
-}
-
-static inline void tasklet_unlock_wait(struct tasklet_struct *t)
-{
-	while (test_bit(TASKLET_STATE_RUN, &(t)->state)) { barrier(); }
-}
-#else
-#define tasklet_trylock(t) 1
-#define tasklet_unlock_wait(t) do { } while (0)
-#define tasklet_unlock(t) do { } while (0)
-#endif
-
-extern void __tasklet_schedule(struct tasklet_struct *t);
-
-static inline void tasklet_schedule(struct tasklet_struct *t)
-{
-	if (!test_and_set_bit(TASKLET_STATE_SCHED, &t->state))
-		__tasklet_schedule(t);
-}
-
-static inline void tasklet_hi_schedule(struct tasklet_struct *t)
-{
-	/* XXX */
-	tasklet_schedule(t);
-}
-	
 extern void tasklet_kill(struct tasklet_struct *t);
 extern void tasklet_init(struct tasklet_struct *t,
-			 void (*func)(unsigned long), unsigned long data);
+    tasklet_func_t *func, unsigned long data);
 
 #endif	/* _LINUX_INTERRUPT_H_ */

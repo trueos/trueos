@@ -59,17 +59,13 @@ linux_fget(unsigned int fd)
 	return (struct linux_file *)file->f_data;
 }
 
+extern void linux_file_free(struct linux_file *filp);
+
 static inline void
 fput(struct linux_file *filp)
 {
-	if (filp->_file == NULL) {
-		kfree(filp);
-		return;
-	}
-	if (refcount_release(&filp->_file->f_count)) {
-		_fdrop(filp->_file, curthread);
-		kfree(filp);
-	}
+	if (filp->_file == NULL || refcount_release(&filp->_file->f_count))
+		linux_file_free(filp);
 }
 
 static inline void
@@ -170,7 +166,7 @@ static inline struct fd fdget(unsigned int fd)
 	return (struct fd){f};
 }
 
-#define	file	linux_file
-#define	fget	linux_fget
+#define	file		linux_file
+#define	fget(...)	linux_fget(__VA_ARGS__)
 
 #endif	/* _LINUX_FILE_H_ */

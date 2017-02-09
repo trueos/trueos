@@ -116,7 +116,6 @@ linux_kthread_fn(void *arg)
 	init_rwsem(&mm->mmap_sem);
 	mm->mm_count.counter = 1;
 	mm->mm_users.counter = 1;
-	mm->vmspace = NULL;
 	td->td_lkpi_task = task;
 	if (task->should_stop == 0)
 		task->task_ret = task->task_fn(task->task_data);

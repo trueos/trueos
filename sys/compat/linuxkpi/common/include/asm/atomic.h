@@ -85,12 +85,10 @@ atomic_set_mask(unsigned int mask, atomic_t *v)
 #endif
 
 static inline int
-atomic_read_(atomic_t *v)
+atomic_read(const atomic_t *v)
 {
-	return atomic_load_acq_int(&v->counter);
+	return atomic_load_acq_int(&__DECONST(atomic_t *, v)->counter);
 }
-
-#define atomic_read(v) (atomic_read_(__DECONST(atomic_t *, (v))))
 
 static inline int
 atomic_inc(atomic_t *v)
@@ -175,24 +173,26 @@ static inline void atomic_##op(int i, atomic_t *v)		\
 		c = old;					\
 }
 
-#define LINUX_ATOMIC_FETCH_OP(op, c_op)					\
-static inline int atomic_fetch_##op(int i, atomic_t *v)			\
-{									\
-	int ret;							\
-									\
-	spinlock_enter();\
-	ret = v->counter;						\
-	v->counter = v->counter c_op i;					\
-	spinlock_exit();\
-									\
-	return (ret);							\
+#define	LINUX_ATOMIC_FETCH_OP(op, c_op)				\
+static inline int atomic_fetch_##op(int i, atomic_t *v)		\
+{								\
+	int c, old;						\
+								\
+	c = v->counter;						\
+	while ((old = atomic_cmpxchg(v, c, c c_op i)) != c)	\
+		c = old;					\
+								\
+	return (c);						\
 }
 
 LINUX_ATOMIC_OP(or, |)
 LINUX_ATOMIC_OP(and, &)
 LINUX_ATOMIC_OP(andnot, &~)
 LINUX_ATOMIC_OP(xor, ^)
-LINUX_ATOMIC_FETCH_OP(xor, ^)
 
+LINUX_ATOMIC_FETCH_OP(or, |)
+LINUX_ATOMIC_FETCH_OP(and, &)
+LINUX_ATOMIC_FETCH_OP(andnot, &~)
+LINUX_ATOMIC_FETCH_OP(xor, ^)
 
 #endif					/* _ASM_ATOMIC_H_ */

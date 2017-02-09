@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
 
+#include <machine/bus.h>
+
 #include <linux/page.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -483,7 +485,7 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 			return (NULL);
 	} else {
 		vm_paddr_t pmax = (flags & GFP_DMA32) ?
-		    0xFFFFFFFFUL : ~(vm_paddr_t)0;
+		    BUS_SPACE_MAXADDR_32BIT : BUS_SPACE_MAXADDR;
 retry:
 		page = vm_page_alloc_contig(NULL, 0, req,
 		    1, 0, pmax, size, 0, VM_MEMATTR_DEFAULT);
@@ -538,7 +540,7 @@ linux_alloc_kmem(gfp_t flags, unsigned int order)
 		addr = kmem_malloc(kmem_arena, size, flags & GFP_NATIVE_MASK);
 	} else {
 		addr = kmem_alloc_contig(kmem_arena, size,
-		    flags & GFP_NATIVE_MASK, 0, 0xFFFFFFFFUL, size, 0,
+		    flags & GFP_NATIVE_MASK, 0, BUS_SPACE_MAXADDR_32BIT, size, 0,
 		    VM_MEMATTR_DEFAULT);
 	}
 	return (addr);

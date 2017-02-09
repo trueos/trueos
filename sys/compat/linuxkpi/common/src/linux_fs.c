@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
+#include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/mount.h>
 #include <asm/uaccess.h>
@@ -305,6 +306,18 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 	return (page);
 }
 
+static struct vnode *
+linux_get_new_vnode(void)
+{
+	struct vnode *vp;
+	int error;
+
+	error = getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
+	if (error != 0)
+		return (NULL);
+	return (vp);
+}
+
 struct linux_file *
 shmem_file_setup(char *name, int size, int flags)
 {
@@ -312,15 +325,17 @@ shmem_file_setup(char *name, int size, int flags)
 	struct vnode *vp;
 	int error;
 
-	filp = malloc(sizeof(*filp), M_LKFS, M_NOWAIT | M_ZERO);
+	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
 	if (filp == NULL) {
 		error = -ENOMEM;
 		goto err_0;
 	}
 
-	error = -getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
-	if (error != 0)
+	vp = linux_get_new_vnode();
+	if (vp == NULL) {
+		error = -EINVAL;
 		goto err_1;
+	}
 
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_vnode = vp;
@@ -335,9 +350,9 @@ shmem_file_setup(char *name, int size, int flags)
 
 	return (filp);
 err_2:
-	_vdrop(vp, 0);
+	vdrop(vp);
 err_1:
-	free(filp, M_LKFS);
+	kfree(filp);
 err_0:
 	return (ERR_PTR(error));
 }
@@ -346,12 +361,10 @@ struct inode *
 alloc_anon_inode(struct super_block *s)
 {
 	struct vnode *vp;
-	int error;
 
-	error = -getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
-	if (error != 0)
-		return (ERR_PTR(error));
-
+	vp = linux_get_new_vnode();
+	if (vp == NULL)
+		return (ERR_PTR(-EINVAL));
 	return (vp);
 }
 
@@ -470,7 +483,7 @@ get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 {
 	vm_map_t map;
 
-	map = &((struct vmspace *)mm->vmspace)->vm_map;
+	map = &tsk->task_thread->td_proc->p_vmspace->vm_map;
 	return (__get_user_pages_internal(map, start, nr_pages,
 	    !!(gup_flags & FOLL_WRITE), pages));
 }
@@ -484,6 +497,26 @@ get_user_pages(unsigned long start, unsigned long nr_pages, int gup_flags,
 	map = &curthread->td_proc->p_vmspace->vm_map;
 	return (__get_user_pages_internal(map, start, nr_pages,
 	    !!(gup_flags & FOLL_WRITE), pages));
+}
+
+void
+linux_file_free(struct linux_file *filp)
+{
+
+	if (filp->_file == NULL) {
+		struct vnode *vp = filp->f_vnode;
+		if (vp == NULL)
+			goto done;
+		if (vp->i_mapping != NULL) {
+			vm_object_deallocate(vp->i_mapping);
+			vp->i_mapping = NULL;
+		}
+		vdrop(vp);
+	} else {
+		_fdrop(filp->_file, curthread);
+	}
+done:
+	kfree(filp);
 }
 
 #include <sys/mount.h>

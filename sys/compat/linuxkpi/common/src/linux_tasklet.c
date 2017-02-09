@@ -1,142 +1,168 @@
+/*-
+ * Copyright (c) 2017 Hans Petter Selasky
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/gtaskqueue.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
 
 #include <linux/interrupt.h>
-struct tasklet_head {
-	struct tasklet_struct *head;
-	struct tasklet_struct **tail;
-};
-DPCPU_DEFINE(struct tasklet_head, tasklet_head);
 
-#ifdef INVARIANTS
-static int tasklet_schedule_cnt, tasklet_handler_cnt, tasklet_func_cnt;
-#endif
-static struct grouptask_aligned *tasklet_gtask_array;
+#define	TASKLET_IDLE 0
+#define	TASKLET_BUSY 1
+#define	TASKLET_EXEC 2
+#define	TASKLET_LOOP 3
+
+#define	TASKLET_ST_CMPSET(ts, old, new)	\
+	atomic_cmpset_ptr((volatile uintptr_t *)&(ts)->entry.tqe_prev, old, new)
+
+#define	TASKLET_ST_SET(ts, new)	\
+	atomic_store_rel_ptr((volatile uintptr_t *)&(ts)->entry.tqe_prev, new)
+
+struct tasklet_worker {
+	spinlock_t lock;
+	TAILQ_HEAD(, tasklet_struct) head;
+	struct grouptask gtask;
+} __aligned(CACHE_LINE_SIZE);
+
+static DPCPU_DEFINE(struct tasklet_worker, tasklet_worker);
 
 static void
 tasklet_handler(void *arg)
 {
-	struct tasklet_struct *t, *l;
-	struct grouptask *gtask;
-	struct tasklet_head *h;
-#ifdef INVARIANTS
-	intptr_t cpuid = (intptr_t)arg;
-#endif
+	struct tasklet_worker *tw;
+	struct tasklet_struct *ts;
 
-	MPASS(curcpu == cpuid);
+	MPASS(curcpu == (intptr_t)arg);
 
-	disable_intr();
-	h = &DPCPU_GET(tasklet_head);
-	l = h->head;
-	h->head = NULL;
-	h->tail = &h->head;
-	enable_intr();
+	tw = &DPCPU_GET(tasklet_worker);
 
-#ifdef INVARIANTS
-	atomic_add_int(&tasklet_handler_cnt, 1);
-#endif	
-	while (l) {
-		t = l;
-		l = l->next;
-
-		if (tasklet_trylock(t)) {
-#ifdef INVARIANTS	
-			atomic_add_int(&tasklet_func_cnt, 1);
-#endif
-			if (!atomic_read(&t->count)) {
-					if (!test_and_clear_bit(TASKLET_STATE_SCHED,
-							&t->state))
-						BUG();
-				t->func(t->data);
-				tasklet_unlock(t);
-				continue;
-			}
-			tasklet_unlock(t);
+	while (1) {
+		spin_lock(&tw->lock);
+		ts = TAILQ_FIRST(&tw->head);
+		if (ts != NULL) {
+			TAILQ_REMOVE(&tw->head, ts, entry);
+			spin_unlock(&tw->lock);
+		} else {
+			spin_unlock(&tw->lock);
+			break;
 		}
-		spinlock_enter();
-		t->next = NULL;
-		*(h->tail) = t;
-		h->tail = &t->next;
-		gtask = (struct grouptask *)&tasklet_gtask_array[curcpu];
-		GROUPTASK_ENQUEUE(gtask);
-		spinlock_exit();
+
+		do {
+			/* reset executing state */
+			TASKLET_ST_SET(ts, TASKLET_EXEC);
+
+			ts->func(ts->data);
+
+		} while (TASKLET_ST_CMPSET(ts, TASKLET_EXEC, TASKLET_IDLE) == 0);
 	}
 }
 
 static void
 tasklet_subsystem_init(void *arg __unused)
 {
-	int i;
-	struct grouptask *gtask;
-	struct tasklet_head *head;
+	struct tasklet_worker *tw;
 	char buf[32];
-
-	tasklet_gtask_array = malloc(sizeof(struct grouptask_aligned)*mp_ncpus, M_KMALLOC, M_WAITOK|M_ZERO);
+	int i;
 
 	CPU_FOREACH(i) {
 		if (CPU_ABSENT(i))
 			continue;
-		head = DPCPU_ID_PTR(i, tasklet_head);
-		head->tail = &head->head;
 
-		gtask = (struct grouptask *)&tasklet_gtask_array[i];
-		GROUPTASK_INIT(gtask, 0, tasklet_handler, (void *)(uintptr_t)i);
-		snprintf(buf, 31, "softirq%d", i);
-		taskqgroup_attach_cpu(qgroup_softirq, gtask, "tasklet", i, -1, buf);
+		tw = DPCPU_ID_PTR(i, tasklet_worker);
+
+		spin_lock_init(&tw->lock);
+		TAILQ_INIT(&tw->head);
+
+		GROUPTASK_INIT(&tw->gtask, 0, tasklet_handler,
+		    (void *)(uintptr_t)i);
+
+		snprintf(buf, sizeof(buf), "softirq%d", i);
+		taskqgroup_attach_cpu(qgroup_softirq, &tw->gtask,
+		    "tasklet", i, -1, buf);
 	}
 }
 SYSINIT(linux_tasklet, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, tasklet_subsystem_init, NULL);
 
 void
-tasklet_init(struct tasklet_struct *t, void (*func)(unsigned long), unsigned long data)
+tasklet_init(struct tasklet_struct *ts,
+    tasklet_func_t *func, unsigned long data)
 {
-	t->next = NULL;
-	t->state = 0;
-	atomic_set(&t->count, 0);
-	t->func = func;
-	t->data = data;	
+	ts->entry.tqe_prev = NULL;
+	ts->entry.tqe_next = NULL;
+	ts->func = func;
+	ts->data = data;
 }
 
 void
-raise_softirq(void)
+local_bh_enable(void)
 {
-	struct grouptask *gtask;
-
-	gtask = (struct grouptask *)&tasklet_gtask_array[curcpu];
-	GROUPTASK_ENQUEUE(gtask);
+	sched_unpin();
 }
 
 void
-__tasklet_schedule(struct tasklet_struct *t)
+local_bh_disable(void)
 {
-	struct tasklet_head *head;
-	struct grouptask *gtask;
-
-	t->next = NULL;
-	spinlock_enter();
-
-	gtask = (struct grouptask *)&tasklet_gtask_array[curcpu];
-	head = &DPCPU_GET(tasklet_head);
-	*(head->tail) = t;
-	head->tail = &(t->next);
-	GROUPTASK_ENQUEUE(gtask);
-	spinlock_exit();
-
-#ifdef INVARIANTS	
-	atomic_add_int(&tasklet_schedule_cnt, 1);
-#endif	
+	sched_pin();
 }
 
 void
-tasklet_kill(struct tasklet_struct *t)
+linux_tasklet_schedule(struct tasklet_struct *ts)
 {
-	while (test_and_set_bit(TASKLET_STATE_SCHED, &t->state)) {
-		do {
-			kern_yield(0);
-		} while (test_bit(TASKLET_STATE_SCHED, &t->state));
+	struct tasklet_worker *tw;
+
+	if (TASKLET_ST_CMPSET(ts, TASKLET_EXEC, TASKLET_LOOP)) {
+		/* tasklet_handler() will loop */
+	} else if (TASKLET_ST_CMPSET(ts, TASKLET_IDLE, TASKLET_BUSY)) {
+		tw = &DPCPU_GET(tasklet_worker);
+
+		spin_lock(&tw->lock);
+		/* enqueue tasklet */
+		TAILQ_INSERT_TAIL(&tw->head, ts, entry);
+		/* schedule worker */
+		GROUPTASK_ENQUEUE(&tw->gtask);
+		spin_unlock(&tw->lock);
+	} else {
+		/*
+		 * The three cases that end up here:
+		 * ===============================
+		 *
+		 * 1) The tasklet is now executing or did execute fully.
+		 * 2) The tasklet is already queued.
+		 * 3) The tasklet is already set to loop.
+		 */
 	}
-	tasklet_unlock_wait(t);
-	clear_bit(TASKLET_STATE_SCHED, &t->state);	
 }
 
+void
+tasklet_kill(struct tasklet_struct *ts)
+{
+
+	/* wait until tasklet is no longer busy */
+	while (TASKLET_ST_CMPSET(ts, TASKLET_IDLE, TASKLET_IDLE) == 0)
+		pause("W", 1);
+}

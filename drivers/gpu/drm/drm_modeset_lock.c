@@ -81,6 +81,9 @@ void drm_modeset_lock_all(struct drm_device *dev)
 	struct drm_modeset_acquire_ctx *ctx;
 	int ret;
 
+	if (oops_in_progress)
+		return;
+
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (WARN_ON(!ctx))
 		return;
@@ -133,6 +136,9 @@ void drm_modeset_unlock_all(struct drm_device *dev)
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_modeset_acquire_ctx *ctx = config->acquire_ctx;
 
+	if (oops_in_progress)
+		return;
+
 	if (WARN_ON(!ctx))
 		return;
 
@@ -164,6 +170,9 @@ void drm_modeset_lock_crtc(struct drm_crtc *crtc,
 {
 	struct drm_modeset_acquire_ctx *ctx;
 	int ret;
+
+	if (oops_in_progress)
+		return;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (WARN_ON(!ctx))
@@ -217,6 +226,9 @@ EXPORT_SYMBOL(drm_modeset_lock_crtc);
 struct drm_modeset_acquire_ctx *
 drm_modeset_legacy_acquire_ctx(struct drm_crtc *crtc)
 {
+	if (oops_in_progress)
+		return NULL;
+
 	if (crtc->acquire_ctx)
 		return crtc->acquire_ctx;
 
@@ -236,6 +248,9 @@ EXPORT_SYMBOL(drm_modeset_legacy_acquire_ctx);
 void drm_modeset_unlock_crtc(struct drm_crtc *crtc)
 {
 	struct drm_modeset_acquire_ctx *ctx = crtc->acquire_ctx;
+
+	if (oops_in_progress)
+		return;
 
 	if (WARN_ON(!ctx))
 		return;
@@ -278,6 +293,9 @@ EXPORT_SYMBOL(drm_warn_on_modeset_not_all_locked);
 void drm_modeset_acquire_init(struct drm_modeset_acquire_ctx *ctx,
 		uint32_t flags)
 {
+	if (oops_in_progress)
+		return;
+
 	memset(ctx, 0, sizeof(*ctx));
 	ww_acquire_init(&ctx->ww_ctx, &crtc_ww_class);
 	INIT_LIST_HEAD(&ctx->locked);
@@ -290,6 +308,9 @@ EXPORT_SYMBOL(drm_modeset_acquire_init);
  */
 void drm_modeset_acquire_fini(struct drm_modeset_acquire_ctx *ctx)
 {
+	if (oops_in_progress)
+		return;
+
 	ww_acquire_fini(&ctx->ww_ctx);
 }
 EXPORT_SYMBOL(drm_modeset_acquire_fini);
@@ -302,6 +323,9 @@ EXPORT_SYMBOL(drm_modeset_acquire_fini);
  */
 void drm_modeset_drop_locks(struct drm_modeset_acquire_ctx *ctx)
 {
+	if (oops_in_progress)
+		return;
+
 	WARN_ON(ctx->contended);
 	while (!list_empty(&ctx->locked)) {
 		struct drm_modeset_lock *lock;
@@ -319,6 +343,9 @@ static inline int modeset_lock(struct drm_modeset_lock *lock,
 		bool interruptible, bool slow)
 {
 	int ret;
+
+	if (oops_in_progress)
+		return 0;
 
 	WARN_ON(ctx->contended);
 
@@ -360,6 +387,9 @@ static int modeset_backoff(struct drm_modeset_acquire_ctx *ctx,
 		bool interruptible)
 {
 	struct drm_modeset_lock *contended = ctx->contended;
+
+	if (oops_in_progress)
+		return (0);
 
 	ctx->contended = NULL;
 
@@ -411,6 +441,9 @@ EXPORT_SYMBOL(drm_modeset_backoff_interruptible);
 int drm_modeset_lock(struct drm_modeset_lock *lock,
 		struct drm_modeset_acquire_ctx *ctx)
 {
+	if (oops_in_progress)
+		return 0;
+
 	if (ctx)
 		return modeset_lock(lock, ctx, false, false);
 
@@ -429,6 +462,9 @@ EXPORT_SYMBOL(drm_modeset_lock);
 int drm_modeset_lock_interruptible(struct drm_modeset_lock *lock,
 		struct drm_modeset_acquire_ctx *ctx)
 {
+	if (oops_in_progress)
+		return 0;
+
 	if (ctx)
 		return modeset_lock(lock, ctx, true, false);
 
@@ -442,6 +478,9 @@ EXPORT_SYMBOL(drm_modeset_lock_interruptible);
  */
 void drm_modeset_unlock(struct drm_modeset_lock *lock)
 {
+	if (oops_in_progress)
+		return;
+
 	list_del_init(&lock->head);
 	ww_mutex_unlock(&lock->mutex);
 }
@@ -471,6 +510,9 @@ int drm_modeset_lock_all_ctx(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
 	int ret;
+
+	if (oops_in_progress)
+		return 0;
 
 	ret = drm_modeset_lock(&dev->mode_config.connection_mutex, ctx);
 	if (ret)

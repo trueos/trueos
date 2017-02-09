@@ -3,21 +3,6 @@
 #include <linux/wait.h>
 #include <linux/spinlock.h>
 
-int		db_printf(const char *fmt, ...) __printflike(1, 2);
-
-#define	mtxlock2mtx(c)	(__containerof(c, struct mtx, mtx_lock))
-#define mtx_unowned(m)	((m)->mtx_lock == MTX_UNOWNED)
-#define	mtx_destroyed(m) ((m)->mtx_lock == MTX_DESTROYED)
-
-void
-linux_mtx_sysinit(void *arg)
-{
-	struct mtx_args *margs = arg;
-
-	lkpi_mtx_init((struct mtx *)margs->ma_mtx, margs->ma_desc, NULL,
-	    margs->ma_opts);
-}
-
 static inline int
 lock_check_stamp(struct mutex *lock, struct ww_acquire_ctx *ctx)
 {

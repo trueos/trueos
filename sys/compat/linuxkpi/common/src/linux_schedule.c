@@ -36,136 +36,71 @@ __FBSDID("$FreeBSD$");
 #include <linux/fs.h>
 #include <linux/list.h>
 
-static int
-lkpi_msleep_spin_sbt(void *ident, struct mtx *mtx, int prio, const char *wmesg,
-    sbintime_t sbt, sbintime_t pr, int flags)
-{
-	struct thread *td;
-	struct proc *p;
-	int rval;
-	int catch, pri;
-	WITNESS_SAVE_DECL(mtx);
-
-	td = curthread;
-	p = td->td_proc;
-	KASSERT(mtx != NULL, ("sleeping without a mutex"));
-	KASSERT(p != NULL, ("msleep1"));
-	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
-
-	if (SCHEDULER_STOPPED())
-		return (0);
-
-	catch = prio & PCATCH;
-	pri = prio & PRIMASK;
-	sleepq_lock(ident);
-	CTR5(KTR_PROC, "msleep_spin: thread %ld (pid %ld, %s) on %s (%p)",
-	    td->td_tid, p->p_pid, td->td_name, wmesg, ident);
-
-	DROP_GIANT();
-	mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
-	WITNESS_SAVE(&mtx->lock_object, mtx);
-	lkpi_mtx_unlock_spin(mtx);
-
-	/*
-	 * We put ourselves on the sleep queue and start our timeout.
-	 */
-	sleepq_add(ident, &mtx->lock_object, wmesg, SLEEPQ_SLEEP, 0);
-	if (sbt != 0)
-		sleepq_set_timeout_sbt(ident, sbt, pr, flags);
-
-	/*
-	 * Can't call ktrace with any spin locks held so it can lock the
-	 * ktrace_mtx lock, and WITNESS_WARN considers it an error to hold
-	 * any spin lock.  Thus, we have to drop the sleepq spin lock while
-	 * we handle those requests.  This is safe since we have placed our
-	 * thread on the sleep queue already.
-	 */
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_CSW)) {
-		sleepq_release(ident);
-		ktrcsw(1, 0, wmesg);
-		sleepq_lock(ident);
-	}
-#endif
-	if (sbt != 0 && catch)
-		rval = sleepq_timedwait_sig(ident, pri);
-	else if (sbt != 0)
-		rval = sleepq_timedwait(ident, pri);
-	else if (catch)
-		rval = sleepq_wait_sig(ident, pri);
-	else {
-		sleepq_wait(ident, pri);
-		rval = 0;
-	}
-
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0, wmesg);
-#endif
-	PICKUP_GIANT();
-	if (!(prio & PDROP))
-		lkpi_mtx_lock_spin(mtx);
-	return (rval);
-}
-
 long
-schedule_timeout(signed long timeout)
+schedule_timeout(long timeout)
 {
-	return (schedule_timeout_locked(timeout, NULL));
-}
-
-long
-schedule_timeout_locked(signed long timeout, spinlock_t *lock)
-{
-	int flags, sleepable, expire;
-	long ret;
-	struct mtx *m;
 	struct mtx stackm;
+	struct mtx *m;
+	sbintime_t sbt;
+	long ret = 0;
+	int delta;
+	int flags;
 
-	if (timeout < 0)
-		return 0;
-	expire = ticks + (unsigned int)timeout;
-	if (SKIP_SLEEP())
-		return (0);
+	/* check for invalid timeout or panic */
+	if (timeout < 0 || SKIP_SLEEP())
+		goto done;
+
+	/* store current ticks value */
+	delta = ticks;
+
 	MPASS(current);
-	sleepable = 0;
+
+	/* check if about to wake up */
 	if (current->state == TASK_WAKING)
 		goto done;
 
-	if (lock != NULL) {
-		m = &lock->m;
-	} else if (current->sleep_wq != NULL) {
+	/* get mutex to use */
+	if (current->sleep_wq != NULL) {
 		m = &current->sleep_wq->lock.m;
-		lkpi_mtx_lock_spin(m);
 	} else {
 		m = &stackm;
-		bzero(m, sizeof(*m));
-		mtx_init(m, "stack", NULL, MTX_DEF|MTX_NOWITNESS);
-		mtx_lock(m);
-		sleepable = 1;
+		memset(m, 0, sizeof(*m));
+		mtx_init(m, "stack", NULL, MTX_DEF | MTX_NOWITNESS);
 	}
+	mtx_lock(m);
 
-	flags = (current->state == TASK_INTERRUPTIBLE) ? PCATCH : 0;
-	if (lock == NULL)
-		flags |= PDROP;
-	if (sleepable)
-		ret = _sleep(current, &(m->lock_object), flags,
-			     "lsti", tick_sbt * timeout, 0 , C_HARDCLOCK);
-	else 
-		ret = lkpi_msleep_spin_sbt(current, m, flags, "lstisp",
-				      tick_sbt * timeout, 0, C_HARDCLOCK);
-done:
-	
-	set_current_state(TASK_RUNNING);
+	/* get sleep flags */
+	flags = (current->state == TASK_INTERRUPTIBLE) ?
+	    (PCATCH | PDROP) : PDROP;
+
+	/* compute timeout value to use */
 	if (timeout == MAX_SCHEDULE_TIMEOUT)
-		ret = MAX_SCHEDULE_TIMEOUT;
+		sbt = 0;			/* infinite timeout */
+	else if (timeout > INT_MAX)
+		sbt = tick_sbt * INT_MAX;	/* avoid overflow */
+	else if (timeout < 1)
+		sbt = tick_sbt;			/* avoid underflow */
 	else
-		ret = expire - ticks;
+		sbt = tick_sbt * timeout;	/* normal case */
 
-	return (ret);
+	(void) _sleep(current, &m->lock_object, flags,
+	    "lsti", sbt, 0 , C_HARDCLOCK);
+
+	/* compute number of ticks consumed */
+	delta = (ticks - delta);
+
+	/* compute number of ticks left from timeout */
+	ret = timeout - delta;
+
+	/* check for underflow or overflow */
+	if (ret < 0 || delta < 0)
+		ret = 0;
+done:
+	set_current_state(TASK_RUNNING);
+	return ((timeout == MAX_SCHEDULE_TIMEOUT) ? timeout : ret);
 }
 
- void
+void
 __wake_up(wait_queue_head_t *q, int mode, int nr, void *key)
 {
 	int flags;
