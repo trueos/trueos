@@ -476,7 +476,7 @@ get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 {
 	vm_map_t map;
 
-	map = &tsk->task_thread->td_proc->p_vmspace->vm_map;
+	map = &((struct vmspace *)mm->vmspace)->vm_map;
 	return (__get_user_pages_internal(map, start, nr_pages,
 	    !!(gup_flags & FOLL_WRITE), pages));
 }
