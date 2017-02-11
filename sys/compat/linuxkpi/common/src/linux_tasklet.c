@@ -162,6 +162,8 @@ void
 tasklet_kill(struct tasklet_struct *ts)
 {
 
+	might_sleep();
+
 	/* wait until tasklet is no longer busy */
 	while (TASKLET_ST_CMPSET(ts, TASKLET_IDLE, TASKLET_IDLE) == 0)
 		pause("W", 1);
