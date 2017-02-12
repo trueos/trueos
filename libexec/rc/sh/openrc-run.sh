@@ -191,6 +191,70 @@ status()
 	$func
 }
 
+# These functions select the appropriate function to call from the
+# supervisor modules
+default_start()
+{
+	local func=ssd_start
+	case "$supervisor" in
+		runit) func=runit_start ;;
+		s6) func=s6_start ;;
+		supervise-daemon) func=supervise_start ;;
+		?*)
+			ewarn "Invalid supervisor, \"$supervisor\", using start-stop-daemon"
+			;;
+	esac
+	$func
+}
+
+default_stop()
+{
+	local func=ssd_stop
+	case "$supervisor" in
+		runit) func=runit_stop ;;
+		s6) func=s6_stop ;;
+		supervise-daemon) func=supervise_stop ;;
+		?*)
+			ewarn "Invalid supervisor, \"$supervisor\", using start-stop-daemon"
+			;;
+	esac
+	$func
+}
+
+default_status()
+{
+	local func=ssd_status
+	case "$supervisor" in
+		runit) func=runit_status ;;
+		s6) func=s6_status ;;
+		supervise-daemon) func=supervise_status ;;
+		?*)
+			ewarn "Invalid supervisor, \"$supervisor\", using start-stop-daemon"
+			;;
+	esac
+	$func
+}
+
+# Template start / stop / status functions
+# package init scripts may override these, but the bodies are as minimal as
+# possible, so that the init scripts can creatively wrap default_*
+# functions.
+start()
+{
+	default_start
+}
+
+stop()
+{
+	default_stop
+}
+
+status()
+{
+	default_status
+}
+
+# Start debug output
 yesno $RC_DEBUG && set -x
 
 # Load configuration settings. First the global ones, then any
