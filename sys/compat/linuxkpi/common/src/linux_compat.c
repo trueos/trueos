@@ -92,12 +92,6 @@ extern u_int cpu_clflush_line_size;
 extern u_int cpu_id;
 pteval_t __supported_pte_mask __read_mostly = ~0;
 
-
-struct workqueue_struct *system_long_wq;
-struct workqueue_struct *system_wq;
-struct workqueue_struct *system_unbound_wq;
-struct workqueue_struct *system_power_efficient_wq;
-
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 int linux_db_trace;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, db_trace, CTLFLAG_RWTUN, &linux_db_trace, 0, "enable backtrace instrumentation");
@@ -2022,7 +2016,6 @@ is_vmalloc_addr(const void *addr)
  * The rather broken taskqueue API doesn't allow us to serialize 
  * on a particular thread's queue if we use more than 1 thread
  */
-#define MAX_WQ_CPUS mp_ncpus
 #else
 #define MAX_WQ_CPUS 1
 #endif
@@ -2048,10 +2041,6 @@ linux_compat_init(void *arg)
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	boot_cpu_data.x86 = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 
-	system_long_wq = alloc_workqueue("events_long", 0, MAX_WQ_CPUS);
-	system_wq = alloc_workqueue("events", 0, MAX_WQ_CPUS);
-	system_power_efficient_wq = alloc_workqueue("power efficient", 0, MAX_WQ_CPUS);
-	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, MAX_WQ_CPUS);
 	INIT_LIST_HEAD(&lcdev_handle_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
@@ -2080,10 +2069,6 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_class_root);
 	linux_kobject_kfree_name(&linux_root_device.kobj);
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
-
-	destroy_workqueue(system_long_wq);
-	destroy_workqueue(system_wq);
-	destroy_workqueue(system_unbound_wq);
 
 	spin_lock_destroy(&pci_lock);
 }
