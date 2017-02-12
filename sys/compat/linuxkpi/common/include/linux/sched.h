@@ -230,7 +230,7 @@ schedule_timeout_killable(long timeout)
 	return (schedule_timeout(timeout));
 }
 
-#define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
+#define	MAX_SCHEDULE_TIMEOUT	INT_MAX
 
 static inline long
 io_schedule_timeout(long timeout)
@@ -254,7 +254,7 @@ schedule(void)
 static inline void
 schedule_short(void)
 {
-	schedule_timeout(hz/10);
+	schedule_timeout(howmany(hz, 10));
 }
 
 

@@ -46,6 +46,9 @@ schedule_timeout(long timeout)
 	int delta;
 	int flags;
 
+	/* under FreeBSD jiffies are 32-bit */
+	timeout = (int)timeout;
+
 	/* check for invalid timeout or panic */
 	if (timeout < 0 || SKIP_SLEEP())
 		goto done;
@@ -76,8 +79,6 @@ schedule_timeout(long timeout)
 	/* compute timeout value to use */
 	if (timeout == MAX_SCHEDULE_TIMEOUT)
 		sbt = 0;			/* infinite timeout */
-	else if (timeout > INT_MAX)
-		sbt = tick_sbt * INT_MAX;	/* avoid overflow */
 	else if (timeout < 1)
 		sbt = tick_sbt;			/* avoid underflow */
 	else

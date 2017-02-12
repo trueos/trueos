@@ -45,9 +45,6 @@
 #include <linux/mm_types.h>
 #include <linux/completion.h>
 
-
-#define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
-
 #define	TASK_RUNNING		0
 #define	TASK_INTERRUPTIBLE	1
 #define	TASK_UNINTERRUPTIBLE	2
