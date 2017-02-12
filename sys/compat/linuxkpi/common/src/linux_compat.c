@@ -1055,7 +1055,9 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		current->bsd_ioctl_data = NULL;
 		current->bsd_ioctl_len = -1;
 	}
-	
+
+	if (error == ERESTARTSYS)
+		error = ERESTART;
 	return (error);
 }
 
