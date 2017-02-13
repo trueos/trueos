@@ -49,7 +49,7 @@ print_map_entry() {
 		fi
 		;;
 	"ext2fs" | "msdosfs")
-		echo "-fstype=${_fstype},nosuid,async	:/dev/${_p}" 
+		echo "-fstype=${_fstype},nosuid,async,-M=777	:/dev/${_p}" 
 		;;
 	*)
 		echo "-fstype=${_fstype},nosuid	:/dev/${_p}" 
