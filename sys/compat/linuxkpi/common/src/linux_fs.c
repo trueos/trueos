@@ -316,7 +316,7 @@ linux_get_new_vnode(void)
 }
 
 struct linux_file *
-shmem_file_setup(char *name, int size, int flags)
+shmem_file_setup(char *name, loff_t size, unsigned long flags)
 {
 	struct linux_file *filp;
 	struct vnode *vp;
