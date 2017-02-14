@@ -2949,6 +2949,11 @@ _vdrop(struct vnode *vp, bool locked)
 				if (mp->mnt_tmpfreevnodelistsize >= mnt_free_list_batch)
 					vnlru_return_batch_locked(mp);
 				mtx_unlock(&mp->mnt_listmtx);
+			} else {
+				mtx_lock(&vnode_free_list_mtx);
+				TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_actfreelist);
+				freevnodes++;
+				mtx_unlock(&vnode_free_list_mtx);
 			}
 		} else {
 			VI_UNLOCK(vp);
