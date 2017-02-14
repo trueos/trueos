@@ -68,7 +68,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	drivers/make_pseudo_driver.sh \
 	etc/README.examples \
 	etc/bsd-style-copyright \
-	etc/make.conf \
 	find_interface/Makefile \
 	find_interface/README \
 	find_interface/find_interface.c \
