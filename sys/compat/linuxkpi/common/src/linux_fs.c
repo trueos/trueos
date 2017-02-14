@@ -347,7 +347,9 @@ shmem_file_setup(char *name, int size, int flags)
 
 	return (filp);
 err_2:
-	vdrop(vp);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vgone(vp);
+	vput(vp);
 err_1:
 	kfree(filp);
 err_0:
@@ -504,7 +506,9 @@ linux_file_free(struct linux_file *filp)
 			vm_object_deallocate(vp->i_mapping);
 			vp->i_mapping = NULL;
 		}
-		vdrop(vp);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		vgone(vp);
+		vput(vp);
 	} else {
 		_fdrop(filp->_file, curthread);
 	}
