@@ -190,6 +190,14 @@ install_base()
       exit_err "Failed installing $inspkg!"
     fi
   done
+  for pkg in `ls $jail_path/packages/All/pkg*`
+  do
+    inspkg=$(basename $pkg)
+    pkg -c $jail_path add -f /packages/All/$inspkg
+    if [ $? -ne 0 ] ; then
+      exit_err "Failed installing $inspkg!"
+    fi
+  done
   for pkg in `ls $jail_path/packages/All/pc-updatemanager*`
   do
     inspkg=$(basename $pkg)

@@ -59,6 +59,7 @@ fetch_packages()
   fetch http://pkg.cdn.trueos.org/packages/master/amd64-base/fbsd-distrib.txz
   pc-updatemanager pkgcheck
   pkg fetch -r trueos-base -a -y -o $bootstrap
+  pkg fetch -y -o $bootstrap -r trueos-major pkg
   pkg fetch -y -o $bootstrap -r trueos-major pc-updatemanager
 }
 
