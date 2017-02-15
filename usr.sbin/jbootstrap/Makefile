@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=   jexec
+PROG=   jbootstrap
 LIBADD= jail util
 
 PACKAGE=jail
