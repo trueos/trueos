@@ -32,16 +32,19 @@
 
 #include <linux/interrupt.h>
 
-#define	TASKLET_IDLE 0
-#define	TASKLET_BUSY 1
-#define	TASKLET_EXEC 2
-#define	TASKLET_LOOP 3
+#define	TASKLET_ST_IDLE 0
+#define	TASKLET_ST_BUSY 1
+#define	TASKLET_ST_EXEC 2
+#define	TASKLET_ST_LOOP 3
 
 #define	TASKLET_ST_CMPSET(ts, old, new)	\
 	atomic_cmpset_ptr((volatile uintptr_t *)&(ts)->entry.tqe_prev, old, new)
 
 #define	TASKLET_ST_SET(ts, new)	\
 	atomic_store_rel_ptr((volatile uintptr_t *)&(ts)->entry.tqe_prev, new)
+
+#define	TASKLET_ST_GET(ts) \
+	atomic_load_acq_ptr((volatile uintptr_t *)&(ts)->entry.tqe_prev)
 
 struct tasklet_worker {
 	spinlock_t lock;
@@ -54,32 +57,27 @@ static DPCPU_DEFINE(struct tasklet_worker, tasklet_worker);
 static void
 tasklet_handler(void *arg)
 {
-	struct tasklet_worker *tw;
+	struct tasklet_worker *tw = (struct tasklet_worker *)arg;
 	struct tasklet_struct *ts;
 
-	MPASS(curcpu == (intptr_t)arg);
-
-	tw = &DPCPU_GET(tasklet_worker);
-
+	spin_lock(&tw->lock);
 	while (1) {
-		spin_lock(&tw->lock);
 		ts = TAILQ_FIRST(&tw->head);
-		if (ts != NULL) {
-			TAILQ_REMOVE(&tw->head, ts, entry);
-			spin_unlock(&tw->lock);
-		} else {
-			spin_unlock(&tw->lock);
+		if (ts == NULL)
 			break;
-		}
+		TAILQ_REMOVE(&tw->head, ts, entry);
 
+		spin_unlock(&tw->lock);
 		do {
 			/* reset executing state */
-			TASKLET_ST_SET(ts, TASKLET_EXEC);
+			TASKLET_ST_SET(ts, TASKLET_ST_EXEC);
 
 			ts->func(ts->data);
 
-		} while (TASKLET_ST_CMPSET(ts, TASKLET_EXEC, TASKLET_IDLE) == 0);
+		} while (TASKLET_ST_CMPSET(ts, TASKLET_ST_EXEC, TASKLET_ST_IDLE) == 0);
+		spin_lock(&tw->lock);
 	}
+	spin_unlock(&tw->lock);
 }
 
 static void
@@ -98,15 +96,31 @@ tasklet_subsystem_init(void *arg __unused)
 		spin_lock_init(&tw->lock);
 		TAILQ_INIT(&tw->head);
 
-		GROUPTASK_INIT(&tw->gtask, 0, tasklet_handler,
-		    (void *)(uintptr_t)i);
+		GROUPTASK_INIT(&tw->gtask, 0, tasklet_handler, tw);
 
 		snprintf(buf, sizeof(buf), "softirq%d", i);
 		taskqgroup_attach_cpu(qgroup_softirq, &tw->gtask,
 		    "tasklet", i, -1, buf);
 	}
 }
-SYSINIT(linux_tasklet, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, tasklet_subsystem_init, NULL);
+SYSINIT(linux_tasklet, SI_SUB_INIT_IF, SI_ORDER_THIRD, tasklet_subsystem_init, NULL);
+
+static void
+tasklet_subsystem_uninit(void *arg __unused)
+{
+	struct tasklet_worker *tw;
+	int i;
+
+	CPU_FOREACH(i) {
+		if (CPU_ABSENT(i))
+			continue;
+
+		tw = DPCPU_ID_PTR(i, tasklet_worker);
+
+		taskqgroup_detach(qgroup_softirq, &tw->gtask);
+	}
+}
+SYSUNINIT(linux_tasklet, SI_SUB_INIT_IF, SI_ORDER_THIRD, tasklet_subsystem_uninit, NULL);
 
 void
 tasklet_init(struct tasklet_struct *ts,
@@ -131,15 +145,17 @@ local_bh_disable(void)
 }
 
 void
-linux_tasklet_schedule(struct tasklet_struct *ts)
+tasklet_schedule(struct tasklet_struct *ts)
 {
-	struct tasklet_worker *tw;
 
-	if (TASKLET_ST_CMPSET(ts, TASKLET_EXEC, TASKLET_LOOP)) {
+	if (TASKLET_ST_CMPSET(ts, TASKLET_ST_EXEC, TASKLET_ST_LOOP)) {
 		/* tasklet_handler() will loop */
-	} else if (TASKLET_ST_CMPSET(ts, TASKLET_IDLE, TASKLET_BUSY)) {
+	} else if (TASKLET_ST_CMPSET(ts, TASKLET_ST_IDLE, TASKLET_ST_BUSY)) {
+		struct tasklet_worker *tw;
+
 		tw = &DPCPU_GET(tasklet_worker);
 
+		/* tasklet_handler() was not queued */
 		spin_lock(&tw->lock);
 		/* enqueue tasklet */
 		TAILQ_INSERT_TAIL(&tw->head, ts, entry);
@@ -148,12 +164,15 @@ linux_tasklet_schedule(struct tasklet_struct *ts)
 		spin_unlock(&tw->lock);
 	} else {
 		/*
-		 * The three cases that end up here:
-		 * ===============================
+		 * tasklet_handler() is already executing
 		 *
-		 * 1) The tasklet is now executing or did execute fully.
-		 * 2) The tasklet is already queued.
-		 * 3) The tasklet is already set to loop.
+		 * If the state is neither EXEC nor IDLE, it is either
+		 * LOOP or BUSY. If the state changed between the two
+		 * CMPSET's above the only possible transitions by
+		 * elimination are LOOP->EXEC and BUSY->EXEC. If a
+		 * EXEC->LOOP transition was missed that is not a
+		 * problem because the callback function is then
+		 * already about to be called again.
 		 */
 	}
 }
@@ -162,9 +181,9 @@ void
 tasklet_kill(struct tasklet_struct *ts)
 {
 
-	might_sleep();
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "tasklet_kill() can sleep");
 
 	/* wait until tasklet is no longer busy */
-	while (TASKLET_ST_CMPSET(ts, TASKLET_IDLE, TASKLET_IDLE) == 0)
+	while (TASKLET_ST_GET(ts) != TASKLET_ST_IDLE)
 		pause("W", 1);
 }
