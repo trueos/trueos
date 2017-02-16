@@ -252,8 +252,8 @@ void __wake_up(wait_queue_head_t *q, int mode, int nr, void *key);
 
 #define __wake_up_locked_key(q, mode, key)	__wake_up_locked(q, mode, 0, key)
 
-
-#define might_sleep()
+#define	might_sleep() \
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "might_sleep()")
 
 #define ___wait_cond_timeout(condition)					\
 ({									\
