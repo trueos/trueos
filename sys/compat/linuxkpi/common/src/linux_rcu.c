@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/rcupdate.h>
 #include <linux/srcu.h>
 #include <linux/slab.h>
+#include <linux/bottom_half.h>
 
 static ck_epoch_t linux_epoch;
 static	MALLOC_DEFINE(M_LRCU, "lrcu", "Linux RCU");
@@ -138,7 +139,7 @@ linux_rcu_read_lock(void)
 {
 	ck_epoch_record_t *record;
 
-	critical_enter();
+	local_bh_disable();
 	record = DPCPU_GET(epoch_record);
 	MPASS(record != NULL);
 
@@ -152,7 +153,7 @@ linux_rcu_read_unlock(void)
 
 	record = DPCPU_GET(epoch_record);
 	ck_epoch_end(record, NULL);
-	critical_exit();
+	local_bh_enable();
 }
 
 void
@@ -184,14 +185,14 @@ linux_call_rcu(struct rcu_head *ptr, rcu_callback_t func)
 
 	record = linux_rcu_get_record(0);
 
-	critical_enter();
+	local_bh_disable();
 	MPASS(record != NULL);
 	ptr->func = func;
 	ptr->epoch_record = record;
 	ck_epoch_call(record, &ptr->epoch_entry, linux_rcu_destroy_object);
 	TASK_INIT(&ptr->task, 0, linux_rcu_cleaner_func, ptr);
 	taskqueue_enqueue(taskqueue_fast, &ptr->task);
-	critical_exit();
+	local_bh_enable();
 }
 
 int
