@@ -31,6 +31,7 @@
 #include <sys/sched.h>
 
 #include <linux/interrupt.h>
+#include <linux/bottom_half.h>
 
 #define	TASKLET_ST_IDLE 0
 #define	TASKLET_ST_BUSY 1
