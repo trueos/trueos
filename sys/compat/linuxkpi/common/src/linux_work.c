@@ -207,6 +207,8 @@ linux_work_fn(void *context, int pending)
 
 	MPASS(pending == 1);
 
+	linux_set_current();
+
 	/* setup local variables */
 	work = context;
 	wq = work->work_queue;
@@ -224,7 +226,6 @@ linux_work_fn(void *context, int pending)
 		case WORK_ST_TIMER:
 		case WORK_ST_TASK:
 			WQ_EXEC_UNLOCK(wq);
-			linux_set_current();
 
 			/* call work function */
 			work->func(work);

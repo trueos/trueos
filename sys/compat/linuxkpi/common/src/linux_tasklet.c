@@ -32,6 +32,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/bottom_half.h>
+#include <linux/compat.h>
 
 #define	TASKLET_ST_IDLE 0
 #define	TASKLET_ST_BUSY 1
@@ -64,6 +65,8 @@ tasklet_handler(void *arg, int pending)
 {
 	struct tasklet_worker *tw = (struct tasklet_worker *)arg;
 	struct tasklet_struct *ts;
+
+	linux_set_current();
 
 	TASKLET_WORKER_LOCK(tw);
 	local_bh_disable();	/* pin thread to CPU */
