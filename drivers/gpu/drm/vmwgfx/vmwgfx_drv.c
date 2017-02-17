@@ -823,7 +823,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	ret = ttm_bo_device_init(&dev_priv->bdev,
 				 dev_priv->bo_global_ref.ref.object,
 				 &vmw_bo_driver,
-				 dev->anon_inode->i_mapping,
+				 dev->anon_mapping,
 				 VMWGFX_FILE_PAGE_OFFSET,
 				 false);
 	if (unlikely(ret != 0)) {
