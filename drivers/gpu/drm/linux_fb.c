@@ -53,7 +53,6 @@ vt_restore_fbdev_mode(void *arg, int pending)
 {
 	struct drm_fb_helper *fb_helper;
 	struct vt_kms_softc *sc;
-	struct task_struct t;
 	struct mm_struct mm;
 
 	sc = (struct vt_kms_softc *)arg;
@@ -66,7 +65,6 @@ static int
 vt_kms_postswitch(void *arg)
 {
 	struct vt_kms_softc *sc;
-	struct task_struct t;
 
 	sc = (struct vt_kms_softc *)arg;
 
