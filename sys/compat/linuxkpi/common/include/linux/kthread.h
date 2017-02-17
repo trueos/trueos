@@ -39,6 +39,7 @@
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/sleepqueue.h>
+#include <sys/unistd.h>
 
 #include <linux/slab.h>
 
@@ -59,17 +60,9 @@
 
 #define TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
 
-#define	current			task_struct_get(curthread)
-#define	task_struct_get(x)	((struct task_struct *)(uintptr_t)(x)->td_lkpi_task)
+#define	current			((struct task_struct *)curthread->td_lkpi_task)
 
-#define	task_struct_fill(x, y) do {		\
-  	(y)->task_thread = (x);			\
-	(y)->comm = (x)->td_name;		\
-	(y)->pid = (x)->td_tid;			\
-	(y)->mm = &(y)->bsd_mm;			\
-	(y)->usage.counter = 1;			\
-	(y)->state = TASK_RUNNING;		\
-} while (0)
+typedef int linux_task_fn_t(void *data);
 
 struct wait_queue_head;
 struct kthread {
@@ -81,12 +74,11 @@ struct kthread {
 struct task_struct {
 	struct	thread *task_thread;
 	struct mm_struct *mm;
-	int	(*task_fn)(void *data);
+	linux_task_fn_t *task_fn;
 	atomic_t usage;
 	void	*task_data;
 	int	task_ret;
 	int	state;
-	int	should_stop;
 	char	*comm;
 	int	flags;
 	pid_t	pid;
@@ -99,30 +91,19 @@ struct task_struct {
 };
 
 extern void linux_kthread_fn(void *);
-
-static inline struct task_struct *
-linux_kthread_create(int (*threadfn)(void *data), void *data)
-{
-	struct task_struct *task;
-
-	task = kzalloc(sizeof(*task), GFP_KERNEL);
-	task->task_fn = threadfn;
-	task->task_data = data;
-
-	return (task);
-}
+extern struct task_struct *linux_kthread_setup_and_run(struct thread *, linux_task_fn_t *, void *arg);
 
 #define	kthread_run(fn, data, fmt, ...)					\
 ({									\
-	struct task_struct *_task;					\
+	struct task_struct *__task;					\
+	struct thread *__td;						\
 									\
-	_task = linux_kthread_create((fn), (data));			\
-	if (kthread_add(linux_kthread_fn, _task, NULL, &_task->task_thread,	\
-	    0, 0, fmt, ## __VA_ARGS__)) {				\
-		kfree(_task);						\
-		_task = NULL;						\
-	}								\
-	_task;								\
+	if (kthread_add(linux_kthread_fn, NULL, NULL, &__td,		\
+	    RFSTOPPED, 0, fmt, ## __VA_ARGS__))				\
+		__task = NULL;						\
+	else								\
+		__task = linux_kthread_setup_and_run(__td, fn, data);	\
+	__task;								\
 })
 
 static int

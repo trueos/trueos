@@ -11,7 +11,6 @@ enum pid_type
 	PIDTYPE_MAX
 };
 
-
 static inline struct task_struct *
 pid_task(pid_t pid, enum pid_type type)
 {
@@ -21,7 +20,7 @@ pid_task(pid_t pid, enum pid_type type)
 	td = tdfind(pid, -1);
 	if (td == NULL)
 		return (NULL);
-	return (task_struct_get(td));
+	return (td->td_lkpi_task);
 }
 
 #define pid_nr(n) (n)

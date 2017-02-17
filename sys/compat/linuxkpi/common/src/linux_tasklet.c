@@ -66,7 +66,7 @@ tasklet_handler(void *arg, int pending)
 	struct tasklet_worker *tw = (struct tasklet_worker *)arg;
 	struct tasklet_struct *ts;
 
-	linux_set_current();
+	linux_set_current(curthread);
 
 	TASKLET_WORKER_LOCK(tw);
 	local_bh_disable();	/* pin thread to CPU */

@@ -207,7 +207,7 @@ linux_work_fn(void *context, int pending)
 
 	MPASS(pending == 1);
 
-	linux_set_current();
+	linux_set_current(curthread);
 
 	/* setup local variables */
 	work = context;

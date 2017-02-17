@@ -44,20 +44,21 @@ struct thread;
 struct task_struct;
 
 extern void *compat_alloc_user_space(unsigned long len);
-int linux_alloc_current(int flags);
+extern int linux_alloc_current(struct thread *, int flags);
+extern void linux_free_current(struct task_struct *);
 
 static inline void
-linux_set_current(void)
+linux_set_current(struct thread *td)
 {
-	if (__predict_false(curthread->td_lkpi_task == NULL))
-		linux_alloc_current(M_WAITOK);
+	if (__predict_false(td->td_lkpi_task == NULL))
+		linux_alloc_current(td, M_WAITOK);
 }
 
 static inline int
-linux_set_current_flags(int flags)
+linux_set_current_flags(struct thread *td, int flags)
 {
-	if (__predict_false(curthread->td_lkpi_task == NULL))
-		return (linux_alloc_current(flags));
+	if (__predict_false(td->td_lkpi_task == NULL))
+		return (linux_alloc_current(td, flags));
 	return (0);
 }
 

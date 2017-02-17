@@ -1,5 +1,7 @@
 #include <linux/kthread.h>
 #include <linux/sched.h>
+#include <linux/compat.h>
+
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/priority.h>
@@ -86,45 +88,67 @@ kthread_stop(struct task_struct *task)
 {
 	struct thread *td;
 	struct kthread *k = &task->kthread;
+	int retval = 0;
 
 	/* XXX we don't know the thread is live */
 	td = task->task_thread;
 	PROC_LOCK(td->td_proc);
 	set_bit(KTHREAD_SHOULD_STOP, &task->kthread.flags);
+	PROC_UNLOCK(td->td_proc);
 	__kthread_unpark(task, k);
 	wake_up_process(task);
 	wait_for_completion(&k->exited);
 
-	return (task->task_ret);
+	retval = task->task_ret;
+	linux_free_current(task);
+
+	return (retval);
 }
 
-void
-linux_kthread_fn(void *arg)
+struct task_struct *
+linux_kthread_setup_and_run(struct thread *td, linux_task_fn_t *task_fn, void *arg)
 {
-	struct mm_struct *mm;
 	struct task_struct *task;
-	struct thread *td = curthread;
+
+	linux_set_current(td);
+
+	task = td->td_lkpi_task;
+	task->task_fn = task_fn;
+	task->task_data = arg;
 
 	/* make sure the scheduler priority is raised */
 	thread_lock(td);
 	sched_prio(td, PI_SWI(SWI_NET));
+	sched_add(td, SRQ_BORING);
 	thread_unlock(td);
 
-	task = arg;
-	task_struct_fill(td, task);
-	mm = task->mm;
-	init_rwsem(&mm->mmap_sem);
-	mm->mm_count.counter = 1;
-	mm->mm_users.counter = 1;
-	mm->vmspace = NULL;
-	td->td_lkpi_task = task;
-	if (task->should_stop == 0)
-		task->task_ret = task->task_fn(task->task_data);
+	return (task);
+}
+
+void
+linux_kthread_fn(void *arg __unused)
+{
+	struct task_struct *task;
+	struct thread *td;
+
+	td = curthread;
+	task = current;
+
+	if (kthread_should_stop())
+		goto skip;
+
+	task->task_ret = task->task_fn(task->task_data);
+
 	PROC_LOCK(td->td_proc);
-	task->should_stop = TASK_STOPPED;
 	wakeup(task);
 	PROC_UNLOCK(td->td_proc);
 
-	td->td_lkpi_task = NULL;
+	if (kthread_should_stop()) {
+skip:
+		/* let kthread_stop() free data */
+		td->td_lkpi_task = NULL;
+		/* wakeup kthread_stop() */
+		complete(&task->kthread.exited);
+	}
 	kthread_exit();
 }

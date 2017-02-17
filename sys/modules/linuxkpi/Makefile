@@ -7,6 +7,7 @@ SRCS=	interval_tree.c \
 	linux_acpi.c \
 	linux_backlight.c \
 	linux_compat.c \
+	linux_current.c \
 	linux_device.c \
 	linux_dmabuf.c \
 	linux_fence.c \
