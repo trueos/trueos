@@ -46,7 +46,16 @@ typedef struct {
 	struct mtx m;
 } spinlock_t;
 
+/*
+ * By defining CONFIG_SPIN_SKIP LinuxKPI spinlocks and asserts will be
+ * skipped during panic(). By default it is disabled due to
+ * performance reasons.
+ */
+#ifdef CONFIG_SPIN_SKIP
 #define	SPIN_SKIP(void)	unlikely(SCHEDULER_STOPPED() || kdb_active)
+#else
+#define	SPIN_SKIP(void) 0
+#endif
 
 #define	spin_lock(_l) do {			\
 	if (SPIN_SKIP())			\
