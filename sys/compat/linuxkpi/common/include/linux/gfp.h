@@ -55,8 +55,7 @@
 #define	__GFP_IO	0
 #define	__GFP_NO_KSWAPD	0
 #define	__GFP_WAIT	M_WAITOK
-#define	__GFP_DMA32		(1U << 24) /* LinuxKPI only */
-#define	__GFP_DIRECT_RECLAIM	(1U << 25) /* LinuxKPI only */
+#define	__GFP_DMA32	(1U << 24) /* LinuxKPI only */
 
 #define	GFP_NOWAIT	M_NOWAIT
 #define	GFP_ATOMIC	(M_NOWAIT | M_USE_RESERVE)
@@ -169,7 +168,7 @@ free_page(uintptr_t addr)
 static inline bool
 gfpflags_allow_blocking(const gfp_t gfp_flags)
 {
-	return !!(gfp_flags & __GFP_DIRECT_RECLAIM);
+	return ((gfp_flags & (M_WAITOK | M_NOWAIT)) == M_WAITOK);
 }
 
 /*
