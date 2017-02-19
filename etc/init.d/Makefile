@@ -10,7 +10,7 @@ FILESGROUP=	FILES
 FILES=          abi accounting adjkerntz amd auditd auditdistd automount automountd autounmountd \
 	       	blacklistd bluetooth bootmisc bridge cron \
 	       	devd devfs dumpon encswap fsck ftpd \
-	       	gssd hostid hostname iscsictl iscsid ipfw jail \
+	       	gssd hostid hostname inetd iscsictl iscsid ipfw jail \
 		ldconfig local localmount local_unbound lockd loopback hostapd \
 		mixer modules mountd moused motd \
 		natd netmount network newsyslog nfsclient nfsd nfsuserd nisdomain nsswitch \

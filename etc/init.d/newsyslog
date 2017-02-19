@@ -18,7 +18,7 @@ depend()
 {
 	need localmount
 	after root zfs
-	keyword -prefix
+	keyword -prefix -shutdown -stop
 }
 
 start()
