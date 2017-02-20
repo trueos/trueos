@@ -145,3 +145,20 @@ skip:
 	}
 	kthread_exit();
 }
+
+int
+linux_try_to_wake_up(struct task_struct *task, unsigned int state)
+{
+	int rc;
+
+	rc = 0;
+	if ((task->state & state) == 0)
+		goto out;
+	rc = 1;
+	if (!TD_IS_RUNNING(task->task_thread)) {
+		task->state = TASK_WAKING;
+		wakeup_one(task);
+	}
+out:
+	return (rc);
+}
