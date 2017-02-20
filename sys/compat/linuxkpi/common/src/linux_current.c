@@ -51,12 +51,14 @@ linux_alloc_current(struct thread *td, int flags)
 	if (ts == NULL)
 		return (ENOMEM);
 
+	atomic_set(&ts->kthread_flags, 0);
 	ts->task_thread = td;
 	ts->comm = td->td_name;
 	ts->pid = td->td_tid;
 	ts->mm = &ts->bsd_mm;
 	ts->usage.counter = 1;
-	ts->state = TASK_RUNNING;
+	mtx_init(&ts->sleep_lock, "lkpislplock", NULL, MTX_DEF);
+	atomic_set(&ts->state, TASK_RUNNING);
 	mm = ts->mm;
 	init_rwsem(&mm->mmap_sem);
 	mm->mm_count.counter = 1;
@@ -69,6 +71,8 @@ linux_alloc_current(struct thread *td, int flags)
 void
 linux_free_current(struct task_struct *ts)
 {
+
+	mtx_destroy(&ts->sleep_lock);
 	free(ts, M_LINUX_CURRENT);
 }
 

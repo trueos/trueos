@@ -9,89 +9,110 @@
 #include <sys/sched.h>
 
 enum {
-	KTHREAD_SHOULD_STOP,
-	KTHREAD_SHOULD_PARK,
-	KTHREAD_IS_PARKED,
+	KTHREAD_SHOULD_STOP_MASK = (1 << 0),
+	KTHREAD_SHOULD_PARK_MASK = (1 << 1),
+	KTHREAD_IS_PARKED_MASK = (1 << 2),
 };
 
 bool
-kthread_should_stop_task(struct task_struct *ts)
+kthread_should_stop_task(struct task_struct *task)
 {
-	return (test_bit(KTHREAD_SHOULD_STOP, &ts->kthread_flags));
+
+	return (atomic_read(&task->kthread_flags) & KTHREAD_SHOULD_STOP_MASK);
 }
 
 bool
 kthread_should_stop(void)
 {
-	return (test_bit(KTHREAD_SHOULD_STOP, &current->kthread_flags));
+
+	return (atomic_read(&current->kthread_flags) & KTHREAD_SHOULD_STOP_MASK);
 }
 
 bool
 kthread_should_park(void)
 {
-	return (test_bit(KTHREAD_SHOULD_PARK, &current->kthread_flags));
+
+	return (atomic_read(&current->kthread_flags) & KTHREAD_SHOULD_PARK_MASK);
 }
 
 int
-kthread_park(struct task_struct *ts)
+kthread_park(struct task_struct *task)
 {
-	int ret = -ENOSYS;
 
-/* XXX we don't know the thread is live */
-	if (ts != NULL) {
-		if (!test_bit(KTHREAD_IS_PARKED, &ts->kthread_flags)) {
-			set_bit(KTHREAD_SHOULD_PARK, &ts->kthread_flags);
-			if (ts != current) {
-				wake_up_process(ts);
-				wait_for_completion(&ts->parked);
-			}
-		}
-		ret = 0;
-	}
-	return ret;
+	if (task == NULL)
+		return (-ENOSYS);
+
+	if (atomic_read(&task->kthread_flags) & KTHREAD_IS_PARKED_MASK)
+		goto done;
+
+	atomic_or(KTHREAD_SHOULD_PARK_MASK, &task->kthread_flags);
+
+	if (task == current)
+		goto done;
+
+	wake_up_process(task);
+	wait_for_completion(&task->parked);
+done:
+	return (0);
 }
 
 void
-kthread_unpark(struct task_struct *ts)
+kthread_unpark(struct task_struct *task)
 {
-	clear_bit(KTHREAD_SHOULD_PARK, &ts->kthread_flags);
-	if (test_and_clear_bit(KTHREAD_IS_PARKED, &ts->kthread_flags))
-		wake_up_state(ts, TASK_PARKED);
+
+	if (task == NULL)
+		return;
+
+	atomic_andnot(KTHREAD_SHOULD_PARK_MASK, &task->kthread_flags);
+
+	if (atomic_fetch_andnot(KTHREAD_IS_PARKED_MASK,
+	    &task->kthread_flags) & KTHREAD_IS_PARKED_MASK) {
+		wake_up_state(task, TASK_PARKED);
+	}
 }
 
 void
 kthread_parkme(void)
 {
-	struct task_struct *ts = current;
+	struct task_struct *task = current;
 
-	MPASS(ts != NULL);
+	/* don't park threads without a task struct */
+	if (task == NULL)
+		return;
 
-	ts->state = TASK_PARKED;
-	while (test_bit(KTHREAD_SHOULD_PARK, &ts->kthread_flags)) {
-		if (!test_and_set_bit(KTHREAD_IS_PARKED, &ts->kthread_flags))
-			complete(&ts->parked);
+	atomic_set(&task->state, TASK_PARKED);
+
+	while (atomic_read(&task->kthread_flags) & KTHREAD_SHOULD_PARK_MASK) {
+		if (!(atomic_fetch_or(KTHREAD_IS_PARKED_MASK,
+		      &task->kthread_flags) & KTHREAD_IS_PARKED_MASK)) {
+			complete(&task->parked);
+		}
 		schedule();
-		ts->state = TASK_PARKED;
+		atomic_set(&task->state, TASK_PARKED);
 	}
-	clear_bit(KTHREAD_IS_PARKED, &ts->kthread_flags);
-	ts->state = TASK_RUNNING;
+
+	atomic_andnot(KTHREAD_IS_PARKED_MASK, &task->kthread_flags);
+
+	atomic_set(&task->state, TASK_RUNNING);
 }
 
 int
 kthread_stop(struct task_struct *task)	
 {
-	struct thread *td;
-	int retval = 0;
+	int retval;
 
-	/* XXX we don't know the thread is live */
-	td = task->task_thread;
-	PROC_LOCK(td->td_proc);
-	set_bit(KTHREAD_SHOULD_STOP, &task->kthread_flags);
-	PROC_UNLOCK(td->td_proc);
+	/*
+	 * Assume task is still alive else caller should not call
+	 * kthread_stop():
+	 */
+	atomic_or(KTHREAD_SHOULD_STOP_MASK, &task->kthread_flags);
 	kthread_unpark(task);
 	wake_up_process(task);
 	wait_for_completion(&task->exited);
 
+	/*
+	 * Get return code and free task structure:
+	 */
 	retval = task->task_ret;
 	linux_free_current(task);
 
@@ -109,9 +130,10 @@ linux_kthread_setup_and_run(struct thread *td, linux_task_fn_t *task_fn, void *a
 	task->task_fn = task_fn;
 	task->task_data = arg;
 
-	/* make sure the scheduler priority is raised */
 	thread_lock(td);
+	/* make sure the scheduler priority is raised */
 	sched_prio(td, PI_SWI(SWI_NET));
+	/* put thread into run-queue */
 	sched_add(td, SRQ_BORING);
 	thread_unlock(td);
 
@@ -121,25 +143,17 @@ linux_kthread_setup_and_run(struct thread *td, linux_task_fn_t *task_fn, void *a
 void
 linux_kthread_fn(void *arg __unused)
 {
-	struct task_struct *task;
-	struct thread *td;
+	struct task_struct *task = current;
 
-	td = curthread;
-	task = current;
+	if (kthread_should_stop_task(task) == 0)
+		task->task_ret = task->task_fn(task->task_data);
 
-	if (kthread_should_stop())
-		goto skip;
+	if (kthread_should_stop_task(task) != 0) {
+		struct thread *td = curthread;
 
-	task->task_ret = task->task_fn(task->task_data);
-
-	PROC_LOCK(td->td_proc);
-	wakeup(task);
-	PROC_UNLOCK(td->td_proc);
-
-	if (kthread_should_stop()) {
-skip:
 		/* let kthread_stop() free data */
 		td->td_lkpi_task = NULL;
+
 		/* wakeup kthread_stop() */
 		complete(&task->exited);
 	}
@@ -149,16 +163,26 @@ skip:
 int
 linux_try_to_wake_up(struct task_struct *task, unsigned int state)
 {
-	int rc;
+	int retval;
 
-	rc = 0;
-	if ((task->state & state) == 0)
-		goto out;
-	rc = 1;
-	if (!TD_IS_RUNNING(task->task_thread)) {
-		task->state = TASK_WAKING;
-		wakeup_one(task);
+	/*
+	 * To avoid loosing any wakeups this function must be made
+	 * atomic with regard to wakeup by locking the sleep_lock:
+	 */
+	mtx_lock(&task->sleep_lock);
+
+	/* first check if the there are any sleepers */
+	if (atomic_read(&task->state) & state) {
+		if (atomic_xchg(&task->state, TASK_WAKING) != TASK_WAKING) {
+			wakeup_one(task);
+			retval = 1;
+		} else {
+			retval = 0;
+		}
+	} else {
+		retval = 0;
 	}
-out:
-	return (rc);
+	mtx_unlock(&task->sleep_lock);
+
+	return (retval);
 }

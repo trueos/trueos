@@ -35,7 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/jiffies.h>
-#include <linux/sched.h>
+#include <linux/kthread.h>
 #include <linux/srcu.h>
 
 #include <sys/param.h>
@@ -102,18 +102,7 @@ static inline int
 default_wake_function(wait_queue_t *curr, unsigned mode, int wake_flags,
 			  void *key)
 {
-	int success = 0;
-	struct task_struct *p;
-
-	p = curr->private;
-
-	if ((p->state & mode) == 0)
-		goto out;
-	p->state = TASK_WAKING;
-	success = 1;
-	wakeup_one(p);
-out:
-	return (success);
+	return (linux_try_to_wake_up(curr->private, mode));
 }
 
 static inline int
@@ -210,17 +199,14 @@ init_waitqueue_func_entry(wait_queue_t *wq, wait_queue_func_t func)
 static inline void
 __wake_up_locked(wait_queue_head_t *q, int mode, int nr, void *key)
 {
-	struct task_struct *t;
-	wait_queue_t *curr, *next;
+	wait_queue_t *curr;
+	wait_queue_t *next;
 
 	list_for_each_entry_safe(curr, next, &q->task_list, task_list) {
+		unsigned flags = curr->flags;
 
-		/* note that we're ignoring exclusive wakeups here */
-		curr->func(curr, TASK_NORMAL, 0, key);
-		if ((t = curr->private) != NULL)
-			t->state = TASK_WAKING;
-		nr--;
-		if (nr == 0)
+		if (curr->func(curr, TASK_NORMAL, 0, key) &&
+		    (flags & WQ_FLAG_EXCLUSIVE) && !--nr)
 			break;
 	}
 }

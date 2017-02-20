@@ -76,9 +76,9 @@ struct task_struct {
 	atomic_t usage;
 	void	*task_data;
 	int	task_ret;
-	int	state;
+	atomic_t state;
 	char	*comm;
-	unsigned long kthread_flags;
+	atomic_t kthread_flags;
 	pid_t	pid;
 	struct wait_queue_head	*sleep_wq;
 	int prio;
@@ -87,6 +87,7 @@ struct task_struct {
 	void	*bsd_ioctl_data;
 	unsigned	bsd_ioctl_len;
 	struct mm_struct bsd_mm;
+	struct mtx sleep_lock;
 	struct completion parked;
 	struct completion exited;
 };
@@ -98,9 +99,8 @@ struct task_struct {
 #define put_pid(x)
 #define current_euid() (curthread->td_ucred->cr_uid)
 
-#define	set_current_state(x)						\
-	atomic_store_rel_int((volatile int *)&current->state, (x))
-#define	__set_current_state(x)	current->state = (x)
+#define	set_current_state(x)	atomic_set(&current->state, x)
+#define	__set_current_state(x)	do { current->state.counter = (x); } while (0)
 
 
 static inline void
@@ -239,7 +239,7 @@ static inline long
 schedule_timeout_uninterruptible(long timeout)
 {
 	MPASS(current);
-	current->state = TASK_UNINTERRUPTIBLE;
+	__set_current_state(TASK_UNINTERRUPTIBLE);
 	return (schedule_timeout(timeout));
 }
 
@@ -247,7 +247,7 @@ static inline long
 schedule_timeout_interruptible(long timeout)
 {
 	MPASS(current);
-	current->state = TASK_INTERRUPTIBLE;
+	__set_current_state(TASK_INTERRUPTIBLE);
 	return (schedule_timeout(timeout));
 }
 
