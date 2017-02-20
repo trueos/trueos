@@ -265,47 +265,48 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			break;
 	}
 #else
-	{
-		vm_object_t vm_obj = vma->vm_obj;
-		vm_pindex_t pidx = address >> PAGE_SHIFT;
-		vma->vm_pfn_first = pidx;
+	vm_object_t obj;
+	vm_pindex_t pidx;
 
-		VM_OBJECT_WLOCK(vm_obj);
-		for (i = 0; i < TTM_BO_VM_NUM_PREFAULT; ++i) {
-			page = vm_page_lookup(vm_obj, pidx);
-			if (page != NULL) {
-				if (vm_page_busied(page))
-					break;
-				else
-					goto have_page;
-			}
+	obj = vma->vm_obj;
+	pidx = OFF_TO_IDX(address);
+	vma->vm_pfn_first = pidx;
+
+	VM_OBJECT_WLOCK(obj);
+	for (i = 0; i < TTM_BO_VM_NUM_PREFAULT && page_offset < page_last;
+	    i++, page_offset++, pidx++) {
+retry:
+		page = vm_page_lookup(obj, pidx);
+		if (page != NULL) {
+			if (vm_page_sleep_if_busy(page, "ttmflt"))
+				goto retry;
+		} else {
 			if (bo->mem.bus.is_iomem) {
-				pfn = ((bo->mem.bus.base + bo->mem.bus.offset) >> PAGE_SHIFT) + page_offset;
-				page = PHYS_TO_VM_PAGE(pfn << PAGE_SHIFT);
+				pfn = OFF_TO_IDX(bo->mem.bus.base +
+				    bo->mem.bus.offset) + page_offset;
+				page = PHYS_TO_VM_PAGE(IDX_TO_OFF(pfn));
 			} else {
 				page = ttm->pages[page_offset];
-				if (unlikely(!page && i == 0)) {
-					retval = VM_FAULT_OOM;
-					goto out_io_unlock;
-				} else if (unlikely(!page)) {
-					break;
-				}
+				if (page == NULL)
+					goto fail;
 			}
 			if (vm_page_busied(page))
-				break;
-			if (vm_page_insert(page, vm_obj, pidx))
-				break;
+				goto fail;
+			if (vm_page_insert(page, obj, pidx))
+				goto fail;
 			page->valid = VM_PAGE_BITS_ALL;
-		have_page:
-			vm_page_xbusy(page);
-			vma->vm_pfn_count++;
-			pidx++;
-			if (unlikely(++page_offset >= page_last))
-				break;
 		}
-		VM_OBJECT_WUNLOCK(vm_obj);
-
+		pmap_page_set_memattr(page,
+		    pgprot2cachemode(cvma.vm_page_prot));
+		vm_page_xbusy(page);
+		vma->vm_pfn_count++;
+		continue;
+fail:
+		if (i == 0)
+			retval = VM_FAULT_OOM;
+		break;
 	}
+	VM_OBJECT_WUNLOCK(obj);
 #endif
 out_io_unlock:
 	ttm_mem_io_unlock(man);
