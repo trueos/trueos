@@ -9,12 +9,13 @@
 #include <linux/list.h>
 #include <linux/bitops.h>
 #include <linux/kref.h>
-#include <linux/sched.h>
+#include <linux/kthread.h>
 #include <linux/printk.h>
 #include <linux/rcupdate.h>
 #include <linux/kernel.h>
 
 #include <linux/compat.h>
+#include <linux/ktime.h>
 
 #include <sys/param.h>
 #include <sys/proc.h>

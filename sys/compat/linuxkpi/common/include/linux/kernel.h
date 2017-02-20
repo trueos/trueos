@@ -46,7 +46,7 @@
 
 #include <linux/bug.h>
 #include <linux/errno.h>
-#include <linux/kthread.h>
+#include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/bitops.h>

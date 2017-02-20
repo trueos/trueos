@@ -3,7 +3,6 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
-#include <linux/spinlock.h>
 #include <linux/page.h>
 
 #include <linux/rwsem.h>

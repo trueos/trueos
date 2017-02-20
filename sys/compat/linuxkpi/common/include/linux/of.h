@@ -1,7 +1,6 @@
 #ifndef _LINUX_OF_H
 #define _LINUX_OF_H
 
-
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/errno.h>
@@ -11,6 +10,7 @@
 #include <linux/notifier.h>
 #include <linux/property.h>
 #include <linux/list.h>
+#include <linux/err.h>
 
 struct device_node {
 	const char *name;

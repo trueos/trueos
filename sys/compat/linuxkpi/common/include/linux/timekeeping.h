@@ -1,6 +1,8 @@
 #ifndef _LINUX_TIMEKEEPING_H
 #define _LINUX_TIMEKEEPING_H
 
+#include <linux/ktime.h>
+
 static inline u64 ktime_get_raw_ns(void)
 {
         struct timespec ts;

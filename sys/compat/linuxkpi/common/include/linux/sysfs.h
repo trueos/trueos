@@ -35,6 +35,8 @@
 #include <sys/sysctl.h>
 #include <sys/errno.h>
 
+#include <linux/compiler.h>
+#include <linux/types.h>
 
 struct vm_area_struct;
 

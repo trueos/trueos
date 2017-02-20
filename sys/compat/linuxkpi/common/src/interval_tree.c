@@ -171,8 +171,7 @@ interval_tree_iter_next(struct interval_tree_node *node,
 #else
 #include <linux/interval_tree.h>
 #include <linux/interval_tree_generic.h>
-#include <linux/compiler.h>
-#include <linux/export.h>
+#include <linux/kernel.h>
 
 #define START(node) ((node)->start)
 #define LAST(node)  ((node)->last)

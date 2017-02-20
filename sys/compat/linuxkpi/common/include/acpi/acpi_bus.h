@@ -22,8 +22,7 @@
 #ifndef __ACPI_ACPI_BUS_H__
 #define __ACPI_ACPI_BUS_H__
 
-#include <linux/device.h>
-#include <linux/property.h>
+struct device;
 
 /* TBD: Make dynamic */
 #define ACPI_MAX_HANDLES	10

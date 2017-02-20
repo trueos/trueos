@@ -1,22 +1,18 @@
 #ifndef _LINUX_ACPI_H_
 #define _LINUX_ACPI_H_
 
-
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/resource_ext.h>
 #include <linux/device.h>
 #include <linux/property.h>
 #include <linux/notifier.h>
-
 #include <linux/list.h>
 #include <linux/mod_devicetable.h>
-
 
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
-
 
 static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
 {

@@ -33,6 +33,7 @@
 
 #include <sys/types.h>
 #include <sys/lock.h>
+#include <sys/libkern.h>
 #include <sys/rwlock.h>
 
 typedef struct {
