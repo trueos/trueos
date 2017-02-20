@@ -207,18 +207,6 @@ init_waitqueue_func_entry(wait_queue_t *wq, wait_queue_func_t func)
 	wq->func	= func;
 }
 
-
-#ifndef set_current_state
-#define	set_current_state(x)						\
-	atomic_store_rel_int((volatile int *)&current->state, (x))
-#define undef_set_current
-#endif
-
-#ifndef __set_current_state
-#define	__set_current_state(x)	current->state = (x)
-#define undef___set_current
-#endif
-
 static inline void
 __wake_up_locked(wait_queue_head_t *q, int mode, int nr, void *key)
 {
@@ -620,17 +608,5 @@ wait_on_bit_timeout(unsigned long *word, int bit, unsigned mode,
 					       bit_wait_timeout,
 					       mode, timeout);
 }
-
-/*
- * These are supposed to be defined by sched.h, so if we defined them
- * we need to undo that.
- */
-#ifdef undef_set_current
-#undef set_current_state
-#endif
-
-#ifdef undef___set_current
-#undef __set_current_state
-#endif
 
 #endif
