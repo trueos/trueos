@@ -283,7 +283,7 @@ irq_may_run(struct irq_desc *desc)
 static inline void
 linux_irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
 {
-	if (action->thread->flags & PF_EXITING)
+	if (kthread_should_stop_task(action->thread))
 		return;
 	if (test_and_set_bit(IRQTF_RUNTHREAD, &action->thread_flags))
 		return;

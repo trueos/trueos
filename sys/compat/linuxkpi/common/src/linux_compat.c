@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/uaccess.h>
 #include <linux/list.h>
 #include <linux/smp.h>
-#include <linux/sched.h>
+#include <linux/kthread.h>
 #include <linux/kernel.h>
 #include <linux/compat.h>
 #include <linux/poll.h>
@@ -1978,7 +1978,6 @@ async_schedule(async_func_t func, void *data)
 	atomic_inc(&entry_count);
 	newcookie = entry->cookie = nextcookie++;
 	sx_xunlock(&linux_global_lock);
-	curthread->td_pflags |= PF_USED_ASYNC;
 	queue_work(system_unbound_wq, &entry->work);
 	return (newcookie);
 }

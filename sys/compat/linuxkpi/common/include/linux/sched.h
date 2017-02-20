@@ -38,36 +38,65 @@
 #include <sys/sleepqueue.h>
 
 #include <linux/compiler.h>
-
 #include <linux/rcupdate.h>
 #include <linux/rculist.h>
 #include <linux/smp.h>
-#include <linux/kthread.h>
 #include <linux/nodemask.h>
 #include <linux/mm_types.h>
-
-#include <asm/processor.h>
+#include <linux/hrtimer.h>
 #include <linux/completion.h>
 #include <linux/pid.h>
+#include <linux/slab.h>
 
+#include <asm/processor.h>
 #include <asm/atomic.h>
 
 #include <linux/rwsem.h>
+#include <linux/time64.h>
+
+#define	TASK_RUNNING		0
+#define	TASK_INTERRUPTIBLE	1
+#define	TASK_UNINTERRUPTIBLE	2
+#define	TASK_KILLABLE           3
+#define	TASK_DEAD		64
+#define	TASK_WAKEKILL		128
+#define	TASK_WAKING		256
+#define TASK_PARKED		512
+#define TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
 
 #define TASK_COMM_LEN 16
 
-#define PF_EXITING	0x00000004
-#define PF_USED_ASYNC	TDP_UNUSED9
-
 struct seq_file;
+struct wait_queue_head;
 
-#define task_pid(task) ((task)->task_thread->td_proc->p_pid)
+struct task_struct {
+	struct	thread *task_thread;
+	struct mm_struct *mm;
+	linux_task_fn_t *task_fn;
+	atomic_t usage;
+	void	*task_data;
+	int	task_ret;
+	int	state;
+	char	*comm;
+	unsigned long kthread_flags;
+	pid_t	pid;
+	struct wait_queue_head	*sleep_wq;
+	int prio;
+	int static_prio;
+	int normal_prio;
+	void	*bsd_ioctl_data;
+	unsigned	bsd_ioctl_len;
+	struct mm_struct bsd_mm;
+	struct completion parked;
+	struct completion exited;
+};
+
+#define	current		((struct task_struct *)curthread->td_lkpi_task)
+
+#define task_pid(task)	((task)->task_thread->td_proc->p_pid)
 #define get_pid(x) (x)
 #define put_pid(x)
 #define current_euid() (curthread->td_ucred->cr_uid)
-
-/* ensure the task_struct pointer fits into the td_retval[1] field */
-CTASSERT(sizeof(((struct thread *)0)->td_retval[1]) >= sizeof(uintptr_t));
 
 #define	set_current_state(x)						\
 	atomic_store_rel_int((volatile int *)&current->state, (x))
@@ -259,8 +288,5 @@ schedule_short(void)
 
 
 #define yield() kern_yield(0)
-
-#include <linux/hrtimer.h>
-
 
 #endif	/* _LINUX_SCHED_H_ */

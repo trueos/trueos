@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,70 +31,11 @@
 #ifndef	_LINUX_KTHREAD_H_
 #define	_LINUX_KTHREAD_H_
 
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/kernel.h>
-#include <sys/kthread.h>
-#include <sys/sleepqueue.h>
 #include <sys/unistd.h>
 
-#include <linux/slab.h>
+#include <linux/sched.h>
 
-#include <linux/mm_types.h>
-#include <linux/completion.h>
-
-#define	TASK_RUNNING		0
-#define	TASK_INTERRUPTIBLE	1
-#define	TASK_UNINTERRUPTIBLE	2
-#define	TASK_KILLABLE           3
-#define	TASK_DEAD		64
-#define	TASK_WAKEKILL		128
-#define	TASK_WAKING		256
-#define TASK_PARKED		512
-
-#define	TASK_SHOULD_STOP	1
-#define	TASK_STOPPED		2
-
-#define TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
-
-#define	current			((struct task_struct *)curthread->td_lkpi_task)
-
-typedef int linux_task_fn_t(void *data);
-
-struct wait_queue_head;
-struct kthread {
-	unsigned long flags;
-	struct completion parked;
-	struct completion exited;
-};
-
-struct task_struct {
-	struct	thread *task_thread;
-	struct mm_struct *mm;
-	linux_task_fn_t *task_fn;
-	atomic_t usage;
-	void	*task_data;
-	int	task_ret;
-	int	state;
-	char	*comm;
-	int	flags;
-	pid_t	pid;
-	struct wait_queue_head	*sleep_wq;
-	int prio, static_prio, normal_prio;
-	void	*bsd_ioctl_data;
-	unsigned	bsd_ioctl_len;
-	struct mm_struct bsd_mm;
-	struct kthread kthread;
-};
-
-extern void linux_kthread_fn(void *);
-extern struct task_struct *linux_kthread_setup_and_run(struct thread *, linux_task_fn_t *, void *arg);
-
-#define	kthread_run(fn, data, fmt, ...)					\
-({									\
+#define	kthread_run(fn, data, fmt, ...)	({				\
 	struct task_struct *__task;					\
 	struct thread *__td;						\
 									\
@@ -137,16 +78,15 @@ wake_up_state(struct task_struct *p, unsigned int state)
 	return (try_to_wake_up(p, state, 0));
 }
 
-
 extern int in_atomic(void);
-
-extern int kthread_stop(struct task_struct *task);
+extern int kthread_stop(struct task_struct *);
+extern bool kthread_should_stop_task(struct task_struct *);
 extern bool kthread_should_stop(void);
-
 extern bool kthread_should_park(void);
-extern int kthread_park(struct task_struct *k);
-extern void kthread_unpark(struct task_struct *k);
+extern int kthread_park(struct task_struct *);
+extern void kthread_unpark(struct task_struct *);
 extern void kthread_parkme(void);
-
+extern void linux_kthread_fn(void *);
+extern struct task_struct *linux_kthread_setup_and_run(struct thread *, linux_task_fn_t *, void *arg);
 
 #endif	/* _LINUX_KTHREAD_H_ */

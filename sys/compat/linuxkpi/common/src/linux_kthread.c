@@ -5,42 +5,45 @@
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/priority.h>
+#include <sys/kthread.h>
 #include <sys/sched.h>
 
-enum KTHREAD_BITS {
-	KTHREAD_IS_PER_CPU = 0,
+enum {
 	KTHREAD_SHOULD_STOP,
 	KTHREAD_SHOULD_PARK,
 	KTHREAD_IS_PARKED,
 };
 
-#define to_kthread(t) (&(t)->kthread)
+bool
+kthread_should_stop_task(struct task_struct *ts)
+{
+	return (test_bit(KTHREAD_SHOULD_STOP, &ts->kthread_flags));
+}
 
 bool
 kthread_should_stop(void)
 {
-	return (test_bit(KTHREAD_SHOULD_STOP, &current->kthread.flags));
+	return (test_bit(KTHREAD_SHOULD_STOP, &current->kthread_flags));
 }
 
 bool
 kthread_should_park(void)
 {
-	return (test_bit(KTHREAD_SHOULD_PARK, &current->kthread.flags));
+	return (test_bit(KTHREAD_SHOULD_PARK, &current->kthread_flags));
 }
 
 int
-kthread_park(struct task_struct *k)
+kthread_park(struct task_struct *ts)
 {
-	struct kthread *kthread = &k->kthread;
 	int ret = -ENOSYS;
 
 /* XXX we don't know the thread is live */
-	if (kthread) {
-		if (!test_bit(KTHREAD_IS_PARKED, &kthread->flags)) {
-			set_bit(KTHREAD_SHOULD_PARK, &kthread->flags);
-			if (k != current) {
-				wake_up_process(k);
-				wait_for_completion(&kthread->parked);
+	if (ts != NULL) {
+		if (!test_bit(KTHREAD_IS_PARKED, &ts->kthread_flags)) {
+			set_bit(KTHREAD_SHOULD_PARK, &ts->kthread_flags);
+			if (ts != current) {
+				wake_up_process(ts);
+				wait_for_completion(&ts->parked);
 			}
 		}
 		ret = 0;
@@ -48,56 +51,46 @@ kthread_park(struct task_struct *k)
 	return ret;
 }
 
-static void
-__kthread_unpark(struct task_struct *k, struct kthread *kthread)
-{
-	clear_bit(KTHREAD_SHOULD_PARK, &kthread->flags);
-	if (test_and_clear_bit(KTHREAD_IS_PARKED, &kthread->flags))
-		wake_up_state(k, TASK_PARKED);
-}
-
 void
-kthread_unpark(struct task_struct *k)
+kthread_unpark(struct task_struct *ts)
 {
-	__kthread_unpark(k, &k->kthread);
+	clear_bit(KTHREAD_SHOULD_PARK, &ts->kthread_flags);
+	if (test_and_clear_bit(KTHREAD_IS_PARKED, &ts->kthread_flags))
+		wake_up_state(ts, TASK_PARKED);
 }
-
-static void
-__kthread_parkme(struct kthread *self)
-{	
-	__set_current_state(TASK_PARKED);
-	while (test_bit(KTHREAD_SHOULD_PARK, &self->flags)) {
-		if (!test_and_set_bit(KTHREAD_IS_PARKED, &self->flags))
-			complete(&self->parked);
-		schedule();
-		__set_current_state(TASK_PARKED);
-	}
-	clear_bit(KTHREAD_IS_PARKED, &self->flags);
-	__set_current_state(TASK_RUNNING);
-}
-
 
 void
 kthread_parkme(void)
 {
-	__kthread_parkme(to_kthread(current));
+	struct task_struct *ts = current;
+
+	MPASS(ts != NULL);
+
+	ts->state = TASK_PARKED;
+	while (test_bit(KTHREAD_SHOULD_PARK, &ts->kthread_flags)) {
+		if (!test_and_set_bit(KTHREAD_IS_PARKED, &ts->kthread_flags))
+			complete(&ts->parked);
+		schedule();
+		ts->state = TASK_PARKED;
+	}
+	clear_bit(KTHREAD_IS_PARKED, &ts->kthread_flags);
+	ts->state = TASK_RUNNING;
 }
 
 int
 kthread_stop(struct task_struct *task)	
 {
 	struct thread *td;
-	struct kthread *k = &task->kthread;
 	int retval = 0;
 
 	/* XXX we don't know the thread is live */
 	td = task->task_thread;
 	PROC_LOCK(td->td_proc);
-	set_bit(KTHREAD_SHOULD_STOP, &task->kthread.flags);
+	set_bit(KTHREAD_SHOULD_STOP, &task->kthread_flags);
 	PROC_UNLOCK(td->td_proc);
-	__kthread_unpark(task, k);
+	kthread_unpark(task);
 	wake_up_process(task);
-	wait_for_completion(&k->exited);
+	wait_for_completion(&task->exited);
 
 	retval = task->task_ret;
 	linux_free_current(task);
@@ -148,7 +141,7 @@ skip:
 		/* let kthread_stop() free data */
 		td->td_lkpi_task = NULL;
 		/* wakeup kthread_stop() */
-		complete(&task->kthread.exited);
+		complete(&task->exited);
 	}
 	kthread_exit();
 }
