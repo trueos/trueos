@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=   jinit
+MAN=	jinit.8
 LIBADD= jail util
 
 PACKAGE=jail

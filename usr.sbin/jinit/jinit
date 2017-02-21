@@ -33,7 +33,7 @@ fi
 
 show_usage()
 {
-  echo "usage: jinit jail [-n ip address iface] "
+  echo "usage: jinit jail [-n ip address interface] "
 }
 
 # Check for arguments

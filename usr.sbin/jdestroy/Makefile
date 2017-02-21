@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=   jdestroy
+MAN=	jdestroy.8
 LIBADD= jail util
 
 PACKAGE=jail
