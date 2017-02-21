@@ -1031,7 +1031,7 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		error = ENOTTY;
 	if (size > 0) {
 		current->bsd_ioctl_data = NULL;
-		current->bsd_ioctl_len = -1;
+		current->bsd_ioctl_len = 0;
 	}
 
 	if (error == ERESTARTSYS)
