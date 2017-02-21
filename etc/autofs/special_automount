@@ -9,7 +9,7 @@ print_available() {
 	local _fstype _fstype_and_label _label _p
 
 	for _p in ${providers}; do
-		_fstype_and_label="$(fstyp -l "/dev/${_p}" 2> /dev/null)"
+		_fstype_and_label="$(fstyp "/dev/${_p}" 2> /dev/null)"
 		if [ $? -ne 0 ]; then
 			# Ignore devices for which we were unable
 			# to determine filesystem type.
@@ -17,15 +17,6 @@ print_available() {
 		fi
 
 		_fstype="${_fstype_and_label%% *}"
-		if [ "${_fstype}" != "${_fstype_and_label}" ]; then
-			_label="${_fstype_and_label#* }"
-			# Replace plus signs and slashes with minuses;
-			# leading plus signs have special meaning in maps,
-			# and multi-component keys are just not supported.
-			_label="$(echo ${_label} | sed 's,[+/],-,g')"
-			echo "${_label}"
-			continue
-		fi
 
 		echo "${_p}"
 	done
@@ -49,7 +40,7 @@ print_map_entry() {
 		fi
 		;;
 	"ext2fs" | "msdosfs")
-		echo "-fstype=${_fstype},nosuid,async	:/dev/${_p}" 
+		echo "-fstype=${_fstype},nosuid,async,-M=777	:/dev/${_p}" 
 		;;
 	*)
 		echo "-fstype=${_fstype},nosuid	:/dev/${_p}" 
@@ -70,7 +61,7 @@ print_one() {
 	fi
 
 	for _p in ${providers}; do
-		_fstype_and_label="$(fstyp -l "/dev/${_p}" 2> /dev/null)"
+		_fstype_and_label="$(fstyp "/dev/${_p}" 2> /dev/null)"
 		if [ $? -ne 0 ]; then
 			# Ignore devices for which we were unable
 			# to determine filesystem type.
@@ -78,10 +69,6 @@ print_one() {
 		fi
 
 		_fstype="${_fstype_and_label%% *}"
-		if [ "${_fstype}" = "${_fstype_and_label}" ]; then
-			# No label, try another device.
-			continue
-		fi
 
 		_label="${_fstype_and_label#* }"
 		# Replace plus signs and slashes with minuses;
