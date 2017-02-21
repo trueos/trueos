@@ -35,24 +35,17 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
-#include <sys/sleepqueue.h>
 
-#include <linux/compiler.h>
-#include <linux/rcupdate.h>
-#include <linux/rculist.h>
-#include <linux/smp.h>
-#include <linux/nodemask.h>
-#include <linux/mm_types.h>
-#include <linux/hrtimer.h>
+#include <linux/types.h>
 #include <linux/completion.h>
 #include <linux/pid.h>
 #include <linux/slab.h>
-
-#include <asm/processor.h>
-#include <asm/atomic.h>
-
-#include <linux/rwsem.h>
+#include <linux/mm_types.h>
+#include <linux/hrtimer.h>
 #include <linux/time64.h>
+#include <linux/bitmap.h>
+#include <linux/atomic.h>
+#include <linux/smp.h>
 
 #define	TASK_RUNNING		0
 #define	TASK_INTERRUPTIBLE	1

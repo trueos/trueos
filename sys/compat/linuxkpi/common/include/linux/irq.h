@@ -11,7 +11,9 @@
 #include <linux/wait.h>
 #include <linux/io.h>
 #include <linux/kthread.h>
+#include <linux/bitmap.h>
 
+#include <asm/processor.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #define NR_IRQS	512 /* XXX need correct value */

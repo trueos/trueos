@@ -31,9 +31,10 @@
 #ifndef	_LINUX_KTHREAD_H_
 #define	_LINUX_KTHREAD_H_
 
-#include <sys/unistd.h>
-
 #include <linux/sched.h>
+
+#include <sys/unistd.h>
+#include <sys/kthread.h>
 
 #define	kthread_run(fn, data, fmt, ...)	({				\
 	struct task_struct *__task;					\
