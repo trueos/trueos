@@ -90,19 +90,26 @@ linux_rcu_runtime_init(void *arg __unused)
 		ck_epoch_unregister(record);
 	}
 }
-
-SYSINIT(linux_rcu_runtime_init, SI_SUB_LOCK, SI_ORDER_SECOND, linux_rcu_runtime_init, NULL);
+SYSINIT(linux_rcu_runtime, SI_SUB_LOCK, SI_ORDER_SECOND, linux_rcu_runtime_init, NULL);
 
 static void
 linux_rcu_runtime_uninit(void *arg __unused)
 {
+	ck_epoch_record_t **pcpu_record;
 	ck_epoch_record_t *record;
+	int i;
 
 	while ((record = ck_epoch_recycle(&linux_epoch)) != NULL)
 		free(record, M_LRCU);
-}
 
-SYSUNINIT(linux_rcu_runtime_uninit, SI_SUB_LOCK, SI_ORDER_SECOND, linux_rcu_runtime_uninit, NULL);
+	CPU_FOREACH(i) {
+		pcpu_record = DPCPU_ID_PTR(i, epoch_record);
+		record = *pcpu_record;
+		*pcpu_record = NULL;
+		free(record, M_LRCU);
+	}
+}
+SYSUNINIT(linux_rcu_runtime, SI_SUB_LOCK, SI_ORDER_SECOND, linux_rcu_runtime_uninit, NULL);
 
 static ck_epoch_record_t *
 linux_rcu_get_record(int canblock)
