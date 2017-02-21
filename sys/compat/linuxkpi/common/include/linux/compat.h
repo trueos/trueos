@@ -30,15 +30,14 @@
  */
 #ifndef	_LINUX_COMPAT_H_
 #define	_LINUX_COMPAT_H_
+
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 
-
-
-#define oops_in_progress unlikely(SCHEDULER_STOPPED() || kdb_active)
-#define preempt_disable() critical_enter()
-#define preempt_enable() critical_exit()
+#define	oops_in_progress unlikely(SCHEDULER_STOPPED() || kdb_active)
+#define	preempt_disable() critical_enter()
+#define	preempt_enable() critical_exit()
 
 struct thread;
 struct task_struct;
@@ -62,4 +61,4 @@ linux_set_current_flags(struct thread *td, int flags)
 	return (0);
 }
 
-#endif	/* _LINUX_COMPAT_H_ */
+#endif					/* _LINUX_COMPAT_H_ */
