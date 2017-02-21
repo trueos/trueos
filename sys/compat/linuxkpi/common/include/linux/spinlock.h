@@ -35,10 +35,10 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/kdb.h>
 
 #include <linux/compiler.h>
 #include <linux/irqflags.h>
-#include <linux/kernel.h>
 #include <linux/rwlock.h>
 #include <linux/bottom_half.h>
 
