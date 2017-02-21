@@ -34,8 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/priority.h>
-#include <sys/kthread.h>
-#include <sys/sched.h>
 
 enum {
 	KTHREAD_SHOULD_STOP_MASK = (1 << 0),
