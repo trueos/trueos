@@ -77,7 +77,7 @@ struct task_struct {
 	void   *task_data;
 	int	task_ret;
 	atomic_t state;
-	char   *comm;
+	const char *comm;
 	atomic_t kthread_flags;
 	pid_t	pid;
 	struct wait_queue_head *sleep_wq;
