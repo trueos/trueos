@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=   jbootstrap
+SCRIPTS=jbootstrap
 MAN=	jbootstrap.8
 LIBADD= jail util
 
