@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,12 +35,8 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/taskqueue.h>
 #include <linux/compiler.h>
 #include <asm/types.h>
-
-#include <ck_epoch.h>
-
 
 #ifndef __bitwise__
 #ifdef __CHECKER__
@@ -75,14 +71,9 @@ typedef struct {
 
 #define pgoff_t unsigned long
 
-struct callback_head {
-	struct callback_head *next;
-	void (*func)(struct callback_head *head);
-	ck_epoch_record_t *epoch_record;
-	ck_epoch_entry_t epoch_entry;
-	struct task task;
-} __attribute__((aligned(sizeof(void *))));
-#define rcu_head callback_head
+struct rcu_head {
+	void *raw[8];
+} __aligned(sizeof(void *));
 
 typedef void (*rcu_callback_t)(struct rcu_head *head);
 typedef void (*call_rcu_func_t)(struct rcu_head *head, rcu_callback_t func);

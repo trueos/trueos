@@ -61,7 +61,6 @@ hlist_del_rcu(struct hlist_node *n)
 		next->pprev = pprev;
 }
 
-
 static inline void
 hlist_add_head_rcu(struct hlist_node *n, struct hlist_head *h)
 {

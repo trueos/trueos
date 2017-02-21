@@ -36,21 +36,34 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
-
 #include <sys/queue.h>
+#include <sys/taskqueue.h>
 
 #include <ck_epoch.h>
 
 #include <linux/rcupdate.h>
 #include <linux/srcu.h>
 #include <linux/slab.h>
-#include <linux/bottom_half.h>
+#include <linux/kernel.h>
+
+struct callback_head {
+	ck_epoch_entry_t epoch_entry;
+	rcu_callback_t func;
+	ck_epoch_record_t *epoch_record;
+	struct task task;
+};
+
+/*
+ * Verify that "struct rcu_head" is big enough to hold "struct
+ * callback_head". This has been done to avoid having to add special
+ * compile flags for including ck_epoch.h to all clients of the
+ * LinuxKPI.
+ */
+CTASSERT(sizeof(struct rcu_head) >= sizeof(struct callback_head));
 
 static ck_epoch_t linux_epoch;
 static	MALLOC_DEFINE(M_LRCU, "lrcu", "Linux RCU");
 static	DPCPU_DEFINE(ck_epoch_record_t *, epoch_record);
-
-CK_EPOCH_CONTAINER(struct rcu_head, epoch_entry, rcu_head_container)
 
 static void
 linux_rcu_runtime_init(void *arg __unused)
@@ -77,6 +90,7 @@ linux_rcu_runtime_init(void *arg __unused)
 		ck_epoch_unregister(record);
 	}
 }
+
 SYSINIT(linux_rcu_runtime_init, SI_SUB_LOCK, SI_ORDER_SECOND, linux_rcu_runtime_init, NULL);
 
 static void
@@ -87,6 +101,7 @@ linux_rcu_runtime_uninit(void *arg __unused)
 	while ((record = ck_epoch_recycle(&linux_epoch)) != NULL)
 		free(record, M_LRCU);
 }
+
 SYSUNINIT(linux_rcu_runtime_uninit, SI_SUB_LOCK, SI_ORDER_SECOND, linux_rcu_runtime_uninit, NULL);
 
 static ck_epoch_record_t *
@@ -110,10 +125,11 @@ linux_rcu_get_record(int canblock)
 static void
 linux_rcu_destroy_object(ck_epoch_entry_t *e)
 {
-	struct rcu_head *rcu;
+	struct callback_head *rcu;
 	uintptr_t offset;
 
-	rcu = rcu_head_container(e);
+	rcu = container_of(e, struct callback_head, epoch_entry);
+
 	offset = (uintptr_t)rcu->func;
 
 	MPASS(rcu->task.ta_pending == 0);
@@ -121,13 +137,13 @@ linux_rcu_destroy_object(ck_epoch_entry_t *e)
 	if (offset < LINUX_KFREE_RCU_OFFSET_MAX)
 		kfree((char *)rcu - offset);
 	else
-		rcu->func(rcu);
+		rcu->func((struct rcu_head *)rcu);
 }
 
 static void
 linux_rcu_cleaner_func(void *context, int pending __unused)
 {
-	struct rcu_head *rcu = context;
+	struct callback_head *rcu = context;
 	ck_epoch_record_t *record = rcu->epoch_record;
 
 	ck_epoch_barrier(record);
@@ -139,7 +155,7 @@ linux_rcu_read_lock(void)
 {
 	ck_epoch_record_t *record;
 
-	local_bh_disable();
+	sched_pin();
 	record = DPCPU_GET(epoch_record);
 	MPASS(record != NULL);
 
@@ -153,7 +169,7 @@ linux_rcu_read_unlock(void)
 
 	record = DPCPU_GET(epoch_record);
 	ck_epoch_end(record, NULL);
-	local_bh_enable();
+	sched_unpin();
 }
 
 void
@@ -179,20 +195,21 @@ linux_rcu_barrier(void)
 }
 
 void
-linux_call_rcu(struct rcu_head *ptr, rcu_callback_t func)
+linux_call_rcu(struct rcu_head *context, rcu_callback_t func)
 {
+	struct callback_head *ptr = (struct callback_head *)context;
 	ck_epoch_record_t *record;
 
 	record = linux_rcu_get_record(0);
 
-	local_bh_disable();
+	sched_pin();
 	MPASS(record != NULL);
 	ptr->func = func;
 	ptr->epoch_record = record;
 	ck_epoch_call(record, &ptr->epoch_entry, linux_rcu_destroy_object);
 	TASK_INIT(&ptr->task, 0, linux_rcu_cleaner_func, ptr);
 	taskqueue_enqueue(taskqueue_fast, &ptr->task);
-	local_bh_enable();
+	sched_unpin();
 }
 
 int

@@ -94,7 +94,6 @@ SRCS	= \
 #
 
 CLEANFILES += ${KMOD}.ko.full ${KMOD}.ko.debug
-CFLAGS+= -I${.CURDIR}/../../../../contrib/ck/include
 CFLAGS+= -I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+= -I${.CURDIR}/../../../../compat/linuxkpi/common/include/uapi
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
