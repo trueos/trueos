@@ -472,9 +472,23 @@ arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 	set_memory_wb(start, size >> PAGE_SHIFT);
 }
 
+void *
+linux_page_address(struct page *page)
+{
+#ifdef __amd64__
+	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
+#else
+	if (page->object != kmem_object && page->object != kernel_object)
+		return (NULL);
+	return ((void *)(uintptr_t)(VM_MIN_KERNEL_ADDRESS +
+	    IDX_TO_OFF(page->pindex)));
+#endif
+}
+
 vm_page_t
 linux_alloc_pages(gfp_t flags, unsigned int order)
 {
+#ifdef __amd64__
 	unsigned long npages = 1UL << order;
 	int req = (flags & M_ZERO) ? (VM_ALLOC_ZERO | VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL) : (VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL);
@@ -513,12 +527,26 @@ retry:
 				pmap_zero_page(pgo);
 		}
 	}
+#else
+	vm_offset_t vaddr;
+	vm_page_t page;
+
+	vaddr = linux_alloc_kmem(flags, order);
+	if (vaddr == 0)
+		return (NULL);
+
+	page = PHYS_TO_VM_PAGE(vtophys((void *)vaddr));
+
+	KASSERT(vaddr == (vm_offset_t)page_address(page),
+	    ("Page address mismatch"));
+#endif
 	return (page);
 }
 
 void
 linux_free_pages(vm_page_t page, unsigned int order)
 {
+#ifdef __amd64__
 	unsigned long npages = 1UL << order;
 	unsigned long x;
 
@@ -529,6 +557,13 @@ linux_free_pages(vm_page_t page, unsigned int order)
 		vm_page_free(pgo);
 		vm_page_unlock(pgo);
 	}
+#else
+	vm_offset_t vaddr;
+
+	vaddr = (vm_offset_t)page_address(page);
+
+	linux_free_kmem(vaddr, order);
+#endif
 }
 
 vm_offset_t

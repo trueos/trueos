@@ -69,18 +69,17 @@
 #define	GFP_TEMPORARY	M_NOWAIT
 #define	GFP_NATIVE_MASK	(M_NOWAIT | M_WAITOK | M_USE_RESERVE | M_ZERO)
 
-static inline void *
-page_address(struct page *page)
-{
+/*
+ * Resolve a page into a virtual address:
+ *
+ * NOTE: This function only works for pages allocated by the kernel.
+ */
+extern void *linux_page_address(struct page *);
 
-	if (page->object != kmem_object && page->object != kernel_object)
-		return (NULL);
-	return ((void *)(uintptr_t)(VM_MIN_KERNEL_ADDRESS +
-	    IDX_TO_OFF(page->pindex)));
-}
+#define	page_address(page) linux_page_address(page)
 
 /*
- * Page management for pages having only physical address.
+ * Page management for unmapped pages:
  */
 extern vm_page_t linux_alloc_pages(gfp_t flags, unsigned int order);
 extern void linux_free_pages(vm_page_t page, unsigned int order);
@@ -121,7 +120,7 @@ __free_page(struct page *page)
 }
 
 /*
- * Page management for pages having both virtual and physical address.
+ * Page management for mapped pages:
  */
 extern vm_offset_t linux_alloc_kmem(gfp_t flags, unsigned int order);
 extern void linux_free_kmem(vm_offset_t, unsigned int order);
