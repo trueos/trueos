@@ -9,6 +9,8 @@
 #include <linux/timer.h>
 #include <linux/completion.h>
 
+struct device;
+
 extern const char power_group_name[];		/* = "power" */
 
 /*

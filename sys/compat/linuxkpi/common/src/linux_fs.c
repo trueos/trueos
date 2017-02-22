@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/mm.h>
-#include <linux/mount.h>
 #include <asm/uaccess.h>
 
 
@@ -64,61 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 
 
-#ifdef INVARIANTS
-static int fs_held_pages;
-SYSCTL_INT(_compat_linuxkpi, OID_AUTO, fs_held_pages, CTLFLAG_RW, &fs_held_pages, 0, "number of total pages held");
-#endif
 
 static MALLOC_DEFINE(M_LKFS, "lkfs", "lkpi fs");
 uma_zone_t vnode_zone;
-
-struct dentry *
-mount_pseudo(struct file_system_type *fs_type, char *name,
-	const struct super_operations *ops,
-			    const struct dentry_operations *dops, unsigned long magic)
-{
-	UNIMPLEMENTED();
-	return (NULL);
-}
-
-void
-kill_anon_super(struct super_block *sb)
-{
-	UNIMPLEMENTED();
-}
-
-char *
-simple_dname(struct dentry *dentry, char *buffer, int buflen)
-{
-	UNIMPLEMENTED();
-	return (NULL);
-}
-
-int
-simple_pin_fs(struct file_system_type *type, struct vfsmount **mount, int *count)
-{
-	struct vfsmount *mp;
-
-	DODGY();
-	if ((mp = malloc(sizeof(*mp), M_LKFS, M_WAITOK|M_ZERO)) == NULL)
-		return (-ENOMEM);
-	*mount = mp;
-	return (0);
-}
-
-void
-simple_release_fs(struct vfsmount **mount, int *count)
-{
-	free(*mount, M_LKFS);
-	*mount = NULL;
-}
-
-int
-simple_statfs(struct dentry *dentry, struct kstatfs *buf)
-{
-	UNIMPLEMENTED();
-	return (0);
-}
 
 long long
 simple_strtoll(const char *cp, char **endp, unsigned int base)
@@ -306,36 +253,45 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 	return (page);
 }
 
-static struct vnode *
-linux_get_new_vnode(void)
+struct address_space *
+alloc_anon_mapping(size_t size)
 {
-	struct vnode *vp;
-	int error;
+	struct address_space *as;
 
-	error = getnewvnode("LINUX", NULL, &dead_vnodeops, &vp);
-	if (error != 0)
-		return (NULL);
-	return (vp);
+	as = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
+	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
+	if (as == NULL)
+		return (ERR_PTR(-ENOMEM));
+	return (as);
+}
+
+void
+free_anon_mapping(struct address_space *as)
+{
+
+	if (as != NULL)
+		vm_object_deallocate(as);
 }
 
 struct linux_file *
-shmem_file_setup(char *name, int size, int flags)
+shmem_file_setup(char *name, loff_t size, unsigned long flags)
 {
+	struct fileobj {
+		struct linux_file file __aligned(sizeof(void *));
+		struct vnode vnode __aligned(sizeof(void *));
+	};
+	struct fileobj *fileobj;
 	struct linux_file *filp;
 	struct vnode *vp;
 	int error;
 
-	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
-	if (filp == NULL) {
+	fileobj = kzalloc(sizeof(*fileobj), GFP_KERNEL);
+	if (fileobj == NULL) {
 		error = -ENOMEM;
 		goto err_0;
 	}
-
-	vp = linux_get_new_vnode();
-	if (vp == NULL) {
-		error = -EINVAL;
-		goto err_1;
-	}
+	filp = &fileobj->file;
+	vp = &fileobj->vnode;
 
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_vnode = vp;
@@ -345,27 +301,14 @@ shmem_file_setup(char *name, int size, int flags)
 
 	if (file_inode(filp)->i_mapping == NULL) {
 		error = -ENOMEM;
-		goto err_2;
+		goto err_1;
 	}
 
 	return (filp);
-err_2:
-	vdrop(vp);
 err_1:
 	kfree(filp);
 err_0:
 	return (ERR_PTR(error));
-}
-
-struct inode *
-alloc_anon_inode(struct super_block *s)
-{
-	struct vnode *vp;
-
-	vp = linux_get_new_vnode();
-	if (vp == NULL)
-		return (ERR_PTR(-EINVAL));
-	return (vp);
 }
 
 static vm_ooffset_t
@@ -469,10 +412,6 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			vm_page_dirty(*mp);
 		}
 	}
-#ifdef INVARIANTS
-	if (count > 0)
-		atomic_add_int(&fs_held_pages, count);
-#endif
 	return (count);
 }
 
@@ -483,7 +422,7 @@ get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 {
 	vm_map_t map;
 
-	map = &tsk->task_thread->td_proc->p_vmspace->vm_map;
+	map = &((struct vmspace *)mm->vmspace)->vm_map;
 	return (__get_user_pages_internal(map, start, nr_pages,
 	    !!(gup_flags & FOLL_WRITE), pages));
 }
@@ -505,33 +444,10 @@ linux_file_free(struct linux_file *filp)
 
 	if (filp->_file == NULL) {
 		struct vnode *vp = filp->f_vnode;
-		if (vp == NULL)
-			goto done;
-		if (vp->i_mapping != NULL) {
+		if (vp != NULL && vp->i_mapping != NULL)
 			vm_object_deallocate(vp->i_mapping);
-			vp->i_mapping = NULL;
-		}
-		vdrop(vp);
 	} else {
 		_fdrop(filp->_file, curthread);
 	}
-done:
 	kfree(filp);
 }
-
-#include <sys/mount.h>
-#include <fs/pseudofs/pseudofs.h>
-
-static int
-linpseudofs_init(PFS_INIT_ARGS)
-{
-	return (0);
-}
-
-static int
-linpseudofs_uninit(PFS_INIT_ARGS)
-{
-	return (0);
-}
-
-PSEUDOFS(linpseudofs, 1, PR_ALLOW_MOUNT);

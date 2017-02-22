@@ -7,7 +7,6 @@
 #include <linux/rcupdate.h>
 #include <linux/spinlock.h>
 
-
 extern struct idr irq_idr;
 struct irq_desc {
 	struct irq_data		irq_data;

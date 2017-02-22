@@ -70,16 +70,4 @@ struct grouptask {
 	int16_t			gt_cpu;
 };
 
-#ifdef _KERNEL
-struct grouptask_aligned {
-	struct	gtask		gt_task;
-	void			*gt_taskqueue;
-	LIST_ENTRY(grouptask)	gt_list;
-	void			*gt_uniq;
-	char			*gt_name;
-	int16_t			gt_irq;
-	int16_t			gt_cpu;
-} __aligned(CACHE_LINE_SIZE);
-#endif
-
 #endif /* !_SYS__TASK_H_ */

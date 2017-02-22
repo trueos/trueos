@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,44 +35,65 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
-#include <sys/sleepqueue.h>
 
-#include <linux/compiler.h>
-
-#include <linux/rcupdate.h>
-#include <linux/rculist.h>
-#include <linux/smp.h>
-#include <linux/kthread.h>
-#include <linux/nodemask.h>
-#include <linux/mm_types.h>
-
-#include <asm/processor.h>
+#include <linux/types.h>
 #include <linux/completion.h>
 #include <linux/pid.h>
+#include <linux/slab.h>
+#include <linux/mm_types.h>
+#include <linux/hrtimer.h>
+#include <linux/time64.h>
+#include <linux/bitmap.h>
+#include <linux/atomic.h>
+#include <linux/smp.h>
 
-#include <asm/atomic.h>
+#define	TASK_RUNNING		0
+#define	TASK_INTERRUPTIBLE	1
+#define	TASK_UNINTERRUPTIBLE	2
+#define	TASK_KILLABLE           3
+#define	TASK_DEAD		64
+#define	TASK_WAKEKILL		128
+#define	TASK_WAKING		256
+#define	TASK_PARKED		512
+#define	TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
 
-#include <linux/rwsem.h>
-
-#define TASK_COMM_LEN 16
-
-#define PF_EXITING	0x00000004
-#define PF_USED_ASYNC	TDP_UNUSED9
+#define	TASK_COMM_LEN 16
 
 struct seq_file;
+struct wait_queue_head;
 
-#define task_pid(task) ((task)->task_thread->td_proc->p_pid)
-#define get_pid(x) (x)
-#define put_pid(x)
-#define current_euid() (curthread->td_ucred->cr_uid)
+struct task_struct {
+	struct thread *task_thread;
+	struct mm_struct *mm;
+	linux_task_fn_t *task_fn;
+	atomic_t usage;
+	void   *task_data;
+	int	task_ret;
+	atomic_t state;
+	const char *comm;
+	atomic_t kthread_flags;
+	pid_t	pid;
+	struct wait_queue_head *sleep_wq;
+	int	prio;
+	int	static_prio;
+	int	normal_prio;
+	void   *bsd_ioctl_data;
+	unsigned bsd_ioctl_len;
+	struct mm_struct bsd_mm;
+	struct mtx sleep_lock;
+	struct completion parked;
+	struct completion exited;
+};
 
-/* ensure the task_struct pointer fits into the td_retval[1] field */
-CTASSERT(sizeof(((struct thread *)0)->td_retval[1]) >= sizeof(uintptr_t));
+#define	current		((struct task_struct *)curthread->td_lkpi_task)
 
-#define	set_current_state(x)						\
-	atomic_store_rel_int((volatile int *)&current->state, (x))
-#define	__set_current_state(x)	current->state = (x)
+#define	task_pid(task)	((task)->task_thread->td_proc->p_pid)
+#define	get_pid(x) (x)
+#define	put_pid(x)
+#define	current_euid()	(curthread->td_ucred->cr_uid)
 
+#define	set_current_state(x)	atomic_set(&current->state, x)
+#define	__set_current_state(x)	do { current->state.counter = (x); } while (0)
 
 static inline void
 __mmdrop(struct mm_struct *mm)
@@ -81,7 +102,7 @@ __mmdrop(struct mm_struct *mm)
 }
 
 static inline void
-mmdrop(struct mm_struct * mm)
+mmdrop(struct mm_struct *mm)
 {
 	if (__predict_false(atomic_dec_and_test(&mm->mm_count)))
 		__mmdrop(mm);
@@ -104,18 +125,20 @@ __put_task_struct(struct task_struct *t)
 }
 
 #ifdef __notyet__
-#define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
+#define	get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
 
-static inline void put_task_struct(struct task_struct *t)
+static inline void
+put_task_struct(struct task_struct *t)
 {
 #ifdef notyet
 	if (atomic_dec_and_test(&t->usage))
 		__put_task_struct(t);
 #endif
 }
+
 #endif
-#define get_task_struct(tsk) PHOLD((tsk)->task_thread->td_proc)
-#define put_task_struct(tsk) PRELE((tsk)->task_thread->td_proc)
+#define	get_task_struct(tsk) PHOLD((tsk)->task_thread->td_proc)
+#define	put_task_struct(tsk) PRELE((tsk)->task_thread->td_proc)
 
 static inline struct task_struct *
 get_pid_task(pid_t pid, enum pid_type type)
@@ -134,7 +157,7 @@ extern u64 sched_clock_cpu(int cpu);
 
 static inline int
 sched_setscheduler(struct task_struct *t, int policy,
-		   const struct sched_param *param)
+    const struct sched_param *param)
 {
 	UNIMPLEMENTED();
 	return (0);
@@ -142,7 +165,7 @@ sched_setscheduler(struct task_struct *t, int policy,
 
 static inline int
 sched_setscheduler_nocheck(struct task_struct *t, int policy,
-		   const struct sched_param *param)
+    const struct sched_param *param)
 {
 	UNIMPLEMENTED();
 	return (0);
@@ -151,12 +174,11 @@ sched_setscheduler_nocheck(struct task_struct *t, int policy,
 static inline u64
 local_clock(void)
 {
-        struct timespec ts;
+	struct timespec ts;
 
-        nanotime(&ts);
-        return (ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
+	nanotime(&ts);
+	return (ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
 }
-
 
 #define	cond_resched()	if (!cold)	sched_relinquish(curthread)
 
@@ -204,13 +226,13 @@ signal_pending_state(long state, struct task_struct *p)
 	return (state & TASK_INTERRUPTIBLE) || __fatal_signal_pending(p);
 }
 
-long schedule_timeout(long timeout);
+extern long schedule_timeout(long timeout);
 
 static inline long
 schedule_timeout_uninterruptible(long timeout)
 {
 	MPASS(current);
-	current->state = TASK_UNINTERRUPTIBLE;
+	__set_current_state(TASK_UNINTERRUPTIBLE);
 	return (schedule_timeout(timeout));
 }
 
@@ -218,11 +240,11 @@ static inline long
 schedule_timeout_interruptible(long timeout)
 {
 	MPASS(current);
-	current->state = TASK_INTERRUPTIBLE;
+	__set_current_state(TASK_INTERRUPTIBLE);
 	return (schedule_timeout(timeout));
 }
 
-#define need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
+#define	need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
 
 static inline long
 schedule_timeout_killable(long timeout)
@@ -230,7 +252,7 @@ schedule_timeout_killable(long timeout)
 	return (schedule_timeout(timeout));
 }
 
-#define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
+#define	MAX_SCHEDULE_TIMEOUT	INT_MAX
 
 static inline long
 io_schedule_timeout(long timeout)
@@ -250,17 +272,12 @@ schedule(void)
 	schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 }
 
-
 static inline void
 schedule_short(void)
 {
-	schedule_timeout(hz/10);
+	schedule_timeout(howmany(hz, 10));
 }
 
+#define	yield() kern_yield(0)
 
-#define yield() kern_yield(0)
-
-#include <linux/hrtimer.h>
-
-
-#endif	/* _LINUX_SCHED_H_ */
+#endif					/* _LINUX_SCHED_H_ */

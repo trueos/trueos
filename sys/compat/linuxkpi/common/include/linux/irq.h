@@ -11,7 +11,9 @@
 #include <linux/wait.h>
 #include <linux/io.h>
 #include <linux/kthread.h>
+#include <linux/bitmap.h>
 
+#include <asm/processor.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #define NR_IRQS	512 /* XXX need correct value */
@@ -283,7 +285,7 @@ irq_may_run(struct irq_desc *desc)
 static inline void
 linux_irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
 {
-	if (action->thread->flags & PF_EXITING)
+	if (kthread_should_stop_task(action->thread))
 		return;
 	if (test_and_set_bit(IRQTF_RUNTHREAD, &action->thread_flags))
 		return;

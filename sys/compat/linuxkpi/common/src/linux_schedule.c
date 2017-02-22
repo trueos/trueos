@@ -39,12 +39,21 @@ __FBSDID("$FreeBSD$");
 long
 schedule_timeout(long timeout)
 {
-	struct mtx stackm;
-	struct mtx *m;
+	struct task_struct *task;
 	sbintime_t sbt;
 	long ret = 0;
+	int state;
 	int delta;
-	int flags;
+
+	/* under FreeBSD jiffies are 32-bit */
+	timeout = (int)timeout;
+
+	/* get task pointer */
+	task = current;
+
+	MPASS(task);
+
+	mtx_lock(&task->sleep_lock);
 
 	/* check for invalid timeout or panic */
 	if (timeout < 0 || SKIP_SLEEP())
@@ -53,41 +62,32 @@ schedule_timeout(long timeout)
 	/* store current ticks value */
 	delta = ticks;
 
-	MPASS(current);
+	state = atomic_read(&task->state);
 
 	/* check if about to wake up */
-	if (current->state == TASK_WAKING)
-		goto done;
+	if (state != TASK_WAKING) {
+		int flags;
 
-	/* get mutex to use */
-	if (current->sleep_wq != NULL) {
-		m = &current->sleep_wq->lock.m;
+		/* get sleep flags */
+		flags = (state == TASK_INTERRUPTIBLE) ? PCATCH : 0;
+
+		/* compute timeout value to use */
+		if (timeout == MAX_SCHEDULE_TIMEOUT)
+			sbt = 0;		/* infinite timeout */
+		else if (timeout < 1)
+			sbt = tick_sbt;		/* avoid underflow */
+		else
+			sbt = tick_sbt * timeout;	/* normal case */
+
+		(void) _sleep(task, &task->sleep_lock.lock_object, flags,
+		    "lsti", sbt, 0 , C_HARDCLOCK);
+
+		/* compute number of ticks consumed */
+		delta = (ticks - delta);
 	} else {
-		m = &stackm;
-		memset(m, 0, sizeof(*m));
-		mtx_init(m, "stack", NULL, MTX_DEF | MTX_NOWITNESS);
+		/* no ticks consumed */
+		delta = 0;
 	}
-	mtx_lock(m);
-
-	/* get sleep flags */
-	flags = (current->state == TASK_INTERRUPTIBLE) ?
-	    (PCATCH | PDROP) : PDROP;
-
-	/* compute timeout value to use */
-	if (timeout == MAX_SCHEDULE_TIMEOUT)
-		sbt = 0;			/* infinite timeout */
-	else if (timeout > INT_MAX)
-		sbt = tick_sbt * INT_MAX;	/* avoid overflow */
-	else if (timeout < 1)
-		sbt = tick_sbt;			/* avoid underflow */
-	else
-		sbt = tick_sbt * timeout;	/* normal case */
-
-	(void) _sleep(current, &m->lock_object, flags,
-	    "lsti", sbt, 0 , C_HARDCLOCK);
-
-	/* compute number of ticks consumed */
-	delta = (ticks - delta);
 
 	/* compute number of ticks left from timeout */
 	ret = timeout - delta;
@@ -96,7 +96,10 @@ schedule_timeout(long timeout)
 	if (ret < 0 || delta < 0)
 		ret = 0;
 done:
-	set_current_state(TASK_RUNNING);
+	atomic_set(&task->state, TASK_RUNNING);
+
+	mtx_unlock(&task->sleep_lock);
+
 	return ((timeout == MAX_SCHEDULE_TIMEOUT) ? timeout : ret);
 }
 

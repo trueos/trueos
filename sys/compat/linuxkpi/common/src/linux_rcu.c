@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2016 Matt Macy (mmacy@nextbsd.org)
  * All rights reserved.
  *
@@ -24,6 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/systm.h>
@@ -34,83 +36,121 @@
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
-
-
-#include <machine/atomic.h>
 #include <sys/queue.h>
+#include <sys/taskqueue.h>
 
 #include <ck_epoch.h>
 
-#include <linux/types.h>
 #include <linux/rcupdate.h>
 #include <linux/srcu.h>
+#include <linux/slab.h>
+#include <linux/kernel.h>
 
+struct callback_head {
+	ck_epoch_entry_t epoch_entry;
+	rcu_callback_t func;
+	ck_epoch_record_t *epoch_record;
+	struct task task;
+};
 
+/*
+ * Verify that "struct rcu_head" is big enough to hold "struct
+ * callback_head". This has been done to avoid having to add special
+ * compile flags for including ck_epoch.h to all clients of the
+ * LinuxKPI.
+ */
+CTASSERT(sizeof(struct rcu_head) >= sizeof(struct callback_head));
 
-static ck_epoch_t lr_epoch;
-static MALLOC_DEFINE(M_LRCU, "lrcu", "Linux RCU");
-
-DPCPU_DEFINE(ck_epoch_record_t *, epoch_record);
-CK_EPOCH_CONTAINER(struct rcu_head, epoch_entry, rcu_head_container)
-
+static ck_epoch_t linux_epoch;
+static	MALLOC_DEFINE(M_LRCU, "lrcu", "Linux RCU");
+static	DPCPU_DEFINE(ck_epoch_record_t *, epoch_record);
 
 static void
 linux_rcu_runtime_init(void *arg __unused)
 {
-	ck_epoch_record_t *record, **pcpu_record;
+	ck_epoch_record_t **pcpu_record;
+	ck_epoch_record_t *record;
 	int i;
 
-	ck_epoch_init(&lr_epoch);
+	ck_epoch_init(&linux_epoch);
 
 	CPU_FOREACH(i) {
-		record = malloc(sizeof *record, M_LRCU, M_WAITOK|M_ZERO);
-		ck_epoch_register(&lr_epoch, record);
+		record = malloc(sizeof(*record), M_LRCU, M_WAITOK | M_ZERO);
+		ck_epoch_register(&linux_epoch, record);
 		pcpu_record = DPCPU_ID_PTR(i, epoch_record);
 		*pcpu_record = record;
 	}
+
 	/*
-	 * Populate the epoch with 5*ncpus # of records
+	 * Populate the epoch with 5 * ncpus # of records
 	 */
-	for (i = 0; i < 5*mp_ncpus; i++) {
-		record = malloc(sizeof *record, M_LRCU, M_WAITOK|M_ZERO);
-		ck_epoch_register(&lr_epoch, record);
+	for (i = 0; i < 5 * mp_ncpus; i++) {
+		record = malloc(sizeof(*record), M_LRCU, M_WAITOK | M_ZERO);
+		ck_epoch_register(&linux_epoch, record);
 		ck_epoch_unregister(record);
-	}	
+	}
 }
-SYSINIT(linux_rcu, SI_SUB_KTHREAD_PAGE, SI_ORDER_SECOND, linux_rcu_runtime_init, NULL);
+SYSINIT(linux_rcu_runtime, SI_SUB_LOCK, SI_ORDER_SECOND, linux_rcu_runtime_init, NULL);
+
+static void
+linux_rcu_runtime_uninit(void *arg __unused)
+{
+	ck_epoch_record_t **pcpu_record;
+	ck_epoch_record_t *record;
+	int i;
+
+	while ((record = ck_epoch_recycle(&linux_epoch)) != NULL)
+		free(record, M_LRCU);
+
+	CPU_FOREACH(i) {
+		pcpu_record = DPCPU_ID_PTR(i, epoch_record);
+		record = *pcpu_record;
+		*pcpu_record = NULL;
+		free(record, M_LRCU);
+	}
+}
+SYSUNINIT(linux_rcu_runtime, SI_SUB_LOCK, SI_ORDER_SECOND, linux_rcu_runtime_uninit, NULL);
 
 static ck_epoch_record_t *
-rcu_get_record(int canblock)
+linux_rcu_get_record(int canblock)
 {
 	ck_epoch_record_t *record;
 
-	if (__predict_true((record = ck_epoch_recycle(&lr_epoch)) != NULL))
+	if (__predict_true((record = ck_epoch_recycle(&linux_epoch)) != NULL))
 		return (record);
-	if ((record = malloc(sizeof *record, M_LRCU, M_NOWAIT|M_ZERO)) != NULL) {
-		ck_epoch_register(&lr_epoch, record);
+	if ((record = malloc(sizeof(*record), M_LRCU, M_NOWAIT | M_ZERO)) != NULL) {
+		ck_epoch_register(&linux_epoch, record);
 		return (record);
 	} else if (!canblock)
 		return (NULL);
 
-	record = malloc(sizeof *record, M_LRCU, M_WAITOK|M_ZERO);
-	ck_epoch_register(&lr_epoch, record);
+	record = malloc(sizeof(*record), M_LRCU, M_WAITOK | M_ZERO);
+	ck_epoch_register(&linux_epoch, record);
 	return (record);
 }
 
 static void
-rcu_destroy_object(ck_epoch_entry_t *e)
+linux_rcu_destroy_object(ck_epoch_entry_t *e)
 {
-	struct rcu_head *rcu = rcu_head_container(e);
+	struct callback_head *rcu;
+	uintptr_t offset;
+
+	rcu = container_of(e, struct callback_head, epoch_entry);
+
+	offset = (uintptr_t)rcu->func;
 
 	MPASS(rcu->task.ta_pending == 0);
-	if (rcu->func != NULL)
-		rcu->func(rcu);
+
+	if (offset < LINUX_KFREE_RCU_OFFSET_MAX)
+		kfree((char *)rcu - offset);
+	else
+		rcu->func((struct rcu_head *)rcu);
 }
 
 static void
-rcu_cleaner_func(void *context, int pending __unused)
+linux_rcu_cleaner_func(void *context, int pending __unused)
 {
-	struct rcu_head *rcu = context;
+	struct callback_head *rcu = context;
 	ck_epoch_record_t *record = rcu->epoch_record;
 
 	ck_epoch_barrier(record);
@@ -118,11 +158,11 @@ rcu_cleaner_func(void *context, int pending __unused)
 }
 
 void
-__rcu_read_lock(void)
+linux_rcu_read_lock(void)
 {
 	ck_epoch_record_t *record;
 
-	critical_enter();
+	sched_pin();
 	record = DPCPU_GET(epoch_record);
 	MPASS(record != NULL);
 
@@ -130,17 +170,17 @@ __rcu_read_lock(void)
 }
 
 void
-__rcu_read_unlock(void)
+linux_rcu_read_unlock(void)
 {
 	ck_epoch_record_t *record;
 
 	record = DPCPU_GET(epoch_record);
 	ck_epoch_end(record, NULL);
-	critical_exit();
+	sched_unpin();
 }
 
 void
-synchronize_rcu(void)
+linux_synchronize_rcu(void)
 {
 	ck_epoch_record_t *record;
 
@@ -152,39 +192,39 @@ synchronize_rcu(void)
 }
 
 void
-rcu_barrier(void)
+linux_rcu_barrier(void)
 {
 	ck_epoch_record_t *record;
 
-	record = rcu_get_record(0);
+	record = linux_rcu_get_record(0);
 	ck_epoch_barrier(record);
 	ck_epoch_unregister(record);
 }
 
 void
-call_rcu(struct rcu_head *ptr, rcu_callback_t func)
+linux_call_rcu(struct rcu_head *context, rcu_callback_t func)
 {
+	struct callback_head *ptr = (struct callback_head *)context;
 	ck_epoch_record_t *record;
 
-	record = rcu_get_record(0);
+	record = linux_rcu_get_record(0);
 
-	critical_enter();
+	sched_pin();
 	MPASS(record != NULL);
 	ptr->func = func;
 	ptr->epoch_record = record;
-	ck_epoch_call(record, &ptr->epoch_entry, rcu_destroy_object);
-	TASK_INIT(&ptr->task, 0, rcu_cleaner_func, ptr);
+	ck_epoch_call(record, &ptr->epoch_entry, linux_rcu_destroy_object);
+	TASK_INIT(&ptr->task, 0, linux_rcu_cleaner_func, ptr);
 	taskqueue_enqueue(taskqueue_fast, &ptr->task);
-
-	critical_exit();
+	sched_unpin();
 }
 
 int
 init_srcu_struct(struct srcu_struct *srcu)
 {
 	ck_epoch_record_t *record;
-	
-	record = rcu_get_record(0);
+
+	record = linux_rcu_get_record(0);
 	srcu->ss_epoch_record = record;
 	return (0);
 }
@@ -193,7 +233,7 @@ void
 cleanup_srcu_struct(struct srcu_struct *srcu)
 {
 	ck_epoch_record_t *record;
-	
+
 	record = srcu->ss_epoch_record;
 	srcu->ss_epoch_record = NULL;
 	ck_epoch_unregister(record);

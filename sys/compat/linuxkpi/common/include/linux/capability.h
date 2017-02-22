@@ -1,7 +1,10 @@
 #ifndef __LINUX_CAPABILITY_H_
 #define __LINUX_CAPABILITY_H_
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/proc.h>
 #include <sys/priv.h>
-
 
 #define file_ns_capable(a, b, c) (1)
 

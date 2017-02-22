@@ -9,12 +9,13 @@
 #include <linux/list.h>
 #include <linux/bitops.h>
 #include <linux/kref.h>
-#include <linux/sched.h>
+#include <linux/kthread.h>
 #include <linux/printk.h>
 #include <linux/rcupdate.h>
 #include <linux/kernel.h>
 
 #include <linux/compat.h>
+#include <linux/ktime.h>
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -182,9 +183,12 @@ fence_is_signaled(struct fence *fence)
 	return (false);
 }
 
-static inline int64_t
-fence_wait_timeout(struct fence *fence, bool intr, int64_t timeout)
+static inline signed long
+fence_wait_timeout(struct fence *fence, bool intr, signed long timeout)
 {
+
+	/* under FreeBSD jiffies are 32-bit */
+	timeout = (int)timeout;
 
 	if (WARN_ON(timeout < 0))
 		return (-EINVAL);
@@ -284,8 +288,12 @@ fence_default_wait(struct fence *fence, bool intr, signed long timeout)
 {
 	struct default_wait_cb cb;
 	unsigned long flags;
-	signed long ret = timeout;
+	signed long ret;
 	bool was_set;
+
+	/* under FreeBSD jiffies are 32-bit */
+	timeout = (int)timeout;
+	ret = timeout;
 
 	if (test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		return timeout;
@@ -354,8 +362,12 @@ fence_wait_any_timeout(struct fence **fences, uint32_t count,
 		       bool intr, signed long timeout)
 {
 	struct default_wait_cb *cb;
-	signed long ret = timeout;
+	signed long ret;
 	unsigned i;
+
+	/* under FreeBSD jiffies are 32-bit */
+	timeout = (int)timeout;
+	ret = timeout;
 
 	if (WARN_ON(!fences || !count || timeout < 0))
 		return -EINVAL;

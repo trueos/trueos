@@ -123,7 +123,6 @@ CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include/drm
 CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include/uapi
 CFLAGS+= -I${.CURDIR}/../../../dev/drm/radeon
 CFLAGS+= -I${.CURDIR}/../../../dev/drm/amd/include
-CFLAGS+= -I${.CURDIR}/../../../contrib/ck/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 CFLAGS+= -O0
 CFLAGS+= -include ${.CURDIR}/../../../dev/drm/drm_os_config.h

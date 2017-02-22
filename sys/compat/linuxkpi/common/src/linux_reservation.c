@@ -324,7 +324,11 @@ long reservation_object_wait_timeout_rcu(struct reservation_object *obj,
 {
 	struct fence *fence;
 	unsigned seq, shared_count, i = 0;
-	long ret = timeout;
+	long ret;
+
+	/* under FreeBSD jiffies are 32-bit */
+	timeout = (int)timeout;
+	ret = timeout;
 
 	if (!timeout)
 		return reservation_object_test_signaled_rcu(obj, wait_all);

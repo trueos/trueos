@@ -520,10 +520,11 @@ vop_stdlock(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
+	struct mtx *ilk;
 
-	return (_lockmgr_args(vp->v_vnlock, ap->a_flags, VI_MTX(vp),
-	    LK_WMESG_DEFAULT, LK_PRIO_DEFAULT, LK_TIMO_DEFAULT, ap->a_file,
-	    ap->a_line));
+	ilk = VI_MTX(vp);
+	return (lockmgr_lock_fast_path(vp->v_vnlock, ap->a_flags,
+	    (ilk != NULL) ? &ilk->lock_object : NULL, ap->a_file, ap->a_line));
 }
 
 /* See above. */
@@ -535,8 +536,11 @@ vop_stdunlock(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
+	struct mtx *ilk;
 
-	return (lockmgr(vp->v_vnlock, ap->a_flags | LK_RELEASE, VI_MTX(vp)));
+	ilk = VI_MTX(vp);
+	return (lockmgr_unlock_fast_path(vp->v_vnlock, ap->a_flags,
+	    (ilk != NULL) ? &ilk->lock_object : NULL));
 }
 
 /* See above. */
@@ -714,8 +718,8 @@ loop2:
 			 * to write them out.
 			 */
 			TAILQ_FOREACH(bp, &bo->bo_dirty.bv_hd, b_bobufs)
-				if ((error = bp->b_error) == 0)
-					continue;
+				if ((error = bp->b_error) != 0)
+					break;
 			if (error == 0 && --maxretry >= 0)
 				goto loop1;
 			error = EAGAIN;

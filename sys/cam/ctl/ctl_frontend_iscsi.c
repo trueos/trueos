@@ -95,10 +95,9 @@ SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, ping_timeout, CTLFLAG_RWTUN,
 static int login_timeout = 60;
 SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, login_timeout, CTLFLAG_RWTUN,
     &login_timeout, 60, "Time to wait for ctld(8) to finish Login Phase, in seconds");
-static int maxcmdsn_delta = 256;
-SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, maxcmdsn_delta, CTLFLAG_RWTUN,
-    &maxcmdsn_delta, 256, "Number of commands the initiator can send "
-    "without confirmation");
+static int maxtags = 256;
+SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, maxtags, CTLFLAG_RWTUN,
+    &maxtags, 0, "Max number of requests queued by initiator");
 
 #define	CFISCSI_DEBUG(X, ...)						\
 	do {								\
@@ -244,7 +243,7 @@ cfiscsi_pdu_update_cmdsn(const struct icl_pdu *request)
 		 * outside of this range.
 		 */
 		if (ISCSI_SNLT(cmdsn, cs->cs_cmdsn) ||
-		    ISCSI_SNGT(cmdsn, cs->cs_cmdsn + maxcmdsn_delta)) {
+		    ISCSI_SNGT(cmdsn, cs->cs_cmdsn - 1 + maxtags)) {
 			CFISCSI_SESSION_UNLOCK(cs);
 			CFISCSI_SESSION_WARN(cs, "received PDU with CmdSN %u, "
 			    "while expected %u", cmdsn, cs->cs_cmdsn);
@@ -399,7 +398,8 @@ cfiscsi_pdu_prepare(struct icl_pdu *response)
 	    (bhssr->bhssr_flags & BHSDI_FLAGS_S))
 		bhssr->bhssr_statsn = htonl(cs->cs_statsn);
 	bhssr->bhssr_expcmdsn = htonl(cs->cs_cmdsn);
-	bhssr->bhssr_maxcmdsn = htonl(cs->cs_cmdsn + maxcmdsn_delta);
+	bhssr->bhssr_maxcmdsn = htonl(cs->cs_cmdsn - 1 +
+	    imax(0, maxtags - cs->cs_outstanding_ctl_pdus));
 
 	if (advance_statsn)
 		cs->cs_statsn++;
@@ -2127,11 +2127,6 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	port->onoff_arg = ct;
 	port->fe_datamove = cfiscsi_datamove;
 	port->fe_done = cfiscsi_done;
-
-	/* XXX KDM what should we report here? */
-	/* XXX These should probably be fetched from CTL. */
-	port->max_targets = 1;
-	port->max_target_id = 15;
 	port->targ_port = -1;
 
 	port->options = opts;
@@ -2643,7 +2638,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 	 * Complete write underflow.  Not a single byte to read.  Return.
 	 */
 	expected_len = ntohl(bhssc->bhssc_expected_data_transfer_length);
-	if (io->scsiio.kern_rel_offset > expected_len) {
+	if (io->scsiio.kern_rel_offset >= expected_len) {
 		io->scsiio.be_move_done(io);
 		return;
 	}

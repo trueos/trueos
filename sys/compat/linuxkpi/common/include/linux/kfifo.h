@@ -9,6 +9,8 @@
 #include <linux/stddef.h>
 #include <linux/scatterlist.h>
 
+#include <asm/processor.h>
+
 struct __kfifo {
 	unsigned int	in;
 	unsigned int	out;

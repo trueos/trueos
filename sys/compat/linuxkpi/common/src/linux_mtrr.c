@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <asm/mtrr.h>
 
+#include <linux/kernel.h>
 #include <linux/idr.h>
 
 /*

@@ -263,7 +263,7 @@ int ast_mm_init(struct ast_private *ast)
 	ret = ttm_bo_device_init(&ast->ttm.bdev,
 				 ast->ttm.bo_global_ref.ref.object,
 				 &ast_bo_driver,
-				 dev->anon_inode->i_mapping,
+				 dev->anon_mapping,
 				 DRM_FILE_PAGE_OFFSET,
 				 true);
 	if (ret) {

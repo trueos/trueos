@@ -200,12 +200,12 @@ static void evict_entry(struct drm_gem_object *obj,
 		int i;
 		/* if stride > than PAGE_SIZE then sparse mapping: */
 		for (i = n; i > 0; i--) {
-			unmap_mapping_range(obj->dev->anon_inode->i_mapping,
+			unmap_mapping_range(obj->dev->anon_mapping,
 					    off, PAGE_SIZE, 1);
 			off += PAGE_SIZE * m;
 		}
 	} else {
-		unmap_mapping_range(obj->dev->anon_inode->i_mapping,
+		unmap_mapping_range(obj->dev->anon_mapping,
 				    off, size, 1);
 	}
 
