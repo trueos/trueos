@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2016 Matt Macy (mmacy@nextbsd.org)
+ * Copyright (c) 2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <linux/gfp.h>
 #include <linux/page.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -470,11 +472,10 @@ arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 	set_memory_wb(start, size >> PAGE_SHIFT);
 }
 
-/* look at actual flags e.g. GFP_KERNEL | GFP_DMA32 | __GFP_ZERO */
 vm_page_t
 linux_alloc_pages(gfp_t flags, unsigned int order)
 {
-	size_t size = ((size_t)PAGE_SIZE) << order;
+	unsigned long npages = 1UL << order;
 	int req = (flags & M_ZERO) ? (VM_ALLOC_ZERO | VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL) : (VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL);
 	vm_page_t page;
@@ -488,12 +489,12 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 		    BUS_SPACE_MAXADDR_32BIT : BUS_SPACE_MAXADDR;
 retry:
 		page = vm_page_alloc_contig(NULL, 0, req,
-		    1, 0, pmax, size, 0, VM_MEMATTR_DEFAULT);
+		    npages, 0, pmax, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 
 		if (page == NULL) {
 			if (flags & M_WAITOK) {
 				if (!vm_page_reclaim_contig(req,
-				    1, 0, pmax, size, 0)) {
+				    npages, 0, pmax, PAGE_SIZE, 0)) {
 					VM_WAIT;
 				}
 				flags &= ~M_WAITOK;
@@ -503,10 +504,10 @@ retry:
 		}
 	}
 	if (flags & M_ZERO) {
-		size_t off;
+		unsigned long x;
 
-		for (off = 0; off != size; off += PAGE_SIZE) {
-			vm_page_t pgo = page + (off >> PAGE_SHIFT);
+		for (x = 0; x != npages; x++) {
+			vm_page_t pgo = page + x;
 
 			if ((pgo->flags & PG_ZERO) == 0)
 				pmap_zero_page(pgo);
@@ -518,11 +519,11 @@ retry:
 void
 linux_free_pages(vm_page_t page, unsigned int order)
 {
-	size_t size = ((size_t)PAGE_SIZE) << order;
-	size_t off;
+	unsigned long npages = 1UL << order;
+	unsigned long x;
 
-	for (off = 0; off != size; off += PAGE_SIZE) {
-		vm_page_t pgo = page + (off >> PAGE_SHIFT);
+	for (x = 0; x != npages; x++) {
+		vm_page_t pgo = page + x;
 
 		vm_page_lock(pgo);
 		vm_page_free(pgo);
