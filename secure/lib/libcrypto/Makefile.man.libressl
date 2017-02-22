@@ -744,7 +744,6 @@ MLINKS+=\
 	EVP_PKEY_CTX_ctrl.3 EVP_PKEY_CTX_set_rsa_rsa_keygen_bits.3 \
 	EVP_PKEY_CTX_ctrl.3 EVP_PKEY_CTX_set_signature_md.3 \
 	EVP_PKEY_CTX_ctrl.3 EVP_PKEY_CTX_ctrl_str.3 \
-	EVP_PKEY_CTX_ctrl.3 EVP_PKEY_get_default_digest_nid.3 \
 	EVP_PKEY_CTX_new.3 EVP_PKEY_CTX_new_id.3 \
 	EVP_PKEY_CTX_new.3 EVP_PKEY_CTX_dup.3 \
 	EVP_PKEY_CTX_new.3 EVP_PKEY_CTX_free.3 \
@@ -755,7 +754,6 @@ MLINKS+=\
 	EVP_PKEY_decrypt.3 EVP_PKEY_decrypt_init.3 \
 	EVP_PKEY_derive.3 EVP_PKEY_derive_init.3 \
 	EVP_PKEY_derive.3 EVP_PKEY_derive_set_peer.3 \
-	EVP_PKEY_get_default_digest.3 EVP_PKEY_get_default_digest_nid.3 \
 	EVP_PKEY_encrypt.3 EVP_PKEY_encrypt_init.3 \
 	EVP_PKEY_keygen.3 EVP_PKEY_keygen_init.3 \
 	EVP_PKEY_keygen.3 EVP_PKEY_paramgen_init.3 \
