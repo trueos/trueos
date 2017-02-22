@@ -541,8 +541,8 @@ linux_alloc_kmem(gfp_t flags, unsigned int order)
 		addr = kmem_malloc(kmem_arena, size, flags & GFP_NATIVE_MASK);
 	} else {
 		addr = kmem_alloc_contig(kmem_arena, size,
-		    flags & GFP_NATIVE_MASK, 0, BUS_SPACE_MAXADDR_32BIT, size, 0,
-		    VM_MEMATTR_DEFAULT);
+		    flags & GFP_NATIVE_MASK, 0, BUS_SPACE_MAXADDR_32BIT,
+		    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 	}
 	return (addr);
 }
