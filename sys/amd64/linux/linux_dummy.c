@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 /* DTrace init */
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
-DUMMY(mincore);
 DUMMY(sendfile);
 DUMMY(syslog);
 DUMMY(setfsuid);
@@ -52,38 +51,35 @@ DUMMY(sysfs);
 DUMMY(vhangup);
 DUMMY(pivot_root);
 DUMMY(adjtimex);
-DUMMY(afs_syscall);
+DUMMY(swapoff);
 DUMMY(create_module);
+DUMMY(init_module);
 DUMMY(delete_module);
+DUMMY(get_kernel_syms);
+DUMMY(query_module);
+DUMMY(quotactl);
+DUMMY(nfsservctl);
+DUMMY(getpmsg);
+DUMMY(putpmsg);
+DUMMY(afs_syscall);
+DUMMY(tuxcall);
+DUMMY(security);
+DUMMY(set_thread_area);
+DUMMY(lookup_dcookie);
 DUMMY(epoll_ctl_old);
 DUMMY(epoll_wait_old);
-DUMMY(finit_module);
-DUMMY(get_kernel_syms);
-DUMMY(getpmsg);
-DUMMY(get_mempolicy);
-DUMMY(init_module);
-DUMMY(kexec_load);
-DUMMY(kcmp);
-DUMMY(lookup_dcookie);
+DUMMY(remap_file_pages);
+DUMMY(semtimedop);
 DUMMY(mbind);
+DUMMY(get_mempolicy);
+DUMMY(set_mempolicy);
 DUMMY(mq_open);
 DUMMY(mq_unlink);
 DUMMY(mq_timedsend);
 DUMMY(mq_timedreceive);
 DUMMY(mq_notify);
 DUMMY(mq_getsetattr);
-DUMMY(nfsservctl);
-DUMMY(putpmsg);
-DUMMY(query_module);
-DUMMY(quotactl);
-DUMMY(remap_file_pages);
-DUMMY(security);
-DUMMY(semtimedop);
-DUMMY(set_mempolicy);
-DUMMY(set_thread_area);
-DUMMY(swapoff);
-DUMMY(tuxcall);
-
+DUMMY(kexec_load);
 /* linux 2.6.11: */
 DUMMY(add_key);
 DUMMY(request_key);
@@ -99,8 +95,8 @@ DUMMY(migrate_pages);
 DUMMY(unshare);
 /* linux 2.6.17: */
 DUMMY(splice);
-DUMMY(sync_file_range);
 DUMMY(tee);
+DUMMY(sync_file_range);
 DUMMY(vmsplice);
 /* linux 2.6.18: */
 DUMMY(move_pages);
@@ -117,7 +113,6 @@ DUMMY(inotify_init1);
 DUMMY(preadv);
 DUMMY(pwritev);
 /* linux 2.6.31: */
-DUMMY(rt_tsigqueueinfo);
 DUMMY(perf_event_open);
 /* linux 2.6.38: */
 DUMMY(fanotify_init);

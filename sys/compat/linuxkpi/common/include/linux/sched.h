@@ -46,11 +46,6 @@
 #include <linux/bitmap.h>
 #include <linux/atomic.h>
 #include <linux/smp.h>
-#include <linux/slab.h>
-
-#include <asm/atomic.h>
-
-#define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
 
 #define	TASK_RUNNING		0
 #define	TASK_INTERRUPTIBLE	1
@@ -256,6 +251,8 @@ schedule_timeout_killable(long timeout)
 {
 	return (schedule_timeout(timeout));
 }
+
+#define	MAX_SCHEDULE_TIMEOUT	INT_MAX
 
 static inline long
 io_schedule_timeout(long timeout)
