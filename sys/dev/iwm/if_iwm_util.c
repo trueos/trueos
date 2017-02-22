@@ -305,17 +305,10 @@ iwm_send_cmd(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 	bus_dmamap_sync(ring->desc_dma.tag, ring->desc_dma.map,
 	    BUS_DMASYNC_PREWRITE);
 
-	IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
-	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-	if (!iwm_poll_bit(sc, IWM_CSR_GP_CNTRL,
-	    IWM_CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
-	    (IWM_CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
-	     IWM_CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000)) {
-		device_printf(sc->sc_dev,
-		    "%s: acquiring device failed\n", __func__);
-		error = EBUSY;
+	error = iwm_pcie_set_cmd_in_flight(sc);
+	if (error)
 		goto out;
-	}
+	ring->queued++;
 
 #if 0
 	iwm_update_sched(sc, ring->qid, ring->cur, 0, 0);
@@ -429,30 +422,67 @@ iwm_free_resp(struct iwm_softc *sc, struct iwm_host_cmd *hcmd)
 	wakeup(&sc->sc_wantresp);
 }
 
-uint8_t
-iwm_fw_valid_tx_ant(struct iwm_softc *sc)
+static void
+iwm_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
-	uint8_t tx_ant;
-
-	tx_ant = ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_TX_CHAIN)
-	    >> IWM_FW_PHY_CFG_TX_CHAIN_POS);
-
-	if (sc->sc_nvm.valid_tx_ant)
-		tx_ant &= sc->sc_nvm.valid_tx_ant;
-
-	return tx_ant;
+        if (error != 0)
+                return;
+	KASSERT(nsegs == 1, ("too many DMA segments, %d should be 1", nsegs));
+	*(bus_addr_t *)arg = segs[0].ds_addr;
 }
 
-uint8_t
-iwm_fw_valid_rx_ant(struct iwm_softc *sc)
+int
+iwm_dma_contig_alloc(bus_dma_tag_t tag, struct iwm_dma_info *dma,
+    bus_size_t size, bus_size_t alignment)
 {
-	uint8_t rx_ant;
+	int error;
 
-	rx_ant = ((sc->sc_fw_phy_config & IWM_FW_PHY_CFG_RX_CHAIN)
-	    >> IWM_FW_PHY_CFG_RX_CHAIN_POS);
+	dma->tag = NULL;
+	dma->map = NULL;
+	dma->size = size;
+	dma->vaddr = NULL;
 
-	if (sc->sc_nvm.valid_rx_ant)
-		rx_ant &= sc->sc_nvm.valid_rx_ant;
+	error = bus_dma_tag_create(tag, alignment,
+            0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
+            1, size, 0, NULL, NULL, &dma->tag);
+        if (error != 0)
+                goto fail;
 
-	return rx_ant;
+        error = bus_dmamem_alloc(dma->tag, (void **)&dma->vaddr,
+            BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT, &dma->map);
+        if (error != 0)
+                goto fail;
+
+        error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr, size,
+            iwm_dma_map_addr, &dma->paddr, BUS_DMA_NOWAIT);
+        if (error != 0) {
+		bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
+		dma->vaddr = NULL;
+		goto fail;
+	}
+
+	bus_dmamap_sync(dma->tag, dma->map, BUS_DMASYNC_PREWRITE);
+
+	return 0;
+
+fail:
+	iwm_dma_contig_free(dma);
+
+	return error;
+}
+
+void
+iwm_dma_contig_free(struct iwm_dma_info *dma)
+{
+	if (dma->vaddr != NULL) {
+		bus_dmamap_sync(dma->tag, dma->map,
+		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(dma->tag, dma->map);
+		bus_dmamem_free(dma->tag, dma->vaddr, dma->map);
+		dma->vaddr = NULL;
+	}
+	if (dma->tag != NULL) {
+		bus_dma_tag_destroy(dma->tag);
+		dma->tag = NULL;
+	}
 }

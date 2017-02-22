@@ -39,7 +39,6 @@ SRCS=	interval_tree.c \
 	linux_video.c \
 	linux_work.c
 
-
 SRCS+=	bus_if.h \
 	device_if.h \
 	pci_if.h \

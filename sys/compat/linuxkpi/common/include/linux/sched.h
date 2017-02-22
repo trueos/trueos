@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,11 @@
 #include <linux/bitmap.h>
 #include <linux/atomic.h>
 #include <linux/smp.h>
+#include <linux/slab.h>
+
+#include <asm/atomic.h>
+
+#define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
 
 #define	TASK_RUNNING		0
 #define	TASK_INTERRUPTIBLE	1
@@ -180,7 +185,6 @@ local_clock(void)
 	return (ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
 }
 
-
 #define	cond_resched()	if (!cold)	sched_relinquish(curthread)
 
 #define	sched_yield()	sched_relinquish(curthread)
@@ -252,8 +256,6 @@ schedule_timeout_killable(long timeout)
 {
 	return (schedule_timeout(timeout));
 }
-
-#define	MAX_SCHEDULE_TIMEOUT	INT_MAX
 
 static inline long
 io_schedule_timeout(long timeout)

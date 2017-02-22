@@ -167,7 +167,7 @@ free_irq(unsigned int irq, void *device)
 #define resource linux_resource
 
 /*
- * Tasklet support
+ * LinuxKPI tasklet support
  */
 typedef void tasklet_func_t(unsigned long);
 

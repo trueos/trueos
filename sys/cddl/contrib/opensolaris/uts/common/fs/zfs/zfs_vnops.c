@@ -1612,27 +1612,34 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 		 * the vp for the snapshot directory.
 		 */
 		if (zdp->z_id == zfsvfs->z_root && zfsvfs->z_parent != zfsvfs) {
-			error = zfsctl_root_lookup(zfsvfs->z_parent->z_ctldir,
-			    "snapshot", vpp, NULL, 0, NULL, kcred,
-			    NULL, NULL, NULL);
+			struct componentname cn;
+			vnode_t *zfsctl_vp;
+			int ltype;
+
 			ZFS_EXIT(zfsvfs);
+			ltype = VOP_ISLOCKED(dvp);
+			VOP_UNLOCK(dvp, 0);
+			error = zfsctl_root(zfsvfs->z_parent, LK_SHARED,
+			    &zfsctl_vp);
 			if (error == 0) {
-				error = zfs_lookup_lock(dvp, *vpp, nm,
-				    cnp->cn_lkflags);
+				cn.cn_nameptr = "snapshot";
+				cn.cn_namelen = strlen(cn.cn_nameptr);
+				cn.cn_nameiop = cnp->cn_nameiop;
+				cn.cn_flags = cnp->cn_flags;
+				cn.cn_lkflags = cnp->cn_lkflags;
+				error = VOP_LOOKUP(zfsctl_vp, vpp, &cn);
+				vput(zfsctl_vp);
 			}
-			goto out;
+			vn_lock(dvp, ltype | LK_RETRY);
+			return (error);
 		}
 	}
 	if (zfs_has_ctldir(zdp) && strcmp(nm, ZFS_CTLDIR_NAME) == 0) {
-		error = 0;
-		if ((cnp->cn_flags & ISLASTCN) != 0 && nameiop != LOOKUP)
-			error = SET_ERROR(ENOTSUP);
-		else
-			*vpp = zfsctl_root(zdp);
 		ZFS_EXIT(zfsvfs);
-		if (error == 0)
-			error = zfs_lookup_lock(dvp, *vpp, nm, cnp->cn_lkflags);
-		goto out;
+		if ((cnp->cn_flags & ISLASTCN) != 0 && nameiop != LOOKUP)
+			return (SET_ERROR(ENOTSUP));
+		error = zfsctl_root(zfsvfs, cnp->cn_lkflags, vpp);
+		return (error);
 	}
 
 	/*
@@ -2786,15 +2793,6 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 			zfs_sa_get_scanstamp(zp, xvap);
 		}
 
-		if (XVA_ISSET_REQ(xvap, XAT_CREATETIME)) {
-			uint64_t times[2];
-
-			(void) sa_lookup(zp->z_sa_hdl, SA_ZPL_CRTIME(zfsvfs),
-			    times, sizeof (times));
-			ZFS_TIME_DECODE(&xoap->xoa_createtime, times);
-			XVA_SET_RTN(xvap, XAT_CREATETIME);
-		}
-
 		if (XVA_ISSET_REQ(xvap, XAT_REPARSE)) {
 			xoap->xoa_reparse = ((zp->z_pflags & ZFS_REPARSE) != 0);
 			XVA_SET_RTN(xvap, XAT_REPARSE);
@@ -2955,6 +2953,11 @@ zfs_setattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 			ZFS_EXIT(zfsvfs);
 			return (SET_ERROR(EOVERFLOW));
 		}
+	}
+	if (xoap && (mask & AT_XVATTR) && XVA_ISSET_REQ(xvap, XAT_CREATETIME) &&
+	    TIMESPEC_OVERFLOW(&vap->va_birthtime)) {
+		ZFS_EXIT(zfsvfs);
+		return (SET_ERROR(EOVERFLOW));
 	}
 
 	attrzp = NULL;
@@ -3400,6 +3403,8 @@ zfs_setattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 
 	if (xoap && (mask & AT_XVATTR)) {
 
+		if (XVA_ISSET_REQ(xvap, XAT_CREATETIME))
+			xoap->xoa_createtime = vap->va_birthtime;
 		/*
 		 * restore trimmed off masks
 		 * so that return masks can be set for caller.
@@ -5251,6 +5256,10 @@ zfs_freebsd_setattr(ap)
 		    xvap.xva_xoptattrs.xoa_sparse);
 #undef	FLAG_CHANGE
 	}
+	if (vap->va_birthtime.tv_sec != VNOVAL) {
+		xvap.xva_vattr.va_mask |= AT_XVATTR;
+		XVA_SET_REQ(&xvap, XAT_CREATETIME);
+	}
 	return (zfs_setattr(vp, (vattr_t *)&xvap, 0, cred, NULL));
 }
 
@@ -5937,6 +5946,10 @@ zfs_vptocnp(struct vop_vptocnp_args *ap)
 		error = zfs_znode_parent_and_name(zp, &dzp, name);
 		if (error == 0) {
 			len = strlen(name);
+			if (*ap->a_buflen < len)
+				error = SET_ERROR(ENOMEM);
+		}
+		if (error == 0) {
 			*ap->a_buflen -= len;
 			bcopy(name, ap->a_buf + *ap->a_buflen, len);
 			*ap->a_vpp = ZTOV(dzp);
@@ -5950,7 +5963,7 @@ zfs_vptocnp(struct vop_vptocnp_args *ap)
 	vhold(covered_vp);
 	ltype = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp, 0);
-	error = vget(covered_vp, LK_EXCLUSIVE | LK_VNHELD, curthread);
+	error = vget(covered_vp, LK_SHARED | LK_VNHELD, curthread);
 	if (error == 0) {
 		error = VOP_VPTOCNP(covered_vp, ap->a_vpp, ap->a_cred,
 		    ap->a_buf, ap->a_buflen);

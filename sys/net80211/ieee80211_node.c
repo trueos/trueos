@@ -349,7 +349,6 @@ ieee80211_create_ibss(struct ieee80211vap* vap, struct ieee80211_channel *chan)
 		ni->ni_fhindex = 1;
 	}
 	if (vap->iv_opmode == IEEE80211_M_IBSS) {
-		vap->iv_flags |= IEEE80211_F_SIBSS;
 		ni->ni_capinfo |= IEEE80211_CAPINFO_IBSS;	/* XXX */
 		if (vap->iv_flags & IEEE80211_F_DESBSSID)
 			IEEE80211_ADDR_COPY(ni->ni_bssid, vap->iv_des_bssid);
@@ -1319,15 +1318,16 @@ node_getmimoinfo(const struct ieee80211_node *ni,
 
 	bzero(info, sizeof(*info));
 
-	for (i = 0; i < ni->ni_mimo_chains; i++) {
+	for (i = 0; i < MIN(IEEE80211_MAX_CHAINS, ni->ni_mimo_chains); i++) {
+		/* Note: for now, just pri20 channel info */
 		avgrssi = ni->ni_mimo_rssi_ctl[i];
 		if (avgrssi == IEEE80211_RSSI_DUMMY_MARKER) {
-			info->rssi[i] = 0;
+			info->ch[i].rssi[0] = 0;
 		} else {
 			rssi = IEEE80211_RSSI_GET(avgrssi);
-			info->rssi[i] = rssi < 0 ? 0 : rssi > 127 ? 127 : rssi;
+			info->ch[i].rssi[0] = rssi < 0 ? 0 : rssi > 127 ? 127 : rssi;
 		}
-		info->noise[i] = ni->ni_mimo_noise_ctl[i];
+		info->ch[i].noise[0] = ni->ni_mimo_noise_ctl[i];
 	}
 
 	/* XXX ext radios? */

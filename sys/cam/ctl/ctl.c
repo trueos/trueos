@@ -10103,6 +10103,9 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	} else if (port_type == CTL_PORT_SAS) {
 		/* SAS (no version claimed) */
 		scsi_ulto2b(0x0BE0, inq_ptr->version3);
+	} else if (port_type == CTL_PORT_UMASS) {
+		/* USB Mass Storage Class Bulk-Only Transport, Revision 1.0 */
+		scsi_ulto2b(0x1730, inq_ptr->version3);
 	}
 
 	if (lun == NULL) {
@@ -12402,6 +12405,9 @@ ctl_datamove(union ctl_io *io)
 	if (io->io_hdr.flags & CTL_FLAG_DELAY_DONE) {
 		io->io_hdr.flags &= ~CTL_FLAG_DELAY_DONE;
 	} else {
+		struct ctl_lun *lun;
+
+		lun = CTL_LUN(io);
 		if ((lun != NULL)
 		 && (lun->delay_info.datamove_delay > 0)) {
 
