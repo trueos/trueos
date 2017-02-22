@@ -54,6 +54,8 @@ CHECK_CRYPTO_COMPAT
 CHECK_VA_COPY
 CHECK_B64_NTOP
 
+GENERATE_CRYPTO_PORTABLE_SYM
+
 AC_ARG_WITH([openssldir],
 	AS_HELP_STRING([--with-openssldir],
 		       [Set the default openssl directory]),
@@ -126,6 +128,7 @@ AC_CONFIG_FILES([
 	tls/Makefile
 	tests/Makefile
 	apps/Makefile
+	apps/ocspcheck/Makefile
 	apps/openssl/Makefile
 	apps/nc/Makefile
 	man/Makefile

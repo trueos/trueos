@@ -4154,3 +4154,27 @@
 #define NID_id_tc26_signwithdigest_gost3410_2012_512		949
 #define OBJ_id_tc26_signwithdigest_gost3410_2012_512		OBJ_tc26,1L,3L,3L
 
+#define SN_X25519		"X25519"
+#define NID_X25519		950
+#define OBJ_X25519		1L,3L,101L,110L
+
+#define SN_X448		"X448"
+#define NID_X448		951
+#define OBJ_X448		1L,3L,101L,111L
+
+#define SN_Ed25519		"Ed25519"
+#define NID_Ed25519		952
+#define OBJ_Ed25519		1L,3L,101L,112L
+
+#define SN_Ed448		"Ed448"
+#define NID_Ed448		953
+#define OBJ_Ed448		1L,3L,101L,113L
+
+#define SN_Ed25519ph		"Ed25519ph"
+#define NID_Ed25519ph		954
+#define OBJ_Ed25519ph		1L,3L,101L,114L
+
+#define SN_Ed448ph		"Ed448ph"
+#define NID_Ed448ph		955
+#define OBJ_Ed448ph		1L,3L,101L,115L
+
