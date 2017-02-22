@@ -203,7 +203,6 @@ MLINKS+=\
 	SSL_CTX_use_certificate.3 SSL_use_certificate.3 \
 	SSL_CTX_use_certificate.3 SSL_use_certificate_ASN1.3 \
 	SSL_CTX_use_certificate.3 SSL_use_certificate_file.3 \
-	SSL_CTX_use_psk_identity_hint.3 SSL_CTX_set_psk_server_callback.3 \
 	SSL_CTX_use_psk_identity_hint.3 SSL_set_psk_server_callback.3 \
 	SSL_SESSION_get_ex_new_index.3 SSL_SESSION_get_ex_data.3 \
 	SSL_SESSION_get_ex_new_index.3 SSL_SESSION_set_ex_data.3 \
