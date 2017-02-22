@@ -584,10 +584,6 @@ select_out:
 int
 linux_mremap(struct thread *td, struct linux_mremap_args *args)
 {
-	struct munmap_args /* {
-		void *addr;
-		size_t len;
-	} */ bsd_args;
 	struct mmap_args /* {
 		caddr_t addr;
 		size_t len;
