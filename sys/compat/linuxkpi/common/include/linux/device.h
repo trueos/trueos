@@ -54,7 +54,6 @@ typedef enum irqreturn	irqreturn_t;
 
 struct device;
 
-
 struct class {
 	const char	*name;
 	struct module	*owner;

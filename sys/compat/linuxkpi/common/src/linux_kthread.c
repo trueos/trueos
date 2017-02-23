@@ -111,7 +111,7 @@ kthread_parkme(void)
 
 	while (atomic_read(&task->kthread_flags) & KTHREAD_SHOULD_PARK_MASK) {
 		if (!(atomic_fetch_or(KTHREAD_IS_PARKED_MASK,
-		      &task->kthread_flags) & KTHREAD_IS_PARKED_MASK)) {
+		    &task->kthread_flags) & KTHREAD_IS_PARKED_MASK)) {
 			complete(&task->parked);
 		}
 		schedule();
@@ -124,7 +124,7 @@ kthread_parkme(void)
 }
 
 int
-kthread_stop(struct task_struct *task)	
+kthread_stop(struct task_struct *task)
 {
 	int retval;
 
