@@ -66,6 +66,6 @@ extern void kthread_unpark(struct task_struct *);
 extern void kthread_parkme(void);
 extern void linux_kthread_fn(void *);
 extern struct task_struct *linux_kthread_setup_and_run(struct thread *, linux_task_fn_t *, void *arg);
-extern int linux_try_to_wake_up(struct task_struct *, unsigned int state);
+extern int linux_try_to_wake_up(struct task_struct *, unsigned state);
 
 #endif	/* _LINUX_KTHREAD_H_ */

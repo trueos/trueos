@@ -102,22 +102,3 @@ done:
 
 	return ((timeout == MAX_SCHEDULE_TIMEOUT) ? timeout : ret);
 }
-
-void
-__wake_up(wait_queue_head_t *q, int mode, int nr, void *key)
-{
-	int flags;
-	struct list_head *p, *ptmp;
-	struct linux_file *f;
-
-	spin_lock_irqsave(&q->lock, flags);
-	selwakeup(&q->wqh_si);
-	if (__predict_false(!list_empty(&q->wqh_file_list))) {
-		list_for_each_safe(p, ptmp, &q->wqh_file_list) {
-			f = list_entry(p, struct linux_file, f_entry);
-			tasklet_schedule(&f->f_kevent_tasklet);
-		}
-	}
-	__wake_up_locked(q, mode, nr, key);
-	spin_unlock_irqrestore(&q->lock, flags);
-}
