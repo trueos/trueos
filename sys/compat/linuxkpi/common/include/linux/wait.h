@@ -311,14 +311,9 @@ do {									\
 	__ret;								\
 })
 
-
-/*
- * XXX - work around lost wakeups to AMD's gpu scheduler by waking up every
- * 100ms
- */
 #define __wait_event_interruptible(wq, condition)			\
 	___wait_event(wq, condition, TASK_INTERRUPTIBLE, 0, 0,		\
-		      schedule_short())
+		      schedule())
 
 #define wait_event_interruptible(wq, condition)				\
 ({									\

@@ -272,12 +272,6 @@ schedule(void)
 	schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 }
 
-static inline void
-schedule_short(void)
-{
-	schedule_timeout(howmany(hz, 10));
-}
-
 #define	yield() kern_yield(0)
 
 #endif					/* _LINUX_SCHED_H_ */
