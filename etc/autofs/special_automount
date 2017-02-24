@@ -67,6 +67,15 @@ print_map_entry() {
 	"cd9660")
 		echo "-fstype=${_fstype},nosuid,ro	:/dev/${_p}" 
 		;;
+	"mtpfs")
+		if [ -f "/usr/local/bin/simple-mtpfs" ]; then
+			echo "-mountprog=/usr/local/bin/simple-mtpfs,-fstype=${_fstype},nosuid,-o=allow_other	:/dev/${_p}" 
+		else
+			/usr/bin/logger -p info -t "special_media[$$]" \
+			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-simple-mtpfs first"
+			exit 1
+		fi
+		;;
 	*)
 		#Basic Mounting command:
 		#This works for: ufs, reiserfs, xfs, and udf
