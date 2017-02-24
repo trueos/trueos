@@ -31,7 +31,6 @@ SRCS=	interval_tree.c \
 	linux_schedule.c \
 	linux_seq_file.c \
 	linux_sort.c \
-	linux_string.c \
 	linux_stubs.c \
 	linux_sysfs.c \
 	linux_tasklet.c \
@@ -67,5 +66,4 @@ CFLAGS+= -include ${.CURDIR}/../../dev/drm/drm_os_config.h
 
 .include <bsd.kmod.mk>
 CWARNFLAGS 		+= -Wno-pointer-arith
-CWARNFLAGS.linux_string.c=	-Wno-cast-qual
 CWARNFLAGS.linux_acpi.c=	-Wno-cast-qual

@@ -208,21 +208,6 @@ compat_alloc_user_space(unsigned long len)
 	return (malloc(len, M_LCINT, M_NOWAIT));
 }
 
-void *
-memdup_user(const void *ubuf, size_t len)
-{
-	void *kbuf;
-	int rc;
-
-	kbuf = malloc(len, M_KMALLOC, M_WAITOK);
-	rc = copyin(ubuf, kbuf, len);
-	if (rc) {
-		free(kbuf, M_KMALLOC);
-		return ERR_PTR(-EFAULT);
-	}
-	return (kbuf);
-}
-
 unsigned long
 clear_user(void *uptr, unsigned long len)
 {
