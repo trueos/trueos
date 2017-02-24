@@ -75,6 +75,12 @@ __flsl(long mask)
 	return (flsl(mask) - 1);
 }
 
+static inline int
+fls64(uint64_t mask)
+{
+	return (flsll(mask));
+}
+
 static inline uint32_t
 ror32(uint32_t word, unsigned int shift)
 {
@@ -382,7 +388,5 @@ sign_extend64(uint64_t value, int index)
 
 	return ((int64_t)(value << shift) >> shift);
 }
-
-#define fls64 flsll
 
 #endif	/* _LINUX_BITOPS_H_ */
