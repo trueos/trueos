@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -166,27 +166,10 @@ free_irq(unsigned int irq, void *device)
 
 #define resource linux_resource
 
-/* Tasklets --- multithreaded analogue of BHs.
-
-   Main feature differing them of generic softirqs: tasklet
-   is running only on one CPU simultaneously.
-
-   Main feature differing them of BHs: different tasklets
-   may be run simultaneously on different CPUs.
-
-   Properties:
-   * If tasklet_schedule() is called, then tasklet is guaranteed
-     to be executed on some cpu at least once after this.
-   * If the tasklet is already scheduled, but its execution is still not
-     started, it will be executed only once.
-   * If this tasklet is already running on another CPU (or schedule is called
-     from tasklet itself), it is rescheduled for later.
-   * Tasklet is strictly serialized wrt itself, but not
-     wrt another tasklets. If client needs some intertask synchronization,
-     he makes it with spinlocks.
+/*
+ * Tasklet support
  */
-
-typedef void (tasklet_func_t) (unsigned long);
+typedef void tasklet_func_t(unsigned long);
 
 struct tasklet_struct {
 	TAILQ_ENTRY(tasklet_struct) entry;
@@ -194,19 +177,14 @@ struct tasklet_struct {
 	unsigned long data;
 };
 
-#define	DECLARE_TASKLET(name, func, data) \
+#define	DECLARE_TASKLET(name, func, data)	\
 struct tasklet_struct name = { { NULL, NULL }, func, data }
 
-#define	DECLARE_TASKLET_DISABLED(name, func, data) \
-struct tasklet_struct name = { { NULL, NULL }, func, data }
+#define	tasklet_hi_schedule(t)	tasklet_schedule(t)
 
-extern void linux_tasklet_schedule(struct tasklet_struct *t);
-
-#define	tasklet_schedule(t) linux_tasklet_schedule(t)
-#define	tasklet_hi_schedule(t) linux_tasklet_schedule(t)
-
-extern void tasklet_kill(struct tasklet_struct *t);
-extern void tasklet_init(struct tasklet_struct *t,
-    tasklet_func_t *func, unsigned long data);
+extern void tasklet_schedule(struct tasklet_struct *);
+extern void tasklet_kill(struct tasklet_struct *);
+extern void tasklet_init(struct tasklet_struct *, tasklet_func_t *,
+    unsigned long data);
 
 #endif	/* _LINUX_INTERRUPT_H_ */

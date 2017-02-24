@@ -32,8 +32,14 @@
 #ifndef _LINUX_DELAY_H_
 #define	_LINUX_DELAY_H_
 
-#include <linux/jiffies.h>
+#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/pcpu.h>
+
+#include <linux/jiffies.h>
+
 #include <asm/processor.h>
 
 static inline void
@@ -73,7 +79,7 @@ delay_tsc(unsigned long __loops)
 		critical_exit();
 		rep_nop();
 		critical_enter();
-		if (unlikely(cpu != smp_processor_id())) {
+		if (unlikely(cpu != curcpu)) {
 			loops -= (now - bclock);
 			cpu = curcpu;
 			bclock = rdtsc_ordered();
@@ -110,7 +116,7 @@ linux_udelay(unsigned long usecs)
 			if ((n) / 20000 >= 1)				\
 				 linux_bad_udelay();			\
 			else						\
-				linux_const_udelay(max(2, (n)) * 0x10c7ul); \
+				linux_const_udelay(MAX(2, (n)) * 0x10c7ul); \
 		} else {						\
 			linux_udelay(n);				\
 		}							\

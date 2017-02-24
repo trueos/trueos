@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/idr.h>
 #include <linux/err.h>
 #include <linux/compat.h>
+#include <linux/preempt.h>
 
 #define	MAX_IDR_LEVEL	((MAX_IDR_SHIFT + IDR_BITS - 1) / IDR_BITS)
 #define	MAX_IDR_FREE	(MAX_IDR_LEVEL * 2)

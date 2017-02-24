@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2016 Matt Macy (mmacy@nextbsd.org)
+ * Copyright (c) 2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <linux/gfp.h>
 #include <linux/page.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -470,11 +472,24 @@ arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 	set_memory_wb(start, size >> PAGE_SHIFT);
 }
 
-/* look at actual flags e.g. GFP_KERNEL | GFP_DMA32 | __GFP_ZERO */
+void *
+linux_page_address(struct page *page)
+{
+#ifdef __amd64__
+	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
+#else
+	if (page->object != kmem_object && page->object != kernel_object)
+		return (NULL);
+	return ((void *)(uintptr_t)(VM_MIN_KERNEL_ADDRESS +
+	    IDX_TO_OFF(page->pindex)));
+#endif
+}
+
 vm_page_t
 linux_alloc_pages(gfp_t flags, unsigned int order)
 {
-	size_t size = ((size_t)PAGE_SIZE) << order;
+#ifdef __amd64__
+	unsigned long npages = 1UL << order;
 	int req = (flags & M_ZERO) ? (VM_ALLOC_ZERO | VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL) : (VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL);
 	vm_page_t page;
@@ -488,12 +503,12 @@ linux_alloc_pages(gfp_t flags, unsigned int order)
 		    BUS_SPACE_MAXADDR_32BIT : BUS_SPACE_MAXADDR;
 retry:
 		page = vm_page_alloc_contig(NULL, 0, req,
-		    1, 0, pmax, size, 0, VM_MEMATTR_DEFAULT);
+		    npages, 0, pmax, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 
 		if (page == NULL) {
 			if (flags & M_WAITOK) {
 				if (!vm_page_reclaim_contig(req,
-				    1, 0, pmax, size, 0)) {
+				    npages, 0, pmax, PAGE_SIZE, 0)) {
 					VM_WAIT;
 				}
 				flags &= ~M_WAITOK;
@@ -503,31 +518,52 @@ retry:
 		}
 	}
 	if (flags & M_ZERO) {
-		size_t off;
+		unsigned long x;
 
-		for (off = 0; off != size; off += PAGE_SIZE) {
-			vm_page_t pgo = page + (off >> PAGE_SHIFT);
+		for (x = 0; x != npages; x++) {
+			vm_page_t pgo = page + x;
 
 			if ((pgo->flags & PG_ZERO) == 0)
 				pmap_zero_page(pgo);
 		}
 	}
+#else
+	vm_offset_t vaddr;
+	vm_page_t page;
+
+	vaddr = linux_alloc_kmem(flags, order);
+	if (vaddr == 0)
+		return (NULL);
+
+	page = PHYS_TO_VM_PAGE(vtophys((void *)vaddr));
+
+	KASSERT(vaddr == (vm_offset_t)page_address(page),
+	    ("Page address mismatch"));
+#endif
 	return (page);
 }
 
 void
 linux_free_pages(vm_page_t page, unsigned int order)
 {
-	size_t size = ((size_t)PAGE_SIZE) << order;
-	size_t off;
+#ifdef __amd64__
+	unsigned long npages = 1UL << order;
+	unsigned long x;
 
-	for (off = 0; off != size; off += PAGE_SIZE) {
-		vm_page_t pgo = page + (off >> PAGE_SHIFT);
+	for (x = 0; x != npages; x++) {
+		vm_page_t pgo = page + x;
 
 		vm_page_lock(pgo);
 		vm_page_free(pgo);
 		vm_page_unlock(pgo);
 	}
+#else
+	vm_offset_t vaddr;
+
+	vaddr = (vm_offset_t)page_address(page);
+
+	linux_free_kmem(vaddr, order);
+#endif
 }
 
 vm_offset_t
@@ -540,8 +576,8 @@ linux_alloc_kmem(gfp_t flags, unsigned int order)
 		addr = kmem_malloc(kmem_arena, size, flags & GFP_NATIVE_MASK);
 	} else {
 		addr = kmem_alloc_contig(kmem_arena, size,
-		    flags & GFP_NATIVE_MASK, 0, BUS_SPACE_MAXADDR_32BIT, size, 0,
-		    VM_MEMATTR_DEFAULT);
+		    flags & GFP_NATIVE_MASK, 0, BUS_SPACE_MAXADDR_32BIT,
+		    PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
 	}
 	return (addr);
 }

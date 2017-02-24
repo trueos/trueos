@@ -36,6 +36,7 @@
 #include <linux/bug.h>
 #include <linux/io.h>
 #include <linux/page.h>
+#include <linux/kernel.h>
 
 struct io_mapping {
 	vm_paddr_t base;

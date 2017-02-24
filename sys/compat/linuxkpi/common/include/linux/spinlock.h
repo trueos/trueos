@@ -35,10 +35,10 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/kdb.h>
 
 #include <linux/compiler.h>
 #include <linux/irqflags.h>
-#include <linux/kernel.h>
 #include <linux/rwlock.h>
 #include <linux/bottom_half.h>
 
@@ -46,15 +46,25 @@ typedef struct {
 	struct mtx m;
 } spinlock_t;
 
+/*
+ * By defining CONFIG_SPIN_SKIP LinuxKPI spinlocks and asserts will be
+ * skipped during panic(). By default it is disabled due to
+ * performance reasons.
+ */
+#ifdef CONFIG_SPIN_SKIP
 #define	SPIN_SKIP(void)	unlikely(SCHEDULER_STOPPED() || kdb_active)
+#else
+#define	SPIN_SKIP(void) 0
+#endif
 
 #define	spin_lock(_l) do {			\
-	if (!SPIN_SKIP())			\
-		mtx_lock(&(_l)->m);		\
+	if (SPIN_SKIP())			\
+		break;				\
+	mtx_lock(&(_l)->m);			\
+	local_bh_disable();			\
 } while (0)
 
 #define	spin_lock_bh(_l) do {			\
-	local_bh_disable();			\
 	spin_lock(_l);				\
 } while (0)
 
@@ -63,26 +73,37 @@ typedef struct {
 } while (0)
 
 #define	spin_unlock(_l)	do {			\
-	if (!SPIN_SKIP())			\
-		mtx_unlock(&(_l)->m);		\
+	if (SPIN_SKIP())			\
+		break;				\
+	local_bh_enable();			\
+	mtx_unlock(&(_l)->m);			\
 } while (0)
 
 #define	spin_unlock_bh(_l) do {			\
 	spin_unlock(_l);			\
-	local_bh_enable();			\
 } while (0)
 
 #define	spin_unlock_irq(_l) do {		\
 	spin_unlock(_l);			\
 } while (0)
 
-#define	spin_trylock(_l) ({				\
-	SPIN_SKIP() ? 1 : mtx_trylock(&(_l)->m);	\
+#define	spin_trylock(_l) ({			\
+	int __ret;				\
+	if (SPIN_SKIP()) {			\
+		__ret = 1;			\
+	} else {				\
+		__ret = mtx_trylock(&(_l)->m);	\
+		if (likely(__ret != 0))		\
+			local_bh_disable();	\
+	}					\
+	__ret;					\
 })
 
-#define	spin_lock_nested(_l, _n) do {			\
-	if (!SPIN_SKIP())				\
-		mtx_lock_flags(&(_l)->m, MTX_DUPOK);	\
+#define	spin_lock_nested(_l, _n) do {		\
+	if (SPIN_SKIP())			\
+		break;				\
+	mtx_lock_flags(&(_l)->m, MTX_DUPOK);	\
+	local_bh_disable();			\
 } while (0)
 
 #define	spin_lock_irqsave(_l, flags) do {	\
@@ -132,8 +153,9 @@ spin_lock_destroy(spinlock_t *lock)
 	MTX_SYSINIT(lock, &(lock).m, spin_lock_name("lnxspin"), MTX_DEF)
 
 #define	assert_spin_locked(_l) do {		\
-	if (!SPIN_SKIP())			\
-		mtx_assert(&(_l)->m, MA_OWNED);	\
+	if (SPIN_SKIP())			\
+		break;				\
+	mtx_assert(&(_l)->m, MA_OWNED);		\
 } while (0)
 
 #endif					/* _LINUX_SPINLOCK_H_ */

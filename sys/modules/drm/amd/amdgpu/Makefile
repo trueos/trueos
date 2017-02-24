@@ -142,7 +142,6 @@ SRCS	= \
 
 
 
-CFLAGS+= 	-I${.CURDIR}/../../../../contrib/ck/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
 CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/uapi

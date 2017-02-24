@@ -872,7 +872,10 @@ struct drm_device {
 	struct drm_master *master;
 
 	atomic_t unplugged;			/**< Flag whether dev is dead */
+#ifdef __linux__
 	struct inode *anon_inode;		/**< inode for private address-space */
+#endif
+	struct address_space *anon_mapping;	/**< private address-space */
 	char *unique;				/**< unique name of the device */
 	/*@} */
 

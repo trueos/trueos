@@ -447,7 +447,7 @@ int virtio_gpu_ttm_init(struct virtio_gpu_device *vgdev)
 	r = ttm_bo_device_init(&vgdev->mman.bdev,
 			       vgdev->mman.bo_global_ref.ref.object,
 			       &virtio_gpu_bo_driver,
-			       vgdev->ddev->anon_inode->i_mapping,
+			       vgdev->ddev->anon_mapping,
 			       DRM_FILE_PAGE_OFFSET, 0);
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);

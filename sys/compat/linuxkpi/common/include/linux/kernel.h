@@ -46,7 +46,7 @@
 
 #include <linux/bug.h>
 #include <linux/errno.h>
-#include <linux/kthread.h>
+#include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <linux/bitops.h>
@@ -287,8 +287,8 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 
 #define container_of(ptr, type, member)				\
 ({								\
-	__typeof(((type *)0)->member) *_p = __DECONST(void *, ptr);	\
-	(type *)((char *)_p - offsetof(type, member));		\
+	const __typeof(((type *)0)->member) *__p = (ptr);	\
+	(type *)((uintptr_t)__p - offsetof(type, member));	\
 })
   
 #define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))

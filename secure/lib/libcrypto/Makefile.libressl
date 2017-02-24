@@ -23,17 +23,17 @@ PICFLAG=-fPIC
 
 INCS+=	crypto.h opensslv.h ossl_typ.h
 INCS+=  aes.h asn1.h asn1_mac.h asn1t.h
-INCS+=  blowfish.h bio.h bn.h buffer.h 
-INCS+=  camellia.h cast.h chacha.h cmac.h cms.h comp.h conf.h conf_api.h
+INCS+=  blowfish.h bio.h bn.h bn_lcl.h buffer.h
+INCS+=  camellia.h cast.h chacha.h cmac.h comp.h conf.h conf_api.h
 INCS+=  des.h dh.h dsa.h dso.h 
-INCS+=  ec.h ecdh.h ecdsa.h engine.h err.h evp.h 
-INCS+=  gost.h hmac.h idea.h krb5_asn.h lhash.h 
-INCS+=  md4.h md5.h modes.h 
-INCS+=  obj_mac.h objects.h ocsp.h opensslconf.h opensslfeatures.h opensslv.h ossl_typ.h 
-INCS+=  pem.h pem2.h pkcs12.h pkcs7.h poly1305.h 
-INCS+=  rand.h rc2.h rc4.h ripemd.h rsa.h 
-INCS+=  sha.h safestack.h stack.h 
-INCS+=  ts.h txt_db.h ui.h ui_compat.h 
+INCS+=  ec.h ecdh.h ecdsa.h engine.h err.h evp.h evp_locl.h
+INCS+=  gost.h hmac.h idea.h lhash.h
+INCS+=  md4.h md5.h modes.h
+INCS+=  obj_mac.h objects.h ocsp.h opensslconf.h opensslfeatures.h opensslv.h ossl_typ.h
+INCS+=  pem.h pem2.h pkcs12.h pkcs7.h poly1305.h
+INCS+=  rand.h rc2.h rc4.h ripemd.h rsa.h
+INCS+=  sha.h safestack.h stack.h
+INCS+=  ts.h txt_db.h ui.h ui_compat.h
 INCS+=  whrlpool.h x509.h x509_vfy.h x509v3.h
 INCSDIR=	${INCLUDEDIR}/openssl
 
@@ -41,6 +41,11 @@ INCSDIR=	${INCLUDEDIR}/openssl
 CFLAGS+= -DOPENSSL_NO_HW_PADLOCK # XXX enable this?
 
 CFLAGS+= -I${LCRYPTO_SRC}/modes -I${LCRYPTO_SRC}/asn1 -I${LCRYPTO_SRC}/evp
+CFLAGS+= -I${LCRYPTO_SRC}/bn
+
+# Hidden Decls
+CFLAGS+= -D__BEGIN_HIDDEN_DECLS="" # XXX enable this?
+CFLAGS+= -D__END_HIDDEN_DECLS="" # XXX enable this?
 
 # compat/
 SRCS+=	compat/explicit_bzero.c compat/getentropy_freebsd.c compat/reallocarray.c
@@ -120,6 +125,9 @@ SRCS+= comp_lib.c comp_err.c c_rle.c c_zlib.c
 SRCS+= conf_err.c conf_lib.c conf_api.c conf_def.c conf_mod.c
 SRCS+= conf_mall.c conf_sap.c
 
+# curve25519/
+SRCS+= curve25519.c curve25519-generic.c
+
 # des/
 SRCS+= cbc_cksm.c cbc_enc.c cfb64enc.c cfb_enc.c
 SRCS+= ecb3_enc.c ecb_enc.c  enc_read.c enc_writ.c
@@ -191,9 +199,6 @@ SRCS+= hmac.c hm_ameth.c hm_pmeth.c
 
 # idea/
 SRCS+= i_cbc.c i_cfb64.c i_ofb64.c i_ecb.c i_skey.c
-
-# krb5/
-SRCS+= krb5_asn.c
 
 # lhash/
 SRCS+= lhash.c lh_stats.c
@@ -283,32 +288,32 @@ SRCS+= pcy_cache.c pcy_node.c pcy_data.c pcy_map.c pcy_tree.c pcy_lib.c
 .if ${MACHINE_CPUARCH} == "amd64"
 # aes
 CFLAGS+= -DAES_ASM -DBSAES_ASM -DVPAES_ASM
-SRCS+= aes-elf-x86_64.s bsaes-elf-x86_64.s vpaes-elf-x86_64.s aesni-elf-x86_64.s \
-	aesni-sha1-elf-x86_64.s bn_asm.c
+SRCS+= aes-elf-x86_64.S bsaes-elf-x86_64.S vpaes-elf-x86_64.S aesni-elf-x86_64.S \
+	aesni-sha1-elf-x86_64.S bn_asm.c
 # bf
 SRCS+= bf_enc.c
 # bn
 CFLAGS+= -DOPENSSL_IA32_SSE2 -DRSA_ASM -DOPENSSL_BN_ASM_MONT -DOPENSSL_BN_ASM_MONT5 -DOPENSSL_BN_ASM_GF2m
-SRCS+= modexp512-elf-x86_64.s mont-elf-x86_64.s mont5-elf-x86_64.s gf2m-elf-x86_64.s 
+SRCS+= modexp512-elf-x86_64.S mont-elf-x86_64.S mont5-elf-x86_64.S gf2m-elf-x86_64.S 
 # camellia
-SRCS+= cmll_misc.c cmll-elf-x86_64.s
+SRCS+= cmll_misc.c cmll-elf-x86_64.S
 # des
 SRCS+= des_enc.c fcrypt_b.c
 # md5
 CFLAGS+= -DMD5_ASM
-SRCS+= md5-elf-x86_64.s
+SRCS+= md5-elf-x86_64.S
 # modes
 CFLAGS+= -DGHASH_ASM
-SRCS+= ghash-elf-x86_64.s
+SRCS+= ghash-elf-x86_64.S
 # rc4
 CFLAGS+= -DRC4_MD5_ASM
-SRCS+= rc4-elf-x86_64.s rc4-md5-elf-x86_64.s
+SRCS+= rc4-elf-x86_64.S rc4-md5-elf-x86_64.S
 # sha
 CFLAGS+= -DSHA1_ASM -DSHA256_ASM -DSHA512_ASM
-SRCS+= sha1-elf-x86_64.s sha256-elf-x86_64.S sha512-elf-x86_64.S
+SRCS+= sha1-elf-x86_64.S sha256-elf-x86_64.S sha512-elf-x86_64.S
 # whrlpool
 FLAGS+= -DWHIRLPOOL_ASM
-SRCS+= wp-elf-x86_64.s wp-macosx-x86_64.s 
+SRCS+= wp-elf-x86_64.S wp-macosx-x86_64.S 
 # 
 CFLAGS+= -DOPENSSL_CPUID_OBJ
 SRCS+= cpuid-elf-x86_64.S
@@ -340,6 +345,7 @@ SRCS+= wp_block.c
 	${LCRYPTO_SRC}/cms \
 	${LCRYPTO_SRC}/comp \
 	${LCRYPTO_SRC}/conf \
+	${LCRYPTO_SRC}/curve25519 \
 	${LCRYPTO_SRC}/des \
 	${LCRYPTO_SRC}/dh \
 	${LCRYPTO_SRC}/dsa \

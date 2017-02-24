@@ -41,12 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
 
-#if	__FreeBSD_version < 800002 
-#define	THREAD_CREATE	kthread_create
-#else
-#define	THREAD_CREATE	kproc_create
-#endif
-
 MODULE_VERSION(isp, 1);
 MODULE_DEPEND(isp, cam, 1, 1, 1);
 int isp_announced = 0;
@@ -153,6 +147,9 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		struct isp_spi *spi = ISP_SPI_PC(isp, chan);
 		spi->sim = sim;
 		spi->path = path;
+#ifdef	ISP_TARGET_MODE
+		TAILQ_INIT(&spi->waitq);
+#endif
 	} else {
 		fcparam *fcp = FCPARAM(isp, chan);
 		struct isp_fc *fc = ISP_FC_PC(isp, chan);
@@ -168,9 +165,13 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 
 		callout_init_mtx(&fc->gdt, &isp->isp_osinfo.lock, 0);
 		TASK_INIT(&fc->gtask, 1, isp_gdt_task, fc);
+#ifdef	ISP_TARGET_MODE
+		TAILQ_INIT(&fc->waitq);
+#endif
 		isp_loop_changed(isp, chan);
 		ISP_UNLOCK(isp);
-		if (THREAD_CREATE(isp_kthread, fc, &fc->kproc, 0, 0, "%s: fc_thrd%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
+		if (kproc_create(isp_kthread, fc, &fc->kproc, 0, 0,
+		    "%s_%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
 			xpt_free_path(fc->path);
 			ISP_LOCK(isp);
 			xpt_bus_deregister(cam_sim_path(fc->sim));
@@ -976,6 +977,7 @@ isp_tmcmd_restart(ispsoftc_t *isp)
 	tstate_t *tptr;
 	union ccb *ccb;
 	struct tslist *lhp;
+	struct isp_ccbq *waitq;
 	int bus, i;
 
 	for (bus = 0; bus < isp->isp_nchan; bus++) {
@@ -1005,15 +1007,17 @@ isp_tmcmd_restart(ispsoftc_t *isp)
 						break;
 					}
 				}
-				/*
-				 * We only need to do this once per tptr
-				 */
-				if (!TAILQ_EMPTY(&tptr->waitq)) {
-					ccb = (union ccb *)TAILQ_LAST(&tptr->waitq, isp_ccbq);
-					TAILQ_REMOVE(&tptr->waitq, &ccb->ccb_h, periph_links.tqe);
-					isp_target_start_ctio(isp, ccb, FROM_TIMER);
-				}
 			}
+		}
+
+		/*
+		 * We only need to do this once per channel.
+		 */
+		ISP_GET_PC_ADDR(isp, bus, waitq, waitq);
+		ccb = (union ccb *)TAILQ_FIRST(waitq);
+		if (ccb != NULL) {
+			TAILQ_REMOVE(waitq, &ccb->ccb_h, periph_links.tqe);
+			isp_target_start_ctio(isp, ccb, FROM_TIMER);
 		}
 	}
 }
@@ -1129,7 +1133,6 @@ create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path, tstate_t **rsl
 	}
 	SLIST_INIT(&tptr->atios);
 	SLIST_INIT(&tptr->inots);
-	TAILQ_INIT(&tptr->waitq);
 	LIST_INIT(&tptr->atfree);
 	for (i = ATPDPSIZE-1; i >= 0; i--)
 		LIST_INSERT_HEAD(&tptr->atfree, &tptr->atpool[i], next);
@@ -1264,6 +1267,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 	fcparam *fcp;
 	atio_private_data_t *atp;
 	struct ccb_scsiio *cso;
+	struct isp_ccbq *waitq;
 	uint32_t dmaresult, handle, xfrlen, sense_length, tmp;
 	uint8_t local[QENTRY_LEN];
 
@@ -1280,23 +1284,23 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 	isp_prt(isp, ISP_LOGTDEBUG0, "%s: ENTRY[0x%x] how %u xfrlen %u sendstatus %d sense_len %u", __func__, ccb->csio.tag_id, how, ccb->csio.dxfer_len,
 	    (ccb->ccb_h.flags & CAM_SEND_STATUS) != 0, ((ccb->ccb_h.flags & CAM_SEND_SENSE)? ccb->csio.sense_len : 0));
 
+	ISP_GET_PC_ADDR(isp, XS_CHANNEL(ccb), waitq, waitq);
 	switch (how) {
-	case FROM_TIMER:
 	case FROM_CAM:
 		/*
 		 * Insert at the tail of the list, if any, waiting CTIO CCBs
 		 */
-		TAILQ_INSERT_TAIL(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+		TAILQ_INSERT_TAIL(waitq, &ccb->ccb_h, periph_links.tqe);
 		break;
+	case FROM_TIMER:
 	case FROM_SRR:
 	case FROM_CTIO_DONE:
-		TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+		TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 		break;
 	}
 
-	while (TAILQ_FIRST(&tptr->waitq) != NULL) {
-		ccb = (union ccb *) TAILQ_FIRST(&tptr->waitq);
-		TAILQ_REMOVE(&tptr->waitq, &ccb->ccb_h, periph_links.tqe);
+	while ((ccb = (union ccb *) TAILQ_FIRST(waitq)) != NULL) {
+		TAILQ_REMOVE(waitq, &ccb->ccb_h, periph_links.tqe);
 
 		cso = &ccb->csio;
 		xfrlen = cso->dxfer_len;
@@ -1345,7 +1349,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 		 */
 		if (atp->ctcnt >= ATPD_CCB_OUTSTANDING) {
 			isp_prt(isp, ISP_LOGTINFO, "[0x%x] handling only %d CCBs at a time (flags for this ccb: 0x%x)", cso->tag_id, ATPD_CCB_OUTSTANDING, ccb->ccb_h.flags);
-			TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+			TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 			break;
 		}
 
@@ -1462,7 +1466,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					if (atp->ests == NULL) {
 						atp->ests = isp_get_ecmd(isp);
 						if (atp->ests == NULL) {
-							TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+							TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 							break;
 						}
 					}
@@ -1617,7 +1621,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					if (atp->ests == NULL) {
 						atp->ests = isp_get_ecmd(isp);
 						if (atp->ests == NULL) {
-							TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+							TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 							break;
 						}
 					}
@@ -1706,13 +1710,13 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 
 		if (isp_get_pcmd(isp, ccb)) {
 			ISP_PATH_PRT(isp, ISP_LOGWARN, ccb->ccb_h.path, "out of PCMDs\n");
-			TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+			TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 			break;
 		}
 		handle = isp_allocate_handle(isp, ccb, ISP_HANDLE_TARGET);
 		if (handle == 0) {
 			ISP_PATH_PRT(isp, ISP_LOGWARN, ccb->ccb_h.path, "No XFLIST pointers for %s\n", __func__);
-			TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+			TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 			isp_free_pcmd(isp, ccb);
 			break;
 		}
@@ -1742,7 +1746,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			isp_destroy_handle(isp, handle);
 			isp_free_pcmd(isp, ccb);
 			if (dmaresult == CMD_EAGAIN) {
-				TAILQ_INSERT_HEAD(&tptr->waitq, &ccb->ccb_h, periph_links.tqe); 
+				TAILQ_INSERT_HEAD(waitq, &ccb->ccb_h, periph_links.tqe);
 				break;
 			}
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
@@ -2560,13 +2564,11 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 		break;
 	case IN_ABORT_TASK:
 	{
-		tstate_t *tptr;
 		uint16_t nphdl, lun;
 		uint32_t sid;
 		uint64_t wwn;
-		atio_private_data_t *atp;
 		fcportdb_t *lp;
-		struct ccb_immediate_notify *inot = NULL;
+		isp_notify_t tmp, *nt = &tmp;
 
 		if (ISP_CAP_SCCFW(isp)) {
 			lun = inp->in_scclun;
@@ -2588,47 +2590,25 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 			wwn = INI_ANY;
 			sid = PORT_ANY;
 		}
-		tptr = get_lun_statep(isp, 0, lun);
-		if (tptr == NULL) {
-			tptr = get_lun_statep(isp, 0, CAM_LUN_WILDCARD);
-			if (tptr == NULL) {
-				isp_prt(isp, ISP_LOGWARN, "ABORT TASK for lun %x, but no tstate", lun);
-				return;
-			}
-		}
-		atp = isp_find_atpd(isp, tptr, inp->in_seqid);
+		isp_prt(isp, ISP_LOGTDEBUG0, "ABORT TASK RX_ID %x WWN 0x%016llx",
+		    inp->in_seqid, (unsigned long long) wwn);
 
-		if (atp) {
-			inot = (struct ccb_immediate_notify *) SLIST_FIRST(&tptr->inots);
-			isp_prt(isp, ISP_LOGTDEBUG0, "ABORT TASK RX_ID %x WWN 0x%016llx state %d", inp->in_seqid, (unsigned long long) wwn, atp->state);
-			if (inot) {
-				tptr->inot_count--;
-				SLIST_REMOVE_HEAD(&tptr->inots, sim_links.sle);
-				ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, inot->ccb_h.path, "%s: Take FREE INOT count now %d\n", __func__, tptr->inot_count);
-			} else {
-				ISP_PATH_PRT(isp, ISP_LOGWARN, tptr->owner, "out of INOT structures\n");
-			}
-		} else {
-			ISP_PATH_PRT(isp, ISP_LOGWARN, tptr->owner, "abort task RX_ID %x from wwn 0x%016llx, state unknown\n", inp->in_seqid, wwn);
-		}
-		if (inot) {
-			isp_notify_t tmp, *nt = &tmp;
-			ISP_MEMZERO(nt, sizeof (isp_notify_t));
-    			nt->nt_hba = isp;
-			nt->nt_tgt = FCPARAM(isp, 0)->isp_wwpn;
-			nt->nt_wwn = wwn;
-			nt->nt_nphdl = nphdl;
-			nt->nt_sid = sid;
-			nt->nt_did = PORT_ANY;
-    			nt->nt_lun = lun;
-            		nt->nt_need_ack = 1;
-    			nt->nt_channel = 0;
-    			nt->nt_ncode = NT_ABORT_TASK;
-    			nt->nt_lreserved = inot;
-			isp_handle_platform_target_tmf(isp, nt);
-			needack = 0;
-		}
-		rls_lun_statep(isp, tptr);
+		ISP_MEMZERO(nt, sizeof (isp_notify_t));
+		nt->nt_hba = isp;
+		nt->nt_tgt = FCPARAM(isp, 0)->isp_wwpn;
+		nt->nt_wwn = wwn;
+		nt->nt_nphdl = nphdl;
+		nt->nt_sid = sid;
+		nt->nt_did = PORT_ANY;
+		nt->nt_lun = lun;
+		nt->nt_tagval = inp->in_seqid;
+		nt->nt_tagval |= (((uint64_t)(isp->isp_serno++)) << 32);
+		nt->nt_need_ack = 1;
+		nt->nt_channel = 0;
+		nt->nt_ncode = NT_ABORT_TASK;
+		nt->nt_lreserved = inp;
+		isp_handle_platform_target_tmf(isp, nt);
+		needack = 0;
 		break;
 	}
 	default:
@@ -3565,7 +3545,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			isp_disable_lun(isp, ccb);
 		}
 		break;
-	case XPT_IMMED_NOTIFY:
 	case XPT_IMMEDIATE_NOTIFY:	/* Add Immediate Notify Resource */
 	case XPT_ACCEPT_TARGET_IO:	/* Add Accept Target IO Resource */
 	{
@@ -3616,20 +3595,11 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, ccb->ccb_h.path, "Put FREE INOT, (seq id 0x%x) count now %d\n",
 			    ccb->cin1.seq_id, tptr->inot_count);
 			ccb->cin1.seq_id = 0;
-		} else if (ccb->ccb_h.func_code == XPT_IMMED_NOTIFY) {
-			tptr->inot_count++;
-			SLIST_INSERT_HEAD(&tptr->inots, &ccb->ccb_h, sim_links.sle);
-			ISP_PATH_PRT(isp, ISP_LOGTDEBUG2, ccb->ccb_h.path, "Put FREE INOT, (seq id 0x%x) count now %d\n",
-			    ccb->cin1.seq_id, tptr->inot_count);
-			ccb->cin1.seq_id = 0;
 		}
 		rls_lun_statep(isp, tptr);
 		ccb->ccb_h.status = CAM_REQ_INPROG;
 		break;
 	}
-	case XPT_NOTIFY_ACK:
-		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-		break;
 	case XPT_NOTIFY_ACKNOWLEDGE:		/* notify ack */
 	{
 		tstate_t *tptr;

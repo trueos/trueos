@@ -27,6 +27,7 @@
 #ifndef _LINUX_HASH_H_
 #define _LINUX_HASH_H_
 
+#include <asm/types.h>
 #include <sys/hash.h>
 
 static inline u64 hash_64(u64 val, unsigned int bits)

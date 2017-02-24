@@ -1584,9 +1584,17 @@ bool ttm_mem_reg_is_pci(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 
 void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo)
 {
+#ifdef __FreeBSD__
+	struct drm_vma_offset_node *node;
+
+	node = &bo->vma_node;
+	unmap_mapping_range(bo, drm_vma_node_offset_addr(node),
+	    drm_vma_node_size(node) << PAGE_SHIFT, 1);
+#else
 	struct ttm_bo_device *bdev = bo->bdev;
 
 	drm_vma_node_unmap(&bo->vma_node, bdev->dev_mapping);
+#endif
 	ttm_mem_io_free_vm(bo);
 }
 

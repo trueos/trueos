@@ -35,7 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/jiffies.h>
-#include <linux/sched.h>
+#include <linux/kthread.h>
 #include <linux/srcu.h>
 
 #include <sys/param.h>
@@ -102,18 +102,7 @@ static inline int
 default_wake_function(wait_queue_t *curr, unsigned mode, int wake_flags,
 			  void *key)
 {
-	int success = 0;
-	struct task_struct *p;
-
-	p = curr->private;
-
-	if ((p->state & mode) == 0)
-		goto out;
-	p->state = TASK_WAKING;
-	success = 1;
-	wakeup_one(p);
-out:
-	return (success);
+	return (linux_try_to_wake_up(curr->private, mode));
 }
 
 static inline int
@@ -207,32 +196,17 @@ init_waitqueue_func_entry(wait_queue_t *wq, wait_queue_func_t func)
 	wq->func	= func;
 }
 
-
-#ifndef set_current_state
-#define	set_current_state(x)						\
-	atomic_store_rel_int((volatile int *)&current->state, (x))
-#define undef_set_current
-#endif
-
-#ifndef __set_current_state
-#define	__set_current_state(x)	current->state = (x)
-#define undef___set_current
-#endif
-
 static inline void
 __wake_up_locked(wait_queue_head_t *q, int mode, int nr, void *key)
 {
-	struct task_struct *t;
-	wait_queue_t *curr, *next;
+	wait_queue_t *curr;
+	wait_queue_t *next;
 
 	list_for_each_entry_safe(curr, next, &q->task_list, task_list) {
+		unsigned flags = curr->flags;
 
-		/* note that we're ignoring exclusive wakeups here */
-		curr->func(curr, TASK_NORMAL, 0, key);
-		if ((t = curr->private) != NULL)
-			t->state = TASK_WAKING;
-		nr--;
-		if (nr == 0)
+		if (curr->func(curr, TASK_NORMAL, 0, key) &&
+		    (flags & WQ_FLAG_EXCLUSIVE) && !--nr)
 			break;
 	}
 }
@@ -252,8 +226,8 @@ void __wake_up(wait_queue_head_t *q, int mode, int nr, void *key);
 
 #define __wake_up_locked_key(q, mode, key)	__wake_up_locked(q, mode, 0, key)
 
-
-#define might_sleep()
+#define	might_sleep() \
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "might_sleep()")
 
 #define ___wait_cond_timeout(condition)					\
 ({									\
@@ -620,17 +594,5 @@ wait_on_bit_timeout(unsigned long *word, int bit, unsigned mode,
 					       bit_wait_timeout,
 					       mode, timeout);
 }
-
-/*
- * These are supposed to be defined by sched.h, so if we defined them
- * we need to undo that.
- */
-#ifdef undef_set_current
-#undef set_current_state
-#endif
-
-#ifdef undef___set_current
-#undef __set_current_state
-#endif
 
 #endif

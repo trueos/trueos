@@ -31,6 +31,7 @@
 #ifndef	_LINUX_BITOPS_H
 #define	_LINUX_BITOPS_H
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/errno.h>

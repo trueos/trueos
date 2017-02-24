@@ -45,7 +45,7 @@
 #include <linux/workqueue.h>
 #include <linux/sysfs.h>
 #include <linux/kdev_t.h>
-
+#include <linux/numa.h>
 
 #include <sys/bus.h>
 

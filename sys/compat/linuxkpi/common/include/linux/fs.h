@@ -61,7 +61,6 @@ struct pipe_inode_info;
 struct vm_area_struct;
 struct poll_table_struct;
 struct files_struct;
-struct kstatfs;
 struct super_block;
 
 #define	inode	vnode
@@ -70,27 +69,7 @@ struct super_block;
 #define	S_IRUGO	(S_IRUSR | S_IRGRP | S_IROTH)
 #define	S_IWUGO	(S_IWUSR | S_IWGRP | S_IWOTH)
 
-struct super_operations {
-	int (*statfs) (struct dentry *, struct kstatfs *);
-};
-
-struct file_system_type {
-		const char *name;
-	struct module *owner;
-	struct dentry *(*mount) (struct file_system_type *, int,
-				 const char *, void *);
-	void (*kill_sb) (struct super_block *);
-};
-
-extern struct dentry *mount_pseudo(struct file_system_type *, char *,
-	const struct super_operations *ops,
-	const struct dentry_operations *dops,
-	unsigned long);
-void kill_anon_super(struct super_block *sb);
-
-
 typedef struct files_struct *fl_owner_t;
-
 
 struct file_operations;
 
@@ -100,7 +79,6 @@ struct file_operations;
 #define file_inode(f) ((f)->f_vnode)
 /* this value isn't needed by the compat layer */
 static inline void i_size_write(void *inode, off_t i_size) { ; }
-
 
 struct linux_file {
 	struct file	*_file;
@@ -278,25 +256,6 @@ iminor(struct inode *inode)
 	return (minor(dev2unit(inode->v_rdev)));
 }
 
-static inline struct inode *
-igrab(struct inode *inode)
-{
-	int error;
-
-	error = vget(inode, 0, curthread);
-	if (error)
-		return (NULL);
-
-	return (inode);
-}
-
-static inline void
-iput(struct inode *inode)
-{
-
-	vrele(inode);
-}
-
 static inline struct linux_file *
 get_file(struct linux_file *f)
 {
@@ -331,7 +290,7 @@ shmem_read_mapping_page(struct address_space *as, int idx)
 	return (shmem_read_mapping_page_gfp(as, idx, 0));
 }
 
-extern struct linux_file *shmem_file_setup(char *name, int size, int flags);
+extern struct linux_file *shmem_file_setup(char *name, loff_t size, unsigned long flags);
 
 static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask) {}
 static inline gfp_t mapping_gfp_mask(struct address_space *m)
@@ -349,8 +308,8 @@ void shmem_truncate_range(struct vnode *, loff_t, loff_t);
 
 extern loff_t generic_file_llseek(struct file *file, loff_t offset, int whence);
 
-extern struct inode *alloc_anon_inode(struct super_block *);
-
+extern struct address_space *alloc_anon_mapping(size_t);
+extern void free_anon_mapping(struct address_space *);
 
 struct simple_attr {
 	struct sbuf *sb;	/* must be first */
@@ -365,9 +324,6 @@ extern ssize_t simple_read_from_buffer(void __user *to, size_t count,
 			loff_t *ppos, const void *from, size_t available);
 extern ssize_t simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 		const void __user *from, size_t count);
-extern int simple_statfs(struct dentry *, struct kstatfs *);
-extern int simple_pin_fs(struct file_system_type *, struct vfsmount **mount, int *count);
-extern void simple_release_fs(struct vfsmount **mount, int *count);
 
 static inline loff_t fixed_size_llseek(struct file *file, loff_t offset,
 				       int whence, loff_t size)

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2015 François Tigeot
- * Copyright (c) 2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2016-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,15 +28,14 @@
  */
 
 #ifndef _LINUX_RCULIST_H_
-#define _LINUX_RCULIST_H_
+#define	_LINUX_RCULIST_H_
 
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 
-#define hlist_first_rcu(head)	(*((struct hlist_node **)(&(head)->first)))
-#define hlist_next_rcu(node)	(*((struct hlist_node **)(&(node)->next)))
-#define hlist_pprev_rcu(node)	(*((struct hlist_node **)((node)->pprev)))
-
+#define	hlist_first_rcu(head)	(*((struct hlist_node **)(&(head)->first)))
+#define	hlist_next_rcu(node)	(*((struct hlist_node **)(&(node)->next)))
+#define	hlist_pprev_rcu(node)	(*((struct hlist_node **)((node)->pprev)))
 
 static inline void
 hlist_add_behind_rcu(struct hlist_node *n, struct hlist_node *prev)
@@ -48,11 +47,11 @@ hlist_add_behind_rcu(struct hlist_node *n, struct hlist_node *prev)
 		n->next->pprev = &n->next;
 }
 
-#define hlist_for_each_entry_rcu(pos, head, member)	\
+#define	hlist_for_each_entry_rcu(pos, head, member)	\
 	hlist_for_each_entry(pos, head, member)
 
-static inline void 
-linux_hlist_del(struct hlist_node *n)
+static inline void
+hlist_del_rcu(struct hlist_node *n)
 {
 	struct hlist_node *next = n->next;
 	struct hlist_node **pprev = n->pprev;
@@ -61,7 +60,6 @@ linux_hlist_del(struct hlist_node *n)
 	if (next)
 		next->pprev = pprev;
 }
-
 
 static inline void
 hlist_add_head_rcu(struct hlist_node *n, struct hlist_head *h)
@@ -79,15 +77,9 @@ static inline void
 hlist_del_init_rcu(struct hlist_node *n)
 {
 	if (!hlist_unhashed(n)) {
-		linux_hlist_del(n);
+		hlist_del_rcu(n);
 		n->pprev = NULL;
 	}
 }
 
-#define	hlist_del_rcu(n)			\
-do {						\
-	linux_hlist_del(n);			\
-} while (0)
-
-
-#endif	/* _LINUX_RCULIST_H_ */
+#endif					/* _LINUX_RCULIST_H_ */

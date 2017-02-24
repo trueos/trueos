@@ -36,7 +36,6 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/threads.h>
-
 #include <linux/atomic.h>
 
 #include <sys/taskqueue.h>
@@ -44,40 +43,8 @@
 struct work_struct;
 typedef void (*work_func_t)(struct work_struct *work);
 
-#define work_data_bits(work) ((unsigned long *)(&(work)->data))
-
 enum {
-	WORK_STRUCT_PENDING_BIT	= 0,	/* work item is pending execution */	
-
-	WORK_STRUCT_PWQ_BIT	= 2,	/* data points to pwq */
-	WORK_STRUCT_PWQ		= 1 << WORK_STRUCT_PWQ_BIT,
-	WORK_STRUCT_PENDING	= 1 << WORK_STRUCT_PENDING_BIT,
-
-	WORK_STRUCT_COLOR_BITS	= 4,
-	WORK_STRUCT_COLOR_SHIFT	= 4,	/* color for workqueue flushing */
-	WORK_STRUCT_FLAG_BITS	= WORK_STRUCT_COLOR_SHIFT +
-				  WORK_STRUCT_COLOR_BITS,
-
-	WORK_OFFQ_FLAG_BASE	= WORK_STRUCT_COLOR_SHIFT,
-	WORK_OFFQ_FLAG_BITS	= 1,
-	WORK_OFFQ_POOL_SHIFT	= WORK_OFFQ_FLAG_BASE + WORK_OFFQ_FLAG_BITS,
-	WORK_OFFQ_LEFT		= BITS_PER_LONG - WORK_OFFQ_POOL_SHIFT,
-	WORK_OFFQ_POOL_BITS	= WORK_OFFQ_LEFT <= 31 ? WORK_OFFQ_LEFT : 31,
-	WORK_OFFQ_POOL_NONE	= (1LU << WORK_OFFQ_POOL_BITS) - 1,
-
-	WORK_STRUCT_FLAG_MASK	= (1UL << WORK_STRUCT_FLAG_BITS) - 1,
-	WORK_STRUCT_WQ_DATA_MASK = ~WORK_STRUCT_FLAG_MASK,
-	WORK_STRUCT_NO_POOL	= (unsigned long)WORK_OFFQ_POOL_NONE << WORK_OFFQ_POOL_SHIFT,
-
-
-	__WORK_OFFQ_CANCELING	= WORK_OFFQ_FLAG_BASE,
-	WORK_OFFQ_CANCELING	= (1 << __WORK_OFFQ_CANCELING),
-	
-	WORK_BUSY_PENDING	= 1 << 0,
-	WORK_BUSY_RUNNING	= 1 << 1,
-	WORK_CPU_UNBOUND	= NR_CPUS,
-
-
+	WORK_CPU_UNBOUND = NR_CPUS,
 };
 
 enum {
@@ -87,68 +54,59 @@ enum {
 	WQ_MAX_UNBOUND_PER_CPU	= 4,	  /* 4 * #cpus for unbound wq */
 };
 
-#define WQ_UNBOUND_MAX_ACTIVE	\
+#define	WQ_UNBOUND_MAX_ACTIVE \
 	max_t(int, WQ_MAX_ACTIVE, mp_ncpus * WQ_MAX_UNBOUND_PER_CPU)
+
+struct work_exec {
+	TAILQ_ENTRY(work_exec) entry;
+	struct work_struct *target;
+};
+
+#define	WQ_EXEC_LOCK(wq) mtx_lock(&(wq)->exec_mtx)
+#define	WQ_EXEC_UNLOCK(wq) mtx_unlock(&(wq)->exec_mtx)
 
 struct workqueue_struct {
 	struct taskqueue	*taskqueue;
+	struct mtx		exec_mtx;
+	TAILQ_HEAD(, work_exec)	exec_head;
 	atomic_t		draining;
 };
 
 struct work_struct {
-	atomic_long_t data;
-	struct	task 		work_task;
-	struct taskqueue	*taskqueue;
-	work_func_t func;
+	struct task 		work_task;
+	struct workqueue_struct	*work_queue;
+	work_func_t		func;
+	atomic_t		state;
 };
 
-#define WORK_DATA_INIT()	ATOMIC_LONG_INIT(WORK_STRUCT_NO_POOL)
-#define WORK_DATA_STATIC_INIT()	\
-	ATOMIC_LONG_INIT(WORK_STRUCT_NO_POOL | WORK_STRUCT_STATIC)
-
-
-#define LINUX_WORK_INITIALIZER(n, f) {					\
-	.data = WORK_DATA_STATIC_INIT(),				\
-	}
-
-#define DECLARE_WORK(n, f)						\
-	struct work_struct n = LINUX_WORK_INITIALIZER(n, f);
-
+#define	DECLARE_WORK(name, fn)				\
+	struct work_struct name = { .func = (fn) }
 
 struct delayed_work {
 	struct work_struct	work;
 	struct timer_list	timer;
-	struct workqueue_struct *wq;
 	int			cpu;
 };
 
 extern struct workqueue_struct *system_wq;
-extern struct workqueue_struct *system_highpri_wq;
 extern struct workqueue_struct *system_long_wq;
 extern struct workqueue_struct *system_unbound_wq;
-extern struct workqueue_struct *system_freezable_wq;
 extern struct workqueue_struct *system_power_efficient_wq;
-extern struct workqueue_struct *system_freezable_power_efficient_wq;
 
-
-
-static inline void __init_work(struct work_struct *work, int onstack) { }
 static inline void destroy_work_on_stack(struct work_struct *work) { }
 static inline void destroy_delayed_work_on_stack(struct delayed_work *work) { }
-static inline unsigned int work_static(struct work_struct *work) { return 0; }
 
 extern void linux_work_fn(void *, int);
 extern void linux_flush_fn(void *, int);
 extern void linux_delayed_work_timer_fn(unsigned long __data);
 extern struct workqueue_struct *linux_create_workqueue_common(const char *, int);
 extern void destroy_workqueue(struct workqueue_struct *);
-extern void linux_queue_work(int cpu, struct workqueue_struct *wq, struct work_struct *work);
 extern bool queue_work_on(int cpu, struct workqueue_struct *wq, struct work_struct *work);
 extern bool queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 				  struct delayed_work *dwork, unsigned long delay);
 extern bool cancel_delayed_work(struct delayed_work *dwork);
-extern int cancel_work_sync(struct work_struct *work);
-extern int cancel_delayed_work_sync(struct delayed_work *dwork);
+extern bool cancel_work_sync(struct work_struct *work);
+extern bool cancel_delayed_work_sync(struct delayed_work *dwork);
 
 static inline struct delayed_work *
 to_delayed_work(struct work_struct *work)
@@ -159,12 +117,12 @@ to_delayed_work(struct work_struct *work)
 #define	INIT_WORK(work, fn) 	 					\
 do {									\
 	(work)->func = (fn);						\
-	(work)->taskqueue = NULL;					\
-	(work)->data = (atomic_long_t) WORK_DATA_INIT();		\
+	(work)->work_queue = NULL;					\
+	atomic_set(&(work)->state, 0);					\
 	TASK_INIT(&(work)->work_task, 0, linux_work_fn, (work));	\
 } while (0)
 
-#define INIT_WORK_ONSTACK INIT_WORK
+#define INIT_WORK_ONSTACK(...) INIT_WORK(__VA_ARGS__)
 
 #define	INIT_DELAYED_WORK(_work, func)					\
 do {									\
@@ -175,24 +133,19 @@ do {									\
 
 #define	INIT_DEFERRABLE_WORK(...) INIT_DELAYED_WORK(__VA_ARGS__)
 
-#define	flush_scheduled_work()	flush_taskqueue(taskqueue_thread)
-
-#define work_pending(work) \
-	test_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(work))
-
-#define delayed_work_pending(w) \
-	work_pending(&(w)->work)
+#define	flush_scheduled_work(void) flush_taskqueue(taskqueue_thread)
 
 static inline int
 queue_work(struct workqueue_struct *wq, struct work_struct *work)
 {
+
 	return (queue_work_on(WORK_CPU_UNBOUND, wq, work));
 }
 
 static inline int
 schedule_work(struct work_struct *work)
 {
-	work->taskqueue = system_wq->taskqueue;
+
 	return (queue_work_on(WORK_CPU_UNBOUND, system_wq, work));
 }
 
@@ -200,6 +153,7 @@ static inline int
 queue_delayed_work(struct workqueue_struct *wq, struct delayed_work *dwork,
     unsigned long delay)
 {
+
 	return (queue_delayed_work_on(WORK_CPU_UNBOUND, wq, dwork, delay));
 }
 
@@ -207,6 +161,7 @@ static inline bool
 schedule_delayed_work_on(int cpu, struct delayed_work *dwork,
 					    unsigned long delay)
 {
+
 	return (queue_delayed_work_on(cpu, system_wq, dwork, delay));
 }
 
@@ -214,6 +169,7 @@ static inline bool
 schedule_delayed_work(struct delayed_work *dwork,
     unsigned long delay)
 {
+
 	return (queue_delayed_work(system_wq, dwork, delay));
 }
 
@@ -255,55 +211,23 @@ static inline bool
 mod_delayed_work(struct workqueue_struct *wq, struct delayed_work *dwork,
     unsigned long delay)
 {
-	cancel_delayed_work(dwork);
+	bool retval;
+
+	retval = cancel_delayed_work(dwork);
 	queue_delayed_work(wq, dwork, delay);
-	return false;
+	return (retval);
 }
 
+extern bool flush_work(struct work_struct *);
+extern bool flush_delayed_work(struct delayed_work *);
+extern bool work_pending(struct work_struct *);
+extern bool work_busy(struct work_struct *);
 
 static inline bool
-flush_work(struct work_struct *work)
-{
-	struct taskqueue *tq;
-	
-	if ((tq = work->taskqueue) != NULL) {
-		flush_taskqueue(tq);
-		return (true);
-	}
-	return (false);
-}
-
-static inline bool
-flush_delayed_work(struct delayed_work *dwork)
+delayed_work_pending(struct delayed_work *dwork)
 {
 
-	if (del_timer_sync(&dwork->timer))
-		linux_queue_work(dwork->cpu, dwork->wq, &dwork->work);
-	return (flush_work(&dwork->work));
+	return (work_pending(&dwork->work));
 }
 
-static inline unsigned int
-work_busy(struct work_struct *work)
-{
-	struct task *ta;
-	struct taskqueue *tq;
-	int rc;
-
-	DODGY();
-	rc = 0;
-	ta = &work->work_task;
-	tq = work->taskqueue;
-
-	if (work_pending(work))
-		rc |= WORK_BUSY_PENDING;
-	/*
-	 * There's currently no interface to query if a task running
-	 */
-#ifdef notyet
-	if (tq != NULL) {
-
-	}
-#endif	
-	return (rc);
-}
 #endif	/* _LINUX_WORKQUEUE_H_ */

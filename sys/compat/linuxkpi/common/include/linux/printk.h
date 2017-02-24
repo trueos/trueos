@@ -31,6 +31,8 @@
 #ifndef _FBSD_PRINTK_H_
 #define	_FBSD_PRINTK_H_
 
+#include <sys/types.h>
+
 /* GID printing macros */
 #define	GID_PRINT_FMT			"%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x"
 #define	GID_PRINT_ARGS(gid_raw)		htons(((u16 *)gid_raw)[0]), htons(((u16 *)gid_raw)[1]),\

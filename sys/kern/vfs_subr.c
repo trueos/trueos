@@ -1491,7 +1491,7 @@ alloc:
 	vp->v_bufobj.bo_ops = &buf_ops_bio;
 #ifdef DIAGNOSTIC
 	if (mp == NULL && vops != &dead_vnodeops)
-		printf("NULL mp in getnewvnode()\n");
+		printf("NULL mp in getnewvnode(9), tag %s\n", tag);
 #endif
 #ifdef MAC
 	mac_vnode_init(vp);
@@ -2461,11 +2461,11 @@ vfs_refcount_acquire_if_not_zero(volatile u_int *count)
 {
 	u_int old;
 
+	old = *count;
 	for (;;) {
-		old = *count;
 		if (old == 0)
 			return (0);
-		if (atomic_cmpset_int(count, old, old + 1))
+		if (atomic_fcmpset_int(count, &old, old + 1))
 			return (1);
 	}
 }
@@ -2475,11 +2475,11 @@ vfs_refcount_release_if_not_last(volatile u_int *count)
 {
 	u_int old;
 
+	old = *count;
 	for (;;) {
-		old = *count;
 		if (old == 1)
 			return (0);
-		if (atomic_cmpset_int(count, old, old - 1))
+		if (atomic_fcmpset_int(count, &old, old - 1))
 			return (1);
 	}
 }
@@ -2929,27 +2929,21 @@ _vdrop(struct vnode *vp, bool locked)
 		if ((vp->v_iflag & VI_OWEINACT) == 0) {
 			vp->v_iflag &= ~VI_ACTIVE;
 			mp = vp->v_mount;
-			/* check if there is a mount point */
-			if (mp != NULL) {
-				mtx_lock(&mp->mnt_listmtx);
-				if (active) {
-					TAILQ_REMOVE(&mp->mnt_activevnodelist, vp,
-					    v_actfreelist);
-					mp->mnt_activevnodelistsize--;
-				}
-				TAILQ_INSERT_TAIL(&mp->mnt_tmpfreevnodelist, vp,
+			mtx_lock(&mp->mnt_listmtx);
+			if (active) {
+				TAILQ_REMOVE(&mp->mnt_activevnodelist, vp,
 				    v_actfreelist);
-				mp->mnt_tmpfreevnodelistsize++;
-				vp->v_mflag |= VMP_TMPMNTFREELIST;
+				mp->mnt_activevnodelistsize--;
 			}
+			TAILQ_INSERT_TAIL(&mp->mnt_tmpfreevnodelist, vp,
+			    v_actfreelist);
+			mp->mnt_tmpfreevnodelistsize++;
 			vp->v_iflag |= VI_FREE;
+			vp->v_mflag |= VMP_TMPMNTFREELIST;
 			VI_UNLOCK(vp);
-			/* check if there is a mount point */
-			if (mp != NULL) {
-				if (mp->mnt_tmpfreevnodelistsize >= mnt_free_list_batch)
-					vnlru_return_batch_locked(mp);
-				mtx_unlock(&mp->mnt_listmtx);
-			}
+			if (mp->mnt_tmpfreevnodelistsize >= mnt_free_list_batch)
+				vnlru_return_batch_locked(mp);
+			mtx_unlock(&mp->mnt_listmtx);
 		} else {
 			VI_UNLOCK(vp);
 			counter_u64_add(free_owe_inact, 1);

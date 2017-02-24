@@ -8,6 +8,5 @@ SRCS=	vnode_if.h \
 	lindebugfs.c
 
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
-CFLAGS+= -I${.CURDIR}/../../contrib/ck/include
 
 .include <bsd.kmod.mk>

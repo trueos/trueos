@@ -22,7 +22,6 @@ CFLAGS+= -DHAVE_TCP_LRO_RX
 
 CFLAGS+= -I${.CURDIR}/../../ofed/include
 CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
-CFLAGS+= -I${.CURDIR}/../../contrib/ck/include
 
 .include <bsd.kmod.mk>
 

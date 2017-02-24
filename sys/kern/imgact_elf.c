@@ -859,6 +859,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		error = ENOEXEC;
 		goto ret;
 	}
+	et_dyn_addr = 0;
 	if (hdr->e_type == ET_DYN) {
 		if ((brand_info->flags & BI_CAN_EXEC_DYN) == 0) {
 			uprintf("Cannot execute shared object\n");
@@ -871,10 +872,7 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		 */
 		if (baddr == 0)
 			et_dyn_addr = ET_DYN_LOAD_ADDR;
-		else
-			et_dyn_addr = 0;
-	} else
-		et_dyn_addr = 0;
+	}
 	sv = brand_info->sysvec;
 	if (interp != NULL && brand_info->interp_newpath != NULL)
 		newinterp = brand_info->interp_newpath;
@@ -1057,8 +1055,10 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->interpreted = 0;
 	imgp->reloc_base = addr;
 	imgp->proc->p_osrel = osrel;
+	imgp->proc->p_elf_machine = hdr->e_machine;
+	imgp->proc->p_elf_flags = hdr->e_flags;
 
- ret:
+ret:
 	free(interp_buf, M_TEMP);
 	return (error);
 }
@@ -1657,15 +1657,11 @@ __elfN(puthdr)(struct thread *td, void *hdr, size_t hdrsize, int numsegs,
 	ehdr->e_ident[EI_ABIVERSION] = 0;
 	ehdr->e_ident[EI_PAD] = 0;
 	ehdr->e_type = ET_CORE;
-#if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
-	ehdr->e_machine = ELF_ARCH32;
-#else
-	ehdr->e_machine = ELF_ARCH;
-#endif
+	ehdr->e_machine = td->td_proc->p_elf_machine;
 	ehdr->e_version = EV_CURRENT;
 	ehdr->e_entry = 0;
 	ehdr->e_phoff = sizeof(Elf_Ehdr);
-	ehdr->e_flags = 0;
+	ehdr->e_flags = td->td_proc->p_elf_flags;
 	ehdr->e_ehsize = sizeof(Elf_Ehdr);
 	ehdr->e_phentsize = sizeof(Elf_Phdr);
 	ehdr->e_shentsize = sizeof(Elf_Shdr);

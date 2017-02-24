@@ -51,6 +51,23 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 
 ****************************** SPECIAL WARNING: ******************************
 
+20170221:
+	The code that provides support for ZFS .zfs/ directory functionality
+	has been reimplemented.  It's not possible now to create a snapshot
+	by mkdir under .zfs/snapshot/.  That should be the only user visible
+	change.
+
+20170216:
+	EISA bus support has been removed. The WITH_EISA option is no longer
+	valid.
+
+20170215:
+	MCA bus support has been removed.
+
+20170127:
+	The WITH_LLD_AS_LD / WITHOUT_LLD_AS_LD build knobs have been renamed
+	WITH_LLD_IS_LD / WITHOUT_LLD_IS_LD, for consistency with CLANG_IS_CC.
+
 20170112:
 	The EM_MULTIQUEUE kernel configuration option is deprecated now that
 	the em(4) driver conforms to iflib specifications.

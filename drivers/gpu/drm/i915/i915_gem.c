@@ -2001,7 +2001,7 @@ i915_gem_release_mmap(struct drm_i915_gem_object *obj)
 	    drm_vma_node_size(node) << PAGE_SHIFT, 1);
 #else
 	drm_vma_node_unmap(&obj->base.vma_node,
-			   obj->base.dev->anon_inode->i_mapping);
+			   obj->base.dev->anon_mapping);
 
 	/* Ensure that the CPU's PTE are revoked and there are not outstanding
 	 * memory transactions from userspace before we return. The TLB

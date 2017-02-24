@@ -44,7 +44,6 @@ CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/acp/include
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/powerplay/inc
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/scheduler
 CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/include/asic_reg
-CFLAGS+=	-I${.CURDIR}/../../../../contrib/ck/include
 CFLAGS+=	'-DKBUILD_MODNAME="${KMOD}"'
 
 SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.h \

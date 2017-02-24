@@ -487,6 +487,30 @@ task_is_running(struct taskqueue *queue, struct task *task)
 	return (0);
 }
 
+int
+taskqueue_is_pending(struct taskqueue *queue, struct task *task)
+{
+	int retval;
+
+	TQ_LOCK(queue);
+	retval = task->ta_pending > 0;
+	TQ_UNLOCK(queue);
+
+	return (retval);
+}
+
+int
+taskqueue_is_pending_or_running(struct taskqueue *queue, struct task *task)
+{
+	int retval;
+
+	TQ_LOCK(queue);
+	retval = task->ta_pending > 0 || task_is_running(queue, task);
+	TQ_UNLOCK(queue);
+
+	return (retval);
+}
+
 static int
 taskqueue_cancel_locked(struct taskqueue *queue, struct task *task,
     u_int *pendp)

@@ -75,14 +75,16 @@ atomic_set(atomic_t *v, int i)
 }
 
 static inline void
+atomic_set_release(atomic_t *v, int i)
+{
+	atomic_store_rel_int(&v->counter, i);
+}
+
+static inline void
 atomic_set_mask(unsigned int mask, atomic_t *v)
 {
 	atomic_set_int(&v->counter, mask);
 }
-
-#ifndef atomic_set_release
-#define  atomic_set_release(v, i)	smp_store_release(&(v)->counter, (i))
-#endif
 
 static inline int
 atomic_read(const atomic_t *v)
