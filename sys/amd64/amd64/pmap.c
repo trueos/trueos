@@ -391,7 +391,7 @@ static struct md_page pv_dummy;
 /*
  * All those kernel PT submaps that BSD is so fond of
  */
-pt_entry_t *CMAP1 = 0;
+pt_entry_t *CMAP1 = NULL;
 caddr_t CADDR1 = 0;
 static vm_offset_t qframe = 0;
 static struct mtx qframe_mtx;
@@ -1040,7 +1040,12 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	virtual_avail = va;
 
-	/* Initialize the PAT MSR. */
+	/*
+	 * Initialize the PAT MSR.
+	 * pmap_init_pat() clears and sets CR4_PGE, which, as a
+	 * side-effect, invalidates stale PG_G TLB entries that might
+	 * have been created in our pre-boot environment.
+	 */
 	pmap_init_pat();
 
 	/* Initialize TLB Context Id. */
@@ -3428,6 +3433,7 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 	vm_paddr_t mptepa;
 	vm_page_t mpte;
 	struct spglist free;
+	vm_offset_t sva;
 	int PG_PTE_CACHE;
 
 	PG_G = pmap_global_bit(pmap);
@@ -3464,9 +3470,9 @@ pmap_demote_pde_locked(pmap_t pmap, pd_entry_t *pde, vm_offset_t va,
 		    DMAP_MAX_ADDRESS ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL) |
 		    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
 			SLIST_INIT(&free);
-			pmap_remove_pde(pmap, pde, trunc_2mpage(va), &free,
-			    lockp);
-			pmap_invalidate_page(pmap, trunc_2mpage(va));
+			sva = trunc_2mpage(va);
+			pmap_remove_pde(pmap, pde, sva, &free, lockp);
+			pmap_invalidate_range(pmap, sva, sva + NBPDR - 1);
 			pmap_free_zero_pages(&free);
 			CTR2(KTR_PMAP, "pmap_demote_pde: failure for va %#lx"
 			    " in pmap %p", va, pmap);
@@ -3608,11 +3614,23 @@ pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		pmap->pm_stats.wired_count -= NBPDR / PAGE_SIZE;
 
 	/*
-	 * Machines that don't support invlpg, also don't support
-	 * PG_G.
+	 * When workaround_erratum383 is false, a promotion to a 2M
+	 * page mapping does not invalidate the 512 4K page mappings
+	 * from the TLB.  Consequently, at this point, the TLB may
+	 * hold both 4K and 2M page mappings.  Therefore, the entire
+	 * range of addresses must be invalidated here.  In contrast,
+	 * when workaround_erratum383 is true, a promotion does
+	 * invalidate the 512 4K page mappings, and so a single INVLPG
+	 * suffices to invalidate the 2M page mapping.
 	 */
-	if (oldpde & PG_G)
-		pmap_invalidate_page(kernel_pmap, sva);
+	if ((oldpde & PG_G) != 0) {
+		if (workaround_erratum383)
+			pmap_invalidate_page(kernel_pmap, sva);
+		else
+			pmap_invalidate_range(kernel_pmap, sva,
+			    sva + NBPDR - 1);
+	}
+
 	pmap_resident_count_dec(pmap, NBPDR / PAGE_SIZE);
 	if (oldpde & PG_MANAGED) {
 		CHANGE_PV_LIST_LOCK_TO_PHYS(lockp, oldpde & PG_PS_FRAME);
@@ -3980,12 +3998,12 @@ pmap_protect_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t sva, vm_prot_t prot)
 	anychanged = FALSE;
 retry:
 	oldpde = newpde = *pde;
-	if (oldpde & PG_MANAGED) {
+	if ((oldpde & (PG_MANAGED | PG_M | PG_RW)) ==
+	    (PG_MANAGED | PG_M | PG_RW)) {
 		eva = sva + NBPDR;
 		for (va = sva, m = PHYS_TO_VM_PAGE(oldpde & PG_PS_FRAME);
 		    va < eva; va += PAGE_SIZE, m++)
-			if ((oldpde & (PG_M | PG_RW)) == (PG_M | PG_RW))
-				vm_page_dirty(m);
+			vm_page_dirty(m);
 	}
 	if ((prot & VM_PROT_WRITE) == 0)
 		newpde &= ~(PG_RW | PG_M);
@@ -3994,9 +4012,14 @@ retry:
 	if (newpde != oldpde) {
 		if (!atomic_cmpset_long(pde, oldpde, newpde))
 			goto retry;
-		if (oldpde & PG_G)
-			pmap_invalidate_page(pmap, sva);
-		else
+		if (oldpde & PG_G) {
+			/* See pmap_remove_pde() for explanation. */
+			if (workaround_erratum383)
+				pmap_invalidate_page(kernel_pmap, sva);
+			else
+				pmap_invalidate_range(kernel_pmap, sva,
+				    sva + NBPDR - 1);
+		} else
 			anychanged = TRUE;
 	}
 	return (anychanged);
@@ -4327,7 +4350,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		if ((newpte & PG_RW) != 0)
 			newpte |= PG_M;
-	}
+	} else
+		newpte |= PG_MANAGED;
 
 	mpte = NULL;
 
@@ -4400,11 +4424,9 @@ retry:
 			/*
 			 * No, might be a protection or wiring change.
 			 */
-			if ((origpte & PG_MANAGED) != 0) {
-				newpte |= PG_MANAGED;
-				if ((newpte & PG_RW) != 0)
-					vm_page_aflag_set(m, PGA_WRITEABLE);
-			}
+			if ((origpte & PG_MANAGED) != 0 &&
+			    (newpte & PG_RW) != 0)
+				vm_page_aflag_set(m, PGA_WRITEABLE);
 			if (((origpte ^ newpte) & ~(PG_M | PG_A)) == 0)
 				goto unchanged;
 			goto validate;
@@ -4421,8 +4443,7 @@ retry:
 	/*
 	 * Enter on the PV list if part of our managed memory.
 	 */
-	if ((m->oflags & VPO_UNMANAGED) == 0) {
-		newpte |= PG_MANAGED;
+	if ((newpte & PG_MANAGED) != 0) {
 		pv = get_pv_entry(pmap, &lock);
 		pv->pv_va = va;
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
@@ -7218,6 +7239,7 @@ pmap_quick_remove_page(vm_offset_t addr)
 
 #include "opt_ddb.h"
 #ifdef DDB
+#include <sys/kdb.h>
 #include <ddb/ddb.h>
 
 DB_SHOW_COMMAND(pte, pmap_print_pte)
@@ -7229,13 +7251,17 @@ DB_SHOW_COMMAND(pte, pmap_print_pte)
 	pt_entry_t *pte, PG_V;
 	vm_offset_t va;
 
-	if (have_addr) {
-		va = (vm_offset_t)addr;
-		pmap = PCPU_GET(curpmap); /* XXX */
-	} else {
+	if (!have_addr) {
 		db_printf("show pte addr\n");
 		return;
 	}
+	va = (vm_offset_t)addr;
+
+	if (kdb_thread != NULL)
+		pmap = vmspace_pmap(kdb_thread->td_proc->p_vmspace);
+	else
+		pmap = PCPU_GET(curpmap);
+
 	PG_V = pmap_valid_bit(pmap);
 	pml4 = pmap_pml4e(pmap, va);
 	db_printf("VA %#016lx pml4e %#016lx", va, *pml4);

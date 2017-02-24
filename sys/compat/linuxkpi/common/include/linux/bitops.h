@@ -31,11 +31,13 @@
 #ifndef	_LINUX_BITOPS_H_
 #define	_LINUX_BITOPS_H_
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
 
 #define	BIT(nr)			(1UL << (nr))
+#define	BIT_ULL(nr)		(1ULL << (nr))
 #ifdef __LP64__
 #define	BITS_PER_LONG		64
 #else
@@ -337,6 +339,21 @@ test_and_clear_bit(long bit, volatile unsigned long *var)
 }
 
 static inline int
+__test_and_clear_bit(long bit, volatile unsigned long *var)
+{
+	long val;
+
+	var += BIT_WORD(bit);
+	bit %= BITS_PER_LONG;
+	bit = (1UL << bit);
+
+	val = *var;
+	*var &= ~bit;
+
+	return !!(val & bit);
+}
+
+static inline int
 test_and_set_bit(long bit, volatile unsigned long *var)
 {
 	long val;
@@ -347,6 +364,21 @@ test_and_set_bit(long bit, volatile unsigned long *var)
 	do {
 		val = *var;
 	} while (atomic_cmpset_long(var, val, val | bit) == 0);
+
+	return !!(val & bit);
+}
+
+static inline int
+__test_and_set_bit(long bit, volatile unsigned long *var)
+{
+	long val;
+
+	var += BIT_WORD(bit);
+	bit %= BITS_PER_LONG;
+	bit = (1UL << bit);
+
+	val = *var;
+	*var |= bit;
 
 	return !!(val & bit);
 }

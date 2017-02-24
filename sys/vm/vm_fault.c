@@ -528,8 +528,8 @@ RetryFault:;
 	fs.map_generation = fs.map->timestamp;
 
 	if (fs.entry->eflags & MAP_ENTRY_NOFAULT) {
-		panic("vm_fault: fault on nofault entry, addr: %lx",
-		    (u_long)vaddr);
+		panic("%s: fault on nofault entry, addr: %#lx",
+		    __func__, (u_long)vaddr);
 	}
 
 	if (fs.entry->eflags & MAP_ENTRY_IN_TRANSITION &&
@@ -1368,11 +1368,12 @@ vm_fault_prefault(const struct faultstate *fs, vm_offset_t addra,
 
 	entry = fs->entry;
 
-	starta = addra - backward * PAGE_SIZE;
-	if (starta < entry->start) {
+	if (addra < backward * PAGE_SIZE) {
 		starta = entry->start;
-	} else if (starta > addra) {
-		starta = 0;
+	} else {
+		starta = addra - backward * PAGE_SIZE;
+		if (starta < entry->start)
+			starta = entry->start;
 	}
 
 	/*

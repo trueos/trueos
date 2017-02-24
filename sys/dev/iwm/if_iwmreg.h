@@ -297,6 +297,16 @@
 #define IWM_CSR_HW_REV_DASH(_val)          (((_val) & 0x0000003) >> 0)
 #define IWM_CSR_HW_REV_STEP(_val)          (((_val) & 0x000000C) >> 2)
 
+/**
+ *  hw_rev values
+ */
+enum {
+	IWM_SILICON_A_STEP = 0,
+	IWM_SILICON_B_STEP,
+	IWM_SILICON_C_STEP,
+};
+
+
 #define IWM_CSR_HW_REV_TYPE_MSK		(0x000FFF0)
 #define IWM_CSR_HW_REV_TYPE_5300	(0x0000020)
 #define IWM_CSR_HW_REV_TYPE_5350	(0x0000030)
@@ -974,6 +984,7 @@ enum iwm_ucode_tlv_type {
 	IWM_UCODE_TLV_FW_DBG_CONF	= 39,
 	IWM_UCODE_TLV_FW_DBG_TRIGGER	= 40,
 	IWM_UCODE_TLV_FW_GSCAN_CAPA	= 50,
+	IWM_UCODE_TLV_FW_MEM_SEG	= 51,
 };
 
 struct iwm_ucode_tlv {
@@ -1809,12 +1820,8 @@ enum {
 
 	IWM_LQ_CMD = 0x4e,
 
-	/* Calibration */
-	IWM_TEMPERATURE_NOTIFICATION = 0x62,
-	IWM_CALIBRATION_CFG_CMD = 0x65,
-	IWM_CALIBRATION_RES_NOTIFICATION = 0x66,
-	IWM_CALIBRATION_COMPLETE_NOTIFICATION = 0x67,
-	IWM_RADIO_VERSION_NOTIFICATION = 0x68,
+	/* paging block to FW cpu2 */
+	IWM_FW_PAGING_BLOCK_CMD = 0x4f,
 
 	/* Scan offload */
 	IWM_SCAN_OFFLOAD_REQUEST_CMD = 0x51,
@@ -1917,6 +1924,25 @@ enum {
 	IWM_REPLY_MAX = 0xff,
 };
 
+enum iwm_phy_ops_subcmd_ids {
+	IWM_CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
+	IWM_CTDP_CONFIG_CMD = 0x03,
+	IWM_TEMP_REPORTING_THRESHOLDS_CMD = 0x04,
+	IWM_CT_KILL_NOTIFICATION = 0xFE,
+	IWM_DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
+};
+
+/* command groups */
+enum {
+	IWM_LEGACY_GROUP = 0x0,
+	IWM_LONG_GROUP = 0x1,
+	IWM_SYSTEM_GROUP = 0x2,
+	IWM_MAC_CONF_GROUP = 0x3,
+	IWM_PHY_OPS_GROUP = 0x4,
+	IWM_DATA_PATH_GROUP = 0x5,
+	IWM_PROT_OFFLOAD_GROUP = 0xb,
+};
+
 /**
  * struct iwm_cmd_response - generic response struct for most commands
  * @status: status of the command asked, changes for each one
@@ -2003,45 +2029,6 @@ struct iwm_phy_cfg_cmd {
 #define IWM_PHY_CFG_RX_CHAIN_B	(1 << 13)
 #define IWM_PHY_CFG_RX_CHAIN_C	(1 << 14)
 
-/*
- * PHY db
- */
-
-enum iwm_phy_db_section_type {
-	IWM_PHY_DB_CFG = 1,
-	IWM_PHY_DB_CALIB_NCH,
-	IWM_PHY_DB_UNUSED,
-	IWM_PHY_DB_CALIB_CHG_PAPD,
-	IWM_PHY_DB_CALIB_CHG_TXP,
-	IWM_PHY_DB_MAX
-};
-
-#define IWM_PHY_DB_CMD 0x6c /* TEMP API - The actual is 0x8c */
-
-/*
- * phy db - configure operational ucode
- */
-struct iwm_phy_db_cmd {
-	uint16_t type;
-	uint16_t length;
-	uint8_t data[];
-} __packed;
-
-/* for parsing of tx power channel group data that comes from the firmware */
-struct iwm_phy_db_chg_txp {
-	uint32_t space;
-	uint16_t max_channel_idx;
-} __packed;
-
-/*
- * phy db - Receive phy db chunk after calibrations
- */
-struct iwm_calib_res_notif_phy_db {
-	uint16_t type;
-	uint16_t length;
-	uint8_t data[];
-} __packed;
-
 
 /* Target of the IWM_NVM_ACCESS_CMD */
 enum {
@@ -2052,18 +2039,13 @@ enum {
 
 /* Section types for IWM_NVM_ACCESS_CMD */
 enum {
-	IWM_NVM_SECTION_TYPE_HW = 0,
-	IWM_NVM_SECTION_TYPE_SW,
-	IWM_NVM_SECTION_TYPE_PAPD,
-	IWM_NVM_SECTION_TYPE_REGULATORY,
-	IWM_NVM_SECTION_TYPE_CALIBRATION,
-	IWM_NVM_SECTION_TYPE_PRODUCTION,
-	IWM_NVM_SECTION_TYPE_POST_FCS_CALIB,
-	/* 7, 8, 9 unknown */
-	IWM_NVM_SECTION_TYPE_HW_8000 = 10,
-	IWM_NVM_SECTION_TYPE_MAC_OVERRIDE,
-	IWM_NVM_SECTION_TYPE_PHY_SKU,
-	IWM_NVM_NUM_OF_SECTIONS,
+	IWM_NVM_SECTION_TYPE_SW = 1,
+	IWM_NVM_SECTION_TYPE_REGULATORY = 3,
+	IWM_NVM_SECTION_TYPE_CALIBRATION = 4,
+	IWM_NVM_SECTION_TYPE_PRODUCTION = 5,
+	IWM_NVM_SECTION_TYPE_MAC_OVERRIDE = 11,
+	IWM_NVM_SECTION_TYPE_PHY_SKU = 12,
+	IWM_NVM_MAX_NUM_SECTIONS = 13,
 };
 
 /**
@@ -2083,6 +2065,44 @@ struct iwm_nvm_access_cmd {
 	uint16_t length;
 	uint8_t data[];
 } __packed; /* IWM_NVM_ACCESS_CMD_API_S_VER_2 */
+
+#define IWM_NUM_OF_FW_PAGING_BLOCKS 33 /* 32 for data and 1 block for CSS */
+
+/*
+ * struct iwm_fw_paging_cmd - paging layout
+ *
+ * (IWM_FW_PAGING_BLOCK_CMD = 0x4f)
+ *
+ * Send to FW the paging layout in the driver.
+ *
+ * @flags: various flags for the command
+ * @block_size: the block size in powers of 2
+ * @block_num: number of blocks specified in the command.
+ * @device_phy_addr: virtual addresses from device side
+*/
+struct iwm_fw_paging_cmd {
+	uint32_t flags;
+	uint32_t block_size;
+	uint32_t block_num;
+	uint32_t device_phy_addr[IWM_NUM_OF_FW_PAGING_BLOCKS];
+} __packed; /* IWM_FW_PAGING_BLOCK_CMD_API_S_VER_1 */
+
+/*
+ * Fw items ID's
+ *
+ * @IWM_FW_ITEM_ID_PAGING: Address of the pages that the FW will upload
+ *      download
+ */
+enum iwm_fw_item_id {
+	IWM_FW_ITEM_ID_PAGING = 3,
+};
+
+/*
+ * struct iwm_fw_get_item_cmd - get an item from the fw
+ */
+struct iwm_fw_get_item_cmd {
+	uint32_t item_id;
+} __packed; /* IWM_FW_GET_ITEM_CMD_API_S_VER_1 */
 
 /**
  * struct iwm_nvm_access_resp_ver2 - response to IWM_NVM_ACCESS_CMD
@@ -2133,7 +2153,7 @@ enum {
 
 #define IWM_ALIVE_FLG_RFKILL	(1 << 0)
 
-struct iwm_mvm_alive_resp_v1 {
+struct iwm_mvm_alive_resp_ver1 {
 	uint16_t status;
 	uint16_t flags;
 	uint8_t ucode_minor;
@@ -2155,7 +2175,7 @@ struct iwm_mvm_alive_resp_v1 {
 	uint32_t scd_base_ptr;		/* SRAM address for SCD */
 } __packed; /* IWM_ALIVE_RES_API_S_VER_1 */
 
-struct iwm_mvm_alive_resp_v2 {
+struct iwm_mvm_alive_resp_ver2 {
 	uint16_t status;
 	uint16_t flags;
 	uint8_t ucode_minor;
@@ -2177,14 +2197,14 @@ struct iwm_mvm_alive_resp_v2 {
 	uint32_t scd_base_ptr;		/* SRAM address for SCD */
 	uint32_t st_fwrd_addr;		/* pointer to Store and forward */
 	uint32_t st_fwrd_size;
-	uint8_t umac_minor;			/* UMAC version: minor */
-	uint8_t umac_major;			/* UMAC version: major */
-	uint16_t umac_id;			/* UMAC version: id */
-	uint32_t error_info_addr;		/* SRAM address for UMAC error log */
+	uint8_t umac_minor;		/* UMAC version: minor */
+	uint8_t umac_major;		/* UMAC version: major */
+	uint16_t umac_id;		/* UMAC version: id */
+	uint32_t error_info_addr;	/* SRAM address for UMAC error log */
 	uint32_t dbg_print_buff_addr;
 } __packed; /* ALIVE_RES_API_S_VER_2 */
 
-struct iwm_mvm_alive_resp_v3 {
+struct iwm_mvm_alive_resp {
 	uint16_t status;
 	uint16_t flags;
 	uint32_t ucode_minor;
@@ -2204,7 +2224,7 @@ struct iwm_mvm_alive_resp_v3 {
 	uint32_t st_fwrd_size;
 	uint32_t umac_minor;		/* UMAC version: minor */
 	uint32_t umac_major;		/* UMAC version: major */
-	uint32_t error_info_addr;		/* SRAM address for UMAC error log */
+	uint32_t error_info_addr;	/* SRAM address for UMAC error log */
 	uint32_t dbg_print_buff_addr;
 } __packed; /* ALIVE_RES_API_S_VER_3 */
 
@@ -5989,6 +6009,30 @@ enum iwm_mcc_source {
 	IWM_MCC_SOURCE_GET_CURRENT = 0x10,
 	IWM_MCC_SOURCE_GETTING_MCC_TEST_MODE = 0x11,
 };
+
+/**
+ * struct iwm_dts_measurement_notif_v1 - measurements notification
+ *
+ * @temp: the measured temperature
+ * @voltage: the measured voltage
+ */
+struct iwm_dts_measurement_notif_v1 {
+	int32_t temp;
+	int32_t voltage;
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_1*/
+
+/**
+ * struct iwm_dts_measurement_notif_v2 - measurements notification
+ *
+ * @temp: the measured temperature
+ * @voltage: the measured voltage
+ * @threshold_idx: the trip index that was crossed
+ */
+struct iwm_dts_measurement_notif_v2 {
+	int32_t temp;
+	int32_t voltage;
+	int32_t threshold_idx;
+} __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_2 */
 
 /*
  * Some cherry-picked definitions

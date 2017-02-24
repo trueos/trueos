@@ -7,7 +7,7 @@ VDSO=	linux_vdso
 KMOD=	linux64
 SRCS=	linux_fork.c linux_dummy.c linux_file.c linux_event.c \
 	linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
-	linux_machdep.c linux_misc.c linux_signal.c \
+	linux_machdep.c linux_misc.c linux_ptrace.c linux_signal.c \
 	linux_socket.c linux_stats.c linux_sysctl.c linux_sysent.c \
 	linux_sysvec.c linux_time.c linux_vdso.c linux_timer.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h \
@@ -44,7 +44,7 @@ linux_support.o: assym.s linux_assym.h
 	    ${.IMPSRC} -o ${.TARGET}
 
 linux_genassym.o:
-	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
+	${CC} -c ${CFLAGS:N-flto:N-fno-common} ${.IMPSRC}
 
 .if !defined(KERNBUILDDIR)
 .if defined(DEBUG)

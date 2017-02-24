@@ -349,7 +349,8 @@
  * void bar(int myArray[__min_size(10)]);
  */
 #if !defined(__cplusplus) && \
-    (!defined(__STDC_VERSION) || (__STDC_VERSION__ >= 199901))
+    (defined(__clang__) || __GNUC_PREREQ__(4, 6)) && \
+    (!defined(__STDC_VERSION__) || (__STDC_VERSION__ >= 199901))
 #define __min_size(x)	static (x)
 #else
 #define __min_size(x)	(x)
@@ -373,14 +374,6 @@
 #define	__noinline	__attribute__ ((__noinline__))
 #else
 #define	__noinline
-#endif
-
-#if __GNUC_PREREQ__(3, 3)
-#define	__nonnull(x)	__attribute__((__nonnull__(x)))
-#define	__nonnull_all	__attribute__((__nonnull__))
-#else
-#define	__nonnull(x)
-#define	__nonnull_all
 #endif
 
 #if __GNUC_PREREQ__(3, 4)

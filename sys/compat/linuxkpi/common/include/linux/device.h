@@ -49,6 +49,8 @@
 enum irqreturn	{ IRQ_NONE = 0, IRQ_HANDLED, IRQ_WAKE_THREAD, };
 typedef enum irqreturn	irqreturn_t;
 
+struct device;
+
 struct class {
 	const char	*name;
 	struct module	*owner;
@@ -413,7 +415,7 @@ class_create(struct module *owner, const char *name)
 
 	class = kzalloc(sizeof(*class), M_WAITOK);
 	class->owner = owner;
-	class->name= name;
+	class->name = name;
 	class->class_release = linux_class_kfree;
 	error = class_register(class);
 	if (error) {
