@@ -107,7 +107,7 @@ kthread_parkme(void)
 	if (task == NULL)
 		return;
 
-	atomic_set(&task->state, TASK_PARKED);
+	set_task_state(task, TASK_PARKED);
 
 	while (atomic_read(&task->kthread_flags) & KTHREAD_SHOULD_PARK_MASK) {
 		if (!(atomic_fetch_or(KTHREAD_IS_PARKED_MASK,
@@ -115,12 +115,12 @@ kthread_parkme(void)
 			complete(&task->parked);
 		}
 		schedule();
-		atomic_set(&task->state, TASK_PARKED);
+		set_task_state(task, TASK_PARKED);
 	}
 
 	atomic_andnot(KTHREAD_IS_PARKED_MASK, &task->kthread_flags);
 
-	atomic_set(&task->state, TASK_RUNNING);
+	set_task_state(task, TASK_RUNNING);
 }
 
 int

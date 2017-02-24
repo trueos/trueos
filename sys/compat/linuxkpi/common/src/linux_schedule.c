@@ -96,7 +96,7 @@ schedule_timeout(long timeout)
 	if (ret < 0 || delta < 0)
 		ret = 0;
 done:
-	atomic_set(&task->state, TASK_RUNNING);
+	set_task_state(task, TASK_RUNNING);
 
 	mtx_unlock(&task->sleep_lock);
 
