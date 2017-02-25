@@ -92,8 +92,11 @@ struct task_struct {
 #define	put_pid(x)
 #define	current_euid()	(curthread->td_ucred->cr_uid)
 
-#define	set_current_state(x)	atomic_set(&current->state, x)
-#define	__set_current_state(x)	do { current->state.counter = (x); } while (0)
+#define	set_current_state(x)	set_task_state(current, x)
+#define	__set_current_state(x)	__set_task_state(current, x)
+
+#define	set_task_state(task, x) atomic_set(&(task)->state, x)
+#define	__set_task_state(task, x) do { (task)->state.counter = (x); } while (0)
 
 static inline void
 __mmdrop(struct mm_struct *mm)
@@ -270,12 +273,6 @@ static inline void
 schedule(void)
 {
 	schedule_timeout(MAX_SCHEDULE_TIMEOUT);
-}
-
-static inline void
-schedule_short(void)
-{
-	schedule_timeout(howmany(hz, 10));
 }
 
 #define	yield() kern_yield(0)

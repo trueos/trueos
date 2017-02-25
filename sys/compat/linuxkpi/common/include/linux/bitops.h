@@ -37,13 +37,13 @@
 #include <sys/errno.h>
 
 #define	BIT(nr)			(1UL << (nr))
+#define	BIT_ULL(nr)		(1ULL << (nr))
 #ifdef __LP64__
 #define	BITS_PER_LONG		64
 #else
 #define	BITS_PER_LONG		32
 #endif
 
-#include <asm/bitops.h>
 #define	BITMAP_FIRST_WORD_MASK(start)	(~0UL << ((start) % BITS_PER_LONG))
 #define	BITMAP_LAST_WORD_MASK(n)	(~0UL >> (BITS_PER_LONG - (n)))
 #define	BITS_TO_LONGS(n)	howmany((n), BITS_PER_LONG)
@@ -74,6 +74,12 @@ static inline int
 __flsl(long mask)
 {
 	return (flsl(mask) - 1);
+}
+
+static inline int
+fls64(uint64_t mask)
+{
+	return (flsll(mask));
 }
 
 static inline uint32_t
@@ -274,18 +280,19 @@ test_and_clear_bit(long bit, volatile unsigned long *var)
 	return !!(val & bit);
 }
 
-/*
- * non-atomic version
- */
 static inline int
-__test_and_clear_bit(unsigned long nr, volatile void * addr)
+__test_and_clear_bit(long bit, volatile unsigned long *var)
 {
-	unsigned long mask = 1 << (nr & 0x1f);
-	volatile int *m = ((volatile int *) addr) + (nr >> 5);
-	int old = *m;
+	long val;
 
-	*m = old & ~mask;
-	return (old & mask) != 0;
+	var += BIT_WORD(bit);
+	bit %= BITS_PER_LONG;
+	bit = (1UL << bit);
+
+	val = *var;
+	*var &= ~bit;
+
+	return !!(val & bit);
 }
 
 static inline int
@@ -299,6 +306,21 @@ test_and_set_bit(long bit, volatile unsigned long *var)
 	do {
 		val = *var;
 	} while (atomic_cmpset_long(var, val, val | bit) == 0);
+
+	return !!(val & bit);
+}
+
+static inline int
+__test_and_set_bit(long bit, volatile unsigned long *var)
+{
+	long val;
+
+	var += BIT_WORD(bit);
+	bit %= BITS_PER_LONG;
+	bit = (1UL << bit);
+
+	val = *var;
+	*var |= bit;
 
 	return !!(val & bit);
 }
@@ -367,7 +389,5 @@ sign_extend64(uint64_t value, int index)
 
 	return ((int64_t)(value << shift) >> shift);
 }
-
-#define fls64 flsll
 
 #endif	/* _LINUX_BITOPS_H_ */
