@@ -30,6 +30,31 @@ print_map_entry() {
 	_p="$2"
 
 	case "${_fstype}" in
+	"ext2fs")
+		echo "-fstype=${_fstype},nosuid,async,-M=777	:/dev/${_p}" 
+		;;
+	"ext4")
+		if [ -f "/usr/local/bin/ext4fuse" ]; then
+			echo "-mountprog=/usr/local/bin/ext4fuse,fstype=${_fstype},nosuid,-M=777	:/dev/${_p}" 
+		else
+			/usr/bin/logger -p info -t "special_media[$$]" \
+			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-ext4fuse first"
+			exit 1
+		fi
+		;;
+	"msdosfs")
+		echo "-fstype=${_fstype},nosuid,async,-M=777,-o=large	:/dev/${_p}" 
+		;;
+	"exfat")
+		#NOTE: EXFAT might be detected as an invalid NTFS - will probably need some verification/adjustment
+		if [ -f "/usr/local/bin/mount.exfat-fuse" ]; then
+			echo "-mountprog=/usr/local/bin/mount.exfat-fuse,-fstype=${_fstype},nosuid,async	:/dev/${_p}" 
+		else
+			/usr/bin/logger -p info -t "special_media[$$]" \
+			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-exfat first"
+			exit 1
+		fi
+		;;
 	"ntfs")
 		if [ -f "/usr/local/bin/ntfs-3g" ]; then
 			echo "-mountprog=/usr/local/bin/ntfs-3g,fstype=${_fstype},nosuid	:/dev/${_p}" 
@@ -39,10 +64,21 @@ print_map_entry() {
 			exit 1
 		fi
 		;;
-	"ext2fs" | "msdosfs")
-		echo "-fstype=${_fstype},nosuid,async,-M=777	:/dev/${_p}" 
+	"cd9660")
+		echo "-fstype=${_fstype},nosuid,ro	:/dev/${_p}" 
+		;;
+	"mtpfs")
+		if [ -f "/usr/local/bin/simple-mtpfs" ]; then
+			echo "-mountprog=/usr/local/bin/simple-mtpfs,-fstype=${_fstype},nosuid,-o=allow_other	:/dev/${_p}" 
+		else
+			/usr/bin/logger -p info -t "special_media[$$]" \
+			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-simple-mtpfs first"
+			exit 1
+		fi
 		;;
 	*)
+		#Basic Mounting command:
+		#This works for: ufs, reiserfs, xfs, and udf
 		echo "-fstype=${_fstype},nosuid	:/dev/${_p}" 
 		;;
 	esac
@@ -111,4 +147,3 @@ fi
 
 print_one "$1"
 exit 0
-
