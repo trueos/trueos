@@ -84,8 +84,7 @@ ww_mutex_lock_interruptible(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 		return (linux_mutex_lock_common(&lock->base, TASK_INTERRUPTIBLE,
 		    ctx));
 
-	mutex_lock_interruptible(&lock->base);
-	return (0);
+	return (mutex_lock_interruptible(&lock->base));
 }
 
 static inline void
