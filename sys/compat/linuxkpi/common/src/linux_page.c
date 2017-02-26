@@ -426,9 +426,11 @@ set_memory_uc(unsigned long addr, int numpages)
 int
 set_pages_uc(vm_page_t page, int numpages)
 {
-	unsigned long addr = (unsigned long)page_address(page);
 
-	return set_memory_uc(addr, numpages);
+	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
+
+	pmap_page_set_memattr(page, VM_MEMATTR_UNCACHEABLE);
+	return (0);
 }
 
 int
@@ -441,10 +443,13 @@ set_memory_wc(unsigned long addr, int numpages)
 int
 set_pages_wc(vm_page_t page, int numpages)
 {
-	unsigned long addr = (unsigned long)VM_PAGE_TO_PHYS(page);
 
-	return set_memory_wc(addr, numpages);
+	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
+
+	pmap_page_set_memattr(page, VM_MEMATTR_WRITE_COMBINING);
+	return (0);
 }
+
 int
 set_memory_wb(unsigned long addr, int numpages)
 {
@@ -455,9 +460,11 @@ set_memory_wb(unsigned long addr, int numpages)
 int
 set_pages_wb(vm_page_t page, int numpages)
 {
-	unsigned long addr = (unsigned long)VM_PAGE_TO_PHYS(page);
 
-	return set_memory_wb(addr, numpages);
+	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
+
+	pmap_page_set_memattr(page, VM_MEMATTR_WRITE_BACK);
+	return (0);
 }
 
 int
