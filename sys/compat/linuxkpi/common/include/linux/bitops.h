@@ -28,8 +28,8 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_BITOPS_H
-#define	_LINUX_BITOPS_H
+#ifndef	_LINUX_BITOPS_H_
+#define	_LINUX_BITOPS_H_
 
 #include <sys/param.h>
 #include <sys/types.h>
