@@ -49,6 +49,9 @@ typedef struct mutex {
 	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK & ~SX_LOCK_SHARED)) == \
 	(uintptr_t)curthread)
 
+#define	sx_is_xlocked(sx) \
+	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK)) != (uintptr_t)NULL)
+
 #define	mutex_lock(_m) do {			\
 	if (!MUTEX_SKIP())			\
 		sx_xlock(&(_m)->sx);		\
@@ -72,7 +75,7 @@ typedef struct mutex {
 	!!sx_try_xlock(&(_m)->sx);		\
 })
 
-#define	mutex_is_locked(_m)		sx_xlocked(&(_m)->sx)
+#define	mutex_is_locked(_m)		sx_is_xlocked(&(_m)->sx)
 #define	mutex_is_owned(_m)		sx_is_owned(&(_m)->sx)
 
 #ifdef WITNESS_ALL
