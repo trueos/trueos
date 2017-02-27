@@ -33,7 +33,6 @@
 #include <linux/bitops.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <asm-generic/bitops/const_hweight.h>
 
 /*
  * The available bitmap operations and their rough meaning in the
