@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,13 +28,14 @@
  *
  * $FreeBSD$
  */
-#ifndef	_LINUX_BITOPS_H
-#define	_LINUX_BITOPS_H
+#ifndef	_LINUX_BITOPS_H_
+#define	_LINUX_BITOPS_H_
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
+#include <sys/libkern.h>
 
 #define	BIT(nr)			(1UL << (nr))
 #define	BIT_ULL(nr)		(1ULL << (nr))
@@ -51,6 +52,12 @@
 #define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
 #define	GENMASK(h, l)		(((~0UL) >> (BITS_PER_LONG - (h) - 1)) & ((~0UL) << (l)))
 #define BITS_PER_BYTE           8
+
+#define	hweight8(x)	bitcount((uint8_t)(x))
+#define	hweight16(x)	bitcount16(x)
+#define	hweight32(x)	bitcount32(x)
+#define	hweight64(x)	bitcount64(x)
+#define	hweight_long(x)	bitcountl(x)
 
 static inline int
 __ffs(int mask)

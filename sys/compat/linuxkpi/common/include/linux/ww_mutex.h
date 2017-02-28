@@ -56,16 +56,19 @@ struct ww_mutex {
 static inline int __must_check
 ww_mutex_trylock(struct ww_mutex *lock)
 {
-	return mutex_trylock(&lock->base);
+
+	return (mutex_trylock(&lock->base));
 }
 
 static inline int
 ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
-	if (mutex_is_owned(&lock->base))
+
+	if ((struct thread *)SX_OWNER(lock->base.sx.sx_lock) == curthread)
 		return (-EALREADY);
-	if (ctx)
-		return (linux_mutex_lock_common(&lock->base, TASK_UNINTERRUPTIBLE, ctx));
+	if (ctx != NULL)
+		return (linux_mutex_lock_common(&lock->base,
+		    TASK_UNINTERRUPTIBLE, ctx));
 
 	mutex_lock(&lock->base);
 	return (0);
@@ -74,13 +77,14 @@ ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 static inline int
 ww_mutex_lock_interruptible(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
-	if (mutex_is_locked(&lock->base))
-		return (-EALREADY);
-	if (ctx)
-		return (linux_mutex_lock_common(&lock->base, TASK_INTERRUPTIBLE, ctx));
 
-	mutex_lock_interruptible(&lock->base);
-	return (0);
+	if ((struct thread *)SX_OWNER(lock->base.sx.sx_lock) == curthread)
+		return (-EALREADY);
+	if (ctx != NULL)
+		return (linux_mutex_lock_common(&lock->base, TASK_INTERRUPTIBLE,
+		    ctx));
+
+	return (mutex_lock_interruptible(&lock->base));
 }
 
 static inline void
@@ -106,15 +110,16 @@ ww_mutex_destroy(struct ww_mutex *lock)
 static inline void
 ww_acquire_init(struct ww_acquire_ctx *ctx, struct ww_class *ww_class)
 {
+
 	ctx->task = current;
 	ctx->stamp = atomic_long_inc_return(&ww_class->stamp);
 	ctx->acquired = 0;
 }
 
-
 static inline void
 ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class)
 {
+
 #ifdef WITNESS_ALL
 	linux_mutex_init(&lock->base, ww_class->mutex_name, SX_DUPOK);
 #else
@@ -124,9 +129,13 @@ ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class)
 }
 
 static inline void
-ww_acquire_fini(struct ww_acquire_ctx *ctx) { }
+ww_acquire_fini(struct ww_acquire_ctx *ctx)
+{
+}
 
 static inline void
-ww_acquire_done(struct ww_acquire_ctx *ctx) { }
+ww_acquire_done(struct ww_acquire_ctx *ctx)
+{
+}
 
 #endif

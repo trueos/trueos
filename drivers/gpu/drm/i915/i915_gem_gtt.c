@@ -2743,16 +2743,6 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 			       ggtt->base.total - PAGE_SIZE, PAGE_SIZE,
 			       true);
 
-#ifdef __FreeBSD__
-	ret = vm_phys_fictitious_reg_range(ggtt->mappable_base,
-	    ggtt->mappable_base + ggtt->mappable_end,
-	    VM_MEMATTR_WRITE_COMBINING);
-	if (ret != 0) {
-		printk("failed to register fictitious range\n");
-		return -ret;
-	}
-#endif
-
 	if (USES_PPGTT(dev_priv) && !USES_FULL_PPGTT(dev_priv)) {
 		struct i915_hw_ppgtt *ppgtt;
 
