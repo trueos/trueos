@@ -38,6 +38,7 @@
 #include <linux/threads.h>
 #include <linux/atomic.h>
 
+#include <sys/kernel.h>
 #include <sys/taskqueue.h>
 
 struct work_struct;
@@ -88,6 +89,14 @@ struct delayed_work {
 	int			cpu;
 };
 
+#define	DECLARE_DELAYED_WORK(name, fn)					\
+	struct delayed_work name;					\
+	static void name##_init(void *arg)				\
+	{								\
+		linux_init_delayed_work(&name, fn);			\
+	}								\
+	SYSINIT(name, SI_SUB_LOCK, SI_ORDER_SECOND, name##_init, NULL)
+
 extern struct workqueue_struct *system_wq;
 extern struct workqueue_struct *system_long_wq;
 extern struct workqueue_struct *system_unbound_wq;
@@ -96,6 +105,7 @@ extern struct workqueue_struct *system_power_efficient_wq;
 static inline void destroy_work_on_stack(struct work_struct *work) { }
 static inline void destroy_delayed_work_on_stack(struct delayed_work *work) { }
 
+extern void linux_init_delayed_work(struct delayed_work *, work_func_t);
 extern void linux_work_fn(void *, int);
 extern void linux_flush_fn(void *, int);
 extern void linux_delayed_work_timer_fn(unsigned long __data);
@@ -124,12 +134,8 @@ do {									\
 
 #define INIT_WORK_ONSTACK(...) INIT_WORK(__VA_ARGS__)
 
-#define	INIT_DELAYED_WORK(_work, func)					\
-do {									\
-	INIT_WORK(&(_work)->work, func);				\
-	setup_timer(&(_work)->timer, linux_delayed_work_timer_fn,	\
-		    (unsigned long)(_work));				\
-} while (0)
+#define	INIT_DELAYED_WORK(...) \
+	linux_init_delayed_work(__VA_ARGS__)
 
 #define	INIT_DEFERRABLE_WORK(...) INIT_DELAYED_WORK(__VA_ARGS__)
 

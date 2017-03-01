@@ -520,6 +520,15 @@ destroy_workqueue(struct workqueue_struct *wq)
 	kfree(wq);
 }
 
+void
+linux_init_delayed_work(struct delayed_work *dwork, work_func_t func)
+{
+
+	INIT_WORK(&dwork->work, func);
+	setup_timer(&dwork->timer, linux_delayed_work_timer_fn,
+	    (unsigned long)dwork);
+}
+
 static void
 linux_work_init(void *arg)
 {
