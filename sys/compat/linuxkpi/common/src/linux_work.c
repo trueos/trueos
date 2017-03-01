@@ -485,7 +485,7 @@ work_busy(struct work_struct *work)
 	case WORK_ST_EXEC:
 	case WORK_ST_CANCEL:
 		tq = work->work_queue->taskqueue;
-		return (taskqueue_is_pending_or_running(tq, &work->work_task));
+		return (taskqueue_poll_is_busy(tq, &work->work_task));
 	default:
 		return (1);
 	}
