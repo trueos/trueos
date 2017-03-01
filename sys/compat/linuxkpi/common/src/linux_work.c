@@ -49,8 +49,11 @@ enum {
 /*
  * Define global workqueues
  */
-struct workqueue_struct *system_long_wq;
+static struct workqueue_struct *linux_system_short_wq;
+static struct workqueue_struct *linux_system_long_wq;
+
 struct workqueue_struct *system_wq;
+struct workqueue_struct *system_long_wq;
 struct workqueue_struct *system_unbound_wq;
 struct workqueue_struct *system_power_efficient_wq;
 
@@ -108,7 +111,7 @@ linux_delayed_work_enqueue(struct delayed_work *dwork)
 {
 	struct taskqueue *tq;
 
-	tq = dwork->work.work_queue->taskqueue, 
+	tq = dwork->work.work_queue->taskqueue;
 	taskqueue_enqueue(tq, &dwork->work.work_task);
 }
 
@@ -154,7 +157,7 @@ queue_work_on(int cpu __unused, struct workqueue_struct *wq, struct work_struct 
  */
 bool
 queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
-    struct delayed_work *dwork, unsigned long delay)
+    struct delayed_work *dwork, unsigned delay)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
 		[WORK_ST_IDLE] = WORK_ST_TIMER,		/* start timeout */
@@ -194,12 +197,12 @@ void
 linux_work_fn(void *context, int pending)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
-		[WORK_ST_IDLE] = WORK_ST_IDLE,	/* NOP */
-		[WORK_ST_TIMER] = WORK_ST_EXEC,	/* delayed work w/o timeout */
-		[WORK_ST_TASK] = WORK_ST_EXEC,	/* start callback */
-		[WORK_ST_EXEC] = WORK_ST_IDLE,	/* complete work */
-		[WORK_ST_LOOP] = WORK_ST_TASK,	/* queue task another time */
-		[WORK_ST_CANCEL] = WORK_ST_IDLE,/* complete cancel */
+		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
+		[WORK_ST_TIMER] = WORK_ST_EXEC,		/* delayed work w/o timeout */
+		[WORK_ST_TASK] = WORK_ST_EXEC,		/* start callback */
+		[WORK_ST_EXEC] = WORK_ST_IDLE,		/* complete work */
+		[WORK_ST_LOOP] = WORK_ST_TASK,		/* queue task another time */
+		[WORK_ST_CANCEL] = WORK_ST_IDLE,	/* complete cancel */
 	};
 	struct work_struct *work;
 	struct workqueue_struct *wq;
@@ -252,12 +255,12 @@ void
 linux_delayed_work_timer_fn(unsigned long context)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
-		[WORK_ST_IDLE] = WORK_ST_IDLE,	/* NOP */
-		[WORK_ST_TIMER] = WORK_ST_TASK,	/* start queueing task */
-		[WORK_ST_TASK] = WORK_ST_TASK,	/* NOP */
-		[WORK_ST_EXEC] = WORK_ST_LOOP,	/* queue task another time */
-		[WORK_ST_LOOP] = WORK_ST_LOOP,	/* NOP */
-		[WORK_ST_CANCEL] = WORK_ST_IDLE,/* complete cancel */
+		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
+		[WORK_ST_TIMER] = WORK_ST_TASK,		/* start queueing task */
+		[WORK_ST_TASK] = WORK_ST_TASK,		/* NOP */
+		[WORK_ST_EXEC] = WORK_ST_LOOP,		/* queue task another time */
+		[WORK_ST_LOOP] = WORK_ST_LOOP,		/* NOP */
+		[WORK_ST_CANCEL] = WORK_ST_IDLE,	/* complete cancel */
 	};
 	struct delayed_work *dwork;
 
@@ -488,12 +491,6 @@ work_busy(struct work_struct *work)
 	}
 }
 
-void
-linux_flush_fn(void *context, int pending)
-{
-	MPASS(pending == 1);
-}
-
 struct workqueue_struct *
 linux_create_workqueue_common(const char *name, int cpus)
 {
@@ -523,7 +520,6 @@ destroy_workqueue(struct workqueue_struct *wq)
 void
 linux_init_delayed_work(struct delayed_work *dwork, work_func_t func)
 {
-
 	INIT_WORK(&dwork->work, func);
 	setup_timer(&dwork->timer, linux_delayed_work_timer_fn,
 	    (unsigned long)dwork);
@@ -532,24 +528,30 @@ linux_init_delayed_work(struct delayed_work *dwork, work_func_t func)
 static void
 linux_work_init(void *arg)
 {
-	const int max_wq_cpus = mp_ncpus + 1 /* avoid deadlock for !SMP */;
+	int max_wq_cpus = mp_ncpus + 1;
 
-	system_long_wq = alloc_workqueue("events_long", 0, max_wq_cpus);
-	system_wq = alloc_workqueue("events", 0, max_wq_cpus);
-	system_power_efficient_wq = alloc_workqueue("power efficient", 0, max_wq_cpus);
-	system_unbound_wq = alloc_workqueue("events_unbound", WQ_UNBOUND, max_wq_cpus);
+	/* avoid deadlock when there are too few threads */
+	if (max_wq_cpus < 4)
+		max_wq_cpus = 4;
+
+	linux_system_short_wq = alloc_workqueue("linuxkpi_short_wq", 0, max_wq_cpus);
+	linux_system_long_wq = alloc_workqueue("linuxkpi_long_wq", 0, max_wq_cpus);
+
+	/* populate the workqueue pointers */
+	system_long_wq = linux_system_long_wq;
+	system_wq = linux_system_short_wq;
+	system_power_efficient_wq = linux_system_short_wq;
+	system_unbound_wq = linux_system_short_wq;
 }
 SYSINIT(linux_work_init, SI_SUB_LOCK, SI_ORDER_SECOND, linux_work_init, NULL);
 
 static void
 linux_work_uninit(void *arg)
 {
+	destroy_workqueue(linux_system_short_wq);
+	destroy_workqueue(linux_system_long_wq);
 
-	destroy_workqueue(system_long_wq);
-	destroy_workqueue(system_wq);
-	destroy_workqueue(system_power_efficient_wq);
-	destroy_workqueue(system_unbound_wq);
-
+	/* clear workqueue pointers */
 	system_long_wq = NULL;
 	system_wq = NULL;
 	system_power_efficient_wq = NULL;

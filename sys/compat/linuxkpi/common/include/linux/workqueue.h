@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,52 +41,42 @@
 #include <sys/kernel.h>
 #include <sys/taskqueue.h>
 
+#define	WORK_CPU_UNBOUND NR_CPUS
+#define	WQ_UNBOUND (1 << 0)
+#define	WQ_HIGHPRI (1 << 1)
+
 struct work_struct;
-typedef void (*work_func_t)(struct work_struct *work);
-
-enum {
-	WORK_CPU_UNBOUND = NR_CPUS,
-};
-
-enum {
-	WQ_UNBOUND		= 1 << 1, /* not bound to any cpu */
-	WQ_HIGHPRI		= 1 << 4, /* high priority */
-	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
-	WQ_MAX_UNBOUND_PER_CPU	= 4,	  /* 4 * #cpus for unbound wq */
-};
-
-#define	WQ_UNBOUND_MAX_ACTIVE \
-	max_t(int, WQ_MAX_ACTIVE, mp_ncpus * WQ_MAX_UNBOUND_PER_CPU)
+typedef void (*work_func_t)(struct work_struct *);
 
 struct work_exec {
 	TAILQ_ENTRY(work_exec) entry;
 	struct work_struct *target;
 };
 
+struct workqueue_struct {
+	struct taskqueue *taskqueue;
+	struct mtx exec_mtx;
+	TAILQ_HEAD(, work_exec) exec_head;
+	atomic_t draining;
+};
+
 #define	WQ_EXEC_LOCK(wq) mtx_lock(&(wq)->exec_mtx)
 #define	WQ_EXEC_UNLOCK(wq) mtx_unlock(&(wq)->exec_mtx)
 
-struct workqueue_struct {
-	struct taskqueue	*taskqueue;
-	struct mtx		exec_mtx;
-	TAILQ_HEAD(, work_exec)	exec_head;
-	atomic_t		draining;
-};
-
 struct work_struct {
-	struct task 		work_task;
-	struct workqueue_struct	*work_queue;
-	work_func_t		func;
-	atomic_t		state;
+	struct task work_task;
+	struct workqueue_struct *work_queue;
+	work_func_t func;
+	atomic_t state;
 };
 
-#define	DECLARE_WORK(name, fn)				\
+#define	DECLARE_WORK(name, fn) \
 	struct work_struct name = { .func = (fn) }
 
 struct delayed_work {
-	struct work_struct	work;
-	struct timer_list	timer;
-	int			cpu;
+	struct work_struct work;
+	struct timer_list timer;
+	int	cpu;
 };
 
 #define	DECLARE_DELAYED_WORK(name, fn)					\
@@ -97,31 +87,10 @@ struct delayed_work {
 	}								\
 	SYSINIT(name, SI_SUB_LOCK, SI_ORDER_SECOND, name##_init, NULL)
 
-extern struct workqueue_struct *system_wq;
-extern struct workqueue_struct *system_long_wq;
-extern struct workqueue_struct *system_unbound_wq;
-extern struct workqueue_struct *system_power_efficient_wq;
-
-static inline void destroy_work_on_stack(struct work_struct *work) { }
-static inline void destroy_delayed_work_on_stack(struct delayed_work *work) { }
-
-extern void linux_init_delayed_work(struct delayed_work *, work_func_t);
-extern void linux_work_fn(void *, int);
-extern void linux_flush_fn(void *, int);
-extern void linux_delayed_work_timer_fn(unsigned long __data);
-extern struct workqueue_struct *linux_create_workqueue_common(const char *, int);
-extern void destroy_workqueue(struct workqueue_struct *);
-extern bool queue_work_on(int cpu, struct workqueue_struct *wq, struct work_struct *work);
-extern bool queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
-				  struct delayed_work *dwork, unsigned long delay);
-extern bool cancel_delayed_work(struct delayed_work *dwork);
-extern bool cancel_work_sync(struct work_struct *work);
-extern bool cancel_delayed_work_sync(struct delayed_work *dwork);
-
 static inline struct delayed_work *
 to_delayed_work(struct work_struct *work)
 {
- 	return container_of(work, struct delayed_work, work);
+	return (container_of(work, struct delayed_work, work));
 }
 
 #define	INIT_WORK(work, fn) 	 					\
@@ -132,108 +101,89 @@ do {									\
 	TASK_INIT(&(work)->work_task, 0, linux_work_fn, (work));	\
 } while (0)
 
-#define INIT_WORK_ONSTACK(...) INIT_WORK(__VA_ARGS__)
+#define	INIT_WORK_ONSTACK(work, fn) \
+	INIT_WORK(work, fn)
 
-#define	INIT_DELAYED_WORK(...) \
-	linux_init_delayed_work(__VA_ARGS__)
+#define	INIT_DELAYED_WORK(dwork, fn) \
+	linux_init_delayed_work(dwork, fn)
 
-#define	INIT_DEFERRABLE_WORK(...) INIT_DELAYED_WORK(__VA_ARGS__)
+#define	INIT_DEFERRABLE_WORK(dwork, fn) \
+	INIT_DELAYED_WORK(dwork, fn)
 
-#define	flush_scheduled_work(void) flush_taskqueue(taskqueue_thread)
+#define	flush_scheduled_work(void) \
+	taskqueue_drain_all(system_wq->taskqueue)
 
-static inline int
-queue_work(struct workqueue_struct *wq, struct work_struct *work)
-{
+#define	queue_work(wq, work) \
+	queue_work_on(WORK_CPU_UNBOUND, wq, work)
 
-	return (queue_work_on(WORK_CPU_UNBOUND, wq, work));
-}
+#define	schedule_work(work) \
+	queue_work_on(WORK_CPU_UNBOUND, system_wq, work)
 
-static inline int
-schedule_work(struct work_struct *work)
-{
+#define	queue_delayed_work(wq, dwork, delay) \
+	queue_delayed_work_on(WORK_CPU_UNBOUND, wq, dwork, delay)
 
-	return (queue_work_on(WORK_CPU_UNBOUND, system_wq, work));
-}
+#define	schedule_delayed_work_on(cpu, dwork, delay) \
+	queue_delayed_work_on(cpu, system_wq, dwork, delay)
 
-static inline int
-queue_delayed_work(struct workqueue_struct *wq, struct delayed_work *dwork,
-    unsigned long delay)
-{
+#define	schedule_delayed_work(dwork, delay) \
+	queue_delayed_work_on(WORK_CPU_UNBOUND, system_wq, dwork, delay)
 
-	return (queue_delayed_work_on(WORK_CPU_UNBOUND, wq, dwork, delay));
-}
-
-static inline bool
-schedule_delayed_work_on(int cpu, struct delayed_work *dwork,
-					    unsigned long delay)
-{
-
-	return (queue_delayed_work_on(cpu, system_wq, dwork, delay));
-}
-
-static inline bool
-schedule_delayed_work(struct delayed_work *dwork,
-    unsigned long delay)
-{
-
-	return (queue_delayed_work(system_wq, dwork, delay));
-}
-
-#define	create_singlethread_workqueue(name)				\
+#define	create_singlethread_workqueue(name) \
 	linux_create_workqueue_common(name, 1)
 
-#define	create_workqueue(name)						\
+#define	create_workqueue(name) \
 	linux_create_workqueue_common(name, mp_ncpus)
 
-#define	alloc_ordered_workqueue(name, flags)				\
+#define	alloc_ordered_workqueue(name, flags) \
 	linux_create_workqueue_common(name, 1)
 
-#define	alloc_workqueue(name, flags, max_active)			\
+#define	alloc_workqueue(name, flags, max_active) \
 	linux_create_workqueue_common(name, max_active)
 
-#define	flush_workqueue(wq)	flush_taskqueue((wq)->taskqueue)
+#define	flush_workqueue(wq) \
+	taskqueue_drain_all((wq)->taskqueue)
 
-static inline void
-flush_taskqueue(struct taskqueue *tq)
-{
-	struct task flushtask;
+#define	drain_workqueue(wq) do {		\
+	atomic_inc(&(wq)->draining);		\
+	taskqueue_drain_all((wq)->taskqueue);	\
+	atomic_dec(&(wq)->draining);		\
+} while (0)
 
-	PHOLD(curproc);
-	TASK_INIT(&flushtask, 0, linux_flush_fn, NULL);
-	taskqueue_enqueue(tq, &flushtask);
-	taskqueue_drain(tq, &flushtask);
-	PRELE(curproc);
-}
+#define	mod_delayed_work(wq, dwork, delay) ({	\
+	bool __retval;				\
+	__retval = cancel_delayed_work(dwork);	\
+	queue_delayed_work_on(WORK_CPU_UNBOUND,	\
+	    wq, dwork, delay);			\
+	__retval;				\
+})
 
-static inline void
-drain_workqueue(struct workqueue_struct *wq)
-{
-	atomic_inc(&wq->draining);
-	flush_taskqueue(wq->taskqueue);
-	atomic_dec(&wq->draining);
-}
+#define	delayed_work_pending(dwork) \
+	work_pending(&(dwork)->work)
 
-static inline bool
-mod_delayed_work(struct workqueue_struct *wq, struct delayed_work *dwork,
-    unsigned long delay)
-{
-	bool retval;
+#define	destroy_work_on_stack(work) do { } while (0)
+#define	destroy_delayed_work_on_stack(work)  do { } while (0)
 
-	retval = cancel_delayed_work(dwork);
-	queue_delayed_work(wq, dwork, delay);
-	return (retval);
-}
+/* prototypes */
 
+extern struct workqueue_struct *system_wq;
+extern struct workqueue_struct *system_long_wq;
+extern struct workqueue_struct *system_unbound_wq;
+extern struct workqueue_struct *system_power_efficient_wq;
+
+extern void linux_init_delayed_work(struct delayed_work *, work_func_t);
+extern void linux_work_fn(void *, int);
+extern void linux_delayed_work_timer_fn(unsigned long __data);
+extern struct workqueue_struct *linux_create_workqueue_common(const char *, int);
+extern void destroy_workqueue(struct workqueue_struct *);
+extern bool queue_work_on(int cpu, struct workqueue_struct *, struct work_struct *);
+extern bool queue_delayed_work_on(int cpu, struct workqueue_struct *,
+    struct delayed_work *, unsigned delay);
+extern bool cancel_delayed_work(struct delayed_work *);
+extern bool cancel_work_sync(struct work_struct *);
+extern bool cancel_delayed_work_sync(struct delayed_work *);
 extern bool flush_work(struct work_struct *);
 extern bool flush_delayed_work(struct delayed_work *);
 extern bool work_pending(struct work_struct *);
 extern bool work_busy(struct work_struct *);
 
-static inline bool
-delayed_work_pending(struct delayed_work *dwork)
-{
-
-	return (work_pending(&dwork->work));
-}
-
-#endif	/* _LINUX_WORKQUEUE_H_ */
+#endif					/* _LINUX_WORKQUEUE_H_ */
