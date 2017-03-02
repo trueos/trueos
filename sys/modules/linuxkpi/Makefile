@@ -30,6 +30,7 @@ SRCS=	interval_tree.c \
 	linux_reservation.c \
 	linux_schedule.c \
 	linux_seq_file.c \
+	linux_slab.c \
 	linux_sort.c \
 	linux_stubs.c \
 	linux_sysfs.c \
