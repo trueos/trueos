@@ -73,7 +73,7 @@ typedef struct {
 #define pgoff_t unsigned long
 
 struct rcu_head {
-	void *raw[8];
+	void *raw[2];
 } __aligned(sizeof(void *));
 
 typedef void (*rcu_callback_t)(struct rcu_head *head);

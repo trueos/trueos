@@ -118,8 +118,10 @@ linux_kmem_cache_free_rcu(struct linux_kmem_cache *c, void *m)
 void
 linux_kmem_cache_destroy(struct linux_kmem_cache *c)
 {
-	if (unlikely(c->cache_flags & SLAB_DESTROY_BY_RCU))
-		synchronize_rcu();
+	if (unlikely(c->cache_flags & SLAB_DESTROY_BY_RCU)) {
+		/* make sure all free callbacks have been called */
+		rcu_barrier();
+	}
 
 	uma_zdestroy(c->cache_zone);
 	free(c, M_KMALLOC);

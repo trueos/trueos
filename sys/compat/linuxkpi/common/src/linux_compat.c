@@ -71,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/netdevice.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include <linux/rcupdate.h>
 #include <linux/interrupt.h>
 #include <linux/async.h>
 #include <linux/compat.h>
@@ -1977,7 +1976,6 @@ linux_compat_init(void *arg)
 	INIT_LIST_HEAD(&pci_devices);
 	spin_lock_init(&pci_lock);
 }
-
 SYSINIT(linux_compat, SI_SUB_VFS, SI_ORDER_ANY, linux_compat_init, NULL);
 
 static void
@@ -1988,7 +1986,6 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
 
 	spin_lock_destroy(&pci_lock);
-	synchronize_rcu();
 }
 SYSUNINIT(linux_compat, SI_SUB_VFS, SI_ORDER_ANY, linux_compat_uninit, NULL);
 
