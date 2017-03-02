@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170226: SVR4 compatibility removed
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/share/man/man4/streams.4
+OLD_FILES+=usr/share/man/man4/svr4.4
+.endif
 # 20170219: OpenPAM RADULA upgrade removed the libpam tests
 OLD_FILES+=usr/tests/lib/libpam/Kyuafile
 OLD_FILES+=usr/tests/lib/libpam/t_openpam_ctype
@@ -8341,7 +8346,7 @@ OLD_FILES+=usr/share/man/man8/boot_i386.8.gz
 .endif
 .if ${TARGET_ARCH} != "aarch64" && ${TARGET} != "arm" && \
     ${TARGET_ARCH} != "powerpc" && ${TARGET_ARCH} != "powerpc64" && \
-    ${TARGET_ARCH} != "sparc64"
+    ${TARGET_ARCH} != "sparc64" && ${TARGET} != "mips"
 OLD_FILES+=usr/share/man/man8/ofwdump.8.gz
 .endif
 OLD_FILES+=usr/share/man/man8/mount_reiserfs.8.gz
