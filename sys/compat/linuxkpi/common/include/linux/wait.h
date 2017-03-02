@@ -165,16 +165,14 @@ extern wake_up_func_t linux_wake_up;
 	MTX_SYSINIT(name, &(name).lock.m,		\
 	    spin_lock_name("wqhead"), MTX_DEF)
 
-static inline void
-init_waitqueue_head(wait_queue_head_t *wh)
-{
-
-	memset(wh, 0, sizeof(*wh));
-	mtx_init(&wh->lock.m, spin_lock_name("wqhead"),
-	    NULL, MTX_DEF | MTX_NOWITNESS);
-	INIT_LIST_HEAD(&wh->task_list);
-	INIT_LIST_HEAD(&wh->wqh_file_list);
-}
+#define	init_waitqueue_head(wqh) do {				\
+	wait_queue_head_t *__wqh = (wqh);			\
+	memset(__wqh, 0, sizeof(*__wqh));			\
+	mtx_init(&__wqh->lock.m, spin_lock_name("wqhead"),	\
+	    NULL, MTX_DEF | MTX_NOWITNESS);			\
+	INIT_LIST_HEAD(&__wqh->task_list);			\
+	INIT_LIST_HEAD(&__wqh->wqh_file_list);			\
+} while (0)
 
 static inline void
 init_waitqueue_entry(wait_queue_t *wq, struct task_struct *p)
