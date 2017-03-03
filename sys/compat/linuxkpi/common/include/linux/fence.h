@@ -70,8 +70,11 @@ struct fence_ops {
 	void (*timeline_value_str)(struct fence *fence, char *str, int size);
 };
 
-#define fence_free(f) kfree(f)
-
+static inline void
+fence_free(struct fence *fence)
+{
+	kfree_rcu(fence, rcu);
+}
 
 static inline struct fence *
 fence_get(struct fence *fence)
