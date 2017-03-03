@@ -60,6 +60,12 @@ struct callback_head {
 	rcu_callback_t func;
 };
 
+struct srcu_epoch_record {
+	ck_epoch_record_t epoch_record;
+	struct mtx read_lock;
+	struct mtx sync_lock;
+};
+
 /*
  * Verify that "struct rcu_head" is big enough to hold "struct
  * callback_head". This has been done to avoid having to add special
@@ -73,6 +79,12 @@ CTASSERT(sizeof(struct rcu_head) >= sizeof(struct callback_head));
  * writer_epoch_record":
  */
 CTASSERT(offsetof(struct writer_epoch_record, epoch_record) == 0);
+
+/*
+ * Verify that "epoch_record" is at beginning of "struct
+ * srcu_epoch_record":
+ */
+CTASSERT(offsetof(struct srcu_epoch_record, epoch_record) == 0);
 
 static ck_epoch_t linux_epoch;
 static MALLOC_DEFINE(M_LRCU, "lrcu", "Linux RCU");
@@ -146,21 +158,26 @@ linux_rcu_runtime_uninit(void *arg __unused)
 }
 SYSUNINIT(linux_rcu_runtime, SI_SUB_LOCK, SI_ORDER_SECOND, linux_rcu_runtime_uninit, NULL);
 
-static inline ck_epoch_record_t *
-linux_rcu_get_record(void)
+static inline struct srcu_epoch_record *
+linux_srcu_get_record(void)
 {
-	ck_epoch_record_t *record;
+	struct srcu_epoch_record *record;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-	    "linux_rcu_get_record() might sleep");
+	    "linux_srcu_get_record() might sleep");
 
-	record = ck_epoch_recycle(&linux_epoch);
+	/*
+	 * NOTE: The only records that are unregistered and can be
+	 * recycled are srcu_epoch_records.
+	 */
+	record = (struct srcu_epoch_record *)ck_epoch_recycle(&linux_epoch);
 	if (__predict_true(record != NULL))
 		return (record);
 
 	record = malloc(sizeof(*record), M_LRCU, M_WAITOK | M_ZERO);
-	if (__predict_true(record != NULL))
-		ck_epoch_register(&linux_epoch, record);
+	mtx_init(&record->read_lock, "SRCU-READ", NULL, MTX_DEF | MTX_NOWITNESS);
+	mtx_init(&record->sync_lock, "SRCU-SYNC", NULL, MTX_DEF | MTX_NOWITNESS);
+	ck_epoch_register(&linux_epoch, &record->epoch_record);
 
 	return (record);
 }
@@ -289,9 +306,9 @@ linux_call_rcu(struct rcu_head *context, rcu_callback_t func)
 int
 init_srcu_struct(struct srcu_struct *srcu)
 {
-	ck_epoch_record_t *record;
+	struct srcu_epoch_record *record;
 
-	record = linux_rcu_get_record();
+	record = linux_srcu_get_record();
 	srcu->ss_epoch_record = record;
 	return (0);
 }
@@ -299,38 +316,60 @@ init_srcu_struct(struct srcu_struct *srcu)
 void
 cleanup_srcu_struct(struct srcu_struct *srcu)
 {
-	ck_epoch_record_t *record;
+	struct srcu_epoch_record *record;
 
 	record = srcu->ss_epoch_record;
 	srcu->ss_epoch_record = NULL;
-	ck_epoch_unregister(record);
+
+	ck_epoch_unregister(&record->epoch_record);
 }
 
 int
 srcu_read_lock(struct srcu_struct *srcu)
 {
-	critical_enter();
-	ck_epoch_begin(srcu->ss_epoch_record, NULL);
-	critical_exit();
+	struct srcu_epoch_record *record;
+
+	record = srcu->ss_epoch_record;
+
+	mtx_lock(&record->read_lock);
+	ck_epoch_begin(&record->epoch_record, NULL);
+	mtx_unlock(&record->read_lock);
+
 	return (0);
 }
 
 void
 srcu_read_unlock(struct srcu_struct *srcu, int key __unused)
 {
-	critical_enter();
-	ck_epoch_end(srcu->ss_epoch_record, NULL);
-	critical_exit();
+	struct srcu_epoch_record *record;
+
+	record = srcu->ss_epoch_record;
+
+	mtx_lock(&record->read_lock);
+	ck_epoch_end(&record->epoch_record, NULL);
+	mtx_unlock(&record->read_lock);
 }
 
 void
 synchronize_srcu(struct srcu_struct *srcu)
 {
-	ck_epoch_synchronize(srcu->ss_epoch_record);
+	struct srcu_epoch_record *record;
+
+	record = srcu->ss_epoch_record;
+
+	mtx_lock(&record->sync_lock);
+	ck_epoch_synchronize(&record->epoch_record);
+	mtx_unlock(&record->sync_lock);
 }
 
 void
 srcu_barrier(struct srcu_struct *srcu)
 {
-	ck_epoch_barrier(srcu->ss_epoch_record);
+	struct srcu_epoch_record *record;
+
+	record = srcu->ss_epoch_record;
+
+	mtx_lock(&record->sync_lock);
+	ck_epoch_barrier(&record->epoch_record);
+	mtx_unlock(&record->sync_lock);
 }

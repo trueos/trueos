@@ -29,9 +29,9 @@
 #ifndef	_LINUX_SRCU_H_
 #define	_LINUX_SRCU_H_
 
-struct ck_epoch_record;
+struct srcu_epoch_record;
 struct srcu_struct {
-	struct ck_epoch_record *ss_epoch_record;
+	struct srcu_epoch_record *ss_epoch_record;
 };
 
 #define	srcu_dereference(ptr,srcu)	((__typeof(*(ptr)) *)(ptr))
