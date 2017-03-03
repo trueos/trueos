@@ -333,6 +333,7 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 		break;
 
 	case FENCE_FREE:
+		i915_gem_request_put(request);
 		break;
 	}
 
@@ -417,7 +418,8 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		   engine->fence_context,
 		   seqno);
 
-	i915_sw_fence_init(&req->submit, submit_notify);
+	/* We bump the ref for the fence chain */
+	i915_sw_fence_init(&i915_gem_request_get(req)->submit, submit_notify);
 
 	INIT_LIST_HEAD(&req->active_list);
 	req->i915 = dev_priv;
