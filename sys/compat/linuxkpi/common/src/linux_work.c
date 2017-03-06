@@ -121,7 +121,8 @@ linux_delayed_work_enqueue(struct delayed_work *dwork)
  * [re-]queued. Else the work is already pending for completion.
  */
 bool
-queue_work_on(int cpu __unused, struct workqueue_struct *wq, struct work_struct *work)
+linux_queue_work_on(int cpu __unused, struct workqueue_struct *wq,
+    struct work_struct *work)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
 		[WORK_ST_IDLE] = WORK_ST_TASK,		/* start queuing task */
@@ -156,7 +157,7 @@ queue_work_on(int cpu __unused, struct workqueue_struct *wq, struct work_struct 
  * for completion.
  */
 bool
-queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
+linux_queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
     struct delayed_work *dwork, unsigned delay)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
@@ -281,7 +282,7 @@ linux_delayed_work_timer_fn(unsigned long context)
  * cancelled. Else the work was already cancelled.
  */
 bool
-cancel_work_sync(struct work_struct *work)
+linux_cancel_work_sync(struct work_struct *work)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
 		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
@@ -293,7 +294,8 @@ cancel_work_sync(struct work_struct *work)
 	};
 	struct taskqueue *tq;
 
-	might_sleep();
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+	    "linux_cancel_work_sync() might sleep");
 
 	switch (linux_update_state(&work->state, states)) {
 	case WORK_ST_TASK:
@@ -318,7 +320,7 @@ cancel_work_sync(struct work_struct *work)
  * cancelled.
  */
 bool
-cancel_delayed_work(struct delayed_work *dwork)
+linux_cancel_delayed_work(struct delayed_work *dwork)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
 		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
@@ -356,7 +358,7 @@ cancel_delayed_work(struct delayed_work *dwork)
  * cancelled. Else the work was already cancelled.
  */
 bool
-cancel_delayed_work_sync(struct delayed_work *dwork)
+linux_cancel_delayed_work_sync(struct delayed_work *dwork)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
 		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
@@ -368,7 +370,8 @@ cancel_delayed_work_sync(struct delayed_work *dwork)
 	};
 	struct taskqueue *tq;
 
-	might_sleep();
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+	    "linux_cancel_delayed_work_sync() might sleep");
 
 	switch (linux_update_state(&dwork->work.state, states)) {
 	case WORK_ST_TIMER:
@@ -400,9 +403,12 @@ cancel_delayed_work_sync(struct delayed_work *dwork)
  * waited for. Else the work was not waited for.
  */
 bool
-flush_work(struct work_struct *work)
+linux_flush_work(struct work_struct *work)
 {
 	struct taskqueue *tq;
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+	    "linux_flush_work() might sleep");
 
 	switch (atomic_read(&work->state)) {
 	case WORK_ST_TASK:
@@ -424,7 +430,7 @@ flush_work(struct work_struct *work)
  * for. Else the work was not waited for.
  */
 bool
-flush_delayed_work(struct delayed_work *dwork)
+linux_flush_delayed_work(struct delayed_work *dwork)
 {
 	static const uint8_t states[WORK_ST_MAX] __aligned(8) = {
 		[WORK_ST_IDLE] = WORK_ST_IDLE,		/* NOP */
@@ -435,6 +441,9 @@ flush_delayed_work(struct delayed_work *dwork)
 		[WORK_ST_CANCEL] = WORK_ST_CANCEL,	/* NOP */
 	};
 	struct taskqueue *tq;
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+	    "linux_flush_delayed_work() might sleep");
 
 	switch (linux_update_state(&dwork->work.state, states)) {
 	case WORK_ST_TIMER:
@@ -459,7 +468,7 @@ flush_delayed_work(struct delayed_work *dwork)
  * yet executing:
  */
 bool
-work_pending(struct work_struct *work)
+linux_work_pending(struct work_struct *work)
 {
 	switch (atomic_read(&work->state)) {
 	case WORK_ST_TIMER:
@@ -475,7 +484,7 @@ work_pending(struct work_struct *work)
  * This function returns true if the given work is busy.
  */
 bool
-work_busy(struct work_struct *work)
+linux_work_busy(struct work_struct *work)
 {
 	struct taskqueue *tq;
 
@@ -508,7 +517,7 @@ linux_create_workqueue_common(const char *name, int cpus)
 }
 
 void
-destroy_workqueue(struct workqueue_struct *wq)
+linux_destroy_workqueue(struct workqueue_struct *wq)
 {
 	atomic_inc(&wq->draining);
 	drain_workqueue(wq);
