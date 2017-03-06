@@ -138,7 +138,7 @@ linux_queue_work_on(int cpu __unused, struct workqueue_struct *wq,
 
 	switch (linux_update_state(&work->state, states)) {
 	case WORK_ST_EXEC:
-		if (linux_work_exec_unblock(work))
+		if (linux_work_exec_unblock(work) != 0)
 			return (1);
 		/* FALLTHROUGH */
 	case WORK_ST_IDLE:
@@ -301,7 +301,7 @@ linux_cancel_work_sync(struct work_struct *work)
 	case WORK_ST_TASK:
 	case WORK_ST_EXEC:
 	case WORK_ST_LOOP:
-		linux_work_exec_unblock(work);
+		(void) linux_work_exec_unblock(work);
 		tq = work->work_queue->taskqueue;
 		if (taskqueue_cancel(tq, &work->work_task, NULL))
 			taskqueue_drain(tq, &work->work_task);
@@ -340,7 +340,7 @@ linux_cancel_delayed_work(struct delayed_work *dwork)
 	case WORK_ST_TASK:
 	case WORK_ST_EXEC:
 	case WORK_ST_LOOP:
-		linux_work_exec_unblock(&dwork->work);
+		(void) linux_work_exec_unblock(&dwork->work);
 		tq = dwork->work.work_queue->taskqueue;
 		if (taskqueue_cancel(tq, &dwork->work.work_task, NULL) == 0)
 			break;
@@ -379,13 +379,13 @@ linux_cancel_delayed_work_sync(struct delayed_work *dwork)
 		if (del_timer(&dwork->timer) != 0)
 			break;
 		/* ensure timer callback has returned */
-		(void)del_timer_sync(&dwork->timer);
+		(void) del_timer_sync(&dwork->timer);
 		/* FALLTHROUGH */
 	case WORK_ST_TASK:
 	case WORK_ST_EXEC:
 	case WORK_ST_LOOP:
 	case WORK_ST_CANCEL:
-		linux_work_exec_unblock(&dwork->work);
+		(void) linux_work_exec_unblock(&dwork->work);
 		tq = dwork->work.work_queue->taskqueue;
 		if (taskqueue_cancel(tq, &dwork->work.work_task, NULL) != 0)
 			taskqueue_drain(tq, &dwork->work.work_task);
@@ -415,7 +415,7 @@ linux_flush_work(struct work_struct *work)
 	case WORK_ST_EXEC:
 	case WORK_ST_LOOP:
 	case WORK_ST_CANCEL:
-		linux_work_exec_unblock(work);
+		(void) linux_work_exec_unblock(work);
 		tq = work->work_queue->taskqueue;
 		taskqueue_drain(tq, &work->work_task);
 		return (1);
@@ -447,14 +447,14 @@ linux_flush_delayed_work(struct delayed_work *dwork)
 
 	switch (linux_update_state(&dwork->work.state, states)) {
 	case WORK_ST_TIMER:
-		(void)del_timer_sync(&dwork->timer);
+		(void) del_timer_sync(&dwork->timer);
 		linux_delayed_work_enqueue(dwork);
 		/* FALLTHROUGH */
 	case WORK_ST_TASK:
 	case WORK_ST_EXEC:
 	case WORK_ST_LOOP:
 	case WORK_ST_CANCEL:
-		linux_work_exec_unblock(&dwork->work);
+		(void) linux_work_exec_unblock(&dwork->work);
 		tq = dwork->work.work_queue->taskqueue;
 		taskqueue_drain(tq, &dwork->work.work_task);
 		return (1);
