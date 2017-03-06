@@ -111,7 +111,7 @@ do {									\
 #define	INIT_DEFERRABLE_WORK(dwork, fn) \
 	INIT_DELAYED_WORK(dwork, fn)
 
-#define	flush_scheduled_work(void) \
+#define	flush_scheduled_work() \
 	taskqueue_drain_all(system_wq->taskqueue)
 
 #define	queue_work(wq, work) \
