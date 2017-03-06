@@ -35,13 +35,13 @@
 #include <linux/kernel.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
-#include <linux/threads.h>
 #include <linux/atomic.h>
 
+#include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/taskqueue.h>
 
-#define	WORK_CPU_UNBOUND NR_CPUS
+#define	WORK_CPU_UNBOUND MAXCPU
 #define	WQ_UNBOUND (1 << 0)
 #define	WQ_HIGHPRI (1 << 1)
 
