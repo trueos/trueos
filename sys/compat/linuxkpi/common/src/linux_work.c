@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/workqueue.h>
 #include <linux/wait.h>
 #include <linux/compat.h>
+#include <linux/spinlock.h>
 
 #include <sys/kernel.h>
 
@@ -520,10 +521,10 @@ linux_destroy_workqueue(struct workqueue_struct *wq)
 void
 linux_init_delayed_work(struct delayed_work *dwork, work_func_t func)
 {
-
 	memset(dwork, 0, sizeof(*dwork));
 	INIT_WORK(&dwork->work, func);
-	mtx_init(&dwork->timer.mtx, spin_lock_name("lkpi-dwork"), NULL, MTX_DEF | MTX_NOWITNESS);
+	mtx_init(&dwork->timer.mtx, spin_lock_name("lkpi-dwork"), NULL,
+	    MTX_DEF | MTX_NOWITNESS);
 	callout_init_mtx(&dwork->timer.callout, &dwork->timer.mtx, 0);
 }
 
