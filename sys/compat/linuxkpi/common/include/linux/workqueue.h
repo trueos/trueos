@@ -33,7 +33,6 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/timer.h>
 #include <linux/slab.h>
 
 #include <asm/atomic.h>
@@ -41,6 +40,8 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/taskqueue.h>
+#include <sys/mutex.h>
+#include <sys/callout.h>
 
 #define	WORK_CPU_UNBOUND MAXCPU
 #define	WQ_UNBOUND (1 << 0)
@@ -76,8 +77,11 @@ struct work_struct {
 
 struct delayed_work {
 	struct work_struct work;
-	struct timer_list timer;
-	int	cpu;
+	struct {
+		struct callout callout;
+		struct mtx mtx;
+		int	expires;
+	} timer;
 };
 
 #define	DECLARE_DELAYED_WORK(name, fn)					\
@@ -206,7 +210,6 @@ extern struct workqueue_struct *system_power_efficient_wq;
 
 extern void linux_init_delayed_work(struct delayed_work *, work_func_t);
 extern void linux_work_fn(void *, int);
-extern void linux_delayed_work_timer_fn(unsigned long data);
 extern struct workqueue_struct *linux_create_workqueue_common(const char *, int);
 extern void linux_destroy_workqueue(struct workqueue_struct *);
 extern bool linux_queue_work_on(int cpu, struct workqueue_struct *, struct work_struct *);
