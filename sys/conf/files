@@ -3384,7 +3384,6 @@ fs/nullfs/null_subr.c		optional nullfs
 fs/nullfs/null_vfsops.c		optional nullfs
 fs/nullfs/null_vnops.c		optional nullfs
 fs/procfs/procfs.c		optional procfs
-fs/procfs/procfs_ctl.c		optional procfs
 fs/procfs/procfs_dbregs.c	optional procfs
 fs/procfs/procfs_fpregs.c	optional procfs
 fs/procfs/procfs_ioctl.c	optional procfs
@@ -4298,6 +4297,8 @@ compat/linuxkpi/common/src/linux_radix.c	optional compat_linuxkpi \
 compat/linuxkpi/common/src/linux_rcu.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C} -I$S/contrib/ck/include"
 compat/linuxkpi/common/src/linux_usb.c		optional compat_linuxkpi usb \
+	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_work.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 
 # OpenFabrics Enterprise Distribution (Infiniband)

@@ -513,7 +513,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		MK_GDB=no MK_TESTS=no MK_LLD_IS_LD=no
+		MK_GDB=no MK_TESTS=no
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -1618,10 +1618,14 @@ ${_bt}-usr.bin/m4: ${_bt}-lib/libopenbsd
 ${_bt}-usr.bin/lex: ${_bt}-usr.bin/m4
 .endif
 
-.if ${BOOTSTRAPPING} < 1000026
-_nmtree=	lib/libnetbsd \
+# r245440 mtree -N support added
+# r313404 requires sha384.h for libnetbsd, added to libmd in r292782
+.if ${BOOTSTRAPPING} < 1100093
+_nmtree=	lib/libmd \
+		lib/libnetbsd \
 		usr.sbin/nmtree
 
+${_bt}-lib/libnetbsd: ${_bt}-lib/libmd
 ${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 .endif
 
@@ -1825,6 +1829,9 @@ _elftctools=	lib/libelftc \
 # cross-build on a FreeBSD 10 host:
 _elftctools+=	usr.bin/addr2line
 .endif
+.if ${MK_LLD_IS_LD} != "no"
+_lld=		usr.bin/clang/lld
+.endif
 .elif ${TARGET_ARCH} != ${MACHINE_ARCH} && ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 # If cross-building with an external binutils we still need to build strip for
 # the target (for at least crunchide).
@@ -1849,6 +1856,7 @@ cross-tools: .MAKE .PHONY
     ${LOCAL_XTOOL_DIRS} \
     ${_clang_libs} \
     ${_clang} \
+    ${_lld} \
     ${_binutils} \
     ${_elftctools} \
     ${_dtrace_tools} \
