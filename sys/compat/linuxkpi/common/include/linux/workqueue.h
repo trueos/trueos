@@ -33,6 +33,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/timer.h>
 #include <linux/slab.h>
 
 #include <asm/atomic.h>
@@ -41,7 +42,6 @@
 #include <sys/kernel.h>
 #include <sys/taskqueue.h>
 #include <sys/mutex.h>
-#include <sys/callout.h>
 
 #define	WORK_CPU_UNBOUND MAXCPU
 #define	WQ_UNBOUND (1 << 0)
