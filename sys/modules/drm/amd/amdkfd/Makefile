@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../../dev/drm/amd/amdkfd
+.PATH:	${SRCTOP}/sys/dev/drm/amd/amdkfd
 
 KMOD	= amdkfd
 
@@ -34,16 +34,16 @@ SRCS	= \
 	kfd_queue.c #\
 #	kfd_topology.c
 
-CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include
-CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/drm
-CFLAGS+=	-I${.CURDIR}/../../../../compat/linuxkpi/common/include/uapi
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/amdkfd
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/amdgpu
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/include
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/acp/include
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/powerplay/inc
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/scheduler
-CFLAGS+=	-I${.CURDIR}/../../../../dev/drm/amd/include/asic_reg
+CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/common/include
+CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/common/include/drm
+CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/common/include/uapi
+CFLAGS+=	-I${SRCTOP}/sys/dev/drm/amd/amdkfd
+CFLAGS+=	-I${SRCTOP}/sys/dev/drm/amd/amdgpu
+CFLAGS+=	-I${SRCTOP}/sys/dev/drm/amd/include
+CFLAGS+=	-I${SRCTOP}/sys/dev/drm/amd/acp/include
+CFLAGS+=	-I${SRCTOP}/sys/dev/drm/amd/powerplay/inc
+CFLAGS+=	-I${SRCTOP}/sys/dev/drm/amd/scheduler
+CFLAGS+=	-I${SRCTOP}/sys/dev/drm/amd/include/asic_reg
 CFLAGS+=	'-DKBUILD_MODNAME="${KMOD}"'
 
 SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.h \

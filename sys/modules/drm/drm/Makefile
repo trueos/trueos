@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../dev/drm ${.CURDIR}/../../../dev/drm/ttm
-
+.PATH:	${SRCTOP}/sys/dev/drm ${SRCTOP}/sys/dev/drm/ttm
 KMOD	= drm
 SRCS	= \
 	ati_pcigart.c \
@@ -91,11 +90,11 @@ SRCS	= \
 
 #	drm_fb_cma_helper.c \
 
-CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include
-CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include/drm
-CFLAGS+= -I${.CURDIR}/../../../compat/linuxkpi/common/include/uapi
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include/drm
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include/uapi
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
-CFLAGS+= -include ${.CURDIR}/../../../dev/drm/drm_os_config.h
+CFLAGS+= -include ${SRCTOP}/sys/dev/drm/drm_os_config.h
 
 # until stable
 #CFLAGS += -O0

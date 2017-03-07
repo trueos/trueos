@@ -1,6 +1,5 @@
 # $FreeBSD$
-.PATH:	${.CURDIR}/../../compat/linuxkpi/common/src
-.PATH:	${.CURDIR}/../../compat/linsysfs/
+.PATH:	${SRCTOP}/sys/compat/linuxkpi/common/src ${SRCTOP}/sys/compat/linsysfs
 
 KMOD=	linuxkpi
 SRCS=	interval_tree.c \
@@ -56,10 +55,10 @@ SRCS+= 	linsysfs_init.c \
 	pci-sysfs.c
 
 
-CFLAGS+= -I${.CURDIR}/../../compat/linuxkpi/common/include
-CFLAGS+= -I${.CURDIR}/../../contrib/ck/include
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
+CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
-CFLAGS+= -include ${.CURDIR}/../../dev/drm/drm_os_config.h
+CFLAGS+= -include ${SRCTOP}/sys/dev/drm/drm_os_config.h
 
 #CFLAGS += -DPRINT_UNIMPLEMENTED
 # until stable

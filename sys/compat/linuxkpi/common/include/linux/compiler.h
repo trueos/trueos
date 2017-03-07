@@ -113,6 +113,7 @@
 		}							\
 	} while (0)
 
+#undef UNIMPLEMENTED
 #define UNIMPLEMENTED()	UNIMPLEMENTED_ONCE()
 #define WARN_NOT() 	UNIMPLEMENTED_ONCE()
 #define DODGY() DODGY_ONCE();

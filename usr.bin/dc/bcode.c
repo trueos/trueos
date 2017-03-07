@@ -1,4 +1,4 @@
-/*	$OpenBSD: bcode.c,v 1.45 2012/11/07 11:06:14 otto Exp $	*/
+/*	$OpenBSD: bcode.c,v 1.46 2014/10/08 03:59:56 doug Exp $	*/
 
 /*
  * Copyright (c) 2003, Otto Moerbeek <otto@drijf.net>
@@ -69,6 +69,7 @@ static __inline struct number	*pop_number(void);
 static __inline char	*pop_string(void);
 static __inline void	 clear_stack(void);
 static __inline void	 print_tos(void);
+static void		 print_err(void);
 static void		 pop_print(void);
 static void		 pop_printn(void);
 static __inline void	 print_stack(void);
@@ -198,6 +199,7 @@ static const struct jump_entry jump_table_data[] = {
 	{ 'a',	to_ascii	},
 	{ 'c',	clear_stack	},
 	{ 'd',	dup		},
+	{ 'e',	print_err	},
 	{ 'f',	print_stack	},
 	{ 'i',	set_ibase	},
 	{ 'k',	set_scale	},
@@ -502,6 +504,18 @@ print_tos(void)
 	if (value != NULL) {
 		print_value(stdout, value, "", bmachine.obase);
 		putchar('\n');
+	}
+	else
+		warnx("stack empty");
+}
+
+static void
+print_err(void)
+{
+	struct value *value = tos();
+	if (value != NULL) {
+		print_value(stderr, value, "", bmachine.obase);
+		(void)putc('\n', stderr);
 	}
 	else
 		warnx("stack empty");
@@ -1695,7 +1709,7 @@ eval_string(char *p)
 	if (bmachine.readsp == bmachine.readstack_sz - 1) {
 		size_t newsz = bmachine.readstack_sz * 2;
 		struct source *stack;
-		stack = realloc(bmachine.readstack, newsz *
+		stack = reallocarray(bmachine.readstack, newsz,
 		    sizeof(struct source));
 		if (stack == NULL)
 			err(1, "recursion too deep");

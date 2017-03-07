@@ -1425,6 +1425,9 @@ MLINKS+=random.9 arc4rand.9 \
 	random.9 read_random.9 \
 	random.9 read_random_uio.9 \
 	random.9 srandom.9
+MLINKS+=random_harvest.9 random_harvest_direct.9 \
+	random_harvest.9 random_harvest_fast.9 \
+	random_harvest.9 random_harvest_queue.9
 MLINKS+=refcount.9 refcount_acquire.9 \
 	refcount.9 refcount_init.9 \
 	refcount.9 refcount_release.9
@@ -1517,6 +1520,7 @@ MLINKS+=sbuf.9 sbuf_bcat.9 \
 	sbuf.9 sbuf_done.9 \
 	sbuf.9 sbuf_error.9 \
 	sbuf.9 sbuf_finish.9 \
+	sbuf.9 sbuf_hexdump.9 \
 	sbuf.9 sbuf_len.9 \
 	sbuf.9 sbuf_new.9 \
 	sbuf.9 sbuf_new_auto.9 \

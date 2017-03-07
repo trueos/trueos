@@ -14,5 +14,5 @@ FIRMWS=	${_FIRM}:${NAME}
 #
 #FIRMWARE_LICENSE=
 
-${_FIRM}: ${.CURDIR}/../../../../../contrib/dev/drm/i915kmsfw/${_FIRM}.uu
+${_FIRM}: ${SRCTOP}/sys/contrib/dev/drm/i915kmsfw/${_FIRM}.uu
 	uudecode -p $? > ${.TARGET}

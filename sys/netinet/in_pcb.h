@@ -15,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -618,6 +618,7 @@ short	inp_so_options(const struct inpcb *inp);
 #define	INP_RECVFLOWID		0x00000100 /* populate recv datagram with flow info */
 #define	INP_RECVRSSBUCKETID	0x00000200 /* populate recv datagram with bucket id */
 #define	INP_RATE_LIMIT_CHANGED	0x00000400 /* rate limit needs attention */
+#define	INP_ORIGDSTADDR		0x00000800 /* receive IP dst address/port */
 
 /*
  * Flags passed to in_pcblookup*() functions.

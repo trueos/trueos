@@ -254,10 +254,8 @@ static void	iwn_set_led(struct iwn_softc *, uint8_t, uint8_t, uint8_t);
 static int	iwn_set_critical_temp(struct iwn_softc *);
 static int	iwn_set_timing(struct iwn_softc *, struct ieee80211_node *);
 static void	iwn4965_power_calibration(struct iwn_softc *, int);
-static int	iwn4965_set_txpower(struct iwn_softc *,
-		    struct ieee80211_channel *, int);
-static int	iwn5000_set_txpower(struct iwn_softc *,
-		    struct ieee80211_channel *, int);
+static int	iwn4965_set_txpower(struct iwn_softc *, int);
+static int	iwn5000_set_txpower(struct iwn_softc *, int);
 static int	iwn4965_get_rssi(struct iwn_softc *, struct iwn_rx_stat *);
 static int	iwn5000_get_rssi(struct iwn_softc *, struct iwn_rx_stat *);
 static int	iwn_get_noise(const struct iwn_rx_general_stats *);
@@ -280,6 +278,7 @@ static int	iwn_set_pslevel(struct iwn_softc *, int, int, int);
 static int	iwn_send_btcoex(struct iwn_softc *);
 static int	iwn_send_advanced_btcoex(struct iwn_softc *);
 static int	iwn5000_runtime_calib(struct iwn_softc *);
+static int	iwn_send_rxon(struct iwn_softc *, int, int);
 static int	iwn_config(struct iwn_softc *);
 static int	iwn_scan(struct iwn_softc *, struct ieee80211vap *,
 		    struct ieee80211_scan_state *, struct ieee80211_channel *);
@@ -2667,6 +2666,26 @@ rate2plcp(int rate)
 	return 0;
 }
 
+static __inline uint8_t
+plcp2rate(const uint8_t rate_plcp)
+{
+	switch (rate_plcp) {
+	case 0xd:	return 12;
+	case 0xf:	return 18;
+	case 0x5:	return 24;
+	case 0x7:	return 36;
+	case 0x9:	return 48;
+	case 0xb:	return 72;
+	case 0x1:	return 96;
+	case 0x3:	return 108;
+	case 10:	return 2;
+	case 20:	return 4;
+	case 55:	return 11;
+	case 110:	return 22;
+	default:	return 0;
+	}
+}
+
 static int
 iwn_get_1stream_tx_antmask(struct iwn_softc *sc)
 {
@@ -3078,6 +3097,7 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 	if (ieee80211_radiotap_active(ic)) {
 		struct iwn_rx_radiotap_header *tap = &sc->sc_rxtap;
+		uint32_t rate = le32toh(stat->rate);
 
 		tap->wr_flags = 0;
 		if (stat->flags & htole16(IWN_STAT_FLAG_SHPREAMBLE))
@@ -3085,24 +3105,11 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 		tap->wr_dbm_antsignal = (int8_t)rssi;
 		tap->wr_dbm_antnoise = (int8_t)nf;
 		tap->wr_tsft = stat->tstamp;
-		switch (stat->rate) {
-		/* CCK rates. */
-		case  10: tap->wr_rate =   2; break;
-		case  20: tap->wr_rate =   4; break;
-		case  55: tap->wr_rate =  11; break;
-		case 110: tap->wr_rate =  22; break;
-		/* OFDM rates. */
-		case 0xd: tap->wr_rate =  12; break;
-		case 0xf: tap->wr_rate =  18; break;
-		case 0x5: tap->wr_rate =  24; break;
-		case 0x7: tap->wr_rate =  36; break;
-		case 0x9: tap->wr_rate =  48; break;
-		case 0xb: tap->wr_rate =  72; break;
-		case 0x1: tap->wr_rate =  96; break;
-		case 0x3: tap->wr_rate = 108; break;
-		/* Unknown rate: should not happen. */
-		default:  tap->wr_rate =   0;
-		}
+		if (rate & IWN_RFLAG_MCS) {
+			tap->wr_rate = rate & IWN_RFLAG_RATE_MCS;
+			tap->wr_rate |= IEEE80211_RATE_MCS;
+		} else
+			tap->wr_rate = plcp2rate(rate & IWN_RFLAG_RATE);
 	}
 
 	/*
@@ -5502,7 +5509,6 @@ iwn_set_timing(struct iwn_softc *sc, struct ieee80211_node *ni)
 static void
 iwn4965_power_calibration(struct iwn_softc *sc, int temp)
 {
-	struct ieee80211com *ic = &sc->sc_ic;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->Doing %s\n", __func__);
 
@@ -5512,7 +5518,7 @@ iwn4965_power_calibration(struct iwn_softc *sc, int temp)
 	if (abs(temp - sc->temp) >= 3) {
 		/* Record temperature of last calibration. */
 		sc->temp = temp;
-		(void)iwn4965_set_txpower(sc, ic->ic_bsschan, 1);
+		(void)iwn4965_set_txpower(sc, 1);
 	}
 }
 
@@ -5522,8 +5528,7 @@ iwn4965_power_calibration(struct iwn_softc *sc, int temp)
  * the current temperature and the current voltage.
  */
 static int
-iwn4965_set_txpower(struct iwn_softc *sc, struct ieee80211_channel *ch,
-    int async)
+iwn4965_set_txpower(struct iwn_softc *sc, int async)
 {
 /* Fixed-point arithmetic division using a n-bit fractional part. */
 #define fdivround(a, b, n)	\
@@ -5538,20 +5543,21 @@ iwn4965_set_txpower(struct iwn_softc *sc, struct ieee80211_channel *ch,
 	struct iwn4965_eeprom_chan_samples *chans;
 	const uint8_t *rf_gain, *dsp_gain;
 	int32_t vdiff, tdiff;
-	int i, c, grp, maxpwr;
+	int i, is_chan_5ghz, c, grp, maxpwr;
 	uint8_t chan;
 
 	sc->rxon = &sc->rx_on[IWN_RXON_BSS_CTX];
 	/* Retrieve current channel from last RXON. */
 	chan = sc->rxon->chan;
+	is_chan_5ghz = (sc->rxon->flags & htole32(IWN_RXON_24GHZ)) == 0;
 	DPRINTF(sc, IWN_DEBUG_RESET, "setting TX power for channel %d\n",
 	    chan);
 
 	memset(&cmd, 0, sizeof cmd);
-	cmd.band = IEEE80211_IS_CHAN_5GHZ(ch) ? 0 : 1;
+	cmd.band = is_chan_5ghz ? 0 : 1;
 	cmd.chan = chan;
 
-	if (IEEE80211_IS_CHAN_5GHZ(ch)) {
+	if (is_chan_5ghz) {
 		maxpwr   = sc->maxpwr5GHz;
 		rf_gain  = iwn4965_rf_gain_5ghz;
 		dsp_gain = iwn4965_dsp_gain_5ghz;
@@ -5673,8 +5679,7 @@ iwn4965_set_txpower(struct iwn_softc *sc, struct ieee80211_channel *ch,
 }
 
 static int
-iwn5000_set_txpower(struct iwn_softc *sc, struct ieee80211_channel *ch,
-    int async)
+iwn5000_set_txpower(struct iwn_softc *sc, int async)
 {
 	struct iwn5000_cmd_txpower cmd;
 	int cmdid;
@@ -6530,9 +6535,49 @@ iwn_get_rxon_ht_flags(struct iwn_softc *sc, struct ieee80211_channel *c)
 }
 
 static int
-iwn_config(struct iwn_softc *sc)
+iwn_send_rxon(struct iwn_softc *sc, int assoc, int async)
 {
 	struct iwn_ops *ops = &sc->ops;
+	int error;
+
+	IWN_LOCK_ASSERT(sc);
+
+	if (sc->sc_is_scanning)
+		device_printf(sc->sc_dev,
+		    "%s: is_scanning set, before RXON\n",
+		    __func__);
+	error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, async);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "%s: RXON command failed\n",
+		    __func__);
+		return (error);
+	}
+
+	/*
+	 * Reconfiguring RXON clears the firmware nodes table so we must
+	 * add the broadcast node again.
+	 */
+	if ((sc->rxon->filter & htole32(IWN_FILTER_BSS)) == 0) {
+		if ((error = iwn_add_broadcast_node(sc, async)) != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not add broadcast node\n", __func__);
+			return (error);
+		}
+	}
+
+	/* Configuration has changed, set TX power accordingly. */
+	if ((error = ops->set_txpower(sc, async)) != 0) {
+		device_printf(sc->sc_dev, "%s: could not set TX power\n",
+		    __func__);
+		return (error);
+	}
+
+	return (0);
+}
+
+static int
+iwn_config(struct iwn_softc *sc)
+{
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	const uint8_t *macaddr;
@@ -6667,26 +6712,8 @@ iwn_config(struct iwn_softc *sc)
 	DPRINTF(sc, IWN_DEBUG_RESET,
 	    "%s: setting configuration; flags=0x%08x\n",
 	    __func__, le32toh(sc->rxon->flags));
-	if (sc->sc_is_scanning)
-		device_printf(sc->sc_dev,
-		    "%s: is_scanning set, before RXON\n",
-		    __func__);
-	error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, 0);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "%s: RXON command failed\n",
-		    __func__);
-		return error;
-	}
-
-	if ((error = iwn_add_broadcast_node(sc, 0)) != 0) {
-		device_printf(sc->sc_dev, "%s: could not add broadcast node\n",
-		    __func__);
-		return error;
-	}
-
-	/* Configuration has changed, set TX power accordingly. */
-	if ((error = ops->set_txpower(sc, ic->ic_curchan, 0)) != 0) {
-		device_printf(sc->sc_dev, "%s: could not set TX power\n",
+	if ((error = iwn_send_rxon(sc, 0, 0)) != 0) {
+		device_printf(sc->sc_dev, "%s: could not send RXON\n",
 		    __func__);
 		return error;
 	}
@@ -7040,7 +7067,6 @@ iwn_scan(struct iwn_softc *sc, struct ieee80211vap *vap,
 static int
 iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 {
-	struct iwn_ops *ops = &sc->ops;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni = vap->iv_bss;
 	int error;
@@ -7076,37 +7102,16 @@ iwn_auth(struct iwn_softc *sc, struct ieee80211vap *vap)
 	DPRINTF(sc, IWN_DEBUG_STATE, "rxon chan %d flags %x cck %x ofdm %x\n",
 	    sc->rxon->chan, sc->rxon->flags, sc->rxon->cck_mask,
 	    sc->rxon->ofdm_mask);
-	if (sc->sc_is_scanning)
-		device_printf(sc->sc_dev,
-		    "%s: is_scanning set, before RXON\n",
-		    __func__);
-	error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, 1);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "%s: RXON command failed, error %d\n",
-		    __func__, error);
-		return error;
-	}
 
-	/* Configuration has changed, set TX power accordingly. */
-	if ((error = ops->set_txpower(sc, ni->ni_chan, 1)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not set TX power, error %d\n", __func__, error);
-		return error;
-	}
-	/*
-	 * Reconfiguring RXON clears the firmware nodes table so we must
-	 * add the broadcast node again.
-	 */
-	if ((error = iwn_add_broadcast_node(sc, 1)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not add broadcast node, error %d\n", __func__,
-		    error);
-		return error;
+	if ((error = iwn_send_rxon(sc, 0, 1)) != 0) {
+		device_printf(sc->sc_dev, "%s: could not send RXON\n",
+		    __func__);
+		return (error);
 	}
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -7159,22 +7164,10 @@ iwn_run(struct iwn_softc *sc, struct ieee80211vap *vap)
 	sc->rxon->filter |= htole32(IWN_FILTER_BSS);
 	DPRINTF(sc, IWN_DEBUG_STATE, "rxon chan %d flags %x, curhtprotmode=%d\n",
 	    sc->rxon->chan, le32toh(sc->rxon->flags), ic->ic_curhtprotmode);
-	if (sc->sc_is_scanning)
-		device_printf(sc->sc_dev,
-		    "%s: is_scanning set, before RXON\n",
-		    __func__);
-	error = iwn_cmd(sc, IWN_CMD_RXON, sc->rxon, sc->rxonsz, 1);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not update configuration, error %d\n", __func__,
-		    error);
-		return error;
-	}
 
-	/* Configuration has changed, set TX power accordingly. */
-	if ((error = ops->set_txpower(sc, ni->ni_chan, 1)) != 0) {
-		device_printf(sc->sc_dev,
-		    "%s: could not set TX power, error %d\n", __func__, error);
+	if ((error = iwn_send_rxon(sc, 0, 1)) != 0) {
+		device_printf(sc->sc_dev, "%s: could not send RXON\n",
+		    __func__);
 		return error;
 	}
 

@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/io.h>
 #include <linux/netdevice.h>
 #include <linux/timer.h>
-#include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/async.h>
 #include <linux/compat.h>
