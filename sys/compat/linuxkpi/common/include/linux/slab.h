@@ -34,7 +34,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/proc.h>
 #include <vm/uma.h>
 
 #include <linux/types.h>
@@ -46,14 +45,13 @@ MALLOC_DECLARE(M_KMALLOC);
 #define	kzalloc(size, flags)		kmalloc(size, (flags) | __GFP_ZERO)
 #define	kzalloc_node(size, flags, node)	kmalloc(size, (flags) | __GFP_ZERO)
 #define	kfree_const(ptr)		kfree(ptr)
-#define	krealloc(ptr, size, flags)	realloc(ptr, size, M_KMALLOC, flags)
 #define	kcalloc(n, size, flags)	        kmalloc((n) * (size), (flags) | __GFP_ZERO)
-#define	vzalloc(size)			kmalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO)
+#define	vzalloc(size)			__vmalloc(size, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO, 0)
 #define	vfree(arg)			kfree(arg)
 #define	kvfree(arg)			kfree(arg)
 #define	vmalloc_node(size, node)        __vmalloc(size, GFP_KERNEL, 0)
 #define	vmalloc_user(size)              __vmalloc(size, GFP_KERNEL | __GFP_ZERO, 0)
-#define	vmalloc(size)                   __vmalloc(size, GFP_KERNEL | __GFP_ZERO, 0)
+#define	vmalloc(size)                   __vmalloc(size, GFP_KERNEL, 0)
 #define	__kmalloc(...)			kmalloc(__VA_ARGS__)
 #define	kmalloc_node(chunk, flags, n)	kmalloc(chunk, flags)
 
@@ -80,40 +78,46 @@ struct linux_kmem_cache {
 #define	SLAB_DESTROY_BY_RCU     (1 << 1)
 #define	SLAB_RECLAIM_ACCOUNT	(1 << 2)
 
-static inline void *
-kmalloc(size_t size, gfp_t flags)
+static inline gfp_t
+linux_check_m_flags(gfp_t flags)
 {
 	const gfp_t m = M_NOWAIT | M_WAITOK;
 
+	/* make sure either M_NOWAIT or M_WAITOK is set */
 	if ((flags & m) == 0)
 		flags |= M_NOWAIT;
 	else if ((flags & m) == m)
 		flags &= ~M_WAITOK;
 
-	return (malloc(size, M_KMALLOC, flags | M_CONTIG));
+	/* mask away LinuxKPI specific flags */
+	return (flags & GFP_NATIVE_MASK);
+}
+
+static inline void *
+kmalloc(size_t size, gfp_t flags)
+{
+	return (malloc(size, M_KMALLOC, linux_check_m_flags(flags)));
 }
 
 static inline void *
 __vmalloc(size_t size, gfp_t flags, int other)
 {
-	const gfp_t m = M_NOWAIT | M_WAITOK;
-
-	if ((flags & m) == 0)
-		flags |= M_NOWAIT;
-	else if ((flags & m) == m)
-		flags &= ~M_WAITOK;
-
-	return (malloc(size, M_KMALLOC, flags));
+	return (malloc(size, M_KMALLOC, linux_check_m_flags(flags)));
 }
 
 static inline void *
 kmalloc_array(size_t n, size_t size, gfp_t flags)
 {
-	if (size != 0 && n > SIZE_MAX / size)
-		return NULL;
-	return kmalloc(n * size, flags);
+	if (size != 0 && n > (SIZE_MAX / size))
+		return (NULL);
+	return (malloc(n * size, M_KMALLOC, linux_check_m_flags(flags)));
 }
 
+static inline void *
+krealloc(void *ptr, size_t size, gfp_t flags)
+{
+	return (realloc(ptr, size, M_KMALLOC, linux_check_m_flags(flags)));
+}
 
 static inline void
 kfree(const void *ptr)
@@ -121,34 +125,21 @@ kfree(const void *ptr)
 	free(__DECONST(void *, ptr), M_KMALLOC);
 }
 
-extern struct linux_kmem_cache *
-linux_kmem_cache_create(const char *name, size_t size,
-    size_t align, unsigned flags, linux_kmem_ctor_t *ctor);
+extern struct linux_kmem_cache *linux_kmem_cache_create(const char *name,
+    size_t size, size_t align, unsigned flags, linux_kmem_ctor_t *ctor);
 
 static inline void *
 linux_kmem_cache_alloc(struct linux_kmem_cache *c, gfp_t flags)
 {
-	const gfp_t m = M_NOWAIT | M_WAITOK;
-
-	if ((flags & m) == 0)
-		flags |= M_NOWAIT;
-	else if ((flags & m) == m)
-		flags &= ~M_WAITOK;
-
-	return (uma_zalloc_arg(c->cache_zone, c, flags));
+	return (uma_zalloc_arg(c->cache_zone, c,
+	    linux_check_m_flags(flags)));
 }
 
 static inline void *
 kmem_cache_zalloc(struct linux_kmem_cache *c, gfp_t flags)
 {
-	const gfp_t m = M_NOWAIT | M_WAITOK;
-
-	if ((flags & m) == 0)
-		flags |= M_NOWAIT;
-	else if ((flags & m) == m)
-		flags &= ~M_WAITOK;
-
-	return (uma_zalloc_arg(c->cache_zone, c, flags | M_ZERO));
+	return (uma_zalloc_arg(c->cache_zone, c,
+	    linux_check_m_flags(flags | M_ZERO)));
 }
 
 extern void linux_kmem_cache_free_rcu(struct linux_kmem_cache *, void *);
