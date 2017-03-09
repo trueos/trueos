@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170308: rename some tests
+OLD_FILES+=usr/tests/bin/pwait/pwait
+OLD_FILES+=usr/tests/usr.bin/timeout/timeout
+# 20170307: remove pcap-int.h
+OLD_FILES+=usr/include/pcap-int.h
 # 20170302: new libc++ import which bumps version from 3.9.1 to 4.0.0.
 OLD_FILES+=usr/include/c++/v1/__undef___deallocate
 OLD_FILES+=usr/include/c++/v1/tr1/__undef___deallocate
@@ -2043,6 +2048,7 @@ OLD_FILES+=usr/share/man/man1/makeinfo.1.gz
 OLD_FILES+=usr/share/man/man1/texindex.1.gz
 OLD_FILES+=usr/share/man/man5/info.5.gz
 OLD_FILES+=usr/share/man/man5/texinfo.5.gz
+OLD_DIRS+=usr/share/info
 # 20141231: new clang import which bumps version from 3.4.1 to 3.5.0.
 OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_pclmul.h
