@@ -487,20 +487,13 @@ task_is_running(struct taskqueue *queue, struct task *task)
 	return (0);
 }
 
+/*
+ * Only use this function in single threaded contexts. It returns
+ * non-zero if the given task is either pending or running. Else the
+ * task is idle and can be queued again or freed.
+ */
 int
-taskqueue_is_pending(struct taskqueue *queue, struct task *task)
-{
-	int retval;
-
-	TQ_LOCK(queue);
-	retval = task->ta_pending > 0;
-	TQ_UNLOCK(queue);
-
-	return (retval);
-}
-
-int
-taskqueue_is_pending_or_running(struct taskqueue *queue, struct task *task)
+taskqueue_poll_is_busy(struct taskqueue *queue, struct task *task)
 {
 	int retval;
 

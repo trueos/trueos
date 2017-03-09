@@ -1,11 +1,11 @@
 #ifndef __LINUX_CPUMASK_H
 #define __LINUX_CPUMASK_H
 
-#include <linux/threads.h>
+#include <sys/param.h>
 #include <linux/types.h>
 
 /* Don't assign or return these: may not be this big! */
-typedef struct cpumask { DECLARE_BITMAP(bits, NR_CPUS); } cpumask_t;
+typedef struct cpumask { DECLARE_BITMAP(bits, MAXCPU); } cpumask_t;
 
 extern cpumask_t *cpu_all_mask;
 extern cpumask_t *cpu_online_mask;

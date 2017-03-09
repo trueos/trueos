@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-SYSDIR?=${.CURDIR}/../../..
-.include "${SYSDIR}/conf/kern.opts.mk"
+.include "${SRCTOP}/sys/conf/kern.opts.mk"
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _amdgpu=	amdgpu

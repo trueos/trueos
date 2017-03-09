@@ -88,7 +88,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/threads.h>
 #include <linux/bitmap.h>
 #include <linux/numa.h>
 

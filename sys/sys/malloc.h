@@ -12,7 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -53,7 +53,6 @@
 #define	M_NODUMP	0x0800		/* don't dump pages in this allocation */
 #define	M_FIRSTFIT	0x1000		/* Only for vmem, fast fit. */
 #define	M_BESTFIT	0x2000		/* Only for vmem, low fragmentation. */
-#define	M_CONTIG	0x4000		/* contiguous allocaion - lkpi only */
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 

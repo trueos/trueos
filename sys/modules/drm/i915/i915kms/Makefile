@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../../dev/drm/i915
+.PATH:	${SRCTOP}/sys/dev/drm/i915
 KMOD	= i915kms
 SRCS	= \
 	dvo_ch7017.c \
@@ -94,10 +94,10 @@ SRCS	= \
 #
 
 CLEANFILES += ${KMOD}.ko.full ${KMOD}.ko.debug
-CFLAGS+= -I${.CURDIR}/../../../../compat/linuxkpi/common/include
-CFLAGS+= -I${.CURDIR}/../../../../compat/linuxkpi/common/include/uapi
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include/uapi
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
-CFLAGS+= -include ${.CURDIR}/../../../../dev/drm/drm_os_config.h
+CFLAGS+= -include ${SRCTOP}/sys/dev/drm/drm_os_config.h
 #CFLAGS += -DPRINT_UNIMPLEMENTED
 
 .if ${MACHINE_CPUARCH} == "amd64"

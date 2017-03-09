@@ -54,25 +54,25 @@ SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
 
 .if !defined(XCC)
-.if !exists(${LOCALBASE}/bin/clang39)
-.error "You need to install devel/llvm39 to build or set XCC"
+.if !exists(${LOCALBASE}/bin/clang40)
+.error "You need to install devel/llvm40 to build or set XCC"
 .endif
 
-XCC= ${LOCALBASE}/bin/clang39
+XCC= ${LOCALBASE}/bin/clang40
 .endif
 .if !defined(XCXX)
-.if !exists(${LOCALBASE}/bin/clang++39)
-.error "You need to install devel/llvm39 to build or set XCXX"
+.if !exists(${LOCALBASE}/bin/clang++40)
+.error "You need to install devel/llvm40 to build or set XCXX"
 .endif
 
-XCXX= ${LOCALBASE}/bin/clang++39
+XCXX= ${LOCALBASE}/bin/clang++40
 .endif
 .if !defined(XCPP)
-.if !exists(${LOCALBASE}/bin/clang-cpp39)
-.error "You need to install devel/llvm39 to build or set XCPP"
+.if !exists(${LOCALBASE}/bin/clang-cpp40)
+.error "You need to install devel/llvm40 to build or set XCPP"
 .endif
 
-XCPP= ${LOCALBASE}/bin/clang-cpp39
+XCPP= ${LOCALBASE}/bin/clang-cpp40
 .endif
 
 # Cross toolchain changes must be in effect before bsd.compiler.mk
@@ -534,7 +534,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		MK_GDB=no MK_TESTS=no MK_LLD_IS_LD=no
+		MK_GDB=no MK_TESTS=no
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -1639,10 +1639,14 @@ ${_bt}-usr.bin/m4: ${_bt}-lib/libopenbsd
 ${_bt}-usr.bin/lex: ${_bt}-usr.bin/m4
 .endif
 
-.if ${BOOTSTRAPPING} < 1000026
-_nmtree=	lib/libnetbsd \
+# r245440 mtree -N support added
+# r313404 requires sha384.h for libnetbsd, added to libmd in r292782
+.if ${BOOTSTRAPPING} < 1100093
+_nmtree=	lib/libmd \
+		lib/libnetbsd \
 		usr.sbin/nmtree
 
+${_bt}-lib/libnetbsd: ${_bt}-lib/libmd
 ${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 .endif
 
@@ -1845,6 +1849,9 @@ _elftctools=	lib/libelftc \
 # cross-build on a FreeBSD 10 host:
 _elftctools+=	usr.bin/addr2line
 .endif
+.if ${MK_LLD_IS_LD} != "no"
+_lld=		usr.bin/clang/lld
+.endif
 .elif ${TARGET_ARCH} != ${MACHINE_ARCH} && ${MK_ELFTOOLCHAIN_BOOTSTRAP} != "no"
 # If cross-building with an external binutils we still need to build strip for
 # the target (for at least crunchide).
@@ -1863,6 +1870,7 @@ _usb_tools=	sys/boot/usb/tools
 cross-tools: .MAKE .PHONY
 .for _tool in \
     ${LOCAL_XTOOL_DIRS} \
+    ${_lld} \
     ${_binutils} \
     ${_elftctools} \
     ${_dtrace_tools} \

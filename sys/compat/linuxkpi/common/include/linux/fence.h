@@ -70,8 +70,11 @@ struct fence_ops {
 	void (*timeline_value_str)(struct fence *fence, char *str, int size);
 };
 
-#define fence_free(f) kfree(f)
-
+static inline void
+fence_free(struct fence *fence)
+{
+	kfree_rcu(fence, rcu);
+}
 
 static inline struct fence *
 fence_get(struct fence *fence)
@@ -81,10 +84,14 @@ fence_get(struct fence *fence)
 	return (fence);
 }
 
-/*
- * change with EBR
- */
-#define fence_get_rcu fence_get
+static inline struct fence *
+fence_get_rcu(struct fence *fence)
+{
+	if (kref_get_unless_zero(&fence->refcount))
+		return (fence);
+	else
+		return (NULL);
+}
 
 static inline void
 fence_release(struct kref *kref)

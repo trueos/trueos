@@ -397,15 +397,13 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	/*
 	 * Create the page if it doesn't exist yet. Ignore errors.
 	 */
-	vm_map_lock(map);
-	vm_map_insert(map, NULL, 0, trunc_page(start), round_page(end),
-	    VM_PROT_ALL, VM_PROT_ALL, 0);
-	vm_map_unlock(map);
+	vm_map_fixed(map, NULL, 0, trunc_page(start), round_page(end) -
+	    trunc_page(start), VM_PROT_ALL, VM_PROT_ALL, MAP_CHECK_EXCL);
 
 	/*
 	 * Find the page from the underlying object.
 	 */
-	if (object) {
+	if (object != NULL) {
 		sf = vm_imgact_map_page(object, offset);
 		if (sf == NULL)
 			return (KERN_FAILURE);
@@ -413,27 +411,27 @@ __elfN(map_partial)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		error = copyout((caddr_t)sf_buf_kva(sf) + off, (caddr_t)start,
 		    end - start);
 		vm_imgact_unmap_page(sf);
-		if (error) {
+		if (error != 0)
 			return (KERN_FAILURE);
-		}
 	}
 
 	return (KERN_SUCCESS);
 }
 
 static int
-__elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
-    vm_offset_t start, vm_offset_t end, vm_prot_t prot, int cow)
+__elfN(map_insert)(struct image_params *imgp, vm_map_t map, vm_object_t object,
+    vm_ooffset_t offset, vm_offset_t start, vm_offset_t end, vm_prot_t prot,
+    int cow)
 {
 	struct sf_buf *sf;
 	vm_offset_t off;
 	vm_size_t sz;
-	int error, rv;
+	int error, locked, rv;
 
 	if (start != trunc_page(start)) {
 		rv = __elfN(map_partial)(map, object, offset, start,
 		    round_page(start), prot);
-		if (rv)
+		if (rv != KERN_SUCCESS)
 			return (rv);
 		offset += round_page(start) - start;
 		start = round_page(start);
@@ -441,7 +439,7 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	if (end != round_page(end)) {
 		rv = __elfN(map_partial)(map, object, offset +
 		    trunc_page(end) - start, trunc_page(end), end, prot);
-		if (rv)
+		if (rv != KERN_SUCCESS)
 			return (rv);
 		end = trunc_page(end);
 	}
@@ -451,9 +449,8 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 			 * The mapping is not page aligned. This means we have
 			 * to copy the data. Sigh.
 			 */
-			rv = vm_map_find(map, NULL, 0, &start, end - start, 0,
-			    VMFS_NO_SPACE, prot | VM_PROT_WRITE, VM_PROT_ALL,
-			    0);
+			rv = vm_map_fixed(map, NULL, 0, start, end - start,
+			    prot | VM_PROT_WRITE, VM_PROT_ALL, MAP_CHECK_EXCL);
 			if (rv != KERN_SUCCESS)
 				return (rv);
 			if (object == NULL)
@@ -476,12 +473,15 @@ __elfN(map_insert)(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 			rv = KERN_SUCCESS;
 		} else {
 			vm_object_reference(object);
-			vm_map_lock(map);
-			rv = vm_map_insert(map, object, offset, start, end,
-			    prot, VM_PROT_ALL, cow);
-			vm_map_unlock(map);
-			if (rv != KERN_SUCCESS)
+			rv = vm_map_fixed(map, object, offset, start,
+			    end - start, prot, VM_PROT_ALL,
+			    cow | MAP_CHECK_EXCL);
+			if (rv != KERN_SUCCESS) {
+				locked = VOP_ISLOCKED(imgp->vp);
+				VOP_UNLOCK(imgp->vp, 0);
 				vm_object_deallocate(object);
+				vn_lock(imgp->vp, locked | LK_RETRY);
+			}
 		}
 		return (rv);
 	} else {
@@ -526,7 +526,7 @@ __elfN(load_section)(struct image_params *imgp, vm_offset_t offset,
 	 * We have two choices.  We can either clear the data in the last page
 	 * of an oversized mapping, or we can start the anon mapping a page
 	 * early and copy the initialized data into that first page.  We
-	 * choose the second..
+	 * choose the second.
 	 */
 	if (memsz > filsz)
 		map_len = trunc_page_ps(offset + filsz, pagesize) - file_addr;
@@ -538,7 +538,7 @@ __elfN(load_section)(struct image_params *imgp, vm_offset_t offset,
 		cow = MAP_COPY_ON_WRITE | MAP_PREFAULT |
 		    (prot & VM_PROT_WRITE ? 0 : MAP_DISABLE_COREDUMP);
 
-		rv = __elfN(map_insert)(map,
+		rv = __elfN(map_insert)(imgp, map,
 				      object,
 				      file_addr,	/* file offset */
 				      map_addr,		/* virtual start */
@@ -568,8 +568,8 @@ __elfN(load_section)(struct image_params *imgp, vm_offset_t offset,
 
 	/* This had damn well better be true! */
 	if (map_len != 0) {
-		rv = __elfN(map_insert)(map, NULL, 0, map_addr, map_addr +
-		    map_len, VM_PROT_ALL, 0);
+		rv = __elfN(map_insert)(imgp, map, NULL, 0, map_addr,
+		    map_addr + map_len, VM_PROT_ALL, 0);
 		if (rv != KERN_SUCCESS) {
 			return (EINVAL);
 		}

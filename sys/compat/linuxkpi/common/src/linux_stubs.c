@@ -2,7 +2,6 @@
 
 #include <linux/kernel.h>
 #include <linux/sysfs.h>
-#include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <linux/pci.h>
 
