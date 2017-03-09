@@ -511,8 +511,8 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 			break;
 	fb_info->node = i;
 	atomic_set(&fb_info->count, 1);
-	mutex_init_nowitness(&fb_info->lock);
-	mutex_init_nowitness(&fb_info->mm_lock);
+	mutex_init(&fb_info->lock);
+	mutex_init(&fb_info->mm_lock);
 
 	MPASS(fb_info->apertures->ranges[0].base);
 	MPASS(fb_info->apertures->ranges[0].size);
