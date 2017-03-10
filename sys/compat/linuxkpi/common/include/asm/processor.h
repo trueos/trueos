@@ -1,9 +1,12 @@
 #ifndef _ASM_X86_PROCESSOR_H
 #define _ASM_X86_PROCESSOR_H
 
+#include <linux/types.h>
+
 #include <asm/cpufeatures.h>
 #include <asm/cmpxchg.h>
 
+#include <machine/cpu.h>
 
 struct cpuinfo_x86 {
 	__u8			x86;		/* CPU family */
@@ -66,15 +69,9 @@ struct cpuinfo_x86 {
 #define smp_wmb() wmb()
 #define smp_rmb() rmb()
 
-/* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-static __always_inline void rep_nop(void)
-{
-	__asm __volatile("rep; nop" ::: "memory");
-}
-
 static __always_inline void cpu_relax(void)
 {
-	rep_nop();
+	cpu_spinwait();
 }
 
 #define cpu_relax_lowlatency() cpu_relax()
