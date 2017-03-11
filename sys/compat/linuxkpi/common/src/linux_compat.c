@@ -1778,6 +1778,8 @@ linux_irq_handler(void *ent)
 {
 	struct irq_ent *irqe;
 
+	linux_set_current(curthread);
+
 	irqe = ent;
 	irqe->handler(irqe->irq, irqe->arg);
 }
