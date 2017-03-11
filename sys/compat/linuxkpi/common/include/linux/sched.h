@@ -36,7 +36,7 @@
 #include <sys/proc.h>
 #include <sys/sched.h>
 
-#include <linux/types.h>
+#include <linux/list.h>
 #include <linux/compat.h>
 #include <linux/completion.h>
 #include <linux/pid.h>
@@ -88,6 +88,8 @@ struct task_struct {
 	struct mtx sleep_lock;
 	struct completion parked;
 	struct completion exited;
+	TAILQ_ENTRY(task_struct) rcu_entry;
+	int rcu_recurse;
 };
 
 #define	current	({ \
