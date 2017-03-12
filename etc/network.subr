@@ -129,7 +129,7 @@ ifconfig_up()
 	if [ "$1" = "lo0" ]; then
 		_cfg=0
 	fi
-
+	
 	# inet6 specific
 	if ! noafif $1 && afexists inet6; then
 		if checkyesno ipv6_activate_all_interfaces; then
@@ -215,7 +215,7 @@ ifconfig_up()
 	ifalias $1 ether alias
 
 	if wpaif $1; then
-		ln -fs /usr/local/etc/init.d/wpa_supplicant /usr/local/etc/init.d/wpa_supplicant.${1}
+		ln -fs /etc/init.d/wpa_supplicant /etc/init.d/wpa_supplicant.${1}
 		service wpa_supplicant.${1} start
 		_cfg=0		# XXX: not sure this should count
 	elif hostapif $1; then
@@ -250,7 +250,7 @@ ifconfig_down()
 	_cfg=1
 
 	if wpaif $1; then
-		ln -fs /usr/local/etc/init.d/wpa_supplicant /usr/local/etc/init.d/wpa_supplicant.${1}
+		ln -fs /etc/init.d/wpa_supplicant /etc/init.d/wpa_supplicant.${1}
 		service wpa_supplicant.${1} stop
 		_cfg=0
 	elif hostapif $1; then
