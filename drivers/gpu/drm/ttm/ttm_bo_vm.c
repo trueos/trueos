@@ -289,6 +289,7 @@ retry:
 				page = ttm->pages[page_offset];
 				if (page == NULL)
 					goto fail;
+				page->oflags &= ~VPO_UNMANAGED;
 			}
 			if (vm_page_busied(page))
 				goto fail;
