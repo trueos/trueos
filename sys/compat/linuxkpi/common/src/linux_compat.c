@@ -696,56 +696,53 @@ err:
 	return (rc);
 }
 
-struct list_head lcdev_handle_list;
-
 struct lcdev_handle_ref {
 	void *handle;
 	void *data;
-	struct list_head list;
+	TAILQ_ENTRY(lcdev_handle_ref) next;
 };
+static TAILQ_HEAD(, lcdev_handle_ref) lcdev_handles =
+    TAILQ_HEAD_INITIALIZER(lcdev_handles);
 
 static void
 linux_cdev_handle_insert(void *handle, void *data, int size)
 {
-	struct list_head *h;
-	struct lcdev_handle_ref *r;
-	void *datap;
+	struct lcdev_handle_ref *r, *tmp;
 
 	rw_rlock(&linux_global_rw);
-	list_for_each(h, &lcdev_handle_list) {
-		r = __containerof(h, struct lcdev_handle_ref, list);
+	TAILQ_FOREACH(r, &lcdev_handles, next)
 		if (r->handle == handle) {
 			rw_runlock(&linux_global_rw);
 			return;
 		}
-	}
 	rw_runlock(&linux_global_rw);
 	r = malloc(sizeof(struct lcdev_handle_ref), M_KMALLOC, M_WAITOK);
 	r->handle = handle;
-	datap = malloc(size, M_KMALLOC, M_WAITOK);
-	memcpy(datap, data, size);
-	r->data = datap;
-	INIT_LIST_HEAD(&r->list); /* XXX why _HEAD? */
+	r->data = malloc(size, M_KMALLOC, M_WAITOK);
+	memcpy(r->data, data, size);
 	rw_wlock(&linux_global_rw);
-	/* XXX need to re-lookup */
-	list_add_tail(&r->list, &lcdev_handle_list);
+	TAILQ_FOREACH(tmp, &lcdev_handles, next)
+		if (tmp->handle == handle) {
+			rw_wunlock(&linux_global_rw);
+			free(r->data, M_KMALLOC);
+			free(r, M_KMALLOC);
+			return;
+		}
+	TAILQ_INSERT_HEAD(&lcdev_handles, r, next);
 	rw_wunlock(&linux_global_rw);
 }
 
 static void
 linux_cdev_handle_remove(void *handle)
 {
-	struct list_head *h;
 	struct lcdev_handle_ref *r;
 
 	rw_wlock(&linux_global_rw);	
-	list_for_each(h, &lcdev_handle_list) {
-		r = __containerof(h, struct lcdev_handle_ref, list);
+	TAILQ_FOREACH(r, &lcdev_handles, next)
 		if (r->handle == handle)
 			break;
-	}
-	MPASS (r && r->handle == handle);
-	list_del(&r->list);
+	MPASS(r && r->handle == handle);
+	TAILQ_REMOVE(&lcdev_handles, r, next);
 	rw_wunlock(&linux_global_rw);
 	free(r->data, M_KMALLOC);
 	free(r, M_KMALLOC);
@@ -754,17 +751,14 @@ linux_cdev_handle_remove(void *handle)
 static void *
 linux_cdev_handle_find(void *handle)
 {
-	struct list_head *h;
 	struct lcdev_handle_ref *r;
 	void *data;
 
 	rw_rlock(&linux_global_rw);
-	list_for_each(h, &lcdev_handle_list) {
-		r = __containerof(h, struct lcdev_handle_ref, list);
+	TAILQ_FOREACH(r, &lcdev_handles, next)
 		if (r->handle == handle)
 			break;
-	}
-	MPASS (r && r->handle == handle);
+	MPASS(r && r->handle == handle);
 	data = r->data;
 	rw_runlock(&linux_global_rw);
 	return (data);
@@ -1956,7 +1950,6 @@ linux_compat_init(void *arg)
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	boot_cpu_data.x86 = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 
-	INIT_LIST_HEAD(&lcdev_handle_list);
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
 	kobject_init(&linux_class_root, &linux_class_ktype);
