@@ -59,14 +59,13 @@
 })
 #define	get_user(_x, _p)	linux_copyin((_p), &(_x), sizeof(*(_p)))
 #define	put_user(_x, _p)	linux_copyout(&(_x), (_p), sizeof(*(_p)))
-
-unsigned long clear_user(void *uptr, unsigned long len);
+#define	clear_user(...)		linux_clear_user(__VA_ARGS__)
+#define	access_ok(...)		linux_access_ok(__VA_ARGS__)
 
 extern int linux_copyin(const void *uaddr, void *kaddr, size_t len);
 extern int linux_copyout(const void *kaddr, void *uaddr, size_t len);
-
-extern int linux_access_ok(int rw, const void *addr, int len);
-#define	access_ok(...)	linux_access_ok(__VA_ARGS__)
+extern size_t linux_clear_user(void *uaddr, size_t len);
+extern int linux_access_ok(int rw, const void *uaddr, size_t len);
 
 static inline void
 pagefault_disable(void)
@@ -75,16 +74,20 @@ pagefault_disable(void)
 	 * Use vm_fault_disable_pagefaults if we need to
 	 * recurse
 	 */
-	MPASS((curthread->td_pflags & (TDP_NOFAULTING|TDP_RESETSPUR)) == 0);
+	MPASS((curthread->td_pflags & (TDP_NOFAULTING | TDP_RESETSPUR)) == 0);
 	curthread->td_pflags |= (TDP_NOFAULTING | TDP_RESETSPUR);
 }
 
 static inline void
 pagefault_enable(void)
 {
-	curthread->td_pflags &= ~(TDP_NOFAULTING|TDP_RESETSPUR);
+	curthread->td_pflags &= ~(TDP_NOFAULTING | TDP_RESETSPUR);
 }
 
-#define pagefault_disabled() (curthread->td_pflags & TDP_NOFAULTING)
+static inline bool
+pagefault_disabled(void)
+{
+	return ((curthread->td_pflags & TDP_NOFAULTING) != 0);
+}
 
-#endif	/* _LINUX_UACCESS_H_ */
+#endif					/* _LINUX_UACCESS_H_ */
