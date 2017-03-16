@@ -86,7 +86,7 @@ linuxkpi_thread_dtor(void *arg __unused, struct thread *td)
 		return;
 
 	td->td_lkpi_task = NULL;
-	free(ts, M_LINUX_CURRENT);
+	linux_free_current(ts);
 }
 
 static void
