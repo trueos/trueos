@@ -982,7 +982,16 @@ linux_clear_user(void *_uaddr, size_t _len)
 int
 linux_access_ok(int rw, const void *uaddr, size_t len)
 {
-	return (len == 0 || (uintptr_t)uaddr <= VM_MAXUSER_ADDRESS);
+	uintptr_t saddr;
+	uintptr_t eaddr;
+
+	/* get start and end address */
+	saddr = (uintptr_t)uaddr;
+	eaddr = (uintptr_t)uaddr + len;
+
+	/* verify addresses are valid for userspace */
+	return ((saddr == eaddr) ||
+	    (eaddr > saddr && eaddr <= VM_MAXUSER_ADDRESS));
 }
 
 static int
