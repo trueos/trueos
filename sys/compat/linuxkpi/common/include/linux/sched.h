@@ -79,7 +79,6 @@ struct task_struct {
 	int	normal_prio;
 	void   *bsd_ioctl_data;
 	unsigned bsd_ioctl_len;
-	struct mm_struct bsd_mm;
 	struct mtx sleep_lock;
 	struct completion parked;
 	struct completion exited;
@@ -98,28 +97,6 @@ struct task_struct {
 
 #define	set_task_state(task, x) atomic_set(&(task)->state, x)
 #define	__set_task_state(task, x) do { (task)->state.counter = (x); } while (0)
-
-static inline void
-__mmdrop(struct mm_struct *mm)
-{
-	UNIMPLEMENTED();
-}
-
-static inline void
-mmdrop(struct mm_struct *mm)
-{
-	if (__predict_false(atomic_dec_and_test(&mm->mm_count)))
-		__mmdrop(mm);
-}
-
-static inline void
-mmput(struct mm_struct *mm)
-{
-	DODGY();
-	if (atomic_dec_and_test(&mm->mm_users)) {
-		mmdrop(mm);
-	}
-}
 
 static inline void
 __put_task_struct(struct task_struct *t)
