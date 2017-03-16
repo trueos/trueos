@@ -66,7 +66,7 @@ extern int linux_copyin(const void *uaddr, void *kaddr, size_t len);
 extern int linux_copyout(const void *kaddr, void *uaddr, size_t len);
 
 extern int linux_access_ok(int rw, const void *addr, int len);
-#define	access_ok	linux_access_ok
+#define	access_ok(...)	linux_access_ok(__VA_ARGS__)
 
 static inline void
 pagefault_disable(void)
