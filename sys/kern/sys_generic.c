@@ -160,8 +160,6 @@ struct selfd {
 
 static uma_zone_t selfd_zone;
 static struct mtx_pool *mtxpool_select;
-static struct mtx seldeferred_mtx;
-static struct selfdlist global_deferred;
 
 #ifdef __LP64__
 size_t
@@ -1687,12 +1685,12 @@ selfdfree(struct seltd *stp, struct selfd *sfp)
 {
 	STAILQ_REMOVE(&stp->st_selq, sfp, selfd, sf_link);
 	if (sfp->sf_si != NULL) {
-		mtx_lock_spin(sfp->sf_mtx);
+		mtx_lock(sfp->sf_mtx);
 		if (sfp->sf_si != NULL) {
 			TAILQ_REMOVE(&sfp->sf_si->si_tdlist, sfp, sf_threads);
 			refcount_release(&sfp->sf_refs);
 		}
-		mtx_unlock_spin(sfp->sf_mtx);
+		mtx_unlock(sfp->sf_mtx);
 	}
 	if (refcount_release(&sfp->sf_refs))
 		uma_zfree(selfd_zone, sfp);
@@ -1700,7 +1698,8 @@ selfdfree(struct seltd *stp, struct selfd *sfp)
 
 /* Drain the waiters tied to all the selfd belonging the specified selinfo. */
 void
-seldrain(struct selinfo *sip)
+seldrain(sip)
+        struct selinfo *sip;
 {
 
 	/*
@@ -1718,12 +1717,13 @@ seldrain(struct selinfo *sip)
  * Record a select request.
  */
 void
-selrecord(struct thread *selector, struct selinfo *sip)
+selrecord(selector, sip)
+	struct thread *selector;
+	struct selinfo *sip;
 {
 	struct selfd *sfp;
 	struct seltd *stp;
 	struct mtx *mtxp;
-	struct selfdlist trash;
 
 	stp = selector->td_sel;
 	/*
@@ -1731,7 +1731,6 @@ selrecord(struct thread *selector, struct selinfo *sip)
 	 */
 	if (stp->st_flags & SELTD_RESCAN)
 		return;
-
 	/*
 	 * Grab one of the preallocated descriptors.
 	 */
@@ -1755,7 +1754,7 @@ selrecord(struct thread *selector, struct selinfo *sip)
 	/*
 	 * Now that we've locked the sip, check for initialization.
 	 */
-	mtx_lock_spin(mtxp);
+	mtx_lock(mtxp);
 	if (sip->si_mtx == NULL) {
 		sip->si_mtx = mtxp;
 		TAILQ_INIT(&sip->si_tdlist);
@@ -1764,30 +1763,22 @@ selrecord(struct thread *selector, struct selinfo *sip)
 	 * Add this thread to the list of selfds listening on this selinfo.
 	 */
 	TAILQ_INSERT_TAIL(&sip->si_tdlist, sfp, sf_threads);
-	mtx_unlock_spin(sip->si_mtx);
-
-	if (!TAILQ_EMPTY(&global_deferred)) {
-		TAILQ_INIT(&trash);
-		mtx_lock_spin(&seldeferred_mtx);
-		TAILQ_CONCAT(&trash, &global_deferred, sf_threads);
-		mtx_unlock_spin(&seldeferred_mtx);
-		while ((sfp = TAILQ_FIRST(&trash)) != NULL) {
-			TAILQ_REMOVE(&trash, sfp, sf_threads);
-			uma_zfree(selfd_zone, sfp);
-		}
-	}
+	mtx_unlock(sip->si_mtx);
 }
 
 /* Wake up a selecting thread. */
 void
-selwakeup(struct selinfo *sip)
+selwakeup(sip)
+	struct selinfo *sip;
 {
 	doselwakeup(sip, -1);
 }
 
 /* Wake up a selecting thread, and set its priority. */
 void
-selwakeuppri(struct selinfo *sip, int pri)
+selwakeuppri(sip, pri)
+	struct selinfo *sip;
+	int pri;
 {
 	doselwakeup(sip, pri);
 }
@@ -1796,23 +1787,21 @@ selwakeuppri(struct selinfo *sip, int pri)
  * Do a wakeup when a selectable event occurs.
  */
 static void
-doselwakeup(struct selinfo *sip, int pri)
+doselwakeup(sip, pri)
+	struct selinfo *sip;
+	int pri;
 {
 	struct selfd *sfp;
 	struct selfd *sfn;
 	struct seltd *stp;
-	struct thread *td;
-	struct selfdlist trash;
 
 	/* If it's not initialized there can't be any waiters. */
 	if (sip->si_mtx == NULL)
 		return;
-	TAILQ_INIT(&trash);
-	td = curthread;
 	/*
 	 * Locking the selinfo locks all selfds associated with it.
 	 */
-	mtx_lock_spin(sip->si_mtx);
+	mtx_lock(sip->si_mtx);
 	TAILQ_FOREACH_SAFE(sfp, &sip->si_tdlist, sf_threads, sfn) {
 		/*
 		 * Once we remove this sfp from the list and clear the
@@ -1821,24 +1810,14 @@ doselwakeup(struct selinfo *sip, int pri)
 		TAILQ_REMOVE(&sip->si_tdlist, sfp, sf_threads);
 		sfp->sf_si = NULL;
 		stp = sfp->sf_td;
-		mtx_lock_spin(&stp->st_mtx);
+		mtx_lock(&stp->st_mtx);
 		stp->st_flags |= SELTD_PENDING;
 		cv_broadcastpri(&stp->st_wait, pri);
-		mtx_unlock_spin(&stp->st_mtx);
+		mtx_unlock(&stp->st_mtx);
 		if (refcount_release(&sfp->sf_refs))
-			TAILQ_INSERT_HEAD(&trash, sfp, sf_threads);
+			uma_zfree(selfd_zone, sfp);
 	}
-	mtx_unlock_spin(sip->si_mtx);
-	if (td->td_critnest || td->td_intr_nesting_level) {
-		mtx_lock_spin(&seldeferred_mtx);
-		TAILQ_CONCAT(&global_deferred, &trash, sf_threads);
-		mtx_unlock_spin(&seldeferred_mtx);
-		return;
-	}
-	while ((sfp = TAILQ_FIRST(&trash)) != NULL) {
-		TAILQ_REMOVE(&trash, sfp, sf_threads);
-		uma_zfree(selfd_zone, sfp);
-	}
+	mtx_unlock(sip->si_mtx);
 }
 
 static void
@@ -1849,7 +1828,7 @@ seltdinit(struct thread *td)
 	if ((stp = td->td_sel) != NULL)
 		goto out;
 	td->td_sel = stp = malloc(sizeof(*stp), M_SELECT, M_WAITOK|M_ZERO);
-	mtx_init(&stp->st_mtx, "sellck", NULL, MTX_SPIN);
+	mtx_init(&stp->st_mtx, "sellck", NULL, MTX_DEF);
 	cv_init(&stp->st_wait, "select");
 out:
 	stp->st_flags = 0;
@@ -1867,13 +1846,13 @@ seltdwait(struct thread *td, sbintime_t sbt, sbintime_t precision)
 	 * An event of interest may occur while we do not hold the seltd
 	 * locked so check the pending flag before we sleep.
 	 */
-	mtx_lock_spin(&stp->st_mtx);
+	mtx_lock(&stp->st_mtx);
 	/*
 	 * Any further calls to selrecord will be a rescan.
 	 */
 	stp->st_flags |= SELTD_RESCAN;
 	if (stp->st_flags & SELTD_PENDING) {
-		mtx_unlock_spin(&stp->st_mtx);
+		mtx_unlock(&stp->st_mtx);
 		return (0);
 	}
 	if (sbt == 0)
@@ -1883,7 +1862,7 @@ seltdwait(struct thread *td, sbintime_t sbt, sbintime_t precision)
 		    sbt, precision, C_ABSOLUTE);
 	else
 		error = cv_wait_sig(&stp->st_wait, &stp->st_mtx);
-	mtx_unlock_spin(&stp->st_mtx);
+	mtx_unlock(&stp->st_mtx);
 
 	return (error);
 }
@@ -1929,9 +1908,7 @@ selectinit(void *dummy __unused)
 
 	selfd_zone = uma_zcreate("selfd", sizeof(struct selfd), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
-	mtxpool_select = mtx_pool_create("select mtxpool", 128, MTX_SPIN);
-	TAILQ_INIT(&global_deferred);
-	mtx_init(&seldeferred_mtx, "seltrash", NULL, MTX_SPIN);
+	mtxpool_select = mtx_pool_create("select mtxpool", 128, MTX_DEF);
 }
 
 /*
