@@ -87,7 +87,8 @@ struct task_struct {
 
 #define	current		((struct task_struct *)curthread->td_lkpi_task)
 
-#define	task_pid(task)	((task)->task_thread->td_proc->p_pid)
+#define	task_pid(task)		((task)->task_thread->td_proc->p_pid)
+#define	task_pid_nr(task)	((task)->task_thread->td_tid)
 #define	get_pid(x) (x)
 #define	put_pid(x)
 #define	current_euid()	(curthread->td_ucred->cr_uid)
