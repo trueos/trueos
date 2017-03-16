@@ -67,22 +67,13 @@ extern int linux_copyout(const void *kaddr, void *uaddr, size_t len);
 extern size_t linux_clear_user(void *uaddr, size_t len);
 extern int linux_access_ok(int rw, const void *uaddr, size_t len);
 
-static inline void
-pagefault_disable(void)
-{
-	/*
-	 * Use vm_fault_disable_pagefaults if we need to
-	 * recurse
-	 */
-	MPASS((curthread->td_pflags & (TDP_NOFAULTING | TDP_RESETSPUR)) == 0);
-	curthread->td_pflags |= (TDP_NOFAULTING | TDP_RESETSPUR);
-}
+#define	pagefault_disable(void) do {		\
+	int __saved_pflags =			\
+	    vm_fault_disable_pagefaults()
 
-static inline void
-pagefault_enable(void)
-{
-	curthread->td_pflags &= ~(TDP_NOFAULTING | TDP_RESETSPUR);
-}
+#define	pagefault_enable(void)				\
+	vm_fault_enable_pagefaults(__saved_pflags);	\
+} while (0)
 
 static inline bool
 pagefault_disabled(void)
