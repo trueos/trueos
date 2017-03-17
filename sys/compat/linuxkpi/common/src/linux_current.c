@@ -77,6 +77,19 @@ linux_alloc_current(struct thread *td, int flags)
 	return (0);
 }
 
+struct mm_struct *
+linux_get_task_mm(struct task_struct *task)
+{
+	struct mm_struct *mm;
+
+	mm = task->mm;
+	if (mm != NULL && mm->vmspace != NULL) {
+		atomic_inc(&mm->mm_users);
+		return (mm);
+	}
+	return (NULL);
+}
+
 void
 linux_mm_dtor(struct mm_struct *mm)
 {

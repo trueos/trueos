@@ -37,6 +37,7 @@
 #include <asm/atomic.h>
 
 struct vm_area_struct;
+struct task_struct;
 struct vmspace;
 
 struct mm_struct {
@@ -62,5 +63,8 @@ mmput(struct mm_struct *mm)
 	if (__predict_false(atomic_dec_and_test(&mm->mm_users)))
 		mmdrop(mm);
 }
+
+extern struct mm_struct *linux_get_task_mm(struct task_struct *);
+#define	get_task_mm(task) linux_get_task_mm(task)
 
 #endif					/* _LINUX_MM_TYPES_H_ */
