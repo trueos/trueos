@@ -116,7 +116,37 @@ linuxkpi_thread_dtor(void *arg __unused, struct thread *td)
 		return;
 
 	td->td_lkpi_task = NULL;
-	linux_free_current(ts);
+	put_task_struct(ts);
+}
+
+struct task_struct *
+linux_pid_task(pid_t pid)
+{
+	struct thread *td;
+
+	td = tdfind(pid, -1);
+	if (td != NULL) {
+		struct task_struct *ts = td->td_lkpi_task;
+		PROC_UNLOCK(td->td_proc);
+		return (ts);
+	}
+	return (NULL);
+}
+
+struct task_struct *
+linux_get_pid_task(pid_t pid)
+{
+	struct thread *td;
+
+	td = tdfind(pid, -1);
+	if (td != NULL) {
+		struct task_struct *ts = td->td_lkpi_task;
+		if (ts != NULL)
+			get_task_struct(ts);
+		PROC_UNLOCK(td->td_proc);
+		return (ts);
+	}
+	return (NULL);
 }
 
 static void
