@@ -80,7 +80,8 @@ linux_alloc_current(struct thread *td, int flags)
 void
 linux_mm_dtor(struct mm_struct *mm)
 {
-	vmspace_free(mm->vmspace);
+	if (mm->vmspace != NULL)
+		vmspace_free(mm->vmspace);
 	free(mm, M_LINUX_CURRENT);
 }
 
