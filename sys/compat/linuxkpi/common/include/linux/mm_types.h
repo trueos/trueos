@@ -45,6 +45,7 @@ struct mm_struct {
 	struct vmspace *vmspace;
 	atomic_t mm_count;
 	atomic_t mm_users;
+	size_t pinned_vm;
 	struct rw_semaphore mmap_sem;
 };
 
