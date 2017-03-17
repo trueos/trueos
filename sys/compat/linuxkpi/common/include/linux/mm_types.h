@@ -36,7 +36,9 @@
 
 #include <asm/atomic.h>
 
+struct vm_area_struct;
 struct vmspace;
+
 struct mm_struct {
 	struct vm_area_struct *mmap;
 	struct vmspace *vmspace;
