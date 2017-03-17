@@ -101,7 +101,7 @@ linux_mm_dtor(struct mm_struct *mm)
 void
 linux_free_current(struct task_struct *ts)
 {
-	mmdrop(ts->mm);
+	mmput(ts->mm);
 	mtx_destroy(&ts->sleep_lock);
 	free(ts, M_LINUX_CURRENT);
 }
