@@ -126,7 +126,7 @@ struct lock_class {
  * work with both debug and non-debug kernels.
  */
 #if defined(KLD_MODULE) || defined(WITNESS) || defined(INVARIANTS) || \
-    defined(INVARIANT_SUPPORT) || defined(LOCK_PROFILING) || defined(KTR)
+    defined(LOCK_PROFILING) || defined(KTR)
 #define	LOCK_DEBUG	1
 #else
 #define	LOCK_DEBUG	0
@@ -199,7 +199,6 @@ struct lock_class {
 
 extern struct lock_class lock_class_mtx_sleep;
 extern struct lock_class lock_class_mtx_spin;
-extern struct lock_class lock_class_mtx_interop;
 extern struct lock_class lock_class_sx;
 extern struct lock_class lock_class_rw;
 extern struct lock_class lock_class_rm;

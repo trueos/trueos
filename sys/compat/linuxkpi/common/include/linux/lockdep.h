@@ -48,6 +48,4 @@ struct lock_class_key {
 /* XXX */
 #define lockdep_is_held(m) 
 
-#define task_pid_nr(task) ((task)->task_thread->td_tid)
-
 #endif  /* _LINUX_LOCKDEP_H_ */

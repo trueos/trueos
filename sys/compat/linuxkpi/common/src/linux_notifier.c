@@ -258,6 +258,7 @@ do_shrink_slab(struct shrink_control *shrinkctl, struct shrinker *shrinker,
 	delta = (4 * nr_scanned) / shrinker->seeks;
 	delta *= freeable;
 	do_div(delta, nr_eligible + 1);
+	total_scan += delta;
 	if (total_scan < 0)
 		total_scan = freeable;
 	if (delta < freeable / 4)

@@ -280,8 +280,17 @@ static void ttm_pages_put(struct page *pages[], unsigned npages)
 	unsigned i;
 	if (set_pages_array_wb(pages, npages))
 		pr_err("Failed to set %d pages to wb!\n", npages);
+#ifdef __FreeBSD__
+	for (i = 0; i < npages; ++i) {
+		vm_page_lock(pages[i]);
+		vm_page_unwire(pages[i], PQ_NONE);
+		vm_page_unlock(pages[i]);
+		__free_page(pages[i]);
+	}
+#else
 	for (i = 0; i < npages; ++i)
 		__free_page(pages[i]);
+#endif
 }
 
 static void ttm_pool_update_free_locked(struct ttm_page_pool *pool,
@@ -482,6 +491,11 @@ static void ttm_handle_caching_state_failure(struct list_head *pages,
 	/* Failed pages have to be freed */
 	for (i = 0; i < cpages; ++i) {
 		list_del(&failed_pages[i]->lru);
+#ifdef __FreeBSD__
+		vm_page_lock(failed_pages[i]);
+		vm_page_unwire(failed_pages[i], PQ_NONE);
+		vm_page_unlock(failed_pages[i]);
+#endif
 		__free_page(failed_pages[i]);
 	}
 }
@@ -529,6 +543,12 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 			r = -ENOMEM;
 			goto out;
 		}
+
+#ifdef __FreeBSD__
+		vm_page_lock(p);
+		vm_page_wire(p);
+		vm_page_unlock(p);
+#endif
 
 #ifdef CONFIG_HIGHMEM
 		/* gfp flags of highmem page should never be dma32 so we
@@ -688,6 +708,11 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
 			if (pages[i]) {	
 				if (page_count(pages[i]) != 1)
 					pr_err("Erroneous page count. Leaking pages.\n");
+#ifdef __FreeBSD__
+				vm_page_lock(pages[i]);
+				vm_page_unwire(pages[i], PQ_NONE);
+				vm_page_unlock(pages[i]);
+#endif
 				__free_page(pages[i]);
 				pages[i] = NULL;
 			}
@@ -751,6 +776,12 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 				pr_err("Unable to allocate page\n");
 				return -ENOMEM;
 			}
+
+#ifdef __FreeBSD__
+			vm_page_lock(p);
+			vm_page_wire(p);
+			vm_page_unlock(p);
+#endif
 
 			pages[r] = p;
 		}

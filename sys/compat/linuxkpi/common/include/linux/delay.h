@@ -38,6 +38,8 @@
 #include <sys/systm.h>
 #include <sys/pcpu.h>
 
+#include <machine/cpu.h>
+
 #include <linux/jiffies.h>
 
 #include <asm/processor.h>
@@ -77,7 +79,7 @@ delay_tsc(unsigned long __loops)
 			break;
 
 		critical_exit();
-		rep_nop();
+		cpu_spinwait();
 		critical_enter();
 		if (unlikely(cpu != curcpu)) {
 			loops -= (now - bclock);
