@@ -47,13 +47,13 @@ struct mm_struct {
 	struct rw_semaphore mmap_sem;
 };
 
-extern void linux_mmdtor(struct mm_struct *mm);
+extern void linux_mm_dtor(struct mm_struct *mm);
 
 static inline void
 mmdrop(struct mm_struct *mm)
 {
 	if (__predict_false(atomic_dec_and_test(&mm->mm_count)))
-		linux_mmdtor(mm);
+		linux_mm_dtor(mm);
 }
 
 static inline void
