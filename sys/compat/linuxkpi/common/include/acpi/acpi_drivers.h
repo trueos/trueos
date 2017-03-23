@@ -78,6 +78,8 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle);
 
 /* Arch-defined function to add a bus to the system */
 
+struct acpi_pci_root;
+
 struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root);
 
 #ifdef CONFIG_X86
@@ -97,7 +99,6 @@ static inline void pci_acpi_crs_quirks(void) { }
 /*--------------------------------------------------------------------------
                                   Dock Station
   -------------------------------------------------------------------------- */
-
 #ifdef CONFIG_ACPI_DOCK
 extern int is_dock_device(struct acpi_device *adev);
 #else

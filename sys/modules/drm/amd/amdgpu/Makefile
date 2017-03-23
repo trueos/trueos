@@ -139,9 +139,7 @@ SRCS	= \
 	vce_v3_0.c \
 	vi.c
 
-
-
-
+CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/gplv2/include
 CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/common/include/drm
 CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/common/include/uapi

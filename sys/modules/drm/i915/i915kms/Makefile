@@ -91,14 +91,13 @@ SRCS	= \
 	intel_tv.c \
 	intel_uncore.c
 
-#
+CLEANFILES+= ${KMOD}.ko.full ${KMOD}.ko.debug
 
-CLEANFILES += ${KMOD}.ko.full ${KMOD}.ko.debug
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/gplv2/include
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include/uapi
 CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 CFLAGS+= -include ${SRCTOP}/sys/dev/drm/drm_os_config.h
-#CFLAGS += -DPRINT_UNIMPLEMENTED
 
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS	+= i915_ioc32.c
