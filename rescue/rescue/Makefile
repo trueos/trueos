@@ -98,7 +98,7 @@ CRUNCH_PROGS_sbin= badsect					\
 	mount_msdosfs mount_nfs mount_nullfs			\
 	mount_udf mount_unionfs newfs				\
 	newfs_msdos nos-tun ping reboot				\
-	restore rcorder route rtsol savecore	 		\
+	restore rcorder route savecore		 		\
 	shutdown spppcontrol swapon sysctl tunefs umount
 
 .if ${MK_ATM} != "no"
@@ -111,6 +111,7 @@ CRUNCH_PROGS_sbin+= ccdconfig
 
 .if ${MK_INET6_SUPPORT} != "no"
 CRUNCH_PROGS_sbin+= ping6
+CRUNCH_PROGS_sbin+= rtsol
 .endif
 
 .if ${MK_IPFILTER} != "no"
@@ -159,16 +160,16 @@ CRUNCH_PROGS_sbin+= bsdlabel fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
-CRUNCH_SRCDIR_atm= $(.CURDIR)/../../sbin/atm/atm
-CRUNCH_SRCDIR_atmconfig= $(.CURDIR)/../../sbin/atm/atmconfig
-CRUNCH_SRCDIR_fore_dnld= $(.CURDIR)/../../sbin/atm/fore_dnld
-CRUNCH_SRCDIR_ilmid= $(.CURDIR)/../../sbin/atm/ilmid
-CRUNCH_SRCDIR_rtquery= $(.CURDIR)/../../sbin/routed/rtquery
-CRUNCH_SRCDIR_ipf= $(.CURDIR)/../../sbin/ipf/ipf
+CRUNCH_SRCDIR_atm= ${SRCTOP}/sbin/atm/atm
+CRUNCH_SRCDIR_atmconfig= ${SRCTOP}/sbin/atm/atmconfig
+CRUNCH_SRCDIR_fore_dnld= ${SRCTOP}/sbin/atm/fore_dnld
+CRUNCH_SRCDIR_ilmid= ${SRCTOP}/sbin/atm/ilmid
+CRUNCH_SRCDIR_rtquery= ${SRCTOP}/sbin/routed/rtquery
+CRUNCH_SRCDIR_ipf= ${SRCTOP}/sbin/ipf/ipf
 .if ${MK_ZFS} != "no"
-CRUNCH_SRCDIR_zfs= ${.CURDIR}/../../cddl/sbin/zfs
-CRUNCH_SRCDIR_zpool= ${.CURDIR}/../../cddl/sbin/zpool
-CRUNCH_SRCDIR_zdb= ${.CURDIR}/../../cddl/usr.sbin/zdb
+CRUNCH_SRCDIR_zfs= ${SRCTOP}/cddl/sbin/zfs
+CRUNCH_SRCDIR_zpool= ${SRCTOP}/cddl/sbin/zpool
+CRUNCH_SRCDIR_zdb= ${SRCTOP}/cddl/usr.sbin/zdb
 .endif
 CRUNCH_ALIAS_reboot= fastboot halt fasthalt
 CRUNCH_ALIAS_restore= rrestore
@@ -186,7 +187,7 @@ CRUNCH_BUILDOPTS_dhclient= -DRELEASE_CRUNCH -Dlint
 #
 CRUNCH_SRCDIRS+= usr.bin
 
-CRUNCH_PROGS_usr.bin= head mt nc sed tail tee
+CRUNCH_PROGS_usr.bin= head mt sed tail tee
 
 CRUNCH_PROGS_usr.bin+= gzip
 CRUNCH_ALIAS_gzip= gunzip gzcat zcat
@@ -207,6 +208,10 @@ CRUNCH_LIBS+= -larchive
 CRUNCH_LIBS+= -lcrypto
 .endif
 CRUNCH_LIBS+= -lmd
+
+.if ${MK_NETCAT} != "no"
+CRUNCH_PROGS_usr.bin+=	nc
+.endif
 
 .if ${MK_VI} != "no"
 CRUNCH_PROGS_usr.bin+= vi

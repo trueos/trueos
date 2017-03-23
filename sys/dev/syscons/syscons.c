@@ -91,16 +91,6 @@ __FBSDID("$FreeBSD$");
 /* NULL-safe version of "tty_opened()" */
 #define	tty_opened_ns(tp)	((tp) != NULL && tty_opened(tp))
 
-typedef struct default_attr {
-	int		std_color;		/* normal hardware color */
-	int		rev_color;		/* reverse hardware color */
-} default_attr;
-
-static default_attr user_default = {
-    SC_NORM_ATTR,
-    SC_NORM_REV_ATTR,
-};
-
 static	u_char		sc_kattrtab[MAXCPU];
 
 static	int		sc_console_unit = -1;
@@ -270,37 +260,36 @@ static struct cdevsw consolectl_devsw = {
 
 static	u_int	ec_scroffset;
 
-/*
- * Fake enough of main_console for ec_putc() to work very early on x86 if
- * the kernel starts in normal color text mode.  On non-x86, scribbling
- * to the x86 normal color text frame buffer's addresses is unsafe, so
- * set (likely non-fake) graphics mode to get a null initial ec_putc().
- */
-static	scr_stat	fake_main_console = {
-	.scr.vtb_buffer = 0xb8000,
-	.xsize = 80,
-	.ysize = 25,
-#if !defined(__amd64__) && !defined(__i386__)
-	.status = GRAPHICS_MODE,
-#endif
-};
-
-#define	main_console	(sc_console == NULL ? fake_main_console : main_console)
-
 static void
 ec_putc(int c)
 {
+	uintptr_t fb;
 	u_short *scrptr;
 	u_int ind;
 	int attr, column, mysize, width, xsize, yborder, ysize;
 
-	if (main_console.status & GRAPHICS_MODE ||
-	    c < 0 || c > 0xff || c == '\a')
+	if (c < 0 || c > 0xff || c == '\a')
 		return;
-	xsize = main_console.xsize;
-	ysize = main_console.ysize;
+	if (sc_console == NULL) {
+#if !defined(__amd64__) && !defined(__i386__)
+		return;
+#endif
+		/*
+		 * This is enough for ec_putc() to work very early on x86
+		 * if the kernel starts in normal color text mode.
+		 */
+		fb = 0xb8000;
+		xsize = 80;
+		ysize = 25;
+	} else {
+		if (main_console.status & GRAPHICS_MODE)
+			return;
+		fb = main_console.sc->adp->va_window;
+		xsize = main_console.xsize;
+		ysize = main_console.ysize;
+	}
 	yborder = ysize / 5;
-	scrptr = (u_short *)main_console.scr.vtb_buffer + xsize * yborder;
+	scrptr = (u_short *)(void *)fb + xsize * yborder;
 	mysize = xsize * (ysize - 2 * yborder);
 	do {
 		ind = ec_scroffset;
@@ -322,8 +311,6 @@ ec_putc(int c)
 		scrptr[ind++ % mysize] = (attr << 8) | c;
 	while (--width != 0);
 }
-
-#undef main_console
 
 int
 sc_probe_unit(int unit, int flags)
@@ -3146,21 +3133,9 @@ scinit(int unit, int flags)
 	    init_scp(sc, sc->first_vty, scp);
 	    sc_vtb_init(&scp->vtb, VTB_MEMORY, scp->xsize, scp->ysize,
 			(void *)sc_buffer, FALSE);
-
-	    /* move cursors to the initial positions */
-	    if (col >= scp->xsize)
-		col = 0;
-	    if (row >= scp->ysize)
-		row = scp->ysize - 1;
-	    scp->xpos = col;
-	    scp->ypos = row;
-	    scp->cursor_pos = scp->cursor_oldpos = row*scp->xsize + col;
-
 	    if (sc_init_emulator(scp, SC_DFLT_TERM))
 		sc_init_emulator(scp, "*");
-	    (*scp->tsw->te_default_attr)(scp,
-					 user_default.std_color,
-					 user_default.rev_color);
+	    (*scp->tsw->te_default_attr)(scp, SC_NORM_ATTR, SC_NORM_REV_ATTR);
 	} else {
 	    /* assert(sc_malloc) */
 	    sc->dev = malloc(sizeof(struct tty *)*sc->vtys, M_DEVBUF,
@@ -3179,6 +3154,17 @@ scinit(int unit, int flags)
 	    sc_vtb_copy(&scp->scr, 0, &scp->vtb, 0, scp->xsize*scp->ysize);
 #endif
 
+	/* Sync h/w cursor position to s/w (sc and teken). */
+	if (col >= scp->xsize)
+	    col = 0;
+	if (row >= scp->ysize)
+	    row = scp->ysize - 1;
+	scp->xpos = col;
+	scp->ypos = row;
+	scp->cursor_pos = scp->cursor_oldpos = row*scp->xsize + col;
+	(*scp->tsw->te_set_cursor)(scp, col, row);
+
+	/* Sync BIOS cursor shape to s/w (sc only). */
 	if (bios_value.cursor_end < scp->font_size)
 	    sc->dflt_curs_attr.base = scp->font_size - 
 					  bios_value.cursor_end - 1;
@@ -3574,8 +3560,7 @@ sc_init_emulator(scr_stat *scp, char *name)
     scp->rndr = rndr;
     scp->rndr->init(scp);
 
-    /* XXX */
-    (*sw->te_default_attr)(scp, user_default.std_color, user_default.rev_color);
+    (*sw->te_default_attr)(scp, SC_NORM_ATTR, SC_NORM_REV_ATTR);
     sc_clear_screen(scp);
 
     return 0;

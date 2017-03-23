@@ -92,7 +92,6 @@ struct device linux_root_device;
 struct class linux_class_misc;
 struct list_head pci_drivers;
 struct list_head pci_devices;
-struct net init_net;
 spinlock_t pci_lock;
 
 unsigned long linux_timer_hz_mask;
@@ -507,6 +506,60 @@ linux_copyout(const void *kaddr, void *uaddr, size_t len)
 		return (0);
 	}
 	return (-copyout(kaddr, uaddr, len));
+}
+
+size_t
+linux_clear_user(void *_uaddr, size_t _len)
+{
+	uint8_t *uaddr = _uaddr;
+	size_t len = _len;
+
+	/* make sure uaddr is aligned before going into the fast loop */
+	while (((uintptr_t)uaddr & 7) != 0 && len > 7) {
+		if (subyte(uaddr, 0))
+			return (_len);
+		uaddr++;
+		len--;
+	}
+
+	/* zero 8 bytes at a time */
+	while (len > 7) {
+#ifdef __LP64__
+		if (suword64(uaddr, 0))
+			return (_len);
+#else
+		if (suword32(uaddr, 0))
+			return (_len);
+		if (suword32(uaddr + 4, 0))
+			return (_len);
+#endif
+		uaddr += 8;
+		len -= 8;
+	}
+
+	/* zero fill end, if any */
+	while (len > 0) {
+		if (subyte(uaddr, 0))
+			return (_len);
+		uaddr++;
+		len--;
+	}
+	return (0);
+}
+
+int
+linux_access_ok(int rw, const void *uaddr, size_t len)
+{
+	uintptr_t saddr;
+	uintptr_t eaddr;
+
+	/* get start and end address */
+	saddr = (uintptr_t)uaddr;
+	eaddr = (uintptr_t)uaddr + len;
+
+	/* verify addresses are valid for userspace */
+	return ((saddr == eaddr) ||
+	    (eaddr > saddr && eaddr <= VM_MAXUSER_ADDRESS));
 }
 
 static int
@@ -999,6 +1052,8 @@ linux_timer_callback_wrapper(void *context)
 {
 	struct timer_list *timer;
 
+	linux_set_current(curthread);
+
 	timer = context;
 	timer->function(timer->data);
 }
@@ -1343,6 +1398,8 @@ linux_irq_handler(void *ent)
 {
 	struct irq_ent *irqe;
 
+	linux_set_current(curthread);
+
 	irqe = ent;
 	irqe->handler(irqe->irq, irqe->arg);
 }
@@ -1426,6 +1483,20 @@ __unregister_chrdev(unsigned int major, unsigned int baseminor,
 #if defined(__i386__) || defined(__amd64__)
 bool linux_cpu_has_clflush;
 #endif
+
+bool
+linux_ratelimited(time_t *ptime)
+{
+	/* make sure uptime is not zero by OR'ing bit 31 */
+	time_t curr = time_uptime | (1U << 31);
+
+	/* check if one or more seconds have passed */
+	if (*ptime != curr) {
+		*ptime = curr;
+		return (1);
+	}
+	return (0);
+}
 
 static void
 linux_compat_init(void *arg)
