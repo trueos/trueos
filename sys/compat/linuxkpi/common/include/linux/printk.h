@@ -68,7 +68,8 @@ print_hex_dump(const char *level, const char *prefix_str,
 			printf("[%p] ", buf);
 			break;
 		case DUMP_PREFIX_OFFSET:
-			printf("[%p] ", (char *)((char *)buf - (char *)buf_old));
+			printf("[%p] ", (const char *)((const char *)buf -
+			    (const char *)buf_old));
 			break;
 		default:
 			break;
@@ -76,19 +77,19 @@ print_hex_dump(const char *level, const char *prefix_str,
 		for (row = 0; row != rowsize; row++) {
 			if (groupsize == 8 && len > 7) {
 				printf("%016llx ", ((print_64p_t)buf)->value);
-				buf = (uint8_t *)buf + 8;
+				buf = (const uint8_t *)buf + 8;
 				len -= 8;
 			} else if (groupsize == 4 && len > 3) {
 				printf("%08x ", ((print_32p_t)buf)->value);
-				buf = (uint8_t *)buf + 4;
+				buf = (const uint8_t *)buf + 4;
 				len -= 4;
 			} else if (groupsize == 2 && len > 1) {
 				printf("%04x ", ((print_16p_t)buf)->value);
-				buf = (uint8_t *)buf + 2;
+				buf = (const uint8_t *)buf + 2;
 				len -= 2;
 			} else if (len > 0) {
-				printf("%02x ", *(uint8_t *)buf);
-				buf = (uint8_t *)buf + 1;
+				printf("%02x ", *(const uint8_t *)buf);
+				buf = (const uint8_t *)buf + 1;
 				len--;
 			} else {
 				break;
