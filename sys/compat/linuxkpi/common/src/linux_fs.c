@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/mm.h>
 #include <asm/uaccess.h>
 
-
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
@@ -62,10 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 
-
-
-static MALLOC_DEFINE(M_LKFS, "lkfs", "lkpi fs");
-uma_zone_t vnode_zone;
+static MALLOC_DEFINE(M_LKFS, "lkfs", "LinuxKPI filesystem");
 
 long long
 simple_strtoll(const char *cp, char **endp, unsigned int base)
@@ -77,8 +73,8 @@ simple_strtoll(const char *cp, char **endp, unsigned int base)
 }
 
 ssize_t
-simple_read_from_buffer(void __user *to, size_t count,
-			loff_t *ppos, const void *from, size_t available)
+simple_read_from_buffer(void __user * to, size_t count,
+    loff_t *ppos, const void *from, size_t available)
 {
 	loff_t pos = *ppos;
 	size_t ret;
@@ -98,7 +94,7 @@ simple_read_from_buffer(void __user *to, size_t count,
 
 ssize_t
 simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
-		       const void __user *from, size_t count)
+    const void __user * from, size_t count)
 {
 	loff_t pos = *ppos;
 	size_t res;
@@ -118,8 +114,8 @@ simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 
 int
 simple_attr_open(struct inode *inode, struct file *file,
-		     int (*get)(void *, u64 *), int (*set)(void *, u64),
-		     const char *fmt)
+    int (*get) (void *, u64 *), int (*set) (void *, u64),
+    const char *fmt)
 {
 	struct simple_attr *attr;
 
@@ -146,7 +142,7 @@ simple_attr_release(struct inode *inode, struct file *file)
 }
 
 ssize_t
-simple_attr_read(struct file *file, char __user *buf, size_t len, loff_t *ppos)
+simple_attr_read(struct file *file, char __user * buf, size_t len, loff_t *ppos)
 {
 	struct sbuf *sb;
 	struct simple_attr *attr;
@@ -164,6 +160,7 @@ simple_attr_read(struct file *file, char __user *buf, size_t len, loff_t *ppos)
 	sb = attr->sb;
 	if (*ppos == 0) {
 		u64 val;
+
 		ret = attr->get(attr->data, &val);
 		if (ret)
 			goto out;
@@ -303,7 +300,6 @@ shmem_file_setup(char *name, loff_t size, unsigned long flags)
 		error = -ENOMEM;
 		goto err_1;
 	}
-
 	return (filp);
 err_1:
 	kfree(filp);
@@ -312,7 +308,7 @@ err_0:
 }
 
 static vm_ooffset_t
-_invalidate_mapping_pages(vm_object_t obj, vm_pindex_t start, vm_pindex_t end,
+linux_invalidate_mapping_pages(vm_object_t obj, vm_pindex_t start, vm_pindex_t end,
     int flags)
 {
 	int start_count, end_count;
@@ -329,7 +325,7 @@ unsigned long
 invalidate_mapping_pages(vm_object_t obj, pgoff_t start, pgoff_t end)
 {
 
-	return (_invalidate_mapping_pages(obj, start, end, OBJPR_CLEANONLY));
+	return (linux_invalidate_mapping_pages(obj, start, end, OBJPR_CLEANONLY));
 }
 
 void
@@ -339,12 +335,12 @@ shmem_truncate_range(struct vnode *vp, loff_t lstart, loff_t lend)
 	vm_pindex_t start = OFF_TO_IDX(lstart + PAGE_SIZE - 1);
 	vm_pindex_t end = OFF_TO_IDX(lend + 1);
 
-	(void)_invalidate_mapping_pages(vm_obj, start, end, 0);
+	(void)linux_invalidate_mapping_pages(vm_obj, start, end, 0);
 }
 
 static int
-__get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages, int write,
-			  struct page **pages)
+linux_get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages,
+    int write, struct page **pages)
 {
 	vm_prot_t prot;
 	size_t len;
@@ -385,7 +381,7 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 	va = start;
 	map = &curthread->td_proc->p_vmspace->vm_map;
 	end = start + (((size_t)nr_pages) << PAGE_SHIFT);
-	if (start < vm_map_min(map) ||  end > vm_map_max(map))
+	if (start < vm_map_min(map) || end > vm_map_max(map))
 		return (-EINVAL);
 	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
 	for (count = 0, mp = pages, va = start; va < end;
@@ -423,7 +419,7 @@ get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 	vm_map_t map;
 
 	map = &((struct vmspace *)mm->vmspace)->vm_map;
-	return (__get_user_pages_internal(map, start, nr_pages,
+	return (linux_get_user_pages_internal(map, start, nr_pages,
 	    !!(gup_flags & FOLL_WRITE), pages));
 }
 
@@ -434,7 +430,7 @@ get_user_pages(unsigned long start, unsigned long nr_pages, int gup_flags,
 	vm_map_t map;
 
 	map = &curthread->td_proc->p_vmspace->vm_map;
-	return (__get_user_pages_internal(map, start, nr_pages,
+	return (linux_get_user_pages_internal(map, start, nr_pages,
 	    !!(gup_flags & FOLL_WRITE), pages));
 }
 
@@ -444,6 +440,7 @@ linux_file_free(struct linux_file *filp)
 
 	if (filp->_file == NULL) {
 		struct vnode *vp = filp->f_vnode;
+
 		if (vp != NULL && vp->i_mapping != NULL)
 			vm_object_deallocate(vp->i_mapping);
 	} else {
