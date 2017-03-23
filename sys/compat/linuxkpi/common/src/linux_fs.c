@@ -63,15 +63,6 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_LKFS, "lkfs", "LinuxKPI filesystem");
 
-long long
-simple_strtoll(const char *cp, char **endp, unsigned int base)
-{
-	if (*cp == '-')
-		return -strtouq(cp + 1, endp, base);
-
-	return strtouq(cp, endp, base);
-}
-
 ssize_t
 simple_read_from_buffer(void __user * to, size_t count,
     loff_t *ppos, const void *from, size_t available)
