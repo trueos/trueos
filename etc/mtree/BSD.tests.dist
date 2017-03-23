@@ -310,6 +310,8 @@
             ttyio
             ..
         ..
+        libcam
+        ..
         libcasper
             services
                 cap_dns
@@ -423,10 +425,6 @@
                 uzip
                     etalon
                     ..
-                ..
-            ..
-            eli
-                pbkdf2
                 ..
             ..
         ..
@@ -611,6 +609,8 @@
         comm
         ..
         cut
+        ..
+        diff
         ..
         dirname
         ..

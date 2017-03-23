@@ -116,7 +116,6 @@ struct device linux_root_device;
 struct class linux_class_misc;
 struct list_head pci_drivers;
 struct list_head pci_devices;
-struct net init_net;
 spinlock_t pci_lock;
 struct sx linux_global_lock;
 struct rwlock linux_global_rw;
@@ -963,8 +962,15 @@ linux_clear_user(void *_uaddr, size_t _len)
 
 	/* zero 8 bytes at a time */
 	while (len > 7) {
+#ifdef __LP64__
 		if (suword64(uaddr, 0))
 			return (_len);
+#else
+		if (suword32(uaddr, 0))
+			return (_len);
+		if (suword32(uaddr + 4, 0))
+			return (_len);
+#endif
 		uaddr += 8;
 		len -= 8;
 	}
@@ -1956,6 +1962,20 @@ is_vmalloc_addr(const void *addr)
 #if defined(__i386__) || defined(__amd64__)
 bool linux_cpu_has_clflush;
 #endif
+
+bool
+linux_ratelimited(time_t *ptime)
+{
+	/* make sure uptime is not zero by OR'ing bit 31 */
+	time_t curr = time_uptime | (1U << 31);
+
+	/* check if one or more seconds have passed */
+	if (*ptime != curr) {
+		*ptime = curr;
+		return (1);
+	}
+	return (0);
+}
 
 static void
 linux_compat_init(void *arg)

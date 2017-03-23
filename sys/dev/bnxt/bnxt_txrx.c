@@ -48,17 +48,19 @@ __FBSDID("$FreeBSD$");
  */
 
 static int bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi);
-static void bnxt_isc_txd_flush(void *sc, uint16_t txqid, uint32_t pidx);
-static int bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, uint32_t cidx,
-    bool clear);
+static void bnxt_isc_txd_flush(void *sc, uint16_t txqid, qidx_t pidx);
+static int bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear);
 
-static void bnxt_isc_rxd_refill(void *sc, uint16_t rxqid, uint8_t flid,
+static void bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru);
+
+/*				uint16_t rxqid, uint8_t flid,
     uint32_t pidx, uint64_t *paddrs, caddr_t *vaddrs, uint16_t count,
     uint16_t buf_size);
+*/
 static void bnxt_isc_rxd_flush(void *sc, uint16_t rxqid, uint8_t flid,
-    uint32_t pidx);
-static int bnxt_isc_rxd_available(void *sc, uint16_t rxqid, uint32_t idx,
-    int budget);
+    qidx_t pidx);
+static int bnxt_isc_rxd_available(void *sc, uint16_t rxqid, qidx_t idx,
+    qidx_t budget);
 static int bnxt_isc_rxd_pkt_get(void *sc, if_rxd_info_t ri);
 
 static int bnxt_intr(void *sc);
@@ -172,7 +174,7 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 }
 
 static void
-bnxt_isc_txd_flush(void *sc, uint16_t txqid, uint32_t pidx)
+bnxt_isc_txd_flush(void *sc, uint16_t txqid, qidx_t pidx)
 {
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_ring *tx_ring = &softc->tx_rings[txqid];
@@ -185,7 +187,7 @@ bnxt_isc_txd_flush(void *sc, uint16_t txqid, uint32_t pidx)
 }
 
 static int
-bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, uint32_t idx, bool clear)
+bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear)
 {
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_cp_ring *cpr = &softc->tx_cp_rings[txqid];
@@ -249,15 +251,27 @@ done:
 }
 
 static void
-bnxt_isc_rxd_refill(void *sc, uint16_t rxqid, uint8_t flid,
-				uint32_t pidx, uint64_t *paddrs,
-				caddr_t *vaddrs, uint16_t count, uint16_t len)
+bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru)
 {
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_ring *rx_ring;
 	struct rx_prod_pkt_bd *rxbd;
 	uint16_t type;
 	uint16_t i;
+	uint16_t rxqid;
+	uint16_t count, len;
+	uint32_t pidx;
+	uint8_t flid;
+	uint64_t *paddrs;
+	caddr_t *vaddrs;
+
+	rxqid = iru->iru_qsidx;
+	count = iru->iru_count;
+	len = iru->iru_buf_size;
+	pidx = iru->iru_pidx;
+	flid = iru->iru_flidx;
+	vaddrs = iru->iru_vaddrs;
+	paddrs = iru->iru_paddrs;
 
 	if (flid == 0) {
 		rx_ring = &softc->rx_rings[rxqid];
@@ -284,7 +298,7 @@ bnxt_isc_rxd_refill(void *sc, uint16_t rxqid, uint8_t flid,
 
 static void
 bnxt_isc_rxd_flush(void *sc, uint16_t rxqid, uint8_t flid,
-    uint32_t pidx)
+    qidx_t pidx)
 {
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_ring *rx_ring;
@@ -310,7 +324,7 @@ bnxt_isc_rxd_flush(void *sc, uint16_t rxqid, uint8_t flid,
 }
 
 static int
-bnxt_isc_rxd_available(void *sc, uint16_t rxqid, uint32_t idx, int budget)
+bnxt_isc_rxd_available(void *sc, uint16_t rxqid, qidx_t idx, qidx_t budget)
 {
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_cp_ring *cpr = &softc->rx_cp_rings[rxqid];

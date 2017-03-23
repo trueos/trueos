@@ -291,6 +291,12 @@ show_class_attr_string(struct class *class,
 		dev_err(dev, __VA_ARGS__);	\
 } while (0)
 
+#define	dev_warn_ratelimited(dev, ...) do {	\
+	static time_t __ratelimited;		\
+	if (linux_ratelimited(&__ratelimited))	\
+		dev_warn(dev, __VA_ARGS__);	\
+} while (0)
+
 static inline void *
 dev_get_drvdata(const struct device *dev)
 {

@@ -4,7 +4,6 @@
 #include <linux/types.h>
 
 #include <asm/cpufeatures.h>
-#include <asm/cmpxchg.h>
 
 #include <machine/cpu.h>
 

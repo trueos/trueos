@@ -143,7 +143,6 @@ DUMMY(sched_getattr);
 DUMMY(renameat2);
 /* linux 3.15: */
 DUMMY(seccomp);
-DUMMY(getrandom);
 DUMMY(memfd_create);
 /* linux 3.18: */
 DUMMY(bpf);

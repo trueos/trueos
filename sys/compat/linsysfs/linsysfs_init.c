@@ -314,14 +314,63 @@ linsysfs_populate_udev(struct pfs_node *root)
 }
 
 /*
+ * Filler function for sys/devices/system/cpu/online
+ */
+static int
+linsysfs_cpuonline(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "%d-%d\n", CPU_FIRST(), mp_maxid);
+	return (0);
+}
+
+/*
+ * Filler function for sys/devices/system/cpu/cpuX/online
+ */
+static int
+linsysfs_cpuxonline(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "1\n");
+	return (0);
+}
+
+static void
+linsysfs_listcpus(struct pfs_node *dir)
+{
+	struct pfs_node *cpu;
+	char *name;
+	int i, count, len;
+
+	len = 1;
+	count = mp_maxcpus;
+	while (count > 10) {
+		count /= 10;
+		len++;
+	}
+	len += sizeof("cpu");
+	name = malloc(len, M_TEMP, M_WAITOK);
+
+	for (i = 0; i < mp_ncpus; ++i) {
+		/* /sys/devices/system/cpu/cpuX */
+		sprintf(name, "cpu%d", i);
+		cpu = pfs_create_dir(dir, name, NULL, NULL, NULL, 0);
+
+		pfs_create_file(cpu, "online", &linsysfs_cpuxonline,
+		    NULL, NULL, NULL, PFS_RD);
+	}
+	free(name, M_TEMP);
+}
+
+/*
  * Constructor
  */
 static int
 linsysfs_init(PFS_INIT_ARGS)
 {
 	struct pfs_node *root;
-	struct pfs_node *dir;
-	struct pfs_node *pci00;
+	struct pfs_node *dir, *sys, *cpu;
+	struct pfs_node *pci;
 	devclass_t devclass;
 	device_t dev;
 
@@ -340,12 +389,10 @@ linsysfs_init(PFS_INIT_ARGS)
 	/* /sys/kernel/... */
 	dir = pfs_create_dir(root, "kernel", NULL, NULL, NULL, 0);
 	pfs_create_dir(dir, "debug", debugfs_attr, NULL, NULL, 0);
-	
-	/* /sys/device */
-	dir = pfs_create_dir(root, "devices", NULL, NULL, NULL, 0);
 
 	/* /sys/device/pci0000:00 */
-	linux_root_device.kobj.sd = linux_class_root.sd = pci00 = pfs_create_dir(dir, "pci0000:00", NULL, NULL, NULL, 0);
+	pci = pfs_create_dir(dir, "pci0000:00", NULL, NULL, NULL, 0);
+	linux_root_device.kobj.sd = linux_class_root.sd = pci;
 
 	/* /sys/dev/... */
 	dir = pfs_create_dir(root, "dev", NULL, NULL, NULL, 0);
@@ -362,7 +409,19 @@ linsysfs_init(PFS_INIT_ARGS)
 	}
 
 	dev = devclass_get_device(devclass, 0);
-	linsysfs_run_bus(dev, pci00, "/pci0000:00", "0000");
+	linsysfs_run_bus(dev, pci, "/pci0000:00", "0000");
+
+	/* /sys/devices/system */
+	sys = pfs_create_dir(dir, "system", NULL, NULL, NULL, 0);
+
+	/* /sys/devices/system/cpu */
+	cpu = pfs_create_dir(sys, "cpu", NULL, NULL, NULL, 0);
+
+	pfs_create_file(cpu, "online", &linsysfs_cpuonline,
+	    NULL, NULL, NULL, PFS_RD);
+
+	linsysfs_listcpus(cpu);
+
 	return (0);
 }
 
