@@ -331,7 +331,9 @@ static inline void
 __bitmap_or(unsigned long *dst, const unsigned long *bitmap1,
 	    const unsigned long *bitmap2, unsigned int bits)
 {
-	for (int i = 0; i < __bitset_words(bits); i++)
+	int i;
+
+	for (i = 0; i < __bitset_words(bits); i++)
 		dst[i] = bitmap1[i] | bitmap2[i];
 }
 
