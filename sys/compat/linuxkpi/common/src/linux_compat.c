@@ -1067,7 +1067,7 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	linux_set_current(td);
 	if (filp->f_op->read) {
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
-					 uio->uio_iov->iov_len, &uio->uio_offset);
+		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
 			uio->uio_iov->iov_base =
 			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
@@ -1105,7 +1105,7 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	linux_set_current(td);
 	if (filp->f_op->write) {
 		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
-					  uio->uio_iov->iov_len, &uio->uio_offset);
+		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
 			uio->uio_iov->iov_base =
 			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
