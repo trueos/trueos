@@ -22,7 +22,6 @@ SRCS=	interval_tree.c \
 	linux_notifier.c \
 	linux_page.c \
 	linux_pci.c \
-	linux_platform_device.c \
 	linux_radix.c \
 	linux_rcu.c \
 	linux_reservation.c \
