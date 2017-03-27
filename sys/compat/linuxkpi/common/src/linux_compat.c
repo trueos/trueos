@@ -1940,16 +1940,6 @@ async_schedule(async_func_t func, void *data)
 	return (newcookie);
 }
 
-#ifdef __notyet__
-/*
- * XXX
- * The rather broken taskqueue API doesn't allow us to serialize 
- * on a particular thread's queue if we use more than 1 thread
- */
-#else
-#define MAX_WQ_CPUS 1
-#endif
-
 #if defined(__i386__) || defined(__amd64__)
 bool linux_cpu_has_clflush;
 #endif
