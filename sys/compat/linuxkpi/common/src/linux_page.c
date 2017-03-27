@@ -41,20 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/sf_buf.h>
 
-#include <vm/uma.h>
-#include <vm/uma_int.h>
-
 #include <machine/bus.h>
-
-#include <linux/gfp.h>
-#include <linux/page.h>
-#include <linux/io.h>
-#include <linux/slab.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/smp.h>
-#include <linux/vmalloc.h>
-#include <linux/pfn_t.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -69,6 +56,19 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 #include <vm/vm_extern.h>
+
+#include <vm/uma.h>
+#include <vm/uma_int.h>
+
+#include <linux/gfp.h>
+#include <linux/page.h>
+#include <linux/io.h>
+#include <linux/slab.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/smp.h>
+#include <linux/vmalloc.h>
+#include <linux/pfn_t.h>
 
 #include <asm/smp.h>
 
