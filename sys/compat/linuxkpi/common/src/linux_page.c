@@ -70,6 +70,11 @@ __FBSDID("$FreeBSD$");
 
 #include <asm/smp.h>
 
+#if defined(__amd64__) || defined(__aarch64__) || defined(__riscv__)
+#define	LINUXKPI_HAVE_DMAP
+#else
+#undef	LINUXKPI_HAVE_DMAP
+#endif
 
 extern u_int	cpu_feature;
 extern u_int	cpu_stdext_feature;
@@ -283,18 +288,26 @@ vunmap(void *addr)
 	kfree(vmmap);
 }
 
-#if defined(__LP64__)
-
-
-
 void *
 kmap(vm_page_t page)
 {
+#ifdef LINUXKPI_HAVE_DMAP
 	vm_offset_t daddr;
 
 	daddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page));
 
 	return ((void *)daddr);
+#else
+	struct sf_buf *sf;
+
+	sched_pin();
+	sf = sf_buf_alloc(page, SFB_NOWAIT | SFB_CPUPRIVATE);
+	if (sf == NULL) {
+		sched_unpin();
+		return (NULL);
+	}
+	return ((void *)sf_buf_kva(sf));
+#endif
 }
 
 void *
@@ -302,7 +315,6 @@ kmap_atomic_prot(vm_page_t page, pgprot_t prot)
 {
 	vm_memattr_t attr = pgprot2cachemode(prot);
 
-	sched_pin();
 	if (attr != VM_MEMATTR_DEFAULT) {
 		vm_page_lock(page);
 		page->flags |= PG_FICTITIOUS;
@@ -315,83 +327,49 @@ kmap_atomic_prot(vm_page_t page, pgprot_t prot)
 void *
 kmap_atomic(vm_page_t page)
 {
-
 	return (kmap_atomic_prot(page, VM_PROT_ALL));
 }
 
 void
 kunmap(vm_page_t page)
 {
+#ifdef LINUXKPI_HAVE_DMAP
+	/* NOP */
+#else
+	struct sf_buf *sf;
 
+	/* lookup SF buffer in list */
+	sf = sf_buf_alloc(page, SFB_NOWAIT | SFB_CPUPRIVATE);
+
+	/* double-free */
+	sf_buf_free(sf);
+	sf_buf_free(sf);
+
+	sched_unpin();
+#endif
 }
 
 void
 kunmap_atomic(void *vaddr)
 {
-	sched_unpin();
-}
-
-
+#ifdef LINUXKPI_HAVE_DMAP
+	/* NOP */
 #else
-
-static struct sf_buf *
-vtosf(caddr_t vaddr)
-{
-	panic("IMPLEMENT ME!!!");
-	return (NULL);
-}
-
-static struct sf_buf *
-pagetosf(vm_page_t page)
-{
-	panic("IMPLEMENT ME!!!");
-	return (NULL);
-}
-
-void *
-kmap(vm_page_t page)
-{
 	struct sf_buf *sf;
+	vm_page_t page;
 
+	page = virt_to_page(vaddr);
+
+	/* lookup SF buffer in list */
 	sf = sf_buf_alloc(page, SFB_NOWAIT | SFB_CPUPRIVATE);
-	if (sf == NULL) {
-		sched_unpin();
-		return (-EFAULT);
-	}
-	return (char *)sf_buf_kva(sf);
-}
 
-void *
-kmap_atomic(vm_page_t page)
-{
-	caddr_t vaddr;
-
-	sched_pin();
-	if ((vaddr = kmap(page)) == NULL)
-		sched_unpin();
-	return (vaddr);
-}
-	
-void
-kunmap(vm_page_t page)
-{
-	struct sf_buf *sf;
-
-	sf = pagetosf(page);
+	/* double-free */
 	sf_buf_free(sf);
-}
-
-void
-kunmap_atomic(caddr_t vaddr)
-{
-
-	struct sf_buf *sf;
-
-	sf = vtosf(vaddr);
 	sf_buf_free(sf);
+
 	sched_unpin();
-}
 #endif
+}
 
 void
 page_cache_release(vm_page_t page)
@@ -482,7 +460,7 @@ arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 void *
 linux_page_address(struct page *page)
 {
-#ifdef __amd64__
+#ifdef LINUXKPI_HAVE_DMAP
 	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
 #else
 	if (page->object != kmem_object && page->object != kernel_object)
@@ -495,7 +473,7 @@ linux_page_address(struct page *page)
 vm_page_t
 linux_alloc_pages(gfp_t flags, unsigned int order)
 {
-#ifdef __amd64__
+#ifdef LINUXKPI_HAVE_DMAP
 	unsigned long npages = 1UL << order;
 	int req = (flags & M_ZERO) ? (VM_ALLOC_ZERO | VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL) : (VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL);
@@ -553,7 +531,7 @@ retry:
 void
 linux_free_pages(vm_page_t page, unsigned int order)
 {
-#ifdef __amd64__
+#ifdef LINUXKPI_HAVE_DMAP
 	unsigned long npages = 1UL << order;
 	unsigned long x;
 
