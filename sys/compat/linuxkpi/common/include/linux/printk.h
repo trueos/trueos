@@ -107,7 +107,7 @@ print_hex_dump_bytes(const char *prefix_str, const int prefix_type,
 }
 
 #define	printk_ratelimited(...) do {		\
-	static time_t __ratelimited;		\
+	static linux_ratelimit_t __ratelimited;	\
 	if (linux_ratelimited(&__ratelimited))	\
 		printk(__VA_ARGS__);		\
 } while (0)

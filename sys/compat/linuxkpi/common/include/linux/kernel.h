@@ -42,6 +42,7 @@
 #include <sys/stddef.h>
 #include <sys/syslog.h>
 #include <sys/kdb.h>
+#include <sys/time.h>
 
 
 #include <linux/bug.h>
@@ -266,7 +267,7 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 #define pr_cont(fmt, ...) \
 	printk(KERN_CONT fmt, ##__VA_ARGS__)
 #define	pr_warn_ratelimited(...) do {		\
-	static time_t __ratelimited;		\
+	static linux_ratelimit_t __ratelimited;	\
 	if (linux_ratelimited(&__ratelimited))	\
 		pr_warning(__VA_ARGS__);	\
 } while (0)
@@ -461,7 +462,6 @@ abs64(int64_t x)
 	return (x < 0 ? -x : x);
 }
 
-
 /* XXX move us */
 #define rdmsrl(msr, val)			\
 	((val) = rdmsr((msr)))
@@ -469,6 +469,15 @@ abs64(int64_t x)
 #define static_branch_enable(x) do { (x)->state = 1; } while (0)
 #define DEFINE_STATIC_KEY_FALSE(x) struct { int state; } x
 
-extern bool linux_ratelimited(time_t *);
+typedef struct linux_ratelimit {
+	struct timeval lasttime;
+	int counter;
+} linux_ratelimit_t;
+
+static inline bool
+linux_ratelimited(linux_ratelimit_t *rl)
+{
+	return (ppsratecheck(&rl->lasttime, &rl->counter, 1));
+}
 
 #endif	/* _LINUX_KERNEL_H_ */
