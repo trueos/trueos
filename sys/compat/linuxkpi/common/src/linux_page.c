@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/vmalloc.h>
 #include <linux/pfn_t.h>
 
-
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
@@ -93,7 +92,6 @@ __wbinvd(void *arg)
 int
 wbinvd_on_all_cpus(void)
 {
-
 	return (on_each_cpu(__wbinvd, NULL, 1));
 }
 
@@ -133,7 +131,6 @@ vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long
 int
 vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
 {
-
 	return (vm_insert_pfn_prot(vma, addr, pfn, vma->vm_page_prot));
 }
 
@@ -249,7 +246,6 @@ iounmap(void *addr)
 #endif
 	kfree(vmmap);
 }
-
 
 void *
 vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
@@ -400,14 +396,12 @@ iounmap_atomic(void *vaddr)
 int
 set_memory_uc(unsigned long addr, int numpages)
 {
-
 	return (pmap_change_attr(addr, numpages, VM_MEMATTR_UNCACHEABLE));
 }
 
 int
 set_pages_uc(vm_page_t page, int numpages)
 {
-
 	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
 
 	pmap_page_set_memattr(page, VM_MEMATTR_UNCACHEABLE);
@@ -417,14 +411,12 @@ set_pages_uc(vm_page_t page, int numpages)
 int
 set_memory_wc(unsigned long addr, int numpages)
 {
-
 	return (pmap_change_attr(addr, numpages, PAT_WRITE_COMBINING));
 }
 
 int
 set_pages_wc(vm_page_t page, int numpages)
 {
-
 	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
 
 	pmap_page_set_memattr(page, VM_MEMATTR_WRITE_COMBINING);
@@ -434,14 +426,12 @@ set_pages_wc(vm_page_t page, int numpages)
 int
 set_memory_wb(unsigned long addr, int numpages)
 {
-
 	return (pmap_change_attr(addr, numpages, PAT_WRITE_BACK));
 }
 
 int
 set_pages_wb(vm_page_t page, int numpages)
 {
-
 	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
 
 	pmap_page_set_memattr(page, VM_MEMATTR_WRITE_BACK);
@@ -724,7 +714,6 @@ retry:
 }
 
 #if defined(__i386__) || defined(__amd64__)
-
 int
 set_pages_array_wb(struct page **pages, int addrinarray)
 {
@@ -755,5 +744,3 @@ set_pages_array_uc(struct page **pages, int addrinarray)
 	return (0);
 }
 #endif
-
-
