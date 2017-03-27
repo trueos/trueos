@@ -270,12 +270,6 @@ vmalloc_to_page(const void *addr)
 	return (PHYS_TO_VM_PAGE(paddr));
 }
 
-static inline void *
-vmalloc_32(unsigned long size)
-{
-	return (contigmalloc(size, M_KMALLOC, M_WAITOK, 0, UINT_MAX, 1, 1));
-}
-
 extern int is_vmalloc_addr(const void *addr);
 
 #endif					/* _LINUX_MM_H_ */
