@@ -61,8 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 
-static MALLOC_DEFINE(M_LKFS, "lkfs", "LinuxKPI filesystem");
-
 loff_t
 default_llseek(struct file *file, loff_t offset, int whence)
 {
