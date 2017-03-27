@@ -76,9 +76,11 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 	vm_object_t object;
 	int rv;
 
+	if ((gfp & GFP_NOWAIT) != 0)
+		panic("GFP_NOWAIT is unimplemented");
+
 	object = as;
 	VM_OBJECT_WLOCK(object);
-	/* XXXMJ should handle ALLOC_NOWAIT? */
 	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
 	    VM_ALLOC_WIRED);
 	if (page->valid != VM_PAGE_BITS_ALL) {
