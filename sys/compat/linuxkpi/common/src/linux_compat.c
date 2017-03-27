@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_page.h>
-#include <vm/uma.h>
-#include <vm/uma_int.h>
 
 #include <machine/stdarg.h>
 
@@ -1940,13 +1938,6 @@ async_schedule(async_func_t func, void *data)
 	sx_xunlock(&linux_global_lock);
 	queue_work(system_unbound_wq, &entry->work);
 	return (newcookie);
-}
-
-int
-is_vmalloc_addr(const void *addr)
-{
-
-	return (vtoslab((vm_offset_t)addr & ~UMA_SLAB_MASK) != NULL);
 }
 
 #ifdef __notyet__
