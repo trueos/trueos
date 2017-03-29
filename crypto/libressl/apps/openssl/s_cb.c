@@ -1,4 +1,4 @@
-/* $OpenBSD: s_cb.c,v 1.6 2015/09/10 19:08:46 jsing Exp $ */
+/* $OpenBSD: s_cb.c,v 1.7 2016/12/30 17:25:48 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

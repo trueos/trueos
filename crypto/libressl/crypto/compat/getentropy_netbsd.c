@@ -1,4 +1,4 @@
-/*	$OpenBSD: getentropy_netbsd.c,v 1.2 2015/09/11 11:52:55 deraadt Exp $	*/
+/*	$OpenBSD: getentropy_netbsd.c,v 1.3 2016/08/07 03:27:21 tb Exp $	*/
 
 /*
  * Copyright (c) 2014 Pawel Jakub Dawidek <pjd@FreeBSD.org>

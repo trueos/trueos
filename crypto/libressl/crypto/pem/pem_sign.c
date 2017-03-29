@@ -1,4 +1,4 @@
-/* $OpenBSD: pem_sign.c,v 1.12 2014/10/18 17:20:40 jsing Exp $ */
+/* $OpenBSD: pem_sign.c,v 1.13 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

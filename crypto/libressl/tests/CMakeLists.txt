@@ -292,6 +292,16 @@ add_executable(rsa_test rsa_test.c)
 target_link_libraries(rsa_test ${TESTS_LIBS})
 add_test(rsa_test rsa_test)
 
+# servertest
+add_executable(servertest servertest.c)
+target_link_libraries(servertest ${TESTS_LIBS})
+if(NOT MSVC)
+	add_test(servertest ${CMAKE_CURRENT_SOURCE_DIR}/servertest.sh)
+else()
+	add_test(servertest ${CMAKE_CURRENT_SOURCE_DIR}/servertest.bat)
+endif()
+set_tests_properties(servertest PROPERTIES ENVIRONMENT "srcdir=${CMAKE_CURRENT_SOURCE_DIR}")
+
 # sha1test
 add_executable(sha1test sha1test.c)
 target_link_libraries(sha1test ${TESTS_LIBS})
@@ -373,6 +383,11 @@ set_tests_properties(tlstest PROPERTIES ENVIRONMENT "srcdir=${CMAKE_CURRENT_SOUR
 add_executable(tls_ext_alpn tls_ext_alpn.c)
 target_link_libraries(tls_ext_alpn ${TESTS_LIBS})
 add_test(tls_ext_alpn tls_ext_alpn)
+
+# tls_prf
+add_executable(tls_prf tls_prf.c)
+target_link_libraries(tls_prf ${TESTS_LIBS})
+add_test(tls_prf tls_prf)
 
 # utf8test
 add_executable(utf8test utf8test.c)

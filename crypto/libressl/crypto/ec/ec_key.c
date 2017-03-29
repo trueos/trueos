@@ -1,4 +1,4 @@
-/* $OpenBSD: ec_key.c,v 1.12 2015/09/10 15:56:25 jsing Exp $ */
+/* $OpenBSD: ec_key.c,v 1.13 2017/01/29 17:49:23 beck Exp $ */
 /*
  * Written by Nils Larsch for the OpenSSL project.
  */

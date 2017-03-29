@@ -1,4 +1,4 @@
-/* $OpenBSD: tb_asnmth.c,v 1.5 2015/02/11 03:19:37 doug Exp $ */
+/* $OpenBSD: tb_asnmth.c,v 1.6 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
  *

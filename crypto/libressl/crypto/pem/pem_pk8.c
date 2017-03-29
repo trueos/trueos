@@ -1,4 +1,4 @@
-/* $OpenBSD: pem_pk8.c,v 1.12 2016/09/04 16:10:38 jsing Exp $ */
+/* $OpenBSD: pem_pk8.c,v 1.13 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

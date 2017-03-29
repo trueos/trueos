@@ -1,4 +1,4 @@
-/* $OpenBSD: x509_vpm.c,v 1.14 2016/11/06 10:17:49 beck Exp $ */
+/* $OpenBSD: x509_vpm.c,v 1.15 2016/12/21 15:15:45 jsing Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2004.
  */

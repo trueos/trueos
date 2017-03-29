@@ -1,4 +1,4 @@
-/* $OpenBSD: wp_block.c,v 1.12 2016/09/04 14:06:46 jsing Exp $ */
+/* $OpenBSD: wp_block.c,v 1.13 2016/11/04 17:30:30 miod Exp $ */
 /**
  * The Whirlpool hashing function.
  *

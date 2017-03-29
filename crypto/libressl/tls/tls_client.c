@@ -1,4 +1,4 @@
-/* $OpenBSD: tls_client.c,v 1.39 2017/01/12 16:15:58 jsing Exp $ */
+/* $OpenBSD: tls_client.c,v 1.40 2017/01/26 12:56:37 jsing Exp $ */
 /*
  * Copyright (c) 2014 Joel Sing <jsing@openbsd.org>
  *

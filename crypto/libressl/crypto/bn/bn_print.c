@@ -1,4 +1,4 @@
-/* $OpenBSD: bn_print.c,v 1.30 2016/10/17 03:30:14 guenther Exp $ */
+/* $OpenBSD: bn_print.c,v 1.31 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

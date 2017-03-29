@@ -429,6 +429,7 @@ set(
 	evp/m_gostr341194.c
 	evp/m_md4.c
 	evp/m_md5.c
+	evp/m_md5_sha1.c
 	evp/m_null.c
 	evp/m_ripemd.c
 	evp/m_sha1.c
@@ -680,6 +681,10 @@ if(NOT HAVE_ASPRINTF)
 	set(EXTRA_EXPORT ${EXTRA_EXPORT} vasprintf)
 endif()
 
+if(NOT HAVE_GETPAGESIZE)
+	set(CRYPTO_SRC ${CRYPTO_SRC} compat/getpagesize.c)
+endif()
+
 if(NOT HAVE_INET_PTON)
 	set(CRYPTO_SRC ${CRYPTO_SRC} compat/inet_pton.c)
 	set(EXTRA_EXPORT ${EXTRA_EXPORT} inet_pton)
@@ -688,6 +693,11 @@ endif()
 if(NOT HAVE_REALLOCARRAY)
 	set(CRYPTO_SRC ${CRYPTO_SRC} compat/reallocarray.c)
 	set(EXTRA_EXPORT ${EXTRA_EXPORT} reallocarray)
+endif()
+
+if(NOT HAVE_RECALLOCARRAY)
+	set(CRYPTO_SRC ${CRYPTO_SRC} compat/recallocarray.c)
+	set(EXTRA_EXPORT ${EXTRA_EXPORT} recallocarray)
 endif()
 
 if(NOT HAVE_STRCASECMP)
@@ -736,8 +746,10 @@ endif()
 
 if(NOT HAVE_ARC4RANDOM_BUF)
 	set(CRYPTO_SRC ${CRYPTO_SRC} compat/arc4random.c)
+	set(CRYPTO_SRC ${CRYPTO_SRC} compat/arc4random_uniform.c)
 	set(EXTRA_EXPORT ${EXTRA_EXPORT} arc4random)
 	set(EXTRA_EXPORT ${EXTRA_EXPORT} arc4random_buf)
+	set(EXTRA_EXPORT ${EXTRA_EXPORT} arc4random_uniform)
 
 	if(NOT HAVE_GETENTROPY)
 		if(CMAKE_HOST_WIN32)
@@ -759,11 +771,6 @@ if(NOT HAVE_ARC4RANDOM_BUF)
 		endif()
 		set(EXTRA_EXPORT ${EXTRA_EXPORT} getentropy)
 	endif()
-endif()
-
-if(NOT HAVE_ARC4RANDOM_UNIFORM)
-	set(CRYPTO_SRC ${CRYPTO_SRC} compat/arc4random_uniform.c)
-	set(EXTRA_EXPORT ${EXTRA_EXPORT} arc4random_uniform)
 endif()
 
 if(NOT HAVE_TIMINGSAFE_BCMP)

@@ -1,4 +1,4 @@
-/* $OpenBSD: a_time_tm.c,v 1.10 2016/11/04 18:07:23 beck Exp $ */
+/* $OpenBSD: a_time_tm.c,v 1.11 2017/01/29 17:49:22 beck Exp $ */
 /*
  * Copyright (c) 2015 Bob Beck <beck@openbsd.org>
  *

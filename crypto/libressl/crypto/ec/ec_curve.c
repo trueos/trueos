@@ -1,4 +1,4 @@
-/* $OpenBSD: ec_curve.c,v 1.14 2016/11/04 17:33:19 miod Exp $ */
+/* $OpenBSD: ec_curve.c,v 1.15 2017/01/29 17:49:23 beck Exp $ */
 /*
  * Written by Nils Larsch for the OpenSSL project.
  */

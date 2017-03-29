@@ -1,4 +1,4 @@
-/* $OpenBSD: p12_kiss.c,v 1.18 2016/12/30 15:08:22 jsing Exp $ */
+/* $OpenBSD: p12_kiss.c,v 1.19 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */

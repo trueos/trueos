@@ -1,4 +1,4 @@
-/* $OpenBSD: bio_pk7.c,v 1.4 2014/06/29 17:05:36 jsing Exp $ */
+/* $OpenBSD: bio_pk7.c,v 1.5 2016/12/30 15:38:13 jsing Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */

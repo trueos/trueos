@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa.h,v 1.28 2016/06/30 02:02:06 bcook Exp $ */
+/* $OpenBSD: rsa.h,v 1.29 2016/09/04 17:25:27 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*	$Id: http.c,v 1.6 2017-01-25 13:31:01 benno Exp $ */
+/*	$Id: http.c,v 1.8 2017/02/03 08:08:15 guenther Exp $ */
 /*
  * Copyright (c) 2016 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -15,9 +15,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/param.h>
+
 #include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include <ctype.h>
 #include <err.h>

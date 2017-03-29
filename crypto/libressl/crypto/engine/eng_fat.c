@@ -1,4 +1,4 @@
-/* $OpenBSD: eng_fat.c,v 1.15 2015/02/11 03:19:37 doug Exp $ */
+/* $OpenBSD: eng_fat.c,v 1.16 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1999-2001 The OpenSSL Project.  All rights reserved.
  *

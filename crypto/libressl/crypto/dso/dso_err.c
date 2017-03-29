@@ -1,4 +1,4 @@
-/* $OpenBSD: dso_err.c,v 1.8 2014/07/10 22:45:56 jsing Exp $ */
+/* $OpenBSD: dso_err.c,v 1.9 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1999-2006 The OpenSSL Project.  All rights reserved.
  *

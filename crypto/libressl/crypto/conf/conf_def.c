@@ -1,4 +1,4 @@
-/* $OpenBSD: conf_def.c,v 1.31 2015/07/18 22:42:09 beck Exp $ */
+/* $OpenBSD: conf_def.c,v 1.32 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

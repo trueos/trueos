@@ -1,4 +1,4 @@
-/* $OpenBSD: bio.h,v 1.28 2015/02/09 10:55:33 jsing Exp $ */
+/* $OpenBSD: bio.h,v 1.29 2015/06/20 01:17:27 doug Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

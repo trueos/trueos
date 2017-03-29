@@ -1,4 +1,4 @@
-/* $OpenBSD: bn_lib.c,v 1.36 2016/03/15 20:50:22 krw Exp $ */
+/* $OpenBSD: bn_lib.c,v 1.37 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

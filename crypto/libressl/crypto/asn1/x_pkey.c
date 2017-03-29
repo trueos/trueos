@@ -1,4 +1,4 @@
-/* $OpenBSD: x_pkey.c,v 1.19 2015/09/30 18:41:06 jsing Exp $ */
+/* $OpenBSD: x_pkey.c,v 1.20 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

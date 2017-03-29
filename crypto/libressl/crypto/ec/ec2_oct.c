@@ -1,4 +1,4 @@
-/* $OpenBSD: ec2_oct.c,v 1.7 2015/02/09 15:49:22 jsing Exp $ */
+/* $OpenBSD: ec2_oct.c,v 1.8 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
  *

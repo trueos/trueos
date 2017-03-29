@@ -1,4 +1,4 @@
-/*	$OpenBSD: tls_ext_alpn.c,v 1.2 2016/12/18 13:54:15 jsing Exp $	*/
+/*	$OpenBSD: tls_ext_alpn.c,v 1.3 2017/01/22 08:19:36 jsing Exp $	*/
 /*
  * Copyright (c) 2015 Doug Hogan <doug@openbsd.org>
  *

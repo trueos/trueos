@@ -1,4 +1,4 @@
-/* $OpenBSD: bn_err.c,v 1.13 2015/10/21 19:02:22 miod Exp $ */
+/* $OpenBSD: bn_err.c,v 1.14 2017/01/29 17:49:22 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1999-2007 The OpenSSL Project.  All rights reserved.
  *

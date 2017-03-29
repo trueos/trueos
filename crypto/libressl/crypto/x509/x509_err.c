@@ -1,4 +1,4 @@
-/* $OpenBSD: x509_err.c,v 1.12 2014/07/10 22:45:58 jsing Exp $ */
+/* $OpenBSD: x509_err.c,v 1.13 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1999-2006 The OpenSSL Project.  All rights reserved.
  *

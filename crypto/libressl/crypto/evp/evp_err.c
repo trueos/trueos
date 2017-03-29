@@ -1,4 +1,4 @@
-/* $OpenBSD: evp_err.c,v 1.21 2015/02/15 14:35:30 miod Exp $ */
+/* $OpenBSD: evp_err.c,v 1.22 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
  *

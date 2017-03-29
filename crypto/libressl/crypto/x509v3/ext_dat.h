@@ -1,4 +1,4 @@
-/* $OpenBSD: ext_dat.h,v 1.12 2015/02/10 13:28:17 jsing Exp $ */
+/* $OpenBSD: ext_dat.h,v 1.13 2016/12/21 15:49:29 jsing Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */

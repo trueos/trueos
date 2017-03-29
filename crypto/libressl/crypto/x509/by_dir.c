@@ -1,4 +1,4 @@
-/* $OpenBSD: by_dir.c,v 1.37 2015/04/11 16:03:21 deraadt Exp $ */
+/* $OpenBSD: by_dir.c,v 1.38 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

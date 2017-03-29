@@ -1,4 +1,4 @@
-/* $OpenBSD: rmdconst.h,v 1.2 2014/06/12 15:49:30 deraadt Exp $ */
+/* $OpenBSD: rmdconst.h,v 1.3 2016/12/21 15:49:29 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

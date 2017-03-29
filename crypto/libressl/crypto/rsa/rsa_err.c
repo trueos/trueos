@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa_err.c,v 1.16 2015/02/15 14:35:30 miod Exp $ */
+/* $OpenBSD: rsa_err.c,v 1.17 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
  *

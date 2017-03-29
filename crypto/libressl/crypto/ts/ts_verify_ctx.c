@@ -1,4 +1,4 @@
-/* $OpenBSD: ts_verify_ctx.c,v 1.8 2015/02/10 09:46:30 miod Exp $ */
+/* $OpenBSD: ts_verify_ctx.c,v 1.9 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Zoltan Glozik (zglozik@stones.com) for the OpenSSL
  * project 2003.
  */

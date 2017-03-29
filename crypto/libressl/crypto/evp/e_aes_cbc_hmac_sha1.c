@@ -1,4 +1,4 @@
-/* $OpenBSD: e_aes_cbc_hmac_sha1.c,v 1.13 2016/11/04 17:30:30 miod Exp $ */
+/* $OpenBSD: e_aes_cbc_hmac_sha1.c,v 1.14 2016/11/05 10:47:57 miod Exp $ */
 /* ====================================================================
  * Copyright (c) 2011-2013 The OpenSSL Project.  All rights reserved.
  *

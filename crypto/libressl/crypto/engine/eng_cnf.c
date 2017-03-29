@@ -1,4 +1,4 @@
-/* $OpenBSD: eng_cnf.c,v 1.13 2015/02/11 03:19:37 doug Exp $ */
+/* $OpenBSD: eng_cnf.c,v 1.14 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Stephen Henson (steve@openssl.org) for the OpenSSL
  * project 2001.
  */

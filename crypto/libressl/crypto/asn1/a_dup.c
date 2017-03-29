@@ -1,4 +1,4 @@
-/* $OpenBSD: a_dup.c,v 1.13 2014/07/11 08:44:47 jsing Exp $ */
+/* $OpenBSD: a_dup.c,v 1.14 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

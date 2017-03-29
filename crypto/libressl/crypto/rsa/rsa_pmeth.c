@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa_pmeth.c,v 1.18 2016/10/19 16:49:11 jsing Exp $ */
+/* $OpenBSD: rsa_pmeth.c,v 1.19 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2006.
  */

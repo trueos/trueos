@@ -1,4 +1,4 @@
-/* $OpenBSD: b_sock.c,v 1.62 2016/12/20 23:14:37 beck Exp $ */
+/* $OpenBSD: b_sock.c,v 1.63 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

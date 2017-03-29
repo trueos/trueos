@@ -1,4 +1,4 @@
-/* $OpenBSD: obj_dat.c,v 1.38 2017/01/21 04:44:43 jsing Exp $ */
+/* $OpenBSD: obj_dat.c,v 1.39 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/* $OpenBSD: bn_ctx.c,v 1.14 2015/02/10 09:50:12 miod Exp $ */
+/* $OpenBSD: bn_ctx.c,v 1.15 2017/01/29 17:49:22 beck Exp $ */
 /* Written by Ulf Moeller for the OpenSSL project. */
 /* ====================================================================
  * Copyright (c) 1998-2004 The OpenSSL Project.  All rights reserved.

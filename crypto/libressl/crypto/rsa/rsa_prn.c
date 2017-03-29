@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa_prn.c,v 1.6 2014/07/11 08:44:49 jsing Exp $ */
+/* $OpenBSD: rsa_prn.c,v 1.7 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2006.
  */

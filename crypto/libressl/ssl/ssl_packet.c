@@ -74,11 +74,12 @@ ssl_convert_sslv2_client_hello(SSL *s)
 	CBS cbs, challenge, cipher_specs, session;
 	uint16_t record_length, client_version, cipher_specs_length;
 	uint16_t session_id_length, challenge_length;
-	unsigned char *client_random, *data = NULL;
+	unsigned char *client_random = NULL, *data = NULL;
+	size_t data_len, pad_len, len;
 	uint32_t cipher_spec;
 	uint8_t message_type;
-	size_t data_len;
-	int rv = -1;
+	unsigned char *pad;
+	int ret = -1;
 	int n;
 
 	memset(&cbb, 0, sizeof(cbb));
@@ -106,11 +107,11 @@ ssl_convert_sslv2_client_hello(SSL *s)
 		return -1;
 
 	if (record_length < 9) {
-		SSLerror(SSL_R_RECORD_LENGTH_MISMATCH);
+		SSLerror(s, SSL_R_RECORD_LENGTH_MISMATCH);
 		return -1;
 	}
 	if (record_length > 4096) {
-		SSLerror(SSL_R_RECORD_TOO_LARGE);
+		SSLerror(s, SSL_R_RECORD_TOO_LARGE);
 		return -1;
 	}
 
@@ -149,9 +150,28 @@ ssl_convert_sslv2_client_hello(SSL *s)
 	if (!CBS_get_bytes(&cbs, &challenge, challenge_length))
 		return -1;
 	if (CBS_len(&cbs) != 0) {
-		SSLerror(SSL_R_RECORD_LENGTH_MISMATCH);
+		SSLerror(s, SSL_R_RECORD_LENGTH_MISMATCH);
 		return -1;
 	}
+
+	/*
+	 * Convert SSLv2 challenge to SSLv3/TLS client random, by truncating or
+	 * left-padding with zero bytes.
+	 */
+	if ((client_random = malloc(SSL3_RANDOM_SIZE)) == NULL)
+		goto err;
+	if (!CBB_init_fixed(&cbb, client_random, SSL3_RANDOM_SIZE))
+		goto err;
+	if ((len = CBS_len(&challenge)) > SSL3_RANDOM_SIZE)
+		len = SSL3_RANDOM_SIZE;
+	pad_len = SSL3_RANDOM_SIZE - len;
+	if (!CBB_add_space(&cbb, &pad, pad_len))
+		goto err;
+	memset(pad, 0, pad_len);
+	if (!CBB_add_bytes(&cbb, CBS_data(&challenge), len))
+		goto err;
+	if (!CBB_finish(&cbb, NULL, NULL))
+		goto err;
 
 	/* Build SSLv3/TLS record with client hello. */
 	if (!CBB_init(&cbb, SSL3_RT_MAX_PLAIN_LENGTH))
@@ -168,10 +188,7 @@ ssl_convert_sslv2_client_hello(SSL *s)
 		goto err;
 	if (!CBB_add_u16(&client_hello, client_version))
 		goto err;
-	if (!CBB_add_space(&client_hello, &client_random, SSL3_RANDOM_SIZE))
-		goto err;
-	memset(client_random, 0, SSL3_RANDOM_SIZE);
-	if (!CBS_write_bytes(&challenge, client_random, SSL3_RANDOM_SIZE, NULL))
+	if (!CBB_add_bytes(&client_hello, client_random, SSL3_RANDOM_SIZE))
 		goto err;
 	if (!CBB_add_u8_length_prefixed(&client_hello, &session_id))
 		goto err;
@@ -198,13 +215,14 @@ ssl_convert_sslv2_client_hello(SSL *s)
 	s->internal->packet = s->s3->rbuf.buf;
 	s->internal->packet_length = data_len;
 	memcpy(s->internal->packet, data, data_len);
-	rv = 1;
+	ret = 1;
 
  err:
 	CBB_cleanup(&cbb);
+	free(client_random);
 	free(data);
 
-	return (rv);
+	return (ret);
 }
 
 /*
@@ -234,14 +252,14 @@ ssl_server_legacy_first_packet(SSL *s)
 	if (ssl_is_sslv2_client_hello(&header) == 1) {
 		/* Only permit SSLv2 client hellos if TLSv1.0 is enabled. */
 		if (ssl_enabled_version_range(s, &min_version, NULL) != 1) {
-			SSLerror(SSL_R_NO_PROTOCOLS_AVAILABLE);
+			SSLerror(s, SSL_R_NO_PROTOCOLS_AVAILABLE);
 			return -1;
 		}
 		if (min_version > TLS1_VERSION)
 			return 1;
 
 		if (ssl_convert_sslv2_client_hello(s) != 1) {
-			SSLerror(SSL_R_BAD_PACKET_LENGTH);
+			SSLerror(s, SSL_R_BAD_PACKET_LENGTH);
 			return -1;
 		}
 
@@ -250,7 +268,7 @@ ssl_server_legacy_first_packet(SSL *s)
 
 	/* Ensure that we have SSL3_RT_HEADER_LENGTH (5 bytes) of the packet. */
 	if (CBS_len(&header) != SSL3_RT_HEADER_LENGTH) {
-		SSLerror(ERR_R_INTERNAL_ERROR);
+		SSLerror(s, ERR_R_INTERNAL_ERROR);
 		return -1;
 	}
 	data = (const char *)CBS_data(&header);
@@ -260,15 +278,15 @@ ssl_server_legacy_first_packet(SSL *s)
 	    strncmp("POST ", data, 5) == 0 ||
 	    strncmp("HEAD ", data, 5) == 0 ||
 	    strncmp("PUT ", data, 4) == 0) {
-		SSLerror(SSL_R_HTTP_REQUEST);
+		SSLerror(s, SSL_R_HTTP_REQUEST);
 		return -1;
 	}
 	if (strncmp("CONNE", data, 5) == 0) {
-		SSLerror(SSL_R_HTTPS_PROXY_REQUEST);
+		SSLerror(s, SSL_R_HTTPS_PROXY_REQUEST);
 		return -1;
 	}
 
-	SSLerror(SSL_R_UNKNOWN_PROTOCOL);
+	SSLerror(s, SSL_R_UNKNOWN_PROTOCOL);
 
 	return -1;
 }

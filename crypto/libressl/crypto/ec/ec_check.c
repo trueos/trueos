@@ -1,4 +1,4 @@
-/* $OpenBSD: ec_check.c,v 1.5 2015/02/08 22:25:03 miod Exp $ */
+/* $OpenBSD: ec_check.c,v 1.6 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
  *

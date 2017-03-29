@@ -1,4 +1,4 @@
-/* $OpenBSD: ssl_stat.c,v 1.12 2014/11/16 14:12:47 jsing Exp $ */
+/* $OpenBSD: ssl_stat.c,v 1.13 2017/01/23 08:48:45 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

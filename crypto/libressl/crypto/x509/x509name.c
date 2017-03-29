@@ -1,4 +1,4 @@
-/* $OpenBSD: x509name.c,v 1.13 2014/09/29 04:17:24 miod Exp $ */
+/* $OpenBSD: x509name.c,v 1.14 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/* $OpenBSD: pem_all.c,v 1.16 2016/09/04 15:53:03 jsing Exp $ */
+/* $OpenBSD: pem_all.c,v 1.17 2016/09/04 16:10:38 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

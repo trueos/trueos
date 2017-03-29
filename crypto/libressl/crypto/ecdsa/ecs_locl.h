@@ -1,4 +1,4 @@
-/* $OpenBSD: ecs_locl.h,v 1.4 2015/02/08 13:35:07 jsing Exp $ */
+/* $OpenBSD: ecs_locl.h,v 1.5 2016/12/21 15:49:29 jsing Exp $ */
 /*
  * Written by Nils Larsch for the OpenSSL project
  */

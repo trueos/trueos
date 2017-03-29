@@ -1,4 +1,4 @@
-/* $OpenBSD: ec2_mult.c,v 1.8 2016/03/12 21:44:11 bcook Exp $ */
+/* $OpenBSD: ec2_mult.c,v 1.9 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
  *

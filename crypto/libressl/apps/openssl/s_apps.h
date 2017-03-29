@@ -1,4 +1,4 @@
-/* $OpenBSD: s_apps.h,v 1.3 2015/09/10 06:36:45 bcook Exp $ */
+/* $OpenBSD: s_apps.h,v 1.4 2016/12/30 17:25:48 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

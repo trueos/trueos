@@ -1,4 +1,4 @@
-/* $OpenBSD: ec2_smpl.c,v 1.14 2015/02/09 15:49:22 jsing Exp $ */
+/* $OpenBSD: ec2_smpl.c,v 1.15 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
  *

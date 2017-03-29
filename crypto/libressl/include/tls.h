@@ -1,4 +1,4 @@
-/* $OpenBSD: tls.h,v 1.46 2017/01/26 12:53:17 jsing Exp $ */
+/* $OpenBSD: tls.h,v 1.47 2017/01/31 16:18:57 beck Exp $ */
 /*
  * Copyright (c) 2014 Joel Sing <jsing@openbsd.org>
  *
@@ -20,6 +20,13 @@
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifdef _MSC_VER
+#ifndef LIBRESSL_INTERNAL
+#include <basetsd.h>
+typedef SSIZE_T ssize_t;
+#endif
 #endif
 
 #include <sys/types.h>

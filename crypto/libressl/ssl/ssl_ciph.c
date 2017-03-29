@@ -1,4 +1,4 @@
-/* $OpenBSD: ssl_ciph.c,v 1.91 2017/01/26 10:40:21 beck Exp $ */
+/* $OpenBSD: ssl_ciph.c,v 1.96 2017/03/10 16:03:27 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -176,29 +176,21 @@ static const EVP_CIPHER *ssl_cipher_methods[SSL_ENC_NUM_IDX] = {
 #define SSL_MD_SHA256_IDX 4
 #define SSL_MD_SHA384_IDX 5
 #define SSL_MD_STREEBOG256_IDX 6
-#define SSL_MD_STREEBOG512_IDX 7
 /*Constant SSL_MAX_DIGEST equal to size of digests array should be
  * defined in the
  * ssl_locl.h */
 #define SSL_MD_NUM_IDX	SSL_MAX_DIGEST
 static const EVP_MD *ssl_digest_methods[SSL_MD_NUM_IDX] = {
-	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
 
 static int  ssl_mac_pkey_id[SSL_MD_NUM_IDX] = {
 	EVP_PKEY_HMAC, EVP_PKEY_HMAC, EVP_PKEY_HMAC, EVP_PKEY_GOSTIMIT,
-	EVP_PKEY_HMAC, EVP_PKEY_HMAC, EVP_PKEY_HMAC, EVP_PKEY_HMAC,
+	EVP_PKEY_HMAC, EVP_PKEY_HMAC, EVP_PKEY_HMAC,
 };
 
 static int ssl_mac_secret_size[SSL_MD_NUM_IDX] = {
-	0, 0, 0, 0, 0, 0, 0, 0
-};
-
-static int ssl_handshake_digest_flag[SSL_MD_NUM_IDX] = {
-	SSL_HANDSHAKE_MAC_MD5, SSL_HANDSHAKE_MAC_SHA,
-	SSL_HANDSHAKE_MAC_GOST94, 0, SSL_HANDSHAKE_MAC_SHA256,
-	SSL_HANDSHAKE_MAC_SHA384, SSL_HANDSHAKE_MAC_STREEBOG256,
-	SSL_HANDSHAKE_MAC_STREEBOG512
+	0, 0, 0, 0, 0, 0, 0,
 };
 
 #define CIPHER_ADD	1
@@ -436,10 +428,6 @@ static const SSL_CIPHER cipher_aliases[] = {
 		.name = SSL_TXT_STREEBOG256,
 		.algorithm_mac = SSL_STREEBOG256,
 	},
-	{
-		.name = SSL_TXT_STREEBOG512,
-		.algorithm_mac = SSL_STREEBOG512,
-	},
 
 	/* protocol version aliases */
 	{
@@ -531,10 +519,6 @@ ssl_load_ciphers(void)
 	    EVP_get_digestbyname(SN_id_tc26_gost3411_2012_256);
 	ssl_mac_secret_size[SSL_MD_STREEBOG256_IDX] =
 	    EVP_MD_size(ssl_digest_methods[SSL_MD_STREEBOG256_IDX]);
-	ssl_digest_methods[SSL_MD_STREEBOG512_IDX] =
-	    EVP_get_digestbyname(SN_id_tc26_gost3411_2012_512);
-	ssl_mac_secret_size[SSL_MD_STREEBOG512_IDX] =
-	    EVP_MD_size(ssl_digest_methods[SSL_MD_STREEBOG512_IDX]);
 }
 
 int
@@ -631,9 +615,6 @@ ssl_cipher_get_evp(const SSL_SESSION *s, const EVP_CIPHER **enc,
 	case SSL_STREEBOG256:
 		i = SSL_MD_STREEBOG256_IDX;
 		break;
-	case SSL_STREEBOG512:
-		i = SSL_MD_STREEBOG512_IDX;
-		break;
 	default:
 		i = -1;
 		break;
@@ -719,17 +700,31 @@ ssl_cipher_get_evp_aead(const SSL_SESSION *s, const EVP_AEAD **aead)
 }
 
 int
-ssl_get_handshake_digest(int idx, long *mask, const EVP_MD **md)
+ssl_get_handshake_evp_md(SSL *s, const EVP_MD **md)
 {
-	if (idx < 0 || idx >= SSL_MD_NUM_IDX) {
-		return 0;
+	*md = NULL;
+
+	switch (ssl_get_algorithm2(s) & SSL_HANDSHAKE_MAC_MASK) {
+	case SSL_HANDSHAKE_MAC_DEFAULT:
+		*md = EVP_md5_sha1();
+		return 1;
+	case SSL_HANDSHAKE_MAC_GOST94:
+		*md = EVP_gostr341194();
+		return 1;
+	case SSL_HANDSHAKE_MAC_SHA256:
+		*md = EVP_sha256();
+		return 1;
+	case SSL_HANDSHAKE_MAC_SHA384:
+		*md = EVP_sha384();
+		return 1;
+	case SSL_HANDSHAKE_MAC_STREEBOG256:
+		*md = EVP_streebog256();
+		return 1;
+	default:
+		break;
 	}
-	*mask = ssl_handshake_digest_flag[idx];
-	if (*mask)
-		*md = ssl_digest_methods[idx];
-	else
-		*md = NULL;
-	return 1;
+
+	return 0;
 }
 
 #define ITEM_SEP(a) \
@@ -814,8 +809,6 @@ ssl_cipher_get_disabled(unsigned long *mkey, unsigned long *auth,
 	*mac |= (ssl_digest_methods[SSL_MD_GOST94_IDX] == NULL) ? SSL_GOST94 : 0;
 	*mac |= (ssl_digest_methods[SSL_MD_GOST89MAC_IDX] == NULL) ? SSL_GOST89MAC : 0;
 	*mac |= (ssl_digest_methods[SSL_MD_STREEBOG256_IDX] == NULL) ? SSL_STREEBOG256 : 0;
-	*mac |= (ssl_digest_methods[SSL_MD_STREEBOG512_IDX] == NULL) ? SSL_STREEBOG512 : 0;
-
 }
 
 static void
@@ -1072,7 +1065,7 @@ ssl_cipher_strength_sort(CIPHER_ORDER **head_p, CIPHER_ORDER **tail_p)
 
 	number_uses = calloc((max_strength_bits + 1), sizeof(int));
 	if (!number_uses) {
-		SSLerror(ERR_R_MALLOC_FAILURE);
+		SSLerrorx(ERR_R_MALLOC_FAILURE);
 		return (0);
 	}
 
@@ -1162,7 +1155,7 @@ ssl_cipher_process_rulestr(const char *rule_str, CIPHER_ORDER **head_p,
 				 * it is no command or separator nor
 				 * alphanumeric, so we call this an error.
 				 */
-				SSLerror(SSL_R_INVALID_COMMAND);
+				SSLerrorx(SSL_R_INVALID_COMMAND);
 				retval = found = 0;
 				l++;
 				break;
@@ -1308,7 +1301,7 @@ ssl_cipher_process_rulestr(const char *rule_str, CIPHER_ORDER **head_p,
 			if ((buflen == 8) && !strncmp(buf, "STRENGTH", 8))
 				ok = ssl_cipher_strength_sort(head_p, tail_p);
 			else
-				SSLerror(SSL_R_INVALID_COMMAND);
+				SSLerrorx(SSL_R_INVALID_COMMAND);
 			if (ok == 0)
 				retval = 0;
 			/*
@@ -1377,7 +1370,7 @@ ssl_create_cipher_list(const SSL_METHOD *ssl_method,
 	num_of_ciphers = ssl_method->num_ciphers();
 	co_list = reallocarray(NULL, num_of_ciphers, sizeof(CIPHER_ORDER));
 	if (co_list == NULL) {
-		SSLerror(ERR_R_MALLOC_FAILURE);
+		SSLerrorx(ERR_R_MALLOC_FAILURE);
 		return(NULL);	/* Failure */
 	}
 
@@ -1457,7 +1450,7 @@ ssl_create_cipher_list(const SSL_METHOD *ssl_method,
 	ca_list = reallocarray(NULL, num_of_alias_max, sizeof(SSL_CIPHER *));
 	if (ca_list == NULL) {
 		free(co_list);
-		SSLerror(ERR_R_MALLOC_FAILURE);
+		SSLerrorx(ERR_R_MALLOC_FAILURE);
 		return(NULL);	/* Failure */
 	}
 	ssl_cipher_collect_aliases(ca_list, num_of_group_aliases,
@@ -1670,9 +1663,6 @@ SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf, int len)
 		break;
 	case SSL_STREEBOG256:
 		mac = "STREEBOG256";
-		break;
-	case SSL_STREEBOG512:
-		mac = "STREEBOG512";
 		break;
 	default:
 		mac = "unknown";

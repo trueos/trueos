@@ -1,4 +1,4 @@
-/* $OpenBSD: p_lib.c,v 1.16 2014/07/12 22:26:01 miod Exp $ */
+/* $OpenBSD: p_lib.c,v 1.17 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

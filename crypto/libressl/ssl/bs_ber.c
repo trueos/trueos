@@ -1,4 +1,4 @@
-/*	$OpenBSD: bs_ber.c,v 1.8 2015/06/21 16:10:45 doug Exp $	*/
+/*	$OpenBSD: bs_ber.c,v 1.9 2016/12/03 12:34:35 jsing Exp $	*/
 /*
  * Copyright (c) 2014, Google Inc.
  *

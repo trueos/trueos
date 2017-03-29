@@ -1,4 +1,4 @@
-/* $OpenBSD: t_crl.c,v 1.16 2014/07/12 16:33:25 miod Exp $ */
+/* $OpenBSD: t_crl.c,v 1.17 2017/01/29 17:49:22 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */

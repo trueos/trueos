@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa_locl.h,v 1.3 2014/07/09 19:51:31 jsing Exp $ */
+/* $OpenBSD: rsa_locl.h,v 1.4 2016/12/21 15:49:29 jsing Exp $ */
 
 __BEGIN_HIDDEN_DECLS
 

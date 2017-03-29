@@ -1,4 +1,4 @@
-/* $OpenBSD: eng_table.c,v 1.8 2015/02/11 03:19:37 doug Exp $ */
+/* $OpenBSD: eng_table.c,v 1.9 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
  *

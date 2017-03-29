@@ -1,4 +1,4 @@
-/* $OpenBSD: sha_locl.h,v 1.22 2016/12/21 15:49:29 jsing Exp $ */
+/* $OpenBSD: sha_locl.h,v 1.23 2016/12/23 23:22:25 patrick Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/* $OpenBSD: ocsp.c,v 1.11 2017/01/20 08:57:12 deraadt Exp $ */
+/* $OpenBSD: ocsp.c,v 1.12 2017/01/21 09:29:09 deraadt Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2000.
  */

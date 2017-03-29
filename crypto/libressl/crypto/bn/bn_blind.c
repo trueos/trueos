@@ -1,4 +1,4 @@
-/* $OpenBSD: bn_blind.c,v 1.16 2017/01/21 11:00:46 beck Exp $ */
+/* $OpenBSD: bn_blind.c,v 1.17 2017/01/29 17:49:22 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
  *

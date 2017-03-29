@@ -1,4 +1,4 @@
-/* $OpenBSD: progs.h,v 1.7 2015/09/11 14:30:23 bcook Exp $ */
+/* $OpenBSD: progs.h,v 1.8 2016/09/05 10:45:19 deraadt Exp $ */
 /* Public domain */
 
 int asn1parse_main(int argc, char **argv);

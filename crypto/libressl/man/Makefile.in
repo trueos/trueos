@@ -347,27 +347,27 @@ dist_man_MANS = BIO_f_ssl.3 DTLSv1_listen.3 PEM_read_SSL_SESSION.3 \
 	DSA_get_ex_new_index.3 DSA_new.3 DSA_set_method.3 DSA_sign.3 \
 	DSA_size.3 ECDSA_SIG_new.3 EC_GFp_simple_method.3 \
 	EC_GROUP_copy.3 EC_GROUP_new.3 EC_KEY_new.3 EC_POINT_add.3 \
-	EC_POINT_new.3 ERR.3 ERR_GET_LIB.3 ERR_clear_error.3 \
-	ERR_error_string.3 ERR_get_error.3 ERR_load_crypto_strings.3 \
-	ERR_load_strings.3 ERR_print_errors.3 ERR_put_error.3 \
-	ERR_remove_state.3 ERR_set_mark.3 ESS_SIGNING_CERT_new.3 \
-	EVP_AEAD_CTX_init.3 EVP_BytesToKey.3 EVP_DigestInit.3 \
-	EVP_DigestSignInit.3 EVP_DigestVerifyInit.3 EVP_EncodeInit.3 \
-	EVP_EncryptInit.3 EVP_OpenInit.3 EVP_PKEY_CTX_ctrl.3 \
-	EVP_PKEY_CTX_new.3 EVP_PKEY_cmp.3 EVP_PKEY_decrypt.3 \
-	EVP_PKEY_derive.3 EVP_PKEY_encrypt.3 \
-	EVP_PKEY_get_default_digest_nid.3 EVP_PKEY_keygen.3 \
-	EVP_PKEY_new.3 EVP_PKEY_print_private.3 EVP_PKEY_set1_RSA.3 \
-	EVP_PKEY_sign.3 EVP_PKEY_verify.3 EVP_PKEY_verify_recover.3 \
-	EVP_SealInit.3 EVP_SignInit.3 EVP_VerifyInit.3 \
-	EXTENDED_KEY_USAGE_new.3 GENERAL_NAME_new.3 HMAC.3 MD5.3 \
-	NAME_CONSTRAINTS_new.3 OBJ_nid2obj.3 OCSP_CRLID_new.3 \
-	OCSP_REQUEST_new.3 OCSP_SERVICELOC_new.3 OCSP_cert_to_id.3 \
-	OCSP_request_add1_nonce.3 OCSP_resp_find_status.3 \
-	OCSP_response_status.3 OCSP_sendreq_new.3 \
-	OPENSSL_VERSION_NUMBER.3 OPENSSL_cleanse.3 OPENSSL_config.3 \
-	OPENSSL_load_builtin_modules.3 OPENSSL_malloc.3 \
-	OpenSSL_add_all_algorithms.3 PEM_read.3 \
+	EC_POINT_new.3 ERR.3 ERR_GET_LIB.3 ERR_asprintf_error_data.3 \
+	ERR_clear_error.3 ERR_error_string.3 ERR_get_error.3 \
+	ERR_load_crypto_strings.3 ERR_load_strings.3 \
+	ERR_print_errors.3 ERR_put_error.3 ERR_remove_state.3 \
+	ERR_set_mark.3 ESS_SIGNING_CERT_new.3 EVP_AEAD_CTX_init.3 \
+	EVP_BytesToKey.3 EVP_DigestInit.3 EVP_DigestSignInit.3 \
+	EVP_DigestVerifyInit.3 EVP_EncodeInit.3 EVP_EncryptInit.3 \
+	EVP_OpenInit.3 EVP_PKEY_CTX_ctrl.3 EVP_PKEY_CTX_new.3 \
+	EVP_PKEY_cmp.3 EVP_PKEY_decrypt.3 EVP_PKEY_derive.3 \
+	EVP_PKEY_encrypt.3 EVP_PKEY_get_default_digest_nid.3 \
+	EVP_PKEY_keygen.3 EVP_PKEY_new.3 EVP_PKEY_print_private.3 \
+	EVP_PKEY_set1_RSA.3 EVP_PKEY_sign.3 EVP_PKEY_verify.3 \
+	EVP_PKEY_verify_recover.3 EVP_SealInit.3 EVP_SignInit.3 \
+	EVP_VerifyInit.3 EXTENDED_KEY_USAGE_new.3 GENERAL_NAME_new.3 \
+	HMAC.3 MD5.3 NAME_CONSTRAINTS_new.3 OBJ_nid2obj.3 \
+	OCSP_CRLID_new.3 OCSP_REQUEST_new.3 OCSP_SERVICELOC_new.3 \
+	OCSP_cert_to_id.3 OCSP_request_add1_nonce.3 \
+	OCSP_resp_find_status.3 OCSP_response_status.3 \
+	OCSP_sendreq_new.3 OPENSSL_VERSION_NUMBER.3 OPENSSL_cleanse.3 \
+	OPENSSL_config.3 OPENSSL_load_builtin_modules.3 \
+	OPENSSL_malloc.3 OpenSSL_add_all_algorithms.3 PEM_read.3 \
 	PEM_read_bio_PrivateKey.3 PEM_write_bio_PKCS7_stream.3 \
 	PKCS12_SAFEBAG_new.3 PKCS12_create.3 PKCS12_new.3 \
 	PKCS12_newpass.3 PKCS12_parse.3 PKCS5_PBKDF2_HMAC.3 \

@@ -1,4 +1,4 @@
-/* $OpenBSD: ocsp.h,v 1.10 2016/12/27 16:05:56 jsing Exp $ */
+/* $OpenBSD: ocsp.h,v 1.11 2016/12/30 16:19:04 jsing Exp $ */
 /* Written by Tom Titchener <Tom_Titchener@groove.net> for the OpenSSL
  * project. */
 

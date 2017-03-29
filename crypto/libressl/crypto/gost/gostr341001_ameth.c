@@ -1,4 +1,4 @@
-/* $OpenBSD: gostr341001_ameth.c,v 1.10 2016/10/19 16:49:11 jsing Exp $ */
+/* $OpenBSD: gostr341001_ameth.c,v 1.11 2017/01/29 17:49:23 beck Exp $ */
 /*
  * Copyright (c) 2014 Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  * Copyright (c) 2005-2006 Cryptocom LTD

@@ -1,4 +1,4 @@
-/*	$OpenBSD$	*/
+/*	$OpenBSD: x86_arch.h,v 1.1 2016/11/04 17:30:30 miod Exp $	*/
 /*
  * Copyright (c) 2016 Miodrag Vallat.
  *

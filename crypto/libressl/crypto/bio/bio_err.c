@@ -1,4 +1,4 @@
-/* $OpenBSD: bio_err.c,v 1.16 2014/07/10 22:45:56 jsing Exp $ */
+/* $OpenBSD: bio_err.c,v 1.17 2017/01/29 17:49:22 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
  *

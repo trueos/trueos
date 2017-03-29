@@ -1,4 +1,4 @@
-/* $OpenBSD: bn_add.c,v 1.10 2014/10/28 07:35:58 jsg Exp $ */
+/* $OpenBSD: bn_add.c,v 1.11 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

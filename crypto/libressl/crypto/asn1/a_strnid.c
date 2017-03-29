@@ -1,4 +1,4 @@
-/* $OpenBSD: a_strnid.c,v 1.20 2017/01/21 04:31:25 jsing Exp $ */
+/* $OpenBSD: a_strnid.c,v 1.21 2017/01/29 17:49:22 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */

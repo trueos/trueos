@@ -1,4 +1,4 @@
-/* $OpenBSD: pqueue.h,v 1.3 2014/06/12 15:49:31 deraadt Exp $ */
+/* $OpenBSD: pqueue.h,v 1.4 2016/11/04 18:28:58 guenther Exp $ */
 
 /*
  * DTLS implementation written by Nagendra Modadugu

@@ -1,4 +1,4 @@
-/* $OpenBSD: bss_bio.c,v 1.22 2015/12/23 20:37:23 mmcc Exp $ */
+/* $OpenBSD: bss_bio.c,v 1.23 2017/01/29 17:49:22 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
  *

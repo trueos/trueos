@@ -1,4 +1,4 @@
-/* $OpenBSD: dso_lib.c,v 1.18 2014/07/11 08:44:48 jsing Exp $ */
+/* $OpenBSD: dso_lib.c,v 1.19 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Geoff Thorpe (geoff@geoffthorpe.net) for the OpenSSL
  * project 2000.
  */

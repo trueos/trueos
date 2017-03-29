@@ -1,4 +1,4 @@
-/* $OpenBSD: p12_p8e.c,v 1.7 2016/12/30 15:34:35 jsing Exp $ */
+/* $OpenBSD: p12_p8e.c,v 1.8 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2001.
  */

@@ -1,4 +1,4 @@
-/* $OpenBSD: d2i_pu.c,v 1.13 2015/03/19 14:00:22 tedu Exp $ */
+/* $OpenBSD: d2i_pu.c,v 1.14 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

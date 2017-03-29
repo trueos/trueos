@@ -1,4 +1,4 @@
-/* $OpenBSD: ocsp_lib.c,v 1.19 2016/12/21 18:13:59 beck Exp $ */
+/* $OpenBSD: ocsp_lib.c,v 1.20 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Tom Titchener <Tom_Titchener@groove.net> for the OpenSSL
  * project. */
 

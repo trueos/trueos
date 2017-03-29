@@ -1,4 +1,4 @@
-/* $OpenBSD: x509.h,v 1.25 2016/11/04 10:29:19 beck Exp $ */
+/* $OpenBSD: x509.h,v 1.26 2016/12/27 16:05:57 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

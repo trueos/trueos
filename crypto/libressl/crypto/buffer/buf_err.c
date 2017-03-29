@@ -1,4 +1,4 @@
-/* $OpenBSD: buf_err.c,v 1.10 2014/07/10 22:45:56 jsing Exp $ */
+/* $OpenBSD: buf_err.c,v 1.11 2017/01/29 17:49:22 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1999-2006 The OpenSSL Project.  All rights reserved.
  *

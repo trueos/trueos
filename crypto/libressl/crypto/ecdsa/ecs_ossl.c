@@ -1,4 +1,4 @@
-/* $OpenBSD: ecs_ossl.c,v 1.8 2017/01/21 11:00:47 beck Exp $ */
+/* $OpenBSD: ecs_ossl.c,v 1.9 2017/01/29 17:49:23 beck Exp $ */
 /*
  * Written by Nils Larsch for the OpenSSL project
  */

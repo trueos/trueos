@@ -1,4 +1,4 @@
-/* $OpenBSD: ecp_nistp256.c,v 1.16 2015/09/10 15:56:25 jsing Exp $ */
+/* $OpenBSD: ecp_nistp256.c,v 1.17 2017/01/29 17:49:23 beck Exp $ */
 /*
  * Written by Adam Langley (Google) for the OpenSSL project
  */

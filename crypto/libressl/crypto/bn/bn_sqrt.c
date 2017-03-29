@@ -1,4 +1,4 @@
-/* $OpenBSD: bn_sqrt.c,v 1.8 2017/01/21 09:38:58 beck Exp $ */
+/* $OpenBSD: bn_sqrt.c,v 1.9 2017/01/29 17:49:22 beck Exp $ */
 /* Written by Lenka Fibikova <fibikova@exp-math.uni-essen.de>
  * and Bodo Moeller for the OpenSSL project. */
 /* ====================================================================

@@ -1,4 +1,4 @@
-/* $OpenBSD: apps.c,v 1.41 2016/12/30 16:28:53 jsing Exp $ */
+/* $OpenBSD: apps.c,v 1.42 2017/01/21 09:29:09 deraadt Exp $ */
 /*
  * Copyright (c) 2014 Joel Sing <jsing@openbsd.org>
  *

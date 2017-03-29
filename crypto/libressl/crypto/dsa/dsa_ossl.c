@@ -1,4 +1,4 @@
-/* $OpenBSD: dsa_ossl.c,v 1.29 2017/01/21 11:00:46 beck Exp $ */
+/* $OpenBSD: dsa_ossl.c,v 1.30 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

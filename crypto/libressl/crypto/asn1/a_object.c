@@ -1,4 +1,4 @@
-/* $OpenBSD: a_object.c,v 1.28 2016/11/06 17:04:48 bcook Exp $ */
+/* $OpenBSD: a_object.c,v 1.29 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

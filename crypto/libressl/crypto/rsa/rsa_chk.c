@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa_chk.c,v 1.12 2017/01/25 06:15:44 beck Exp $ */
+/* $OpenBSD: rsa_chk.c,v 1.13 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
  *

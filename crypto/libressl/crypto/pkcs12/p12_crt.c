@@ -1,4 +1,4 @@
-/* $OpenBSD: p12_crt.c,v 1.16 2015/02/14 12:43:07 miod Exp $ */
+/* $OpenBSD: p12_crt.c,v 1.17 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */

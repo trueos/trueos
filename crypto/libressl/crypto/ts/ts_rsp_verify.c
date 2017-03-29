@@ -1,4 +1,4 @@
-/* $OpenBSD: ts_rsp_verify.c,v 1.17 2016/11/05 15:19:07 miod Exp $ */
+/* $OpenBSD: ts_rsp_verify.c,v 1.18 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Zoltan Glozik (zglozik@stones.com) for the OpenSSL
  * project 2002.
  */

@@ -1,4 +1,4 @@
-/* $OpenBSD: evp_key.c,v 1.23 2015/09/10 15:56:25 jsing Exp $ */
+/* $OpenBSD: evp_key.c,v 1.24 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

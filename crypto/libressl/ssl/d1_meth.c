@@ -1,4 +1,4 @@
-/* $OpenBSD: d1_meth.c,v 1.12 2017/01/23 10:22:06 jsing Exp $ */
+/* $OpenBSD: d1_meth.c,v 1.13 2017/01/23 13:36:13 jsing Exp $ */
 /*
  * DTLS implementation written by Nagendra Modadugu
  * (nagendra@cs.stanford.edu) for the OpenSSL project 2005.

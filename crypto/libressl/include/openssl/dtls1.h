@@ -1,4 +1,4 @@
-/* $OpenBSD: dtls1.h,v 1.20 2017/01/22 03:50:45 jsing Exp $ */
+/* $OpenBSD: dtls1.h,v 1.21 2017/01/22 07:16:39 beck Exp $ */
 /*
  * DTLS implementation written by Nagendra Modadugu
  * (nagendra@cs.stanford.edu) for the OpenSSL project 2005.

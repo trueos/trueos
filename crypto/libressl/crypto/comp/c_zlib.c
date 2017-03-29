@@ -1,4 +1,4 @@
-/* $OpenBSD: c_zlib.c,v 1.18 2015/12/23 20:37:23 mmcc Exp $ */
+/* $OpenBSD: c_zlib.c,v 1.19 2017/01/29 17:49:22 beck Exp $ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

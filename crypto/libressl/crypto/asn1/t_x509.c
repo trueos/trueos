@@ -1,4 +1,4 @@
-/* $OpenBSD: t_x509.c,v 1.26 2015/02/07 13:19:15 doug Exp $ */
+/* $OpenBSD: t_x509.c,v 1.27 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

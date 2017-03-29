@@ -1,4 +1,4 @@
-/* $OpenBSD: dh_key.c,v 1.26 2017/01/21 09:38:58 beck Exp $ */
+/* $OpenBSD: dh_key.c,v 1.27 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

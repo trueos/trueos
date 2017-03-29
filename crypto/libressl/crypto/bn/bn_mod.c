@@ -1,4 +1,4 @@
-/* $OpenBSD: bn_mod.c,v 1.11 2017/01/21 10:38:29 beck Exp $ */
+/* $OpenBSD: bn_mod.c,v 1.12 2017/01/29 17:49:22 beck Exp $ */
 /* Includes code written by Lenka Fibikova <fibikova@exp-math.uni-essen.de>
  * for the OpenSSL project. */
 /* ====================================================================

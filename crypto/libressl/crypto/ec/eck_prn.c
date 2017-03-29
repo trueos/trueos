@@ -1,4 +1,4 @@
-/* $OpenBSD: eck_prn.c,v 1.11 2015/06/20 14:17:07 jsing Exp $ */
+/* $OpenBSD: eck_prn.c,v 1.12 2017/01/29 17:49:23 beck Exp $ */
 /*
  * Written by Nils Larsch for the OpenSSL project.
  */

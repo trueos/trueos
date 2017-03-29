@@ -1,4 +1,4 @@
-/* $OpenBSD: ech_lib.c,v 1.11 2015/09/13 12:03:07 jsing Exp $ */
+/* $OpenBSD: ech_lib.c,v 1.12 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
  *

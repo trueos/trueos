@@ -1,4 +1,4 @@
-/* $OpenBSD: ts.h,v 1.7 2014/07/10 22:45:58 jsing Exp $ */
+/* $OpenBSD: ts.h,v 1.8 2016/12/27 16:05:57 jsing Exp $ */
 /* Written by Zoltan Glozik (zglozik@opentsa.org) for the OpenSSL
  * project 2002, 2003, 2004.
  */

@@ -1,4 +1,4 @@
-/* $OpenBSD: v3_pku.c,v 1.12 2015/07/29 16:13:49 jsing Exp $ */
+/* $OpenBSD: v3_pku.c,v 1.13 2016/12/30 15:54:49 jsing Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */

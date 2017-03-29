@@ -1,4 +1,4 @@
-/* $OpenBSD: eng_ctrl.c,v 1.10 2015/02/11 03:19:37 doug Exp $ */
+/* $OpenBSD: eng_ctrl.c,v 1.11 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1999-2001 The OpenSSL Project.  All rights reserved.
  *

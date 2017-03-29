@@ -1,4 +1,4 @@
-/* $OpenBSD: asn1.h,v 1.41 2016/12/27 16:51:52 jsing Exp $ */
+/* $OpenBSD: asn1.h,v 1.42 2016/12/30 16:29:45 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

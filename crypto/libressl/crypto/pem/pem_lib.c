@@ -1,4 +1,4 @@
-/* $OpenBSD: pem_lib.c,v 1.43 2016/10/19 16:49:11 jsing Exp $ */
+/* $OpenBSD: pem_lib.c,v 1.44 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

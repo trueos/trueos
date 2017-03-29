@@ -1,4 +1,4 @@
-/* $OpenBSD: s_time.c,v 1.16 2016/08/30 14:34:59 deraadt Exp $ */
+/* $OpenBSD: s_time.c,v 1.17 2017/01/20 08:57:12 deraadt Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

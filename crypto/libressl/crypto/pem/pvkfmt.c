@@ -1,4 +1,4 @@
-/* $OpenBSD: pvkfmt.c,v 1.17 2017/01/21 09:38:59 beck Exp $ */
+/* $OpenBSD: pvkfmt.c,v 1.18 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2005.
  */

@@ -1,4 +1,4 @@
-/* $OpenBSD: pkcs7.h,v 1.17 2016/12/27 16:05:57 jsing Exp $ */
+/* $OpenBSD: pkcs7.h,v 1.18 2016/12/27 16:12:47 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

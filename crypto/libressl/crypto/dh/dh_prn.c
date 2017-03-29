@@ -1,4 +1,4 @@
-/* $OpenBSD: dh_prn.c,v 1.5 2014/07/11 08:44:48 jsing Exp $ */
+/* $OpenBSD: dh_prn.c,v 1.6 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

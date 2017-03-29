@@ -1,4 +1,4 @@
-/* $OpenBSD: x509.c,v 1.13 2016/12/30 16:28:53 jsing Exp $ */
+/* $OpenBSD: x509.c,v 1.14 2017/01/20 08:57:12 deraadt Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

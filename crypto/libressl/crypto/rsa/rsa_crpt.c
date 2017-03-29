@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa_crpt.c,v 1.17 2017/01/21 11:00:47 beck Exp $ */
+/* $OpenBSD: rsa_crpt.c,v 1.18 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

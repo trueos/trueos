@@ -1,4 +1,4 @@
-/* $OpenBSD: ts_rsp_utils.c,v 1.5 2015/07/29 14:58:34 jsing Exp $ */
+/* $OpenBSD: ts_rsp_utils.c,v 1.6 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Zoltan Glozik (zglozik@stones.com) for the OpenSSL
  * project 2002.
  */

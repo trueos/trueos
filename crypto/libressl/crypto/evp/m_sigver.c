@@ -1,4 +1,4 @@
-/* $OpenBSD: m_sigver.c,v 1.5 2015/12/14 03:37:27 beck Exp $ */
+/* $OpenBSD: m_sigver.c,v 1.6 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2006.
  */

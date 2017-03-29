@@ -1,4 +1,4 @@
-/* $OpenBSD: ts_req_utils.c,v 1.4 2014/07/11 08:44:49 jsing Exp $ */
+/* $OpenBSD: ts_req_utils.c,v 1.5 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Zoltan Glozik (zglozik@stones.com) for the OpenSSL
  * project 2002.
  */

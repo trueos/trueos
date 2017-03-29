@@ -1,4 +1,4 @@
-/* $OpenBSD: lhash.c,v 1.17 2014/07/10 22:45:57 jsing Exp $ */
+/* $OpenBSD: lhash.c,v 1.18 2016/11/08 20:20:06 miod Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

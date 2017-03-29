@@ -1,4 +1,4 @@
-/* $OpenBSD: e_rc2.c,v 1.11 2015/02/10 09:52:35 miod Exp $ */
+/* $OpenBSD: e_rc2.c,v 1.12 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

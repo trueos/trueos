@@ -1,4 +1,4 @@
-/* $OpenBSD: pk7_mime.c,v 1.12 2014/10/18 17:20:40 jsing Exp $ */
+/* $OpenBSD: pk7_mime.c,v 1.13 2016/12/30 15:38:13 jsing Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */

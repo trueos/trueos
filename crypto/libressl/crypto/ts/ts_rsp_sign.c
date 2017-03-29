@@ -1,4 +1,4 @@
-/* $OpenBSD: ts_rsp_sign.c,v 1.20 2016/03/11 07:08:45 mmcc Exp $ */
+/* $OpenBSD: ts_rsp_sign.c,v 1.21 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Zoltan Glozik (zglozik@stones.com) for the OpenSSL
  * project 2002.
  */

@@ -1,4 +1,4 @@
-/* $OpenBSD: fcrypt.c,v 1.11 2014/06/12 15:49:28 deraadt Exp $ */
+/* $OpenBSD: fcrypt.c,v 1.12 2016/12/26 21:30:10 jca Exp $ */
 
 #include <stdio.h>
 

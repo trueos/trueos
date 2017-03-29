@@ -1,4 +1,4 @@
-/* $OpenBSD: pcy_int.h,v 1.4 2015/07/18 00:01:05 beck Exp $ */
+/* $OpenBSD: pcy_int.h,v 1.5 2016/12/21 15:49:29 jsing Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2004.
  */

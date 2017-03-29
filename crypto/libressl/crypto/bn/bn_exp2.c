@@ -1,4 +1,4 @@
-/* $OpenBSD: bn_exp2.c,v 1.11 2017/01/21 10:38:29 beck Exp $ */
+/* $OpenBSD: bn_exp2.c,v 1.12 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

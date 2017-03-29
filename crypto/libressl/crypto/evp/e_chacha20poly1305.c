@@ -1,4 +1,4 @@
-/* $OpenBSD: e_chacha20poly1305.c,v 1.14 2016/04/28 16:06:53 jsing Exp $ */
+/* $OpenBSD: e_chacha20poly1305.c,v 1.15 2017/01/29 17:49:23 beck Exp $ */
 
 /*
  * Copyright (c) 2015 Reyk Floter <reyk@openbsd.org>

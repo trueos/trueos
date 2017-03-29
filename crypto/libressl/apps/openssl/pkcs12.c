@@ -1,4 +1,4 @@
-/* $OpenBSD: pkcs12.c,v 1.8 2016/12/30 15:59:58 jsing Exp $ */
+/* $OpenBSD: pkcs12.c,v 1.9 2017/01/20 08:57:12 deraadt Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */

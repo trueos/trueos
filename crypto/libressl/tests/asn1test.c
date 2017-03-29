@@ -1,4 +1,4 @@
-/*	$OpenBSD: asn1test.c,v 1.4 2016/12/21 15:13:29 jsing Exp $	*/
+/*	$OpenBSD: asn1test.c,v 1.6 2016/12/26 15:31:38 jsing Exp $	*/
 /*
  * Copyright (c) 2014, 2016 Joel Sing <jsing@openbsd.org>
  *

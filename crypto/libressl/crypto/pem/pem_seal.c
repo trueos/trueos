@@ -1,4 +1,4 @@
-/* $OpenBSD: pem_seal.c,v 1.23 2016/11/05 11:32:45 miod Exp $ */
+/* $OpenBSD: pem_seal.c,v 1.24 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

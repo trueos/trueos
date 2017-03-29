@@ -1,4 +1,4 @@
-/* $OpenBSD: o_time.h,v 1.6 2014/06/12 15:49:27 deraadt Exp $ */
+/* $OpenBSD: o_time.h,v 1.7 2016/12/21 15:49:29 jsing Exp $ */
 /* Written by Richard Levitte (richard@levitte.org) for the OpenSSL
  * project 2001.
  */

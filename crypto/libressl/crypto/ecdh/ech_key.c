@@ -1,4 +1,4 @@
-/* $OpenBSD: ech_key.c,v 1.6 2015/09/18 13:04:41 bcook Exp $ */
+/* $OpenBSD: ech_key.c,v 1.7 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
  *

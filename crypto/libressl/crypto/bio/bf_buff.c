@@ -1,4 +1,4 @@
-/* $OpenBSD: bf_buff.c,v 1.23 2015/07/19 18:29:31 miod Exp $ */
+/* $OpenBSD: bf_buff.c,v 1.24 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/* $OpenBSD: by_mem.c,v 1.3 2015/02/05 01:33:22 reyk Exp $ */
+/* $OpenBSD: by_mem.c,v 1.4 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

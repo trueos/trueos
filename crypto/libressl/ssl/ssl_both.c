@@ -1,4 +1,4 @@
-/* $OpenBSD: ssl_both.c,v 1.4 2017/01/26 12:16:13 beck Exp $ */
+/* $OpenBSD: ssl_both.c,v 1.7 2017/03/05 14:24:12 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -166,8 +166,10 @@ ssl3_do_write(SSL *s, int type)
 int
 ssl3_send_finished(SSL *s, int a, int b, const char *sender, int slen)
 {
-	unsigned char *p;
+	CBB cbb, finished;
 	int md_len;
+
+	memset(&cbb, 0, sizeof(cbb));
 
 	if (s->internal->state == a) {
 		md_len = TLS1_FINISH_MAC_LENGTH;
@@ -189,14 +191,23 @@ ssl3_send_finished(SSL *s, int a, int b, const char *sender, int slen)
 			S3I(s)->previous_server_finished_len = md_len;
 		}
 
-		p = ssl3_handshake_msg_start(s, SSL3_MT_FINISHED);
-		memcpy(p, S3I(s)->tmp.finish_md, md_len);
-		ssl3_handshake_msg_finish(s, md_len);
+		if (!ssl3_handshake_msg_start_cbb(s, &cbb, &finished,
+		    SSL3_MT_FINISHED))
+                        goto err;
+		if (!CBB_add_bytes(&finished, S3I(s)->tmp.finish_md, md_len))
+			goto err;
+		if (!ssl3_handshake_msg_finish_cbb(s, &cbb))
+			goto err;
 
 		s->internal->state = b;
 	}
 
 	return (ssl3_handshake_write(s));
+
+ err:
+	CBB_cleanup(&cbb);
+
+	return (-1);
 }
 
 /*
@@ -244,7 +255,7 @@ ssl3_get_finished(SSL *s, int a, int b)
 	/* If this occurs, we have missed a message */
 	if (!S3I(s)->change_cipher_spec) {
 		al = SSL_AD_UNEXPECTED_MESSAGE;
-		SSLerror(SSL_R_GOT_A_FIN_BEFORE_A_CCS);
+		SSLerror(s, SSL_R_GOT_A_FIN_BEFORE_A_CCS);
 		goto f_err;
 	}
 	S3I(s)->change_cipher_spec = 0;
@@ -253,7 +264,7 @@ ssl3_get_finished(SSL *s, int a, int b)
 
 	if (n < 0) {
 		al = SSL_AD_DECODE_ERROR;
-		SSLerror(SSL_R_BAD_DIGEST_LENGTH);
+		SSLerror(s, SSL_R_BAD_DIGEST_LENGTH);
 		goto f_err;
 	}
 
@@ -262,13 +273,13 @@ ssl3_get_finished(SSL *s, int a, int b)
 	if (S3I(s)->tmp.peer_finish_md_len != md_len ||
 	    CBS_len(&cbs) != md_len) {
 		al = SSL_AD_DECODE_ERROR;
-		SSLerror(SSL_R_BAD_DIGEST_LENGTH);
+		SSLerror(s, SSL_R_BAD_DIGEST_LENGTH);
 		goto f_err;
 	}
 
 	if (!CBS_mem_equal(&cbs, S3I(s)->tmp.peer_finish_md, CBS_len(&cbs))) {
 		al = SSL_AD_DECRYPT_ERROR;
-		SSLerror(SSL_R_DIGEST_CHECK_FAILED);
+		SSLerror(s, SSL_R_DIGEST_CHECK_FAILED);
 		goto f_err;
 	}
 
@@ -365,7 +376,7 @@ ssl3_output_cert_chain(SSL *s, CBB *cbb, X509 *x)
 
 			if (!X509_STORE_CTX_init(&xs_ctx, s->ctx->cert_store,
 			    x, NULL)) {
-				SSLerror(ERR_R_X509_LIB);
+				SSLerror(s, ERR_R_X509_LIB);
 				goto err;
 			}
 			X509_verify_cert(&xs_ctx);
@@ -419,7 +430,7 @@ ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
 		S3I(s)->tmp.reuse_message = 0;
 		if ((mt >= 0) && (S3I(s)->tmp.message_type != mt)) {
 			al = SSL_AD_UNEXPECTED_MESSAGE;
-			SSLerror(SSL_R_UNEXPECTED_MESSAGE);
+			SSLerror(s, SSL_R_UNEXPECTED_MESSAGE);
 			goto f_err;
 		}
 		*ok = 1;
@@ -471,25 +482,25 @@ ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
 
 		if ((mt >= 0) && (*p != mt)) {
 			al = SSL_AD_UNEXPECTED_MESSAGE;
-			SSLerror(SSL_R_UNEXPECTED_MESSAGE);
+			SSLerror(s, SSL_R_UNEXPECTED_MESSAGE);
 			goto f_err;
 		}
 
 		CBS_init(&cbs, p, 4);
 		if (!CBS_get_u8(&cbs, &u8) ||
 		    !CBS_get_u24(&cbs, &l)) {
-			SSLerror(ERR_R_BUF_LIB);
+			SSLerror(s, ERR_R_BUF_LIB);
 			goto err;
 		}
 		S3I(s)->tmp.message_type = u8;
 
 		if (l > (unsigned long)max) {
 			al = SSL_AD_ILLEGAL_PARAMETER;
-			SSLerror(SSL_R_EXCESSIVE_MESSAGE_SIZE);
+			SSLerror(s, SSL_R_EXCESSIVE_MESSAGE_SIZE);
 			goto f_err;
 		}
 		if (l && !BUF_MEM_grow_clean(s->internal->init_buf, l + 4)) {
-			SSLerror(ERR_R_BUF_LIB);
+			SSLerror(s, ERR_R_BUF_LIB);
 			goto err;
 		}
 		S3I(s)->tmp.message_size = l;
@@ -679,7 +690,7 @@ ssl3_setup_read_buffer(SSL *s)
 	return 1;
 
 err:
-	SSLerror(ERR_R_MALLOC_FAILURE);
+	SSLerror(s, ERR_R_MALLOC_FAILURE);
 	return 0;
 }
 
@@ -712,7 +723,7 @@ ssl3_setup_write_buffer(SSL *s)
 	return 1;
 
 err:
-	SSLerror(ERR_R_MALLOC_FAILURE);
+	SSLerror(s, ERR_R_MALLOC_FAILURE);
 	return 0;
 }
 

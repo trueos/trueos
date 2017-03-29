@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa_x931.c,v 1.9 2014/10/18 17:20:40 jsing Exp $ */
+/* $OpenBSD: rsa_x931.c,v 1.10 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2005.
  */

@@ -1,4 +1,4 @@
-/*	$OpenBSD: getentropy_linux.c,v 1.42 2016/04/19 20:20:24 tj Exp $	*/
+/*	$OpenBSD: getentropy_linux.c,v 1.43 2016/08/07 03:27:21 tb Exp $	*/
 
 /*
  * Copyright (c) 2014 Theo de Raadt <deraadt@openbsd.org>

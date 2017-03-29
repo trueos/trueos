@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa_pss.c,v 1.11 2014/10/22 13:02:04 jsing Exp $ */
+/* $OpenBSD: rsa_pss.c,v 1.12 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2005.
  */

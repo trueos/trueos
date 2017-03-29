@@ -1,4 +1,4 @@
-/* $OpenBSD: ts_asn1.c,v 1.10 2016/11/04 18:35:30 jsing Exp $ */
+/* $OpenBSD: ts_asn1.c,v 1.11 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Nils Larsch for the OpenSSL project 2004.
  */
 /* ====================================================================

@@ -1,4 +1,4 @@
-/* $OpenBSD: asn1_lib.c,v 1.37 2016/03/06 18:05:00 beck Exp $ */
+/* $OpenBSD: asn1_lib.c,v 1.38 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

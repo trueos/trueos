@@ -1,4 +1,4 @@
-/* $OpenBSD: s_server.c,v 1.24 2015/12/23 20:43:42 mmcc Exp $ */
+/* $OpenBSD: s_server.c,v 1.25 2017/01/20 08:57:12 deraadt Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

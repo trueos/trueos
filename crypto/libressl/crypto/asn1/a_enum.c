@@ -1,4 +1,4 @@
-/* $OpenBSD: a_enum.c,v 1.17 2015/09/30 18:45:56 jsing Exp $ */
+/* $OpenBSD: a_enum.c,v 1.18 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

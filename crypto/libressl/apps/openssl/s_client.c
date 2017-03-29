@@ -1,4 +1,4 @@
-/* $OpenBSD: s_client.c,v 1.30 2017/01/20 08:57:12 deraadt Exp $ */
+/* $OpenBSD: s_client.c,v 1.31 2017/01/24 09:07:40 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

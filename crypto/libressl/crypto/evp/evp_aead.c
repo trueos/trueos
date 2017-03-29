@@ -1,4 +1,4 @@
-/* $OpenBSD: evp_aead.c,v 1.5 2014/06/21 15:30:36 jsing Exp $ */
+/* $OpenBSD: evp_aead.c,v 1.6 2017/01/29 17:49:23 beck Exp $ */
 /*
  * Copyright (c) 2014, Google Inc.
  *

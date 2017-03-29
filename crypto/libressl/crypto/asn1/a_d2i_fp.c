@@ -1,4 +1,4 @@
-/* $OpenBSD: a_d2i_fp.c,v 1.15 2016/05/20 15:46:21 bcook Exp $ */
+/* $OpenBSD: a_d2i_fp.c,v 1.16 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

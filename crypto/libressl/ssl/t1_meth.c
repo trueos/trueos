@@ -1,4 +1,4 @@
-/* $OpenBSD: t1_meth.c,v 1.22 2017/01/26 00:42:44 jsing Exp $ */
+/* $OpenBSD: t1_meth.c,v 1.23 2017/01/26 05:31:25 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

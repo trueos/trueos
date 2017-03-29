@@ -1,4 +1,4 @@
-/* $OpenBSD: cast_s.h,v 1.5 2014/06/12 15:49:28 deraadt Exp $ */
+/* $OpenBSD: cast_s.h,v 1.6 2016/12/21 15:49:29 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

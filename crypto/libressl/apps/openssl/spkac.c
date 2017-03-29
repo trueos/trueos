@@ -1,4 +1,4 @@
-/* $OpenBSD: spkac.c,v 1.8 2015/10/17 15:00:11 doug Exp $ */
+/* $OpenBSD: spkac.c,v 1.9 2017/01/20 08:57:12 deraadt Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999. Based on an original idea by Massimiliano Pala
  * (madwolf@openca.org).

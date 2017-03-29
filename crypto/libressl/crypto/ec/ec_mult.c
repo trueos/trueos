@@ -1,4 +1,4 @@
-/* $OpenBSD: ec_mult.c,v 1.19 2015/09/10 15:56:25 jsing Exp $ */
+/* $OpenBSD: ec_mult.c,v 1.20 2017/01/29 17:49:23 beck Exp $ */
 /*
  * Originally written by Bodo Moeller and Nils Larsch for the OpenSSL project.
  */

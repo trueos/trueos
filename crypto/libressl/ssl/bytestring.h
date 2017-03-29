@@ -1,4 +1,4 @@
-/*	$OpenBSD: bytestring.h,v 1.14 2015/06/19 00:23:36 doug Exp $	*/
+/*	$OpenBSD: bytestring.h,v 1.15 2016/11/04 18:28:58 guenther Exp $	*/
 /*
  * Copyright (c) 2014, Google Inc.
  *

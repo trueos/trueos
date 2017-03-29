@@ -28,6 +28,32 @@ history is also available from Git.
 
 LibreSSL Portable Release Notes:
 
+2.5.2 - Security features and bugfixes
+
+	* Added the recallocarray(3) memory allocation function, and converted
+	  various places in the library to use it, such as CBB and BUF_MEM_grow.
+	  recallocarray(3) is similar to reallocarray. Newly allocated memory
+	  is cleared similar to calloc(3). Memory that becomes unallocated
+	  while shrinking or moving existing allocations is explicitly
+	  discarded by unmapping or clearing to 0
+
+	* Added new root CAs from SECOM Trust Systems / Security Communication
+	  of Japan.
+
+	* Added EVP interface for MD5+SHA1 hashes.
+
+	* Fixed DTLS client failures when the server sends a certificate
+	  request.
+
+	* Correct handling of padding when upgrading an SSLv2 challenge into
+	  an SSLv3/TLS connection.
+
+	* Allow protocols and ciphers to be set on a TLS config object in
+	  libtls.
+
+	* Improved nc(1) TLS handshake CPU usage and server-side error
+	  reporting.
+
 2.5.1 - Bug and security fixes, new features, documentation updates
 
 	* X509_cmp_time() now passes a malformed GeneralizedTime field as an
@@ -75,10 +101,10 @@ LibreSSL Portable Release Notes:
 	  SSL{_CTX}_set1_groups{_list}() - also provide defines for the previous
 	  SSL{_CTX}_set1_curves{_list} names. This also changes the default
 	  list of curves to be X25519, P-256 and P-384. All other curves must
-          be manually enabled.
+	  be manually enabled.
 
 	* Added -groups option to openssl(1) s_client for specifying the curves
-          to be used in a colon-separated list.
+	  to be used in a colon-separated list.
 
 	* Merged client/server version negotiation code paths into one,
 	  reducing much duplicate code.

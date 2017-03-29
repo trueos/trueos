@@ -1,4 +1,4 @@
-/* $OpenBSD: gcm128.c,v 1.14 2016/11/04 13:56:05 miod Exp $ */
+/* $OpenBSD: gcm128.c,v 1.15 2016/11/04 17:30:30 miod Exp $ */
 /* ====================================================================
  * Copyright (c) 2010 The OpenSSL Project.  All rights reserved.
  *

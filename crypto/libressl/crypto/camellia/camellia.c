@@ -1,4 +1,4 @@
-/* $OpenBSD: camellia.c,v 1.10 2014/11/19 11:37:52 bcook Exp $ */
+/* $OpenBSD: camellia.c,v 1.11 2016/09/04 14:31:29 jsing Exp $ */
 /* ====================================================================
  * Copyright 2006 NTT (Nippon Telegraph and Telephone Corporation) . 
  * ALL RIGHTS RESERVED.

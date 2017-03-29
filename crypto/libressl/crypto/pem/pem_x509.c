@@ -1,4 +1,4 @@
-/* $OpenBSD: pem_x509.c,v 1.7 2016/09/04 15:53:03 jsing Exp $ */
+/* $OpenBSD: pem_x509.c,v 1.8 2016/09/04 16:10:38 jsing Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2001.
  */

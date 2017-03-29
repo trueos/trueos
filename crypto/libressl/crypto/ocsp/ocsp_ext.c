@@ -1,4 +1,4 @@
-/* $OpenBSD: ocsp_ext.c,v 1.14 2015/07/19 18:29:31 miod Exp $ */
+/* $OpenBSD: ocsp_ext.c,v 1.15 2016/12/27 16:01:19 jsing Exp $ */
 /* Written by Tom Titchener <Tom_Titchener@groove.net> for the OpenSSL
  * project. */
 

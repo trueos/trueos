@@ -1,4 +1,4 @@
-/* $OpenBSD: x509_cmp.c,v 1.26 2015/07/29 14:58:34 jsing Exp $ */
+/* $OpenBSD: x509_cmp.c,v 1.27 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

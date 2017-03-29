@@ -1,4 +1,4 @@
-/*	$OpenBSD: cipher_list.c,v 1.4 2016/12/04 14:33:04 jsing Exp $	*/
+/*	$OpenBSD: cipher_list.c,v 1.5 2017/01/23 06:49:31 beck Exp $	*/
 /*
  * Copyright (c) 2015 Doug Hogan <doug@openbsd.org>
  * Copyright (c) 2015 Joel Sing <jsing@openbsd.org>

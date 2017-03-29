@@ -1,4 +1,4 @@
-/* $OpenBSD: ts.c,v 1.13 2015/10/17 15:00:11 doug Exp $ */
+/* $OpenBSD: ts.c,v 1.14 2017/01/20 08:57:12 deraadt Exp $ */
 /* Written by Zoltan Glozik (zglozik@stones.com) for the OpenSSL
  * project 2002.
  */

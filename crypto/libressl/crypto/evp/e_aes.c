@@ -1,4 +1,4 @@
-/* $OpenBSD: e_aes.c,v 1.32 2017/01/29 17:49:23 beck Exp $ */
+/* $OpenBSD: e_aes.c,v 1.33 2017/01/31 13:17:21 inoguchi Exp $ */
 /* ====================================================================
  * Copyright (c) 2001-2011 The OpenSSL Project.  All rights reserved.
  *

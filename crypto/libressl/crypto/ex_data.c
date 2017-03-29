@@ -1,4 +1,4 @@
-/* $OpenBSD: ex_data.c,v 1.18 2015/02/10 11:22:21 jsing Exp $ */
+/* $OpenBSD: ex_data.c,v 1.19 2017/01/29 17:49:22 beck Exp $ */
 
 /*
  * Overhaul notes;

@@ -1,4 +1,4 @@
-/*	$OpenBSD: strnlen.c,v 1.6 2015/08/31 02:53:57 guenther Exp $	*/
+/*	$OpenBSD: strnlen.c,v 1.8 2016/10/16 17:37:39 dtucker Exp $	*/
 
 /*
  * Copyright (c) 2010 Todd C. Miller <Todd.Miller@courtesan.com>

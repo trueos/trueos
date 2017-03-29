@@ -1,3 +1,4 @@
+/* $OpenBSD: ocspcheck.c,v 1.17 2017/02/25 23:48:08 beck Exp $ */
 /*
  * Copyright (c) 2017 Bob Beck <beck@openbsd.org>
  *
@@ -15,6 +16,7 @@
  */
 
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 
@@ -76,7 +78,9 @@ host_dns(const char *s, struct addr vec[MAX_SERVERS_DNS])
 	error = getaddrinfo(s, NULL, &hints, &res0);
 
 	if (error == EAI_AGAIN ||
+#ifdef EAI_NODATA
 	    error == EAI_NODATA ||
+#endif
 	    error == EAI_NONAME)
 		return(0);
 
@@ -585,6 +589,16 @@ main(int argc, char **argv)
 	    request->data, request->size);
 	if (hget == NULL)
 		errx(1, "http_get");
+
+	/*
+	 * Pledge minimally before fiddling with libcrypto init
+	 * routines and parsing untrusted input from someone's OCSP
+	 * server.
+	 */
+
+	if (pledge("stdio", NULL) == -1)
+		err(1, "pledge");
+
 	httph = http_head_parse(hget->http, hget->xfer, &httphsz);
 	dspew("Server at %s returns:\n", host);
 	for (i = 0; i < httphsz; i++)
@@ -592,14 +606,6 @@ main(int argc, char **argv)
 	dspew("	  [Body]=[%ld bytes]\n", hget->bodypartsz);
 	if (hget->bodypartsz <= 0)
 		errx(1, "No body in reply from %s", host);
-
-	/*
-	 * Pledge minimally before fiddling with libcrypto init routines
-	 * and untrusted input from someone's OCSP server.
-	 */
-
-	if (pledge("stdio", NULL) == -1)
-		err(1, "pledge");
 
 	/*
 	 * Validate the OCSP response we got back

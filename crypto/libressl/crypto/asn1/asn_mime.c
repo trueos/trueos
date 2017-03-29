@@ -1,4 +1,4 @@
-/* $OpenBSD: asn_mime.c,v 1.26 2015/02/22 15:19:56 jsing Exp $ */
+/* $OpenBSD: asn_mime.c,v 1.27 2017/01/29 17:49:22 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */

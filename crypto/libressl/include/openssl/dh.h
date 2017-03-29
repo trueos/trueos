@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.h,v 1.17 2016/06/30 02:02:06 bcook Exp $ */
+/* $OpenBSD: dh.h,v 1.18 2016/11/04 18:35:30 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/* $OpenBSD: ec.h,v 1.11 2015/10/13 15:25:18 jsing Exp $ */
+/* $OpenBSD: ec.h,v 1.12 2016/11/04 17:33:19 miod Exp $ */
 /*
  * Originally written by Bodo Moeller for the OpenSSL project.
  */

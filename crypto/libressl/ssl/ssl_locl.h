@@ -1,4 +1,4 @@
-/* $OpenBSD: ssl_locl.h,v 1.171 2017/01/26 07:20:57 beck Exp $ */
+/* $OpenBSD: ssl_locl.h,v 1.178 2017/03/10 16:03:27 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -250,7 +250,6 @@ __BEGIN_HIDDEN_DECLS
 /* Not a real MAC, just an indication it is part of cipher */
 #define SSL_AEAD		0x00000040L
 #define SSL_STREEBOG256		0x00000080L
-#define SSL_STREEBOG512		0x00000100L
 
 /* Bits for algorithm_ssl (protocol version) */
 #define SSL_SSLV3		0x00000002L
@@ -260,18 +259,18 @@ __BEGIN_HIDDEN_DECLS
 
 /* Bits for algorithm2 (handshake digests and other extra flags) */
 
-#define SSL_HANDSHAKE_MAC_MD5 0x10
-#define SSL_HANDSHAKE_MAC_SHA 0x20
-#define SSL_HANDSHAKE_MAC_GOST94 0x40
-#define SSL_HANDSHAKE_MAC_SHA256 0x80
-#define SSL_HANDSHAKE_MAC_SHA384 0x100
-#define SSL_HANDSHAKE_MAC_STREEBOG256 0x200
-#define SSL_HANDSHAKE_MAC_STREEBOG512 0x400
+#define SSL_HANDSHAKE_MAC_MASK		0xff0
+#define SSL_HANDSHAKE_MAC_MD5		0x010
+#define SSL_HANDSHAKE_MAC_SHA		0x020
+#define SSL_HANDSHAKE_MAC_GOST94	0x040
+#define SSL_HANDSHAKE_MAC_SHA256	0x080
+#define SSL_HANDSHAKE_MAC_SHA384	0x100
+#define SSL_HANDSHAKE_MAC_STREEBOG256	0x200
 #define SSL_HANDSHAKE_MAC_DEFAULT (SSL_HANDSHAKE_MAC_MD5 | SSL_HANDSHAKE_MAC_SHA)
 
 /* When adding new digest in the ssl_ciph.c and increment SSM_MD_NUM_IDX
  * make sure to update this constant too */
-#define SSL_MAX_DIGEST 8
+#define SSL_MAX_DIGEST 7
 
 #define SSL3_CK_ID		0x03000000
 #define SSL3_CK_VALUE_MASK	0x0000ffff
@@ -532,9 +531,6 @@ typedef struct ssl_ctx_internal_st {
 	STACK_OF(SSL_CIPHER) *cipher_list_by_id;
 
 	struct cert_st /* CERT */ *cert;
-
-	const EVP_MD *md5;	/* For SSLv3/TLSv1 'ssl3-md5' */
-	const EVP_MD *sha1;	/* For SSLv3/TLSv1 'ssl3-sha1' */
 
 	/* Default values used when no per-SSL value is defined follow */
 
@@ -809,10 +805,10 @@ typedef struct ssl3_state_internal_st {
 
 	/* used during startup, digest all incoming/outgoing packets */
 	BIO *handshake_buffer;
-	/* When set of handshake digests is determined, buffer is hashed
-	 * and freed and MD_CTX-es for all required digests are stored in
-	 * this array */
-	EVP_MD_CTX **handshake_dgst;
+
+	/* Rolling hash of handshake messages. */
+	EVP_MD_CTX *handshake_hash;
+
 	/* this is set whenerver we see a change_cipher_spec message
 	 * come in when we are not looking for one */
 	int change_cipher_spec;
@@ -1103,7 +1099,7 @@ void ssl_update_cache(SSL *s, int mode);
 int ssl_cipher_get_evp(const SSL_SESSION *s, const EVP_CIPHER **enc,
     const EVP_MD **md, int *mac_pkey_type, int *mac_secret_size);
 int ssl_cipher_get_evp_aead(const SSL_SESSION *s, const EVP_AEAD **aead);
-int ssl_get_handshake_digest(int i, long *mask, const EVP_MD **md);
+int ssl_get_handshake_evp_md(SSL *s, const EVP_MD **md);
 
 int ssl_verify_cert_chain(SSL *s, STACK_OF(X509) *sk);
 int ssl_undefined_function(SSL *s);
@@ -1191,9 +1187,8 @@ int ssl_server_legacy_first_packet(SSL *s);
 int dtls1_read_bytes(SSL *s, int type, unsigned char *buf, int len, int peek);
 int ssl3_write_pending(SSL *s, int type, const unsigned char *buf,
     unsigned int len);
-unsigned char *dtls1_set_message_header(SSL *s, unsigned char *p,
-    unsigned char mt, unsigned long len, unsigned long frag_off,
-    unsigned long frag_len);
+void dtls1_set_message_header(SSL *s, unsigned char mt, unsigned long len,
+    unsigned long frag_off, unsigned long frag_len);
 
 int dtls1_write_app_data_bytes(SSL *s, int type, const void *buf, int len);
 int dtls1_write_bytes(SSL *s, int type, const void *buf, int len);
@@ -1278,6 +1273,12 @@ int dtls1_enc(SSL *s, int snd);
 int ssl_init_wbio_buffer(SSL *s, int push);
 void ssl_free_wbio_buffer(SSL *s);
 
+int tls1_handshake_hash_init(SSL *s);
+int tls1_handshake_hash_update(SSL *s, const unsigned char *buf, size_t len);
+int tls1_handshake_hash_value(SSL *s, const unsigned char *out, size_t len,
+    size_t *outlen);
+void tls1_handshake_hash_free(SSL *s);
+
 int tls1_init_finished_mac(SSL *s);
 int tls1_finish_mac(SSL *s, const unsigned char *buf, int len);
 void tls1_free_digest_list(SSL *s);
@@ -1287,7 +1288,6 @@ int tls1_change_cipher_state(SSL *s, int which);
 int tls1_setup_key_block(SSL *s);
 int tls1_enc(SSL *s, int snd);
 int tls1_final_finish_mac(SSL *s, const char *str, int slen, unsigned char *p);
-int tls1_cert_verify_mac(SSL *s, int md_nid, unsigned char *p);
 int tls1_mac(SSL *ssl, unsigned char *md, int snd);
 int tls1_generate_master_secret(SSL *s, unsigned char *out,
     unsigned char *p, int len);
@@ -1367,8 +1367,11 @@ int ssl3_cbc_digest_record(const EVP_MD_CTX *ctx, unsigned char *md_out,
     const unsigned char *data, size_t data_plus_mac_size,
     size_t data_plus_mac_plus_padding_size, const unsigned char *mac_secret,
     unsigned mac_secret_length);
+int SSL_state_func_code(int _state);
 
-#define SSLerror(r)  ERR_PUT_error(ERR_LIB_SSL,(0xfff),(r),__FILE__,__LINE__)
+#define SSLerror(s, r)  ERR_PUT_error(ERR_LIB_SSL,			\
+    (SSL_state_func_code(s->internal->state)),(r),__FILE__,__LINE__)
+#define SSLerrorx(r) ERR_PUT_error(ERR_LIB_SSL,(0xfff),(r),__FILE__,__LINE__)
 
 __END_HIDDEN_DECLS
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: x509_trs.c,v 1.21 2016/11/06 10:31:34 beck Exp $ */
+/* $OpenBSD: x509_trs.c,v 1.22 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */

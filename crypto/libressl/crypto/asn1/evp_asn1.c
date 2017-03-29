@@ -1,4 +1,4 @@
-/* $OpenBSD: evp_asn1.c,v 1.18 2015/09/30 19:07:08 jsing Exp $ */
+/* $OpenBSD: evp_asn1.c,v 1.19 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

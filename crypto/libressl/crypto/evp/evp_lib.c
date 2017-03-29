@@ -1,4 +1,4 @@
-/* $OpenBSD: evp_lib.c,v 1.14 2015/02/10 09:52:35 miod Exp $ */
+/* $OpenBSD: evp_lib.c,v 1.15 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

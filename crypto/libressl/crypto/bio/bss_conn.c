@@ -1,4 +1,4 @@
-/* $OpenBSD: bss_conn.c,v 1.32 2014/11/26 05:37:26 bcook Exp $ */
+/* $OpenBSD: bss_conn.c,v 1.33 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

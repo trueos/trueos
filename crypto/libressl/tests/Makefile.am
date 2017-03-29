@@ -294,6 +294,12 @@ TESTS += rsa_test
 check_PROGRAMS += rsa_test
 rsa_test_SOURCES = rsa_test.c
 
+# servertest
+TESTS += servertest.sh
+check_PROGRAMS += servertest
+servertest_SOURCES = servertest.c
+EXTRA_DIST += servertest.sh servertest.bat
+
 # sha1test
 TESTS += sha1test
 check_PROGRAMS += sha1test
@@ -352,6 +358,11 @@ EXTRA_DIST += tlstest.sh tlstest.bat
 TESTS += tls_ext_alpn
 check_PROGRAMS += tls_ext_alpn
 tls_ext_alpn_SOURCES = tls_ext_alpn.c
+
+# tls_prf
+TESTS += tls_prf
+check_PROGRAMS += tls_prf
+tls_prf_SOURCES = tls_prf.c
 
 # utf8test
 TESTS += utf8test

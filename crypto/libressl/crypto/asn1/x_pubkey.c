@@ -1,4 +1,4 @@
-/* $OpenBSD: x_pubkey.c,v 1.25 2015/02/11 04:00:39 jsing Exp $ */
+/* $OpenBSD: x_pubkey.c,v 1.26 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

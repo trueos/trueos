@@ -1,4 +1,4 @@
-/* $OpenBSD: p12_mutl.c,v 1.22 2016/11/08 20:01:06 miod Exp $ */
+/* $OpenBSD: p12_mutl.c,v 1.23 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */

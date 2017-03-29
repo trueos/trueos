@@ -1,4 +1,4 @@
-/* $OpenBSD: asn1_gen.c,v 1.15 2015/12/12 21:03:52 beck Exp $ */
+/* $OpenBSD: asn1_gen.c,v 1.16 2017/01/29 17:49:22 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2002.
  */

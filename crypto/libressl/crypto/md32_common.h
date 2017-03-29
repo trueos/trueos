@@ -1,4 +1,4 @@
-/* $OpenBSD: md32_common.h,v 1.21 2016/09/04 14:31:29 jsing Exp $ */
+/* $OpenBSD: md32_common.h,v 1.22 2016/11/04 13:56:04 miod Exp $ */
 /* ====================================================================
  * Copyright (c) 1999-2007 The OpenSSL Project.  All rights reserved.
  *

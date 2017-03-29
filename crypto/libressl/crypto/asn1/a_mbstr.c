@@ -1,4 +1,4 @@
-/* $OpenBSD: a_mbstr.c,v 1.22 2015/07/16 02:18:58 miod Exp $ */
+/* $OpenBSD: a_mbstr.c,v 1.23 2017/01/29 17:49:22 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */

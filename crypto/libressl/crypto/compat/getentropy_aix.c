@@ -1,4 +1,4 @@
-/*	$OpenBSD: getentropy_aix.c,v 1.4 2015/09/11 11:52:55 deraadt Exp $	*/
+/*	$OpenBSD: getentropy_aix.c,v 1.5 2016/08/07 03:27:21 tb Exp $	*/
 
 /*
  * Copyright (c) 2015 Michael Felt <aixtools@gmail.com>

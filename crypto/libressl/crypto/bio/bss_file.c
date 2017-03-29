@@ -1,4 +1,4 @@
-/* $OpenBSD: bss_file.c,v 1.31 2014/11/11 19:26:12 miod Exp $ */
+/* $OpenBSD: bss_file.c,v 1.32 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

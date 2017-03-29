@@ -1,4 +1,4 @@
-/* $OpenBSD: bio_ndef.c,v 1.9 2014/07/25 06:05:32 doug Exp $ */
+/* $OpenBSD: bio_ndef.c,v 1.10 2017/01/29 17:49:22 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */

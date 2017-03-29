@@ -1,4 +1,4 @@
-/* $OpenBSD: ameth_lib.c,v 1.15 2014/11/09 19:17:13 miod Exp $ */
+/* $OpenBSD: ameth_lib.c,v 1.16 2017/01/21 04:31:25 jsing Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2006.
  */

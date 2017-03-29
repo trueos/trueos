@@ -1,4 +1,4 @@
-/* $OpenBSD: cryptlib.c,v 1.39 2016/11/04 17:30:30 miod Exp $ */
+/* $OpenBSD: cryptlib.c,v 1.40 2017/01/29 17:49:22 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
  *

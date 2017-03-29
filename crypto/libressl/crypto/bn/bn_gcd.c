@@ -1,4 +1,4 @@
-/* $OpenBSD: bn_gcd.c,v 1.14 2017/01/25 06:15:44 beck Exp $ */
+/* $OpenBSD: bn_gcd.c,v 1.15 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

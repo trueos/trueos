@@ -1,4 +1,4 @@
-/* $OpenBSD: a_int.c,v 1.30 2015/09/30 17:30:15 jsing Exp $ */
+/* $OpenBSD: a_int.c,v 1.31 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/* $OpenBSD: evp_pbe.c,v 1.24 2017/01/21 04:38:23 jsing Exp $ */
+/* $OpenBSD: evp_pbe.c,v 1.25 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */

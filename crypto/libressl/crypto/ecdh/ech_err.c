@@ -1,4 +1,4 @@
-/* $OpenBSD: ech_err.c,v 1.5 2015/09/13 11:49:44 jsing Exp $ */
+/* $OpenBSD: ech_err.c,v 1.6 2017/01/29 17:49:23 beck Exp $ */
 /* ====================================================================
  * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
  *

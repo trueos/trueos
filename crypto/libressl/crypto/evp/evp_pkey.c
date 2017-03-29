@@ -1,4 +1,4 @@
-/* $OpenBSD: evp_pkey.c,v 1.18 2014/10/18 17:20:40 jsing Exp $ */
+/* $OpenBSD: evp_pkey.c,v 1.19 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */

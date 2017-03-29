@@ -1,4 +1,4 @@
-/* $OpenBSD: v3_pci.c,v 1.11 2016/12/30 15:54:49 jsing Exp $ */
+/* $OpenBSD: v3_pci.c,v 1.12 2017/01/29 17:49:23 beck Exp $ */
 /* Contributed to the OpenSSL Project 2004
  * by Richard Levitte (richard@levitte.org)
  */

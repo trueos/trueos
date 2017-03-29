@@ -1,4 +1,4 @@
-/* $OpenBSD: by_file.c,v 1.20 2016/03/11 07:08:45 mmcc Exp $ */
+/* $OpenBSD: by_file.c,v 1.21 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

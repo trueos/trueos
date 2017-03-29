@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa_asn1.c,v 1.12 2015/02/14 15:06:55 jsing Exp $ */
+/* $OpenBSD: rsa_asn1.c,v 1.13 2016/12/30 15:47:07 jsing Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2000.
  */

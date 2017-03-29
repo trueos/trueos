@@ -1,4 +1,4 @@
-/* $OpenBSD: md5_locl.h,v 1.13 2014/10/20 13:06:54 bcook Exp $ */
+/* $OpenBSD: md5_locl.h,v 1.14 2016/12/21 15:49:29 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

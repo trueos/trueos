@@ -1,4 +1,4 @@
-/*	$Id: http.h,v 1.3 2017-01-25 13:52:53 inoguchi Exp $ */
+/*	$Id: http.h,v 1.3 2017/01/25 13:52:53 inoguchi Exp $ */
 /*
  * Copyright (c) 2016 Kristaps Dzonsons <kristaps@bsd.lv>
  *

@@ -1,4 +1,4 @@
-/* $OpenBSD: ech_locl.h,v 1.4 2015/09/13 10:46:20 jsing Exp $ */
+/* $OpenBSD: ech_locl.h,v 1.5 2016/12/21 15:49:29 jsing Exp $ */
 /* ====================================================================
  * Copyright (c) 2000-2005 The OpenSSL Project.  All rights reserved.
  *

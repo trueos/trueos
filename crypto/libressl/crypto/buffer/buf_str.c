@@ -1,4 +1,4 @@
-/* $OpenBSD: buf_str.c,v 1.9 2014/07/11 08:44:48 jsing Exp $ */
+/* $OpenBSD: buf_str.c,v 1.10 2017/01/29 17:49:22 beck Exp $ */
 /*
  * Copyright (c) 2014 Bob Beck
  *

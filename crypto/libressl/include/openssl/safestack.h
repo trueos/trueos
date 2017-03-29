@@ -1,4 +1,4 @@
-/* $OpenBSD: safestack.h,v 1.14 2014/06/12 15:49:30 deraadt Exp $ */
+/* $OpenBSD: safestack.h,v 1.15 2016/12/27 16:02:40 jsing Exp $ */
 /* ====================================================================
  * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
  *

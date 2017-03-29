@@ -1,4 +1,4 @@
-/*	$OpenBSD: getentropy_solaris.c,v 1.11 2015/09/11 11:52:55 deraadt Exp $	*/
+/*	$OpenBSD: getentropy_solaris.c,v 1.12 2016/08/07 03:27:21 tb Exp $	*/
 
 /*
  * Copyright (c) 2014 Theo de Raadt <deraadt@openbsd.org>

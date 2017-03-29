@@ -1,4 +1,4 @@
-/* $OpenBSD: dsa_gen.c,v 1.23 2017/01/21 09:38:59 beck Exp $ */
+/* $OpenBSD: dsa_gen.c,v 1.24 2017/01/21 10:38:29 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

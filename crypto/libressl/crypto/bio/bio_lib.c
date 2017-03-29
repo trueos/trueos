@@ -1,4 +1,4 @@
-/* $OpenBSD: bio_lib.c,v 1.22 2015/02/10 11:22:21 jsing Exp $ */
+/* $OpenBSD: bio_lib.c,v 1.23 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

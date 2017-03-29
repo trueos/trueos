@@ -1,4 +1,4 @@
-/* $OpenBSD: ssl3.h,v 1.44 2017/01/22 03:50:45 jsing Exp $ */
+/* $OpenBSD: ssl3.h,v 1.45 2017/01/22 09:02:07 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

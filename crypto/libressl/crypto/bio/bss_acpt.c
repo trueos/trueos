@@ -1,4 +1,4 @@
-/* $OpenBSD: bss_acpt.c,v 1.26 2015/07/18 22:09:30 beck Exp $ */
+/* $OpenBSD: bss_acpt.c,v 1.27 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

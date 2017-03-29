@@ -1,4 +1,4 @@
-/* $OpenBSD: x_all.c,v 1.22 2016/11/04 10:29:19 beck Exp $ */
+/* $OpenBSD: x_all.c,v 1.23 2016/12/30 15:24:51 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

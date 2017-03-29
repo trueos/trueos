@@ -1,4 +1,4 @@
-/* $OpenBSD: sess_id.c,v 1.7 2015/10/17 15:00:11 doug Exp $ */
+/* $OpenBSD: sess_id.c,v 1.8 2017/01/20 08:57:12 deraadt Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

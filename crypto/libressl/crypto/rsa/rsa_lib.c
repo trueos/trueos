@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa_lib.c,v 1.30 2015/02/11 03:19:37 doug Exp $ */
+/* $OpenBSD: rsa_lib.c,v 1.31 2017/01/29 17:49:23 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

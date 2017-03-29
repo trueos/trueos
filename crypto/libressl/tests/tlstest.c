@@ -1,4 +1,4 @@
-/* $OpenBSD: tlstest.c,v 1.1 2017/01/12 15:50:16 jsing Exp $ */
+/* $OpenBSD: tlstest.c,v 1.2 2017/01/17 13:19:36 jsing Exp $ */
 /*
  * Copyright (c) 2017 Joel Sing <jsing@openbsd.org>
  *

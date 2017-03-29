@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa_oaep.c,v 1.25 2015/06/20 12:01:14 jsing Exp $ */
+/* $OpenBSD: rsa_oaep.c,v 1.26 2017/01/29 17:49:23 beck Exp $ */
 /* Written by Ulf Moeller. This software is distributed on an "AS IS"
    basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. */
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: i2d_pu.c,v 1.10 2014/07/11 08:44:47 jsing Exp $ */
+/* $OpenBSD: i2d_pu.c,v 1.11 2017/01/29 17:49:22 beck Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *

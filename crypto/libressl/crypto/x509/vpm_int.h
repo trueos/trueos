@@ -1,4 +1,4 @@
-/* $OpenBSD: vpm_int.h,v 1.2 2016/11/05 20:14:59 beck Exp $ */
+/* $OpenBSD: vpm_int.h,v 1.3 2016/12/21 15:49:29 jsing Exp $ */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL project
  * 2013.

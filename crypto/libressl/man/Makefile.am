@@ -187,6 +187,7 @@ dist_man_MANS += EC_POINT_add.3
 dist_man_MANS += EC_POINT_new.3
 dist_man_MANS += ERR.3
 dist_man_MANS += ERR_GET_LIB.3
+dist_man_MANS += ERR_asprintf_error_data.3
 dist_man_MANS += ERR_clear_error.3
 dist_man_MANS += ERR_error_string.3
 dist_man_MANS += ERR_get_error.3

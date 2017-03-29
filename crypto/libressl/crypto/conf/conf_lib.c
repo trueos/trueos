@@ -1,4 +1,4 @@
-/* $OpenBSD: conf_lib.c,v 1.14 2016/08/05 17:25:51 deraadt Exp $ */
+/* $OpenBSD: conf_lib.c,v 1.15 2017/01/29 17:49:22 beck Exp $ */
 /* Written by Richard Levitte (richard@levitte.org) for the OpenSSL
  * project 2000.
  */

@@ -1,4 +1,4 @@
-/* $OpenBSD: ocsp_asn.c,v 1.8 2015/07/25 14:52:47 jsing Exp $ */
+/* $OpenBSD: ocsp_asn.c,v 1.9 2016/11/04 18:35:30 jsing Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2000.
  */

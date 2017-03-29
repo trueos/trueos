@@ -1,4 +1,4 @@
-/* $OpenBSD: aes_locl.h,v 1.10 2014/06/12 15:49:27 deraadt Exp $ */
+/* $OpenBSD: aes_locl.h,v 1.11 2016/12/21 15:49:29 jsing Exp $ */
 /* ====================================================================
  * Copyright (c) 1998-2002 The OpenSSL Project.  All rights reserved.
  *

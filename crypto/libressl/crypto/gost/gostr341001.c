@@ -1,4 +1,4 @@
-/* $OpenBSD: gostr341001.c,v 1.6 2017/01/21 11:00:47 beck Exp $ */
+/* $OpenBSD: gostr341001.c,v 1.7 2017/01/29 17:49:23 beck Exp $ */
 /*
  * Copyright (c) 2014 Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
  * Copyright (c) 2005-2006 Cryptocom LTD

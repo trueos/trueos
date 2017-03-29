@@ -1,4 +1,4 @@
-/*	$OpenBSD: inet_ntop.c,v 1.12 2015/09/13 21:36:08 guenther Exp $	*/
+/*	$OpenBSD: inet_ntop.c,v 1.13 2016/09/21 04:38:56 guenther Exp $	*/
 
 /* Copyright (c) 1996 by Internet Software Consortium.
  *

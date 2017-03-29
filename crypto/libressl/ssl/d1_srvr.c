@@ -1,4 +1,4 @@
-/* $OpenBSD: d1_srvr.c,v 1.82 2017/01/26 10:40:21 beck Exp $ */
+/* $OpenBSD: d1_srvr.c,v 1.86 2017/03/10 16:03:27 jsing Exp $ */
 /*
  * DTLS implementation written by Nagendra Modadugu
  * (nagendra@cs.stanford.edu) for the OpenSSL project 2005.
@@ -202,7 +202,7 @@ dtls1_accept(SSL *s)
 	D1I(s)->listen = listen;
 
 	if (s->cert == NULL) {
-		SSLerror(SSL_R_NO_CERTIFICATE_SET);
+		SSLerror(s, SSL_R_NO_CERTIFICATE_SET);
 		ret = -1;
 		goto end;
 	}
@@ -225,7 +225,7 @@ dtls1_accept(SSL *s)
 				cb(s, SSL_CB_HANDSHAKE_START, 1);
 
 			if ((s->version & 0xff00) != (DTLS1_VERSION & 0xff00)) {
-				SSLerror(ERR_R_INTERNAL_ERROR);
+				SSLerror(s, ERR_R_INTERNAL_ERROR);
 				ret = -1;
 				goto end;
 			}
@@ -506,7 +506,7 @@ dtls1_accept(SSL *s)
 				 * at this point and digest cached records.
 				 */
 				if (!S3I(s)->handshake_buffer) {
-					SSLerror(ERR_R_INTERNAL_ERROR);
+					SSLerror(s, ERR_R_INTERNAL_ERROR);
 					ret = -1;
 					goto end;
 				}
@@ -519,13 +519,23 @@ dtls1_accept(SSL *s)
 				s->internal->state = SSL3_ST_SR_CERT_VRFY_A;
 				s->internal->init_num = 0;
 
-				/* We need to get hashes here so if there is
-				 * a client cert, it can be verified */
-				tls1_cert_verify_mac(s,
-				    NID_md5, &(S3I(s)->tmp.cert_verify_md[0]));
-				tls1_cert_verify_mac(s,
-				    NID_sha1,
-				    &(S3I(s)->tmp.cert_verify_md[MD5_DIGEST_LENGTH]));
+				/*
+				 * We need to get hashes here so if there is
+				 * a client cert, it can be verified.
+				 */
+				if (S3I(s)->handshake_buffer) {
+					if (!tls1_digest_cached_records(s)) {
+						ret = -1;
+						goto end;
+					}
+				}
+				if (!tls1_handshake_hash_value(s,
+				    S3I(s)->tmp.cert_verify_md,
+				    sizeof(S3I(s)->tmp.cert_verify_md),
+				    NULL)) {
+					ret = -1;
+					goto end;
+				}
 			}
 			break;
 
@@ -658,7 +668,7 @@ dtls1_accept(SSL *s)
 			/* break; */
 
 		default:
-			SSLerror(SSL_R_UNKNOWN_STATE);
+			SSLerror(s, SSL_R_UNKNOWN_STATE);
 			ret = -1;
 			goto end;
 			/* break; */
@@ -693,31 +703,38 @@ end:
 int
 dtls1_send_hello_verify_request(SSL *s)
 {
-	unsigned char *d, *p;
+	CBB cbb, verify, cookie;
+
+	memset(&cbb, 0, sizeof(cbb));
 
 	if (s->internal->state == DTLS1_ST_SW_HELLO_VERIFY_REQUEST_A) {
-		d = p = ssl3_handshake_msg_start(s,
-		    DTLS1_MT_HELLO_VERIFY_REQUEST);
-
-		*(p++) = s->version >> 8;
-		*(p++) = s->version & 0xFF;
-
 		if (s->ctx->internal->app_gen_cookie_cb == NULL ||
-		    s->ctx->internal->app_gen_cookie_cb(s,
-			D1I(s)->cookie, &(D1I(s)->cookie_len)) == 0) {
-			SSLerror(ERR_R_INTERNAL_ERROR);
+		    s->ctx->internal->app_gen_cookie_cb(s, D1I(s)->cookie,
+			&(D1I(s)->cookie_len)) == 0) {
+			SSLerror(s, ERR_R_INTERNAL_ERROR);
 			return 0;
 		}
 
-		*(p++) = (unsigned char) D1I(s)->cookie_len;
-		memcpy(p, D1I(s)->cookie, D1I(s)->cookie_len);
-		p += D1I(s)->cookie_len;
-
-		ssl3_handshake_msg_finish(s, p - d);
+		if (!ssl3_handshake_msg_start_cbb(s, &cbb, &verify,
+		    DTLS1_MT_HELLO_VERIFY_REQUEST))
+			goto err;
+		if (!CBB_add_u16(&verify, s->version))
+			goto err;
+		if (!CBB_add_u8_length_prefixed(&verify, &cookie))
+			goto err;
+		if (!CBB_add_bytes(&cookie, D1I(s)->cookie, D1I(s)->cookie_len))
+			goto err;
+		if (!ssl3_handshake_msg_finish_cbb(s, &cbb))
+			goto err;
 
 		s->internal->state = DTLS1_ST_SW_HELLO_VERIFY_REQUEST_B;
 	}
 
 	/* s->internal->state = DTLS1_ST_SW_HELLO_VERIFY_REQUEST_B */
 	return (ssl3_handshake_write(s));
+
+ err:
+	CBB_cleanup(&cbb);
+
+	return (-1);
 }
