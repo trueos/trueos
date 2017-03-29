@@ -5,7 +5,7 @@ SHLIBDIR?=      /lib
 .include <bsd.own.mk>
 
 LIB=            crypto
-SHLIB_MAJOR=    38
+SHLIB_MAJOR=    41
 
 NO_LINT=
 
@@ -23,33 +23,33 @@ PICFLAG=-fPIC
 
 INCS+=	crypto.h opensslv.h ossl_typ.h
 INCS+=  aes.h asn1.h asn1_mac.h asn1t.h
-INCS+=  blowfish.h bio.h bn.h bn_lcl.h buffer.h
-INCS+=  camellia.h cast.h chacha.h cmac.h comp.h conf.h conf_api.h
+INCS+=  blowfish.h bio.h bn.h buffer.h 
+INCS+=  camellia.h cast.h chacha.h cmac.h comp.h conf.h conf_api.h curve25519.h
 INCS+=  des.h dh.h dsa.h dso.h 
-INCS+=  ec.h ecdh.h ecdsa.h engine.h err.h evp.h evp_locl.h
-INCS+=  gost.h hmac.h idea.h lhash.h
-INCS+=  md4.h md5.h modes.h
-INCS+=  obj_mac.h objects.h ocsp.h opensslconf.h opensslfeatures.h opensslv.h ossl_typ.h
-INCS+=  pem.h pem2.h pkcs12.h pkcs7.h poly1305.h
-INCS+=  rand.h rc2.h rc4.h ripemd.h rsa.h
-INCS+=  sha.h safestack.h stack.h
-INCS+=  ts.h txt_db.h ui.h ui_compat.h
+INCS+=  ec.h ecdh.h ecdsa.h engine.h err.h evp.h 
+INCS+=  gost.h hmac.h idea.h lhash.h 
+INCS+=  md4.h md5.h modes.h 
+INCS+=  obj_mac.h objects.h ocsp.h opensslconf.h opensslfeatures.h opensslv.h ossl_typ.h 
+INCS+=  pem.h pem2.h pkcs12.h pkcs7.h poly1305.h 
+INCS+=  rand.h rc2.h rc4.h ripemd.h rsa.h 
+INCS+=  sha.h safestack.h stack.h 
+INCS+=  ts.h txt_db.h ui.h ui_compat.h 
 INCS+=  whrlpool.h x509.h x509_vfy.h x509v3.h
 INCSDIR=	${INCLUDEDIR}/openssl
 
 # Hardware engines
 CFLAGS+= -DOPENSSL_NO_HW_PADLOCK # XXX enable this?
 
-CFLAGS+= -I${LCRYPTO_SRC}/modes -I${LCRYPTO_SRC}/asn1 -I${LCRYPTO_SRC}/evp
-CFLAGS+= -I${LCRYPTO_SRC}/bn
 
-# Hidden Decls
-CFLAGS+= -D__BEGIN_HIDDEN_DECLS="" # XXX enable this?
-CFLAGS+= -D__END_HIDDEN_DECLS="" # XXX enable this?
+CFLAGS+= -I${LCRYPTO_SRC}
+CFLAGS+= -I${LCRYPTO_SRC}/asn1 -I${LCRYPTO_SRC}/bn -I${LCRYPTO_SRC}/evp
+CFLAGS+= -I${LCRYPTO_SRC}/modes
+
+CFLAGS+= -DHAVE_EXPLICIT_BZERO=1 -DHAVE_REALLOCARRAY=1
 
 # compat/
-SRCS+=	compat/explicit_bzero.c compat/getentropy_freebsd.c compat/reallocarray.c
-SRCS+=	compat/timingsafe_bcmp.c compat/timingsafe_memcmp.c
+SRCS+=	getentropy_freebsd.c recallocarray.c
+SRCS+=	timingsafe_bcmp.c timingsafe_memcmp.c
 
 ### This is copied straight from the original Makefile
 ### src/lib/libcrypto/crypto/Makefile
@@ -112,11 +112,6 @@ SRCS+= chacha.c
 
 # cmac/
 SRCS+= cmac.c cm_ameth.c cm_pmeth.c
-
-# cms/
-#SRCS+= cms_lib.c cms_asn1.c cms_att.c cms_io.c cms_smime.c cms_err.c
-#SRCS+= cms_sd.c cms_dd.c cms_cd.c cms_env.c cms_enc.c cms_ess.c
-#SRCS+= cms_pwri.c
 
 # comp/
 SRCS+= comp_lib.c comp_err.c c_rle.c c_zlib.c
@@ -187,6 +182,7 @@ SRCS+= e_old.c pmeth_lib.c pmeth_fn.c pmeth_gn.c m_sigver.c
 SRCS+= e_aes_cbc_hmac_sha1.c e_rc4_hmac_md5.c
 SRCS+= e_chacha.c evp_aead.c e_chacha20poly1305.c
 SRCS+= e_gost2814789.c m_gost2814789.c m_gostr341194.c m_streebog.c
+SRCS+= m_md5_sha1.c
 
 # gost/
 SRCS+= gost2814789.c gost89_keywrap.c gost89_params.c gost89imit_ameth.c
@@ -344,6 +340,7 @@ SRCS+= wp_block.c
 	${LCRYPTO_SRC}/cmac \
 	${LCRYPTO_SRC}/cms \
 	${LCRYPTO_SRC}/comp \
+	${LCRYPTO_SRC}/compat \
 	${LCRYPTO_SRC}/conf \
 	${LCRYPTO_SRC}/curve25519 \
 	${LCRYPTO_SRC}/des \
@@ -360,7 +357,7 @@ SRCS+= wp_block.c
 	${LCRYPTO_SRC}/hmac \
 	${LCRYPTO_SRC}/idea \
 	${LIBRESSL_SRC}/include/openssl \
-	${LCRYPTO_SRC}/krb5 \
+	${LIBRESSL_SRC}/include/compat \
 	${LCRYPTO_SRC}/lhash \
 	${LCRYPTO_SRC}/md4 \
 	${LCRYPTO_SRC}/md5 \
@@ -388,9 +385,6 @@ SRCS+= wp_block.c
 	${LCRYPTO_SRC}/x509 \
 	${LCRYPTO_SRC}/x509v3 \
 	${LIBRESSL_SRC}/man
-
-explicit_bzero.c:
-	CFLAGS+= -O0
 
 # generated
 CFLAGS+= -I${.OBJDIR}
