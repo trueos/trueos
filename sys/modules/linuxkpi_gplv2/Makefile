@@ -5,7 +5,8 @@ KMOD=	linuxkpi_gplv2
 SRCS=	linux_kmod_gplv2.c	\
 	linux_backlight.c	\
 	linux_fs_attr.c		\
-	linux_video.c
+	linux_video.c		\
+	pci-sysfs.c
 
 SRCS+=	bus_if.h		\
 	device_if.h		\

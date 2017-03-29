@@ -48,9 +48,7 @@ SRCS+=	bus_if.h \
 	opt_vm.h
 
 SRCS+= 	linsysfs_init.c \
-	linsysfs_extern.c \
-	pci-sysfs.c
-
+	linsysfs_extern.c
 
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
