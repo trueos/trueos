@@ -38,6 +38,50 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20170322: rename <x> to <x>_test to match the FreeBSD test suite name scheme
+OLD_FILES+=usr/tests/usr.bin/col/col
+OLD_FILES+=usr/tests/usr.bin/diff/diff
+OLD_FILES+=usr/tests/usr.bin/ident/ident
+OLD_FILES+=usr/tests/usr.bin/mkimg/mkimg
+OLD_FILES+=usr/tests/usr.bin/sdiff/sdiff
+OLD_FILES+=usr/tests/usr.bin/soelim/soelim
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_config_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_etcdir_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_lock_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_groupadd_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_groupdel_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_groupmod_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_useradd_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_userdel_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_usermod_test
+OLD_FILES+=usr/tests/usr.sbin/pw/pw_usernext_test
+# 20170322: garbage collect old references to igb(4)
+OLD_FILES+=usr/share/man/man4/if_igb.4.gz
+OLD_FILES+=usr/share/man/man4/igb.4.gz
+# 20170319: io_test requires zh_TW.Big5 locale.
+OLD_FILES+=usr/tests/lib/libc/locale/io_test
+# 20170319: remove nls for non supported Big5* locales
+OLD_DIRS+=usr/share/nls/zh_HK.Big5HKSCS
+OLD_DIRS+=usr/share/nls/zh_TW.Big5
+# 20170319: Remove zh_TW.Big5
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_COLLATE
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_CTYPE
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_MESSAGES
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_MONETARY
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_NUMERIC
+OLD_FILES+=usr/share/locale/zh_TW.Big5/LC_TIME
+OLD_DIRS+=usr/share/locale/zh_TW.Big5
+# 20170313: move .../sys/geom/eli/... to .../sys/geom/class/eli/...
+OLD_FILES+=usr/tests/sys/geom/eli/pbkdf2/pbkdf2
+OLD_FILES+=usr/tests/sys/geom/eli/pbkdf2/Kyuafile
+OLD_FILES+=usr/tests/sys/geom/eli/Kyuafile
+OLD_DIRS+=usr/tests/sys/geom/eli/pbkdf2
+OLD_DIRS+=usr/tests/sys/geom/eli
+# 20170313: sbin/ipftest and ipresend temporarily disconnected.
+OLD_FILES+=sbin/ipftest
+OLD_FILES+=sbin/ipresend
+# 20170311: Remove WITHOUT_MANDOCDB option
+OLD_FILES+=usr/share/man/man1/makewhatis.1.gz
 # 20170308: rename some tests
 OLD_FILES+=usr/tests/bin/pwait/pwait
 OLD_FILES+=usr/tests/usr.bin/timeout/timeout
@@ -2023,10 +2067,11 @@ OLD_FILES+=usr/bin/install-info
 OLD_FILES+=usr/bin/makeinfo
 OLD_FILES+=usr/bin/texindex
 OLD_FILES+=usr/share/info/am-utils.info.gz
-OLD_FILES+=usr/share/info/as-utils.info.gz
+OLD_FILES+=usr/share/info/as.info.gz
 OLD_FILES+=usr/share/info/binutils.info.gz
 OLD_FILES+=usr/share/info/com_err.info.gz
 OLD_FILES+=usr/share/info/diff.info.gz
+OLD_FILES+=usr/share/info/dir
 OLD_FILES+=usr/share/info/gdb.info.gz
 OLD_FILES+=usr/share/info/gdbint.info.gz
 OLD_FILES+=usr/share/info/gperf.info.gz

@@ -301,6 +301,9 @@ pxe_open(struct open_file *f, ...)
 				printf("pxe_open: loaded RFC1048 data from PXE Cache\n");
 			}
 
+#ifdef LOADER_TFTP_SUPPORT
+			bootp(pxe_sock, BOOTP_PXE);
+#endif
 			if (rootip.s_addr == 0)
 				rootip.s_addr = bootplayer.sip;
 			if (gateip.s_addr == 0)
@@ -339,7 +342,7 @@ pxe_open(struct open_file *f, ...)
 			}
 			if (intf_mtu != 0) {
 				char mtu[16];
-				sprintf(mtu, "%u", intf_mtu);
+				snprintf(sizeof(mtu), mtu, "%u", intf_mtu);
 				setenv("boot.netif.mtu", mtu, 1);
 			}
 			printf("pxe_open: server addr: %s\n", inet_ntoa(rootip));

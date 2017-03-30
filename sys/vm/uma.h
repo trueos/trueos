@@ -242,7 +242,7 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
  * Definitions for uma_zcreate flags
  *
  * These flags share space with UMA_ZFLAGs in uma_int.h.  Be careful not to
- * overlap when adding new features.  0xf0000000 is in use by uma_int.h.
+ * overlap when adding new features.  0xff000000 is in use by uma_int.h.
  */
 #define UMA_ZONE_PAGEABLE	0x0001	/* Return items not fully backed by
 					   physical memory XXX Not yet */
@@ -606,8 +606,7 @@ void uma_zone_set_freef(uma_zone_t zone, uma_free freef);
 #define UMA_SLAB_PRIV	0x08		/* Slab alloced from priv allocator */
 #define UMA_SLAB_OFFP	0x10		/* Slab is managed separately  */
 #define UMA_SLAB_MALLOC	0x20		/* Slab is a large malloc slab */
-#define UMA_SLAB_LKPI   0x40            /* Slab is allocated by lkpi */
-/* 0x80 is available */
+/* 0x40 and 0x80 are available */
 
 /*
  * Used to pre-fill a zone with some number of items

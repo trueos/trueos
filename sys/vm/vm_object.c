@@ -273,16 +273,16 @@ vm_object_init(void)
 	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
 	
 	rw_init(&kernel_object->lock, "kernel vm object");
-	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
-	    kernel_object);
+	_vm_object_allocate(OBJT_PHYS, atop(VM_MAX_KERNEL_ADDRESS -
+	    VM_MIN_KERNEL_ADDRESS), kernel_object);
 #if VM_NRESERVLEVEL > 0
 	kernel_object->flags |= OBJ_COLORED;
 	kernel_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
 #endif
 
 	rw_init(&kmem_object->lock, "kmem vm object");
-	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
-	    kmem_object);
+	_vm_object_allocate(OBJT_PHYS, atop(VM_MAX_KERNEL_ADDRESS -
+	    VM_MIN_KERNEL_ADDRESS), kmem_object);
 #if VM_NRESERVLEVEL > 0
 	kmem_object->flags |= OBJ_COLORED;
 	kmem_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
@@ -1028,7 +1028,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (syncio && !invalidate && offset == 0 &&
-		    OFF_TO_IDX(size) == object->size) {
+		    atop(size) == object->size) {
 			/*
 			 * If syncing the whole mapping of the file,
 			 * it is faster to schedule all the writes in
@@ -1396,7 +1396,7 @@ retry:
 			goto retry;
 		}
 
-		/* vm_page_rename() will handle dirty and cache. */
+		/* vm_page_rename() will dirty the page. */
 		if (vm_page_rename(m, new_object, idx)) {
 			VM_OBJECT_WUNLOCK(new_object);
 			VM_OBJECT_WUNLOCK(orig_object);
@@ -1476,36 +1476,40 @@ vm_object_scan_all_shadowed(vm_object_t object)
 {
 	vm_object_t backing_object;
 	vm_page_t p, pp;
-	vm_pindex_t backing_offset_index, new_pindex;
+	vm_pindex_t backing_offset_index, new_pindex, pi, ps;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	VM_OBJECT_ASSERT_WLOCKED(object->backing_object);
 
 	backing_object = object->backing_object;
 
-	/*
-	 * Initial conditions:
-	 *
-	 * We do not want to have to test for the existence of cache or swap
-	 * pages in the backing object.  XXX but with the new swapper this
-	 * would be pretty easy to do.
-	 */
-	if (backing_object->type != OBJT_DEFAULT)
+	if (backing_object->type != OBJT_DEFAULT &&
+	    backing_object->type != OBJT_SWAP)
 		return (false);
 
-	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
+	pi = backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
+	p = vm_page_find_least(backing_object, pi);
+	ps = swap_pager_find_least(backing_object, pi);
 
-	for (p = TAILQ_FIRST(&backing_object->memq); p != NULL;
-	    p = TAILQ_NEXT(p, listq)) {
-		new_pindex = p->pindex - backing_offset_index;
+	/*
+	 * Only check pages inside the parent object's range and
+	 * inside the parent object's mapping of the backing object.
+	 */
+	for (;; pi++) {
+		if (p != NULL && p->pindex < pi)
+			p = TAILQ_NEXT(p, listq);
+		if (ps < pi)
+			ps = swap_pager_find_least(backing_object, pi);
+		if (p == NULL && ps >= backing_object->size)
+			break;
+		else if (p == NULL)
+			pi = ps;
+		else
+			pi = MIN(p->pindex, ps);
 
-		/*
-		 * Ignore pages outside the parent object's range and outside
-		 * the parent object's mapping of the backing object.
-		 */
-		if (p->pindex < backing_offset_index ||
-		    new_pindex >= object->size)
-			continue;
+		new_pindex = pi - backing_offset_index;
+		if (new_pindex >= object->size)
+			break;
 
 		/*
 		 * See if the parent has the page or if the parent's object
@@ -1630,8 +1634,7 @@ vm_object_collapse_scan(vm_object_t object, int op)
 		 * backing object to the main object.
 		 *
 		 * If the page was mapped to a process, it can remain mapped
-		 * through the rename.  vm_page_rename() will handle dirty and
-		 * cache.
+		 * through the rename.  vm_page_rename() will dirty the page.
 		 */
 		if (vm_page_rename(p, object, new_pindex)) {
 			next = vm_object_collapse_scan_wait(object, NULL, next,
@@ -1975,7 +1978,7 @@ vm_object_page_noreuse(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 	struct mtx *mtx, *new_mtx;
 	vm_page_t p, next;
 
-	VM_OBJECT_ASSERT_WLOCKED(object);
+	VM_OBJECT_ASSERT_LOCKED(object);
 	KASSERT((object->flags & (OBJ_FICTITIOUS | OBJ_UNMANAGED)) == 0,
 	    ("vm_object_page_noreuse: illegal object %p", object));
 	if (object->resident_page_count == 0)

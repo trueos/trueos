@@ -4,7 +4,6 @@
 KMOD=	linuxkpi
 SRCS=	interval_tree.c \
 	linux_acpi.c \
-	linux_backlight.c \
 	linux_compat.c \
 	linux_current.c \
 	linux_device.c \
@@ -23,7 +22,6 @@ SRCS=	interval_tree.c \
 	linux_notifier.c \
 	linux_page.c \
 	linux_pci.c \
-	linux_platform_device.c \
 	linux_radix.c \
 	linux_rcu.c \
 	linux_reservation.c \
@@ -35,7 +33,6 @@ SRCS=	interval_tree.c \
 	linux_sysfs.c \
 	linux_tasklet.c \
 	linux_usb.c \
-	linux_video.c \
 	linux_work.c
 
 SRCS+=	bus_if.h \
@@ -51,9 +48,7 @@ SRCS+=	bus_if.h \
 	opt_vm.h
 
 SRCS+= 	linsysfs_init.c \
-	linsysfs_extern.c \
-	pci-sysfs.c
-
+	linsysfs_extern.c
 
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include

@@ -36,7 +36,7 @@ typedef unsigned long	pmdval_t;
 typedef unsigned long	pudval_t;
 typedef unsigned long	pgdval_t;
 typedef unsigned long	pgprotval_t;
-
+typedef struct page *pgtable_t;
 
 #define _AT(T,X)	((T)(X))
 
@@ -88,7 +88,6 @@ typedef unsigned long	pgprotval_t;
 
 #define __PAGE_KERNEL_IO		(__PAGE_KERNEL)
 
-typedef struct page *pgtable_t;
 extern pteval_t __supported_pte_mask;
 
 #define pgprot_val(x)	((x))

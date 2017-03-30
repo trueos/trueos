@@ -1717,11 +1717,9 @@ _kerberos5_bootstrap_tools= \
 .endif
 
 # r283777 makewhatis(1) replaced with mandoc version which builds a database.
-.if ${MK_MANDOCDB} != "no"
 _libopenbsd?=	lib/libopenbsd
 _makewhatis=	usr.bin/mandoc
 ${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd
-.endif
 
 bootstrap-tools: .PHONY
 
@@ -1861,7 +1859,7 @@ _elftctools=	lib/libelftc \
 .endif
 
 .if ${MK_GCC_BOOTSTRAP} != "no"
-_cc=		gnu/usr.bin/cc
+_gcc=		gnu/usr.bin/cc
 .endif
 .if ${MK_USB} != "no"
 _usb_tools=	sys/boot/usb/tools
@@ -1874,7 +1872,7 @@ cross-tools: .MAKE .PHONY
     ${_binutils} \
     ${_elftctools} \
     ${_dtrace_tools} \
-    ${_cc} \
+    ${_gcc} \
     ${_btxld} \
     ${_usb_tools}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
@@ -1945,7 +1943,7 @@ native-xtools: .PHONY
     usr.bin/ar \
     ${_binutils} \
     ${_elftctools} \
-    ${_cc} \
+    ${_gcc} \
     ${_gcc_tools} \
     sbin/md5 \
     sbin/sysctl \
@@ -2600,7 +2598,7 @@ _xb-cross-tools: .PHONY
     ${_binutils} \
     ${_elftctools} \
     usr.bin/ar \
-    ${_cc}
+    ${_gcc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,all)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ obj; \
@@ -2635,7 +2633,7 @@ _xi-cross-tools: .PHONY
     ${_binutils} \
     ${_elftctools} \
     usr.bin/ar \
-    ${_cc}
+    ${_gcc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}

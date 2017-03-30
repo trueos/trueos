@@ -295,7 +295,7 @@ struct acpi_device_bus_id {
 	struct list_head node;
 };
 
-
+#if 0
 static void
 acpi_device_del(struct acpi_device *device)
 {
@@ -328,9 +328,6 @@ acpi_device_del(struct acpi_device *device)
 	device_del(&device->dev);
 }
 
-static LINUX_LIST_HEAD(acpi_device_del_list);
-static DEFINE_MUTEX(acpi_device_del_lock);
-
 acpi_status acpi_pwr_switch_consumer(acpi_handle consumer, int state);
 
 static void
@@ -353,6 +350,10 @@ acpi_device_del_work_fn(struct work_struct *work_not_used)
 		put_device(&adev->dev);
 	}
 }
+#endif
+
+static LINUX_LIST_HEAD(acpi_device_del_list);
+static DEFINE_MUTEX(acpi_device_del_lock);
 
 void
 acpi_scan_drop_device(acpi_handle handle, void *context)

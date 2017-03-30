@@ -191,7 +191,6 @@ struct vm_map {
 #define	min_offset	header.start	/* (c) */
 #define	max_offset	header.end	/* (c) */
 	int busy;
-	struct vm_eventhandler_map *vem_map;
 };
 
 /*

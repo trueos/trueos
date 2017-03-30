@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/racct.h>
+#include <sys/random.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sdt.h>
@@ -65,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/wait.h>
 #include <sys/cpuset.h>
+#include <sys/uio.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -2456,13 +2458,39 @@ linux_to_bsd_waitopts(int options, int *bsdopts)
 }
 
 int
+linux_getrandom(struct thread *td, struct linux_getrandom_args *args)
+{
+	struct uio uio;
+	struct iovec iov;
+
+	if (args->flags & ~(LINUX_GRND_NONBLOCK|LINUX_GRND_RANDOM))
+		return (EINVAL);
+	if (args->count > INT_MAX)
+		args->count = INT_MAX;
+
+	iov.iov_base = args->buf;
+	iov.iov_len = args->count;
+
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_resid = iov.iov_len;
+	uio.uio_segflg = UIO_USERSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_td = td;
+
+	return (read_random_uio(&uio, args->flags & LINUX_GRND_NONBLOCK));
+}
+
+int
 linux_mincore(struct thread *td, struct linux_mincore_args *args)
 {
 	struct mincore_args bsd_args;
 
-	bsd_args.addr = (void *)(uintptr_t)args->start;
+	/* Needs to be page-aligned */
+	if (args->start & PAGE_MASK)
+		return (EINVAL);
+	bsd_args.addr = PTRIN(args->start);
 	bsd_args.len = args->len;
 	bsd_args.vec = args->vec;
-
 	return (sys_mincore(td, &bsd_args));
 }

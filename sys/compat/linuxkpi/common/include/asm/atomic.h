@@ -28,15 +28,15 @@
  *
  * $FreeBSD$
  */
-#ifndef	_ASM_ATOMIC_H_
+
+#ifndef _ASM_ATOMIC_H_
 #define	_ASM_ATOMIC_H_
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
-#include <sys/lock.h>
+
 #include <machine/atomic.h>
 #include <linux/types.h>
-#include <asm/cmpxchg.h>
 
 #define	ATOMIC_INIT(x)	{ .counter = (x) }
 
@@ -157,13 +157,47 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
 	return (ret);
 }
 
+#define	cmpxchg(ptr, old, new) ({				\
+	__typeof(*(ptr)) __ret;					\
+								\
+	CTASSERT(sizeof(__ret) == 1 || sizeof(__ret) == 2 ||	\
+	    sizeof(__ret) == 4 || sizeof(__ret) == 8);		\
+								\
+	__ret = (old);						\
+	switch (sizeof(__ret)) {				\
+	case 1:							\
+		while (!atomic_fcmpset_8((volatile int8_t *)(ptr), \
+		    (int8_t *)&__ret, (new)) && __ret == (old))	\
+			;					\
+		break;						\
+	case 2:							\
+		while (!atomic_fcmpset_16((volatile int16_t *)(ptr), \
+		    (int16_t *)&__ret, (new)) && __ret == (old)) \
+			;					\
+		break;						\
+	case 4:							\
+		while (!atomic_fcmpset_32((volatile int32_t *)(ptr), \
+		    (int32_t *)&__ret, (new)) && __ret == (old)) \
+			;					\
+		break;						\
+	case 8:							\
+		while (!atomic_fcmpset_64((volatile int64_t *)(ptr), \
+		    (int64_t *)&__ret, (new)) && __ret == (old)) \
+			;					\
+		break;						\
+	}							\
+	__ret;							\
+})
 
-/* cmpxchg_relaxed */
-#ifndef cmpxchg_relaxed
-#define  cmpxchg_relaxed		cmpxchg
-#define  cmpxchg_acquire		cmpxchg
-#define  cmpxchg_release		cmpxchg
-#endif
+#define	cmpxchg_relaxed(...)	cmpxchg(__VA_ARGS__)
+
+#define	xchg(ptr, v) ({						\
+	__typeof(*(ptr)) __ret;					\
+								\
+	__ret = *(ptr);						\
+	*(ptr) = v;						\
+	__ret;							\
+})
 
 #define	LINUX_ATOMIC_OP(op, c_op)				\
 static inline void atomic_##op(int i, atomic_t *v)		\

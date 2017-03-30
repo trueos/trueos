@@ -95,7 +95,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vnode_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/uma.h>
-#include <vm/vm_eventhandler.h>
 
 /*
  *	Virtual memory maps provide for the mapping, protection,
@@ -389,7 +388,6 @@ vmspace_exit(struct thread *td)
 
 	p = td->td_proc;
 	vm = p->p_vmspace;
-	vme_exit(&vm->vm_map);
 	atomic_add_int(&vmspace0.vm_refcnt, 1);
 	do {
 		refcnt = vm->vm_refcnt;
@@ -2076,13 +2074,9 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		if ((old_prot & ~current->protection) != 0) {
 #define MASK(entry)	(((entry)->eflags & MAP_ENTRY_COW) ? ~VM_PROT_WRITE : \
 							VM_PROT_ALL)
-			if ((current->protection & MASK(current)) == VM_PROT_NONE)
-				vme_invalidate_range_start(map, current->start, current->end);
 			pmap_protect(map->pmap, current->start,
 			    current->end,
 			    current->protection & MASK(current));
-			if ((current->protection & MASK(current)) == VM_PROT_NONE)
-				vme_invalidate_range_start(map, current->start, current->end);
 #undef	MASK
 		}
 		vm_map_simplify_entry(map, current);
@@ -2291,6 +2285,7 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	case VM_INHERIT_NONE:
 	case VM_INHERIT_COPY:
 	case VM_INHERIT_SHARE:
+	case VM_INHERIT_ZERO:
 		break;
 	default:
 		return (KERN_INVALID_ARGUMENT);
@@ -2823,11 +2818,8 @@ vm_map_sync(
 		}
 	}
 
-	if (invalidate) {
-		vme_invalidate_range_start(map, start, end);
+	if (invalidate)
 		pmap_remove(map->pmap, start, end);
-		vme_invalidate_range_end(map, start, end);
-	}
 	failed = FALSE;
 
 	/*
@@ -2911,7 +2903,7 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 {
 	vm_object_t object;
 	vm_pindex_t offidxstart, offidxend, count, size1;
-	vm_ooffset_t size;
+	vm_size_t size;
 
 	vm_map_entry_unlink(map, entry);
 	object = entry->object.vm_object;
@@ -2928,7 +2920,7 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		KASSERT(entry->cred == NULL || object->cred == NULL ||
 		    (entry->eflags & MAP_ENTRY_NEEDS_COPY),
 		    ("OVERCOMMIT vm_map_entry_delete: both cred %p", entry));
-		count = OFF_TO_IDX(size);
+		count = atop(size);
 		offidxstart = OFF_TO_IDX(entry->offset);
 		offidxend = offidxstart + count;
 		VM_OBJECT_WLOCK(object);
@@ -3051,9 +3043,8 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		if (entry->wired_count != 0) {
 			vm_map_entry_unwire(map, entry);
 		}
-		vme_invalidate_range_start(map, entry->start, entry->end);
+
 		pmap_remove(map->pmap, entry->start, entry->end);
-		vme_invalidate_range_end(map, entry->start, entry->end);
 
 		/*
 		 * Delete the entry only after removing all pmap
@@ -3452,6 +3443,34 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			vmspace_map_entry_forked(vm1, vm2, new_entry);
 			vm_map_copy_entry(old_map, new_map, old_entry,
 			    new_entry, fork_charge);
+			break;
+
+		case VM_INHERIT_ZERO:
+			/*
+			 * Create a new anonymous mapping entry modelled from
+			 * the old one.
+			 */
+			new_entry = vm_map_entry_create(new_map);
+			memset(new_entry, 0, sizeof(*new_entry));
+
+			new_entry->start = old_entry->start;
+			new_entry->end = old_entry->end;
+			new_entry->avail_ssize = old_entry->avail_ssize;
+			new_entry->eflags = old_entry->eflags &
+			    ~(MAP_ENTRY_USER_WIRED | MAP_ENTRY_IN_TRANSITION |
+			    MAP_ENTRY_VN_WRITECNT);
+			new_entry->protection = old_entry->protection;
+			new_entry->max_protection = old_entry->max_protection;
+			new_entry->inheritance = VM_INHERIT_ZERO;
+
+			vm_map_entry_link(new_map, new_map->header.prev,
+			    new_entry);
+			vmspace_map_entry_forked(vm1, vm2, new_entry);
+
+			new_entry->cred = curthread->td_ucred;
+			crhold(new_entry->cred);
+			*fork_charge += (new_entry->end - new_entry->start);
+
 			break;
 		}
 		old_entry = old_entry->next;
@@ -4132,7 +4151,7 @@ RetryLookup:;
 	 * Return the object/offset from this entry.  If the entry was
 	 * copy-on-write or empty, it has been fixed up.
 	 */
-	*pindex = OFF_TO_IDX((vaddr - entry->start) + entry->offset);
+	*pindex = UOFF_TO_IDX((vaddr - entry->start) + entry->offset);
 	*object = entry->object.vm_object;
 
 	*out_prot = prot;
@@ -4213,7 +4232,7 @@ vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
 	 * Return the object/offset from this entry.  If the entry was
 	 * copy-on-write or empty, it has been fixed up.
 	 */
-	*pindex = OFF_TO_IDX((vaddr - entry->start) + entry->offset);
+	*pindex = UOFF_TO_IDX((vaddr - entry->start) + entry->offset);
 	*object = entry->object.vm_object;
 
 	*out_prot = prot;

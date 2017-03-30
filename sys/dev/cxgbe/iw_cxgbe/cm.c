@@ -89,7 +89,6 @@ static enum c4iw_ep_state state_read(struct c4iw_ep_common *epc);
 static void __state_set(struct c4iw_ep_common *epc, enum c4iw_ep_state tostate);
 static void state_set(struct c4iw_ep_common *epc, enum c4iw_ep_state tostate);
 static void *alloc_ep(int size, gfp_t flags);
-void __free_ep(struct c4iw_ep_common *epc);
 static int find_route(__be32 local_ip, __be32 peer_ip, __be16 local_port,
 		__be16 peer_port, u8 tos, struct nhop4_extended *pnh4);
 static void close_socket(struct socket *so);
@@ -695,7 +694,7 @@ process_newconn(struct iw_cm_id *parent_cm_id, struct socket *child_so)
 
 	MPASS(child_so != NULL);
 
-	child_ep = alloc_ep(sizeof(*child_ep), M_WAITOK);
+	child_ep = alloc_ep(sizeof(*child_ep), GFP_KERNEL);
 
 	CTR5(KTR_IW_CXGBE,
 	    "%s: parent so %p, parent ep %p, child so %p, child ep %p",
@@ -936,16 +935,6 @@ alloc_ep(int size, gfp_t gfp)
 	c4iw_init_wr_wait(&epc->wr_wait);
 
 	return (epc);
-}
-
-void
-__free_ep(struct c4iw_ep_common *epc)
-{
-	CTR2(KTR_IW_CXGBE, "%s:feB %p", __func__, epc);
-	KASSERT(!epc->so, ("%s warning ep->so %p \n", __func__, epc->so));
-	KASSERT(!epc->entry.tqe_prev, ("%s epc %p still on req list!\n", __func__, epc));
-	free(epc, M_DEVBUF);
-	CTR2(KTR_IW_CXGBE, "%s:feE %p", __func__, epc);
 }
 
 void _c4iw_free_ep(struct kref *kref)
@@ -2134,15 +2123,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		err = -EINVAL;
 		goto out;
 	}
-	ep = alloc_ep(sizeof(*ep), M_NOWAIT);
-
-	if (!ep) {
-
-		CTR2(KTR_IW_CXGBE, "%s:cc2 %p", __func__, cm_id);
-		printk(KERN_ERR MOD "%s - cannot alloc ep.\n", __func__);
-		err = -ENOMEM;
-		goto out;
-	}
+	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
 	init_timer(&ep->timer);
 	ep->plen = conn_param->private_data_len;
 
@@ -2202,7 +2183,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ep->tos = 0;
 	ep->com.local_addr = cm_id->local_addr;
 	ep->com.remote_addr = cm_id->remote_addr;
-	err = soconnect(ep->com.so, (struct sockaddr *)&ep->com.remote_addr,
+	err = -soconnect(ep->com.so, (struct sockaddr *)&ep->com.remote_addr,
 		ep->com.thread);
 
 	if (!err) {
@@ -2229,21 +2210,11 @@ out:
 int
 c4iw_create_listen_ep(struct iw_cm_id *cm_id, int backlog)
 {
-	int rc;
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_listen_ep *ep;
 	struct socket *so = cm_id->so;
 
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
-	CTR5(KTR_IW_CXGBE, "%s: cm_id %p, lso %p, ep %p, inp %p", __func__,
-	    cm_id, so, ep, so->so_pcb);
-	if (ep == NULL) {
-		log(LOG_ERR, "%s: failed to alloc memory for endpoint\n",
-		    __func__);
-		rc = ENOMEM;
-		goto failed;
-	}
-
 	ep->com.cm_id = cm_id;
 	ref_cm_id(&ep->com);
 	ep->com.dev = dev;
@@ -2255,10 +2226,6 @@ c4iw_create_listen_ep(struct iw_cm_id *cm_id, int backlog)
 
 	cm_id->provider_data = ep;
 	return (0);
-
-failed:
-	CTR3(KTR_IW_CXGBE, "%s: cm_id %p, FAILED (%d)", __func__, cm_id, rc);
-	return (-rc);
 }
 
 void

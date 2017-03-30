@@ -213,6 +213,7 @@ SUBDIR=	\
 	${_linux_common} \
 	${_linux64} \
 	linuxkpi \
+	linuxkpi_gplv2 \
 	lmc \
 	lpt \
 	mac_biba \

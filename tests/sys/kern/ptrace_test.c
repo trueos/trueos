@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/procctl.h>
 #include <sys/ptrace.h>
+#include <sys/queue.h>
+#include <sys/runq.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
@@ -40,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <machine/cpufunc.h>
 #include <pthread.h>
+#include <sched.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <stdio.h>
@@ -1872,15 +1875,11 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_signal, tc)
 	cpuset_t setmask;
 	pthread_t t;
 	pthread_barrier_t barrier;
+	struct sched_param sched_param;
 
 	ATF_REQUIRE((fpid = fork()) != -1);
 	if (fpid == 0) {
-		/*
-		 * Bind to one CPU so only one thread at a time will run. This
-		 * test expects that the first thread created (the main thread)
-		 * will be unsuspended first and will block the second thread
-		 * from running.
-		 */
+		/* Bind to one CPU so only one thread at a time will run. */
 		CPU_ZERO(&setmask);
 		CPU_SET(0, &setmask);
 		cpusetid_t setid;
@@ -1892,6 +1891,20 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_signal, tc)
 
 		CHILD_REQUIRE(pthread_create(&t, NULL, mask_usr1_thread,
 		    (void*)&barrier) == 0);
+
+		/*
+		 * Give the main thread higher priority. The test always
+		 * assumes that, if both threads are able to run, the main
+		 * thread runs first.
+		 */
+		sched_param.sched_priority =
+		    (sched_get_priority_max(SCHED_FIFO) +
+		    sched_get_priority_min(SCHED_FIFO)) / 2;
+		CHILD_REQUIRE(pthread_setschedparam(pthread_self(),
+		    SCHED_FIFO, &sched_param) == 0);
+		sched_param.sched_priority -= RQ_PPQ;
+		CHILD_REQUIRE(pthread_setschedparam(t, SCHED_FIFO,
+		    &sched_param) == 0);
 
 		sigset_t sigmask;
 		sigemptyset(&sigmask);
@@ -1952,23 +1965,19 @@ ATF_TC_WITHOUT_HEAD(ptrace__PT_KILL_competing_stop);
 ATF_TC_BODY(ptrace__PT_KILL_competing_stop, tc)
 {
 	pid_t fpid, wpid;
-	int status, i;
+	int status;
 	cpuset_t setmask;
 	pthread_t t;
 	pthread_barrier_t barrier;
 	lwpid_t main_lwp;
 	struct ptrace_lwpinfo pl;
+	struct sched_param sched_param;
 
 	ATF_REQUIRE((fpid = fork()) != -1);
 	if (fpid == 0) {
 		trace_me();
 
-		/*
-		 * Bind to one CPU so only one thread at a time will run. This
-		 * test expects that the first thread created (the main thread)
-		 * will be unsuspended first and will block the second thread
-		 * from running.
-		 */
+		/* Bind to one CPU so only one thread at a time will run. */
 		CPU_ZERO(&setmask);
 		CPU_SET(0, &setmask);
 		cpusetid_t setid;
@@ -1980,6 +1989,20 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_stop, tc)
 
 		CHILD_REQUIRE(pthread_create(&t, NULL, mask_usr1_thread,
 		    (void*)&barrier) == 0);
+
+		/*
+		 * Give the main thread higher priority. The test always
+		 * assumes that, if both threads are able to run, the main
+		 * thread runs first.
+		 */
+		sched_param.sched_priority =
+		    (sched_get_priority_max(SCHED_FIFO) +
+		    sched_get_priority_min(SCHED_FIFO)) / 2;
+		CHILD_REQUIRE(pthread_setschedparam(pthread_self(),
+		    SCHED_FIFO, &sched_param) == 0);
+		sched_param.sched_priority -= RQ_PPQ;
+		CHILD_REQUIRE(pthread_setschedparam(t, SCHED_FIFO,
+		    &sched_param) == 0);
 
 		sigset_t sigmask;
 		sigemptyset(&sigmask);
@@ -2027,34 +2050,43 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_stop, tc)
 		ATF_REQUIRE(ptrace(PT_SYSCALL, fpid, (caddr_t)1, 0) == 0);
 	}
 
-	/* Let both threads hit their syscall entries. */
-	for (i = 0; i < 2; ++i) {
-		ATF_REQUIRE(ptrace(PT_SYSCALL, fpid, (caddr_t)1, 0) == 0);
+	/* Proceed, allowing main thread to hit syscall entry for getpid(). */
+	ATF_REQUIRE(ptrace(PT_SYSCALL, fpid, (caddr_t)1, 0) == 0);
 
-		wpid = waitpid(fpid, &status, 0);
-		ATF_REQUIRE(wpid == fpid);
-		ATF_REQUIRE(WIFSTOPPED(status));
-		ATF_REQUIRE(WSTOPSIG(status) == SIGTRAP);
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGTRAP);
 
-		ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl,
-		    sizeof(pl)) != -1);
-		ATF_REQUIRE(pl.pl_flags & PL_FLAG_SCE);
+	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl,
+	    sizeof(pl)) != -1);
+	ATF_REQUIRE(pl.pl_lwpid == main_lwp);
+	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SCE);
+	/* Prevent the main thread from hitting its syscall exit for now. */
+	ATF_REQUIRE(ptrace(PT_SUSPEND, main_lwp, 0, 0) == 0);
 
-		/*
-		 * Prevent the main thread from hitting its syscall exit for
-		 * now.
-		 */
-		if (pl.pl_lwpid == main_lwp)
-			ATF_REQUIRE(ptrace(PT_SUSPEND, main_lwp, 0, 0) == 0);
+	/*
+	 * Proceed, allowing second thread to hit syscall exit for
+	 * pthread_barrier_wait().
+	 */
+	ATF_REQUIRE(ptrace(PT_SYSCALL, fpid, (caddr_t)1, 0) == 0);
 
-	}
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGTRAP);
+
+	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl,
+	    sizeof(pl)) != -1);
+	ATF_REQUIRE(pl.pl_lwpid != main_lwp);
+	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SCX);
 
 	/* Send a signal that only the second thread can handle. */
 	ATF_REQUIRE(kill(fpid, SIGUSR2) == 0);
 
 	ATF_REQUIRE(ptrace(PT_SYSCALL, fpid, (caddr_t)1, 0) == 0);
 
-	/* The second wait() should report the SIGUSR2. */
+	/* The next wait() should report the SIGUSR2. */
 	wpid = waitpid(fpid, &status, 0);
 	ATF_REQUIRE(wpid == fpid);
 	ATF_REQUIRE(WIFSTOPPED(status));
@@ -2065,10 +2097,11 @@ ATF_TC_BODY(ptrace__PT_KILL_competing_stop, tc)
 
 	/*
 	 * At this point, the main thread is in the middle of a system call and
-	 * has been resumed. The second thread has taken a signal which will be
-	 * replaced with a SIGKILL. We expect the main thread will get to run
-	 * first. It should notice the kill request and exit accordingly and
-	 * not stop for the system call exit event.
+	 * has been resumed. The second thread has taken a SIGUSR2 which will
+	 * be replaced with a SIGKILL below. The main thread will get to run
+	 * first. It should notice the kill request (even though the signal
+	 * replacement occurred in the other thread) and exit accordingly.  It
+	 * should not stop for the system call exit event.
 	 */
 
 	/* Replace the SIGUSR2 with a kill. */
@@ -2919,6 +2952,79 @@ ATF_TC_BODY(ptrace__parent_terminate_with_pending_sigstop2, tc)
 	terminate_with_pending_sigstop(false);
 }
 
+/*
+ * Verify that after ptrace() discards a SIGKILL signal, the event mask
+ * is not modified.
+ */
+ATF_TC_WITHOUT_HEAD(ptrace__event_mask_sigkill_discard);
+ATF_TC_BODY(ptrace__event_mask_sigkill_discard, tc)
+{
+	struct ptrace_lwpinfo pl;
+	pid_t fpid, wpid;
+	int status, event_mask, new_event_mask;
+
+	ATF_REQUIRE((fpid = fork()) != -1);
+	if (fpid == 0) {
+		trace_me();
+		raise(SIGSTOP);
+		exit(0);
+	}
+
+	/* The first wait() should report the stop from trace_me(). */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	/* Set several unobtrusive event bits. */
+	event_mask = PTRACE_EXEC | PTRACE_FORK | PTRACE_LWP;
+	ATF_REQUIRE(ptrace(PT_SET_EVENT_MASK, wpid, (caddr_t)&event_mask,
+	    sizeof(event_mask)) == 0);
+
+	/* Send a SIGKILL without using ptrace. */
+	ATF_REQUIRE(kill(fpid, SIGKILL) == 0);
+
+	/* Continue the child ignoring the SIGSTOP. */
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The next stop should be due to the SIGKILL. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGKILL);
+
+	ATF_REQUIRE(ptrace(PT_LWPINFO, wpid, (caddr_t)&pl, sizeof(pl)) != -1);
+	ATF_REQUIRE(pl.pl_flags & PL_FLAG_SI);
+	ATF_REQUIRE(pl.pl_siginfo.si_signo == SIGKILL);
+
+	/* Continue the child ignoring the SIGKILL. */
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The next wait() should report the stop from SIGSTOP. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(wpid == fpid);
+	ATF_REQUIRE(WIFSTOPPED(status));
+	ATF_REQUIRE(WSTOPSIG(status) == SIGSTOP);
+
+	/* Check the current event mask. It should not have changed. */
+	new_event_mask = 0;
+	ATF_REQUIRE(ptrace(PT_GET_EVENT_MASK, wpid, (caddr_t)&new_event_mask,
+	    sizeof(new_event_mask)) == 0);
+	ATF_REQUIRE(event_mask == new_event_mask);
+
+	/* Continue the child to let it exit. */
+	ATF_REQUIRE(ptrace(PT_CONTINUE, fpid, (caddr_t)1, 0) == 0);
+
+	/* The last event should be for the child process's exit. */
+	wpid = waitpid(fpid, &status, 0);
+	ATF_REQUIRE(WIFEXITED(status));
+	ATF_REQUIRE(WEXITSTATUS(status) == 0);
+
+	wpid = wait(&status);
+	ATF_REQUIRE(wpid == -1);
+	ATF_REQUIRE(errno == ECHILD);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -2965,6 +3071,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, ptrace__PT_CONTINUE_with_signal_thread_sigmask);
 	ATF_TP_ADD_TC(tp, ptrace__parent_terminate_with_pending_sigstop1);
 	ATF_TP_ADD_TC(tp, ptrace__parent_terminate_with_pending_sigstop2);
+	ATF_TP_ADD_TC(tp, ptrace__event_mask_sigkill_discard);
 
 	return (atf_no_error());
 }

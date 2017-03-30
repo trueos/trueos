@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_page.h>
-#include <vm/uma.h>
-#include <vm/uma_int.h>
 
 #include <machine/stdarg.h>
 
@@ -116,7 +114,6 @@ struct device linux_root_device;
 struct class linux_class_misc;
 struct list_head pci_drivers;
 struct list_head pci_devices;
-struct net init_net;
 spinlock_t pci_lock;
 struct sx linux_global_lock;
 struct rwlock linux_global_rw;
@@ -969,8 +966,15 @@ linux_clear_user(void *_uaddr, size_t _len)
 
 	/* zero 8 bytes at a time */
 	while (len > 7) {
+#ifdef __LP64__
 		if (suword64(uaddr, 0))
 			return (_len);
+#else
+		if (suword32(uaddr, 0))
+			return (_len);
+		if (suword32(uaddr + 4, 0))
+			return (_len);
+#endif
 		uaddr += 8;
 		len -= 8;
 	}
@@ -1073,7 +1077,7 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	linux_set_current(td);
 	if (filp->f_op->read) {
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
-					 uio->uio_iov->iov_len, &uio->uio_offset);
+		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
 			uio->uio_iov->iov_base =
 			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
@@ -1111,7 +1115,7 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	linux_set_current(td);
 	if (filp->f_op->write) {
 		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
-					  uio->uio_iov->iov_len, &uio->uio_offset);
+		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
 			uio->uio_iov->iov_base =
 			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
@@ -1941,23 +1945,6 @@ async_schedule(async_func_t func, void *data)
 	queue_work(system_unbound_wq, &entry->work);
 	return (newcookie);
 }
-
-int
-is_vmalloc_addr(const void *addr)
-{
-
-	return (vtoslab((vm_offset_t)addr & ~UMA_SLAB_MASK) != NULL);
-}
-
-#ifdef __notyet__
-/*
- * XXX
- * The rather broken taskqueue API doesn't allow us to serialize 
- * on a particular thread's queue if we use more than 1 thread
- */
-#else
-#define MAX_WQ_CPUS 1
-#endif
 
 #if defined(__i386__) || defined(__amd64__)
 bool linux_cpu_has_clflush;

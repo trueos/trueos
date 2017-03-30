@@ -79,17 +79,9 @@ SRCS	= \
 	ttm_module.c \
 	ttm_page_alloc.c \
 	ttm_page_alloc_dma.c \
-	ttm_bo_vm.c \
+	ttm_bo_vm.c
 
-
-
-        # drm_of.c
-        # 	
-       # drm_platform.c
-        # 
-
-#	drm_fb_cma_helper.c \
-
+CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/gplv2/include
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include/drm
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include/uapi

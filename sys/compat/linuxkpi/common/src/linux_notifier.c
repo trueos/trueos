@@ -9,7 +9,6 @@
 #include <linux/oom.h>
 #include <linux/mmu_notifier.h>
 #include <linux/shrinker.h>
-#include <linux/backlight.h>
 #include <acpi/button.h>
 #include <linux/rcupdate.h>
 

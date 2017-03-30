@@ -43,17 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <linux/gfp.h>
-#include <linux/page.h>
-#include <linux/io.h>
-#include <linux/slab.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/smp.h>
-#include <linux/vmalloc.h>
-#include <linux/pfn_t.h>
-
-
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
@@ -68,8 +57,26 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_reserv.h>
 #include <vm/vm_extern.h>
 
+#include <vm/uma.h>
+#include <vm/uma_int.h>
+
+#include <linux/gfp.h>
+#include <linux/page.h>
+#include <linux/io.h>
+#include <linux/slab.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/smp.h>
+#include <linux/vmalloc.h>
+#include <linux/pfn_t.h>
+
 #include <asm/smp.h>
 
+#if defined(__amd64__) || defined(__aarch64__) || defined(__riscv__)
+#define	LINUXKPI_HAVE_DMAP
+#else
+#undef	LINUXKPI_HAVE_DMAP
+#endif
 
 extern u_int	cpu_feature;
 extern u_int	cpu_stdext_feature;
@@ -85,7 +92,6 @@ __wbinvd(void *arg)
 int
 wbinvd_on_all_cpus(void)
 {
-
 	return (on_each_cpu(__wbinvd, NULL, 1));
 }
 
@@ -125,7 +131,6 @@ vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long
 int
 vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn)
 {
-
 	return (vm_insert_pfn_prot(vma, addr, pfn, vma->vm_page_prot));
 }
 
@@ -242,7 +247,6 @@ iounmap(void *addr)
 	kfree(vmmap);
 }
 
-
 void *
 vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 {
@@ -283,18 +287,26 @@ vunmap(void *addr)
 	kfree(vmmap);
 }
 
-#if defined(__LP64__)
-
-
-
 void *
 kmap(vm_page_t page)
 {
+#ifdef LINUXKPI_HAVE_DMAP
 	vm_offset_t daddr;
 
 	daddr = PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page));
 
 	return ((void *)daddr);
+#else
+	struct sf_buf *sf;
+
+	sched_pin();
+	sf = sf_buf_alloc(page, SFB_NOWAIT | SFB_CPUPRIVATE);
+	if (sf == NULL) {
+		sched_unpin();
+		return (NULL);
+	}
+	return ((void *)sf_buf_kva(sf));
+#endif
 }
 
 void *
@@ -302,7 +314,6 @@ kmap_atomic_prot(vm_page_t page, pgprot_t prot)
 {
 	vm_memattr_t attr = pgprot2cachemode(prot);
 
-	sched_pin();
 	if (attr != VM_MEMATTR_DEFAULT) {
 		vm_page_lock(page);
 		page->flags |= PG_FICTITIOUS;
@@ -315,83 +326,49 @@ kmap_atomic_prot(vm_page_t page, pgprot_t prot)
 void *
 kmap_atomic(vm_page_t page)
 {
-
 	return (kmap_atomic_prot(page, VM_PROT_ALL));
 }
 
 void
 kunmap(vm_page_t page)
 {
+#ifdef LINUXKPI_HAVE_DMAP
+	/* NOP */
+#else
+	struct sf_buf *sf;
 
+	/* lookup SF buffer in list */
+	sf = sf_buf_alloc(page, SFB_NOWAIT | SFB_CPUPRIVATE);
+
+	/* double-free */
+	sf_buf_free(sf);
+	sf_buf_free(sf);
+
+	sched_unpin();
+#endif
 }
 
 void
 kunmap_atomic(void *vaddr)
 {
-	sched_unpin();
-}
-
-
+#ifdef LINUXKPI_HAVE_DMAP
+	/* NOP */
 #else
-
-static struct sf_buf *
-vtosf(caddr_t vaddr)
-{
-	panic("IMPLEMENT ME!!!");
-	return (NULL);
-}
-
-static struct sf_buf *
-pagetosf(vm_page_t page)
-{
-	panic("IMPLEMENT ME!!!");
-	return (NULL);
-}
-
-void *
-kmap(vm_page_t page)
-{
 	struct sf_buf *sf;
+	vm_page_t page;
 
+	page = virt_to_page(vaddr);
+
+	/* lookup SF buffer in list */
 	sf = sf_buf_alloc(page, SFB_NOWAIT | SFB_CPUPRIVATE);
-	if (sf == NULL) {
-		sched_unpin();
-		return (-EFAULT);
-	}
-	return (char *)sf_buf_kva(sf);
-}
 
-void *
-kmap_atomic(vm_page_t page)
-{
-	caddr_t vaddr;
-
-	sched_pin();
-	if ((vaddr = kmap(page)) == NULL)
-		sched_unpin();
-	return (vaddr);
-}
-	
-void
-kunmap(vm_page_t page)
-{
-	struct sf_buf *sf;
-
-	sf = pagetosf(page);
+	/* double-free */
 	sf_buf_free(sf);
-}
-
-void
-kunmap_atomic(caddr_t vaddr)
-{
-
-	struct sf_buf *sf;
-
-	sf = vtosf(vaddr);
 	sf_buf_free(sf);
+
 	sched_unpin();
-}
 #endif
+}
 
 void
 page_cache_release(vm_page_t page)
@@ -419,14 +396,12 @@ iounmap_atomic(void *vaddr)
 int
 set_memory_uc(unsigned long addr, int numpages)
 {
-
 	return (pmap_change_attr(addr, numpages, VM_MEMATTR_UNCACHEABLE));
 }
 
 int
 set_pages_uc(vm_page_t page, int numpages)
 {
-
 	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
 
 	pmap_page_set_memattr(page, VM_MEMATTR_UNCACHEABLE);
@@ -436,14 +411,12 @@ set_pages_uc(vm_page_t page, int numpages)
 int
 set_memory_wc(unsigned long addr, int numpages)
 {
-
 	return (pmap_change_attr(addr, numpages, PAT_WRITE_COMBINING));
 }
 
 int
 set_pages_wc(vm_page_t page, int numpages)
 {
-
 	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
 
 	pmap_page_set_memattr(page, VM_MEMATTR_WRITE_COMBINING);
@@ -453,14 +426,12 @@ set_pages_wc(vm_page_t page, int numpages)
 int
 set_memory_wb(unsigned long addr, int numpages)
 {
-
 	return (pmap_change_attr(addr, numpages, PAT_WRITE_BACK));
 }
 
 int
 set_pages_wb(vm_page_t page, int numpages)
 {
-
 	KASSERT(numpages == 1, ("%s: numpages %d", __func__, numpages));
 
 	pmap_page_set_memattr(page, VM_MEMATTR_WRITE_BACK);
@@ -482,7 +453,7 @@ arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 void *
 linux_page_address(struct page *page)
 {
-#ifdef __amd64__
+#ifdef LINUXKPI_HAVE_DMAP
 	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
 #else
 	if (page->object != kmem_object && page->object != kernel_object)
@@ -495,7 +466,7 @@ linux_page_address(struct page *page)
 vm_page_t
 linux_alloc_pages(gfp_t flags, unsigned int order)
 {
-#ifdef __amd64__
+#ifdef LINUXKPI_HAVE_DMAP
 	unsigned long npages = 1UL << order;
 	int req = (flags & M_ZERO) ? (VM_ALLOC_ZERO | VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL) : (VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL);
@@ -553,7 +524,7 @@ retry:
 void
 linux_free_pages(vm_page_t page, unsigned int order)
 {
-#ifdef __amd64__
+#ifdef LINUXKPI_HAVE_DMAP
 	unsigned long npages = 1UL << order;
 	unsigned long x;
 
@@ -595,6 +566,108 @@ linux_free_kmem(vm_offset_t addr, unsigned int order)
 	size_t size = ((size_t)PAGE_SIZE) << order;
 
 	kmem_free(kmem_arena, addr, size);
+}
+
+static int
+linux_get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages,
+    int write, struct page **pages)
+{
+	vm_prot_t prot;
+	size_t len;
+	int count;
+	int i;
+
+	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
+	len = ((size_t)nr_pages) << PAGE_SHIFT;
+	count = vm_fault_quick_hold_pages(map, start, len, prot, pages, nr_pages);
+	if (count == -1)
+		return (-EFAULT);
+
+	for (i = 0; i != nr_pages; i++) {
+		struct page *pg = pages[i];
+
+		vm_page_lock(pg);
+		vm_page_wire(pg);
+		vm_page_unlock(pg);
+	}
+	return (nr_pages);
+}
+
+int
+__get_user_pages_fast(unsigned long start, int nr_pages, int write,
+    struct page **pages)
+{
+	vm_map_t map;
+	vm_page_t *mp;
+	vm_offset_t va;
+	vm_offset_t end;
+	vm_prot_t prot;
+	int count;
+
+	if (nr_pages == 0 || in_interrupt())
+		return (0);
+
+	MPASS(pages != NULL);
+	va = start;
+	map = &curthread->td_proc->p_vmspace->vm_map;
+	end = start + (((size_t)nr_pages) << PAGE_SHIFT);
+	if (start < vm_map_min(map) || end > vm_map_max(map))
+		return (-EINVAL);
+	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
+	for (count = 0, mp = pages, va = start; va < end;
+	    mp++, va += PAGE_SIZE, count++) {
+		*mp = pmap_extract_and_hold(map->pmap, va, prot);
+		if (*mp == NULL)
+			break;
+
+		vm_page_lock(*mp);
+		vm_page_wire(*mp);
+		vm_page_unlock(*mp);
+
+		if ((prot & VM_PROT_WRITE) != 0 &&
+		    (*mp)->dirty != VM_PAGE_BITS_ALL) {
+			/*
+			 * Explicitly dirty the physical page.  Otherwise, the
+			 * caller's changes may go unnoticed because they are
+			 * performed through an unmanaged mapping or by a DMA
+			 * operation.
+			 *
+			 * The object lock is not held here.
+			 * See vm_page_clear_dirty_mask().
+			 */
+			vm_page_dirty(*mp);
+		}
+	}
+	return (count);
+}
+
+long
+get_user_pages_remote(struct task_struct *task, struct mm_struct *mm,
+    unsigned long start, unsigned long nr_pages, int gup_flags,
+    struct page **pages, struct vm_area_struct **vmas)
+{
+	vm_map_t map;
+
+	map = &mm->vmspace->vm_map;
+	return (linux_get_user_pages_internal(map, start, nr_pages,
+	    !!(gup_flags & FOLL_WRITE), pages));
+}
+
+long
+get_user_pages(unsigned long start, unsigned long nr_pages, int gup_flags,
+    struct page **pages, struct vm_area_struct **vmas)
+{
+	vm_map_t map;
+
+	map = &curthread->td_proc->p_vmspace->vm_map;
+	return (linux_get_user_pages_internal(map, start, nr_pages,
+	    !!(gup_flags & FOLL_WRITE), pages));
+}
+
+int
+is_vmalloc_addr(const void *addr)
+{
+	return (vtoslab((vm_offset_t)addr & ~UMA_SLAB_MASK) != NULL);
 }
 
 vm_paddr_t
@@ -641,7 +714,6 @@ retry:
 }
 
 #if defined(__i386__) || defined(__amd64__)
-
 int
 set_pages_array_wb(struct page **pages, int addrinarray)
 {
@@ -672,5 +744,3 @@ set_pages_array_uc(struct page **pages, int addrinarray)
 	return (0);
 }
 #endif
-
-

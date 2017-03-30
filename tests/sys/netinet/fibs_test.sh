@@ -163,7 +163,6 @@ loopback_and_network_routes_on_nondefault_fib_inet6_head()
 
 loopback_and_network_routes_on_nondefault_fib_inet6_body()
 {
-	atf_expect_fail "PR196361 IPv6 network routes don't respect net.add_addr_allfibs=0"
 	# Configure the TAP interface to use a nonrouteable RFC3849
 	# address and a non-default fib
 	ADDR="2001:db8::2"
@@ -454,12 +453,11 @@ slaac_on_nondefault_fib6_body()
 {
 	# Configure the epair interfaces to use nonrouteable RFC3849
 	# addresses and non-default FIBs
-	ADDR="2001:db8::2"
-	GATEWAY="2001:db8::1"
-	SUBNET="2001:db8:"
+	PREFIX="2001:db8:$(printf "%x" `jot -r 1 0 65535`):$(printf "%x" `jot -r 1 0 65535`)"
+	ADDR="$PREFIX::2"
+	GATEWAY="$PREFIX::1"
+	SUBNET="$PREFIX:"
 	MASK="64"
-
-	atf_expect_fail "PR196361 IPv6 network routes don't respect net.add_addr_allfibs=0"
 
 	# Check system configuration
 	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
@@ -478,8 +476,8 @@ slaac_on_nondefault_fib6_body()
 	# Configure epair interfaces
 	get_epair
 	setup_iface "$EPAIRA" "$FIB0" inet6 ${ADDR} ${MASK}
-	echo ifconfig "$EPAIRB" up inet6 fib $FIB1 -ifdisabled accept_rtadv
-	ifconfig "$EPAIRB" inet6 -ifdisabled accept_rtadv fib $FIB1 up
+	echo setfib $FIB1 ifconfig "$EPAIRB" inet6 -ifdisabled accept_rtadv fib $FIB1 up
+	setfib $FIB1 ifconfig "$EPAIRB" inet6 -ifdisabled accept_rtadv fib $FIB1 up
 	rtadvd -p rtadvd.pid -C rtadvd.sock -c /dev/null "$EPAIRA"
 	rtsol "$EPAIRB"
 
@@ -511,18 +509,22 @@ slaac_on_nondefault_fib6_body()
 }
 slaac_on_nondefault_fib6_cleanup()
 {
-	cleanup_ifaces
 	if [ -f "rtadvd.pid" ]; then
-		pkill -F rtadvd.pid
-		rm rtadvd.pid
+		# rtadvd can take a long time to shutdown.  Use SIGKILL to kill
+		# it right away.  The downside to using SIGKILL is that it
+		# won't send final RAs to all interfaces, but we don't care
+		# because we're about to destroy its interface anyway.
+		pkill -kill -F rtadvd.pid
+		rm -f rtadvd.pid
+	fi
+	cleanup_ifaces
+	if [ -f "forwarding.state" ] ; then
+		sysctl "net.inet6.ip6.forwarding"=`cat "forwarding.state"`
+		rm "forwarding.state"
 	fi
 	if [ -f "rfc6204w3.state" ] ; then
 		sysctl "net.inet6.ip6.rfc6204w3"=`cat "rfc6204w3.state"`
 		rm "rfc6204w3.state"
-	fi
-	if [ -f "forwarding.state" ] ; then
-		sysctl "net.inet6.ip6.forwarding"=`cat "forwarding.state"`
-		rm "forwarding.state"
 	fi
 }
 
@@ -685,8 +687,6 @@ udp_dontroute6_body()
 	TARGET="2001:db8::100"
 	SRCDIR=`atf_get_srcdir`
 
-	atf_expect_fail "PR196361 IPv6 network routes don't respect net.add_addr_allfibs=0"
-
 	# Check system configuration
 	if [ 0 != `sysctl -n net.add_addr_allfibs` ]; then
 		atf_skip "This test requires net.add_addr_allfibs=0"
@@ -767,7 +767,7 @@ get_epair()
 	local EPAIRD
 
 	if EPAIRD=`ifconfig epair create`; then
-		# Record the TAP device so we can clean it up later
+		# Record the epair device so we can clean it up later
 		echo ${EPAIRD} >> "ifaces_to_cleanup"
 		EPAIRA=${EPAIRD}
 		EPAIRB=${EPAIRD%a}b

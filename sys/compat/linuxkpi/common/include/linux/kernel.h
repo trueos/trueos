@@ -42,6 +42,7 @@
 #include <sys/stddef.h>
 #include <sys/syslog.h>
 #include <sys/kdb.h>
+#include <sys/time.h>
 
 
 #include <linux/bug.h>
@@ -265,6 +266,11 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 	log_once(LOG_INFO, pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_cont(fmt, ...) \
 	printk(KERN_CONT fmt, ##__VA_ARGS__)
+#define	pr_warn_ratelimited(...) do {		\
+	static linux_ratelimit_t __ratelimited;	\
+	if (linux_ratelimited(&__ratelimited))	\
+		pr_warning(__VA_ARGS__);	\
+} while (0)
 
 #ifndef WARN
 #define	WARN(condition, ...) ({			\
@@ -292,23 +298,100 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
   
 #define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
-#define u64_to_user_ptr(x) (		\
-{					\
-	(void __user *)(uintptr_t)x;	\
-}					\
-)
+#define	u64_to_user_ptr(x)	((void __user *)(uintptr_t)(x))
 
-#define	simple_strtoul(...) strtoul(__VA_ARGS__)
-#define	simple_strtol(...) strtol(__VA_ARGS__)
-#define	kstrtol(a,b,c) ({*(c) = strtol(a,0,b); 0;})
-#define	kstrtoint(a,b,c) ({*(c) = strtol(a,0,b); 0;})
-#define	kstrtouint(a,b,c) ({*(c) = strtol(a,0,b); 0;})
-#define	kstrtou32(a,b,c) ({*(c) = strtol(a,0,b); 0;})
-#define	kstrtoul(a,b,c) ({*(c) = strtoul(a,0,b); 0;})
+static inline unsigned long long
+simple_strtoull(const char *cp, char **endp, unsigned int base)
+{
+	return (strtouq(cp, endp, base));
+}
 
-long long simple_strtoll(const char *cp, char **endp, unsigned int base);
+static inline long long
+simple_strtoll(const char *cp, char **endp, unsigned int base)
+{
+	return (strtoq(cp, endp, base));
+}
 
+static inline unsigned long
+simple_strtoul(const char *cp, char **endp, unsigned int base)
+{
+	return (strtoul(cp, endp, base));
+}
 
+static inline long
+simple_strtol(const char *cp, char **endp, unsigned int base)
+{
+	return (strtol(cp, endp, base));
+}
+
+static inline int
+kstrtoul(const char *cp, unsigned int base, unsigned long *res)
+{
+	char *end;
+
+	*res = strtoul(cp, &end, base);
+
+	if (*cp == 0 || *end != 0)
+		return (-EINVAL);
+	return (0);
+}
+
+static inline int
+kstrtol(const char *cp, unsigned int base, long *res)
+{
+	char *end;
+
+	*res = strtol(cp, &end, base);
+
+	if (*cp == 0 || *end != 0)
+		return (-EINVAL);
+	return (0);
+}
+
+static inline int
+kstrtoint(const char *cp, unsigned int base, int *res)
+{
+	char *end;
+	long temp;
+
+	*res = temp = strtol(cp, &end, base);
+
+	if (*cp == 0 || *end != 0)
+		return (-EINVAL);
+	if (temp != (int)temp)
+		return (-ERANGE);
+	return (0);
+}
+
+static inline int
+kstrtouint(const char *cp, unsigned int base, unsigned int *res)
+{
+	char *end;
+	unsigned long temp;
+
+	*res = temp = strtoul(cp, &end, base);
+
+	if (*cp == 0 || *end != 0)
+		return (-EINVAL);
+	if (temp != (unsigned int)temp)
+		return (-ERANGE);
+	return (0);
+}
+
+static inline int
+kstrtou32(const char *cp, unsigned int base, u32 *res)
+{
+	char *end;
+	unsigned long temp;
+
+	*res = temp = strtoul(cp, &end, base);
+
+	if (*cp == 0 || *end != 0)
+		return (-EINVAL);
+	if (temp != (u32)temp)
+		return (-ERANGE);
+	return (0);
+}
 
 #define min(x, y)	((x) < (y) ? (x) : (y))
 #define max(x, y)	((x) > (y) ? (x) : (y))
@@ -379,12 +462,22 @@ abs64(int64_t x)
 	return (x < 0 ? -x : x);
 }
 
-
 /* XXX move us */
 #define rdmsrl(msr, val)			\
 	((val) = rdmsr((msr)))
 
 #define static_branch_enable(x) do { (x)->state = 1; } while (0)
 #define DEFINE_STATIC_KEY_FALSE(x) struct { int state; } x
+
+typedef struct linux_ratelimit {
+	struct timeval lasttime;
+	int counter;
+} linux_ratelimit_t;
+
+static inline bool
+linux_ratelimited(linux_ratelimit_t *rl)
+{
+	return (ppsratecheck(&rl->lasttime, &rl->counter, 1));
+}
 
 #endif	/* _LINUX_KERNEL_H_ */
