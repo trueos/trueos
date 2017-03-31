@@ -9,14 +9,12 @@ SRCS=		ldapctl.c parse.y btree.c log.c ber.c util.c \
 		index.c attributes.c schema.c syntax.c matching.c
 
 LIBADD=		openbsd event tls crypto ssl z util crypt
-CFLAGS+=	-I${.CURDIR}/../ldapd
-CFLAGS+=	-I${.CURDIR}/../../contrib/pf/libevent
-CFLAGS+=	-I${.CURDIR}/../../lib/libopenbsd
-CFLAGS+=	-Wall -Wstrict-prototypes -Wmissing-prototypes
-CFLAGS+=	-Wmissing-declarations
-CFLAGS+=	-Wshadow -Wpointer-arith -Wcast-qual
-CFLAGS+=	-Wsign-compare
 
-WARNS?=	2
+CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${.CURDIR}/../ldapd
+CFLAGS+=	-I${SRCTOP}/contrib/pf/libevent
+CFLAGS+=	-I${SRCTOP}/lib/libopenbsd
+
+WARNS=	2
 
 .include <bsd.prog.mk>

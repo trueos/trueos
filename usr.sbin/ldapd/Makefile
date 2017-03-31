@@ -1,35 +1,23 @@
 #	$OpenBSD: Makefile,v 1.13 2016/05/01 00:32:37 jmatthew Exp $
+#	$FreeBSD$
 
 PROG=		ldapd
-
-MAN=		ldapd.8 ldapd.conf.5
 SRCS=		ber.c log.c control.c \
 		util.c ldapd.c ldape.c conn.c attributes.c namespace.c \
 		btree.c filter.c search.c parse.y \
 		auth.c modify.c index.c evbuffer_tls.c \
 		validate.c uuid.c schema.c imsgev.c syntax.c matching.c
 
+MAN=		ldapd.8 ldapd.conf.5
+
 LIBADD=		openbsd event tls crypto ssl z util crypt
 
-CFLAGS+=	-I${.CURDIR} -g
-CFLAGS+=	-I${.CURDIR}/../../contrib/pf/libevent
-CFLAGS+=	-I${.CURDIR}/../../lib/libopenbsd
-CFLAGS+=	-Wall -Wstrict-prototypes -Wmissing-prototypes
-CFLAGS+=	-Wmissing-declarations
-CFLAGS+=	-Wshadow -Wpointer-arith -Wcast-qual
-CFLAGS+=	-Wsign-compare
+CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-I${SRCTOP}/contrib/pf/libevent
+CFLAGS+=	-I${SRCTOP}/lib/libopenbsd
 
 CLEANFILES+=	y.tab.h parse.c
 
-SCHEMA_FILES=	core.schema \
-		inetorgperson.schema \
-		nis.schema
-
-WARNS?=	2
-
-distribution:
-	for i in ${SCHEMA_FILES}; do \
-		${INSTALL} -C -o root -g wheel -m 0644 ${.CURDIR}/schema/$$i ${DESTDIR}/etc/ldap/; \
-	done
+WARNS=	2
 
 .include <bsd.prog.mk>
