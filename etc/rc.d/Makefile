@@ -57,6 +57,7 @@ FILES=	DAEMON \
 	kld \
 	kldxref \
 	${_kpasswdd} \
+	ldapd \
 	ldconfig \
 	local \
 	localpkg \
