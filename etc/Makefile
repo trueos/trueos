@@ -61,6 +61,7 @@ BIN1=	crontab \
 	hosts \
 	hosts.allow \
 	hosts.equiv \
+	ldapd.conf \
 	libalias.conf \
 	libmap.conf \
 	login.access \
@@ -341,6 +342,7 @@ distribution:
 	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
 	${_+_}cd ${.CURDIR}/pam.d; ${MAKE} install
+	${_+_}cd ${.CURDIR}/ldap; ${MAKE} install
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0444 \
 	    ${BSM_ETC_OPEN_FILES} ${BSM_ETC_DIR}
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0600 \

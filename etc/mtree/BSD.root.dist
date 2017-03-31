@@ -46,6 +46,8 @@
 	..
 	init.d
         ..
+	ldap
+        ..
 	local.d
 	..
         mail
