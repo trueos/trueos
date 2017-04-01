@@ -32,6 +32,7 @@ SRCS+=	bus_if.h \
 	pci_if.h \
 	vnode_if.h \
 	usb_if.h \
+	opt_acpi.h \
 	opt_ddb.h \
 	opt_ktrace.h \
 	opt_param.h \

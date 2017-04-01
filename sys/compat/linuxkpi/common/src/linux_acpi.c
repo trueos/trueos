@@ -83,84 +83,24 @@ acpi_evaluate_integer(acpi_handle handle,
 	if (!data)
 		return AE_BAD_PARAMETER;
 
-	buffer.length = sizeof(union acpi_object);
-	buffer.pointer = &element;
+	buffer.Length = sizeof(union acpi_object);
+	buffer.Pointer = &element;
 	status = AcpiEvaluateObject(handle, pathname, arguments, &buffer);
 	if (ACPI_FAILURE(status)) {
 		acpi_util_eval_error(handle, pathname, status);
 		return status;
 	}
 
-	if (element.type != ACPI_TYPE_INTEGER) {
+	if (element.Type != ACPI_TYPE_INTEGER) {
 		acpi_util_eval_error(handle, pathname, AE_BAD_DATA);
 		return AE_BAD_DATA;
 	}
 
-	*data = element.integer.value;
+	*data = element.Integer.Value;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Return value [%llu]\n", *data));
 
 	return AE_OK;
-}
-
-acpi_status
-acpi_evaluate_object(acpi_handle handle,
-		     acpi_string pathname,
-		     struct acpi_object_list *external_params,
-		     struct acpi_buffer *return_buffer)
-{
-
-	return (AcpiEvaluateObject(handle, pathname, external_params, return_buffer));
-}
-
-acpi_status
-acpi_evaluate_object_typed(acpi_handle handle,
-			   acpi_string pathname,
-			   struct acpi_object_list *external_params,
-			   struct acpi_buffer *return_buffer,
-			   acpi_object_type return_type)
-{
-	return (AcpiEvaluateObjectTyped(handle, pathname, external_params, return_buffer, return_type));
-}
-
-acpi_status
-acpi_get_data(acpi_handle obj_handle, acpi_object_handler handler, void **data)
-{
-
-	return (AcpiGetData(obj_handle, handler, data));
-}
-
-
-acpi_status
-acpi_walk_namespace(acpi_object_type type, acpi_handle start_object, u32 max_depth,
-    acpi_walk_callback descending_callback, acpi_walk_callback ascending_callback,
-    void *context, void **return_value)
-{
-
-	return (AcpiWalkNamespace(type, start_object, max_depth, descending_callback,
-             ascending_callback, context, return_value));
-}
-
-acpi_status
-acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
-{
-
-	return (AcpiGetName(handle, name_type, buffer));
-}
-
-acpi_status
-acpi_get_handle(acpi_handle parent,
-		acpi_string pathname, acpi_handle * ret_handle)
-{
-
-	return (AcpiGetHandle(parent, pathname, ret_handle));
-}
-
-acpi_status
-acpi_get_table(acpi_string signature, u32 instance, struct acpi_table_header **out_table)
-{
-
-	return (AcpiGetTable(signature, instance, out_table));
 }
 
 bool
@@ -171,12 +111,6 @@ acpi_has_method(acpi_handle handle, char *name)
 	return ACPI_SUCCESS(acpi_get_handle(handle, name, &tmp));
 }
 
-const char *
-acpi_format_exception(acpi_status status)
-{
-	return (AcpiFormatException(status));
-}
-
 union acpi_object *
 acpi_evaluate_dsm(acpi_handle handle, const u8 *uuid, int rev, int func,
 		  union acpi_object *argv4)
@@ -185,28 +119,28 @@ acpi_evaluate_dsm(acpi_handle handle, const u8 *uuid, int rev, int func,
 	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object params[4];
 	struct acpi_object_list input = {
-		.count = 4,
-		.pointer = params,
+		.Count = 4,
+		.Pointer = params,
 	};
 
-	params[0].type = ACPI_TYPE_BUFFER;
-	params[0].buffer.length = 16;
-	params[0].buffer.pointer = (char *)uuid;
-	params[1].type = ACPI_TYPE_INTEGER;
-	params[1].integer.value = rev;
-	params[2].type = ACPI_TYPE_INTEGER;
-	params[2].integer.value = func;
+	params[0].Type = ACPI_TYPE_BUFFER;
+	params[0].Buffer.Length = 16;
+	params[0].Buffer.Pointer = (char *)uuid;
+	params[1].Type = ACPI_TYPE_INTEGER;
+	params[1].Integer.Value = rev;
+	params[2].Type = ACPI_TYPE_INTEGER;
+	params[2].Integer.Value = func;
 	if (argv4) {
 		params[3] = *argv4;
 	} else {
-		params[3].type = ACPI_TYPE_PACKAGE;
-		params[3].package.count = 0;
-		params[3].package.elements = NULL;
+		params[3].Type = ACPI_TYPE_PACKAGE;
+		params[3].Package.Count = 0;
+		params[3].Package.Elements = NULL;
 	}
 
 	ret = acpi_evaluate_object(handle, "_DSM", &input, &buf);
 	if (ACPI_SUCCESS(ret))
-		return (union acpi_object *)buf.pointer;
+		return (union acpi_object *)buf.Pointer;
 
 	if (ret != AE_NOT_FOUND)
 		acpi_handle_warn(handle,
@@ -241,11 +175,11 @@ acpi_check_dsm(acpi_handle handle, const u8 *uuid, int rev, u64 funcs)
 		return false;
 
 	/* For compatibility, old BIOSes may return an integer */
-	if (obj->type == ACPI_TYPE_INTEGER)
-		mask = obj->integer.value;
-	else if (obj->type == ACPI_TYPE_BUFFER)
-		for (i = 0; i < obj->buffer.length && i < 8; i++)
-			mask |= (((u64)obj->buffer.pointer[i]) << (i * 8));
+	if (obj->Type == ACPI_TYPE_INTEGER)
+		mask = obj->Integer.Value;
+	else if (obj->Type == ACPI_TYPE_BUFFER)
+		for (i = 0; i < obj->Buffer.Length && i < 8; i++)
+			mask |= (((u64)obj->Buffer.Pointer[i]) << (i * 8));
 	ACPI_FREE(obj);
 
 	/*
@@ -281,7 +215,7 @@ static device_t
 acpi_get_device(acpi_handle handle)
 {
 	void *dev = NULL;
-	acpi_get_data(handle, acpi_fake_objhandler, &dev);
+	AcpiGetData(handle, acpi_fake_objhandler, &dev);
 
 	return ((device_t)dev);
 }
@@ -294,63 +228,6 @@ struct acpi_device_bus_id {
 	unsigned int instance_no;
 	struct list_head node;
 };
-
-#if 0
-static void
-acpi_device_del(struct acpi_device *device)
-{
-	struct acpi_device_bus_id *acpi_device_bus_id;
-
-	mutex_lock(&acpi_device_lock);
-	if (device->parent)
-		list_del(&device->node);
-
-	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node)
-		if (!strcmp(acpi_device_bus_id->bus_id,
-			    acpi_device_hid(device))) {
-			if (acpi_device_bus_id->instance_no > 0)
-				acpi_device_bus_id->instance_no--;
-			else {
-				list_del(&acpi_device_bus_id->node);
-				kfree(acpi_device_bus_id);
-			}
-			break;
-		}
-
-	list_del(&device->wakeup_list);
-	mutex_unlock(&acpi_device_lock);
-#ifdef __notyet__
-	acpi_power_add_remove_device(device, false);
-#endif
-	if (device->remove)
-		device->remove(device);
-
-	device_del(&device->dev);
-}
-
-acpi_status acpi_pwr_switch_consumer(acpi_handle consumer, int state);
-
-static void
-acpi_device_del_work_fn(struct work_struct *work_not_used)
-{
-	for (;;) {
-		struct acpi_device *adev;
-
-		mutex_lock(&acpi_device_del_lock);
-		if (list_empty(&acpi_device_del_list)) {
-			mutex_unlock(&acpi_device_del_lock);
-			break;
-		}
-		adev = list_first_entry(&acpi_device_del_list,
-					struct acpi_device, del_list);
-		list_del(&adev->del_list);
-		mutex_unlock(&acpi_device_del_lock);
-		acpi_pwr_switch_consumer(adev->handle, ACPI_STATE_D3_COLD);
-		acpi_device_del(adev);
-		put_device(&adev->dev);
-	}
-}
-#endif
 
 static LINUX_LIST_HEAD(acpi_device_del_list);
 static DEFINE_MUTEX(acpi_device_del_lock);

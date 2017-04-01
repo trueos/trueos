@@ -71,7 +71,7 @@ acpi_evaluate_dsm_typed(acpi_handle handle, const u8 *uuid, int rev, int func,
 	union acpi_object *obj;
 
 	obj = acpi_evaluate_dsm(handle, uuid, rev, func, argv4);
-	if (obj && obj->type != type) {
+	if (obj && obj->Type != type) {
 		ACPI_FREE(obj);
 		obj = NULL;
 	}
@@ -641,12 +641,14 @@ static inline bool acpi_device_can_wakeup(struct acpi_device *adev)
 	return adev->wakeup.flags.valid;
 }
 
+#ifndef __FreeBSD__
 static inline bool acpi_device_can_poweroff(struct acpi_device *adev)
 {
 	return adev->power.states[ACPI_STATE_D3_COLD].flags.valid ||
-		((acpi_gbl_FADT.header.revision < 6) &&
+		((acpi_gbl_FADT.Header.revision < 6) &&
 		adev->power.states[ACPI_STATE_D3_HOT].flags.explicit_set);
 }
+#endif
 
 #else	/* CONFIG_ACPI */
 
@@ -656,31 +658,3 @@ static inline int unregister_acpi_bus_type(void *bus) { return 0; }
 #endif				/* CONFIG_ACPI */
 
 #endif /*__ACPI_BUS_H__*/
-#ifdef notyet
-
-
-#ifndef _LINUX_ACPI_BUS_H_
-#define _LINUX_ACPI_BUS_H_
-
-#include <asm/types.h>
-#include <linux/list.h>
-
-typedef char acpi_device_class[20];
-
-struct acpi_bus_event {
-	acpi_device_class device_class;
-	u32 type;
-};
-
-struct acpi_device {
-	acpi_handle handle;
-	struct list_head children;
-	struct list_head node;
-};
-
-static inline int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device){
-	panic("IMPLEMENT ME");
-}
-
-#endif
-#endif

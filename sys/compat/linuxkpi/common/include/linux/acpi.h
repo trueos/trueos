@@ -10,6 +10,7 @@
 #include <linux/list.h>
 #include <linux/mod_devicetable.h>
 
+#include <contrib/dev/acpica/include/acpi.h>
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
@@ -54,4 +55,4 @@ struct pci_dev *acpi_get_pci_dev(acpi_handle handle);
 
 int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device);
 
-#endif
+#endif /* _LINUX_ACPI_H_ */
