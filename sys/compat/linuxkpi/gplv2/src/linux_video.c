@@ -1,3 +1,29 @@
+/*
+ *  Copyright (C) 2015       Red Hat Inc.
+ *                           Hans de Goede <hdegoede@redhat.com>
+ *  Copyright (C) 2008       SuSE Linux Products GmbH
+ *                           Thomas Renninger <trenn@suse.de>
+ *
+ *  May be copied or modified under the terms of the GNU General Public License
+ *
+ * video_detect.c:
+ * After PCI devices are glued with ACPI devices
+ * acpi_get_pci_dev() can be called to identify ACPI graphics
+ * devices for which a real graphics card is plugged in
+ *
+ * Depending on whether ACPI graphics extensions (cmp. ACPI spec Appendix B)
+ * are available, video.ko should be used to handle the device.
+ *
+ * Otherwise vendor specific drivers like thinkpad_acpi, asus-laptop,
+ * sony_acpi,... can take care about backlight brightness.
+ *
+ * Backlight drivers can use acpi_video_get_backlight_type() to determine
+ * which driver should handle the backlight.
+ *
+ * If CONFIG_ACPI_VIDEO is neither set as "compiled in" (y) nor as a module (m)
+ * this file will not be compiled and acpi_video_get_backlight_type() will
+ * always return acpi_backlight_vendor.
+ */
 
 #include <linux/export.h>
 #include <linux/acpi.h>
