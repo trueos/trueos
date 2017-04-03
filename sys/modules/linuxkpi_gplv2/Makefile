@@ -6,6 +6,7 @@ SRCS=	linux_kmod_gplv2.c	\
 	linux_backlight.c	\
 	linux_fs_attr.c		\
 	linux_video.c		\
+	interval_tree.c		\
 	pci-sysfs.c
 
 SRCS+=	bus_if.h		\
