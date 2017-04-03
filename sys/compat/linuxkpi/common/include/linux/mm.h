@@ -38,6 +38,7 @@
 #include <linux/kernel.h>
 #include <linux/mm_types.h>
 #include <linux/pfn.h>
+#include <linux/list.h>
 
 #include <asm/pgtable.h>
 
@@ -107,6 +108,7 @@ struct vm_area_struct {
 	int    *vm_pfn_pcount;
 	vm_object_t vm_obj;
 	vm_map_t vm_cached_map;
+	TAILQ_ENTRY(vm_area_struct) vm_entry;
 };
 
 struct vm_fault {
