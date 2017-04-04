@@ -1834,8 +1834,8 @@ linux_compat_init(void *arg)
 		set_bit(X86_FEATURE_PAT, &boot_cpu_data.x86_capability);
 #endif
 	hwmon_idap = &hwmon_ida;
-	sx_init(&linux_global_lock, "LinuxBKL");
-	rw_init(&linux_global_rw, "LinuxBKRW");
+	sx_init(&linux_global_lock, "lkpi-global-lock");
+	rw_init(&linux_global_rw, "lkpi-global-rw-lock");
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	boot_cpu_data.x86 = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 
@@ -1867,6 +1867,8 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
 
 	spin_lock_destroy(&pci_lock);
+	sx_destroy(&linux_global_lock);
+	rw_destroy(&linux_global_rw);
 }
 SYSUNINIT(linux_compat, SI_SUB_VFS, SI_ORDER_ANY, linux_compat_uninit, NULL);
 
