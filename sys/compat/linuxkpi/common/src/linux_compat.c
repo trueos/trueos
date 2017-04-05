@@ -91,8 +91,6 @@ pteval_t __supported_pte_mask __read_mostly = ~0;
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 int linux_db_trace;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, db_trace, CTLFLAG_RWTUN, &linux_db_trace, 0, "enable backtrace instrumentation");
-static int cdev_pfn_found_count;
-SYSCTL_INT(_compat_linuxkpi, OID_AUTO, cdev_pfn_found_count, CTLFLAG_RW, &cdev_pfn_found_count, 0, "cdev found pfn");
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 MALLOC_DEFINE(M_LCINT, "linuxint", "Linux compat internal");
@@ -528,8 +526,6 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 			err = vmap->vm_ops->fault(vmap, &vmf);
 		}
 	}
-
-	atomic_add_int(&cdev_pfn_found_count, vmap->vm_pfn_count);
 
 	/* translate return code */
 	switch (err) {
