@@ -111,8 +111,6 @@ struct class linux_class_misc;
 struct list_head pci_drivers;
 struct list_head pci_devices;
 spinlock_t pci_lock;
-struct sx linux_global_lock;
-struct rwlock linux_global_rw;
 
 unsigned long linux_timer_hz_mask;
 struct ida *hwmon_idap;
@@ -561,6 +559,7 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 	return (err);
 }
 
+static struct rwlock linux_vma_lock;
 static TAILQ_HEAD(, vm_area_struct) linux_vma_head =
     TAILQ_HEAD_INITIALIZER(linux_vma_head);
 
@@ -569,16 +568,16 @@ linux_cdev_handle_insert(void *handle, struct vm_area_struct *vmap)
 {
 	struct vm_area_struct *ptr;
 
-	rw_wlock(&linux_global_rw);
+	rw_wlock(&linux_vma_lock);
 	TAILQ_FOREACH(ptr, &linux_vma_head, vm_entry) {
 		if (ptr->vm_private_data == handle) {
-			rw_wunlock(&linux_global_rw);
+			rw_wunlock(&linux_vma_lock);
 			kfree(vmap);
 			return (NULL);
 		}
 	}
 	TAILQ_INSERT_TAIL(&linux_vma_head, vmap, vm_entry);
-	rw_wunlock(&linux_global_rw);
+	rw_wunlock(&linux_vma_lock);
 	return (vmap);
 }
 
@@ -588,9 +587,9 @@ linux_cdev_handle_remove(struct vm_area_struct *vmap)
 	if (vmap == NULL)
 		return;
 
-	rw_wlock(&linux_global_rw);
+	rw_wlock(&linux_vma_lock);
 	TAILQ_REMOVE(&linux_vma_head, vmap, vm_entry);
-	rw_wunlock(&linux_global_rw);
+	rw_wunlock(&linux_vma_lock);
 	kfree(vmap);
 }
 
@@ -599,12 +598,12 @@ linux_cdev_handle_find(void *handle)
 {
 	struct vm_area_struct *vmap;
 
-	rw_rlock(&linux_global_rw);
+	rw_rlock(&linux_vma_lock);
 	TAILQ_FOREACH(vmap, &linux_vma_head, vm_entry) {
 		if (vmap->vm_private_data == handle)
 			break;
 	}
-	rw_runlock(&linux_global_rw);
+	rw_runlock(&linux_vma_lock);
 	return (vmap);
 }
 
@@ -1789,8 +1788,7 @@ __unregister_chrdev(unsigned int major, unsigned int baseminor,
 }
 
 static DECLARE_WAIT_QUEUE_HEAD(async_done);
-static async_cookie_t nextcookie;
-static atomic_t entry_count;
+static atomic_t nextcookie;
 
 static void
 async_run_entry_fn(struct work_struct *work)
@@ -1801,7 +1799,6 @@ async_run_entry_fn(struct work_struct *work)
 	entry  = container_of(work, struct async_entry, work);
 	entry->func(entry->data, entry->cookie);
 	kfree(entry);
-	atomic_dec(&entry_count);
 	wake_up(&async_done);
 
 }
@@ -1816,10 +1813,7 @@ async_schedule(async_func_t func, void *data)
 	entry = kzalloc(sizeof(struct async_entry), GFP_ATOMIC);
 
 	if (entry == NULL) {
-		sx_xlock(&linux_global_lock);
-		nextcookie++;
-		sx_xunlock(&linux_global_lock);
-		newcookie = nextcookie;
+		newcookie = atomic_inc_return(&nextcookie);
 		func(data, newcookie);
 		return (newcookie);
 	}
@@ -1827,10 +1821,7 @@ async_schedule(async_func_t func, void *data)
 	INIT_WORK(&entry->work, async_run_entry_fn);
 	entry->func = func;
 	entry->data = data;
-	sx_xlock(&linux_global_lock);
-	atomic_inc(&entry_count);
-	newcookie = entry->cookie = nextcookie++;
-	sx_xunlock(&linux_global_lock);
+	newcookie = entry->cookie = atomic_inc_return(&nextcookie);
 	queue_work(system_unbound_wq, &entry->work);
 	return (newcookie);
 }
@@ -1851,8 +1842,7 @@ linux_compat_init(void *arg)
 		set_bit(X86_FEATURE_PAT, &boot_cpu_data.x86_capability);
 #endif
 	hwmon_idap = &hwmon_ida;
-	sx_init(&linux_global_lock, "lkpi-global-lock");
-	rw_init(&linux_global_rw, "lkpi-global-rw-lock");
+	rw_init(&linux_vma_lock, "lkpi-vma-lock");
 	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
 	boot_cpu_data.x86 = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 
@@ -1884,8 +1874,7 @@ linux_compat_uninit(void *arg)
 	linux_kobject_kfree_name(&linux_class_misc.kobj);
 
 	spin_lock_destroy(&pci_lock);
-	sx_destroy(&linux_global_lock);
-	rw_destroy(&linux_global_rw);
+	rw_destroy(&linux_vma_lock);
 }
 SYSUNINIT(linux_compat, SI_SUB_VFS, SI_ORDER_ANY, linux_compat_uninit, NULL);
 
