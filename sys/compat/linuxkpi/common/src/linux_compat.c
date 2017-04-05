@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2016 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -499,38 +499,41 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
     vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
 {
 	struct vm_area_struct *vmap;
-	struct vm_area_struct cvma;
 	struct vm_fault vmf;
 	int err;
 
 	linux_set_current(curthread);
 
+	/* get VM area structure */
 	vmap = linux_cdev_handle_find(vm_obj->handle);
 	MPASS(vmap != NULL);
+	MPASS(vmap->vm_private_data == vm_obj->handle);
+
+	/* fill out VM fault structure */
 	vmf.virtual_address = (void *)(pidx << PAGE_SHIFT);
 	vmf.flags = (fault_type & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
-	memcpy(&cvma, vmap, sizeof(*vmap));
-	MPASS(cvma.vm_private_data == vm_obj->handle);
-
-	cvma.vm_pfn_count = 0;
-	cvma.vm_pfn_pcount = &cvma.vm_pfn_count;
-	cvma.vm_obj = vm_obj;
+	vmf.pgoff = 0;
+	vmf.page = NULL;
 
 	VM_OBJECT_WUNLOCK(vm_obj);
 
-	if (unlikely(cvma.vm_ops == NULL))
+	down_write(&vmap->vm_mm->mmap_sem);
+	if (unlikely(vmap->vm_ops == NULL)) {
 		err = VM_FAULT_SIGBUS;
-	else
-		err = cvma.vm_ops->fault(&cvma, &vmf);
+	} else {
+		vmap->vm_pfn_count = 0;
+		vmap->vm_pfn_pcount = &vmap->vm_pfn_count;
+		vmap->vm_obj = vm_obj;
 
-	while (cvma.vm_pfn_count == 0 && err == VM_FAULT_NOPAGE) {
-		kern_yield(0);
-		err = cvma.vm_ops->fault(&cvma, &vmf);
+		err = vmap->vm_ops->fault(vmap, &vmf);
+
+		while (vmap->vm_pfn_count == 0 && err == VM_FAULT_NOPAGE) {
+			kern_yield(0);
+			err = vmap->vm_ops->fault(vmap, &vmf);
+		}
 	}
 
-	atomic_add_int(&cdev_pfn_found_count, cvma.vm_pfn_count);
-
-	VM_OBJECT_WLOCK(vm_obj);
+	atomic_add_int(&cdev_pfn_found_count, vmap->vm_pfn_count);
 
 	/* translate return code */
 	switch (err) {
@@ -547,14 +550,16 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 		 * found in the object, it will simply xbusy the first
 		 * page and return with vm_pfn_count set to 1.
 		 */
-		*first = cvma.vm_pfn_first;
-		*last = *first + cvma.vm_pfn_count - 1;
+		*first = vmap->vm_pfn_first;
+		*last = *first + vmap->vm_pfn_count - 1;
 		err = VM_PAGER_OK;
 		break;
 	default:
 		err = VM_PAGER_ERROR;
 		break;
 	}
+	up_write(&vmap->vm_mm->mmap_sem);
+	VM_OBJECT_WLOCK(vm_obj);
 	return (err);
 }
 
@@ -616,10 +621,13 @@ linux_cdev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	MPASS(vmap != NULL);
 
 	*color = 0;
-	vm_ops = vmap->vm_ops;
 
+	down_write(&vmap->vm_mm->mmap_sem);
+	vm_ops = vmap->vm_ops;
 	if (likely(vm_ops != NULL))
 		vm_ops->open(vmap);
+	up_write(&vmap->vm_mm->mmap_sem);
+
 	return (0);
 }
 
@@ -632,9 +640,11 @@ linux_cdev_pager_dtor(void *handle)
 	vmap = linux_cdev_handle_find(handle);
 	MPASS(vmap != NULL);
 
+	down_write(&vmap->vm_mm->mmap_sem);
 	vm_ops = vmap->vm_ops;
 	if (likely(vm_ops != NULL))
 		vm_ops->close(vmap);
+	up_write(&vmap->vm_mm->mmap_sem);
 
 	linux_cdev_handle_remove(vmap);
 }
@@ -1090,8 +1100,15 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	vmap->vm_flags = vmap->vm_page_prot = nprot;
 	vmap->vm_ops = NULL;
 	vmap->vm_file = filp;
+	vmap->vm_mm = current->mm;
 
-	error = -filp->f_op->mmap(filp, vmap);
+	if (unlikely(down_write_killable(&vmap->vm_mm->mmap_sem))) {
+		error = EINTR;
+	} else {
+		error = -filp->f_op->mmap(filp, vmap);
+		up_write(&vmap->vm_mm->mmap_sem);
+	}
+
 	if (error != 0) {
 		kfree(vmap);
 		return (error);
