@@ -56,14 +56,13 @@ typedef unsigned long pgprot_t;
 #define __PAGE_KERNEL		(__PAGE_KERNEL_EXEC | _PAGE_NX)
 */
 
-#define PROT_VALID (1 << 4)
-#define CACHE_MODE_SHIFT 3
+#define	LINUXKPI_PROT_VALID (1 << 4)
+#define	LINUXKPI_CACHE_MODE_SHIFT 3
 
 static inline pgprot_t
 cachemode2protval(vm_memattr_t attr)
 {
-
-	return ((attr | PROT_VALID) << CACHE_MODE_SHIFT);
+	return ((attr | LINUXKPI_PROT_VALID) << LINUXKPI_CACHE_MODE_SHIFT);
 }
 
 static inline vm_memattr_t
@@ -71,10 +70,10 @@ pgprot2cachemode(pgprot_t prot)
 {
 	int val;
 
-	val = prot >> CACHE_MODE_SHIFT;
+	val = prot >> LINUXKPI_CACHE_MODE_SHIFT;
 
-	if (val & PROT_VALID)
-		return (val & ~PROT_VALID);
+	if (val & LINUXKPI_PROT_VALID)
+		return (val & ~LINUXKPI_PROT_VALID);
 	else
 		return (VM_MEMATTR_DEFAULT);
 }
