@@ -1000,17 +1000,16 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 	struct poll_wqueues table;
 	struct file *file;
 	int revents;
-	int error;
+
+	if (dev->si_drv1 == NULL)
+		goto error;
+	if (devfs_get_cdevpriv((void **)&filp) != 0)
+		goto error;
 
 	file = td->td_fpop;
-	revents = 0;
-	if (dev->si_drv1 == NULL)
-		return (0);
-	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
-		return (error);
 	filp->f_flags = file->f_flag;
 	if (filp->_file == NULL)
-		filp->_file = td->td_fpop;
+		filp->_file = file;
 
 	linux_set_current(td);
 	if (filp->f_op->poll) {
@@ -1018,9 +1017,12 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 		poll_initwait(&table);
 		revents = filp->f_op->poll(filp, &table.pt) & events;
 		poll_freewait(&table);
+	} else {
+		revents = 0;
 	}
-
 	return (revents);
+error:
+	return (events & (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
 }
 
 static int
