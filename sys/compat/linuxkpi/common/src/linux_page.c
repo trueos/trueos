@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 
 extern u_int	cpu_feature;
 extern u_int	cpu_stdext_feature;
-extern int	linux_skip_prefault;
 
 #if defined(__i386__) || defined(__amd64__)
 static void
