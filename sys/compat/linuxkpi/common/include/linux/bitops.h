@@ -339,7 +339,7 @@ enum {
 };
 
 static inline int
-__reg_op(unsigned long *bitmap, int pos, int order, int reg_op)
+linux_reg_op(unsigned long *bitmap, int pos, int order, int reg_op)
 {
         int nbits_reg;
         int index;
