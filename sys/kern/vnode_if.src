@@ -478,8 +478,8 @@ vop_getpages {
 	IN struct vnode *vp;
 	IN vm_page_t *m;
 	IN int count;
-	INOUT int *rbehind;
-	INOUT int *rahead;
+	IN int *rbehind;
+	IN int *rahead;
 };
 
 
