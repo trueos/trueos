@@ -6,7 +6,6 @@ SRCS=	linux_acpi.c \
 	linux_compat.c \
 	linux_current.c \
 	linux_device.c \
-	linux_dmabuf.c \
 	linux_fence.c \
 	linux_fs.c \
 	linux_firmware.c \
@@ -23,7 +22,6 @@ SRCS=	linux_acpi.c \
 	linux_pci.c \
 	linux_radix.c \
 	linux_rcu.c \
-	linux_reservation.c \
 	linux_schedule.c \
 	linux_seq_file.c \
 	linux_slab.c \

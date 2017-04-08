@@ -4,7 +4,9 @@ KMOD=	linuxkpi_gplv2
 
 SRCS=	linux_kmod_gplv2.c	\
 	linux_backlight.c	\
+	linux_dmabuf.c		\
 	linux_fs_attr.c		\
+	linux_reservation.c	\
 	linux_video.c		\
 	interval_tree.c		\
 	pci-sysfs.c
