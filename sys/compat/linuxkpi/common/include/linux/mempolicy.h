@@ -4,7 +4,6 @@
 #include <linux/mmzone.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/nodemask.h>
 #include <linux/pagemap.h>
 
 #endif
