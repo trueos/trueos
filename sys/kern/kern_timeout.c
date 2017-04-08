@@ -680,10 +680,9 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	c_iflags = c->c_iflags;
 	if (c->c_iflags & CALLOUT_LOCAL_ALLOC)
 		c->c_iflags = CALLOUT_LOCAL_ALLOC;
-	else {
+	else
 		c->c_iflags &= ~CALLOUT_PENDING;
-		c->c_iflags |= CALLOUT_RUNNING;
-	}
+	
 	cc_exec_curr(cc, direct) = c;
 	cc_exec_cancel(cc, direct) = false;
 	cc_exec_drain(cc, direct) = NULL;
@@ -695,7 +694,6 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 		 * while we switched locks.
 		 */
 		if (cc_exec_cancel(cc, direct)) {
-			c->c_iflags &= ~CALLOUT_RUNNING;
 			class->lc_unlock(c_lock);
 			goto skip;
 		}
@@ -778,7 +776,6 @@ skip:
 			 */
 			c->c_iflags &= ~CALLOUT_DFRMIGRATION;
 		}
-		c->c_iflags &= ~CALLOUT_RUNNING;
 		cc_exec_waiting(cc, direct) = false;
 		CC_UNLOCK(cc);
 		wakeup(&cc_exec_waiting(cc, direct));
@@ -809,7 +806,6 @@ skip:
 			     "deferred cancelled %p func %p arg %p",
 			     c, new_func, new_arg);
 			callout_cc_del(c, cc);
-			c->c_iflags &= ~CALLOUT_RUNNING;
 			return;
 		}
 		c->c_iflags &= ~CALLOUT_DFRMIGRATION;
@@ -818,14 +814,12 @@ skip:
 		flags = (direct) ? C_DIRECT_EXEC : 0;
 		callout_cc_add(c, new_cc, new_time, new_prec, new_func,
 		    new_arg, new_cpu, flags);
-		c->c_iflags &= ~CALLOUT_RUNNING;
 		CC_UNLOCK(new_cc);
 		CC_LOCK(cc);
 #else
 		panic("migration should not happen");
 #endif
 	}
-
 	/*
 	 * If the current callout is locally allocated (from
 	 * timeout(9)) then put it on the freelist.
