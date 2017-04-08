@@ -7,7 +7,6 @@
 #include <linux/reboot.h>
 #include <linux/acpi.h>
 #include <linux/oom.h>
-#include <linux/mmu_notifier.h>
 #include <linux/shrinker.h>
 #include <acpi/button.h>
 #include <linux/rcupdate.h>
