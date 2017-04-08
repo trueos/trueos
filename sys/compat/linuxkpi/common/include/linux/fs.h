@@ -46,7 +46,6 @@
 #include <linux/list.h>
 #include <linux/atomic.h>
 #include <linux/shrinker.h>
-#include <linux/dcache.h>
 #include <linux/mutex.h>
 #include <linux/capability.h>
 #include <linux/interrupt.h>
