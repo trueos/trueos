@@ -6,7 +6,6 @@ SRCS=	linux_acpi.c \
 	linux_compat.c \
 	linux_current.c \
 	linux_device.c \
-	linux_fence.c \
 	linux_fs.c \
 	linux_firmware.c \
 	linux_hrtimer.c \
