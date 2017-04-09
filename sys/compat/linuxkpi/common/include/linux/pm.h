@@ -54,66 +54,6 @@ const struct dev_pm_ops name = { \
 	SET_SYSTEM_SLEEP_PM_OPS(suspend_fn, resume_fn) \
 }
 
-
-struct dev_pm_info {
-	pm_message_t		power_state;
-	unsigned int		can_wakeup:1;
-	unsigned int		async_suspend:1;
-	bool			is_prepared:1;	/* Owned by the PM core */
-	bool			is_suspended:1;	/* Ditto */
-	bool			is_noirq_suspended:1;
-	bool			is_late_suspended:1;
-	bool			ignore_children:1;
-	bool			early_init:1;	/* Owned by the PM core */
-	bool			direct_complete:1;	/* Owned by the PM core */
-	spinlock_t		lock;
-#ifdef CONFIG_PM_SLEEP
-	struct list_head	entry;
-	struct completion	completion;
-	struct wakeup_source	*wakeup;
-	bool			wakeup_path:1;
-	bool			syscore:1;
-	bool			no_pm_callbacks:1;	/* Owned by the PM core */
-#else
-	unsigned int		should_wakeup:1;
-#endif
-#ifdef CONFIG_PM
-	struct timer_list	suspend_timer;
-	unsigned long		timer_expires;
-	struct work_struct	work;
-	wait_queue_head_t	wait_queue;
-	struct wake_irq		*wakeirq;
-	atomic_t		usage_count;
-	atomic_t		child_count;
-	unsigned int		disable_depth:3;
-	unsigned int		idle_notification:1;
-	unsigned int		request_pending:1;
-	unsigned int		deferred_resume:1;
-	unsigned int		run_wake:1;
-	unsigned int		runtime_auto:1;
-	unsigned int		no_callbacks:1;
-	unsigned int		irq_safe:1;
-	unsigned int		use_autosuspend:1;
-	unsigned int		timer_autosuspends:1;
-	unsigned int		memalloc_noio:1;
-#if 0
-	enum rpm_request	request;
-	enum rpm_status		runtime_status;
-#endif	
-	int			runtime_error;
-	int			autosuspend_delay;
-	unsigned long		last_busy;
-	unsigned long		active_jiffies;
-	unsigned long		suspended_jiffies;
-	unsigned long		accounting_timestamp;
-#endif
-#if 0	
-	struct pm_subsys_data	*subsys_data;  /* Owned by the subsystem. */
-	void (*set_latency_tolerance)(struct device *, s32);
-	struct dev_pm_qos	*qos;
-#endif
-};
-
 struct dev_pm_ops {
 	int (*prepare)(struct device *dev);
 	void (*complete)(struct device *dev);
