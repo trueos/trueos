@@ -82,7 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_map.h>
-#include "linux_trace.h"
 
 extern u_int cpu_clflush_line_size;
 extern u_int cpu_id;
