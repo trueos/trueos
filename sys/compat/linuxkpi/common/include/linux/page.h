@@ -43,9 +43,9 @@
 
 #define page	vm_page
 
-typedef unsigned long pte_t;
-typedef unsigned long pmd_t;
-typedef unsigned long pgd_t;
+typedef unsigned long linux_pte_t;
+typedef unsigned long linux_pmd_t;
+typedef unsigned long linux_pgd_t;
 typedef unsigned long pgprot_t;
 
 #define	PAGE_KERNEL	0x0000

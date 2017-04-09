@@ -107,41 +107,41 @@ static inline pgprotval_t massage_pgprot(pgprot_t pgprot)
 	return protval;
 }
 
-static inline pteval_t native_pte_val(pte_t pte)
+static inline pteval_t native_pte_val(linux_pte_t pte)
 {
 	return pte;
 }
 
-static inline pte_t native_make_pte(pteval_t val)
+static inline linux_pte_t native_make_pte(pteval_t val)
 {
-	return (pte_t) (val);
+	return (linux_pte_t) (val);
 }
 
-static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
+static inline linux_pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
 {
 	return __pte(((phys_addr_t)page_nr << PAGE_SHIFT) |
 		     massage_pgprot(pgprot));
 }
 
-static inline pte_t pte_set_flags(pte_t pte, pteval_t set)
+static inline linux_pte_t pte_set_flags(linux_pte_t pte, pteval_t set)
 {
 	pteval_t v = native_pte_val(pte);
 
 	return native_make_pte(v | set);
 }
 
-static inline pte_t pte_mkspecial(pte_t pte)
+static inline linux_pte_t pte_mkspecial(linux_pte_t pte)
 {
 	return pte_set_flags(pte, _PAGE_SPECIAL);
 }
 
-static inline void native_set_pte(pte_t *ptep, pte_t pte)
+static inline void native_set_pte(linux_pte_t *ptep, linux_pte_t pte)
 {
 	*ptep = pte;
 }
 
 static inline void native_set_pte_at(struct mm_struct *mm, unsigned long addr,
-				     pte_t *ptep , pte_t pte)
+				     linux_pte_t *ptep , linux_pte_t pte)
 {
 	native_set_pte(ptep, pte);
 }
