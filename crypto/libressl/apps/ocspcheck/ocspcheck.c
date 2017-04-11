@@ -1,4 +1,5 @@
-/* $OpenBSD: ocspcheck.c,v 1.17 2017/02/25 23:48:08 beck Exp $ */
+/* $OpenBSD: ocspcheck.c,v 1.20 2017/03/27 23:59:08 deraadt Exp $ */
+
 /*
  * Copyright (c) 2017 Bob Beck <beck@openbsd.org>
  *
@@ -42,7 +43,7 @@
 
 typedef struct ocsp_request {
 	STACK_OF(X509) *fullchain;
-	OCSP_REQUEST * req;
+	OCSP_REQUEST *req;
 	char *url;
 	unsigned char *data;
 	size_t size;
@@ -73,7 +74,6 @@ host_dns(const char *s, struct addr vec[MAX_SERVERS_DNS])
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_DGRAM; /* DUMMY */
-	/* ntpd MUST NOT use AI_ADDRCONFIG here */
 
 	error = getaddrinfo(s, NULL, &hints, &res0);
 
@@ -82,12 +82,11 @@ host_dns(const char *s, struct addr vec[MAX_SERVERS_DNS])
 	    error == EAI_NODATA ||
 #endif
 	    error == EAI_NONAME)
-		return(0);
+		return 0;
 
 	if (error) {
-		warnx("%s: parse error: %s",
-			s, gai_strerror(error));
-		return(-1);
+		warnx("%s: parse error: %s", s, gai_strerror(error));
+		return -1;
 	}
 
 	for (vecsz = 0, res = res0;
@@ -117,7 +116,7 @@ host_dns(const char *s, struct addr vec[MAX_SERVERS_DNS])
 	}
 
 	freeaddrinfo(res0);
-	return(vecsz);
+	return vecsz;
 }
 
 /*
@@ -253,7 +252,7 @@ read_fullchain(const char *file, int *count)
 	for (i = 0; i < sk_X509_INFO_num(xis); i++) {
 		xi = sk_X509_INFO_value(xis, i);
 		if (xi->x509 == NULL)
-		    continue;
+			continue;
 		if (!sk_X509_push(rv, xi->x509)) {
 			warnx("unable to build x509 chain");
 			sk_X509_pop_free(rv, X509_free);
@@ -315,8 +314,7 @@ ocsp_request_new_from_cert(char *file, int nonce)
 	if (request->fullchain == NULL)
 		return NULL;
 	if (count <= 1) {
-		warnx("File %s does not contain a cert chain",
-		    file);
+		warnx("File %s does not contain a cert chain", file);
 		return NULL;
 	}
 	if ((cert = cert_from_chain(request->fullchain)) == NULL) {
@@ -340,7 +338,7 @@ ocsp_request_new_from_cert(char *file, int nonce)
 	cert_id_md = EVP_sha1(); /* XXX. This sucks but OCSP is poopy */
 	if ((id = OCSP_cert_to_id(cert_id_md, cert, issuer)) == NULL) {
 		warnx("Unable to get certificate id from cert in %s", file);
-			return NULL;
+		return NULL;
 	}
 	if (OCSP_request_add0_id(request->req, id) == NULL) {
 		warnx("Unable to add certificate id to request");
@@ -360,7 +358,7 @@ ocsp_request_new_from_cert(char *file, int nonce)
 		warnx("Unable to allocte memory");
 		return NULL;
 	}
-	return(request);
+	return (request);
 }
 
 
@@ -382,13 +380,12 @@ validate_response(char *buf, size_t size, ocsp_request *request,
 		return 0;
 	}
 	if ((issuer = issuer_from_chain(request->fullchain)) == NULL) {
-		warnx("Unable to find certificate issuer for cert in %s",
-		    file);
+		warnx("Unable to find certificate issuer for cert in %s", file);
 		return 0;
 	}
 	if ((cid = OCSP_cert_to_id(NULL, cert, issuer)) == NULL) {
 		warnx("Unable to get issuer cert/CID in %s", file);
-		return(0);
+		return 0;
 	}
 
 	if ((resp = d2i_OCSP_RESPONSE(NULL, p, size)) == NULL) {
@@ -398,7 +395,7 @@ validate_response(char *buf, size_t size, ocsp_request *request,
 
 	if ((bresp = OCSP_response_get1_basic(resp)) == NULL) {
 		warnx("Failed to load OCSP response from %s", host);
-		return(0);
+		return 0;
 	}
 
 	if (OCSP_basic_verify(bresp, request->fullchain, store,
@@ -412,7 +409,7 @@ validate_response(char *buf, size_t size, ocsp_request *request,
 	if (status != OCSP_RESPONSE_STATUS_SUCCESSFUL) {
 		warnx("OCSP Failure: code %d (%s) from host %s",
 		    status, OCSP_response_status_str(status), host);
-		return(0);
+		return 0;
 	}
 	dspew("OCSP response status %d from host %s\n", status, host);
 
@@ -551,8 +548,7 @@ main(int argc, char **argv)
 			staplefd = open(outfile, O_WRONLY|O_CREAT,
 			    S_IWUSR|S_IRUSR|S_IRGRP|S_IROTH);
 		if (staplefd < 0)
-			err(1, "Unable to open output file %s",
-			    outfile);
+			err(1, "Unable to open output file %s", outfile);
 	}
 
 	if (pledge("stdio inet rpath dns", NULL) == -1)
@@ -568,10 +564,13 @@ main(int argc, char **argv)
 	if ((request = ocsp_request_new_from_cert(certfile, nonce)) == NULL)
 		exit(1);
 
+	dspew("Built an %ld byte ocsp request\n", request->size);
+
 	if ((host = url2host(request->url, &port, &path)) == NULL)
 		errx(1, "Invalid OCSP url %s from %s", request->url,
 		    certfile);
-	dspew("Built an %ld byte ocsp request\n", request->size);
+	if (*path == '\0')
+		path = "/";
 	vspew("Using %s to host %s, port %d, path %s\n",
 	    port == 443 ? "https" : "http", host, port, path);
 
@@ -595,7 +594,6 @@ main(int argc, char **argv)
 	 * routines and parsing untrusted input from someone's OCSP
 	 * server.
 	 */
-
 	if (pledge("stdio", NULL) == -1)
 		err(1, "pledge");
 
@@ -607,12 +605,15 @@ main(int argc, char **argv)
 	if (hget->bodypartsz <= 0)
 		errx(1, "No body in reply from %s", host);
 
+	if (hget->code != 200)
+		errx(1, "http reply code %d from %s", hget->code, host);
+
 	/*
 	 * Validate the OCSP response we got back
 	 */
 	OPENSSL_add_all_algorithms_noconf();
 	if (!validate_response(hget->bodypart, hget->bodypartsz,
-		request, castore, host, certfile))
+	    request, castore, host, certfile))
 		exit(1);
 
 	/*
@@ -621,7 +622,7 @@ main(int argc, char **argv)
 	 */
 	if (staplefd >= 0) {
 		(void) ftruncate(staplefd, 0);
-		w = 0 ;
+		w = 0;
 		written = 0;
 		while (written < hget->bodypartsz) {
 			w = write(staplefd, hget->bodypart + written,
