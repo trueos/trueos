@@ -10,7 +10,6 @@ SRCS=	linux_acpi.c \
 	linux_firmware.c \
 	linux_hrtimer.c \
 	linux_idr.c \
-	linux_irq.c \
 	linux_kmod.c \
 	linux_kthread.c \
 	linux_lock.c \
