@@ -54,10 +54,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
-#if defined(__i386__) || defined(__amd64__)
-#include <machine/md_var.h>
-#endif
-
 #include <linux/kobject.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -100,8 +96,6 @@ MALLOC_DEFINE(M_LCINT, "linuxint", "Linux compat internal");
 
 #undef file
 #undef cdev
-
-struct cpuinfo_x86 boot_cpu_data; 
 
 static struct vm_area_struct *linux_cdev_handle_find(void *handle);
 
@@ -1795,16 +1789,8 @@ linux_compat_init(void *arg)
 {
 	struct sysctl_oid *rootoid;
 
-#if defined(__i386__) || defined(__amd64__)
-	if (cpu_feature & CPUID_CLFSH)
-		set_bit(X86_FEATURE_CLFLUSH, &boot_cpu_data.x86_capability);
-	if (cpu_feature & CPUID_PAT)
-		set_bit(X86_FEATURE_PAT, &boot_cpu_data.x86_capability);
-#endif
 	hwmon_idap = &hwmon_ida;
 	rw_init(&linux_vma_lock, "lkpi-vma-lock");
-	boot_cpu_data.x86_clflush_size = cpu_clflush_line_size;
-	boot_cpu_data.x86 = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");

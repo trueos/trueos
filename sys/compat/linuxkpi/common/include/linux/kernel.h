@@ -57,7 +57,6 @@
 #include <linux/printk.h>
 
 #include <asm/byteorder.h>
-#include <asm/cpufeature.h>
 #include <asm/smp.h>
 
 #include <machine/stdarg.h>

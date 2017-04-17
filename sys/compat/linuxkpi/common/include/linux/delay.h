@@ -42,8 +42,6 @@
 
 #include <linux/jiffies.h>
 
-#include <asm/processor.h>
-
 static inline void
 linux_msleep(int ms)
 {
