@@ -29,12 +29,9 @@
 #ifndef	_LINUX_SRCU_H_
 #define	_LINUX_SRCU_H_
 
-#include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/sx.h>
-
+struct srcu_epoch_record;
 struct srcu_struct {
-	struct sx sx;
+	struct srcu_epoch_record *ss_epoch_record;
 };
 
 #define	srcu_dereference(ptr,srcu)	((__typeof(*(ptr)) *)(ptr))
