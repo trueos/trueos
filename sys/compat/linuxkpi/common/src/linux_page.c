@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/preempt.h>
 #include <linux/smp.h>
 #include <linux/vmalloc.h>
 #include <linux/pfn_t.h>

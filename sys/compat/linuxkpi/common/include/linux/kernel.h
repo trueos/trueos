@@ -55,7 +55,6 @@
 #include <linux/log2.h>
 #include <linux/kconfig.h>
 #include <linux/printk.h>
-#include <linux/stringify.h> 
 
 #include <asm/byteorder.h>
 #include <asm/cpufeature.h>

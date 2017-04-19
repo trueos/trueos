@@ -41,12 +41,12 @@
 #include <vm/vm_page.h>
 #include <vm/pmap.h>
 
-#define page	vm_page
-
 typedef unsigned long linux_pte_t;
 typedef unsigned long linux_pmd_t;
 typedef unsigned long linux_pgd_t;
 typedef unsigned long pgprot_t;
+
+#define page	vm_page
 
 #define	PAGE_KERNEL	0x0000
 #define PAGE_KERNEL_IO  PAGE_KERNEL

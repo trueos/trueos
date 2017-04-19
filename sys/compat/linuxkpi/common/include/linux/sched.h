@@ -49,6 +49,10 @@
 #include <linux/atomic.h>
 #include <linux/smp.h>
 
+#include <asm/atomic.h>
+
+#define	MAX_SCHEDULE_TIMEOUT	INT_MAX
+
 #define	TASK_RUNNING		0
 #define	TASK_INTERRUPTIBLE	1
 #define	TASK_UNINTERRUPTIBLE	2
@@ -86,7 +90,11 @@ struct task_struct {
 	struct completion exited;
 };
 
-#define	current		((struct task_struct *)curthread->td_lkpi_task)
+#define	current	({ \
+	struct thread *__td = curthread; \
+	linux_set_current(__td); \
+	((struct task_struct *)__td->td_lkpi_task); \
+})
 
 #define	task_pid_group_leader(task) (task)->task_thread->td_proc->p_pid
 #define	task_pid(task)		((task)->pid)
@@ -207,15 +215,11 @@ schedule_timeout_interruptible(long timeout)
 	return (schedule_timeout(timeout));
 }
 
-#define	need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
-
 static inline long
 schedule_timeout_killable(long timeout)
 {
 	return (schedule_timeout(timeout));
 }
-
-#define	MAX_SCHEDULE_TIMEOUT	INT_MAX
 
 static inline long
 io_schedule_timeout(long timeout)
@@ -237,4 +241,6 @@ schedule(void)
 
 #define	yield() kern_yield(0)
 
-#endif					/* _LINUX_SCHED_H_ */
+#define	need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
+
+#endif	/* _LINUX_SCHED_H_ */

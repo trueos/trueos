@@ -150,6 +150,4 @@ static inline void native_set_pte_at(struct mm_struct *mm, unsigned long addr,
 #define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
 #define set_pmd_at(mm, addr, pmdp, pmd)	native_set_pmd_at(mm, addr, pmdp, pmd)
 
-
-
 #endif	/* _ASM_PGTABLE_H_ */
