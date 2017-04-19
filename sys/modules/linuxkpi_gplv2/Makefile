@@ -3,6 +3,7 @@
 KMOD=	linuxkpi_gplv2
 
 SRCS=	linux_kmod_gplv2.c	\
+	linux_async.c		\
 	linux_backlight.c	\
 	linux_compat.c		\
 	linux_component.c	\
