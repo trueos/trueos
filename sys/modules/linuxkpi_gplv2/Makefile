@@ -7,6 +7,7 @@ SRCS=	linux_kmod_gplv2.c	\
 	linux_backlight.c	\
 	linux_compat.c		\
 	linux_component.c	\
+	linux_device.c		\
 	linux_dmabuf.c		\
 	linux_fence.c		\
 	linux_fs_attr.c		\

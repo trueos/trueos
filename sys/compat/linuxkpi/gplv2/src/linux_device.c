@@ -2,7 +2,6 @@
 
 static MALLOC_DEFINE(M_DEVRES, "devres", "Linux compat devres");
 
-
 static struct devres *
 dr_node_alloc(dr_release_t release, size_t size, int flags)
 {
