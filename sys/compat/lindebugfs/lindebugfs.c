@@ -206,3 +206,4 @@ debugfs_uninit(PFS_INIT_ARGS)
 
 PSEUDOFS(debugfs, 1, PR_ALLOW_MOUNT_LINSYSFS);
 MODULE_DEPEND(debugfs, linuxkpi, 1, 1, 1);
+MODULE_DEPEND(debugfs, linuxkpi_gplv2, 1, 1, 1);
