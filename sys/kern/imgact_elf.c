@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2017 Dell EMC
  * Copyright (c) 2000 David O'Brien
  * Copyright (c) 1995-1996 Søren Schmidt
  * Copyright (c) 1996 Peter Wemm
@@ -52,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pioctl.h>
 #include <sys/proc.h>
 #include <sys/procfs.h>
+#include <sys/ptrace.h>
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
@@ -291,9 +293,11 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 			 * this, we return first brand which accepted
 			 * our note and, optionally, header.
 			 */
-			if (ret && bi_m == NULL && (strlen(bi->interp_path) +
-			    1 != interp_name_len || strncmp(interp,
-			    bi->interp_path, interp_name_len) != 0)) {
+			if (ret && bi_m == NULL && interp != NULL &&
+			    (bi->interp_path == NULL ||
+			    (strlen(bi->interp_path) + 1 != interp_name_len ||
+			    strncmp(interp, bi->interp_path, interp_name_len)
+			    != 0))) {
 				bi_m = bi;
 				ret = 0;
 			}
@@ -360,6 +364,7 @@ __elfN(get_brandinfo)(struct image_params *imgp, const char *interp,
 			    != 0)
 				continue;
 			if (hdr->e_machine == bi->machine &&
+			    bi->interp_path != NULL &&
 			    /* ELF image p_filesz includes terminating zero */
 			    strlen(bi->interp_path) + 1 == interp_name_len &&
 			    strncmp(interp, bi->interp_path, interp_name_len)
@@ -1199,6 +1204,7 @@ static void __elfN(note_prpsinfo)(void *, struct sbuf *, size_t *);
 static void __elfN(note_prstatus)(void *, struct sbuf *, size_t *);
 static void __elfN(note_threadmd)(void *, struct sbuf *, size_t *);
 static void __elfN(note_thrmisc)(void *, struct sbuf *, size_t *);
+static void __elfN(note_ptlwpinfo)(void *, struct sbuf *, size_t *);
 static void __elfN(note_procstat_auxv)(void *, struct sbuf *, size_t *);
 static void __elfN(note_procstat_proc)(void *, struct sbuf *, size_t *);
 static void __elfN(note_procstat_psstrings)(void *, struct sbuf *, size_t *);
@@ -1625,6 +1631,8 @@ __elfN(prepare_notes)(struct thread *td, struct note_info_list *list,
 		    __elfN(note_fpregset), thr);
 		size += register_note(list, NT_THRMISC,
 		    __elfN(note_thrmisc), thr);
+		size += register_note(list, NT_PTLWPINFO,
+		    __elfN(note_ptlwpinfo), thr);
 		size += register_note(list, -1,
 		    __elfN(note_threadmd), thr);
 
@@ -2013,6 +2021,37 @@ __elfN(note_thrmisc)(void *arg, struct sbuf *sb, size_t *sizep)
 		sbuf_bcat(sb, &thrmisc, sizeof(thrmisc));
 	}
 	*sizep = sizeof(thrmisc);
+}
+
+static void
+__elfN(note_ptlwpinfo)(void *arg, struct sbuf *sb, size_t *sizep)
+{
+	struct thread *td;
+	size_t size;
+	int structsize;
+	struct ptrace_lwpinfo pl;
+
+	td = (struct thread *)arg;
+	size = sizeof(structsize) + sizeof(struct ptrace_lwpinfo);
+	if (sb != NULL) {
+		KASSERT(*sizep == size, ("invalid size"));
+		structsize = sizeof(struct ptrace_lwpinfo);
+		sbuf_bcat(sb, &structsize, sizeof(structsize));
+		bzero(&pl, sizeof(pl));
+		pl.pl_lwpid = td->td_tid;
+		pl.pl_event = PL_EVENT_NONE;
+		pl.pl_sigmask = td->td_sigmask;
+		pl.pl_siglist = td->td_siglist;
+		if (td->td_si.si_signo != 0) {
+			pl.pl_event = PL_EVENT_SIGNAL;
+			pl.pl_flags |= PL_FLAG_SI;
+			pl.pl_siginfo = td->td_si;
+		}
+		strcpy(pl.pl_tdname, td->td_name);
+		/* XXX TODO: supply more information in struct ptrace_lwpinfo*/
+		sbuf_bcat(sb, &pl, sizeof(struct ptrace_lwpinfo));
+	}
+	*sizep = size;
 }
 
 /*

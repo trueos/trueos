@@ -3494,6 +3494,21 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.cq.size = val[3] - val[2] + 1;
 		sc->vres.ocq.start = val[4];
 		sc->vres.ocq.size = val[5] - val[4] + 1;
+
+		param[0] = FW_PARAM_PFVF(SRQ_START);
+		param[1] = FW_PARAM_PFVF(SRQ_END);
+		param[2] = FW_PARAM_DEV(MAXORDIRD_QP);
+		param[3] = FW_PARAM_DEV(MAXIRD_ADAPTER);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 4, param, val);
+		if (rc != 0) {
+			device_printf(sc->dev,
+			    "failed to query RDMA parameters(3): %d.\n", rc);
+			return (rc);
+		}
+		sc->vres.srq.start = val[0];
+		sc->vres.srq.size = val[1] - val[0] + 1;
+		sc->params.max_ordird_qp = val[2];
+		sc->params.max_ird_adapter = val[3];
 	}
 	if (sc->iscsicaps) {
 		param[0] = FW_PARAM_PFVF(ISCSI_START);
@@ -4223,6 +4238,10 @@ int
 adapter_full_init(struct adapter *sc)
 {
 	int rc, i;
+#ifdef RSS
+	uint32_t raw_rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
+	uint32_t rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
+#endif
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
@@ -4248,6 +4267,14 @@ adapter_full_init(struct adapter *sc)
 		taskqueue_start_threads(&sc->tq[i], 1, PI_NET, "%s tq%d",
 		    device_get_nameunit(sc->dev), i);
 	}
+#ifdef RSS
+	MPASS(RSS_KEYSIZE == 40);
+	rss_getkey((void *)&raw_rss_key[0]);
+	for (i = 0; i < nitems(rss_key); i++) {
+		rss_key[i] = htobe32(raw_rss_key[nitems(rss_key) - 1 - i]);
+	}
+	t4_write_rss_key(sc, &rss_key[0], -1);
+#endif
 
 	if (!(sc->flags & IS_VF))
 		t4_intr_enable(sc);
@@ -4355,8 +4382,6 @@ vi_full_init(struct vi_info *vi)
 	int nbuckets = rss_getnumbuckets();
 	int hashconfig = rss_gethashconfig();
 	int extra;
-	uint32_t raw_rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
-	uint32_t rss_key[RSS_KEYSIZE / sizeof(uint32_t)];
 #endif
 
 	ASSERT_SYNCHRONIZED_OP(sc);
@@ -4386,17 +4411,10 @@ vi_full_init(struct vi_info *vi)
 		    vi->rss_size);
 	}
 #ifdef RSS
-	MPASS(RSS_KEYSIZE == 40);
 	if (vi->nrxq != nbuckets) {
 		if_printf(ifp, "nrxq (%d) != kernel RSS buckets (%d);"
 		    "performance will be impacted.\n", vi->nrxq, nbuckets);
 	}
-
-	rss_getkey((void *)&raw_rss_key[0]);
-	for (i = 0; i < nitems(rss_key); i++) {
-		rss_key[i] = htobe32(raw_rss_key[nitems(rss_key) - 1 - i]);
-	}
-	t4_write_rss_key(sc, &rss_key[0], -1);
 #endif
 	rss = malloc(vi->rss_size * sizeof (*rss), M_CXGBE, M_ZERO | M_WAITOK);
 	for (i = 0; i < vi->rss_size;) {
