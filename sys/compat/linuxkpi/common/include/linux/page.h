@@ -41,12 +41,12 @@
 #include <vm/vm_page.h>
 #include <vm/pmap.h>
 
-#define page	vm_page
-
-typedef unsigned long pte_t;
-typedef unsigned long pmd_t;
-typedef unsigned long pgd_t;
+typedef unsigned long linux_pte_t;
+typedef unsigned long linux_pmd_t;
+typedef unsigned long linux_pgd_t;
 typedef unsigned long pgprot_t;
+
+#define page	vm_page
 
 #define	PAGE_KERNEL	0x0000
 #define PAGE_KERNEL_IO  PAGE_KERNEL
@@ -56,14 +56,13 @@ typedef unsigned long pgprot_t;
 #define __PAGE_KERNEL		(__PAGE_KERNEL_EXEC | _PAGE_NX)
 */
 
-#define PROT_VALID (1 << 4)
-#define CACHE_MODE_SHIFT 3
+#define	LINUXKPI_PROT_VALID (1 << 4)
+#define	LINUXKPI_CACHE_MODE_SHIFT 3
 
 static inline pgprot_t
 cachemode2protval(vm_memattr_t attr)
 {
-
-	return ((attr | PROT_VALID) << CACHE_MODE_SHIFT);
+	return ((attr | LINUXKPI_PROT_VALID) << LINUXKPI_CACHE_MODE_SHIFT);
 }
 
 static inline vm_memattr_t
@@ -71,10 +70,10 @@ pgprot2cachemode(pgprot_t prot)
 {
 	int val;
 
-	val = prot >> CACHE_MODE_SHIFT;
+	val = prot >> LINUXKPI_CACHE_MODE_SHIFT;
 
-	if (val & PROT_VALID)
-		return (val & ~PROT_VALID);
+	if (val & LINUXKPI_PROT_VALID)
+		return (val & ~LINUXKPI_PROT_VALID);
 	else
 		return (VM_MEMATTR_DEFAULT);
 }

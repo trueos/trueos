@@ -49,7 +49,6 @@
 #define	CALLOUT_DFRMIGRATION	0x0040 /* callout in deferred migration mode */
 #define	CALLOUT_PROCESSED	0x0080 /* callout in wheel or processing list? */
 #define	CALLOUT_DIRECT 		0x0100 /* allow exec from hw int context */
-#define	CALLOUT_RUNNING		0x0200 /* callout is running */
 
 #define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
 #define	C_PRELBITS		7
@@ -101,7 +100,6 @@ void	_callout_init_lock(struct callout *, struct lock_object *, int);
 	_callout_init_lock((c), ((rw) != NULL) ? &(rw)->lock_object :	\
 	   NULL, (flags))
 #define	callout_pending(c)	((c)->c_iflags & CALLOUT_PENDING)
-#define	callout_running(c)	((c)->c_iflags & (CALLOUT_PENDING|CALLOUT_RUNNING))
 int	callout_reset_sbt_on(struct callout *, sbintime_t, sbintime_t,
 	    void (*)(void *), void *, int, int);
 #define	callout_reset_sbt(c, sbt, pr, fn, arg, flags)			\

@@ -67,6 +67,8 @@
 
 #define ACCESS_PRIVATE(p, member) ((p)->member)
 
+#define	___stringify(...)		#__VA_ARGS__
+#define	__stringify(...)		___stringify(__VA_ARGS__)
 #define	__attribute_const__		__attribute__((__const__))
 #undef __always_inline
 #define	__always_inline			inline

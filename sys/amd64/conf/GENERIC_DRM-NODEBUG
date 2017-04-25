@@ -23,7 +23,7 @@ ident		GENERIC
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
-makeoptions	MODULES_OVERRIDE="drm usb opensolaris zfs netgraph linuxkpi linux_common lindebugfs iwm iwmfw"
+makeoptions	MODULES_OVERRIDE="drm usb opensolaris zfs netgraph linuxkpi linuxkpi_gplv2 linux_common lindebugfs iwm iwmfw"
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
@@ -203,7 +203,6 @@ device		puc			# Multi I/O cards and multi-channel UARTs
 
 # PCI Ethernet NICs.
 device		em			# Intel PRO/1000 Gigabit Ethernet Family
-device		igb			# Intel PRO/1000 PCIE Server Gigabit Family
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!

@@ -6,28 +6,21 @@ SRCS=	linux_acpi.c \
 	linux_compat.c \
 	linux_current.c \
 	linux_device.c \
-	linux_dmabuf.c \
-	linux_fence.c \
 	linux_fs.c \
 	linux_firmware.c \
 	linux_hrtimer.c \
-	linux_i2c.c \
 	linux_idr.c \
-	linux_irq.c \
 	linux_kmod.c \
 	linux_kthread.c \
 	linux_lock.c \
 	linux_mtrr.c \
-	linux_notifier.c \
 	linux_page.c \
 	linux_pci.c \
 	linux_radix.c \
 	linux_rcu.c \
-	linux_reservation.c \
 	linux_schedule.c \
 	linux_seq_file.c \
 	linux_slab.c \
-	linux_sort.c \
 	linux_stubs.c \
 	linux_sysfs.c \
 	linux_tasklet.c \

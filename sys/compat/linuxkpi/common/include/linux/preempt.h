@@ -29,7 +29,6 @@
 #ifndef _LINUX_PREEMPT_H_
 #define	_LINUX_PREEMPT_H_
 
-#include <linux/linkage.h>
 #include <linux/list.h>
 
 #define	in_interrupt() \

@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/preempt.h>
 #include <linux/smp.h>
 #include <linux/vmalloc.h>
 #include <linux/pfn_t.h>
@@ -80,7 +81,6 @@ __FBSDID("$FreeBSD$");
 
 extern u_int	cpu_feature;
 extern u_int	cpu_stdext_feature;
-extern int	linux_skip_prefault;
 
 #if defined(__i386__) || defined(__amd64__)
 static void

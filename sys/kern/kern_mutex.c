@@ -186,7 +186,7 @@ void
 lock_spin(struct lock_object *lock, uintptr_t how)
 {
 
-	mtx_lock_spin((struct mtx*)lock);
+	panic("spin locks can only use msleep_spin");
 }
 
 uintptr_t
@@ -203,12 +203,8 @@ unlock_mtx(struct lock_object *lock)
 uintptr_t
 unlock_spin(struct lock_object *lock)
 {
-	struct mtx *m;
 
-	m = (struct mtx *)lock;
-	mtx_assert(m, MA_OWNED | MA_NOTRECURSED);
-	mtx_unlock_spin(m);
-	return (0);
+	panic("spin locks can only use msleep_spin");
 }
 
 #ifdef KDTRACE_HOOKS

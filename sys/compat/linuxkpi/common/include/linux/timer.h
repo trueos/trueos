@@ -39,7 +39,6 @@
 
 #include <linux/list.h>
 #include <linux/ktime.h>
-#include <linux/stringify.h>
 
 /*
  * A deferrable timer will work normally when the system is busy, but

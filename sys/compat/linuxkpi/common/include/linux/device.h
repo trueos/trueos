@@ -53,6 +53,9 @@ enum irqreturn	{ IRQ_NONE = 0, IRQ_HANDLED, IRQ_WAKE_THREAD, };
 typedef enum irqreturn	irqreturn_t;
 
 struct device;
+struct dev_pm_ops;
+struct fwnode_handle;
+struct kobj_uevent_env;
 
 struct class {
 	const char	*name;
@@ -71,14 +74,6 @@ struct device_driver {
 	const char		*name;
 	struct bus_type		*bus;
 	struct module		*owner;
-#ifdef notyet
-	const char		*mod_name;	/* used for built-in modules */
-
-	bool suppress_bind_attrs;	/* disables bind/unbind via sysfs */
-
-	const struct of_device_id	*of_match_table;
-	const struct acpi_device_id	*acpi_match_table;
-#endif
 	int (*probe) (struct device *dev);
 	int (*remove) (struct device *dev);
 	void (*shutdown) (struct device *dev);
@@ -87,9 +82,6 @@ struct device_driver {
 	const struct attribute_group **groups;
 
 	const struct dev_pm_ops *pm;
-#ifdef notyet
-	struct driver_private *p;
-#endif
 };
 
 typedef void (*dr_release_t)(struct device *dev, void *res);
@@ -131,7 +123,6 @@ struct devres_group {
  * the DEVTYPE variable.
  */
 
-struct kobj_uevent_env;
 struct bus_type {
 	const char		*name;
 	const char		*dev_name;
@@ -154,7 +145,6 @@ struct bus_type {
 	int (*resume)(struct device *dev);
 
 	const struct dev_pm_ops *pm;
-
 };
 
 struct device_type {
@@ -163,11 +153,13 @@ struct device_type {
 	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
 	char *(*devnode)(struct device *dev, umode_t *mode);
 	void (*release)(struct device *dev);
-
-	const struct dev_pm_ops *pm;
 };
 
-struct fwnode_handle;
+struct dev_pm_info {
+	atomic_t	usage_count;
+	unsigned int	disable_depth;
+	bool		is_suspended;
+};
 
 struct device {
 	struct device	*parent;

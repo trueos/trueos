@@ -29,12 +29,7 @@
 #ifndef	_LINUX_SRCU_H_
 #define	_LINUX_SRCU_H_
 
-#include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/sx.h>
-
 struct srcu_struct {
-	struct sx sx;
 };
 
 #define	srcu_dereference(ptr,srcu)	((__typeof(*(ptr)) *)(ptr))

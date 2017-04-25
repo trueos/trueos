@@ -102,7 +102,7 @@ cam/ctl/ctl_cmd_table.c		optional ctl
 cam/ctl/ctl_frontend.c		optional ctl
 cam/ctl/ctl_frontend_cam_sim.c	optional ctl
 cam/ctl/ctl_frontend_ioctl.c	optional ctl
-cam/ctl/ctl_frontend_iscsi.c	optional ctl
+cam/ctl/ctl_frontend_iscsi.c	optional ctl cfiscsi
 cam/ctl/ctl_ha.c		optional ctl
 cam/ctl/ctl_scsi_all.c		optional ctl
 cam/ctl/ctl_tpc.c		optional ctl
@@ -591,6 +591,7 @@ crypto/blowfish/bf_ecb.c	optional ipsec | ipsec_support
 crypto/blowfish/bf_skey.c	optional crypto | ipsec | ipsec_support
 crypto/camellia/camellia.c	optional crypto | ipsec | ipsec_support
 crypto/camellia/camellia-api.c	optional crypto | ipsec | ipsec_support
+crypto/chacha20/chacha20.c	optional chacha20
 crypto/des/des_ecb.c		optional crypto | ipsec | ipsec_support | netsmb
 crypto/des/des_setkey.c		optional crypto | ipsec | ipsec_support | netsmb
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption | kgssapi
@@ -1605,6 +1606,9 @@ dev/etherswitch/ip17x/ip17x_vlans.c	optional ip17x
 dev/etherswitch/miiproxy.c		optional miiproxy
 dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
 dev/etherswitch/e6000sw/e6000sw.c	optional e6000sw
+dev/etherswitch/e6000sw/e6060sw.c	optional e6060sw
+dev/etherswitch/infineon/adm6996fc.c	optional adm6996fc
+dev/etherswitch/micrel/ksz8995ma.c	optional ksz8995ma
 dev/etherswitch/ukswitch/ukswitch.c	optional ukswitch
 dev/evdev/cdev.c			optional evdev
 dev/evdev/evdev.c			optional evdev
@@ -1780,10 +1784,10 @@ ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"ipw_monitor.fw"
-dev/iscsi/icl.c			optional iscsi | ctl
-dev/iscsi/icl_conn_if.m		optional iscsi | ctl
-dev/iscsi/icl_soft.c		optional iscsi | ctl
-dev/iscsi/icl_soft_proxy.c	optional iscsi | ctl
+dev/iscsi/icl.c			optional iscsi
+dev/iscsi/icl_conn_if.m		optional cfiscsi | iscsi
+dev/iscsi/icl_soft.c		optional iscsi
+dev/iscsi/icl_soft_proxy.c	optional iscsi
 dev/iscsi/iscsi.c		optional iscsi scbus
 dev/iscsi_initiator/iscsi.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/iscsi_subr.c	optional iscsi_initiator scbus
@@ -3530,6 +3534,7 @@ geom/zero/g_zero.c		optional geom_zero
 fs/ext2fs/ext2_alloc.c		optional ext2fs
 fs/ext2fs/ext2_balloc.c		optional ext2fs
 fs/ext2fs/ext2_bmap.c		optional ext2fs
+fs/ext2fs/ext2_extattr.c	optional ext2fs
 fs/ext2fs/ext2_extents.c	optional ext2fs
 fs/ext2fs/ext2_inode.c		optional ext2fs
 fs/ext2fs/ext2_inode_cnv.c	optional ext2fs
@@ -3805,6 +3810,7 @@ kgssapi/gsstest.c		optional kgssapi_debug
 # the file should be moved to conf/files.<arch> from here.
 #
 libkern/arc4random.c		standard
+crypto/chacha20/chacha.c	standard
 libkern/asprintf.c		standard
 libkern/bcd.c			standard
 libkern/bsearch.c		standard
@@ -4226,6 +4232,8 @@ netpfil/ipfw/nptv6/ip_fw_nptv6.c	optional inet inet6 ipfirewall \
 	ipfirewall_nptv6
 netpfil/ipfw/nptv6/nptv6.c	optional inet inet6 ipfirewall \
 	ipfirewall_nptv6
+netpfil/ipfw/pmod/ip_fw_pmod.c	optional inet ipfirewall_pmod
+netpfil/ipfw/pmod/tcpmod.c	optional inet ipfirewall_pmod
 netpfil/pf/if_pflog.c		optional pflog pf inet
 netpfil/pf/if_pfsync.c		optional pfsync pf inet
 netpfil/pf/pf.c			optional pf inet
@@ -4589,7 +4597,9 @@ rpc/rpcsec_gss/svc_rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi | nfscl
 security/audit/audit.c		optional audit
 security/audit/audit_arg.c	optional audit
 security/audit/audit_bsm.c	optional audit
+security/audit/audit_bsm_db.c	optional audit
 security/audit/audit_bsm_klib.c	optional audit
+security/audit/audit_dtrace.c	optional dtaudit audit | dtraceall audit compile-with "${CDDL_C}"
 security/audit/audit_pipe.c	optional audit
 security/audit/audit_syscalls.c	standard
 security/audit/audit_trigger.c	optional audit

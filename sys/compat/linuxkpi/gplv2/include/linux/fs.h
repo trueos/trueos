@@ -1,6 +1,7 @@
 #ifndef _LINUX_FS_NEXT_H_
 #define	_LINUX_FS_NEXT_H_
 
+#include <linux/shrinker.h>
 #include_next <linux/fs.h>
 
 extern loff_t generic_file_llseek(struct file *file, loff_t offset, int whence);

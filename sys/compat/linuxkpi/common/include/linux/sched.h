@@ -36,7 +36,7 @@
 #include <sys/proc.h>
 #include <sys/sched.h>
 
-#include <linux/types.h>
+#include <linux/list.h>
 #include <linux/compat.h>
 #include <linux/completion.h>
 #include <linux/pid.h>
@@ -44,9 +44,14 @@
 #include <linux/mm_types.h>
 #include <linux/hrtimer.h>
 #include <linux/time64.h>
+#include <linux/string.h>
 #include <linux/bitmap.h>
 #include <linux/atomic.h>
 #include <linux/smp.h>
+
+#include <asm/atomic.h>
+
+#define	MAX_SCHEDULE_TIMEOUT	INT_MAX
 
 #define	TASK_RUNNING		0
 #define	TASK_INTERRUPTIBLE	1
@@ -83,12 +88,17 @@ struct task_struct {
 	struct mtx sleep_lock;
 	struct completion parked;
 	struct completion exited;
+	TAILQ_ENTRY(task_struct) rcu_entry;
+	int rcu_recurse;
 };
 
-#define	current		((struct task_struct *)curthread->td_lkpi_task)
+#define	current	({ \
+	struct thread *__td = curthread; \
+	linux_set_current(__td); \
+	((struct task_struct *)__td->td_lkpi_task); \
+})
 
-#define	task_pid_group_leader(task) \
-	FIRST_THREAD_IN_PROC((task)->task_thread->td_proc)->td_tid
+#define	task_pid_group_leader(task) (task)->task_thread->td_proc->p_pid
 #define	task_pid(task)		((task)->pid)
 #define	task_pid_nr(task)	((task)->pid)
 #define	get_pid(x)		(x)
@@ -207,15 +217,11 @@ schedule_timeout_interruptible(long timeout)
 	return (schedule_timeout(timeout));
 }
 
-#define	need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
-
 static inline long
 schedule_timeout_killable(long timeout)
 {
 	return (schedule_timeout(timeout));
 }
-
-#define	MAX_SCHEDULE_TIMEOUT	INT_MAX
 
 static inline long
 io_schedule_timeout(long timeout)
@@ -237,4 +243,6 @@ schedule(void)
 
 #define	yield() kern_yield(0)
 
-#endif					/* _LINUX_SCHED_H_ */
+#define	need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
+
+#endif	/* _LINUX_SCHED_H_ */

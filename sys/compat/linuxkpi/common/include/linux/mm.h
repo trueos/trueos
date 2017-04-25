@@ -38,6 +38,7 @@
 #include <linux/kernel.h>
 #include <linux/mm_types.h>
 #include <linux/pfn.h>
+#include <linux/list.h>
 
 #include <asm/pgtable.h>
 
@@ -48,6 +49,10 @@
  * with the ones defined by FreeBSD:
  */
 CTASSERT((VM_PROT_ALL & -(1 << 8)) == 0);
+
+#define	VM_READ			VM_PROT_READ
+#define	VM_WRITE		VM_PROT_WRITE
+#define	VM_EXEC			VM_PROT_EXECUTE
 
 #define	VM_PFNINTERNAL		(1 << 8)	/* FreeBSD private flag to vm_insert_pfn() */
 #define	VM_MIXEDMAP		(1 << 9)
@@ -86,7 +91,7 @@ CTASSERT((VM_PROT_ALL & -(1 << 8)) == 0);
 #define	FAULT_FLAG_REMOTE	(1 << 7)
 #define	FAULT_FLAG_INSTRUCTION	(1 << 8)
 
-typedef int (*pte_fn_t)(pte_t *, pgtable_t, unsigned long addr, void *data);
+typedef int (*pte_fn_t)(linux_pte_t *, pgtable_t, unsigned long addr, void *data);
 
 struct vm_area_struct {
 	vm_offset_t vm_start;
@@ -107,6 +112,7 @@ struct vm_area_struct {
 	int    *vm_pfn_pcount;
 	vm_object_t vm_obj;
 	vm_map_t vm_cached_map;
+	TAILQ_ENTRY(vm_area_struct) vm_entry;
 };
 
 struct vm_fault {

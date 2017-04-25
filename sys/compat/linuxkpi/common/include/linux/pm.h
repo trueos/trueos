@@ -1,6 +1,25 @@
+/*
+ *  pm.h - Power management interface
+ *
+ *  Copyright (C) 2000 Andrew Henroid
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #ifndef _LINUX_PM_H_
 #define _LINUX_PM_H_
-
 
 #include <linux/list.h>
 #include <linux/workqueue.h>
@@ -34,66 +53,6 @@ extern const char power_group_name[];		/* = "power" */
 const struct dev_pm_ops name = { \
 	SET_SYSTEM_SLEEP_PM_OPS(suspend_fn, resume_fn) \
 }
-
-
-struct dev_pm_info {
-	pm_message_t		power_state;
-	unsigned int		can_wakeup:1;
-	unsigned int		async_suspend:1;
-	bool			is_prepared:1;	/* Owned by the PM core */
-	bool			is_suspended:1;	/* Ditto */
-	bool			is_noirq_suspended:1;
-	bool			is_late_suspended:1;
-	bool			ignore_children:1;
-	bool			early_init:1;	/* Owned by the PM core */
-	bool			direct_complete:1;	/* Owned by the PM core */
-	spinlock_t		lock;
-#ifdef CONFIG_PM_SLEEP
-	struct list_head	entry;
-	struct completion	completion;
-	struct wakeup_source	*wakeup;
-	bool			wakeup_path:1;
-	bool			syscore:1;
-	bool			no_pm_callbacks:1;	/* Owned by the PM core */
-#else
-	unsigned int		should_wakeup:1;
-#endif
-#ifdef CONFIG_PM
-	struct timer_list	suspend_timer;
-	unsigned long		timer_expires;
-	struct work_struct	work;
-	wait_queue_head_t	wait_queue;
-	struct wake_irq		*wakeirq;
-	atomic_t		usage_count;
-	atomic_t		child_count;
-	unsigned int		disable_depth:3;
-	unsigned int		idle_notification:1;
-	unsigned int		request_pending:1;
-	unsigned int		deferred_resume:1;
-	unsigned int		run_wake:1;
-	unsigned int		runtime_auto:1;
-	unsigned int		no_callbacks:1;
-	unsigned int		irq_safe:1;
-	unsigned int		use_autosuspend:1;
-	unsigned int		timer_autosuspends:1;
-	unsigned int		memalloc_noio:1;
-#if 0
-	enum rpm_request	request;
-	enum rpm_status		runtime_status;
-#endif	
-	int			runtime_error;
-	int			autosuspend_delay;
-	unsigned long		last_busy;
-	unsigned long		active_jiffies;
-	unsigned long		suspended_jiffies;
-	unsigned long		accounting_timestamp;
-#endif
-#if 0	
-	struct pm_subsys_data	*subsys_data;  /* Owned by the subsystem. */
-	void (*set_latency_tolerance)(struct device *, s32);
-	struct dev_pm_qos	*qos;
-#endif
-};
 
 struct dev_pm_ops {
 	int (*prepare)(struct device *dev);
