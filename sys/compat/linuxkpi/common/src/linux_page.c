@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_phys.h>
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 #include <vm/vm_extern.h>
@@ -453,14 +452,16 @@ arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
 void *
 linux_page_address(struct page *page)
 {
+
+	if (page->object != kmem_object && page->object != kernel_object) {
 #ifdef LINUXKPI_HAVE_DMAP
-	return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
+		return ((void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(page)));
 #else
-	if (page->object != kmem_object && page->object != kernel_object)
 		return (NULL);
+#endif
+	}
 	return ((void *)(uintptr_t)(VM_MIN_KERNEL_ADDRESS +
 	    IDX_TO_OFF(page->pindex)));
-#endif
 }
 
 vm_page_t
