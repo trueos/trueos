@@ -200,6 +200,7 @@ SUBDIR.${MK_ATM}+=	atm
 SUBDIR.${MK_BLUETOOTH}+=	bluetooth
 SUBDIR.${MK_BSD_CPIO}+=	cpio
 SUBDIR.${MK_CALENDAR}+=	calendar
+SUBDIR.${MK_CLANG}+=	clang
 SUBDIR.${MK_DIALOG}+=	dpv
 SUBDIR.${MK_EE}+=	ee
 SUBDIR.${MK_FILE}+=	file
@@ -297,6 +298,8 @@ SUBDIR.${MK_UTMPX}+=	last
 SUBDIR.${MK_UTMPX}+=	users
 .endif
 SUBDIR.${MK_UTMPX}+=	who
+SUBDIR.${MK_SVN}+=	svn
+SUBDIR.${MK_SVNLITE}+=	svn
 
 .include <bsd.arch.inc.mk>
 

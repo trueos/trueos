@@ -129,6 +129,10 @@ SUBDIR.${MK_BLUETOOTH}+=libbluetooth libsdp
 SUBDIR.${MK_BSNMP}+=	libbsnmp
 SUBDIR.${MK_CASPER}+=	libcasper
 
+.if !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
+SUBDIR.${MK_CLANG}+=	clang
+.endif
+
 SUBDIR.${MK_CUSE}+= 	libcuse
 SUBDIR.${MK_CXX}+=	libdevdctl
 SUBDIR.${MK_TOOLCHAIN}+=libelftc libpe
@@ -143,6 +147,12 @@ SUBDIR.${MK_LDNS}+=	libldns
 # The libraries under libclang_rt can only be built by clang, and only make
 # sense to build when clang is enabled at all.  Furthermore, they can only be
 # built for certain architectures.
+.if ${MK_CLANG} != "no" && ${COMPILER_TYPE} == "clang" && \
+    (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    (${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH} != "armeb") || \
+    (${MACHINE_CPUARCH} == "i386"))
+_libclang_rt=	libclang_rt
+.endif
 
 .if ${MK_LIBCPLUSPLUS} != "no"
 _libcxxrt=	libcxxrt
