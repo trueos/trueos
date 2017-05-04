@@ -599,16 +599,6 @@ static struct cdev_pager_ops linux_cdev_pager_ops = {
 };
 
 static void
-linux_dev_deferred_note(unsigned long arg)
-{
-	struct linux_file *filp = (struct linux_file *)arg;
-
-	spin_lock(&filp->f_lock);
-	KNOTE_LOCKED(&filp->f_selinfo.si_note, 1);
-	spin_unlock(&filp->f_lock);
-}
-
-static void
 kq_lock(void *arg)
 {
 	spinlock_t *s = arg;
@@ -649,7 +639,6 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	struct linux_cdev *ldev;
 	struct linux_file *filp;
 	struct file *file;
-	struct tasklet_struct *t;
 	int error;
 
 	file = td->td_fpop;
@@ -664,11 +653,9 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	filp->f_vnode = file->f_vnode;
 	linux_set_current(td);
 	INIT_LIST_HEAD(&filp->f_entry);
-	t = &filp->f_kevent_tasklet;
-	tasklet_init(t, linux_dev_deferred_note, (u_long)filp);
 	spin_lock_init(&filp->f_lock);
 	knlist_init(&filp->f_selinfo.si_note, &filp->f_lock, kq_lock, kq_unlock,
-		    kq_lock_owned, kq_lock_unowned);
+	    kq_lock_owned, kq_lock_unowned);
 
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
@@ -942,7 +929,6 @@ static int
 linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 {
 	struct linux_file *filp;
-	struct poll_wqueues table;
 	struct file *file;
 	int revents;
 
@@ -957,14 +943,11 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 		filp->_file = file;
 
 	linux_set_current(td);
-	if (filp->f_op->poll) {
+	if (filp->f_op->poll)
 		/* XXX need to add support for bounded wait */
-		poll_initwait(&table);
-		revents = filp->f_op->poll(filp, &table.pt) & events;
-		poll_freewait(&table);
-	} else {
+		revents = filp->f_op->poll(filp, NULL) & events;
+	else
 		revents = 0;
-	}
 	return (revents);
 error:
 	return (events & (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
@@ -975,7 +958,6 @@ linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 {
 	struct linux_file *filp;
 	struct file *file;
-	struct poll_wqueues table;
 	struct thread *td;
 	int error, revents;
 
@@ -1002,8 +984,7 @@ linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 		return (EINVAL);
 
 	linux_set_current(td);
-	kevent_initwait(&table);
-	revents = filp->f_op->poll(filp, &table.pt);
+	revents = filp->f_op->poll(filp, NULL);
 
 	if (revents) {
 		spin_lock(&filp->f_lock);
@@ -1159,7 +1140,6 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
     struct thread *td)
 {
 	struct linux_file *filp;
-	struct poll_wqueues table;
 	int revents;
 
 	filp = (struct linux_file *)file->f_data;
@@ -1167,11 +1147,9 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
 	if (filp->_file == NULL)
 		filp->_file = td->td_fpop;
 	linux_set_current(td);
-	if (filp->f_op->poll) {
-		poll_initwait(&table);
-		revents = filp->f_op->poll(filp, &table.pt) & events;
-		poll_freewait(&table);
-	} else
+	if (filp->f_op->poll)
+		revents = filp->f_op->poll(filp, NULL) & events;
+	else
 		revents = 0;
 
 	return (revents);

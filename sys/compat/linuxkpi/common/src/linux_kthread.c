@@ -254,10 +254,13 @@ void
 linux_wake_up(wait_queue_head_t *wqh, unsigned mode,
     int nr, void *key)
 {
+#if 0
 	struct list_head *ptmp;
 	struct list_head *p;
+#endif
 
 	spin_lock(&wqh->lock);
+#if 0
 	selwakeup(&wqh->wqh_si);
 	if (__predict_false(!list_empty(&wqh->wqh_file_list))) {
 		list_for_each_safe(p, ptmp, &wqh->wqh_file_list) {
@@ -267,6 +270,7 @@ linux_wake_up(wait_queue_head_t *wqh, unsigned mode,
 			tasklet_schedule(&f->f_kevent_tasklet);
 		}
 	}
+#endif
 	linux_wake_up_locked(wqh, mode, nr, key);
 	spin_unlock(&wqh->lock);
 }

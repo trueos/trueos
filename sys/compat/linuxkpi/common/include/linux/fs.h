@@ -93,7 +93,6 @@ struct linux_file {
 	vm_object_t	f_mapping;
 
 	/* kqfilter support */
-	struct tasklet_struct f_kevent_tasklet;
 	struct list_head f_entry;
 	struct filterops *f_kqfiltops;
 	/* protects f_sigio.si_note and f_entry */
