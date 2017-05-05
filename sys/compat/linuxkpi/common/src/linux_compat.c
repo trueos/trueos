@@ -48,7 +48,9 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 
 #include <machine/stdarg.h>
 
@@ -79,9 +81,9 @@ __FBSDID("$FreeBSD$");
 #include <linux/compat.h>
 #include <linux/poll.h>
 
-#include <vm/vm_pager.h>
-#include <vm/vm_pageout.h>
-#include <vm/vm_map.h>
+#if defined(__i386__) || defined(__amd64__)
+#include <asm/smp.h>
+#endif
 
 extern u_int cpu_clflush_line_size;
 extern u_int cpu_id;
@@ -116,71 +118,6 @@ DEFINE_IDA(hwmon_ida);
 /*
  * XXX need to define irq_idr 
  */
-
-struct rendezvous_state {
-	struct mtx rs_mtx;
-	void *rs_data;
-	smp_call_func_t *rs_func;
-	int rs_count;
-	bool rs_free;
-};
-
-static void
-rendezvous_wait(void *arg)
-{
-	struct rendezvous_state *rs = arg;
-
-	mtx_lock_spin(&rs->rs_mtx);
-	rs->rs_count--;
-	if (rs->rs_count == 0)
-		wakeup(rs);
-	mtx_unlock_spin(&rs->rs_mtx);
-}
-
-static void
-rendezvous_callback(void *arg)
-{
-	struct rendezvous_state *rsp = arg;
-	int needfree;
-
-	rsp->rs_func(rsp->rs_data);
-	if (rsp->rs_free) {
-		mtx_lock_spin(&rsp->rs_mtx);
-		rsp->rs_count--;
-		needfree = (rsp->rs_count == 0);
-		mtx_unlock_spin(&rsp->rs_mtx);
-		if (needfree)
-			free(rsp, M_LCINT);
-	}
-}
-
-int
-on_each_cpu(void callback(void *data), void *data, int wait)
-{
-	struct rendezvous_state rs, *rsp;
-	if (wait)
-		rsp = &rs;
-	else
-		rsp = malloc(sizeof(*rsp), M_LCINT, M_WAITOK);
-	bzero(rsp, sizeof(*rsp));
-	rsp->rs_data = data;
-	rsp->rs_func = callback;
-	rsp->rs_count = mp_ncpus;
-	mtx_init(&rsp->rs_mtx, "rslock", NULL, MTX_SPIN | MTX_RECURSE | MTX_NOWITNESS);
-
-	if (wait) {
-		rsp->rs_free = false;
-		mtx_lock_spin(&rsp->rs_mtx);
-		smp_rendezvous(NULL, rendezvous_callback, rendezvous_wait, rsp);
-		if (rsp->rs_count != 0)
-			msleep_spin(rsp, &rsp->rs_mtx, "rendezvous", 0);
-		mtx_unlock_spin(&rsp->rs_mtx);
-	} else {
-		rsp->rs_free = true;
-		smp_rendezvous(NULL, callback, NULL, rsp);
-	}
-	return (0);
-}
 
 /*
  * XXX this leaks right now, we need to track
@@ -1714,6 +1651,25 @@ linux_irq_handler(void *ent)
 
 	irqe = ent;
 	irqe->handler(irqe->irq, irqe->arg);
+}
+
+#if defined(__i386__) || defined(__amd64__)
+int
+linux_wbinvd_on_all_cpus(void)
+{
+
+	pmap_invalidate_cache();
+	return (0);
+}
+#endif
+
+int
+linux_on_each_cpu(void callback(void *), void *data)
+{
+
+	smp_rendezvous(smp_no_rendezvous_barrier, callback,
+	    smp_no_rendezvous_barrier, data);
+	return (0);
 }
 
 int

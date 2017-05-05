@@ -82,18 +82,6 @@ extern u_int	cpu_feature;
 extern u_int	cpu_stdext_feature;
 
 #if defined(__i386__) || defined(__amd64__)
-static void
-__wbinvd(void *arg)
-{
-	wbinvd();
-}
-
-int
-wbinvd_on_all_cpus(void)
-{
-	return (on_each_cpu(__wbinvd, NULL, 1));
-}
-
 static int
 needs_set_memattr(vm_page_t m, vm_memattr_t attr)
 {
