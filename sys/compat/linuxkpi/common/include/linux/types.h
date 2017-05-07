@@ -67,10 +67,6 @@ typedef u64 phys_addr_t;
 
 typedef unsigned long irq_hw_number_t;
 
-typedef struct {
-	int counter;
-} atomic_t;
-
 struct rcu_head {
 	void *raw[2];
 } __aligned(sizeof(void *));

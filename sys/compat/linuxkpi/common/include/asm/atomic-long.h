@@ -33,7 +33,11 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+
+#include <linux/bitops.h>
+
 #include <machine/atomic.h>
+
 #include <asm/atomic64.h>
 
 #if BITS_PER_LONG == 64

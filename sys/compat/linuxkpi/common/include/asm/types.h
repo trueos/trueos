@@ -59,14 +59,6 @@ typedef vm_paddr_t dma64_addr_t;
 
 typedef unsigned short umode_t;
 
-#define BITS_PER_LONG_LONG 64
-
-#ifdef __LP64__
-#define BITS_PER_LONG 64
-#else
-#define BITS_PER_LONG 32
-#endif
-
 #endif	/* _KERNEL */
 
 #endif	/* _ASM_TYPES_H_ */
