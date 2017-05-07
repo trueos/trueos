@@ -45,7 +45,6 @@
 #include <sys/time.h>
 
 
-#include <linux/bug.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/types.h>
