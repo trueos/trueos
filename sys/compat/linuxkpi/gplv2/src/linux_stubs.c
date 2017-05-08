@@ -1,5 +1,3 @@
-
-
 #include <linux/kernel.h>
 #include <linux/sysfs.h>
 #include <linux/cpumask.h>
@@ -14,6 +12,7 @@ linux_pci_get_device(unsigned int vendor, unsigned int device, struct pci_dev *f
 
 	return (NULL);
 }
+
 int
 pci_probe_reset_function(struct pci_dev *dev)
 {
@@ -26,8 +25,8 @@ pci_reset_function(struct pci_dev *dev)
 	return (0);
 }
 
-struct pci_bus
-*pci_find_next_bus(const struct pci_bus *from)
+struct pci_bus *
+pci_find_next_bus(const struct pci_bus *from)
 {
 
 	return (NULL);

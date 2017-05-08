@@ -19,7 +19,6 @@ SRCS=	linux_compat.c \
 	linux_schedule.c \
 	linux_seq_file.c \
 	linux_slab.c \
-	linux_stubs.c \
 	linux_sysfs.c \
 	linux_tasklet.c \
 	linux_usb.c \
