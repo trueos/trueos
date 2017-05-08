@@ -2,8 +2,7 @@
 .PATH:	${SRCTOP}/sys/compat/linuxkpi/common/src ${SRCTOP}/sys/compat/linsysfs
 
 KMOD=	linuxkpi
-SRCS=	linux_acpi.c \
-	linux_compat.c \
+SRCS=	linux_compat.c \
 	linux_current.c \
 	linux_fs.c \
 	linux_firmware.c \
@@ -53,4 +52,3 @@ CFLAGS+= -include ${SRCTOP}/sys/dev/drm/drm_os_config.h
 
 .include <bsd.kmod.mk>
 CWARNFLAGS 		+= -Wno-pointer-arith
-CWARNFLAGS.linux_acpi.c=	-Wno-cast-qual

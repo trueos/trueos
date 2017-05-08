@@ -3,6 +3,7 @@
 KMOD=	linuxkpi_gplv2
 
 SRCS=	linux_kmod_gplv2.c	\
+	linux_acpi.c		\
 	linux_async.c		\
 	linux_backlight.c	\
 	linux_compat.c		\
@@ -32,3 +33,4 @@ CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 
 .include <bsd.kmod.mk>
 CWARNFLAGS+=	-Wno-pointer-arith
+CWARNFLAGS.linux_acpi.c=       -Wno-cast-qual
