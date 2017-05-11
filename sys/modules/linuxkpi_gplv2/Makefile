@@ -15,6 +15,7 @@ SRCS=	linux_kmod_gplv2.c	\
 	linux_hrtimer.c		\
 	linux_i2c.c		\
 	linux_irq.c		\
+	linux_mtrr.c		\
 	linux_notifier.c	\
 	linux_reservation.c	\
 	linux_sort.c		\
