@@ -93,6 +93,12 @@ word_regexps_body()
 {
 	atf_check -o file:"$(atf_get_srcdir)/d_word_regexps.out" \
 	    grep -w separated $(atf_get_srcdir)/d_input
+
+	# Begin FreeBSD
+	printf "xmatch pmatch\n" > test1
+
+	atf_check -o inline:"pmatch\n" grep -Eow "(match )?pmatch" test1
+	# End FreeBSD
 }
 
 atf_test_case begin_end
@@ -159,18 +165,18 @@ context_head()
 }
 context_body()
 {
-	# Begin FreeBSD
-	grep_type
-	if [ $? -eq $GREP_TYPE_BSD ]; then
-		atf_expect_fail "this test doesn't pass with BSD grep yet"
-	fi
-	# End FreeBSD
 	cp $(atf_get_srcdir)/d_context_*.* .
 
 	atf_check -o file:d_context_a.out grep -C2 bamboo d_context_a.in
 	atf_check -o file:d_context_b.out grep -A3 tilt d_context_a.in
 	atf_check -o file:d_context_c.out grep -B4 Whig d_context_a.in
 	atf_check -o file:d_context_d.out grep -C1 pig d_context_a.in d_context_b.in
+	atf_check -o file:d_context_e.out \
+	    grep -E -C1 '(banana|monkey)' d_context_e.in
+	atf_check -o file:d_context_f.out \
+	    grep -Ev -B2 '(banana|monkey|fruit)' d_context_e.in
+	atf_check -o file:d_context_g.out \
+	    grep -Ev -A1 '(banana|monkey|fruit)' d_context_e.in
 }
 
 atf_test_case file_exp
@@ -226,12 +232,6 @@ context2_head()
 }
 context2_body()
 {
-	# Begin FreeBSD
-	grep_type
-	if [ $? -eq $GREP_TYPE_BSD ]; then
-		atf_expect_fail "this test doesn't pass with BSD grep yet"
-	fi
-	# End FreeBSD
 	printf "haddock\000cod\000plaice\000" > test1
 	printf "mackeral\000cod\000crab\000" > test2
 
@@ -375,7 +375,152 @@ egrep_empty_invalid_head()
 }
 egrep_empty_invalid_body()
 {
-	atf_check -s exit:1 egrep '{' /dev/null
+	atf_check -e ignore -s not-exit:0 egrep '{' /dev/null
+}
+
+atf_test_case zerolen
+zerolen_head()
+{
+	atf_set "descr" "Check for successful zero-length matches with ^$"
+}
+zerolen_body()
+{
+	printf "Eggs\n\nCheese" > test1
+
+	atf_check -o inline:"\n" grep -e "^$" test1
+
+	atf_check -o inline:"Eggs\nCheese\n" grep -v -e "^$" test1
+}
+
+atf_test_case wflag_emptypat
+wflag_emptypat_head()
+{
+	atf_set "descr" "Check for proper handling of -w with an empty pattern (PR 105221)"
+}
+wflag_emptypat_body()
+{
+	grep_type
+	if [ $? -eq $GREP_TYPE_GNU_FREEBSD ]; then
+		atf_expect_fail "this test does not pass with GNU grep in base"
+	fi
+
+	printf "" > test1
+	printf "\n" > test2
+	printf "qaz" > test3
+	printf " qaz\n" > test4
+
+	atf_check -s exit:1 -o empty grep -w -e "" test1
+
+	atf_check -o file:test2 grep -w -e "" test2
+
+	atf_check -s exit:1 -o empty grep -w -e "" test3
+
+	atf_check -o file:test4 grep -w -e "" test4
+}
+
+atf_test_case fgrep_sanity
+fgrep_sanity_head()
+{
+	atf_set "descr" "Check for fgrep sanity, literal expressions only"
+}
+fgrep_sanity_body()
+{
+	printf "Foo" > test1
+
+	atf_check -o inline:"Foo\n" fgrep -e "Foo" test1
+
+	atf_check -s exit:1 -o empty fgrep -e "Fo." test1
+}
+
+atf_test_case egrep_sanity
+egrep_sanity_head()
+{
+	atf_set "descr" "Check for egrep sanity, EREs only"
+}
+egrep_sanity_body()
+{
+	printf "Foobar(ed)" > test1
+	printf "M{1}" > test2
+
+	atf_check -o inline:"Foo\n" egrep -o -e "F.." test1
+
+	atf_check -o inline:"Foobar\n" egrep -o -e "F[a-z]*" test1
+
+	atf_check -o inline:"Fo\n" egrep -o -e "F(o|p)" test1
+
+	atf_check -o inline:"(ed)\n" egrep -o -e "\(ed\)" test1
+
+	atf_check -o inline:"M\n" egrep -o -e "M{1}" test2
+
+	atf_check -o inline:"M{1}\n" egrep -o -e "M\{1\}" test2
+}
+
+atf_test_case grep_sanity
+grep_sanity_head()
+{
+	atf_set "descr" "Check for basic grep sanity, BREs only"
+}
+grep_sanity_body()
+{
+	printf "Foobar(ed)" > test1
+	printf "M{1}" > test2
+
+	atf_check -o inline:"Foo\n" grep -o -e "F.." test1
+
+	atf_check -o inline:"Foobar\n" grep -o -e "F[a-z]*" test1
+
+	atf_check -o inline:"Fo\n" grep -o -e "F\(o\)" test1
+
+	atf_check -o inline:"(ed)\n" grep -o -e "(ed)" test1
+
+	atf_check -o inline:"M{1}\n" grep -o -e "M{1}" test2
+
+	atf_check -o inline:"M\n" grep -o -e "M\{1\}" test2
+}
+
+atf_test_case wv_combo_break
+wv_combo_break_head()
+{
+	atf_set "descr" "Check for incorrectly matching lines with both -w and -v flags (PR 218467)"
+}
+wv_combo_break_body()
+{
+	printf "x xx\n" > test1
+	printf "xx x\n" > test2
+
+	atf_check -o file:test1 grep -w "x" test1
+	atf_check -o file:test2 grep -w "x" test2
+
+	atf_check -s exit:1 grep -v -w "x" test1
+	atf_check -s exit:1 grep -v -w "x" test2
+}
+
+atf_test_case grep_nomatch_flags
+grep_nomatch_flags_head()
+{
+	atf_set "descr" "Check for no match (-c, -l, -L, -q) flags not producing line matches or context (PR 219077)"
+}
+
+grep_nomatch_flags_body()
+{
+	printf "A\nB\nC\n" > test1
+
+	atf_check -o inline:"1\n" grep -c -C 1 -e "B" test1
+	atf_check -o inline:"1\n" grep -c -B 1 -e "B" test1
+	atf_check -o inline:"1\n" grep -c -A 1 -e "B" test1
+	atf_check -o inline:"1\n" grep -c -C 1 -e "B" test1
+
+	atf_check -o inline:"test1\n" grep -l -e "B" test1
+	atf_check -o inline:"test1\n" grep -l -B 1 -e "B" test1
+	atf_check -o inline:"test1\n" grep -l -A 1 -e "B" test1
+	atf_check -o inline:"test1\n" grep -l -C 1 -e "B" test1
+
+	atf_check -s exit:1 -o inline:"test1\n" grep -L -e "D" test1
+
+	atf_check -o empty grep -q -e "B" test1
+	atf_check -o empty grep -q -B 1 -e "B" test1
+	atf_check -o empty grep -q -A 1 -e "B" test1
+	atf_check -o empty grep -q -C 1 -e "B" test1
 }
 # End FreeBSD
 
@@ -404,5 +549,12 @@ atf_init_test_cases()
 	atf_add_test_case f_file_empty
 	atf_add_test_case escmap
 	atf_add_test_case egrep_empty_invalid
+	atf_add_test_case zerolen
+	atf_add_test_case wflag_emptypat
+	atf_add_test_case wv_combo_break
+	atf_add_test_case fgrep_sanity
+	atf_add_test_case egrep_sanity
+	atf_add_test_case grep_sanity
+	atf_add_test_case grep_nomatch_flags
 # End FreeBSD
 }

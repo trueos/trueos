@@ -53,28 +53,6 @@
 SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
 
-.if !defined(XCC)
-.if !exists(${LOCALBASE}/bin/clang40)
-.error "You need to install devel/llvm40 to build or set XCC"
-.endif
-
-XCC= ${LOCALBASE}/bin/clang40
-.endif
-.if !defined(XCXX)
-.if !exists(${LOCALBASE}/bin/clang++40)
-.error "You need to install devel/llvm40 to build or set XCXX"
-.endif
-
-XCXX= ${LOCALBASE}/bin/clang++40
-.endif
-.if !defined(XCPP)
-.if !exists(${LOCALBASE}/bin/clang-cpp40)
-.error "You need to install devel/llvm40 to build or set XCPP"
-.endif
-
-XCPP= ${LOCALBASE}/bin/clang-cpp40
-.endif
-
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
 .if defined(CROSS_TOOLCHAIN)
@@ -1543,8 +1521,8 @@ sign-packages:	_pkgbootstrap .PHONY
 		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
 		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
 		${PKGSIGNKEY} ; \
-	ln -s ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
-		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest
+	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI); \
+	ln -s ${PKG_VERSION} latest
 
 #
 #
@@ -1720,16 +1698,16 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 
 # We need to build tblgen when we're building clang or lld, either as
 # bootstrap tools, or as the part of the normal build.
-#.if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
-#    ${MK_LLD_BOOTSTRAP} != "no" || ${MK_LLD} != "no"
-#_clang_tblgen= \
-#	lib/clang/libllvmminimal \
-#	usr.bin/clang/llvm-tblgen \
-#	usr.bin/clang/clang-tblgen
-#
-#${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmminimal
-#${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
-#.endif
+.if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
+    ${MK_LLD_BOOTSTRAP} != "no" || ${MK_LLD} != "no"
+_clang_tblgen= \
+	lib/clang/libllvmminimal \
+	usr.bin/clang/llvm-tblgen \
+	usr.bin/clang/clang-tblgen
+
+${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmminimal
+${_bt}-usr.bin/clang/llvm-tblgen: ${_bt}-lib/clang/libllvmminimal
+.endif
 
 # Default to building the GPL DTC, but build the BSDL one if users explicitly
 # request it.
@@ -1761,6 +1739,7 @@ bootstrap-tools: .PHONY
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
 .for _tool in \
+    ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
     ${_strfile} \
     ${_gperf} \
@@ -1889,6 +1868,15 @@ _elftctools=	lib/libelftc \
 		usr.bin/elfcopy
 .endif
 
+.if ${MK_CLANG_BOOTSTRAP} != "no"
+_clang=		usr.bin/clang
+.endif
+.if ${MK_LLD_BOOTSTRAP} != "no"
+_lld=		usr.bin/clang/lld
+.endif
+.if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_LLD_BOOTSTRAP} != "no"
+_clang_libs=	lib/clang
+.endif
 .if ${MK_GCC_BOOTSTRAP} != "no"
 _gcc=		gnu/usr.bin/cc
 .endif
@@ -1899,6 +1887,8 @@ _usb_tools=	sys/boot/usb/tools
 cross-tools: .MAKE .PHONY
 .for _tool in \
     ${LOCAL_XTOOL_DIRS} \
+    ${_clang_libs} \
+    ${_clang} \
     ${_lld} \
     ${_binutils} \
     ${_elftctools} \
@@ -1971,14 +1961,17 @@ native-xtools: .PHONY
     bin/rmdir \
     bin/sh \
     bin/sleep \
+    ${_clang_tblgen} \
     usr.bin/ar \
     ${_binutils} \
     ${_elftctools} \
     ${_gcc} \
     ${_gcc_tools} \
+    ${_clang_libs} \
+    ${_clang} \
     sbin/md5 \
     sbin/sysctl \
-    gnu/usr.bin/diff \
+    usr.bin/diff \
     usr.bin/awk \
     usr.bin/basename \
     usr.bin/bmake \
@@ -2629,6 +2622,8 @@ _xb-cross-tools: .PHONY
     ${_binutils} \
     ${_elftctools} \
     usr.bin/ar \
+    ${_clang_libs} \
+    ${_clang} \
     ${_gcc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,all)"; \
 	cd ${.CURDIR}/${_tool}; \
@@ -2664,6 +2659,8 @@ _xi-cross-tools: .PHONY
     ${_binutils} \
     ${_elftctools} \
     usr.bin/ar \
+    ${_clang_libs} \
+    ${_clang} \
     ${_gcc}
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \

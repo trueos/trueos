@@ -178,7 +178,7 @@ static int		hook_pf(void);
 static int		dehook_pf(void);
 static int		shutdown_pf(void);
 static int		pf_load(void);
-static int		pf_unload(void);
+static void		pf_unload(void);
 
 static struct cdevsw pf_cdevsw = {
 	.d_ioctl =	pfioctl,
@@ -1852,6 +1852,8 @@ DIOCGETSTATES_full:
 			counter_u64_zero(V_pf_status.fcounters[i]);
 		for (int i = 0; i < SCNT_MAX; i++)
 			counter_u64_zero(V_pf_status.scounters[i]);
+		for (int i = 0; i < LCNT_MAX; i++)
+			counter_u64_zero(V_pf_status.lcounters[i]);
 		V_pf_status.since = time_second;
 		if (*V_pf_status.ifname)
 			pfi_update_status(V_pf_status.ifname, NULL);
@@ -3787,10 +3789,9 @@ pf_unload_vnet(void)
 		pf_mtag_cleanup();
 }
 
-static int
+static void
 pf_unload(void)
 {
-	int error = 0;
 
 	sx_xlock(&pf_end_lock);
 	pf_end_threads = 1;
@@ -3808,8 +3809,6 @@ pf_unload(void)
 	rw_destroy(&pf_rules_lock);
 	sx_destroy(&pf_ioctl_lock);
 	sx_destroy(&pf_end_lock);
-
-	return (error);
 }
 
 static void
@@ -3827,6 +3826,7 @@ vnet_pf_uninit(const void *unused __unused)
 
 	pf_unload_vnet();
 } 
+SYSUNINIT(pf_unload, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND, pf_unload, NULL);
 VNET_SYSUNINIT(vnet_pf_uninit, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD,
     vnet_pf_uninit, NULL);
 
@@ -3847,7 +3847,8 @@ pf_modevent(module_t mod, int type, void *data)
 		error = EBUSY;
 		break;
 	case MOD_UNLOAD:
-		error = pf_unload();
+		/* Handled in SYSUNINIT(pf_unload) to ensure it's done after
+		 * the vnet_pf_uninit()s */
 		break;
 	default:
 		error = EINVAL;

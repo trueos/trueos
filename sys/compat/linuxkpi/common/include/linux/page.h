@@ -35,6 +35,7 @@
 
 #include <sys/param.h>
 #include <sys/eventhandler.h>
+#include <sys/vmmeter.h>
 
 #include <machine/atomic.h>
 #include <vm/vm.h>

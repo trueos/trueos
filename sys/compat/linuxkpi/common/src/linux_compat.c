@@ -48,7 +48,9 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 
 #include <machine/stdarg.h>
 
@@ -78,10 +80,11 @@ __FBSDID("$FreeBSD$");
 #include <linux/kernel.h>
 #include <linux/compat.h>
 #include <linux/poll.h>
+#include <linux/smp.h>
 
-#include <vm/vm_pager.h>
-#include <vm/vm_pageout.h>
-#include <vm/vm_map.h>
+#if defined(__i386__) || defined(__amd64__)
+#include <asm/smp.h>
+#endif
 
 extern u_int cpu_clflush_line_size;
 extern u_int cpu_id;
@@ -116,71 +119,6 @@ DEFINE_IDA(hwmon_ida);
 /*
  * XXX need to define irq_idr 
  */
-
-struct rendezvous_state {
-	struct mtx rs_mtx;
-	void *rs_data;
-	smp_call_func_t *rs_func;
-	int rs_count;
-	bool rs_free;
-};
-
-static void
-rendezvous_wait(void *arg)
-{
-	struct rendezvous_state *rs = arg;
-
-	mtx_lock_spin(&rs->rs_mtx);
-	rs->rs_count--;
-	if (rs->rs_count == 0)
-		wakeup(rs);
-	mtx_unlock_spin(&rs->rs_mtx);
-}
-
-static void
-rendezvous_callback(void *arg)
-{
-	struct rendezvous_state *rsp = arg;
-	int needfree;
-
-	rsp->rs_func(rsp->rs_data);
-	if (rsp->rs_free) {
-		mtx_lock_spin(&rsp->rs_mtx);
-		rsp->rs_count--;
-		needfree = (rsp->rs_count == 0);
-		mtx_unlock_spin(&rsp->rs_mtx);
-		if (needfree)
-			free(rsp, M_LCINT);
-	}
-}
-
-int
-on_each_cpu(void callback(void *data), void *data, int wait)
-{
-	struct rendezvous_state rs, *rsp;
-	if (wait)
-		rsp = &rs;
-	else
-		rsp = malloc(sizeof(*rsp), M_LCINT, M_WAITOK);
-	bzero(rsp, sizeof(*rsp));
-	rsp->rs_data = data;
-	rsp->rs_func = callback;
-	rsp->rs_count = mp_ncpus;
-	mtx_init(&rsp->rs_mtx, "rslock", NULL, MTX_SPIN | MTX_RECURSE | MTX_NOWITNESS);
-
-	if (wait) {
-		rsp->rs_free = false;
-		mtx_lock_spin(&rsp->rs_mtx);
-		smp_rendezvous(NULL, rendezvous_callback, rendezvous_wait, rsp);
-		if (rsp->rs_count != 0)
-			msleep_spin(rsp, &rsp->rs_mtx, "rendezvous", 0);
-		mtx_unlock_spin(&rsp->rs_mtx);
-	} else {
-		rsp->rs_free = true;
-		smp_rendezvous(NULL, callback, NULL, rsp);
-	}
-	return (0);
-}
 
 /*
  * XXX this leaks right now, we need to track
@@ -577,6 +515,16 @@ linux_cdev_handle_insert(void *handle, struct vm_area_struct *vmap)
 			return (NULL);
 		}
 	}
+	/*
+	 * The same VM object might be shared by multiple processes
+	 * and the mm_struct is usually freed when a process exits.
+	 *
+	 * The atomic reference below makes sure the mm_struct is
+	 * available as long as the vmap is in the linux_vma_head.
+	 */
+	if (atomic_inc_not_zero(&vmap->vm_mm->mm_users) == 0)
+		panic("linuxkpi: mm_users is zero\n");
+
 	TAILQ_INSERT_TAIL(&linux_vma_head, vmap, vm_entry);
 	rw_wunlock(&linux_vma_lock);
 	return (vmap);
@@ -591,6 +539,9 @@ linux_cdev_handle_remove(struct vm_area_struct *vmap)
 	rw_wlock(&linux_vma_lock);
 	TAILQ_REMOVE(&linux_vma_head, vmap, vm_entry);
 	rw_wunlock(&linux_vma_lock);
+
+	/* Drop reference on mm_struct */
+	mmput(vmap->vm_mm);
 	kfree(vmap);
 }
 
@@ -1424,29 +1375,38 @@ linux_complete_common(struct completion *c, int all)
 long
 linux_wait_for_common(struct completion *c, int flags)
 {
+	long error;
 
 	if (unlikely(SKIP_SLEEP()))
 		return (0);
+
+	DROP_GIANT();
 
 	if (flags != 0)
 		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
 	else
 		flags = SLEEPQ_SLEEP;
+	error = 0;
 	for (;;) {
 		sleepq_lock(c);
 		if (c->done)
 			break;
 		sleepq_add(c, NULL, "completion", flags, 0);
 		if (flags & SLEEPQ_INTERRUPTIBLE) {
-			if (sleepq_wait_sig(c, 0) != 0)
-				return (-ERESTARTSYS);
+			if (sleepq_wait_sig(c, 0) != 0) {
+				error = -ERESTARTSYS;
+				goto intr;
+			}
 		} else
 			sleepq_wait(c, 0);
 	}
 	c->done--;
 	sleepq_release(c);
 
-	return (0);
+intr:
+	PICKUP_GIANT();
+
+	return (error);
 }
 
 /*
@@ -1455,18 +1415,22 @@ linux_wait_for_common(struct completion *c, int flags)
 long
 linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
 {
-	long end = jiffies + timeout;
+	long end = jiffies + timeout, error;
+	int ret;
 
 	if (SKIP_SLEEP())
 		return (0);
+
+	DROP_GIANT();
 
 	if (flags != 0)
 		flags = SLEEPQ_INTERRUPTIBLE | SLEEPQ_SLEEP;
 	else
 		flags = SLEEPQ_SLEEP;
-	for (;;) {
-		int ret;
 
+	error = 0;
+	ret = 0;
+	for (;;) {
 		sleepq_lock(c);
 		if (c->done)
 			break;
@@ -1479,16 +1443,20 @@ linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
 		if (ret != 0) {
 			/* check for timeout or signal */
 			if (ret == EWOULDBLOCK)
-				return (0);
+				error = 0;
 			else
-				return (-ERESTARTSYS);
+				error = -ERESTARTSYS;
+			goto intr;
 		}
 	}
 	c->done--;
 	sleepq_release(c);
 
+intr:
+	PICKUP_GIANT();
+
 	/* return how many jiffies are left */
-	return (linux_timer_jiffies_until(end));
+	return (ret != 0 ? error : linux_timer_jiffies_until(end));
 }
 
 int
@@ -1703,6 +1671,25 @@ linux_irq_handler(void *ent)
 
 	irqe = ent;
 	irqe->handler(irqe->irq, irqe->arg);
+}
+
+#if defined(__i386__) || defined(__amd64__)
+int
+linux_wbinvd_on_all_cpus(void)
+{
+
+	pmap_invalidate_cache();
+	return (0);
+}
+#endif
+
+int
+linux_on_each_cpu(void callback(void *), void *data)
+{
+
+	smp_rendezvous(smp_no_rendezvous_barrier, callback,
+	    smp_no_rendezvous_barrier, data);
+	return (0);
 }
 
 int
