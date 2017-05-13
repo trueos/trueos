@@ -1,8 +1,0 @@
-#!/bin/sh
-
-if [ ! -e "/usr/local/bin/clang40" ] ; then
-  echo "ERROR: Please 'pkg install llvm40' first"
-  exit 1
-fi
-
-exec /usr/local/bin/clang40 "${@}"

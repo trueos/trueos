@@ -24,7 +24,6 @@ SUBDIR=	alias \
 	chpass \
 	cksum \
 	cmp \
-	clang_wrappers \
 	col \
 	colldef \
 	colrm \
