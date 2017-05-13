@@ -40,6 +40,7 @@ ${PACKAGE}FILES+=		case17.0
 ${PACKAGE}FILES+=		case18.0
 ${PACKAGE}FILES+=		case19.0
 ${PACKAGE}FILES+=		case20.0
+${PACKAGE}FILES+=		case21.0
 ${PACKAGE}FILES+=		cd1.0
 ${PACKAGE}FILES+=		cd2.0
 ${PACKAGE}FILES+=		cd3.0
@@ -120,6 +121,7 @@ ${PACKAGE}FILES+=		local7.0
 .if ${MK_NLS} != "no"
 ${PACKAGE}FILES+=		locale1.0
 .endif
+${PACKAGE}FILES+=		locale2.0
 ${PACKAGE}FILES+=		printf1.0
 ${PACKAGE}FILES+=		printf2.0
 ${PACKAGE}FILES+=		printf3.0
