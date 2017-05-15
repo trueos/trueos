@@ -38,7 +38,6 @@
 #include <sys/kdb.h>
 
 #include <linux/compiler.h>
-#include <linux/irqflags.h>
 #include <linux/rwlock.h>
 #include <linux/bottom_half.h>
 
