@@ -39,13 +39,11 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
-#include <linux/pm.h>
 #include <linux/atomic.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/sysfs.h>
 #include <linux/kdev_t.h>
-#include <linux/numa.h>
 
 #include <sys/bus.h>
 
@@ -68,6 +66,24 @@ struct class {
 	void		(*dev_release)(struct device *dev);
 	char *		(*devnode)(struct device *dev, umode_t *mode);
 	const struct dev_pm_ops *pm;
+};
+
+struct dev_pm_ops {
+	int (*suspend)(struct device *dev);
+	int (*resume)(struct device *dev);
+	int (*freeze)(struct device *dev);
+	int (*thaw)(struct device *dev);
+	int (*poweroff)(struct device *dev);
+	int (*restore)(struct device *dev);
+	int (*suspend_late)(struct device *dev);
+	int (*resume_early)(struct device *dev);
+	int (*freeze_late)(struct device *dev);
+	int (*thaw_early)(struct device *dev);
+	int (*poweroff_late)(struct device *dev);
+	int (*restore_early)(struct device *dev);
+	int (*runtime_suspend)(struct device *dev);
+	int (*runtime_resume)(struct device *dev);
+	int (*runtime_idle)(struct device *dev);
 };
 
 struct device_driver {
@@ -183,24 +199,6 @@ struct device {
 	spinlock_t		devres_lock;
 	struct list_head	devres_head;
 };
-
-extern void *devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp,
-			       int nid);
-
-static inline void *devres_alloc(dr_release_t release, size_t size, gfp_t gfp)
-{
-	return devres_alloc_node(release, size, gfp, NUMA_NO_NODE);
-}
-
-
-extern void devres_free(void *res);
-extern void devres_add(struct device *dev, void *res);
-extern void *devres_remove(struct device *dev, dr_release_t release,
-			   dr_match_t match, void *match_data);
-extern int devres_release(struct device *dev, dr_release_t release,
-			  dr_match_t match, void *match_data);
-
-
 
 extern struct device linux_root_device;
 extern struct kobject linux_class_root;

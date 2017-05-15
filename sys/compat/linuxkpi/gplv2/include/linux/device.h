@@ -3,6 +3,9 @@
 
 #include_next <linux/device.h>
 
+#include <linux/numa.h>
+#include <linux/pm.h>
+
 struct devres_node {
 	struct list_head		entry;
 	dr_release_t			release;
@@ -200,6 +203,21 @@ linux_release_nodes(struct device *dev, struct list_head *first,
 	}
 
 	return cnt;
+}
+
+extern void devres_add(struct device *dev, void *res);
+extern void *devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp,
+			       int nid);
+extern void devres_free(void *res);
+extern int devres_release(struct device *dev, dr_release_t release,
+			  dr_match_t match, void *match_data);
+extern void *devres_remove(struct device *dev, dr_release_t release,
+			   dr_match_t match, void *match_data);
+
+static inline void *
+devres_alloc(dr_release_t release, size_t size, gfp_t gfp)
+{
+	return devres_alloc_node(release, size, gfp, NUMA_NO_NODE);
 }
 
 static inline int
