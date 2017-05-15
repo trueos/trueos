@@ -46,8 +46,6 @@
 
 #include <machine/resource.h>
 
-#include <linux/mod_devicetable.h>
-
 #include <linux/list.h>
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
