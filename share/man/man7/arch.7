@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2017
+.Dd May 16, 2017
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -36,19 +36,25 @@
 Differences between CPU architectures and platforms supported by
 .Fx .
 .Ss Introduction
+This document is a quick reference of key ABI details of
+.Fx
+architecture ports.
+For full details consult the processor-specific ABI supplement
+documentation.
+.Pp
 If not explicitly mentioned, sizes are in bytes.
 The architecture details in this document apply to
 .Fx 10.0
 and later, unless otherwise noted.
 .Pp
 .Fx
-uses flat address space for program execution,
-where variables of types
+uses a flat address space.
+Variables of types
 .Vt unsigned long ,
 .Vt uintptr_t ,
 and
 .Vt size_t
-and the pointers all have the same representation.
+and pointers all have the same representation.
 .Pp
 In order to maximize compatibility with future pointer integrity mechanisms,
 manipulations of pointers as integers should be performed via
@@ -84,7 +90,7 @@ architectures, the final release.
 .Pp
 .Bl -column -offset indent "Sy Architecture" "Sy Initial Release" "Sy Final Release"
 .It Sy Architecture Ta Sy Initial Release Ta Sy Final Release
-.It alpha       Ta 1.0   Ta 6.4
+.It alpha       Ta 3.2   Ta 6.4
 .It amd64       Ta 5.1
 .It arm         Ta 6.0
 .It armeb       Ta 8.0
@@ -101,7 +107,7 @@ architectures, the final release.
 .It mips64el    Ta 9.0
 .It mips64elhf  Ta 12.0
 .It mips64hf    Ta 12.0
-.It pc98        Ta 5.0   Ta 11.x
+.It pc98        Ta 2.2   Ta 11.x
 .It powerpc     Ta 6.0
 .It powerpcspe  Ta 12.0
 .It powerpc64   Ta 6.0
@@ -172,7 +178,7 @@ On all supported architectures:
 .It float Ta 4
 .It double Ta 8
 .El
-Integers are represented as two-complement.
+Integers are represented in two's complement.
 Alignment of integer and pointer types is natural, that is,
 the address of the variable must be congruent to zero modulo the type size.
 Most ILP32 ABIs, except
