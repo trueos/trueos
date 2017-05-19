@@ -241,7 +241,7 @@ schedule(void)
 	schedule_timeout(MAX_SCHEDULE_TIMEOUT);
 }
 
-#define	yield() kern_yield(0)
+#define	yield() kern_yield(PRI_UNCHANGED)
 
 #define	need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
 
