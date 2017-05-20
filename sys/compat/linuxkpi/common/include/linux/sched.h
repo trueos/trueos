@@ -127,22 +127,6 @@ extern u64 cpu_clock(int cpu);
 extern u64 running_clock(void);
 extern u64 sched_clock_cpu(int cpu);
 
-static inline int
-sched_setscheduler(struct task_struct *t, int policy,
-    const struct sched_param *param)
-{
-	UNIMPLEMENTED();
-	return (0);
-}
-
-static inline int
-sched_setscheduler_nocheck(struct task_struct *t, int policy,
-    const struct sched_param *param)
-{
-	UNIMPLEMENTED();
-	return (0);
-}
-
 static inline u64
 local_clock(void)
 {
