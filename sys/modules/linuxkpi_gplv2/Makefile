@@ -19,6 +19,7 @@ SRCS=	linux_kmod_gplv2.c	\
 	linux_irq.c		\
 	linux_mtrr.c		\
 	linux_notifier.c	\
+	linux_page.c		\
 	linux_reservation.c	\
 	linux_seq_file.c	\
 	linux_sort.c		\

@@ -130,8 +130,6 @@ int set_memory_wc(unsigned long addr, int numpages);
 
 vm_paddr_t page_to_phys(vm_page_t page);
 
-void *acpi_os_ioremap(vm_paddr_t pa, vm_size_t size);
-
 void unmap_mapping_range(void *obj,
 			 loff_t const holebegin, loff_t const holelen, int even_cows);
 
