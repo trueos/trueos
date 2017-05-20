@@ -216,5 +216,4 @@ sysfs_streq(const char *s1, const char *s2)
 	return false;
 }
 
-extern int sysctl_handle_attr(SYSCTL_HANDLER_ARGS);
 #endif	/* _LINUX_SYSFS_H_ */

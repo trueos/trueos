@@ -106,8 +106,6 @@ struct list_head pci_devices;
 spinlock_t pci_lock;
 
 unsigned long linux_timer_hz_mask;
-struct ida *hwmon_idap;
-DEFINE_IDA(hwmon_ida);
 
 /*
  * XXX need to define irq_idr 
@@ -1749,7 +1747,6 @@ linux_compat_init(void *arg)
 {
 	struct sysctl_oid *rootoid;
 
-	hwmon_idap = &hwmon_ida;
 	rw_init(&linux_vma_lock, "lkpi-vma-lock");
 
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
