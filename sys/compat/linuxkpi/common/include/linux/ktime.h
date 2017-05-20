@@ -167,9 +167,10 @@ ktime_get(void)
 static inline ktime_t
 ns_to_ktime(u64 ns)
 {
-	UNIMPLEMENTED();
-	ktime_t ktime_zero = { .tv64 = 0 };
-	return ktime_add_ns(ktime_zero, ns);
+	ktime_t kt;
+
+	kt.tv64 = ns;
+	return (kt);
 }
 
 #include <linux/timekeeping.h>
