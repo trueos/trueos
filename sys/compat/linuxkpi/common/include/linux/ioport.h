@@ -46,7 +46,6 @@ __devm_request_region(struct device *dev,
 		      struct linux_resource *parent, resource_size_t start,
 		      resource_size_t n, const char *name)
 {
-	UNIMPLEMENTED();
 	/* XXX return a non-NULL value where the driver just needs to reserve the range */
 	return ((void *)0x1);
 }

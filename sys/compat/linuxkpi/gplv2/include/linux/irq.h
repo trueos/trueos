@@ -155,7 +155,7 @@ enum {
 };
 
 
-#define linux_irqd_to_state(d) ACCESS_PRIVATE((d)->common, state_use_accessors)
+#define linux_irqd_to_state(d) ((d)->common->state_use_accessors)
 
 static inline void
 irq_settings_clr_and_set(struct irq_desc *desc, u32 clr, u32 set)

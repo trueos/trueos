@@ -31,7 +31,7 @@
 
 #define pci_write_config sysfs_pci_write_config
 #define pci_read_config sysfs_pci_read_config
-
+#define	__weak
 
 #ifndef HAVE_PCI_MMAP
 int __weak pci_create_resource_files(struct pci_dev *dev);

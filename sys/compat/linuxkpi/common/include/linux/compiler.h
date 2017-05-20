@@ -33,11 +33,7 @@
 #define	_LINUX_COMPILER_H_
 
 #include <sys/cdefs.h>
-#include <sys/types.h>
-#include <sys/systm.h>
-#include <sys/syslog.h>
 
-#include <asm/types.h>
 #define __user
 #define __kernel
 #define __safe
@@ -62,11 +58,6 @@
 #define	__rcu
 #define __malloc
 
-#define __weak		__attribute__((weak))
-
-
-#define ACCESS_PRIVATE(p, member) ((p)->member)
-
 #define	___stringify(...)		#__VA_ARGS__
 #define	__stringify(...)		___stringify(__VA_ARGS__)
 #define	__attribute_const__		__attribute__((__const__))
@@ -80,7 +71,6 @@
 
 #define	uninitialized_var(x)		x = x
 #define	__always_unused			__unused
-#define	__maybe_unused			__unused
 #define	__must_check			__result_use_check
 
 #define	__printf(a,b)			__printflike(a,b)
@@ -89,36 +79,6 @@
 
 #define	___PASTE(a,b) a##b
 #define	__PASTE(a,b) ___PASTE(a,b)
-
-
-#ifndef PRINT_UNIMPLEMENTED
-#define PRINT_UNIMPLEMENTED 0
-#endif
-
-#define UNIMPLEMENTED_ONCE()			\
-	do {					\
-		static int seen = 0;		\
-									\
-		if (seen == 0 && PRINT_UNIMPLEMENTED) {					\
-			log(LOG_WARNING, "%s not implemented -- see your local kernel hacker\n", __FUNCTION__); \
-			seen = 1;					\
-		}							\
-	} while (0)
-
-#define DODGY_ONCE()			\
-	do {					\
-		static int seen = 0;		\
-									\
-		if (seen == 0 && PRINT_UNIMPLEMENTED) {					\
-			log(LOG_WARNING, "%s is dodgy -- see your local kernel hacker\n", __FUNCTION__); \
-			seen = 1;					\
-		}							\
-	} while (0)
-
-#undef UNIMPLEMENTED
-#define UNIMPLEMENTED()	UNIMPLEMENTED_ONCE()
-#define WARN_NOT() 	UNIMPLEMENTED_ONCE()
-#define DODGY() DODGY_ONCE();
 
 #define	ACCESS_ONCE(x)			(*(volatile __typeof(x) *)&(x))
   
