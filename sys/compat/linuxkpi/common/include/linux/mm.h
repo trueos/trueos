@@ -263,10 +263,6 @@ extern int
 vm_insert_pfn(struct vm_area_struct *, unsigned long addr,
     unsigned long pfn);
 
-extern int
-vm_insert_pfn_prot(struct vm_area_struct *, unsigned long addr,
-    unsigned long pfn, pgprot_t pgprot);
-
 static inline vm_page_t
 vmalloc_to_page(const void *addr)
 {

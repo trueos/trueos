@@ -89,7 +89,7 @@ needs_set_memattr(vm_page_t m, vm_memattr_t attr)
 }
 #endif
 
-int
+static int
 vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr, unsigned long pfn, pgprot_t pgprot)
 {
 	vm_object_t vm_obj;
