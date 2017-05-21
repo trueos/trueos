@@ -460,7 +460,6 @@ sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
 	return (off);
 }
 
-
 static inline size_t
 sg_copy_from_buffer(struct scatterlist *sgl, unsigned int nents,
     const void *buf, size_t buflen)
@@ -501,14 +500,6 @@ sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
 		kunmap(page);
 	}
 	return (off);
-}
-
-static inline size_t
-sg_copy_to_buffer(struct scatterlist *sgl, unsigned int nents,
-    void *buf, size_t buflen)
-{
-
-	return (sg_pcopy_to_buffer(sgl, nents, buf, buflen, 0));
 }
 
 #endif					/* _LINUX_SCATTERLIST_H_ */

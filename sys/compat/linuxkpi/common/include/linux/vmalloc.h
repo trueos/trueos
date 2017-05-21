@@ -31,31 +31,13 @@
 #ifndef _LINUX_VMALLOC_H_
 #define	_LINUX_VMALLOC_H_
 
-#include <linux/spinlock.h>
-#include <linux/init.h>
-#include <linux/list.h>
 #include <linux/page.h>
-#include <linux/slab.h>
-
-
-struct vm_area_struct;
-struct notifier_block;		/* in notifier.h */
-
 
 #define	VM_MAP		0x0000
-
+#define	PAGE_KERNEL	0x0000
 
 void *vmap(struct page **pages, unsigned int count, unsigned long flags,
     int prot);
 void vunmap(void *addr);
-
-#ifdef __notyet__
-int register_vmap_purge_notifier(struct notifier_block *nb);
-int unregister_vmap_purge_notifier(struct notifier_block *nb);
-#else
-
-static inline int register_vmap_purge_notifier(struct notifier_block *nb) { return (0);}
-static inline int unregister_vmap_purge_notifier(struct notifier_block *nb) { return (0);}
-#endif
 
 #endif	/* _LINUX_VMALLOC_H_ */
