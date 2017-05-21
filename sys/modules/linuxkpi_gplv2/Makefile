@@ -24,8 +24,7 @@ SRCS=	linux_kmod_gplv2.c	\
 	linux_sort.c		\
 	linux_stubs.c		\
 	linux_video.c		\
-	interval_tree.c		\
-	pci-sysfs.c
+	interval_tree.c
 
 SRCS+=	bus_if.h		\
 	device_if.h		\
