@@ -71,37 +71,6 @@ struct attribute_group {
 	struct bin_attribute	**bin_attrs;
 };
 
-#define sysfs_bin_attr_init(bin_attr) sysfs_attr_init(&(bin_attr)->attr)
-
-#define __BIN_ATTR(_name, _mode, _read, _write, _size) {		\
-	.attr = { .name = __stringify(_name), .mode = _mode },		\
-	.read	= _read,						\
-	.write	= _write,						\
-	.size	= _size,						\
-}
-
-#define __BIN_ATTR_RO(_name, _size) {					\
-	.attr	= { .name = __stringify(_name), .mode = S_IRUGO },	\
-	.read	= _name##_read,						\
-	.size	= _size,						\
-}
-
-#define __BIN_ATTR_RW(_name, _size) __BIN_ATTR(_name,			\
-				   (S_IWUSR | S_IRUGO), _name##_read,	\
-				   _name##_write, _size)
-
-#define __BIN_ATTR_NULL __ATTR_NULL
-
-#define BIN_ATTR(_name, _mode, _read, _write, _size)			\
-struct bin_attribute bin_attr_##_name = __BIN_ATTR(_name, _mode, _read,	\
-					_write, _size)
-
-#define BIN_ATTR_RO(_name, _size)					\
-struct bin_attribute bin_attr_##_name = __BIN_ATTR_RO(_name, _size)
-
-#define BIN_ATTR_RW(_name, _size)					\
-struct bin_attribute bin_attr_##_name = __BIN_ATTR_RW(_name, _size)
-
 
 #define	__ATTR(_name, _mode, _show, _store) {				\
 	.attr = { .name = __stringify(_name), .mode = _mode },		\
@@ -171,11 +140,6 @@ void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
 
 struct pci_bus;
 struct pci_dev;
-
-void pci_create_legacy_files(struct pci_bus *b);
-void pci_remove_legacy_files(struct pci_bus *b);
-
-
 
 extern int lkpi_sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
 extern void lkpi_sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
