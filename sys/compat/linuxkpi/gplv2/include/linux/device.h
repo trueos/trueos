@@ -81,6 +81,15 @@ devm_kzalloc(struct device *dev, size_t size, gfp_t gfp)
 	return devm_kmalloc(dev, size, gfp | __GFP_ZERO);
 }
 
+/*
+ * drivers/base/devres.c - device resource management
+ *
+ * Copyright (c) 2006  SUSE Linux Products GmbH
+ * Copyright (c) 2006  Tejun Heo <teheo@suse.de>
+ *
+ * This file is released under the GPLv2.
+ */
+
 static inline void
 group_open_release(struct device *dev, void *res)
 {

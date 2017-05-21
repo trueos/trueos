@@ -1,5 +1,18 @@
-#ifndef COMPONENT_H
-#define COMPONENT_H
+/*
+ * Componentized device handling.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This is work in progress.  We gather up the component devices into a list,
+ * and bind them when instructed.  At the moment, we're specific to the DRM
+ * subsystem, and only handles one master device, but this doesn't have to be
+ * the case.
+ */
+
+#ifndef _LINUX_GPLV2_COMPONENT_H_
+#define _LINUX_GPLV2_COMPONENT_H_
 
 #include <linux/stddef.h>
 #include <linux/device.h>
@@ -263,4 +276,4 @@ static inline void component_match_add(struct device *master,
 				    compare_data);
 }
 
-#endif
+#endif /* _LINUX_GPLV2_COMPONENT_H_ */
