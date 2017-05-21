@@ -12,19 +12,6 @@ static inline u64 ktime_get_raw_ns(void)
         return (ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
 }
 
-enum tk_offsets {
-	TK_OFFS_REAL,
-	TK_OFFS_BOOT,
-	TK_OFFS_TAI,
-	TK_OFFS_MAX,
-};
-
-
-extern ktime_t ktime_mono_to_any(ktime_t tmono, enum tk_offsets offs);
-extern ktime_t ktime_get_with_offset(enum tk_offsets offs);
-extern ktime_t ktime_get_raw(void);
-
-
 static inline ktime_t
 ktime_mono_to_real(ktime_t mono)
 {
@@ -67,6 +54,5 @@ ktime_get_boottime(void)
         kt.tv64 = (ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
 	return (kt);
 }
-
 
 #endif
