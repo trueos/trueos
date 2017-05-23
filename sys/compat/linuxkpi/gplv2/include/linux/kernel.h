@@ -3,7 +3,6 @@
 
 #include_next <linux/kernel.h>
 
-#include <linux/bug.h>
 #include <linux/irqflags.h>
 #include <linux/kconfig.h>
 
