@@ -75,12 +75,13 @@ BIN1=	crontab \
 	networks \
 	newsyslog.conf \
 	nsswitch.conf \
+	openrc \
+	openrc.shutdown \
 	phones \
 	profile \
 	protocols \
 	rc \
 	rc.bsdextended \
-	rc.devd \
 	rc.firewall \
 	rc.initdiskless \
 	rc.shutdown \

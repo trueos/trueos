@@ -2,7 +2,7 @@
 
 BIN=/sbin/devd
 pid="/var/run/devd.pid"
-args="$devd_args -d -q"
+args="$devd_args -d -q -f /etc/devd/openrc.conf"
 name="devd"
 description="Device State Change Daemon"
 

@@ -32,6 +32,7 @@ SUBDIR=adjkerntz \
 	gvinum \
 	ifconfig \
 	init \
+	initd \
 	kldconfig \
 	kldload \
 	kldstat \
