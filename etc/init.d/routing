@@ -11,6 +11,7 @@ depend()
 	keyword -jail -shutdown -stop
 }
 
+. /etc/rc.subr
 . /etc/network.subr
 
 extra_commands="options static staticstop"
