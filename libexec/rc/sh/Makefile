@@ -1,42 +1,84 @@
 # $FreeBSD$
+#
+#
+.include <src.opts.mk>
 
-SFILES=	contrib/openrc/sh/functions \
-	 contrib/openrc/sh/gendepends \
-	 contrib/openrc/sh/openrc-run \
-	 contrib/openrc/sh/rc-functions
+SHSRC=    ${SRCTOP}/contrib/openrc/
 
-FILES+=	${.CURDIR}/../../../contrib/openrc/sh/rc-mount.sh \
-	${.CURDIR}/../../../contrib/openrc/sh/runit.sh \
-	${.CURDIR}/../../../contrib/openrc/sh/s6.sh \
-	${.CURDIR}/../../../contrib/openrc/sh/start-stop-daemon.sh \
-	${.CURDIR}/../../../contrib/openrc/sh/supervise-daemon.sh
+.PATH:  ${SHSRC}/sh
 
-.for f in ${SFILES}
-${f}: ${f}
-	FILES+=${.OBJDIR}/${@}.sh
-	sed 's|@SHELL@|/bin/sh|g' ${.CURDIR}/../../../${@}.sh.in >${.OBJDIR}/${@}.sh
-	sed -i '' 's|@LIBEXECDIR@|/libexec/rc|g' ${.OBJDIR}/${@}.sh
-	sed -i '' 's|@BINDIR@|/usr/local/bin|g' ${.OBJDIR}/${@}.sh
-	sed -i '' 's|@SBINDIR@|/usr/local/sbin|g' ${.OBJDIR}/${@}.sh
-	sed -i '' 's|@PKG_PREFIX@|/usr/local|g' ${.OBJDIR}/${@}.sh
-	sed -i '' 's|@LOCAL_PREFIX@|/usr/local|g' ${.OBJDIR}/${@}.sh
-	sed -i '' 's|@SYSCONFDIR@|/etc|g' ${.OBJDIR}/${@}.sh
-	sed -i '' 's|@LIB@|/lib|g' ${.OBJDIR}/${@}.sh
-.endfor
+SFILES=	functions \
+	gendepends \
+	openrc-run \
+	rc-functions
 
-# Copy the correct init.sh script
-.for f in contrib/openrc/sh/init
-${f}: ${f}
-	FILES+=${.OBJDIR}/${@}.sh
-	sed 's|@SHELL@|/bin/sh|g' ${.CURDIR}/../../../${@}.BSD.sh.in >${.OBJDIR}/${@}.sh
-	sed -i '' 's|@LIBEXECDIR@|/libexec/rc|g' ${.OBJDIR}/${@}.sh
-	sed -i '' 's|@BINDIR@|/usr/local/bin|g' ${.OBJDIR}/${@}.sh
-	sed -i '' 's|@SBINDIR@|/usr/local/sbin|g' ${.OBJDIR}/${@}.sh
-	sed -i '' 's|@PKG_PREFIX@|/usr/local|g' ${.OBJDIR}/${@}.sh
-	sed -i '' 's|@LOCAL_PREFIX@|/usr/local|g' ${.OBJDIR}/${@}.sh
-	sed -i '' 's|@SYSCONFDIR@|/etc|g' ${.OBJDIR}/${@}.sh
-	sed -i '' 's|@LIB@|/lib|g' ${.OBJDIR}/${@}.sh
-.endfor
+FILES+=	rc-mount.sh \
+	runit.sh \
+	s6.sh \
+	start-stop-daemon.sh \
+	supervise-daemon.sh \
+	init.sh \
+	functions.sh \
+	gendepends.sh \
+	openrc-run.sh \
+	rc-functions.sh
+
+CLEANFILES= functions.sh init.sh gendepends.sh openrc-run.sh rc-functions.sh
+
+functions.sh:
+	sed 's|@SHELL@|/bin/sh|g' ${SRCTOP}/contrib/openrc/sh/functions.sh.in >${.TARGET}
+	sed -i '' 's|@LIBEXECDIR@|/libexec/rc|g' ${.TARGET}
+	sed -i '' 's|@BINDIR@|/usr/local/bin|g' ${.TARGET}
+	sed -i '' 's|@SBINDIR@|/usr/local/sbin|g' ${.TARGET}
+	sed -i '' 's|@PKG_PREFIX@|/usr/local|g' ${.TARGET}
+	sed -i '' 's|@LOCAL_PREFIX@|/usr/local|g' ${.TARGET}
+	sed -i '' 's|@SYSCONFDIR@|/etc|g' ${.TARGET}
+	sed -i '' 's|@LIB@|/lib|g' ${.TARGET}
+	sed -i '' 's|@PREFIX@||g' ${.TARGET}
+
+gendepends.sh:
+	sed 's|@SHELL@|/bin/sh|g' ${SRCTOP}/contrib/openrc/sh/gendepends.sh.in >${.TARGET}
+	sed -i '' 's|@LIBEXECDIR@|/libexec/rc|g' ${.TARGET}
+	sed -i '' 's|@BINDIR@|/usr/local/bin|g' ${.TARGET}
+	sed -i '' 's|@SBINDIR@|/usr/local/sbin|g' ${.TARGET}
+	sed -i '' 's|@PKG_PREFIX@|/usr/local|g' ${.TARGET}
+	sed -i '' 's|@LOCAL_PREFIX@|/usr/local|g' ${.TARGET}
+	sed -i '' 's|@SYSCONFDIR@|/etc|g' ${.TARGET}
+	sed -i '' 's|@LIB@|/lib|g' ${.TARGET}
+	sed -i '' 's|@PREFIX@||g' ${.TARGET}
+
+openrc-run.sh:
+	sed 's|@SHELL@|/bin/sh|g' ${SRCTOP}/contrib/openrc/sh/openrc-run.sh.in >${.TARGET}
+	sed -i '' 's|@LIBEXECDIR@|/libexec/rc|g' ${.TARGET}
+	sed -i '' 's|@BINDIR@|/usr/local/bin|g' ${.TARGET}
+	sed -i '' 's|@SBINDIR@|/usr/local/sbin|g' ${.TARGET}
+	sed -i '' 's|@PKG_PREFIX@|/usr/local|g' ${.TARGET}
+	sed -i '' 's|@LOCAL_PREFIX@|/usr/local|g' ${.TARGET}
+	sed -i '' 's|@SYSCONFDIR@|/etc|g' ${.TARGET}
+	sed -i '' 's|@LIB@|/lib|g' ${.TARGET}
+	sed -i '' 's|@PREFIX@||g' ${.TARGET}
+
+rc-functions.sh:
+	sed 's|@SHELL@|/bin/sh|g' ${SRCTOP}/contrib/openrc/sh/rc-functions.sh.in >${.TARGET}
+	sed -i '' 's|@LIBEXECDIR@|/libexec/rc|g' ${.TARGET}
+	sed -i '' 's|@BINDIR@|/usr/local/bin|g' ${.TARGET}
+	sed -i '' 's|@SBINDIR@|/usr/local/sbin|g' ${.TARGET}
+	sed -i '' 's|@PKG_PREFIX@|/usr/local|g' ${.TARGET}
+	sed -i '' 's|@LOCAL_PREFIX@|/usr/local|g' ${.TARGET}
+	sed -i '' 's|@SYSCONFDIR@|/etc|g' ${.TARGET}
+	sed -i '' 's|@LIB@|/lib|g' ${.TARGET}
+	sed -i '' 's|@PREFIX@||g' ${.TARGET}
+
+init.sh:
+	sed 's|@SHELL@|/bin/sh|g' ${SRCTOP}/contrib/openrc/sh/init.sh.BSD.in >${.TARGET}
+	sed -i '' 's|@LIBEXECDIR@|/libexec/rc|g' ${.TARGET}
+	sed -i '' 's|@BINDIR@|/usr/local/bin|g' ${.TARGET}
+	sed -i '' 's|@SBINDIR@|/usr/local/sbin|g' ${.TARGET}
+	sed -i '' 's|@PKG_PREFIX@|/usr/local|g' ${.TARGET}
+	sed -i '' 's|@LOCAL_PREFIX@|/usr/local|g' ${.TARGET}
+	sed -i '' 's|@SYSCONFDIR@|/etc|g' ${.TARGET}
+	sed -i '' 's|@LIB@|/lib|g' ${.TARGET}
+	sed -i '' 's|@PREFIX@||g' ${.TARGET}
 
 NO_OBJ=
 FILESDIR=       /libexec/rc/sh
