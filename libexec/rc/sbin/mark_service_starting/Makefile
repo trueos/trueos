@@ -2,6 +2,13 @@
 
 PACKAGE=runtime
 PROG=	mark_service_starting
+
+.include <src.opts.mk>
+
+ORSRC=    ${SRCTOP}/contrib/openrc/src
+
+.PATH:  ${ORSRC}/rc
+
 LINKS=  ${BINDIR}/mark_service_starting ${BINDIR}/mark_service_started \
 	${BINDIR}/mark_service_starting ${BINDIR}/mark_service_stopping \
 	${BINDIR}/mark_service_starting ${BINDIR}/mark_service_stopped \
@@ -10,11 +17,12 @@ LINKS=  ${BINDIR}/mark_service_starting ${BINDIR}/mark_service_started \
 	${BINDIR}/mark_service_starting ${BINDIR}/mark_service_hotplugged \
 	${BINDIR}/mark_service_starting ${BINDIR}/mark_service_failed
 SRCS=	do_mark_service.c \
-       	${.CURDIR}/../../../../contrib/openrc/rc-misc.c
-CFLAGS+=	-I${.CURDIR}/../../../../contrib/openrc \
-	       	-I${.CURDIR}/../../../../lib/libeinfo \
-	       	-I${.CURDIR}/../../../../lib/librc \
-	       	-I${.CURDIR}/../../../../include 
+	rc-misc.c
+CFLAGS+=	-I${ORSRC}/rc \
+		-I${ORSRC}/libeinfo \
+		-I${ORSRC}/librc \
+                -I${.OBJDIR}/../../../../lib/librc/contrib/openrc/src/librc \
+		-I${ORSRC}/includes
 
 WARNS?=	3
 

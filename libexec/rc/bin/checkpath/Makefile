@@ -2,13 +2,21 @@
 
 PACKAGE=runtime
 PROG=	checkpath
+
+.include <src.opts.mk>
+
+ORSRC=    ${SRCTOP}/contrib/openrc/src
+
+.PATH:  ${ORSRC}/rc
+
 SRCS=	checkpath.c \
-       	${.CURDIR}/../../../../contrib/openrc/rc-misc.c \
-       	${.CURDIR}/../../../../contrib/openrc/_usage.c
-CFLAGS+=	-I${.CURDIR}/../../../../contrib/openrc \
-	       	-I${.CURDIR}/../../../../lib/libeinfo \
-	       	-I${.CURDIR}/../../../../lib/librc \
-	       	-I${.CURDIR}/../../../../include
+	rc-misc.c \
+	_usage.c
+CFLAGS+=	-I${ORSRC}/rc \
+		-I${ORSRC}/libeinfo \
+		-I${ORSRC}/librc \
+		-I${.OBJDIR}/../../../../lib/librc/contrib/openrc/src/librc \
+		-I${ORSRC}/includes
 
 WARNS?=	3
 

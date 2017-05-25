@@ -3,18 +3,20 @@
 PACKAGE=openrc
 PROG=	openrc
 LINKS=  ${BINDIR}/openrc ${BINDIR}/rc
-SRCS=	rc.c rc-logger.c \
-       	${.CURDIR}/../../contrib/openrc/rc-misc.c \
-       	${.CURDIR}/../../contrib/openrc/rc-plugin.c \
-       	${.CURDIR}/../../contrib/openrc/_usage.c
-INCS=	rc-logger.h
-CFLAGS+=	-I${.CURDIR}/../../contrib/openrc \
-	       	-I${.CURDIR}/../../lib/libeinfo \
-	       	-I${.CURDIR}/../../lib/librc \
-	       	-I${.CURDIR}/../../include
+SRCS=	${.CURDIR}/../../contrib/openrc/src/rc/rc.c \
+	${.CURDIR}/../../contrib/openrc/src/rc/rc-logger.c \
+	${.CURDIR}/../../contrib/openrc/src/rc/rc-misc.c \
+	${.CURDIR}/../../contrib/openrc/src/rc/rc-plugin.c \
+	${.CURDIR}/../../contrib/openrc/src/rc/_usage.c
+INCS=	${.CURDIR}/../../contrib/openrc/src/rc/rc-logger.h
+CFLAGS+=	-I${.CURDIR}/../../contrib/openrc/src/rc \
+		-I${.CURDIR}/../../contrib/openrc/src/libeinfo \
+		-I${.CURDIR}/../../contrib/openrc/src/librc \
+                -I${.OBJDIR}/../../lib/librc/contrib/openrc/src/librc \
+		-I${.CURDIR}/../../contrib/openrc/src/includes
 
 WARNS?=	3
-MAN=	openrc.8
+MAN=	${.CURDIR}/../../contrib/openrc/man/openrc.8
 
 LIBADD=	einfo rc util
 

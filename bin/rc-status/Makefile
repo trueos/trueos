@@ -2,16 +2,24 @@
 
 PACKAGE=runtime
 PROG=	rc-status
+
+.include <src.opts.mk>
+
+ORSRC=    ${SRCTOP}/contrib/openrc/src
+
+.PATH:  ${ORSRC}/rc
+
 SRCS=	rc-status.c \
-       	${.CURDIR}/../../contrib/openrc/rc-misc.c \
-       	${.CURDIR}/../../contrib/openrc/_usage.c
-CFLAGS+=	-I${.CURDIR}/../../contrib/openrc \
-	       	-I${.CURDIR}/../../lib/libeinfo \
-	       	-I${.CURDIR}/../../lib/librc \
-	       	-I${.CURDIR}/../../include
+	rc-misc.c \
+	_usage.c
+CFLAGS+=	-I${ORSRC}/rc \
+		-I${ORSRC}/libeinfo \
+		-I${ORSRC}/librc \
+                -I${.OBJDIR}/../../lib/librc/contrib/openrc/src/librc \
+		-I${ORSRC}/includes
 
 WARNS?=	3
-MAN=	rc-status.8
+MAN=	${.CURDIR}/../../contrib/openrc/man/rc-status.8
 
 LIBADD=	einfo rc
 

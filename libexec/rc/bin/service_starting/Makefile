@@ -2,6 +2,13 @@
 
 PACKAGE=runtime
 PROG=	service_starting
+
+.include <src.opts.mk>
+
+ORSRC=    ${SRCTOP}/contrib/openrc/src
+
+.PATH:  ${ORSRC}/rc
+
 LINKS=  ${BINDIR}/service_starting ${BINDIR}/service_started \
 	${BINDIR}/service_starting ${BINDIR}/service_stopping \
 	${BINDIR}/service_starting ${BINDIR}/service_stopped \
@@ -11,11 +18,12 @@ LINKS=  ${BINDIR}/service_starting ${BINDIR}/service_started \
 	${BINDIR}/service_starting ${BINDIR}/service_started_daemon \
 	${BINDIR}/service_starting ${BINDIR}/service_crashed
 SRCS=	do_service.c \
-       	${.CURDIR}/../../../../contrib/openrc/rc-misc.c
-CFLAGS+=	-I${.CURDIR}/../../../../contrib/openrc \
-	       	-I${.CURDIR}/../../../../lib/libeinfo \
-	       	-I${.CURDIR}/../../../../lib/librc \
-	       	-I${.CURDIR}/../../../../include 
+	rc-misc.c
+CFLAGS+=	-I${ORSRC}/rc \
+		-I${ORSRC}/libeinfo \
+		-I${ORSRC}/librc \
+                -I${.OBJDIR}/../../../../lib/librc/contrib/openrc/src/librc \
+		-I${ORSRC}/includes
 
 WARNS?=	3
 

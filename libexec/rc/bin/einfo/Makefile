@@ -2,6 +2,13 @@
 
 PACKAGE=runtime
 PROG=	einfo
+
+.include <src.opts.mk>
+
+ORSRC=    ${SRCTOP}/contrib/openrc/src
+
+.PATH:  ${ORSRC}/rc
+
 LINKS=  ${BINDIR}/einfo ${BINDIR}/einfon \
 	${BINDIR}/einfo ${BINDIR}/ewarn \
 	${BINDIR}/einfo ${BINDIR}/ewarnn \
@@ -23,11 +30,12 @@ LINKS=  ${BINDIR}/einfo ${BINDIR}/einfon \
 	${BINDIR}/einfo ${BINDIR}/veindent \
 	${BINDIR}/einfo ${BINDIR}/veoutdent
 SRCS=	do_e.c \
-       	${.CURDIR}/../../../../contrib/openrc/rc-misc.c
-CFLAGS+=	-I${.CURDIR}/../../../../contrib/openrc \
-	       	-I${.CURDIR}/../../../../lib/libeinfo \
-	       	-I${.CURDIR}/../../../../lib/librc \
-	       	-I${.CURDIR}/../../../../include 
+	rc-misc.c
+CFLAGS+=	-I${ORSRC}/rc \
+		-I${ORSRC}/libeinfo \
+		-I${ORSRC}/librc \
+                -I${.OBJDIR}/../../../../lib/librc/contrib/openrc/src/librc \
+		-I${ORSRC}/includes
 
 WARNS?=	3
 
