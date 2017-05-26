@@ -22,7 +22,7 @@ supervise_start()
 	# The eval call is necessary for cases like:
 	# command_args="this \"is a\" test"
 	# to work properly.
-	eval supervise-daemon --start \
+	eval start-stop-daemon --start supervise-daemon -- --start \
 		${chroot:+--chroot} $chroot \
 		${pidfile:+--pidfile} $pidfile \
 		${respawn_delay:+--respawn-delay} $respawn_delay \
