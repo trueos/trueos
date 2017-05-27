@@ -323,7 +323,15 @@ static void ttm_bo_vm_open(struct vm_area_struct *vma)
 
 	WARN_ON(bo->bdev->dev_mapping != vma->vm_file->f_mapping);
 
+#ifndef __FreeBSD__
+	/*
+	 * On FreeBSD this routine is called when mmaping a buffer object, but
+	 * we already have a reference from object initialization. Buffer object
+	 * mappings are not associated with the drm device file object, so we
+	 * rely on the dtor to release the final reference.
+	 */
 	(void)ttm_bo_reference(bo);
+#endif
 }
 
 static void ttm_bo_vm_close(struct vm_area_struct *vma)
