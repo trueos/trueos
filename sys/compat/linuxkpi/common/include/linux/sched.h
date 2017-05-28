@@ -53,38 +53,35 @@
 #define	MAX_SCHEDULE_TIMEOUT	INT_MAX
 
 #define	TASK_RUNNING		0
-#define	TASK_INTERRUPTIBLE	1
-#define	TASK_UNINTERRUPTIBLE	2
-#define	TASK_KILLABLE           3
-#define	TASK_DEAD		64
-#define	TASK_WAKEKILL		128
-#define	TASK_WAKING		256
-#define	TASK_PARKED		512
+#define	TASK_INTERRUPTIBLE	0x0001
+#define	TASK_UNINTERRUPTIBLE	0x0002
 #define	TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
+#define	TASK_WAKING		0x0100
+#define	TASK_PARKED		0x0200
 
-#define	TASK_COMM_LEN 16
+#define	TASK_COMM_LEN		(MAXCOMLEN + 1)
 
 struct seq_file;
-struct wait_queue_head;
 
 struct task_struct {
 	struct thread *task_thread;
 	struct mm_struct *mm;
+
+	/* kthread fields */
 	linux_task_fn_t *task_fn;
 	void   *task_data;
 	int	task_ret;
+	atomic_t kthread_flags;
+
 	atomic_t usage;
 	atomic_t state;
-	atomic_t kthread_flags;
 	const char *comm;
-	struct wait_queue_head *sleep_wq;
 	pid_t	pid;	/* BSD thread ID */
 	int	prio;
-	int	static_prio;
-	int	normal_prio;
+
 	void   *bsd_ioctl_data;
 	unsigned bsd_ioctl_len;
-	struct mtx sleep_lock;
+
 	struct completion parked;
 	struct completion exited;
 	TAILQ_ENTRY(task_struct) rcu_entry;
@@ -123,10 +120,6 @@ put_task_struct(struct task_struct *task)
 		linux_free_current(task);
 }
 
-extern u64 cpu_clock(int cpu);
-extern u64 running_clock(void);
-extern u64 sched_clock_cpu(int cpu);
-
 static inline u64
 local_clock(void)
 {
@@ -140,89 +133,39 @@ local_clock(void)
 
 #define	sched_yield()	sched_relinquish(curthread)
 
+bool linux_signal_pending(struct task_struct *task);
+bool linux_fatal_signal_pending(struct task_struct *task);
+bool linux_signal_pending_state(long state, struct task_struct *task);
+void linux_send_sig(int signo, struct task_struct *task);
 
-static inline int
-send_sig(int signo, struct task_struct *t, int priv)
-{
-	/* Only support signalling current process right now  */
-	MPASS(t == current);
+#define	signal_pending(task)		linux_signal_pending(task)
+#define	fatal_signal_pending(task)	linux_fatal_signal_pending(task)
+#define	signal_pending_state(state, task)		\
+	linux_signal_pending_state(state, task)
+#define	send_sig(signo, task, priv) do {		\
+	CTASSERT(priv == 0);				\
+	linux_send_sig(signo, task);			\
+} while (0)
 
-	PROC_LOCK(curproc);
-	tdsignal(curthread, signo);
-	PROC_UNLOCK(curproc);
-	return (0);
-}
+int linux_schedule_timeout(int timeout);
 
-static inline int
-signal_pending(struct task_struct *p)
-{
-	return SIGPENDING(p->task_thread);
-}
+#define	schedule()					\
+	(void)linux_schedule_timeout(MAX_SCHEDULE_TIMEOUT)
+#define	schedule_timeout(timeout)			\
+	linux_schedule_timeout(timeout)
+#define	schedule_timeout_killable(timeout)		\
+	schedule_timeout_uninterruptible(timeout)
+#define	schedule_timeout_interruptible(timeout) ({	\
+	set_current_state(TASK_INTERRUPTIBLE);		\
+	schedule_timeout(timeout);			\
+})
+#define	schedule_timeout_uninterruptible(timeout) ({	\
+	set_current_state(TASK_UNINTERRUPTIBLE);	\
+	schedule_timeout(timeout);			\
+})
 
-static inline int
-__fatal_signal_pending(struct task_struct *p)
-{
-	return (SIGISMEMBER(p->task_thread->td_siglist, SIGKILL));
-}
-
-static inline int
-fatal_signal_pending(struct task_struct *p)
-{
-	return signal_pending(p) && __fatal_signal_pending(p);
-}
-
-static inline int
-signal_pending_state(long state, struct task_struct *p)
-{
-	if (!(state & (TASK_INTERRUPTIBLE | TASK_WAKEKILL)))
-		return 0;
-	if (!signal_pending(p))
-		return 0;
-
-	return (state & TASK_INTERRUPTIBLE) || __fatal_signal_pending(p);
-}
-
-extern long schedule_timeout(long timeout);
-
-static inline long
-schedule_timeout_uninterruptible(long timeout)
-{
-	MPASS(current);
-	__set_current_state(TASK_UNINTERRUPTIBLE);
-	return (schedule_timeout(timeout));
-}
-
-static inline long
-schedule_timeout_interruptible(long timeout)
-{
-	MPASS(current);
-	__set_current_state(TASK_INTERRUPTIBLE);
-	return (schedule_timeout(timeout));
-}
-
-static inline long
-schedule_timeout_killable(long timeout)
-{
-	return (schedule_timeout(timeout));
-}
-
-static inline long
-io_schedule_timeout(long timeout)
-{
-	return (schedule_timeout(timeout));
-}
-
-static inline void
-io_schedule(void)
-{
-	io_schedule_timeout(MAX_SCHEDULE_TIMEOUT);
-}
-
-static inline void
-schedule(void)
-{
-	schedule_timeout(MAX_SCHEDULE_TIMEOUT);
-}
+#define	io_schedule()			schedule()
+#define	io_schedule_timeout(timeout)	schedule_timeout(timeout)
 
 #define	yield() kern_yield(PRI_UNCHANGED)
 
