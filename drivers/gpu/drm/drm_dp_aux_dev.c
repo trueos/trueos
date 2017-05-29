@@ -351,7 +351,8 @@ int drm_dp_aux_dev_init(void)
 #ifdef __linux__
 	res = register_chrdev(0, "aux", &auxdev_fops);
 #else
-	res = register_chrdev_p(DRM_MAJOR+1, "aux", &auxdev_fops, DRM_DEV_UID, DRM_DEV_GID, DRM_DEV_MODE);
+	res = register_chrdev_p(DRM_MAJOR+1, "aux", &auxdev_fops,
+	    DRM_DEV_UID, DRM_DEV_GID, DRM_DEV_MODE);
 	if (res == 0)
 		res = DRM_MAJOR+1;
 #endif	
