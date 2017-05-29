@@ -1259,7 +1259,6 @@ struct fileops linuxfileops = {
 	.fo_sendfile = invfo_sendfile,
 };
 
-
 char *
 kvasprintf(gfp_t gfp, const char *fmt, va_list ap)
 {
