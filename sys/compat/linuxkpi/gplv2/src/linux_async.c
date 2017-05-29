@@ -13,7 +13,6 @@
 #include <linux/async.h>
 #include <linux/wait.h>
 
-static DECLARE_WAIT_QUEUE_HEAD(async_done);
 static atomic_t nextcookie;
 
 static void
@@ -25,8 +24,6 @@ async_run_entry_fn(struct work_struct *work)
 	entry  = container_of(work, struct async_entry, work);
 	entry->func(entry->data, entry->cookie);
 	kfree(entry);
-	wake_up(&async_done);
-
 }
 
 async_cookie_t
