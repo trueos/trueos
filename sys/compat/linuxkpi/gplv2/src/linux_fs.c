@@ -151,6 +151,7 @@ shmem_file_setup(char *name, loff_t size, unsigned long flags)
 	filp = &fileobj->file;
 	vp = &fileobj->vnode;
 
+	filp->f_count = 1;
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_vnode = vp;
 	filp->f_mapping = file_inode(filp)->i_mapping =
@@ -197,19 +198,4 @@ shmem_truncate_range(struct vnode *vp, loff_t lstart, loff_t lend)
 	vm_pindex_t end = OFF_TO_IDX(lend + 1);
 
 	(void)linux_invalidate_mapping_pages(vm_obj, start, end, 0);
-}
-
-void
-linux_file_free(struct linux_file *filp)
-{
-
-	if (filp->_file == NULL) {
-		struct vnode *vp = filp->f_vnode;
-
-		if (vp != NULL && vp->i_mapping != NULL)
-			vm_object_deallocate(vp->i_mapping);
-	} else {
-		_fdrop(filp->_file, curthread);
-	}
-	kfree(filp);
 }

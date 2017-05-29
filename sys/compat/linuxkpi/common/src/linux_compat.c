@@ -416,6 +416,25 @@ linux_file_dtor(void *cdp)
 	kfree(filp);
 }
 
+void
+linux_file_free(struct linux_file *filp)
+{
+	if (filp->_file == NULL) {
+		struct vnode *vp = filp->f_vnode;
+
+		if (vp != NULL && vp->i_mapping != NULL)
+			vm_object_deallocate(vp->i_mapping);
+
+		kfree(filp);
+	} else {
+		/*
+		 * The close method of the character device or file
+		 * will free the linux_file structure:
+		 */
+		_fdrop(filp->_file, curthread);
+	}
+}
+
 static int
 linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
     vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
@@ -647,10 +666,12 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	spin_lock_init(&filp->f_lock);
 	knlist_init(&filp->f_selinfo.si_note, &filp->f_lock, kq_lock, kq_unlock,
 	    kq_lock_owned, kq_lock_unowned);
+	filp->_file = file;
 
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
+			vdrop(filp->f_vnode);
 			kfree(filp);
 			goto done;
 		}
@@ -658,6 +679,7 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	error = devfs_set_cdevpriv(filp, linux_file_dtor);
 	if (error) {
 		filp->f_op->release(file->f_vnode, filp);
+		vdrop(filp->f_vnode);
 		kfree(filp);
 	}
 done:
@@ -677,8 +699,7 @@ linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
-        devfs_clear_cdevpriv();
-        
+	devfs_clear_cdevpriv();
 
 	return (0);
 }
@@ -930,8 +951,6 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 
 	file = td->td_fpop;
 	filp->f_flags = file->f_flag;
-	if (filp->_file == NULL)
-		filp->_file = file;
 
 	linux_set_current(td);
 	if (filp->f_op->poll)
@@ -960,8 +979,6 @@ linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
-	if (filp->_file == NULL)
-		filp->_file = td->td_fpop;
 	if (filp->f_op->poll == NULL || kn->kn_filter != EVFILT_READ || filp->f_kqfiltops == NULL)
 		return (EINVAL);
 
@@ -1135,8 +1152,6 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
 
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
-	if (filp->_file == NULL)
-		filp->_file = td->td_fpop;
 	linux_set_current(td);
 	if (filp->f_op->poll)
 		revents = filp->f_op->poll(filp, NULL) & events;

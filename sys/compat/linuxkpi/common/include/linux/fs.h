@@ -74,8 +74,13 @@ struct file_operations;
 #define i_mapping v_bufobj.bo_object
 #define i_private v_data
 #define file_inode(f) ((f)->f_vnode)
+
 /* this value isn't needed by the compat layer */
-static inline void i_size_write(void *inode, off_t i_size) { ; }
+static inline void
+i_size_write(void *inode, off_t i_size)
+{
+	/* NOP */
+}
 
 struct linux_file {
 	struct file	*_file;
@@ -88,7 +93,7 @@ struct linux_file {
 	struct selinfo	f_selinfo;
 	struct sigio	*f_sigio;
 	struct vnode	*f_vnode;
-	atomic_long_t		f_count;
+	volatile u_int	f_count;
 	vm_object_t	f_mapping;
 
 	/* kqfilter support */
@@ -97,6 +102,7 @@ struct linux_file {
 	/* protects f_sigio.si_note and f_entry */
 	spinlock_t	f_lock;
 };
+
 #define f_inode		f_vnode
 #define	file		linux_file
 #define	fasync_struct	sigio *
@@ -255,20 +261,21 @@ iminor(struct inode *inode)
 static inline struct linux_file *
 get_file(struct linux_file *f)
 {
-	fhold(f->_file);
+
+	refcount_acquire(f->_file == NULL ? &f->f_count : &f->_file->f_count);
 	return (f);
 }
 
 extern loff_t default_llseek(struct file *file, loff_t offset, int whence);
 
 static inline loff_t 
-no_llseek(struct file *file, loff_t offset, int whence)
+no_llseek(struct linux_file *file, loff_t offset, int whence)
 {
         return -ESPIPE;
 }
 
 static inline loff_t 
-noop_llseek(struct file *file, loff_t offset, int whence)
+noop_llseek(struct linux_file *file, loff_t offset, int whence)
 {
         return file->_file->f_offset;
 }
