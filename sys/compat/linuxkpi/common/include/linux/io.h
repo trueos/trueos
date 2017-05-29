@@ -34,9 +34,9 @@
 #include <machine/vm.h>
 #include <sys/endian.h>
 #include <sys/types.h>
-#include <linux/types.h>
 
 #include <linux/compiler.h>
+#include <linux/types.h>
 
 static inline uint32_t
 __raw_readl(const volatile void *addr)
@@ -258,21 +258,5 @@ memunmap(void *addr)
 	/* XXX May need to check if this is RAM */
 	iounmap(addr);
 }
-
-#if defined(__amd64__) || defined(__i386__)
-extern int arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size);
-extern void arch_io_free_memtype_wc(resource_size_t start, resource_size_t size);
-#else
-static inline int arch_io_reserve_memtype_wc(resource_size_t base,
-					     resource_size_t size)
-{
-	return 0;
-}
-
-static inline void arch_io_free_memtype_wc(resource_size_t base,
-					   resource_size_t size)
-{
-}
-#endif
 
 #endif	/* _LINUX_IO_H_ */

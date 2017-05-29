@@ -96,7 +96,6 @@ struct device_driver {
 	int (*suspend) (struct device *dev, pm_message_t state);
 	int (*resume) (struct device *dev);
 	const struct attribute_group **groups;
-
 	const struct dev_pm_ops *pm;
 };
 
@@ -565,6 +564,7 @@ class_create(struct module *owner, const char *name)
 static inline void
 class_destroy(struct class *class)
 {
+
 	if (class == NULL)
 		return;
 	class_unregister(class);
@@ -578,7 +578,6 @@ device_create_file(struct device *dev, const struct device_attribute *attr)
 		return sysfs_create_file(&dev->kobj, &attr->attr);
 	return -EINVAL;
 }
-
 
 static inline void
 device_remove_file(struct device *dev, const struct device_attribute *attr)

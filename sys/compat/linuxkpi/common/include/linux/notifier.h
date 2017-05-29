@@ -34,10 +34,7 @@
 #include <sys/types.h>
 #include <sys/eventhandler.h>
 
-#define	NOTIFY_DONE		0x00
-#define	NOTIFY_OK		0x01
-#define	NOTIFY_STOP_MASK	0x80
-#define	NOTIFY_BAD		(NOTIFY_STOP_MASK|0x02)
+#define	NOTIFY_DONE	0
 
 enum {
 	NETDEV_CHANGE,

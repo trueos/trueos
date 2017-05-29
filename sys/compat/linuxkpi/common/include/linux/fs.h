@@ -58,7 +58,6 @@ struct pipe_inode_info;
 struct vm_area_struct;
 struct poll_table_struct;
 struct files_struct;
-struct super_block;
 
 #define	inode	vnode
 #define	i_cdev	v_rdev

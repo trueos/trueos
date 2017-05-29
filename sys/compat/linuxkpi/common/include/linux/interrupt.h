@@ -36,7 +36,6 @@
 
 #include <linux/hardirq.h>
 
-struct seq_file;
 #undef resource
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 

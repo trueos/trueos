@@ -65,16 +65,7 @@
 #define PCI_CLASS_DISPLAY_OTHER		0x0380
 
 #define PCI_BASE_CLASS_BRIDGE		0x06
-#define PCI_CLASS_BRIDGE_HOST		0x0600
 #define PCI_CLASS_BRIDGE_ISA		0x0601
-#define PCI_CLASS_BRIDGE_EISA		0x0602
-#define PCI_CLASS_BRIDGE_MC		0x0603
-#define PCI_CLASS_BRIDGE_PCI		0x0604
-#define PCI_CLASS_BRIDGE_PCMCIA		0x0605
-#define PCI_CLASS_BRIDGE_NUBUS		0x0606
-#define PCI_CLASS_BRIDGE_CARDBUS	0x0607
-#define PCI_CLASS_BRIDGE_RACEWAY	0x0608
-#define PCI_CLASS_BRIDGE_OTHER		0x0680
 
 struct pci_device_id {
 	uint32_t	vendor;
@@ -100,12 +91,14 @@ struct pci_device_id {
 #define	PCI_VENDOR_ID_SONY		0x104d
 #define	PCI_VENDOR_ID_TOPSPIN			0x1867
 #define	PCI_VENDOR_ID_VIA		0x1106
+#define	PCI_DEVICE_ID_ATI_RADEON_QY	0x5159
 #define	PCI_DEVICE_ID_MELLANOX_TAVOR		0x5a44
 #define	PCI_DEVICE_ID_MELLANOX_TAVOR_BRIDGE	0x5a46
 #define	PCI_DEVICE_ID_MELLANOX_ARBEL_COMPAT	0x6278
 #define	PCI_DEVICE_ID_MELLANOX_ARBEL		0x6282
 #define	PCI_DEVICE_ID_MELLANOX_SINAI_OLD	0x5e8c
 #define	PCI_DEVICE_ID_MELLANOX_SINAI		0x6274
+#define	PCI_DEVICE_ID_ATI_RADEON_QY	0x5159
 
 #define PCI_DEVFN(slot, func)   ((((slot) & 0x1f) << 3) | ((func) & 0x07))
 #define PCI_SLOT(devfn)         (((devfn) >> 3) & 0x1f)
@@ -198,10 +191,8 @@ struct pci_driver {
 	const struct pci_device_id		*id_table;
 	int  (*probe)(struct pci_dev *dev, const struct pci_device_id *id);
 	void (*remove)(struct pci_dev *dev);
-        int  (*suspend) (struct pci_dev *dev, pm_message_t state);      /* Device suspended */
-        int  (*suspend_late) (struct pci_dev *dev, pm_message_t state);
-        int  (*resume_early) (struct pci_dev *dev);
-        int  (*resume) (struct pci_dev *dev);                   /* Device woken up */
+	int  (*suspend) (struct pci_dev *dev, pm_message_t state);	/* Device suspended */
+	int  (*resume) (struct pci_dev *dev);		/* Device woken up */
 	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
 	driver_t			bsd_driver;
 	devclass_t			*bsdclass;
@@ -238,22 +229,6 @@ struct pci_bus {
 	unsigned char   max_bus_speed;  /* enum pci_bus_speed */
 	struct device		dev;
 };
-
-int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
-			struct linux_resource *res, resource_size_t size,
-			resource_size_t align, resource_size_t min,
-			unsigned int type_mask,
-			resource_size_t (*alignf)(void *,
-						  const struct linux_resource *,
-						  resource_size_t,
-						  resource_size_t),
-			void *alignf_data);
-
-
-extern resource_size_t pcibios_align_resource(void *data, const struct linux_resource *res,
-		       resource_size_t size, resource_size_t align);
-
-extern int release_resource(struct linux_resource *old);
 
 #define LINUXKPI_BIOS 6
 #define LINUXKPI_MAX_PCI_RESOURCE 7
@@ -386,14 +361,12 @@ pci_resource_flags(struct pci_dev *pdev, int bar)
 	return (1 << type);
 }
 
-
 static inline const char *
 pci_name(struct pci_dev *d)
 {
 
 	return device_get_desc(d->dev.bsddev);
 }
-
 
 static inline void *
 pci_get_drvdata(struct pci_dev *pdev)
@@ -500,24 +473,6 @@ pci_request_regions(struct pci_dev *pdev, const char *res_name)
 	return (0);
 }
 
-
-static inline int
-linux_pci_enable_msi(struct pci_dev *pdev)
-{
-	/*  not clear what address to use - ignore for now*/
-	return (0);
-}
-
-static inline void
-linux_pci_disable_msi(struct pci_dev *pdev)
-{
-	/* disable until clear how to do enable */
-	/* pci_disable_msi(pdev->dev.bsddev); */
-}
-
-
-struct pci_dev *linux_pci_get_class(unsigned int class, struct pci_dev *from);
-
 struct pci_dev *linux_bsddev_to_pci_dev(device_t dev);
 
 static inline void
@@ -609,41 +564,8 @@ pci_write_config_dword(struct pci_dev *pdev, int where, u32 val)
 	return (0);
 }
 
-static inline int
-pci_bus_read_config(struct pci_bus *bus, unsigned int devfn,
-		    int where, uint32_t *val, int size)
-{
-	device_t dev;
-	int dom, busid, slot, func;
-
-	dom = pci_get_domain(bus->self->dev.bsddev);
-	busid = pci_get_bus(bus->self->dev.bsddev);
-	slot = ((devfn >> 3) & 0x1f);
-	func = devfn & 0x7;
-	dev = pci_find_dbsf(dom, busid, slot, func);
-	*val = pci_read_config(dev, where, size);
-	return (0);
-}
-
-static inline int
-pci_bus_read_config_word(struct pci_bus *bus, unsigned int devfn, int where, u16 *val)
-{
-	return (pci_bus_read_config(bus, devfn, where, (uint32_t *)val, 2));
-}
-
-static inline int
-pci_bus_read_config_byte(struct pci_bus *bus, unsigned int devfn, int where, u8 *val)
-{
-	return (pci_bus_read_config(bus, devfn, where, (uint32_t *)val, 1));
-}
-
-extern struct pci_dev *pci_get_bus_and_slot(unsigned int bus, unsigned int devfn);
-
-void pci_dev_put(struct pci_dev *pdev);
 extern int pci_register_driver(struct pci_driver *pdrv);
 extern void pci_unregister_driver(struct pci_driver *pdrv);
-extern void *pci_iomap(struct pci_dev *pdev, int bar, unsigned long max);
-extern void pci_iounmap(struct pci_dev *pdev, void *regs);
 
 struct msix_entry {
 	int entry;
@@ -963,19 +885,5 @@ pci_num_vf(struct pci_dev *dev)
 {
 	return (0);
 }
-
-void pci_unmap_rom(struct pci_dev *pdev, u8 *bios);
-
-void * pci_map_rom(struct pci_dev *pdev, size_t *size);
-
-int pci_bus_read_config_byte(struct pci_bus *bus, unsigned int devfn,
-			     int where, u8 *val);
-int pci_bus_read_config_word(struct pci_bus *bus, unsigned int devfn,
-			     int where, u16 *val);
-
-
-#define PCI_DEVICE_ID_ATI_RADEON_QY     0x5159
-#define pci_enable_msi linux_pci_enable_msi
-#define pci_disable_msi linux_pci_disable_msi
 
 #endif	/* _LINUX_PCI_H_ */

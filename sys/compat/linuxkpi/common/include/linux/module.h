@@ -46,6 +46,8 @@
 #define MODULE_AUTHOR(name)
 #define MODULE_DESCRIPTION(name)
 #define MODULE_LICENSE(name)
+#define	MODULE_INFO(tag, info)
+#define	MODULE_FIRMWARE(firmware)
 
 #define	THIS_MODULE	((struct module *)0)
 
@@ -89,10 +91,6 @@ _module_run(void *arg)
 
 #define postcore_initcall(fn)		module_init(fn)
 #define late_initcall(fn)		module_init(fn)
-
-#define MODULE_INFO(tag, info) /*__MODULE_INFO(tag, tag, info) */
-#define MODULE_FIRMWARE(_firmware) MODULE_INFO(firmware, _firmware)
-
 
 /*
  * The following two macros are a workaround for not having a module
