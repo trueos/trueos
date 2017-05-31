@@ -6,6 +6,9 @@
 #include <linux/numa.h>
 #include <linux/pm.h>
 
+typedef void (*dr_release_t)(struct device *dev, void *res);
+typedef int (*dr_match_t)(struct device *dev, void *res, void *match_data);
+
 struct devres_node {
 	struct list_head		entry;
 	dr_release_t			release;

@@ -81,9 +81,6 @@ struct device_driver {
 	const struct dev_pm_ops *pm;
 };
 
-typedef void (*dr_release_t)(struct device *dev, void *res);
-typedef int (*dr_match_t)(struct device *dev, void *res, void *match_data);
-
 #define DEVICE_ATTR(_name, _mode, _show, _store) \
 	struct device_attribute dev_attr_##_name = __ATTR(_name, _mode, _show, _store)
 #define DEVICE_ATTR_RW(_name) \
@@ -175,24 +172,18 @@ struct device {
 	struct class	*class;
 	void		(*release)(struct device *dev);
 	struct kobject	kobj;
+	uint64_t	*dma_mask;
 	void		*driver_data;
 	unsigned int	irq;
 #define	LINUX_IRQ_INVALID	65535
 	unsigned int	msix;
 	unsigned int	msix_max;
+	const struct attribute_group **groups;
 	struct device_type *type;
-	uint64_t	*dma_mask;
-	u64		coherent_dma_mask;/* Like dma_mask, but for
-					     alloc_coherent mappings as
-					     not all hardware supports
-					     64 bit addresses for consistent
-					     allocations such descriptors. */
 	struct device_node	*of_node; /* associated device tree node */
 	struct fwnode_handle	*fwnode;
 	struct device_driver *driver;	/* which driver has allocated this device */
 	struct dev_pm_info	power;
-	const struct attribute_group **groups;	/* optional groups */
-	const char		*init_name; /* initial name of the device */
 	struct bus_type	*bus;		/* type of bus device is on */
 
 	spinlock_t		devres_lock;
