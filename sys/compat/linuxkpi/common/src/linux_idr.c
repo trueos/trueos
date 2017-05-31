@@ -374,7 +374,7 @@ idr_free_list_get(struct idr *idp)
 	struct idr_layer *il;
 
 	mtx_lock(&idp->lock);
-	if ((il = idp->free)) {
+	if ((il = idp->free) != NULL) {
 		idp->free = il->ary[0];
 		il->ary[0] = NULL;
 	}
