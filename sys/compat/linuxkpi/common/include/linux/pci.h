@@ -56,7 +56,6 @@
 #include <asm/atomic.h>
 #include <linux/device.h>
 #include <linux/ioport.h>
-#include <linux/pci_ids.h>
 
 #define PCI_BASE_CLASS_DISPLAY		0x03
 #define PCI_CLASS_DISPLAY_VGA		0x0300
