@@ -34,7 +34,6 @@
 #include <linux/types.h>
 
 #include <sys/param.h>
-#include <sys/eventhandler.h>
 #include <sys/vmmeter.h>
 
 #include <machine/atomic.h>
@@ -78,24 +77,24 @@ pgprot2cachemode(pgprot_t prot)
 #define	pfn_to_page(pfn)	(PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
 #define	nth_page(page,n)	pfn_to_page(page_to_pfn((page)) + (n))
 
-#define	clear_page(addr)		memset((addr), 0, PAGE_SIZE)
-#define clear_highpage(addr)	clear_page((addr))
+#define	clear_page(page)		memset((page), 0, PAGE_SIZE)
+#define	clear_highpage(page)		clear_page(page)
 #define	pgprot_noncached(prot)		((prot) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
 #define	pgprot_writecombine(prot)	((prot) | cachemode2protval(VM_MEMATTR_WRITE_COMBINING))
 
 #undef	PAGE_MASK
 #define	PAGE_MASK	(~(PAGE_SIZE-1))
 /*
- * Modifying PAGE_MASK in the above way breaks trunc_page, round_page, and btoc
- * macros.  Therefore, redefine them in a way that makes sense so linuxkpi
- * consumers don't get totally broken behavior.
+ * Modifying PAGE_MASK in the above way breaks trunc_page, round_page,
+ * and btoc macros. Therefore, redefine them in a way that makes sense
+ * so linuxkpi consumers don't get totally broken behavior.
  */
 #undef	btoc
-#define	btoc(x)	(((vm_offset_t)(x)+PAGE_SIZE-1)>>PAGE_SHIFT)
+#define	btoc(x)	(((vm_offset_t)(x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
 #undef	round_page
-#define	round_page(x)	((((uintptr_t)(x)) + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
+#define	round_page(x)	((((uintptr_t)(x)) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 #undef	trunc_page
-#define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE-1))
+#define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE - 1))
 
 /* XXX note that this is incomplete */
 void *kmap(vm_page_t page);
