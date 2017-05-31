@@ -416,6 +416,60 @@ linux_file_dtor(void *cdp)
 	kfree(filp);
 }
 
+static void
+linux_kq_lock(void *arg)
+{
+	spinlock_t *s = arg;
+
+	spin_lock(s);
+}
+static void
+linux_kq_unlock(void *arg)
+{
+	spinlock_t *s = arg;
+
+	spin_unlock(s);
+}
+
+static void
+linux_kq_lock_owned(void *arg)
+{
+#ifdef INVARIANTS
+	spinlock_t *s = arg;
+
+	mtx_assert(&s->m, MA_OWNED);
+#endif
+}
+
+static void
+linux_kq_lock_unowned(void *arg)
+{
+#ifdef INVARIANTS
+	spinlock_t *s = arg;
+
+	mtx_assert(&s->m, MA_NOTOWNED);
+#endif
+}
+
+struct linux_file *
+linux_file_alloc(void)
+{
+	struct linux_file *filp;
+
+	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
+
+	/* set initial refcount */
+	filp->f_count = 1;
+
+	/* setup fields needed by kqueue support */
+	spin_lock_init(&filp->f_kqlock);
+	knlist_init(&filp->f_selinfo.si_note, &filp->f_kqlock,
+	    linux_kq_lock, linux_kq_unlock,
+	    linux_kq_lock_owned, linux_kq_lock_unowned);
+
+	return (filp);
+}
+
 void
 linux_file_free(struct linux_file *filp)
 {
@@ -599,41 +653,6 @@ static struct cdev_pager_ops linux_cdev_pager_ops = {
 	.cdev_pg_dtor	= linux_cdev_pager_dtor
 };
 
-static void
-kq_lock(void *arg)
-{
-	spinlock_t *s = arg;
-
-	spin_lock(s);
-}
-static void
-kq_unlock(void *arg)
-{
-	spinlock_t *s = arg;
-
-	spin_unlock(s);
-}
-
-static void
-kq_lock_owned(void *arg)
-{
-#ifdef INVARIANTS
-	spinlock_t *s = arg;
-
-	mtx_assert(&s->m, MA_OWNED);
-#endif
-}
-
-static void
-kq_lock_unowned(void *arg)
-{
-#ifdef INVARIANTS
-	spinlock_t *s = arg;
-
-	mtx_assert(&s->m, MA_NOTOWNED);
-#endif
-}
-
 static int
 linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
@@ -646,18 +665,16 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	ldev = dev->si_drv1;
 	if (ldev == NULL)
 		return (ENODEV);
-	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
+
+	filp = linux_file_alloc();
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_op = ldev->ops;
 	filp->f_flags = file->f_flag;
 	vhold(file->f_vnode);
 	filp->f_vnode = file->f_vnode;
-	linux_set_current(td);
-	INIT_LIST_HEAD(&filp->f_entry);
-	spin_lock_init(&filp->f_lock);
-	knlist_init(&filp->f_selinfo.si_note, &filp->f_lock, kq_lock, kq_unlock,
-	    kq_lock_owned, kq_lock_unowned);
 	filp->_file = file;
+
+	linux_set_current(td);
 
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
@@ -954,41 +971,68 @@ error:
 	return (events & (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
 }
 
+void
+linux_poll_wakeup(struct linux_file *filp)
+{
+	/* this function should be NULL-safe */
+	if (filp == NULL)
+		return;
+
+	selwakeup(&filp->f_selinfo);
+	spin_lock(&filp->f_kqlock);
+	KNOTE_LOCKED(&filp->f_selinfo.si_note, 1);
+	spin_unlock(&filp->f_kqlock);
+}
+
 static int
 linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 {
 	struct linux_file *filp;
 	struct file *file;
 	struct thread *td;
-	int error, revents;
+	int mevents;
+	int error;
 
 	td = curthread;
 	file = td->td_fpop;
-	revents = 0;
 	if (dev->si_drv1 == NULL)
 		return (ENXIO);
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
-	if (filp->f_op->poll == NULL || kn->kn_filter != EVFILT_READ || filp->f_kqfiltops == NULL)
+	if (filp->f_op->poll == NULL)
 		return (EINVAL);
 
-	if (kn->kn_filter == EVFILT_READ) {
-		kn->kn_fop = filp->f_kqfiltops;
+	switch (kn->kn_filter) {
+	case EVFILT_READ:
+		if (filp->f_kqfiltops_read == NULL)
+			return (EOPNOTSUPP);
+		kn->kn_fop = filp->f_kqfiltops_read;
 		kn->kn_hook = filp;
-		spin_lock(&filp->f_lock);
+		spin_lock(&filp->f_kqlock);
 		knlist_add(&filp->f_selinfo.si_note, kn, 1);
-		spin_unlock(&filp->f_lock);
-	} else
+		spin_unlock(&filp->f_kqlock);
+		mevents = POLLIN;
+		break;
+	case EVFILT_WRITE:
+		if (filp->f_kqfiltops_write == NULL)
+			return (EOPNOTSUPP);
+		kn->kn_fop = filp->f_kqfiltops_write;
+		kn->kn_hook = filp;
+		spin_lock(&filp->f_kqlock);
+		knlist_add(&filp->f_selinfo.si_note, kn, 1);
+		spin_unlock(&filp->f_kqlock);
+		mevents = POLLOUT;
+		break;
+	default:
 		return (EINVAL);
-
+	}
 	linux_set_current(td);
-	revents = filp->f_op->poll(filp, NULL);
 
-	if (revents) {
-		spin_lock(&filp->f_lock);
+	if (mevents & filp->f_op->poll(filp, NULL)) {
+		spin_lock(&filp->f_kqlock);
 		KNOTE_LOCKED(&filp->f_selinfo.si_note, 0);
-		spin_unlock(&filp->f_lock);
+		spin_unlock(&filp->f_kqlock);
 	}
 	return (0);
 }

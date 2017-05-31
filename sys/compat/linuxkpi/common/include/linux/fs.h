@@ -96,10 +96,10 @@ struct linux_file {
 	vm_object_t	f_mapping;
 
 	/* kqfilter support */
-	struct list_head f_entry;
-	struct filterops *f_kqfiltops;
-	/* protects f_sigio.si_note and f_entry */
-	spinlock_t	f_lock;
+	struct filterops *f_kqfiltops_read;
+	struct filterops *f_kqfiltops_write;
+	/* protects f_selinfo.si_note */
+	spinlock_t	f_kqlock;
 };
 
 #define f_inode		f_vnode

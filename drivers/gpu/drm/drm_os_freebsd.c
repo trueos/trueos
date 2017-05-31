@@ -259,9 +259,9 @@ drm_kqfilter_detach(struct knote *kn)
 {
 	struct linux_file *filp = kn->kn_hook;
 
-	spin_lock(&filp->f_lock);
+	spin_lock(&filp->f_kqlock);
 	knlist_remove(&filp->f_selinfo.si_note, kn, 1);
-	spin_unlock(&filp->f_lock);
+	spin_unlock(&filp->f_kqlock);
 }
 
 #ifdef DRM_KQ_DEBUG
@@ -303,7 +303,7 @@ static struct filterops drm_kqfiltops_read = {
 void
 drm_kqregister(struct linux_file *filp)
 {
-	filp->f_kqfiltops = &drm_kqfiltops_read;
+	filp->f_kqfiltops_read = &drm_kqfiltops_read;
 }
 
 #define to_drm_minor(d) container_of(d, struct drm_minor, kdev)
