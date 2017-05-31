@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/err.h>
-#include <linux/compat.h>
-#include <linux/preempt.h>
 
 #define	MAX_IDR_LEVEL	((MAX_IDR_SHIFT + IDR_BITS - 1) / IDR_BITS)
 #define	MAX_IDR_FREE	(MAX_IDR_LEVEL * 2)
@@ -371,7 +369,7 @@ idr_pre_get(struct idr *idr, gfp_t gfp_mask)
 }
 
 static struct idr_layer *
-__free_list_get(struct idr *idp)
+idr_free_list_get(struct idr *idp)
 {
 	struct idr_layer *il;
 
@@ -389,12 +387,11 @@ idr_get(struct idr *idp)
 {
 	struct idr_layer *il;
 
-	if ((il = __free_list_get(idp)) != NULL) {
+	if ((il = idr_free_list_get(idp)) != NULL) {
 		MPASS(ffsl(il->bitmap) != 0);
 	} else if ((il = malloc(sizeof(*il), M_IDR, M_ZERO | M_NOWAIT)) != NULL) {
 		bitmap_fill(&il->bitmap, IDR_SIZE);
-	} else if (!in_interrupt() &&
-	    (il = idr_preload_dequeue_locked(&DPCPU_GET(linux_idr_cache))) != NULL) {
+	} else if ((il = idr_preload_dequeue_locked(&DPCPU_GET(linux_idr_cache))) != NULL) {
 		bitmap_fill(&il->bitmap, IDR_SIZE);
 	} else {
 		return (NULL);
