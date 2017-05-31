@@ -388,7 +388,7 @@ idr_get(struct idr *idp)
 	struct idr_layer *il;
 
 	if ((il = idr_free_list_get(idp)) != NULL) {
-		MPASS(ffsl(il->bitmap) != 0);
+		MPASS(il->bitmap != 0);
 	} else if ((il = malloc(sizeof(*il), M_IDR, M_ZERO | M_NOWAIT)) != NULL) {
 		bitmap_fill(&il->bitmap, IDR_SIZE);
 	} else if ((il = idr_preload_dequeue_locked(&DPCPU_GET(linux_idr_cache))) != NULL) {
