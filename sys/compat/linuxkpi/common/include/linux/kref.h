@@ -35,10 +35,11 @@
 #include <sys/types.h>
 #include <sys/refcount.h>
 
-#include <linux/atomic.h>
+#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 
+#include <asm/atomic.h>
 
 struct kref {
 	atomic_t refcount;
