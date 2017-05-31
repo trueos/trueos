@@ -215,9 +215,6 @@ void cancel_reset_debug_log(void);
 #define	PM_EVENT_PRETHAW	PM_EVENT_QUIESCE
 
 
-void	hex_dump_to_buffer(const void *buf, size_t len, int rowsize,
-	    int groupsize, char *linebuf, size_t linebuflen, bool ascii);
-
 #define drm_proc_cleanup(a, b)
 
 
