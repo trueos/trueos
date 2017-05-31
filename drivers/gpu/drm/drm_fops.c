@@ -139,7 +139,6 @@ int drm_open(struct inode *inode, struct file *filp)
 
 	/* share address_space across all char-devs of a single device */
 	filp->f_mapping = dev->anon_mapping;
-	drm_kqregister(filp);
 
 	retcode = drm_open_helper(filp, minor);
 	if (retcode)

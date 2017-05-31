@@ -95,8 +95,11 @@ struct linux_file {
 	vm_object_t	f_mapping;
 
 	/* kqfilter support */
-	struct filterops *f_kqfiltops_read;
-	struct filterops *f_kqfiltops_write;
+	int		f_kqflags;
+#define	LINUX_KQ_FLAG_HAS_READ (1 << 0)
+#define	LINUX_KQ_FLAG_HAS_WRITE (1 << 1)
+#define	LINUX_KQ_FLAG_NEED_READ (1 << 2)
+#define	LINUX_KQ_FLAG_NEED_WRITE (1 << 3)
 	/* protects f_selinfo.si_note */
 	spinlock_t	f_kqlock;
 };

@@ -449,6 +449,9 @@ linux_kq_lock_unowned(void *arg)
 #endif
 }
 
+static void
+linux_dev_kqfilter_poll(struct linux_file *);
+
 struct linux_file *
 linux_file_alloc(void)
 {
@@ -866,7 +869,9 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		current->bsd_ioctl_len = 0;
 	}
 
-	if (error == ERESTARTSYS)
+	if (error == EWOULDBLOCK)
+		linux_dev_kqfilter_poll(filp);
+	else if (error == ERESTARTSYS)
 		error = ERESTART;
 	return (error);
 }
@@ -899,8 +904,11 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
-		} else
+		} else {
 			error = -bytes;
+			if (error == EWOULDBLOCK)
+				linux_dev_kqfilter_poll(filp);
+		}
 	} else
 		error = ENXIO;
 
@@ -935,8 +943,11 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
-		} else
+		} else {
 			error = -bytes;
+			if (error == EWOULDBLOCK)
+				linux_dev_kqfilter_poll(filp);
+		}
 	} else
 		error = ENXIO;
 
@@ -977,9 +988,84 @@ linux_poll_wakeup(struct linux_file *filp)
 		return;
 
 	selwakeup(&filp->f_selinfo);
+
 	spin_lock(&filp->f_kqlock);
+	filp->f_kqflags |= LINUX_KQ_FLAG_NEED_READ |
+	    LINUX_KQ_FLAG_NEED_WRITE;
+
+	/* make sure the "knote" gets woken up */
 	KNOTE_LOCKED(&filp->f_selinfo.si_note, 1);
 	spin_unlock(&filp->f_kqlock);
+}
+
+static void
+linux_dev_kqfilter_detach(struct knote *kn)
+{
+	struct linux_file *filp = kn->kn_hook;
+
+	spin_lock(&filp->f_kqlock);
+	knlist_remove(&filp->f_selinfo.si_note, kn, 1);
+	spin_unlock(&filp->f_kqlock);
+}
+
+static int
+linux_dev_kqfilter_read_event(struct knote *kn, long hint)
+{
+	struct linux_file *filp = kn->kn_hook;
+
+	mtx_assert(&filp->f_kqlock.m, MA_OWNED);
+
+	return ((filp->f_kqflags & LINUX_KQ_FLAG_NEED_READ) ? 1 : 0);
+}
+
+static int
+linux_dev_kqfilter_write_event(struct knote *kn, long hint)
+{
+	struct linux_file *filp = kn->kn_hook;
+
+	mtx_assert(&filp->f_kqlock.m, MA_OWNED);
+
+	return ((filp->f_kqflags & LINUX_KQ_FLAG_NEED_WRITE) ? 1 : 0);
+}
+
+static struct filterops linux_dev_kqfiltops_read = {
+	.f_isfd = 1,
+	.f_detach = linux_dev_kqfilter_detach,
+	.f_event = linux_dev_kqfilter_read_event,
+};
+
+static struct filterops linux_dev_kqfiltops_write = {
+	.f_isfd = 1,
+	.f_detach = linux_dev_kqfilter_detach,
+	.f_event = linux_dev_kqfilter_write_event,
+};
+
+static void
+linux_dev_kqfilter_poll(struct linux_file *filp)
+{
+	int temp;
+
+	spin_lock(&filp->f_kqlock);
+	temp = (filp->f_kqflags & (LINUX_KQ_FLAG_HAS_READ | LINUX_KQ_FLAG_HAS_WRITE));
+	filp->f_kqflags &= ~(LINUX_KQ_FLAG_NEED_READ | LINUX_KQ_FLAG_NEED_WRITE);
+	spin_unlock(&filp->f_kqlock);
+
+	if (temp != 0) {
+		/* get the latest polling state */
+		temp = filp->f_op->poll(filp, NULL);
+
+		if (temp & (POLLIN | POLLOUT)) {
+			spin_lock(&filp->f_kqlock);
+			if (temp & POLLIN)
+				filp->f_kqflags |= LINUX_KQ_FLAG_NEED_READ;
+			if (temp & POLLOUT)
+				filp->f_kqflags |= LINUX_KQ_FLAG_NEED_WRITE;
+
+			/* make sure the "knote" gets woken up */
+			KNOTE_LOCKED(&filp->f_selinfo.si_note, 0);
+			spin_unlock(&filp->f_kqlock);
+		}
+	}
 }
 
 static int
@@ -988,7 +1074,6 @@ linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 	struct linux_file *filp;
 	struct file *file;
 	struct thread *td;
-	int mevents;
 	int error;
 
 	td = curthread;
@@ -1001,38 +1086,31 @@ linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 	if (filp->f_op->poll == NULL)
 		return (EINVAL);
 
+	spin_lock(&filp->f_kqlock);
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
-		if (filp->f_kqfiltops_read == NULL)
-			return (EOPNOTSUPP);
-		kn->kn_fop = filp->f_kqfiltops_read;
+		filp->f_kqflags |= LINUX_KQ_FLAG_HAS_READ;
+		kn->kn_fop = &linux_dev_kqfiltops_read;
 		kn->kn_hook = filp;
-		spin_lock(&filp->f_kqlock);
 		knlist_add(&filp->f_selinfo.si_note, kn, 1);
-		spin_unlock(&filp->f_kqlock);
-		mevents = POLLIN;
 		break;
 	case EVFILT_WRITE:
-		if (filp->f_kqfiltops_write == NULL)
-			return (EOPNOTSUPP);
-		kn->kn_fop = filp->f_kqfiltops_write;
+		filp->f_kqflags |= LINUX_KQ_FLAG_HAS_WRITE;
+		kn->kn_fop = &linux_dev_kqfiltops_write;
 		kn->kn_hook = filp;
-		spin_lock(&filp->f_kqlock);
 		knlist_add(&filp->f_selinfo.si_note, kn, 1);
-		spin_unlock(&filp->f_kqlock);
-		mevents = POLLOUT;
 		break;
 	default:
-		return (EINVAL);
+		error = EINVAL;
+		break;
 	}
-	linux_set_current(td);
+	spin_unlock(&filp->f_kqlock);
 
-	if (mevents & filp->f_op->poll(filp, NULL)) {
-		spin_lock(&filp->f_kqlock);
-		KNOTE_LOCKED(&filp->f_selinfo.si_note, 0);
-		spin_unlock(&filp->f_kqlock);
+	if (error == 0) {
+		linux_set_current(td);
+		linux_dev_kqfilter_poll(filp);
 	}
-	return (0);
+	return (error);
 }
 
 static int

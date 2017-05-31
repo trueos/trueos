@@ -34,9 +34,6 @@ struct vt_kms_softc {
 	struct task              fb_mode_task;
 };
 
-void drm_kqregister(struct linux_file *filp);
-
-
 #define	DRM_IRQ_ARGS		int irq, void *arg
 
 #define	KHZ2PICOS(a)	(1000000000UL/(a))
