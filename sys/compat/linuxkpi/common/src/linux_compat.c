@@ -1674,7 +1674,7 @@ linux_on_each_cpu(void callback(void *), void *data)
 }
 
 int
-in_atomic(void)
+linux_in_atomic(void)
 {
 
 	return ((curthread->td_pflags & TDP_NOFAULTING) != 0);
