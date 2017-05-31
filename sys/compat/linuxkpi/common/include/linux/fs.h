@@ -265,6 +265,18 @@ get_file(struct linux_file *f)
 	return (f);
 }
 
+static inline struct inode *
+igrab(struct inode *inode)
+{
+	int error;
+
+	error = vget(inode, 0, curthread);
+	if (error)
+		return (NULL);
+
+	return (inode);
+}
+
 extern loff_t default_llseek(struct file *file, loff_t offset, int whence);
 
 static inline loff_t 

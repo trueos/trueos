@@ -68,24 +68,6 @@ struct class {
 	const struct dev_pm_ops *pm;
 };
 
-struct dev_pm_ops {
-	int (*suspend)(struct device *dev);
-	int (*resume)(struct device *dev);
-	int (*freeze)(struct device *dev);
-	int (*thaw)(struct device *dev);
-	int (*poweroff)(struct device *dev);
-	int (*restore)(struct device *dev);
-	int (*suspend_late)(struct device *dev);
-	int (*resume_early)(struct device *dev);
-	int (*freeze_late)(struct device *dev);
-	int (*thaw_early)(struct device *dev);
-	int (*poweroff_late)(struct device *dev);
-	int (*restore_early)(struct device *dev);
-	int (*runtime_suspend)(struct device *dev);
-	int (*runtime_resume)(struct device *dev);
-	int (*runtime_idle)(struct device *dev);
-};
-
 struct device_driver {
 	const char		*name;
 	struct bus_type		*bus;
@@ -157,6 +139,24 @@ struct dev_pm_info {
 	atomic_t	usage_count;
 	unsigned int	disable_depth;
 	bool		is_suspended;
+};
+
+struct dev_pm_ops {
+	int (*suspend)(struct device *dev);
+	int (*suspend_late)(struct device *dev);
+	int (*resume)(struct device *dev);
+	int (*resume_early)(struct device *dev);
+	int (*freeze)(struct device *dev);
+	int (*freeze_late)(struct device *dev);
+	int (*thaw)(struct device *dev);
+	int (*thaw_early)(struct device *dev);
+	int (*poweroff)(struct device *dev);
+	int (*poweroff_late)(struct device *dev);
+	int (*restore)(struct device *dev);
+	int (*restore_early)(struct device *dev);
+	int (*runtime_suspend)(struct device *dev);
+	int (*runtime_resume)(struct device *dev);
+	int (*runtime_idle)(struct device *dev);
 };
 
 struct device {
