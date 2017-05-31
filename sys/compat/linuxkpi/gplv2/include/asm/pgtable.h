@@ -53,24 +53,12 @@
 
 #define __PAGE_KERNEL_IO		(__PAGE_KERNEL)
 
-extern pteval_t __supported_pte_mask;
-
 #define pgprot_val(x)	((x))
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
 
 #define pte_val(x)	native_pte_val(x)
 #define __pte(x)	native_make_pte(x)
-
-static inline pgprotval_t massage_pgprot(pgprot_t pgprot)
-{
-	pgprotval_t protval = pgprot_val(pgprot);
-
-	if (protval & _PAGE_PRESENT)
-		protval &= __supported_pte_mask;
-
-	return protval;
-}
 
 static inline pteval_t native_pte_val(linux_pte_t pte)
 {
@@ -80,12 +68,6 @@ static inline pteval_t native_pte_val(linux_pte_t pte)
 static inline linux_pte_t native_make_pte(pteval_t val)
 {
 	return (linux_pte_t) (val);
-}
-
-static inline linux_pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
-{
-	return __pte(((phys_addr_t)page_nr << PAGE_SHIFT) |
-		     massage_pgprot(pgprot));
 }
 
 static inline linux_pte_t pte_set_flags(linux_pte_t pte, pteval_t set)

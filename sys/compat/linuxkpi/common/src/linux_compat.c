@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 
 extern u_int cpu_clflush_line_size;
 extern u_int cpu_id;
-pteval_t __supported_pte_mask __read_mostly = ~0;
 
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 int linux_db_trace;
@@ -91,7 +90,6 @@ SYSCTL_INT(_compat_linuxkpi, OID_AUTO, db_trace, CTLFLAG_RWTUN, &linux_db_trace,
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 MALLOC_DEFINE(M_LCINT, "linuxint", "Linux compat internal");
-
 
 #undef file
 #undef cdev
