@@ -43,9 +43,8 @@
 #include <linux/wait.h>
 #include <linux/dcache.h>
 #include <linux/semaphore.h>
-#include <linux/list.h>
 #include <linux/atomic.h>
-#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/interrupt.h>
 
 struct module;
