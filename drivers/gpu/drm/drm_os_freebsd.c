@@ -265,9 +265,9 @@ drm_kqfilter_detach(struct knote *kn)
 }
 
 #ifdef DRM_KQ_DEBUG
-#define PRINTF printf
+#define PRINTF(...) printf(__VA_ARGS__)
 #else
-#define PRINTF(...)
+#define PRINTF(...) do { } while (0)
 #endif
 
 static int
