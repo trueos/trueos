@@ -39,15 +39,10 @@
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/kref.h>
-#include <linux/kobject_ns.h>
 #include <linux/kernel.h>
 #include <linux/wait.h>
 #include <linux/atomic.h>
 #include <linux/workqueue.h>
-
-#define UEVENT_HELPER_PATH_LEN		256
-#define UEVENT_NUM_ENVP			32	/* number of env pointers */
-#define UEVENT_BUFFER_SIZE		2048	/* buffer for the variables */
 
 struct kobject;
 struct sysctl_oid;
@@ -63,38 +58,16 @@ enum kobject_action {
 	KOBJ_MAX
 };
 
-enum kobj_ns_type {
-	KOBJ_NS_TYPE_NONE = 0,
-	KOBJ_NS_TYPE_NET,
-	KOBJ_NS_TYPES
-};
-
-struct kobj_ns_type_operations {
-	enum kobj_ns_type type;
-	bool (*current_may_mount)(void);
-	void *(*grab_current_ns)(void);
-	const void *(*initial_ns)(void);
-	void (*drop_ns)(void *);
-};
-
 struct kobj_type {
 	void (*release)(struct kobject *kobj);
 	const struct sysfs_ops *sysfs_ops;
 	struct attribute **default_attrs;
-	const struct kobj_ns_type_operations *(*child_ns_type)(struct kobject *kobj);
-	const void *(*namespace)(struct kobject *kobj);	
 };
 
 struct kobj_uevent_env {
-	char *argv[3];
-	char *envp[UEVENT_NUM_ENVP];
-	int envp_idx;
-	char buf[UEVENT_BUFFER_SIZE];
-	int buflen;
 };
 
 extern const struct kobj_type linux_kfree_type;
-
 
 struct kobject {
 	struct kobject		*parent;
@@ -104,11 +77,7 @@ struct kobject {
 	struct list_head	entry;
 	struct sysctl_oid	*oidp;
 	struct pfs_node		*sd;
-	unsigned int state_initialized:1;
 	unsigned int state_in_sysfs:1;
-	unsigned int state_add_uevent_sent:1;
-	unsigned int state_remove_uevent_sent:1;
-	unsigned int uevent_suppress:1;	
 };
 
 extern struct kobject *mm_kobj;
@@ -121,23 +90,6 @@ struct kobj_attribute {
         ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
                          const char *buf, size_t count);
 };
-
-static inline const struct kobj_ns_type_operations *
-kobj_child_ns_ops(struct kobject *parent)
-{
-	const struct kobj_ns_type_operations *ops = NULL;
-
-	if (parent && parent->ktype && parent->ktype->child_ns_type)
-		ops = parent->ktype->child_ns_type(parent);
-
-	return ops;
-}
-
-static inline const struct kobj_ns_type_operations *
-kobj_ns_ops(struct kobject *kobj)
-{
-	return kobj_child_ns_ops(kobj->parent);
-}
 
 static inline void
 kobject_init(struct kobject *kobj, const struct kobj_type *ktype)
@@ -225,35 +177,8 @@ kobject_del(struct kobject *kobj)
 }
 
 static inline void
-kobject_uevent_env(struct kobject *kobj, enum kobject_action action, char *envp_ext[]) {}
-
-
-static inline int
-add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
+kobject_uevent_env(struct kobject *kobj, enum kobject_action action, char *envp_ext[])
 {
-	va_list args;
-	int len;
-
-	if (env->envp_idx >= ARRAY_SIZE(env->envp)) {
-		WARN(1, KERN_ERR "add_uevent_var: too many keys\n");
-		return -ENOMEM;
-	}
-
-	va_start(args, format);
-	len = vsnprintf(&env->buf[env->buflen],
-			sizeof(env->buf) - env->buflen,
-			format, args);
-	va_end(args);
-
-	if (len >= (sizeof(env->buf) - env->buflen)) {
-		WARN(1, KERN_ERR "add_uevent_var: buffer size too small\n");
-		return -ENOMEM;
-	}
-
-	env->envp[env->envp_idx++] = &env->buf[env->buflen];
-	env->buflen += len + 1;
-	return 0;
 }
-
 
 #endif /* _LINUX_KOBJECT_H_ */
