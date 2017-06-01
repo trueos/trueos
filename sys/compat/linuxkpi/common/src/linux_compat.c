@@ -972,13 +972,13 @@ linux_dev_poll(struct cdev *dev, int events, struct thread *td)
 
 	file = td->td_fpop;
 	filp->f_flags = file->f_flag;
-
 	linux_set_current(td);
-	if (filp->f_op->poll)
-		/* XXX need to add support for bounded wait */
+	if (filp->f_op->poll != NULL) {
+		selrecord(td, &filp->f_selinfo);
 		revents = filp->f_op->poll(filp, NULL) & events;
-	else
+	} else
 		revents = 0;
+
 	return (revents);
 error:
 	return (events & (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
@@ -1281,9 +1281,10 @@ linux_file_poll(struct file *file, int events, struct ucred *active_cred,
 	filp = (struct linux_file *)file->f_data;
 	filp->f_flags = file->f_flag;
 	linux_set_current(td);
-	if (filp->f_op->poll)
+	if (filp->f_op->poll != NULL) {
+		selrecord(td, &filp->f_selinfo);
 		revents = filp->f_op->poll(filp, NULL) & events;
-	else
+	} else
 		revents = 0;
 
 	return (revents);
