@@ -67,7 +67,7 @@ add_to_sleepqueue(void *wchan, const char *wmesg, int timeout, int state)
 	}
 	if (ret == EINTR || ret == EAGAIN)
 		ret = -ERESTARTSYS;
-	if (ret == EWOULDBLOCK)
+	else
 		ret = -ret;
 	return (ret);
 }
@@ -206,7 +206,7 @@ linux_waitqueue_active(wait_queue_head_t *wqh)
 	return (ret);
 }
 
-long
+int
 linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
     unsigned int state, spinlock_t *lock)
 {
@@ -245,14 +245,18 @@ int
 linux_schedule_timeout(int timeout)
 {
 	struct task_struct *task;
-	int start, state;
+	int state;
+	int remainder;
 
-	start = ticks;
 	task = current;
+
+	/* range check timeout */
 	if (timeout < 1)
 		timeout = 1;
-	if (timeout == MAX_SCHEDULE_TIMEOUT)
+	else if (timeout == MAX_SCHEDULE_TIMEOUT)
 		timeout = 0;
+
+	remainder = ticks + timeout;
 
 	sleepq_lock(task);
 	state = atomic_read(&task->state);
@@ -262,8 +266,16 @@ linux_schedule_timeout(int timeout)
 		sleepq_release(task);
 	set_task_state(task, TASK_RUNNING);
 
-	return (timeout == 0 ? MAX_SCHEDULE_TIMEOUT :
-	    (start + timeout - ticks));
+	if (timeout == 0)
+		return (MAX_SCHEDULE_TIMEOUT);
+
+	/* range check return value */
+	remainder -= ticks;
+	if (remainder < 0)
+		remainder = 0;
+	else if (remainder > timeout)
+		remainder = timeout;
+	return (remainder);
 }
 
 static void
@@ -295,7 +307,10 @@ linux_wait_on_bit_timeout(unsigned long *word, int bit, unsigned int state,
 	void *wchan;
 	int ret;
 
-	if (timeout == MAX_SCHEDULE_TIMEOUT)
+	/* range check timeout */
+	if (timeout < 1)
+		timeout = 1;
+	else if (timeout == MAX_SCHEDULE_TIMEOUT)
 		timeout = 0;
 
 	task = current;
