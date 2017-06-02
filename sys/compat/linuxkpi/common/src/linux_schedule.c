@@ -162,10 +162,13 @@ linux_wake_up(wait_queue_head_t *wqh, unsigned int state, int nr, bool locked)
 	if (!locked)
 		spin_lock(&wqh->lock);
 	list_for_each_entry_safe(pos, next, &wqh->task_list, task_list) {
-		if (((pos->func == NULL &&
-		      wake_up_task(pos->private, state) != 0) ||
-		     pos->func(pos, state, 0, NULL)) && --nr == 0)
-			break;
+		if (pos->func == NULL) {
+			if (wake_up_task(pos->private, state) != 0 && --nr == 0)
+				break;
+		} else {
+			if (pos->func(pos, state, 0, NULL) != 0 && --nr == 0)
+				break;
+		}
 	}
 	if (!locked)
 		spin_unlock(&wqh->lock);
