@@ -216,6 +216,8 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
 	if (lock != NULL)
 		spin_unlock_irq(lock);
 
+	DROP_GIANT();
+
 	task = current;
 
 	/*
@@ -235,6 +237,8 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
 #ifndef NO_SWAPPING
 	PRELE(task->task_thread->td_proc);
 #endif
+
+	PICKUP_GIANT();
 
 	if (lock != NULL)
 		spin_lock_irq(lock);
@@ -258,6 +262,8 @@ linux_schedule_timeout(int timeout)
 
 	remainder = ticks + timeout;
 
+	DROP_GIANT();
+
 	sleepq_lock(task);
 	state = atomic_read(&task->state);
 	if (state != TASK_WAKING)
@@ -265,6 +271,8 @@ linux_schedule_timeout(int timeout)
 	else
 		sleepq_release(task);
 	set_task_state(task, TASK_RUNNING);
+
+	PICKUP_GIANT();
 
 	if (timeout == 0)
 		return (MAX_SCHEDULE_TIMEOUT);
@@ -307,6 +315,8 @@ linux_wait_on_bit_timeout(unsigned long *word, int bit, unsigned int state,
 	void *wchan;
 	int ret;
 
+	DROP_GIANT();
+
 	/* range check timeout */
 	if (timeout < 1)
 		timeout = 1;
@@ -328,6 +338,9 @@ linux_wait_on_bit_timeout(unsigned long *word, int bit, unsigned int state,
 			break;
 	}
 	set_task_state(task, TASK_RUNNING);
+
+	PICKUP_GIANT();
+
 	return (ret);
 }
 
@@ -345,6 +358,8 @@ linux_wait_on_atomic_t(atomic_t *a, unsigned int state)
 	void *wchan;
 	int ret;
 
+	DROP_GIANT();
+
 	task = current;
 	wchan = a;
 	for (;;) {
@@ -360,6 +375,9 @@ linux_wait_on_atomic_t(atomic_t *a, unsigned int state)
 			break;
 	}
 	set_task_state(task, TASK_RUNNING);
+
+	PICKUP_GIANT();
+
 	return (ret);
 }
 
