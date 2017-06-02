@@ -55,20 +55,19 @@ linux_add_to_sleepqueue(void *wchan, const char *wmesg, int timeout, int state)
 		sleepq_set_timeout(wchan, timeout);
 	if ((state & TASK_INTERRUPTIBLE) != 0) {
 		if (timeout == 0)
-			ret = sleepq_wait_sig(wchan, 0);
+			ret = -sleepq_wait_sig(wchan, 0);
 		else
-			ret = sleepq_timedwait_sig(wchan, 0);
+			ret = -sleepq_timedwait_sig(wchan, 0);
 	} else {
 		if (timeout == 0) {
 			sleepq_wait(wchan, 0);
 			ret = 0;
 		} else
-			ret = sleepq_timedwait(wchan, 0);
+			ret = -sleepq_timedwait(wchan, 0);
 	}
-	if (ret == EINTR || ret == EAGAIN)
+	/* filter return value */
+	if (ret != 0 && ret != -EWOULDBLOCK)
 		ret = -ERESTARTSYS;
-	else
-		ret = -ret;
 	return (ret);
 }
 
@@ -235,7 +234,7 @@ linux_wait_event_common(wait_queue_head_t *wqh, wait_queue_t *wq, int timeout,
 		ret = linux_add_to_sleepqueue(task, "wevent", timeout, state);
 	} else {
 		sleepq_release(task);
-		ret = 0;
+		ret = linux_signal_pending_state(state, task) ? -ERESTARTSYS : 0;
 	}
 #ifndef NO_SWAPPING
 	PRELE(task->task_thread->td_proc);
