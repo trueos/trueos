@@ -450,7 +450,7 @@ linux_kq_lock_unowned(void *arg)
 }
 
 static void
-linux_dev_kqfilter_poll(struct linux_file *);
+linux_dev_kqfilter_poll(struct linux_file *, int);
 
 struct linux_file *
 linux_file_alloc(void)
@@ -873,9 +873,11 @@ linux_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		current->bsd_ioctl_len = 0;
 	}
 
-	if (error == EWOULDBLOCK)
-		linux_dev_kqfilter_poll(filp);
-	else if (error == ERESTARTSYS)
+	if (error == EWOULDBLOCK) {
+		/* update kqfilter status, if any */
+		linux_dev_kqfilter_poll(filp,
+		    LINUX_KQ_FLAG_HAS_READ | LINUX_KQ_FLAG_HAS_WRITE);
+	} else if (error == ERESTARTSYS)
 		error = ERESTART;
 	return (error);
 }
@@ -910,13 +912,14 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 			uio->uio_resid -= bytes;
 		} else {
 			error = -bytes;
-			if (error == EWOULDBLOCK)
-				linux_dev_kqfilter_poll(filp);
-			else if (error == ERESTARTSYS)
+			if (error == ERESTARTSYS)
 				error = ERESTART;
 		}
 	} else
 		error = ENXIO;
+
+	/* update kqfilter status, if any */
+	linux_dev_kqfilter_poll(filp, LINUX_KQ_FLAG_HAS_READ);
 
 	return (error);
 }
@@ -951,13 +954,14 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 			uio->uio_resid -= bytes;
 		} else {
 			error = -bytes;
-			if (error == EWOULDBLOCK)
-				linux_dev_kqfilter_poll(filp);
-			else if (error == ERESTARTSYS)
+			if (error == ERESTARTSYS)
 				error = ERESTART;
 		}
 	} else
 		error = ENXIO;
+
+	/* update kqfilter status, if any */
+	linux_dev_kqfilter_poll(filp, LINUX_KQ_FLAG_HAS_WRITE);
 
 	return (error);
 }
@@ -1049,21 +1053,20 @@ static struct filterops linux_dev_kqfiltops_write = {
 };
 
 static void
-linux_dev_kqfilter_poll(struct linux_file *filp)
+linux_dev_kqfilter_poll(struct linux_file *filp, int kqflags)
 {
 	int temp;
 
-	spin_lock(&filp->f_kqlock);
-	temp = (filp->f_kqflags & (LINUX_KQ_FLAG_HAS_READ | LINUX_KQ_FLAG_HAS_WRITE));
-	filp->f_kqflags &= ~(LINUX_KQ_FLAG_NEED_READ | LINUX_KQ_FLAG_NEED_WRITE);
-	spin_unlock(&filp->f_kqlock);
-
-	if (temp != 0) {
+	if (filp->f_kqflags & kqflags) {
 		/* get the latest polling state */
 		temp = filp->f_op->poll(filp, NULL);
 
+		spin_lock(&filp->f_kqlock);
+		/* clear kqflags */
+		filp->f_kqflags &= ~(LINUX_KQ_FLAG_NEED_READ |
+		    LINUX_KQ_FLAG_NEED_WRITE);
+		/* update kqflags */
 		if (temp & (POLLIN | POLLOUT)) {
-			spin_lock(&filp->f_kqlock);
 			if (temp & POLLIN)
 				filp->f_kqflags |= LINUX_KQ_FLAG_NEED_READ;
 			if (temp & POLLOUT)
@@ -1071,8 +1074,8 @@ linux_dev_kqfilter_poll(struct linux_file *filp)
 
 			/* make sure the "knote" gets woken up */
 			KNOTE_LOCKED(&filp->f_selinfo.si_note, 0);
-			spin_unlock(&filp->f_kqlock);
 		}
+		spin_unlock(&filp->f_kqlock);
 	}
 }
 
@@ -1116,7 +1119,10 @@ linux_dev_kqfilter(struct cdev *dev, struct knote *kn)
 
 	if (error == 0) {
 		linux_set_current(td);
-		linux_dev_kqfilter_poll(filp);
+
+		/* update kqfilter status, if any */
+		linux_dev_kqfilter_poll(filp,
+		    LINUX_KQ_FLAG_HAS_READ | LINUX_KQ_FLAG_HAS_WRITE);
 	}
 	return (error);
 }
