@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PACKAGE=runtime
+PACKAGE=openrc
 PROG=	start-stop-daemon
 
 .include <src.opts.mk>

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PACKAGE=runtime
+PACKAGE=openrc
 PROG=	supervise-daemon
 
 .include <src.opts.mk>

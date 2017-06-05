@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PACKAGE=runtime
+PACKAGE=openrc
 PROG=	rc-status
 
 .include <src.opts.mk>
