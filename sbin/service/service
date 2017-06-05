@@ -1,0 +1,9 @@
+#!/bin/sh
+
+ps cax | grep initd
+if [ $? -eq 0 ] ; then
+  /sbin/rc-service $1 $2
+else
+  /usr/sbin/service $1 $2
+fi
+
