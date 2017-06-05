@@ -2,7 +2,8 @@
 
 ps cax | grep initd
 if [ $? -eq 0 ] ; then
-  /sbin/rc-service $&
+  /sbin/rc-service $1 $2
 else
-  /usr/sbin/service $&
+  /usr/sbin/service $1 $2
 fi
+
