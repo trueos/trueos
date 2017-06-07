@@ -86,16 +86,18 @@ start()
 
 stop()
 {
-	_clone_down=1
-	_wlan_down=1
 	netif_stop0 $*
 }
 
-doclear()
+stop_pre()
 {
-	_clone_down=
-	_wlan_down=
-	netif_stop0 $*
+	if [ "$RC_CMD" = "restart" ]; then
+		_clone_down=
+		_wlan_down=
+	else
+		_clone_down=1
+		_wlan_down=1
+	fi
 }
 
 netif_stop0()
