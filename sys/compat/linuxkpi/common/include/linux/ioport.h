@@ -32,23 +32,7 @@ struct linux_resource {
 	device_t bsddev;
 };
 
-
 struct device;
-
-
-#define devm_request_region(dev,start,n,name)				\
-	__devm_request_region(dev, &ioport_resource, (start), (n), (name))
-#define devm_request_mem_region(dev,start,n,name) \
-	__devm_request_region(dev, &iomem_resource, (start), (n), (name))
-
-static inline struct linux_resource *
-__devm_request_region(struct device *dev,
-		      struct linux_resource *parent, resource_size_t start,
-		      resource_size_t n, const char *name)
-{
-	/* XXX return a non-NULL value where the driver just needs to reserve the range */
-	return ((void *)0x1);
-}
 
 #define IORESOURCE_BITS		0x000000ff	/* Bus-specific bits */
 

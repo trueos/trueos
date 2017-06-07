@@ -275,8 +275,15 @@ acpi_get_pci_dev(acpi_handle handle)
 
 	if ((dev = acpi_get_device(handle)) == NULL)
 		return (NULL);
-	pdev = linux_bsddev_to_pci_dev(dev);
 
+	spin_lock(&pci_lock);
+	list_for_each_entry(pdev, &pci_devices, links) {
+		if (pdev->dev.bsddev == dev)
+			break;
+	}
+	spin_unlock(&pci_lock);
+	if (&pdev->links == &pci_devices)
+		return (NULL);
 	return (pdev);
 }
 

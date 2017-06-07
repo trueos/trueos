@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
-
 #include <linux/kobject.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -58,14 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/io.h>
 #include <linux/vmalloc.h>
 #include <linux/pci.h>
-#include <linux/ioport.h>
 #include <linux/compat.h>
-
-#undef resource
-#define IO_SPACE_LIMIT 0xffff
-
-/* XXX asumes x86 */
-#include <asm/io.h>
 
 /* assumes !e820 */
 unsigned long pci_mem_start;
@@ -73,21 +65,6 @@ unsigned long pci_mem_start;
 
 const char *pci_power_names[] = {
 	"error", "D0", "D1", "D2", "D3hot", "D3cold", "unknown",
-};
-
-struct linux_resource ioport_resource = {
-	.name	= "PCI IO",
-	.start	= 0,
-	.end	= IO_SPACE_LIMIT,
-	.flags	= IORESOURCE_IO,
-};
-
-
-struct linux_resource iomem_resource = {
-	.name	= "PCI mem",
-	.start	= 0,
-	.end	= -1,
-	.flags	= IORESOURCE_MEM,
 };
 
 static device_probe_t linux_pci_probe;
@@ -106,22 +83,6 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(device_shutdown, linux_pci_shutdown),
 	DEVMETHOD_END
 };
-
-
-struct pci_dev *
-linux_bsddev_to_pci_dev(device_t dev)
-{
-	struct pci_dev *pdev;
-
-	spin_lock(&pci_lock);
-	list_for_each_entry(pdev, &pci_devices, links) {
-		if (pdev->dev.bsddev == dev)
-			break;
-	}
-	spin_unlock(&pci_lock);
-
-	return (pdev);
-}
 
 static struct pci_driver *
 linux_pci_find(device_t dev, const struct pci_device_id **idp)
@@ -214,9 +175,6 @@ linux_pci_attach(device_t dev)
 	pdev->revision = pci_get_revid(dev);
 	pdev->class = pci_get_class(dev);
 	pdev->dev.dma_mask = &pdev->dma_mask;
-	/* XXX how do we check this ? assume true */
-	pdev->msix_enabled = 1;
-	pdev->msi_enabled = 1;
 	pdev->pdrv = pdrv;
 	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
 	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
@@ -310,12 +268,11 @@ linux_pci_shutdown(device_t dev)
 }
 
 static int
-pci_default_suspend(struct pci_dev *dev,
-                        pm_message_t state __unused)
+pci_default_suspend(struct pci_dev *dev, pm_message_t state __unused)
 {
         int err = 0;
 
-        if(dev->pdrv->driver.pm->suspend != NULL) {
+        if (dev->pdrv->driver.pm->suspend != NULL) {
                 err = -dev->pdrv->driver.pm->suspend(&(dev->dev));
 		if (err == 0 && dev->pdrv->driver.pm->suspend_late != NULL)
 			err = -dev->pdrv->driver.pm->suspend_late(&(dev->dev));
@@ -329,12 +286,12 @@ pci_default_resume(struct pci_dev *dev)
 {
         int err = 0;
 
-	if(dev->pdrv->driver.pm->resume_early != NULL )
+	if (dev->pdrv->driver.pm->resume_early != NULL )
 		if ((err = -dev->pdrv->driver.pm->resume_early(&(dev->dev)))) {
 			printf("resume early failed: %d\n", -err);
 			return (err);
 		}
-        if(dev->pdrv->driver.pm->resume != NULL)
+        if (dev->pdrv->driver.pm->resume != NULL)
                 err = -dev->pdrv->driver.pm->resume(&(dev->dev));
 	if (err)
 		printf("resume failed: %d\n", -err);
