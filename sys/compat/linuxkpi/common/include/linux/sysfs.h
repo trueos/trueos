@@ -52,8 +52,6 @@ struct attribute {
 	mode_t		mode;
 };
 
-#define sysfs_attr_init(attr) do {} while(0)
-
 
 struct sysfs_ops {
 	ssize_t (*show)(struct kobject *, struct attribute *, char *);
@@ -65,10 +63,7 @@ struct attribute_group {
 	const char		*name;
 	umode_t			(*is_visible)(struct kobject *,
 					      struct attribute *, int);
-	umode_t			(*is_bin_visible)(struct kobject *,
-						  struct bin_attribute *, int);
 	struct attribute	**attrs;
-	struct bin_attribute	**bin_attrs;
 };
 
 
@@ -138,9 +133,6 @@ extern void sysfs_remove_link(struct kobject *kobj, const char *name);
 void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
 
 
-struct pci_bus;
-struct pci_dev;
-
 extern int lkpi_sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
 extern void lkpi_sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
 
@@ -179,5 +171,7 @@ sysfs_streq(const char *s1, const char *s2)
 		return true;
 	return false;
 }
+
+#define sysfs_attr_init(attr) do {} while(0)
 
 #endif	/* _LINUX_SYSFS_H_ */
