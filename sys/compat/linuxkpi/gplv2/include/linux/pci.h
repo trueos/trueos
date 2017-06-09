@@ -3,22 +3,6 @@
 
 #include_next <linux/pci.h>
 
-int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
-			struct linux_resource *res, resource_size_t size,
-			resource_size_t align, resource_size_t min,
-			unsigned int type_mask,
-			resource_size_t (*alignf)(void *,
-						  const struct linux_resource *,
-						  resource_size_t,
-						  resource_size_t),
-			void *alignf_data);
-
-
-extern resource_size_t pcibios_align_resource(void *data, const struct linux_resource *res,
-		       resource_size_t size, resource_size_t align);
-
-extern int release_resource(struct linux_resource *old);
-
 extern void pci_unmap_rom(struct pci_dev *pdev, u8 *bios);
 extern void *pci_map_rom(struct pci_dev *pdev, size_t *size);
 extern void *pci_iomap(struct pci_dev *pdev, int bar, unsigned long max);
@@ -120,16 +104,6 @@ pcie_get_readrq(struct pci_dev *dev)
 	pcie_capability_read_word(dev, PCI_EXP_DEVCTL, &ctl);
 
 	return 128 << ((ctl & PCI_EXP_DEVCTL_READRQ) >> 12);
-}
-
-static inline void
-pci_resource_to_user(const struct pci_dev *dev, int bar,
-		const struct linux_resource *rsrc, resource_size_t *start,
-		resource_size_t *end)
-{
-
-	*start = rsrc->start;
-	*end = rsrc->end;
 }
 
 #endif /* _LINUX_GPLV2_PCI_H_ */

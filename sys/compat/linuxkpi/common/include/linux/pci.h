@@ -55,7 +55,6 @@
 
 #include <asm/atomic.h>
 #include <linux/device.h>
-#include <linux/ioport.h>
 
 #define PCI_BASE_CLASS_DISPLAY		0x03
 #define PCI_CLASS_DISPLAY_VGA		0x0300
@@ -152,6 +151,10 @@ struct pci_device_id {
 #define PCI_EXP_LNKCTL_HAWD	PCIEM_LINK_CTL_HAWD
 #define PCI_EXP_LNKCAP_CLKPM	0x00040000
 #define PCI_EXP_DEVSTA_TRPND	0x0020
+
+#define	IORESOURCE_MEM	(1 << SYS_RES_MEMORY)
+#define	IORESOURCE_IO	(1 << SYS_RES_IOPORT)
+#define	IORESOURCE_IRQ	(1 << SYS_RES_IRQ)
 
 enum pci_bus_speed {
 	PCI_SPEED_UNKNOWN = -1,

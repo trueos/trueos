@@ -16,7 +16,7 @@ platform_device_unregister(struct platform_device *pdev)
 	
 static inline struct platform_device *
 platform_device_register_simple(const char *name, int id,
-    const struct linux_resource *res, unsigned int num)
+    void *res, unsigned int num)
 {
 
 	panic("%s: unimplemented", __func__);

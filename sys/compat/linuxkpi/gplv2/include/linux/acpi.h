@@ -22,7 +22,6 @@
 #define _LINUX_ACPI_H_
 
 #include <linux/errno.h>
-#include <linux/ioport.h>
 #include <linux/resource_ext.h>
 #include <linux/device.h>
 #include <linux/property.h>

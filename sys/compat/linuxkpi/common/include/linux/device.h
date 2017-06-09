@@ -32,7 +32,6 @@
 #define	_LINUX_DEVICE_H_
 
 #include <linux/err.h>
-#include <linux/ioport.h>
 #include <linux/kobject.h>
 #include <linux/klist.h>
 #include <linux/list.h>
