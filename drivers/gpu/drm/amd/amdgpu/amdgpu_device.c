@@ -1060,7 +1060,9 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 		return;
 
 	if (state == VGA_SWITCHEROO_ON) {
+#ifndef __FreeBSD__
 		unsigned d3_delay = dev->pdev->d3_delay;
+#endif
 
 		printk(KERN_INFO "amdgpu: switched on\n");
 		/* don't suspend or resume card normally */
@@ -1068,7 +1070,9 @@ static void amdgpu_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 
 		amdgpu_device_resume(dev, true, true);
 
+#ifndef __FreeBSD__
 		dev->pdev->d3_delay = d3_delay;
+#endif
 
 		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 		drm_kms_helper_poll_enable(dev);

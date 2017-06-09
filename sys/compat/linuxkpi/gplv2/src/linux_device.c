@@ -132,7 +132,6 @@ pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
 	return (pdev->pcir.map[bar]);
 }
 
-
 void
 pci_iounmap(struct pci_dev *pdev, void *regs)
 {

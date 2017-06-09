@@ -211,13 +211,6 @@ extern spinlock_t pci_lock;
 
 #define	__devexit_p(x)	x
 
-#define PCI_BRIDGE_RESOURCE_NUM 4
-#if defined(__i386__) || defined(__amd64__)
-extern unsigned long pci_mem_start;
-#define PCIBIOS_MIN_IO		0x1000
-#define PCIBIOS_MIN_MEM		(pci_mem_start)
-#endif
-
 struct pci_bus {
 	struct list_head node;		/* node in list of buses */
 	struct pci_bus	*parent;	/* parent bus this bridge is on */
@@ -257,22 +250,12 @@ struct pci_dev {
 	uint16_t		device;
 	uint16_t		vendor;
 	unsigned int		irq;
-	uint16_t		subsystem_vendor;
+	uint16_t		subsystem_vendor; /* XXXMJ are these set? */
 	uint16_t		subsystem_device;
 	unsigned int		class;
 	u8			revision;
-	u8			hdr_type;	/* PCI header type (`multi' flag masked out) */
 
-	pci_power_t     current_state;  /* Current operating state. In ACPI-speak,
-					   this is D0-D3, D0 being fully functional,
-					   and D3 being off. */
-	unsigned int	bridge_d3:1;	/* Allow D3 for bridge */
-	unsigned int	d3_delay;	/* D3->D0 transition time in ms */
-	
 	unsigned int		msi_enabled:1;
-	unsigned int		msix_enabled:1;
-	unsigned int		no_msi:1;	/* device may not use msi */
-	unsigned int		no_64bit_msi:1;
 };
 
 static inline struct resource_list_entry *
@@ -398,6 +381,7 @@ pci_enable_device(struct pci_dev *pdev)
 static inline void
 pci_disable_device(struct pci_dev *pdev)
 {
+
 	pci_disable_io(pdev->dev.bsddev, SYS_RES_IOPORT);
 	pci_disable_io(pdev->dev.bsddev, SYS_RES_MEMORY);
 }
@@ -476,8 +460,6 @@ pci_request_regions(struct pci_dev *pdev, const char *res_name)
 	}
 	return (0);
 }
-
-struct pci_dev *linux_bsddev_to_pci_dev(device_t dev);
 
 static inline void
 pci_disable_msix(struct pci_dev *pdev)

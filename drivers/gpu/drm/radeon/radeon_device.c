@@ -1244,24 +1244,32 @@ static void radeon_check_arguments(struct radeon_device *rdev)
 static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
+#ifndef __FreeBSD__
 	struct radeon_device *rdev = dev->dev_private;
+#endif
 
 	if (radeon_is_px(dev) && state == VGA_SWITCHEROO_OFF)
 		return;
 
 	if (state == VGA_SWITCHEROO_ON) {
+#ifndef __FreeBSD__
 		unsigned d3_delay = dev->pdev->d3_delay;
+#endif
 
 		printk(KERN_INFO "radeon: switched on\n");
 		/* don't suspend or resume card normally */
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 
+#ifndef __FreeBSD__
 		if (d3_delay < 20 && (rdev->px_quirk_flags & RADEON_PX_QUIRK_LONG_WAKEUP))
 			dev->pdev->d3_delay = 20;
+#endif
 
 		radeon_resume_kms(dev, true, true);
 
+#ifndef __FreeBSD__
 		dev->pdev->d3_delay = d3_delay;
+#endif
 
 		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 		drm_kms_helper_poll_enable(dev);
