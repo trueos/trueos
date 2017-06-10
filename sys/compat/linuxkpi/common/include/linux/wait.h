@@ -2,18 +2,18 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * Copyright (c) 2017 Mark Johnston <markj@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conds
+ * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice unmodified, this list of conds, and the following
+ *    notice unmodified, this list of conditions, and the following
  *    disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conds and the following disclaimer in the
+ *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -37,6 +37,8 @@
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+
+#include <asm/atomic.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -255,8 +257,9 @@ int linux_wait_on_atomic_t(atomic_t *, unsigned int);
 #define	wake_up_atomic_t(a)		linux_wake_up_atomic_t(a)
 /*
  * All existing callers have a cb that just schedule()s. To avoid adding
- * complexity, just emulate internally. The prototype is different so that
- * callers must be manually modified.
+ * complexity, just emulate that internally. The prototype is different so that
+ * callers must be manually modified; a cb that does something other than call
+ * schedule() will require special treatment.
  */
 #define	wait_on_atomic_t(a, state)	linux_wait_on_atomic_t(a, state)
 

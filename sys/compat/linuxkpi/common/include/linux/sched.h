@@ -52,7 +52,7 @@
 
 #define	MAX_SCHEDULE_TIMEOUT	INT_MAX
 
-#define	TASK_RUNNING		0
+#define	TASK_RUNNING		0x0000
 #define	TASK_INTERRUPTIBLE	0x0001
 #define	TASK_UNINTERRUPTIBLE	0x0002
 #define	TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
@@ -71,12 +71,12 @@ struct task_struct {
 	linux_task_fn_t *task_fn;
 	void   *task_data;
 	int	task_ret;
+	atomic_t usage;
 	atomic_t kthread_flags;
 
-	atomic_t usage;
 	atomic_t state;
-	const char *comm;
 	pid_t	pid;	/* BSD thread ID */
+	const char *comm;
 	int	prio;
 
 	void   *bsd_ioctl_data;
@@ -131,6 +131,8 @@ local_clock(void)
 
 #define	cond_resched()	if (!cold)	sched_relinquish(curthread)
 
+#define	need_resched()	(curthread->td_flags & TDF_NEEDRESCHED)
+#define	yield()		kern_yield(PRI_UNCHANGED)
 #define	sched_yield()	sched_relinquish(curthread)
 
 bool linux_signal_pending(struct task_struct *task);
@@ -169,6 +171,7 @@ int linux_schedule_timeout(int timeout);
 
 #define	yield() kern_yield(PRI_UNCHANGED)
 
-#define	need_resched() (curthread->td_flags & TDF_NEEDRESCHED)
+#define	io_schedule()			schedule()
+#define	io_schedule_timeout(timeout)	schedule_timeout(timeout)
 
 #endif	/* _LINUX_SCHED_H_ */
