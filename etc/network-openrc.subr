@@ -129,7 +129,7 @@ ifconfig_up()
 	if [ "$1" = "lo0" ]; then
 		_cfg=0
 	fi
-
+	
 	# inet6 specific
 	if ! noafif $1 && afexists inet6; then
 		if checkyesno ipv6_activate_all_interfaces; then
@@ -215,7 +215,8 @@ ifconfig_up()
 	ifalias $1 ether alias
 
 	if wpaif $1; then
-		/etc/rc.d/wpa_supplicant start $1
+		ln -fs /etc/init.d/wpa_supplicant /etc/init.d/wpa_supplicant.${1}
+		service wpa_supplicant.${1} start
 		_cfg=0		# XXX: not sure this should count
 	elif hostapif $1; then
 		/etc/rc.d/hostapd start $1
@@ -229,7 +230,9 @@ ifconfig_up()
 			${IFCONFIG_CMD} $1 up
 		fi
 		if syncdhcpif $1; then
-			/etc/rc.d/dhclient start $1
+			ln -fs /usr/local/etc/init.d/dhcpcd \
+			 /usr/local/etc/init.d/dhcpcd.${1}
+			service dhcpcd.${1} start
 		fi
 		_cfg=0
 	fi
@@ -247,7 +250,8 @@ ifconfig_down()
 	_cfg=1
 
 	if wpaif $1; then
-		/etc/rc.d/wpa_supplicant stop $1
+		ln -fs /etc/init.d/wpa_supplicant /etc/init.d/wpa_supplicant.${1}
+		service wpa_supplicant.${1} stop
 		_cfg=0
 	elif hostapif $1; then
 		/etc/rc.d/hostapd stop $1
@@ -255,7 +259,9 @@ ifconfig_down()
 	fi
 
 	if dhcpif $1; then
-		/etc/rc.d/dhclient stop $1
+		ln -fs /usr/local/etc/init.d/dhcpcd \
+		 /usr/local/etc/init.d/dhcpcd.${1}
+		service dhcpcd.${1} stop
 		_cfg=0
 	fi
 
@@ -325,6 +331,9 @@ ifconfig_getargs()
 	for _arg in $_tmpargs; do
 		case $_arg:$_vnet in
 		[Dd][Hh][Cc][Pp]:0) ;;
+		[Aa][Ll][Ll]:0) ;;
+		[Ii][Pp][Vv][4]:0) ;;
+		[Ii][Pp][Vv][6]:0) ;;
 		[Nn][Oo][Aa][Uu][Tt][Oo]:0) ;;
 		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]:0) ;;
 		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]:0) ;;
@@ -384,6 +393,15 @@ dhcpif()
 		[Dd][Hh][Cc][Pp])
 			return 0
 			;;
+		[Aa][Ll][Ll])
+			return 0
+			;;
+		[Ii][Pp][Vv][4])
+			return 0
+			;;
+		[Ii][Pp][Vv][6])
+			return 0
+			;;
 		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp])
 			return 0
 			;;
@@ -414,6 +432,15 @@ syncdhcpif()
 			return 1
 			;;
 		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp])
+			return 0
+			;;
+		[Aa][Ll][Ll])
+			return 0
+			;;
+		[Ii][Pp][Vv][4])
+			return 0
+			;;
+		[Ii][Pp][Vv][6])
 			return 0
 			;;
 		esac
@@ -1285,7 +1312,7 @@ wlan_up()
 		done
 	done
 	if [ -n "${_list# }" ]; then
-		echo "Created wlan(4) interfaces: ${_list# }."
+		einfo "Created wlan(4) interfaces: ${_list# }."
 	fi
 	debug "Created wlan(4)s: ${_list# }"
 }

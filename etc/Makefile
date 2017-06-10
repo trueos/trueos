@@ -72,11 +72,13 @@ BIN1=	crontab \
 	motd \
 	netconfig \
 	network.subr \
+	network-openrc.subr \
 	networks \
 	newsyslog.conf \
 	nsswitch.conf \
 	openrc \
 	openrc.shutdown \
+	openrc.subr \
 	phones \
 	profile \
 	protocols \
