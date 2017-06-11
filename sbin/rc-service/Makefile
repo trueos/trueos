@@ -19,8 +19,7 @@ CFLAGS+=	-I${ORSRC}/rc \
 		-I${ORSRC}/includes
 
 WARNS?=	3
-MAN=	${.CURDIR}/../../contrib/openrc/man/rc-service.8 \
-	${.CURDIR}/../../contrib/openrc/man/service.8
+MAN=	${.CURDIR}/../../contrib/openrc/man/rc-service.8
 
 LIBADD=	einfo rc util
 
