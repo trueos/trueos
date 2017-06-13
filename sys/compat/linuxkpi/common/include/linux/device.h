@@ -179,7 +179,6 @@ struct device {
 	unsigned int	msix_max;
 	const struct attribute_group **groups;
 	struct device_type *type;
-	struct device_node	*of_node; /* associated device tree node */
 	struct fwnode_handle	*fwnode;
 	struct device_driver *driver;	/* which driver has allocated this device */
 	struct dev_pm_info	power;

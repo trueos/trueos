@@ -371,7 +371,6 @@ hwmon_device_register_with_groups(struct device *dev, const char *name,
 	hwdev->dev.class = &hwmon_class;
 	hwdev->dev.parent = dev;
 	hwdev->dev.groups = groups;
-	hwdev->dev.of_node = dev ? dev->of_node : NULL;
 	dev_set_drvdata(&hwdev->dev, drvdata);
 	dev_set_name(&hwdev->dev, HWMON_ID_FORMAT, id);
 	err = device_register(&hwdev->dev);
