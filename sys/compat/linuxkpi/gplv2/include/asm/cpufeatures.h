@@ -299,7 +299,6 @@
 #define X86_BUG_ESPFIX		X86_BUG(9) /* "" IRET to 16-bit SS corrupts ESP/RSP high bits */
 #endif
 
-#define	cpu_has_clflush		boot_cpu_has(X86_FEATURE_CLFLUSH)
 #define	cpu_has_pat		boot_cpu_has(X86_FEATURE_PAT)
 
 #endif /* _ASM_X86_CPUFEATURES_H */

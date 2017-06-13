@@ -54,6 +54,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+#if defined(__i386__) || defined(__amd64__)
+#include <machine/md_var.h>
+#endif
+
 #include <linux/kobject.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -1900,6 +1904,9 @@ linux_compat_init(void *arg)
 {
 	struct sysctl_oid *rootoid;
 
+#if defined(__i386__) || defined(__amd64__)
+	linux_cpu_has_clflush = (cpu_feature & CPUID_CLFSH);
+#endif
 	rw_init(&linux_vma_lock, "lkpi-vma-lock");
 
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
