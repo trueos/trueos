@@ -711,8 +711,8 @@ extern ssize_t fb_sys_write(struct linux_fb_info *info, const char __user *buf,
 			    size_t count, loff_t *ppos);
 
 /* drivers/video/fbmem.c */
-extern int register_framebuffer(struct linux_fb_info *fb_info);
-extern int unregister_framebuffer(struct linux_fb_info *fb_info);
+extern int linux_register_framebuffer(struct linux_fb_info *fb_info);
+extern int linux_unregister_framebuffer(struct linux_fb_info *fb_info);
 extern int remove_conflicting_framebuffers(struct apertures_struct *a,
 				const char *name, bool primary);
 struct linux_fb_info *framebuffer_alloc(size_t size, struct device *dev);

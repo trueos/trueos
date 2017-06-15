@@ -594,7 +594,7 @@ __register_framebuffer(struct linux_fb_info *fb_info)
 }
 
 int
-register_framebuffer(struct linux_fb_info *fb_info)
+linux_register_framebuffer(struct linux_fb_info *fb_info)
 {
 	int rc;
 
@@ -673,7 +673,7 @@ __unregister_framebuffer(struct linux_fb_info *fb_info)
 }
 
 int
-unregister_framebuffer(struct linux_fb_info *fb_info)
+linux_unregister_framebuffer(struct linux_fb_info *fb_info)
 {
 	int rc;
 
