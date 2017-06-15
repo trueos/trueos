@@ -182,10 +182,12 @@ idr_destroy(struct idr *idr)
 	struct idr_layer *il, *iln;
 
 	idr_remove_all(idr);
+	mtx_lock(&idr->lock);
 	for (il = idr->free; il != NULL; il = iln) {
 		iln = il->ary[0];
 		free(il, M_IDR);
 	}
+	mtx_unlock(&idr->lock);
 	mtx_destroy(&idr->lock);
 }
 
@@ -209,9 +211,11 @@ void
 idr_remove_all(struct idr *idr)
 {
 
+	mtx_lock(&idr->lock);
 	idr_remove_layer(idr->top, idr->layers - 1);
 	idr->top = NULL;
 	idr->layers = 0;
+	mtx_unlock(&idr->lock);
 }
 
 static void
@@ -252,7 +256,9 @@ idr_remove_locked(struct idr *idr, int id)
 void
 idr_remove(struct idr *idr, int id)
 {
+	mtx_lock(&idr->lock);
 	idr_remove_locked(idr, id);
+	mtx_unlock(&idr->lock);
 }
 
 
@@ -281,6 +287,7 @@ idr_replace(struct idr *idr, void *ptr, int id)
 	void *res;
 	int idx;
 
+	mtx_lock(&idr->lock);
 	il = idr_find_layer_locked(idr, id);
 	idx = id & IDR_MASK;
 
@@ -291,6 +298,7 @@ idr_replace(struct idr *idr, void *ptr, int id)
 		res = il->ary[idx];
 		il->ary[idx] = ptr;
 	}
+	mtx_unlock(&idr->lock);
 	return (res);
 }
 
@@ -300,6 +308,7 @@ idr_find_locked(struct idr *idr, int id)
 	struct idr_layer *il;
 	void *res;
 
+	mtx_assert(&idr->lock, MA_OWNED);
 	il = idr_find_layer_locked(idr, id);
 	if (il != NULL)
 		res = il->ary[id & IDR_MASK];
@@ -313,7 +322,9 @@ idr_find(struct idr *idr, int id)
 {
 	void *res;
 
+	mtx_lock(&idr->lock);
 	res = idr_find_locked(idr, id);
+	mtx_unlock(&idr->lock);
 	return (res);
 }
 
@@ -323,6 +334,7 @@ idr_get_next(struct idr *idr, int *nextidp)
 	void *res = NULL;
 	int id = *nextidp;
 
+	mtx_lock(&idr->lock);
 	for (; id <= idr_max(idr); id++) {
 		res = idr_find_locked(idr, id);
 		if (res == NULL)
@@ -330,6 +342,7 @@ idr_get_next(struct idr *idr, int *nextidp)
 		*nextidp = id;
 		break;
 	}
+	mtx_unlock(&idr->lock);
 	return (res);
 }
 
@@ -373,12 +386,10 @@ idr_free_list_get(struct idr *idp)
 {
 	struct idr_layer *il;
 
-	mtx_lock(&idp->lock);
 	if ((il = idp->free) != NULL) {
 		idp->free = il->ary[0];
 		il->ary[0] = NULL;
 	}
-	mtx_unlock(&idp->lock);
 	return (il);
 }
 
@@ -412,6 +423,8 @@ idr_get_new_locked(struct idr *idr, void *ptr, int *idp)
 	int layer;
 	int idx;
 	int id;
+
+	mtx_assert(&idr->lock, MA_OWNED);
 
 	error = -EAGAIN;
 	/*
@@ -482,7 +495,9 @@ idr_get_new(struct idr *idr, void *ptr, int *idp)
 {
 	int retval;
 
+	mtx_lock(&idr->lock);
 	retval = idr_get_new_locked(idr, ptr, idp);
+	mtx_unlock(&idr->lock);
 	return (retval);
 }
 
@@ -495,6 +510,8 @@ idr_get_new_above_locked(struct idr *idr, void *ptr, int starting_id, int *idp)
 	int layer;
 	int idx, sidx;
 	int id;
+
+	mtx_assert(&idr->lock, MA_OWNED);
 
 	error = -EAGAIN;
 	/*
@@ -596,7 +613,9 @@ idr_get_new_above(struct idr *idr, void *ptr, int starting_id, int *idp)
 {
 	int retval;
 
+	mtx_lock(&idr->lock);
 	retval = idr_get_new_above_locked(idr, ptr, starting_id, idp);
+	mtx_unlock(&idr->lock);
 	return (retval);
 }
 
@@ -612,6 +631,8 @@ idr_alloc_locked(struct idr *idr, void *ptr, int start, int end)
 	int max = end > 0 ? end - 1 : INT_MAX;
 	int error;
 	int id;
+
+	mtx_assert(&idr->lock, MA_OWNED);
 
 	if (unlikely(start < 0))
 		return (-EINVAL);
@@ -637,7 +658,9 @@ idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
 {
 	int retval;
 
+	mtx_lock(&idr->lock);
 	retval = idr_alloc_locked(idr, ptr, start, end);
+	mtx_unlock(&idr->lock);
 	return (retval);
 }
 
@@ -646,11 +669,13 @@ idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask)
 {
 	int retval;
 
+	mtx_lock(&idr->lock);
 	retval = idr_alloc_locked(idr, ptr, max(start, idr->next_cyclic_id), end);
 	if (unlikely(retval == -ENOSPC))
 		retval = idr_alloc_locked(idr, ptr, start, end);
 	if (likely(retval >= 0))
 		idr->next_cyclic_id = retval + 1;
+	mtx_unlock(&idr->lock);
 	return (retval);
 }
 
