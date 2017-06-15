@@ -1759,6 +1759,10 @@ struct drm_i915_private {
 	int relative_constants_mode;
 
 	void __iomem *regs;
+#ifdef __FreeBSD__
+	int mmio_rid;
+	int mmio_restype;
+#endif
 
 	struct intel_uncore uncore;
 

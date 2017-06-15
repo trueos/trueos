@@ -3,11 +3,6 @@
 
 #include_next <linux/pci.h>
 
-extern void pci_unmap_rom(struct pci_dev *pdev, u8 *bios);
-extern void *pci_map_rom(struct pci_dev *pdev, size_t *size);
-extern void *pci_iomap(struct pci_dev *pdev, int bar, unsigned long max);
-extern void pci_iounmap(struct pci_dev *pdev, void *regs);
-
 struct pci_dev *linux_pci_get_class(unsigned int class, struct pci_dev *from);
 
 static inline int

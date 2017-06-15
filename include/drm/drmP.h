@@ -989,6 +989,15 @@ struct drm_device {
 	int modesetting;
 
 	const drm_pci_id_list_t *id_entry;	/* PCI ID, name, and chipset private */
+
+#ifdef __FreeBSD__
+#define	DRM_PCI_RESOURCE_MAX	7
+
+	struct drm_pci_resource {
+		struct resource *res;
+		int rid;
+	} drm_pcir[DRM_PCI_RESOURCE_MAX];
+#endif
 };
 
 #include <drm/drm_irq.h>

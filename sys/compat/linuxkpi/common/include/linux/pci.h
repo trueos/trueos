@@ -227,16 +227,6 @@ struct pci_bus {
 	struct device		dev;
 };
 
-#define LINUXKPI_BIOS 6
-#define LINUXKPI_MAX_PCI_RESOURCE 7
-
-struct pci_resources {
-	struct resource *r[LINUXKPI_MAX_PCI_RESOURCE];
-	int rid[LINUXKPI_MAX_PCI_RESOURCE];
-	void *map[LINUXKPI_MAX_PCI_RESOURCE];
-	int type[LINUXKPI_MAX_PCI_RESOURCE];
-};
-
 struct pci_dev {
 	struct pci_bus	*bus;		/* bus this device is on */
 
@@ -244,7 +234,6 @@ struct pci_dev {
 
 	struct list_head	links;
 	struct pci_driver	*pdrv;
-	struct pci_resources	pcir;
 	uint64_t		dma_mask;
 	unsigned int		devfn;
 	uint16_t		device;
