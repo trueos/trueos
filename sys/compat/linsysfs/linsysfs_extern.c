@@ -466,10 +466,4 @@ sysfs_remove_link(struct kobject *kobj, const char *name)
 		pfs_destroy(pn);
 }
 
-void
-sysfs_notify(struct kobject *kobj, const char *dir, const char *attr)
-{
-	/* PFS needs a kevent handler or the like */
-}
-
 const char power_group_name[] = "power";
