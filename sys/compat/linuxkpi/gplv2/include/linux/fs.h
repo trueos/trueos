@@ -2,6 +2,7 @@
 #define	_LINUX_FS_NEXT_H_
 
 #include <linux/capability.h>
+#include <linux/mutex.h>
 #include <linux/shrinker.h>
 
 #include_next <linux/fs.h>
