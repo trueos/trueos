@@ -1,6 +1,23 @@
 /*
- * XXX needs rewrite
+ * Fence mechanism for dma-buf to allow for asynchronous dma access
+ *
+ * Copyright (C) 2012 Canonical Ltd
+ * Copyright (C) 2012 Texas Instruments
+ *
+ * Authors:
+ * Rob Clark <robdclark@gmail.com>
+ * Maarten Lankhorst <maarten.lankhorst@canonical.com>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published by
+ * the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  */
+
 #ifndef __LINUX_FENCE_H
 #define __LINUX_FENCE_H
 
@@ -116,7 +133,11 @@ fence_signal_locked(struct fence *fence)
 
 	if (!ktime_to_ns(fence->timestamp)) {
 		fence->timestamp = ktime_get();
+#ifdef __FreeBSD__
+		mb();
+#else
 		smp_mb__before_atomic();
+#endif
 	}
 
 	if (test_and_set_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
@@ -156,7 +177,11 @@ fence_signal(struct fence *fence)
 
 	if (!ktime_to_ns(fence->timestamp)) {
 		fence->timestamp = ktime_get();
+#ifdef __FreeBSD__
+		mb();
+#else
 		smp_mb__before_atomic();
+#endif
 	}
 
 	if (test_and_set_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
