@@ -55,14 +55,6 @@
 extern u_int	cpu_feature;
 extern u_int	cpu_stdext_feature;
 
-#if defined(__i386__) || defined(__amd64__)
-static int
-needs_set_memattr(vm_page_t m, vm_memattr_t attr)
-{
-	return (m->md.pat_mode != attr);
-}
-#endif
-
 void
 __linux_clflushopt(u_long addr)
 {
@@ -287,14 +279,6 @@ kunmap_atomic(void *vaddr)
 
 	sched_unpin();
 #endif
-}
-
-void
-page_cache_release(vm_page_t page)
-{
-	vm_page_lock(page);
-	vm_page_unwire(page, PQ_INACTIVE);
-	vm_page_unlock(page);
 }
 
 void *

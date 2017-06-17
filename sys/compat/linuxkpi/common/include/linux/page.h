@@ -48,8 +48,6 @@ typedef unsigned long pgprot_t;
 
 #define page	vm_page
 
-#define PAGE_KERNEL_IO  0x0000
-
 #define	LINUXKPI_PROT_VALID (1 << 4)
 #define	LINUXKPI_CACHE_MODE_SHIFT 3
 
@@ -78,7 +76,6 @@ pgprot2cachemode(pgprot_t prot)
 #define	nth_page(page,n)	pfn_to_page(page_to_pfn((page)) + (n))
 
 #define	clear_page(page)		memset((page), 0, PAGE_SIZE)
-#define	clear_highpage(page)		clear_page(page)
 #define	pgprot_noncached(prot)		((prot) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
 #define	pgprot_writecombine(prot)	((prot) | cachemode2protval(VM_MEMATTR_WRITE_COMBINING))
 
@@ -95,44 +92,5 @@ pgprot2cachemode(pgprot_t prot)
 #define	round_page(x)	((((uintptr_t)(x)) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 #undef	trunc_page
 #define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE - 1))
-
-/* XXX note that this is incomplete */
-void *kmap(vm_page_t page);
-void *kmap_atomic(vm_page_t page);
-void *kmap_atomic_prot(vm_page_t page, pgprot_t prot);
-void kunmap(vm_page_t page);
-void kunmap_atomic(void *vaddr);
-void page_cache_release(vm_page_t page);
-
-extern void * iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
-
-void iounmap_atomic(void *vaddr);
-
-static inline int
-page_count(vm_page_t page __unused)
-{
-	return (1);
-}
-
-int set_pages_array_wb(struct page **pages, int addrinarray);
-int set_pages_array_uc(struct page **pages, int addrinarray);
-int set_pages_array_wc(struct page **pages, int addrinarray);
-
-/* bump refcount */
-
-int set_pages_wb(vm_page_t page, int numpages);
-int set_memory_wb(unsigned long addr, int numpages);
-int set_pages_uc(vm_page_t page, int numpages);
-int set_memory_uc(unsigned long addr, int numpages);
-int set_pages_wc(vm_page_t page, int numpages);
-int set_memory_wc(unsigned long addr, int numpages);
-
-vm_paddr_t page_to_phys(vm_page_t page);
-
-void unmap_mapping_range(void *obj,
-			 loff_t const holebegin, loff_t const holelen, int even_cows);
-
-#define linux_clflushopt(arg) __linux_clflushopt((u_long)(arg))
-extern void __linux_clflushopt(u_long addr);
 
 #endif	/* _LINUX_PAGE_H_ */
