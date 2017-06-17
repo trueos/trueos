@@ -1,4 +1,4 @@
-#include <linux/seq_file.h>
+#include <linux/kernel.h>
 #include <linux/seq_file.h>
 
 ssize_t
