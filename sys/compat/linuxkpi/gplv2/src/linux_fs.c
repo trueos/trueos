@@ -70,6 +70,13 @@ default_llseek(struct file *file, loff_t offset, int whence)
 	return (0);
 }
 
+loff_t
+generic_file_llseek(struct file *file, loff_t offset, int whence)
+{
+
+	panic("%s: not implemented", __func__);
+}
+
 struct page *
 shmem_read_mapping_page_gfp(vm_object_t obj, int pindex, gfp_t gfp)
 {

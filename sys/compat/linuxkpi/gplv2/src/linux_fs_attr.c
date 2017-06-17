@@ -1,11 +1,9 @@
+#include <sys/types.h>
+#include <sys/sbuf.h>
+
 #include <linux/fs.h>
-
-loff_t
-generic_file_llseek(struct file *file, loff_t offset, int whence)
-{
-
-	panic("%s: not implemented", __func__);
-}
+#include <linux/kernel.h>
+#include <linux/slab.h>
 
 ssize_t
 simple_read_from_buffer(void __user * to, size_t count,
