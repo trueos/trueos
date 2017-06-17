@@ -7,6 +7,7 @@
 
 #include_next <linux/fs.h>
 
+extern loff_t default_llseek(struct file *file, loff_t offset, int whence);
 extern loff_t generic_file_llseek(struct file *file, loff_t offset, int whence);
 
 extern struct address_space *alloc_anon_mapping(size_t);
@@ -63,5 +64,29 @@ static const struct file_operations __fops = {				\
 	.write	 = simple_attr_write,					\
 	.llseek	 = generic_file_llseek,					\
 }
+
+unsigned long invalidate_mapping_pages(struct address_space *mapping,
+					pgoff_t start, pgoff_t end);
+
+struct page *shmem_read_mapping_page_gfp(struct address_space *as, int idx, gfp_t gfp);
+
+static inline struct page *
+shmem_read_mapping_page(struct address_space *as, int idx)
+{
+
+	return (shmem_read_mapping_page_gfp(as, idx, 0));
+}
+
+extern struct linux_file *shmem_file_setup(char *name, loff_t size, unsigned long flags);
+
+static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask) {}
+static inline gfp_t mapping_gfp_mask(struct address_space *m)
+{
+	return (0);
+}
+void shmem_truncate_range(struct vnode *, loff_t, loff_t);
+
+extern struct address_space *alloc_anon_mapping(size_t);
+extern void free_anon_mapping(struct address_space *);
 
 #endif /* _LINUX_FS_NEXT_H_ */
