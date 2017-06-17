@@ -479,10 +479,8 @@ void
 linux_file_free(struct linux_file *filp)
 {
 	if (filp->_file == NULL) {
-		struct vnode *vp = filp->f_vnode;
-
-		if (vp != NULL && vp->i_mapping != NULL)
-			vm_object_deallocate(vp->i_mapping);
+		if (filp->_shmem != NULL)
+			vm_object_deallocate(filp->_shmem);
 
 		kfree(filp);
 	} else {

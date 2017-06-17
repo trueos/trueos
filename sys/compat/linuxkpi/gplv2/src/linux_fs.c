@@ -71,29 +71,27 @@ default_llseek(struct file *file, loff_t offset, int whence)
 }
 
 struct page *
-shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
+shmem_read_mapping_page_gfp(vm_object_t obj, int pindex, gfp_t gfp)
 {
 	vm_page_t page;
-	vm_object_t object;
 	int rv;
 
 	if ((gfp & GFP_NOWAIT) != 0)
 		panic("GFP_NOWAIT is unimplemented");
 
-	object = as;
-	VM_OBJECT_WLOCK(object);
-	page = vm_page_grab(object, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
+	VM_OBJECT_WLOCK(obj);
+	page = vm_page_grab(obj, pindex, VM_ALLOC_NORMAL | VM_ALLOC_NOBUSY |
 	    VM_ALLOC_WIRED);
 	if (page->valid != VM_PAGE_BITS_ALL) {
 		vm_page_xbusy(page);
-		if (vm_pager_has_page(object, pindex, NULL, NULL)) {
-			rv = vm_pager_get_pages(object, &page, 1, NULL, NULL);
+		if (vm_pager_has_page(obj, pindex, NULL, NULL)) {
+			rv = vm_pager_get_pages(obj, &page, 1, NULL, NULL);
 			if (rv != VM_PAGER_OK) {
 				vm_page_lock(page);
 				vm_page_unwire(page, PQ_NONE);
 				vm_page_free(page);
 				vm_page_unlock(page);
-				VM_OBJECT_WUNLOCK(object);
+				VM_OBJECT_WUNLOCK(obj);
 				return (ERR_PTR(-EINVAL));
 			}
 			MPASS(page->valid == VM_PAGE_BITS_ALL);
@@ -107,28 +105,8 @@ shmem_read_mapping_page_gfp(struct address_space *as, int pindex, gfp_t gfp)
 	vm_page_lock(page);
 	vm_page_hold(page);
 	vm_page_unlock(page);
-	VM_OBJECT_WUNLOCK(object);
+	VM_OBJECT_WUNLOCK(obj);
 	return (page);
-}
-
-struct address_space *
-alloc_anon_mapping(size_t size)
-{
-	struct address_space *as;
-
-	as = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
-	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
-	if (as == NULL)
-		return (ERR_PTR(-ENOMEM));
-	return (as);
-}
-
-void
-free_anon_mapping(struct address_space *as)
-{
-
-	if (as != NULL)
-		vm_object_deallocate(as);
 }
 
 struct linux_file *
@@ -152,13 +130,10 @@ shmem_file_setup(char *name, loff_t size, unsigned long flags)
 	vp = &fileobj->vnode;
 
 	filp->f_count = 1;
-	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_vnode = vp;
-	filp->f_mapping = file_inode(filp)->i_mapping =
-	    vm_pager_allocate(OBJT_DEFAULT, NULL, size,
+	filp->_shmem = vm_pager_allocate(OBJT_DEFAULT, NULL, size,
 	    VM_PROT_READ | VM_PROT_WRITE, 0, curthread->td_ucred);
-
-	if (file_inode(filp)->i_mapping == NULL) {
+	if (filp->_shmem == NULL) {
 		error = -ENOMEM;
 		goto err_1;
 	}
@@ -191,11 +166,10 @@ invalidate_mapping_pages(vm_object_t obj, pgoff_t start, pgoff_t end)
 }
 
 void
-shmem_truncate_range(struct vnode *vp, loff_t lstart, loff_t lend)
+shmem_truncate_range(vm_object_t obj, loff_t lstart, loff_t lend)
 {
-	vm_object_t vm_obj = vp->i_mapping;
 	vm_pindex_t start = OFF_TO_IDX(lstart + PAGE_SIZE - 1);
 	vm_pindex_t end = OFF_TO_IDX(lend + 1);
 
-	(void)linux_invalidate_mapping_pages(vm_obj, start, end, 0);
+	(void)linux_invalidate_mapping_pages(obj, start, end, 0);
 }

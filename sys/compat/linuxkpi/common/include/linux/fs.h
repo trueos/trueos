@@ -60,6 +60,7 @@ struct files_struct;
 
 #define	inode	vnode
 #define	i_cdev	v_rdev
+#define	i_private v_data
 
 #define	S_IRUGO	(S_IRUSR | S_IRGRP | S_IROTH)
 #define	S_IWUGO	(S_IWUSR | S_IWGRP | S_IWOTH)
@@ -68,9 +69,7 @@ typedef struct files_struct *fl_owner_t;
 
 struct file_operations;
 
-#define address_space vm_object
 #define i_mapping v_bufobj.bo_object
-#define i_private v_data
 #define file_inode(f) ((f)->f_vnode)
 
 /* this value isn't needed by the compat layer */
@@ -92,7 +91,9 @@ struct linux_file {
 	struct sigio	*f_sigio;
 	struct vnode	*f_vnode;
 	volatile u_int	f_count;
-	vm_object_t	f_mapping;
+
+	/* anonymous shmem object */
+	vm_object_t	_shmem;
 
 	/* kqfilter support */
 	int		f_kqflags;

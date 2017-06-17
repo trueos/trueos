@@ -76,17 +76,6 @@ fault_in_pages_readable(char __user *uaddr, int size)
 	return (fault_in_multipages_readable(uaddr, size));
 }
 	
-/* Restricts the given gfp_mask to what the mapping allows. */
-static inline gfp_t
-mapping_gfp_constraint(struct address_space *mapping, gfp_t gfp_mask)
-{
-#if 0	
-	return mapping_gfp_mask(mapping) & gfp_mask;
-#endif
-	UNIMPLEMENTED();
-	return (0);
-}
-
 static inline void
 release_pages(struct page **pages, int nr, bool cold)
 {
