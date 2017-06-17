@@ -8,8 +8,10 @@
 #include <linux/acpi.h>
 #include <linux/oom.h>
 #include <linux/shrinker.h>
-#include <acpi/button.h>
 #include <linux/rcupdate.h>
+#include <linux/math64.h>
+
+#include <acpi/button.h>
 
 #ifdef DIAGNOSTIC
 #define DIPRINTF printf
