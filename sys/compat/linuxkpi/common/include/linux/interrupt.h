@@ -52,21 +52,6 @@ struct irq_ent {
 	unsigned int	irq;
 };
 
-struct irqaction {
-	irq_handler_t		handler;
-	void			*dev_id;
-	struct irqaction	*next;
-	irq_handler_t		thread_fn;
-	struct task_struct	*thread;
-	struct irqaction	*secondary;
-	unsigned int		irq;
-	unsigned int		flags;
-	unsigned long		thread_flags;
-	unsigned long		thread_mask;
-	const char		*name;
-};
-
-
 static inline int
 linux_irq_rid(struct device *dev, unsigned int irq)
 {
