@@ -96,5 +96,6 @@ pgprot2cachemode(pgprot_t prot)
 #define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE - 1))
 
 extern void *iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
+extern void iounmap_atomic(void *vaddr);
 
 #endif	/* _LINUX_PAGE_H_ */
