@@ -3,16 +3,12 @@
 
 #include_next <linux/page.h>
 
-#define PAGE_KERNEL_IO  0x0000
-
 /* XXX note that this is incomplete */
 void *kmap(vm_page_t page);
 void *kmap_atomic(vm_page_t page);
 void *kmap_atomic_prot(vm_page_t page, pgprot_t prot);
 void kunmap(vm_page_t page);
 void kunmap_atomic(void *vaddr);
-
-extern void * iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
 
 void iounmap_atomic(void *vaddr);
 
