@@ -36,7 +36,6 @@
 #include <sys/proc.h>
 #include <sys/sched.h>
 
-#include <linux/list.h>
 #include <linux/compat.h>
 #include <linux/completion.h>
 #include <linux/pid.h>

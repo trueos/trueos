@@ -53,7 +53,6 @@
 #include <linux/jiffies.h>
 #include <linux/log2.h>
 #include <linux/printk.h>
-
 #include <asm/byteorder.h>
 #include <asm/smp.h>
 
