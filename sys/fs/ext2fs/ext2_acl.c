@@ -49,6 +49,8 @@
 #include <fs/ext2fs/ext2_dinode.h>
 #include <fs/ext2fs/ext2_mount.h>
 
+#ifdef UFS_ACL
+
 void
 ext2_sync_acl_from_inode(struct inode *ip, struct acl *acl)
 {
@@ -127,13 +129,18 @@ ext2_sync_inode_from_acl(struct acl *acl, struct inode *ip)
 static int
 ext4_acl_from_disk(char *value, size_t size, struct acl *acl)
 {
-	const char *end = value + size;
+	const char *end;
 	int n, count, s;
+
+	if (value == NULL)
+		return (EINVAL);
+
+	end = value + size;
 
 	if (((struct ext2_acl_header *)value)->a_version != EXT4_ACL_VERSION)
 		return (EINVAL);
 
-	if (!value || size < sizeof(struct ext2_acl_header))
+	if (size < sizeof(struct ext2_acl_header))
 		return (EINVAL);
 
 	s = size - sizeof(struct ext2_acl_header);
@@ -230,8 +237,7 @@ ext2_getacl_posix1e(struct vop_getacl_args *ap)
 
 	error = vn_extattr_get(ap->a_vp, IO_NODELOCKED, attrnamespace, attrname,
 	    &len, value, ap->a_td);
-	switch (error) {
-	case ENOATTR:
+	if (error == ENOATTR) {
 		switch (ap->a_type) {
 		case ACL_TYPE_ACCESS:
 			ap->a_aclp->acl_cnt = 3;
@@ -250,21 +256,20 @@ ext2_getacl_posix1e(struct vop_getacl_args *ap)
 			ap->a_aclp->acl_cnt = 0;
 			break;
 		}
-	case 0:
-		if (!error) {
-			error = ext4_acl_from_disk(value, len, ap->a_aclp);
-			if (error)
-				goto out;
-		}
+	} else if (error != 0)
+		goto out;
 
-		if (error == ENOATTR)
-			error = 0;
-
-		if (ap->a_type == ACL_TYPE_ACCESS)
-			ext2_sync_acl_from_inode(VTOI(ap->a_vp), ap->a_aclp);
-	default:
-		break;
+	if (!error) {
+		error = ext4_acl_from_disk(value, len, ap->a_aclp);
+		if (error)
+			goto out;
 	}
+
+	if (error == ENOATTR)
+		error = 0;
+
+	if (ap->a_type == ACL_TYPE_ACCESS)
+		ext2_sync_acl_from_inode(VTOI(ap->a_vp), ap->a_aclp);
 
 out:
 	free(value, M_TEMP);
@@ -276,7 +281,7 @@ ext2_getacl(struct vop_getacl_args *ap)
 {
 
 	if (((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0) ||
-	    ((ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS) == 1))
+	    ((ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS) != 0))
 		return (EOPNOTSUPP);
 
 	if (ap->a_type == ACL_TYPE_NFS4)
@@ -473,7 +478,7 @@ int
 ext2_setacl(struct vop_setacl_args *ap)
 {
 	if (((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0) ||
-	    ((ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS) == 1))
+	    ((ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS) != 0))
 		return (EOPNOTSUPP);
 
 	if (ap->a_type == ACL_TYPE_NFS4)
@@ -490,7 +495,7 @@ ext2_aclcheck(struct vop_aclcheck_args *ap)
 {
 
 	if (((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0) ||
-	    ((ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS) == 1))
+	    ((ap->a_vp->v_mount->mnt_flag & MNT_NFS4ACLS) != 0))
 		return (EOPNOTSUPP);
 
 	if (ap->a_type == ACL_TYPE_NFS4)
@@ -519,3 +524,5 @@ ext2_aclcheck(struct vop_aclcheck_args *ap)
 
 	return (acl_posix1e_check(ap->a_aclp));
 }
+
+#endif /* UFS_ACL */
