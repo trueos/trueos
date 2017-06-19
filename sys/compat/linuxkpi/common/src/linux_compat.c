@@ -85,9 +85,6 @@ __FBSDID("$FreeBSD$");
 #include <asm/smp.h>
 #endif
 
-extern u_int cpu_clflush_line_size;
-extern u_int cpu_id;
-
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
 int linux_db_trace;
 SYSCTL_INT(_compat_linuxkpi, OID_AUTO, db_trace, CTLFLAG_RWTUN, &linux_db_trace, 0, "enable backtrace instrumentation");
@@ -108,10 +105,6 @@ struct list_head pci_devices;
 spinlock_t pci_lock;
 
 unsigned long linux_timer_hz_mask;
-
-/*
- * XXX need to define irq_idr 
- */
 
 /*
  * XXX this leaks right now, we need to track
