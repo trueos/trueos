@@ -223,7 +223,7 @@ remap_io_mapping(struct vm_area_struct *vma, unsigned long addr,
 	vm_pindex_t pidx, pidx_start;
 	int count, rc;
 
-	attr = pgprot2cachemode(iomap->prot);
+	attr = iomap->attr;
 	count = size >> PAGE_SHIFT;
 	pa = pfn << PAGE_SHIFT;
 	pidx_start = OFF_TO_IDX(addr);
