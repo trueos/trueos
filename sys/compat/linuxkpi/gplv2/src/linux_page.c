@@ -149,21 +149,6 @@ kunmap_atomic(void *vaddr)
 #endif
 }
 
-void *
-iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot)
-{
-	sched_pin();
-	return (void *)pmap_mapdev_attr(pfn << PAGE_SHIFT,
-					PAGE_SIZE, prot);
-}
-
-void
-iounmap_atomic(void *vaddr)
-{
-	pmap_unmapdev((vm_offset_t)vaddr, PAGE_SIZE);
-	sched_unpin();
-}
-
 int
 set_memory_uc(unsigned long addr, int numpages)
 {
