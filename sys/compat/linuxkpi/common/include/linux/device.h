@@ -320,14 +320,12 @@ class_register(struct class *class)
 	kobject_init(&class->kobj, &linux_class_ktype);
 	kobject_set_name(&class->kobj, class->name);
 	kobject_add(&class->kobj, &linux_class_root, class->name);
-	class->sd = linsysfs_create_class_dir(class, class->name);
 	return (0);
 }
 
 static inline void
 class_unregister(struct class *class)
 {
-	linsysfs_destroy_class_dir(class);
 	kobject_put(&class->kobj);
 }
 
@@ -584,21 +582,6 @@ static inline void
 device_remove_file(struct device *dev, const struct device_attribute *attr)
 {
 
-	if (dev)
-		sysfs_remove_file(&dev->kobj, &attr->attr);
-}
-
-static inline int __must_check
-device_create_bin_file(struct device *dev, const struct bin_attribute *attr)
-{
-	if (dev)
-		return sysfs_create_bin_file(&dev->kobj, attr);
-	return -EINVAL;
-}
-
-static inline void
-device_remove_bin_file(struct device *dev, const struct bin_attribute *attr)
-{
 	if (dev)
 		sysfs_remove_file(&dev->kobj, &attr->attr);
 }

@@ -35,23 +35,7 @@
 #include <sys/sysctl.h>
 #include <sys/errno.h>
 
-#include <linux/compiler.h>
-#include <linux/types.h>
-
-struct vm_area_struct;
-
-struct linux_file;
-struct kobject;
-struct module;
-struct bin_attribute;
-enum kobj_ns_type;
-
-struct attribute {
-	const char 	*name;
-	struct module	*owner;
-	mode_t		mode;
-};
-
+#include <linux/kobject.h>
 
 struct sysfs_ops {
 	ssize_t (*show)(struct kobject *, struct attribute *, char *);
@@ -61,89 +45,29 @@ struct sysfs_ops {
 
 struct attribute_group {
 	const char		*name;
-	umode_t			(*is_visible)(struct kobject *,
-					      struct attribute *, int);
+	mode_t                  (*is_visible)(struct kobject *,
+				    struct attribute *, int);
 	struct attribute	**attrs;
 };
-
 
 #define	__ATTR(_name, _mode, _show, _store) {				\
 	.attr = { .name = __stringify(_name), .mode = _mode },		\
         .show = _show, .store  = _store,				\
 }
-
-#define	__ATTR_RO(_name) {						\
-	.attr = { .name = __stringify(_name), .mode = 0444 },		\
-	.show   = _name##_show,						\
-}
-
-
-#define __ATTR_WO(_name) {						\
-	.attr	= { .name = __stringify(_name), .mode = S_IWUSR },	\
-	.store	= _name##_store,					\
-}
-
-#define __ATTR_RW(_name) __ATTR(_name, (S_IWUSR | S_IRUGO),		\
-			 _name##_show, _name##_store)
-
+#define	__ATTR_RO(_name)	__ATTR(_name, 0444, _name##_show, NULL)
+#define	__ATTR_WO(_name)	__ATTR(_name, 0200, NULL, _name##_store)
+#define	__ATTR_RW(_name)	__ATTR(_name, 0644, _name##_show, _name##_store)
 
 #define	__ATTR_NULL	{ .attr = { .name = NULL } }
 
-#define __ATTRIBUTE_GROUPS(_name)				\
-static const struct attribute_group *_name##_groups[] = {	\
-	&_name##_group,						\
-	NULL,							\
-}
-
-#define ATTRIBUTE_GROUPS(_name)					\
-static const struct attribute_group _name##_group = {		\
-	.attrs = _name##_attrs,					\
-};								\
-__ATTRIBUTE_GROUPS(_name)
-
-struct bin_attribute {
-	struct attribute	attr;
-	size_t			size;
-	void			*private;
-	ssize_t (*read)(struct linux_file *, struct kobject *, struct bin_attribute *,
-			char *, loff_t, size_t);
-	ssize_t (*write)(struct linux_file *, struct kobject *, struct bin_attribute *,
-			 char *, loff_t, size_t);
-	int (*mmap)(struct linux_file *, struct kobject *, struct bin_attribute *attr,
-		    struct vm_area_struct *vma);
-};
-extern int sysfs_create_bin_file(struct kobject *kobj, const struct bin_attribute *attr);
-extern void sysfs_remove_bin_file(struct kobject *kobj, const struct bin_attribute *attr);
-
-extern int sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
-extern void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
-
-extern int __must_check sysfs_create_files(struct kobject *kobj, const struct attribute **attr);
-extern void sysfs_remove_files(struct kobject *kobj, const struct attribute **attr);
-
-extern int sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp);
-extern void sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp);
-extern int sysfs_create_dir_ns(struct kobject *kobj, const void *ns);
-extern void sysfs_remove_dir(struct kobject *kobj);
-extern int __must_check sysfs_create_link(struct kobject *kobj, struct kobject *target,
-				   const char *name);
-extern void sysfs_remove_link(struct kobject *kobj, const char *name);
-
-
-extern int lkpi_sysfs_create_file(struct kobject *kobj, const struct attribute *attr);
-extern void lkpi_sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
-
-extern int lkpi_sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp);
-extern void lkpi_sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp);
-extern int sysfs_merge_group(struct kobject *kobj, const struct attribute_group *grp);
-extern void sysfs_unmerge_group(struct kobject *kobj, const struct attribute_group *grp);
-
-extern int lkpi_sysfs_create_dir(struct kobject *kobj);
-extern void lkpi_sysfs_remove_dir(struct kobject *kobj);
-
-struct class;
-struct pfs_node *linsysfs_create_class_dir(struct class *class, const char *name);
-void linsysfs_destroy_class_dir(struct class *class);
+#define	ATTRIBUTE_GROUPS(_name)						\
+	static struct attribute_group _name##_group = {			\
+		.attrs = _name##_attrs,					\
+	};								\
+	static struct attribute_group *_name##_groups[] = {		\
+		&_name##_group,						\
+		NULL,							\
+	};
 
 /*
  * Handle our generic '\0' terminated 'C' string.
@@ -152,21 +76,120 @@ void linsysfs_destroy_class_dir(struct class *class);
  *      a constant string:  point arg1 at it, arg2 is zero.
  */
 
-static inline bool
-sysfs_streq(const char *s1, const char *s2)
+static inline int
+sysctl_handle_attr(SYSCTL_HANDLER_ARGS)
 {
-	while (*s1 && *s1 == *s2) {
-		s1++;
-		s2++;
+	struct kobject *kobj;
+	struct attribute *attr;
+	const struct sysfs_ops *ops;
+	char *buf;
+	int error;
+	ssize_t len;
+
+	kobj = arg1;
+	attr = (struct attribute *)(intptr_t)arg2;
+	if (kobj->ktype == NULL || kobj->ktype->sysfs_ops == NULL)
+		return (ENODEV);
+	buf = (char *)get_zeroed_page(GFP_KERNEL);
+	if (buf == NULL)
+		return (ENOMEM);
+	ops = kobj->ktype->sysfs_ops;
+	if (ops->show) {
+		len = ops->show(kobj, attr, buf);
+		/*
+		 * It's valid to not have a 'show' so just return an
+		 * empty string.
+	 	 */
+		if (len < 0) {
+			error = -len;
+			if (error != EIO)
+				goto out;
+			buf[0] = '\0';
+		} else if (len) {
+			len--;
+			if (len >= PAGE_SIZE)
+				len = PAGE_SIZE - 1;
+			/* Trim trailing newline. */
+			buf[len] = '\0';
+		}
 	}
 
-	if (*s1 == *s2)
-		return true;
-	if (!*s1 && *s2 == '\n' && !s2[1])
-		return true;
-	if (*s1 == '\n' && !s1[1] && !*s2)
-		return true;
-	return false;
+	/* Leave one trailing byte to append a newline. */
+	error = sysctl_handle_string(oidp, buf, PAGE_SIZE - 1, req);
+	if (error != 0 || req->newptr == NULL || ops->store == NULL)
+		goto out;
+	len = strlcat(buf, "\n", PAGE_SIZE);
+	KASSERT(len < PAGE_SIZE, ("new attribute truncated"));
+	len = ops->store(kobj, attr, buf, len);
+	if (len < 0)
+		error = -len;
+out:
+	free_page((unsigned long)buf);
+
+	return (error);
+}
+
+static inline int
+sysfs_create_file(struct kobject *kobj, const struct attribute *attr)
+{
+
+	SYSCTL_ADD_OID(NULL, SYSCTL_CHILDREN(kobj->oidp), OID_AUTO,
+	    attr->name, CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_MPSAFE, kobj,
+	    (uintptr_t)attr, sysctl_handle_attr, "A", "");
+
+	return (0);
+}
+
+static inline void
+sysfs_remove_file(struct kobject *kobj, const struct attribute *attr)
+{
+
+	if (kobj->oidp)
+		sysctl_remove_name(kobj->oidp, attr->name, 1, 1);
+}
+
+static inline void
+sysfs_remove_group(struct kobject *kobj, const struct attribute_group *grp)
+{
+
+	if (kobj->oidp)
+		sysctl_remove_name(kobj->oidp, grp->name, 1, 1);
+}
+
+static inline int
+sysfs_create_group(struct kobject *kobj, const struct attribute_group *grp)
+{
+	struct attribute **attr;
+	struct sysctl_oid *oidp;
+
+	oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(kobj->oidp),
+	    OID_AUTO, grp->name, CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, grp->name);
+	for (attr = grp->attrs; *attr != NULL; attr++) {
+		SYSCTL_ADD_OID(NULL, SYSCTL_CHILDREN(oidp), OID_AUTO,
+		    (*attr)->name, CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_MPSAFE,
+		    kobj, (uintptr_t)*attr, sysctl_handle_attr, "A", "");
+	}
+
+	return (0);
+}
+
+static inline int
+sysfs_create_dir(struct kobject *kobj)
+{
+
+	kobj->oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(kobj->parent->oidp),
+	    OID_AUTO, kobj->name, CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, kobj->name);
+
+        return (0);
+}
+
+static inline void
+sysfs_remove_dir(struct kobject *kobj)
+{
+
+	if (kobj->oidp == NULL)
+		return;
+	sysctl_remove_oid(kobj->oidp, 1, 1);
 }
 
 #define sysfs_attr_init(attr) do {} while(0)
