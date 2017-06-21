@@ -25,7 +25,6 @@
  * always return acpi_backlight_vendor.
  */
 
-#include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/backlight.h>
 #include <linux/dmi.h>
