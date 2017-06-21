@@ -210,7 +210,13 @@ poolnodecommand(remove, argc, argv)
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - 1 - optind > 0)
+		usage(argv[0]);
 
 	if (argv[optind] != NULL && ipset == 0) {
 		if (setnodeaddr(type, role, ptr, argv[optind]) == 0)
@@ -268,7 +274,7 @@ poolcommand(remove, argc, argv)
 	bzero((char *)&iph, sizeof(iph));
 	bzero((char *)&pool, sizeof(pool));
 
-	while ((c = getopt(argc, argv, "dm:no:RSv")) != -1)
+	while ((c = getopt(argc, argv, "dm:no:RS:v")) != -1)
 		switch (c)
 		{
 		case 'd' :
@@ -292,12 +298,21 @@ poolcommand(remove, argc, argv)
 			opts |= OPT_NORESOLVE;
 			break;
 		case 'S' :
-			iph.iph_seed = atoi(optarg);
+			if (remove == 0)
+				iph.iph_seed = atoi(optarg);
+			else
+				usage(argv[0]);
 			break;
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
+		default :
+			usage(argv[0]);
+			break;		/* keep compiler happy */
 		}
+
+	if (argc - 1 - optind > 0)
+		usage(argv[0]);
 
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "poolcommand: opts = %#x\n", opts);

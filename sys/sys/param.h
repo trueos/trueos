@@ -58,7 +58,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1200033	/* Master, propagated to newvers */
+#define __FreeBSD_version 1200034	/* Master, propagated to newvers */
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
@@ -263,14 +263,6 @@
 #define BKVASIZE	16384	/* must be power of 2 */
 #endif
 #define BKVAMASK	(BKVASIZE-1)
-
-/*
- * This variable is tuned via vfs.maxbcachebuf and is set to the value of
- * MAXBCACHEBUF by default.
- */
-#ifdef _KERNEL
-extern int	maxbcachebuf;
-#endif
 
 /*
  * MAXPATHLEN defines the longest permissible path length after expanding
