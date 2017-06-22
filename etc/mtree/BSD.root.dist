@@ -131,6 +131,8 @@
     ..
     mnt
     ..
+    net
+    ..
     proc            mode=0555
     ..
     rescue

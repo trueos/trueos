@@ -73,6 +73,13 @@ static bool igp_read_bios_from_vram(struct radeon_device *rdev)
 	return true;
 }
 
+#ifdef __FreeBSD__
+#define	pci_map_rom(pdev, sizep)			\
+	vga_pci_map_bios(pdev->dev.bsddev, sizep)
+#define	pci_unmap_rom(pdev, bios)			\
+	vga_pci_unmap_bios(pdev->dev.bsddev, bios)
+#endif
+
 static bool radeon_read_bios(struct radeon_device *rdev)
 {
 	uint8_t __iomem *bios, val1, val2;
@@ -151,14 +158,14 @@ static int radeon_atrm_call(acpi_handle atrm_handle, uint8_t *bios,
 	struct acpi_object_list atrm_arg;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL};
 
-	atrm_arg.count = 2;
-	atrm_arg.pointer = &atrm_arg_elements[0];
+	atrm_arg.Count = 2;
+	atrm_arg.Pointer = &atrm_arg_elements[0];
 
-	atrm_arg_elements[0].type = ACPI_TYPE_INTEGER;
-	atrm_arg_elements[0].integer.value = offset;
+	atrm_arg_elements[0].Type = ACPI_TYPE_INTEGER;
+	atrm_arg_elements[0].Integer.Value = offset;
 
-	atrm_arg_elements[1].type = ACPI_TYPE_INTEGER;
-	atrm_arg_elements[1].integer.value = len;
+	atrm_arg_elements[1].Type = ACPI_TYPE_INTEGER;
+	atrm_arg_elements[1].Integer.Value = len;
 
 	status = acpi_evaluate_object(atrm_handle, NULL, &atrm_arg, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -166,10 +173,10 @@ static int radeon_atrm_call(acpi_handle atrm_handle, uint8_t *bios,
 		return -ENODEV;
 	}
 
-	obj = (union acpi_object *)buffer.pointer;
-	memcpy(bios+offset, obj->buffer.pointer, obj->buffer.length);
-	len = obj->buffer.length;
-	kfree(buffer.pointer);
+	obj = (union acpi_object *)buffer.Pointer;
+	memcpy(bios+offset, obj->Buffer.Pointer, obj->Buffer.Length);
+	len = obj->Buffer.Length;
+	kfree(buffer.Pointer);
 	return len;
 }
 
@@ -605,7 +612,7 @@ static bool radeon_acpi_vfct_bios(struct radeon_device *rdev)
 
 	if (!ACPI_SUCCESS(acpi_get_table("VFCT", 1, &hdr)))
 		return false;
-	tbl_size = hdr->length;
+	tbl_size = hdr->Length;
 	if (tbl_size < sizeof(UEFI_ACPI_VFCT)) {
 		DRM_ERROR("ACPI VFCT table present but broken (too short #1)\n");
 		goto out_unmap;

@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,8 +35,6 @@
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/lock.h>
-#include <sys/rwlock.h>
 
 #include <linux/page.h>
 
@@ -170,13 +168,6 @@ gfpflags_allow_blocking(const gfp_t gfp_flags)
 	return ((gfp_flags & (M_WAITOK | M_NOWAIT)) == M_WAITOK);
 }
 
-/*
- * XXX this actually translates to wired
- *
- * PG_reserved is set for special pages, which can never be swapped out. Some
- * of them might not even exist (eg empty_bad_page)...
- *
- */
 #define	SetPageReserved(page)	do { } while (0)	/* NOP */
 #define	ClearPageReserved(page)	do { } while (0)	/* NOP */
 

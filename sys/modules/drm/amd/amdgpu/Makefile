@@ -1,6 +1,11 @@
 # $FreeBSD$
 
-.PATH:	${SRCTOP}/sys/dev/drm/amd/amdgpu ${SRCTOP}/sys/dev/drm/amd/scheduler ${SRCTOP}/sys/dev/drm/amd/powerplay ${SRCTOP}/sys/dev/drm/amd/powerplay/eventmgr ${SRCTOP}/sys/dev/drm/amd/powerplay/hwmgr ${SRCTOP}/sys/dev/drm/amd/powerplay/smumgr
+.PATH:	${SRCTOP}/sys/dev/drm/amd/amdgpu	\
+	${SRCTOP}/sys/dev/drm/amd/scheduler	\
+	${SRCTOP}/sys/dev/drm/amd/powerplay	\
+	${SRCTOP}/sys/dev/drm/amd/powerplay/eventmgr \
+	${SRCTOP}/sys/dev/drm/amd/powerplay/hwmgr \
+	${SRCTOP}/sys/dev/drm/amd/powerplay/smumgr
 
 KMOD	= amdgpu
 
@@ -139,10 +144,12 @@ SRCS	= \
 	vce_v3_0.c \
 	vi.c
 
+CFLAGS+=	-I${SRCTOP}/sys
 CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/gplv2/include
 CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/common/include/drm
 CFLAGS+=	-I${SRCTOP}/sys/compat/linuxkpi/common/include/uapi
+
 CFLAGS+=	-I${SRCTOP}/sys/dev/drm/amd/amdgpu
 CFLAGS+=	-I${SRCTOP}/sys/dev/drm/amd/include
 CFLAGS+=	-I${SRCTOP}/sys/dev/drm/amd/acp/include
@@ -156,9 +163,16 @@ CFLAGS+=	'-DKBUILD_MODNAME="${KMOD}"'
 #CFLAGS+=	-O0
 CFLAGS+=	-include ${SRCTOP}/sys/dev/drm/drm_os_config.h
 
-
-SRCS	+=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.h \
-        opt_vm.h opt_compat.h opt_syscons.h
+SRCS+=	device_if.h	\
+	vnode_if.h	\
+	bus_if.h	\
+	pci_if.h	\
+	iicbus_if.h	\
+	opt_acpi.h	\
+	opt_drm.h	\
+        opt_vm.h	\
+	opt_compat.h	\
+	opt_syscons.h
 
 .include <bsd.kmod.mk>
 

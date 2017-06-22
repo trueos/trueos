@@ -873,10 +873,10 @@ struct drm_device {
 	struct drm_master *master;
 
 	atomic_t unplugged;			/**< Flag whether dev is dead */
-#ifdef __linux__
+#ifndef __FreeBSD__
 	struct inode *anon_inode;		/**< inode for private address-space */
-#endif
 	struct address_space *anon_mapping;	/**< private address-space */
+#endif
 	char *unique;				/**< unique name of the device */
 	/*@} */
 
@@ -997,6 +997,15 @@ struct drm_device {
 	int modesetting;
 
 	const drm_pci_id_list_t *id_entry;	/* PCI ID, name, and chipset private */
+
+#ifdef __FreeBSD__
+#define	DRM_PCI_RESOURCE_MAX	7
+
+	struct drm_pci_resource {
+		struct resource *res;
+		int rid;
+	} drm_pcir[DRM_PCI_RESOURCE_MAX];
+#endif
 };
 
 #include <drm/drm_irq.h>

@@ -6,6 +6,10 @@
 
 #include_next <linux/notifier.h>
 
+#define	NOTIFY_OK		0x01
+#define	NOTIFY_STOP_MASK	0x80
+#define	NOTIFY_BAD		(NOTIFY_STOP_MASK|0x02)
+
 struct atomic_notifier_head {
 	spinlock_t lock;
 	struct notifier_block __rcu *head;

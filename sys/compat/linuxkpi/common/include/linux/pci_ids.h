@@ -1,8 +1,0 @@
-#ifndef _LINUX_PCI_IDS_H
-#define _LINUX_PCI_IDS_H
-
-#define PCI_VENDOR_ID_REDHAT_QUMRANET    0x1af4
-#define PCI_SUBVENDOR_ID_REDHAT_QUMRANET 0x1af4
-#define PCI_SUBDEVICE_ID_QEMU            0x1100
-
-#endif

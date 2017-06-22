@@ -118,6 +118,7 @@ SRCS	= \
 	vce_v1_0.c \
 	vce_v2_0.c
 
+CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/gplv2/include
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include/drm
@@ -128,8 +129,16 @@ CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
 CFLAGS+= -O0
 CFLAGS+= -include ${SRCTOP}/sys/dev/drm/drm_os_config.h
 
-SRCS    +=device_if.h vnode_if.h bus_if.h pci_if.h device_if.h iicbus_if.h opt_drm.h \
-        opt_vm.h opt_compat.h opt_syscons.h
+SRCS+=	device_if.h	\
+	vnode_if.h	\
+	bus_if.h	\
+	pci_if.h	\
+	iicbus_if.h	\
+	opt_acpi.h	\
+	opt_drm.h	\
+        opt_vm.h	\
+	opt_compat.h	\
+	opt_syscons.h
 
 .include <bsd.kmod.mk>
 

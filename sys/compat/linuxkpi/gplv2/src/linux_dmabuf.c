@@ -1,4 +1,3 @@
-
 /*-
  * Copyright (c) 2016 Matt Macy (mmacy@nextbsd.org)
  * All rights reserved.
@@ -98,8 +97,12 @@ dma_buf_close(struct file *fp, struct thread *td)
 		return (EINVAL);
 
 	db = fp->f_data;
+
 	MPASS(db->cb_shared.active == 0);
 	MPASS(db->cb_excl.active == 0);
+
+	/* release DMA buffer */
+	db->ops->release(db);
 
 	sx_xlock(&db_list.lock);
 	list_del(&db->list_node);
@@ -339,6 +342,9 @@ dma_buf_fd(struct dma_buf *db, int flags)
 	if ((err = finstall(curthread, db->linux_file, &fd, 0, NULL)) != 0)
 		return (err);
 
+	/* drop extra reference */
+	fdrop(db->linux_file, curthread);
+
 	return (fd);
 }
 
@@ -371,7 +377,7 @@ dma_buf_export(const struct dma_buf_export_info *exp_info)
 		reservation_object_init(ro);
 	}
 	db->resv = ro;
-	if ((err = falloc_noinstall(curthread, &fp)))
+	if ((err = falloc_noinstall(curthread, &fp)) != 0)
 		goto err;
 
 	finit(fp, 0, DTYPE_DMABUF, db, &dma_buf_fileops);
@@ -383,7 +389,7 @@ dma_buf_export(const struct dma_buf_export_info *exp_info)
 	sx_xlock(&db_list.lock);
 	list_add(&db->list_node, &db_list.head);
 	sx_xunlock(&db_list.lock);
-	
+
 	return (db);
 err:	
 	free(db, M_DMABUF);

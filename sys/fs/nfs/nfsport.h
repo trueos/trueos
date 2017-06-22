@@ -518,7 +518,7 @@ struct nfs_vattr {
 struct nfsvattr {
 	struct vattr	na_vattr;
 	nfsattrbit_t	na_suppattr;
-	u_int32_t	na_mntonfileno;
+	u_int64_t	na_mntonfileno;
 	u_int64_t	na_filesid[2];
 };
 
@@ -728,12 +728,6 @@ int nfsmsleep(void *, void *, int, const char *, struct timespec *);
 #define	NFSMAKEDEV(m, n)	makedev((m), (n))
 #define	NFSMAJOR(d)		major(d)
 #define	NFSMINOR(d)		minor(d)
-
-/*
- * Define this to be the macro that returns the minimum size required
- * for a directory entry.
- */
-#define	DIRENT_SIZE(dp)		GENERIC_DIRSIZ(dp)
 
 /*
  * The vnode tag for nfsv4root.
@@ -1022,7 +1016,7 @@ struct nfsreq {
 };
 
 #ifndef NFS_MAXBSIZE
-#define	NFS_MAXBSIZE	MAXBCACHEBUF
+#define	NFS_MAXBSIZE	(maxbcachebuf)
 #endif
 
 /*

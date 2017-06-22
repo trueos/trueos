@@ -4,7 +4,6 @@
 #include <sys/types.h>
 #include <machine/atomic.h>
 #include <asm/atomic.h>
-#include <asm/processor.h>
 #if defined(__i386__) || defined(__amd64__)
 #include <asm/atomic64.h>
 #include <asm/atomic-long.h>

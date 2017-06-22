@@ -1,13 +1,14 @@
 #ifndef _LINUX_FS_NEXT_H_
 #define	_LINUX_FS_NEXT_H_
 
+#include <linux/capability.h>
+#include <linux/mutex.h>
 #include <linux/shrinker.h>
+
 #include_next <linux/fs.h>
 
+extern loff_t default_llseek(struct file *file, loff_t offset, int whence);
 extern loff_t generic_file_llseek(struct file *file, loff_t offset, int whence);
-
-extern struct address_space *alloc_anon_mapping(size_t);
-extern void free_anon_mapping(struct address_space *);
 
 struct simple_attr {
 	struct sbuf *sb;	/* must be first */
@@ -59,6 +60,20 @@ static const struct file_operations __fops = {				\
 	.read	 = simple_attr_read,					\
 	.write	 = simple_attr_write,					\
 	.llseek	 = generic_file_llseek,					\
+}
+
+unsigned long invalidate_mapping_pages(vm_object_t obj, pgoff_t start,
+    pgoff_t end);
+struct page *shmem_read_mapping_page_gfp(vm_object_t obj, int idx, gfp_t gfp);
+struct linux_file *shmem_file_setup(char *name, loff_t size,
+    unsigned long flags);
+void shmem_truncate_range(vm_object_t obj, loff_t, loff_t);
+
+static inline struct page *
+shmem_read_mapping_page(vm_object_t obj, int idx)
+{
+
+	return (shmem_read_mapping_page_gfp(obj, idx, 0));
 }
 
 #endif /* _LINUX_FS_NEXT_H_ */

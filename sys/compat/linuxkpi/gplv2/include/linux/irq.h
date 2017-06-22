@@ -1,4 +1,3 @@
-
 #ifndef _LINUX_IRQ_H
 #define _LINUX_IRQ_H
 
@@ -6,6 +5,7 @@
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/gfp.h>
+#include <linux/interrupt.h>
 #include <linux/irqhandler.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
@@ -65,6 +65,20 @@ enum {
 	IRQCHIP_SKIP_SET_WAKE		= (1 <<  4),
 	IRQCHIP_ONESHOT_SAFE		= (1 <<  5),
 	IRQCHIP_EOI_THREADED		= (1 <<  6),
+};
+
+struct irqaction {
+	irq_handler_t		handler;
+	void			*dev_id;
+	struct irqaction	*next;
+	irq_handler_t		thread_fn;
+	struct task_struct	*thread;
+	struct irqaction	*secondary;
+	unsigned int		irq;
+	unsigned int		flags;
+	unsigned long		thread_flags;
+	unsigned long		thread_mask;
+	const char		*name;
 };
 
 #include <linux/irqdesc.h>
@@ -155,7 +169,7 @@ enum {
 };
 
 
-#define linux_irqd_to_state(d) ACCESS_PRIVATE((d)->common, state_use_accessors)
+#define linux_irqd_to_state(d) ((d)->common->state_use_accessors)
 
 static inline void
 irq_settings_clr_and_set(struct irq_desc *desc, u32 clr, u32 set)

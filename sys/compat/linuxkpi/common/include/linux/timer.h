@@ -40,30 +40,6 @@
 #include <linux/list.h>
 #include <linux/ktime.h>
 
-/*
- * A deferrable timer will work normally when the system is busy, but
- * will not cause a CPU to come out of idle just to service it; instead,
- * the timer will be serviced when the CPU eventually wakes up with a
- * subsequent non-deferrable timer.
- *
- * An irqsafe timer is executed with IRQ disabled and it's safe to wait for
- * the completion of the running instance from IRQ handlers, for example,
- * by calling del_timer_sync().
- *
- * Note: The irq disabled callback execution is a special case for
- * workqueue locking issues. It's not meant for executing random crap
- * with interrupts disabled. Abuse is monitored!
- */
-#define TIMER_CPUMASK		0x0003FFFF
-#define TIMER_MIGRATING		0x00040000
-#define TIMER_BASEMASK		(TIMER_CPUMASK | TIMER_MIGRATING)
-#define TIMER_DEFERRABLE	0x00080000
-#define TIMER_PINNED		0x00100000
-#define TIMER_IRQSAFE		0x00200000
-#define TIMER_ARRAYSHIFT	22
-#define TIMER_ARRAYMASK		0xFFC00000
-
-
 struct timer_list {
 	struct callout timer_callout;
 	void    (*function) (unsigned long);
@@ -82,8 +58,6 @@ do {									\
 
 #define __setup_timer(timer, func, dat, flags) setup_timer(timer, func, dat)
 
-#define setup_timer_on_stack setup_timer
-
 #define	init_timer(timer)						\
 do {									\
 	(timer)->function = NULL;					\
@@ -91,17 +65,12 @@ do {									\
 	callout_init(&(timer)->timer_callout, 1);			\
 } while (0)
 
-
-#define init_timer_on_stack init_timer
-
-
 extern void mod_timer(struct timer_list *, unsigned long);
 extern void add_timer(struct timer_list *);
 extern void add_timer_on(struct timer_list *, int cpu);
 
 #define	del_timer(timer)	(callout_stop(&(timer)->timer_callout) == 1)
 #define	del_timer_sync(timer)	(callout_drain(&(timer)->timer_callout) == 1)
-#define del_singleshot_timer_sync(t) del_timer_sync(t)
 #define	timer_pending(timer)	callout_pending(&(timer)->timer_callout)
 #define	round_jiffies(j) \
 	((unsigned long)(((j) + linux_timer_hz_mask) & ~linux_timer_hz_mask))
@@ -110,10 +79,5 @@ extern void add_timer_on(struct timer_list *, int cpu);
 
 #define	round_jiffies_up(j)		round_jiffies(j) /* TODO */
 #define	round_jiffies_up_relative(j)	round_jiffies_up(j) /* TODO */
-
-#define mod_timer_pinned(timer, exp)  mod_timer(timer, exp)
-
-static inline void destroy_timer_on_stack(struct timer_list *timer) { }
-
 
 #endif					/* _LINUX_TIMER_H_ */

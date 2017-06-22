@@ -199,19 +199,19 @@ dump_record(dmu_replay_record_t *drr, void *payload, int payload_len,
 {
 	ASSERT3U(offsetof(dmu_replay_record_t, drr_u.drr_checksum.drr_checksum),
 	    ==, sizeof (dmu_replay_record_t) - sizeof (zio_cksum_t));
-	fletcher_4_incremental_native(drr,
+	(void) fletcher_4_incremental_native(drr,
 	    offsetof(dmu_replay_record_t, drr_u.drr_checksum.drr_checksum), zc);
 	if (drr->drr_type != DRR_BEGIN) {
 		ASSERT(ZIO_CHECKSUM_IS_ZERO(&drr->drr_u.
 		    drr_checksum.drr_checksum));
 		drr->drr_u.drr_checksum.drr_checksum = *zc;
 	}
-	fletcher_4_incremental_native(&drr->drr_u.drr_checksum.drr_checksum,
-	    sizeof (zio_cksum_t), zc);
+	(void) fletcher_4_incremental_native(
+	    &drr->drr_u.drr_checksum.drr_checksum, sizeof (zio_cksum_t), zc);
 	if (write(outfd, drr, sizeof (*drr)) == -1)
 		return (errno);
 	if (payload_len != 0) {
-		fletcher_4_incremental_native(payload, payload_len, zc);
+		(void) fletcher_4_incremental_native(payload, payload_len, zc);
 		if (write(outfd, payload, payload_len) == -1)
 			return (errno);
 	}
@@ -2096,9 +2096,9 @@ recv_read(libzfs_handle_t *hdl, int fd, void *buf, int ilen,
 
 	if (zc) {
 		if (byteswap)
-			fletcher_4_incremental_byteswap(buf, ilen, zc);
+			(void) fletcher_4_incremental_byteswap(buf, ilen, zc);
 		else
-			fletcher_4_incremental_native(buf, ilen, zc);
+			(void) fletcher_4_incremental_native(buf, ilen, zc);
 	}
 	return (0);
 }
@@ -2800,7 +2800,7 @@ zfs_receive_package(libzfs_handle_t *hdl, int fd, const char *destname,
 			goto out;
 		}
 
-		if (fromsnap != NULL) {
+		if (fromsnap != NULL && recursive) {
 			nvlist_t *renamed = NULL;
 			nvpair_t *pair = NULL;
 
@@ -2827,7 +2827,7 @@ zfs_receive_package(libzfs_handle_t *hdl, int fd, const char *destname,
 				*strchr(tofs, '@') = '\0';
 			}
 
-			if (recursive && !flags->dryrun && !flags->nomount) {
+			if (!flags->dryrun && !flags->nomount) {
 				VERIFY(0 == nvlist_alloc(&renamed,
 				    NV_UNIQUE_NAME, 0));
 			}
@@ -2896,7 +2896,7 @@ zfs_receive_package(libzfs_handle_t *hdl, int fd, const char *destname,
 		anyerr |= error;
 	} while (error == 0);
 
-	if (drr->drr_payloadlen != 0 && fromsnap != NULL) {
+	if (drr->drr_payloadlen != 0 && recursive && fromsnap != NULL) {
 		/*
 		 * Now that we have the fs's they sent us, try the
 		 * renames again.
@@ -3688,7 +3688,8 @@ zfs_receive_impl(libzfs_handle_t *hdl, const char *tosnap,
 		 * recv_read() above; do it again correctly.
 		 */
 		bzero(&zcksum, sizeof (zio_cksum_t));
-		fletcher_4_incremental_byteswap(&drr, sizeof (drr), &zcksum);
+		(void) fletcher_4_incremental_byteswap(&drr,
+		    sizeof (drr), &zcksum);
 		flags->byteswap = B_TRUE;
 
 		drr.drr_type = BSWAP_32(drr.drr_type);

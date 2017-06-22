@@ -137,9 +137,10 @@ int drm_open(struct inode *inode, struct file *filp)
 	if (!dev->open_count++)
 		need_setup = 1;
 
+#ifndef __FreeBSD__
 	/* share address_space across all char-devs of a single device */
 	filp->f_mapping = dev->anon_mapping;
-	drm_kqregister(filp);
+#endif
 
 	retcode = drm_open_helper(filp, minor);
 	if (retcode)
@@ -557,10 +558,20 @@ unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait)
 	struct drm_file *file_priv = filp->private_data;
 	unsigned int mask = 0;
 
+#ifdef __FreeBSD__
+	spin_lock(&file_priv->minor->dev->event_lock);
+
+	if (list_empty(&file_priv->event_list))
+		poll_wait(filp, &file_priv->event_wait, wait);
+	else
+		mask |= POLLIN | POLLRDNORM;
+	spin_unlock(&file_priv->minor->dev->event_lock);
+#else
 	poll_wait(filp, &file_priv->event_wait, wait);
 
 	if (!list_empty(&file_priv->event_list))
 		mask |= POLLIN | POLLRDNORM;
+#endif
 
 	return mask;
 }
@@ -708,6 +719,9 @@ void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e)
 	list_add_tail(&e->link,
 		      &e->file_priv->event_list);
 	wake_up_interruptible(&e->file_priv->event_wait);
+#ifdef __FreeBSD__
+	linux_poll_wakeup(e->file_priv->filp);
+#endif
 }
 EXPORT_SYMBOL(drm_send_event_locked);
 

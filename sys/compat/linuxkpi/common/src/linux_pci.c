@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
-
 #include <linux/kobject.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -58,14 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/io.h>
 #include <linux/vmalloc.h>
 #include <linux/pci.h>
-#include <linux/ioport.h>
 #include <linux/compat.h>
-
-#undef resource
-#define IO_SPACE_LIMIT 0xffff
-
-/* XXX asumes x86 */
-#include <asm/io.h>
 
 /* assumes !e820 */
 unsigned long pci_mem_start;
@@ -73,21 +65,6 @@ unsigned long pci_mem_start;
 
 const char *pci_power_names[] = {
 	"error", "D0", "D1", "D2", "D3hot", "D3cold", "unknown",
-};
-
-struct linux_resource ioport_resource = {
-	.name	= "PCI IO",
-	.start	= 0,
-	.end	= IO_SPACE_LIMIT,
-	.flags	= IORESOURCE_IO,
-};
-
-
-struct linux_resource iomem_resource = {
-	.name	= "PCI mem",
-	.start	= 0,
-	.end	= -1,
-	.flags	= IORESOURCE_MEM,
 };
 
 static device_probe_t linux_pci_probe;
@@ -106,22 +83,6 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(device_shutdown, linux_pci_shutdown),
 	DEVMETHOD_END
 };
-
-
-struct pci_dev *
-linux_bsddev_to_pci_dev(device_t dev)
-{
-	struct pci_dev *pdev;
-
-	spin_lock(&pci_lock);
-	list_for_each_entry(pdev, &pci_devices, links) {
-		if (pdev->dev.bsddev == dev)
-			break;
-	}
-	spin_unlock(&pci_lock);
-
-	return (pdev);
-}
 
 static struct pci_driver *
 linux_pci_find(device_t dev, const struct pci_device_id **idp)
@@ -214,9 +175,6 @@ linux_pci_attach(device_t dev)
 	pdev->revision = pci_get_revid(dev);
 	pdev->class = pci_get_class(dev);
 	pdev->dev.dma_mask = &pdev->dma_mask;
-	/* XXX how do we check this ? assume true */
-	pdev->msix_enabled = 1;
-	pdev->msi_enabled = 1;
 	pdev->pdrv = pdrv;
 	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
 	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
@@ -310,12 +268,11 @@ linux_pci_shutdown(device_t dev)
 }
 
 static int
-pci_default_suspend(struct pci_dev *dev,
-                        pm_message_t state __unused)
+pci_default_suspend(struct pci_dev *dev, pm_message_t state __unused)
 {
         int err = 0;
 
-        if(dev->pdrv->driver.pm->suspend != NULL) {
+        if (dev->pdrv->driver.pm->suspend != NULL) {
                 err = -dev->pdrv->driver.pm->suspend(&(dev->dev));
 		if (err == 0 && dev->pdrv->driver.pm->suspend_late != NULL)
 			err = -dev->pdrv->driver.pm->suspend_late(&(dev->dev));
@@ -329,12 +286,12 @@ pci_default_resume(struct pci_dev *dev)
 {
         int err = 0;
 
-	if(dev->pdrv->driver.pm->resume_early != NULL )
+	if (dev->pdrv->driver.pm->resume_early != NULL )
 		if ((err = -dev->pdrv->driver.pm->resume_early(&(dev->dev)))) {
 			printf("resume early failed: %d\n", -err);
 			return (err);
 		}
-        if(dev->pdrv->driver.pm->resume != NULL)
+        if (dev->pdrv->driver.pm->resume != NULL)
                 err = -dev->pdrv->driver.pm->resume(&(dev->dev));
 	if (err)
 		printf("resume failed: %d\n", -err);
@@ -393,298 +350,4 @@ pci_unregister_driver(struct pci_driver *pdrv)
 	if (bus != NULL)
 		devclass_delete_driver(bus, &pdrv->bsd_driver);
 	mtx_unlock(&Giant);
-}
-
-void *
-pci_iomap(struct pci_dev *pdev, int bar, unsigned long max)
-{
-	struct resource *res;
-	int rid, len, type;
-	void *regs;
-
-	type = 0;
-	if (pdev->pcir.r[bar] == NULL) {
-		rid = PCIR_BAR(bar);
-		type = pci_resource_type(pdev, bar);
-		if ((res = bus_alloc_resource_any(pdev->dev.bsddev, type,
-						  &rid, RF_ACTIVE)) == NULL)
-			return (NULL);
-		pdev->pcir.r[bar] = res;
-		pdev->pcir.rid[bar] = rid;
-		pdev->pcir.type[bar] = type;
-		regs = (void *)rman_get_bushandle(pdev->pcir.r[bar]);
-		len = rman_get_end(pdev->pcir.r[bar])  - rman_get_start(pdev->pcir.r[bar]);
-
-		pdev->pcir.map[bar] = regs;
-
-	}
-	return (pdev->pcir.map[bar]);
-}
-
-
-void
-pci_iounmap(struct pci_dev *pdev, void *regs)
-{
-	int bar, rid, type;
-	struct resource *res;
-
-	res = NULL;
-	for (bar = 0; bar <= LINUXKPI_MAX_PCI_RESOURCE; bar++) {
-		if (pdev->pcir.map[bar] != regs)
-			continue;
-		res = pdev->pcir.r[bar];
-		rid = pdev->pcir.rid[bar];
-		type = pdev->pcir.type[bar];
-	}
-
-	if (res == NULL)
-		return;
-
-	bus_release_resource(pdev->dev.bsddev, type, rid, res);
-}
-
-
-struct pci_dev *
-pci_get_bus_and_slot(unsigned int bus, unsigned int devfn)
-{
-	device_t dev;
-	struct pci_dev *pdev;
-	struct pci_bus *pbus;
-
-	dev = pci_find_bsf(bus, devfn >> 16, devfn & 0xffff);
-	if (dev == NULL)
-		return (NULL);
-
-	pdev = malloc(sizeof(*pdev), M_DEVBUF, M_WAITOK|M_ZERO);
-	pdev->devfn = devfn;
-	pdev->dev.bsddev = dev;
-	pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK|M_ZERO);
-	pbus->self = pdev;
-	pdev->bus = pbus;
-	return (pdev);
-}
-
-void
-pci_dev_put(struct pci_dev *pdev)
-{
-	if (pdev == NULL)
-		return;
-
-	MPASS(pdev->bus);
-	MPASS(pdev->bus->self == pdev);
-	free(pdev->bus, M_DEVBUF);
-	free(pdev, M_DEVBUF);
-}
-
-resource_size_t
-pcibios_align_resource(void *data, const struct linux_resource *res,
-		       resource_size_t size __unused, resource_size_t align __unused)
-{
-	resource_size_t start = res->start;
-	/* ignore IO resources */
-
-	return (start);
-}
-
-int __must_check
-pci_bus_alloc_resource(struct pci_bus *bus,
-			struct linux_resource *res, resource_size_t size,
-			resource_size_t align, resource_size_t min,
-			unsigned int type_mask,
-			resource_size_t (*alignf)(void *,
-						  const struct linux_resource *,
-						  resource_size_t,
-						  resource_size_t),
-					void *alignf_data)
-{
-	struct pci_devinfo *dinfo;
-	struct resource_list *rl;
-	device_t dev;
-	struct resource *r;
-	struct resource_list_entry *rle;
-	int type, flags;
-
-	/* XXX initialize bus */
-	dev = bus->self->dev.bsddev;
-	dinfo = device_get_ivars(bus->self->dev.bsddev);
-	rl = &dinfo->resources;
-
-	/* transform flags to BSD XXX */
-	flags = ffs(res->flags)-1;
-	/*assuming memory not I/O or intr*/
-	type = SYS_RES_MEMORY;
-
-	res->bsddev = dev;
-	STAILQ_FOREACH(rle, rl, link) {
-		if (rle->type != type)
-			continue;
-		if ((flags ^ rle->flags) & type_mask)
-			continue;
-		if (rle->start < min)
-			continue;
-		if (rle->end - rle->start < size)
-			continue;
-		/* XXX check against PREFETCH */
-		res->rid = rle->rid;
-		res->start = rle->start;
-		res->end = rle->end;
-		res->type = type;
-		r = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &res->rid, RF_SHAREABLE);
-		if (r)
-			break;
-	}
-	if (r == NULL)
-		return (-ENOMEM);
-
-	res->r = r;
-	return (0);
-}
-
-int
-release_resource(struct linux_resource *lr)
-{
-	int rc;
-
-	rc = bus_release_resource(lr->bsddev, lr->type, lr->rid, lr->r);
-	lr->bsddev = NULL;
-	lr->r = NULL;
-	lr->rid = -1;
-	lr->type = -1;
-	if (rc)
-		return (-EINVAL);
-
-	return (0);
-}
-
-struct pci_dev *
-linux_pci_get_class(unsigned int class, struct pci_dev *from)
-{
-	device_t dev;
-	struct pci_dev *pdev;
-	struct pci_bus *pbus;
-	int pcic, pcis;
-
-	pdev = from;
-	class >>= 8;
-	if (class == PCI_CLASS_BRIDGE_ISA) {
-		pcis = PCIS_BRIDGE_ISA;
-		pcic = PCIC_BRIDGE;
-	} else if (class == PCI_CLASS_DISPLAY_VGA) {
-		pcis = PCIS_DISPLAY_VGA;
-		pcic = PCIC_DISPLAY;
-	} else if (class == PCI_CLASS_DISPLAY_OTHER) {
-		pcis = PCIS_DISPLAY_OTHER;
-		pcic = PCIC_DISPLAY;
-	} else {
-		log(LOG_WARNING, "unrecognized class %x in %s\n", class, __FUNCTION__);
-		BACKTRACE();
-		return (NULL);
-	}
-
-	if (pdev != NULL) {
-		dev = pdev->dev.bsddev;
-	} else
-		dev = NULL;
-
-	dev = pci_find_class(pcic, pcis, dev);
-	if (dev == NULL)
-		return (NULL);
-
-	if (pdev == NULL)
-		pdev = malloc(sizeof(*pdev), M_DEVBUF, M_WAITOK|M_ZERO);
-
-	/* XXX do we need to initialize pdev more here ? */
-	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
-	pdev->vendor = pci_get_vendor(dev);
-	pdev->device = pci_get_device(dev);
-	pdev->dev.bsddev = dev;
-	if (from == NULL) {
-		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK|M_ZERO);
-		pbus->self = pdev;
-		pdev->bus = pbus;
-	}
-	pdev->bus->number = pci_get_bus(dev);
-	return (pdev);
-}
-
-static int
-is_vga(device_t dev)
-{
-	device_t parent;
-	devclass_t dc;
-
-	parent = device_get_parent(dev);
-	dc = device_get_devclass(parent);
-
-	return (strcmp(devclass_get_name(dc), "vgapci") == 0);
-}
-
-void *
-pci_map_rom(struct pci_dev *pdev, size_t *size)
-{
-	int rid;
-	struct resource *res;
-	device_t dev;
-
-	dev = pdev->dev.bsddev;
-#if defined(__amd64__) || defined(__i386__)
-	if (vga_pci_is_boot_display(dev) || is_vga(dev)) {
-		/*
-		 * On x86, the System BIOS copy the default display
-		 * device's Video BIOS at a fixed location in system
-		 * memory (0xC0000, 128 kBytes long) at boot time.
-		 *
-		 * We use this copy for the default boot device, because
-		 * the original ROM may not be valid after boot.
-		 */
-
-		*size = VGA_PCI_BIOS_SHADOW_SIZE;
-		return (pmap_mapbios(VGA_PCI_BIOS_SHADOW_ADDR, *size));
-	}
-#endif
-
-	rid = PCIR_BIOS;
-	if ((res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 1, RF_ACTIVE)) == NULL)
-		return (NULL);
-
-	pdev->pcir.r[LINUXKPI_BIOS] = res;
-	pdev->pcir.rid[LINUXKPI_BIOS] = rid;
-	pdev->pcir.type[LINUXKPI_BIOS] = SYS_RES_MEMORY;
-	pdev->pcir.map[LINUXKPI_BIOS] = rman_get_virtual(res);
-	device_printf(dev, "bios size %lx bios addr %p\n", rman_get_size(res), rman_get_virtual(res));
-	*size = rman_get_size(res);
-	return (rman_get_virtual(res));
-}
-
-void
-pci_unmap_rom(struct pci_dev *pdev, u8 *bios)
-{
-	device_t dev;
-	struct resource *res;
-
-	if (bios == NULL)
-		return;
-	dev = pdev->dev.bsddev;
-
-#if defined(__amd64__) || defined(__i386__)
-	if (vga_pci_is_boot_display(dev) || is_vga(dev)) {
-		/* We mapped the BIOS shadow copy located at 0xC0000. */
-		pmap_unmapdev((vm_offset_t)bios, VGA_PCI_BIOS_SHADOW_SIZE);
-
-		return;
-	}
-#endif
-	res = pdev->pcir.r[LINUXKPI_BIOS];
-	pdev->pcir.r[LINUXKPI_BIOS] = NULL;
-	pdev->pcir.rid[LINUXKPI_BIOS] = -1;
-	pdev->pcir.type[LINUXKPI_BIOS] = -1;
-	pdev->pcir.map[LINUXKPI_BIOS] = NULL;
-	MPASS(res != NULL);
-	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BIOS, res);
-}
-
-void *
-pci_platform_rom(struct pci_dev *pdev, size_t *size)
-{
-	return (NULL);
 }

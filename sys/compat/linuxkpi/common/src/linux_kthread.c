@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <linux/compat.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
 #include <linux/compat.h>
@@ -44,89 +45,21 @@ enum {
 };
 
 bool
-kthread_should_stop_task(struct task_struct *task)
+linux_kthread_should_stop_task(struct task_struct *task)
 {
 
 	return (atomic_read(&task->kthread_flags) & KTHREAD_SHOULD_STOP_MASK);
 }
 
 bool
-kthread_should_stop(void)
+linux_kthread_should_stop(void)
 {
 
 	return (atomic_read(&current->kthread_flags) & KTHREAD_SHOULD_STOP_MASK);
 }
 
-bool
-kthread_should_park(void)
-{
-
-	return (atomic_read(&current->kthread_flags) & KTHREAD_SHOULD_PARK_MASK);
-}
-
 int
-kthread_park(struct task_struct *task)
-{
-
-	if (task == NULL)
-		return (-ENOSYS);
-
-	if (atomic_read(&task->kthread_flags) & KTHREAD_IS_PARKED_MASK)
-		goto done;
-
-	atomic_or(KTHREAD_SHOULD_PARK_MASK, &task->kthread_flags);
-
-	if (task == current)
-		goto done;
-
-	wake_up_process(task);
-	wait_for_completion(&task->parked);
-done:
-	return (0);
-}
-
-void
-kthread_unpark(struct task_struct *task)
-{
-
-	if (task == NULL)
-		return;
-
-	atomic_andnot(KTHREAD_SHOULD_PARK_MASK, &task->kthread_flags);
-
-	if (atomic_fetch_andnot(KTHREAD_IS_PARKED_MASK,
-	    &task->kthread_flags) & KTHREAD_IS_PARKED_MASK) {
-		wake_up_state(task, TASK_PARKED);
-	}
-}
-
-void
-kthread_parkme(void)
-{
-	struct task_struct *task = current;
-
-	/* don't park threads without a task struct */
-	if (task == NULL)
-		return;
-
-	set_task_state(task, TASK_PARKED);
-
-	while (atomic_read(&task->kthread_flags) & KTHREAD_SHOULD_PARK_MASK) {
-		if (!(atomic_fetch_or(KTHREAD_IS_PARKED_MASK,
-		    &task->kthread_flags) & KTHREAD_IS_PARKED_MASK)) {
-			complete(&task->parked);
-		}
-		schedule();
-		set_task_state(task, TASK_PARKED);
-	}
-
-	atomic_andnot(KTHREAD_IS_PARKED_MASK, &task->kthread_flags);
-
-	set_task_state(task, TASK_RUNNING);
-}
-
-int
-kthread_stop(struct task_struct *task)
+linux_kthread_stop(struct task_struct *task)
 {
 	int retval;
 
@@ -146,6 +79,53 @@ kthread_stop(struct task_struct *task)
 	put_task_struct(task);
 
 	return (retval);
+}
+
+int
+linux_kthread_park(struct task_struct *task)
+{
+
+	atomic_or(KTHREAD_SHOULD_PARK_MASK, &task->kthread_flags);
+	wake_up_process(task);
+	wait_for_completion(&task->parked);
+	return (0);
+}
+
+void
+linux_kthread_parkme(void)
+{
+	struct task_struct *task;
+
+	task = current;
+	set_task_state(task, TASK_PARKED | TASK_UNINTERRUPTIBLE);
+	while (linux_kthread_should_park()) {
+		while ((atomic_fetch_or(KTHREAD_IS_PARKED_MASK,
+		    &task->kthread_flags) & KTHREAD_IS_PARKED_MASK) == 0)
+			complete(&task->parked);
+		schedule();
+		set_task_state(task, TASK_PARKED | TASK_UNINTERRUPTIBLE);
+	}
+	atomic_andnot(KTHREAD_IS_PARKED_MASK, &task->kthread_flags);
+	set_task_state(task, TASK_RUNNING);
+}
+
+bool
+linux_kthread_should_park(void)
+{
+	struct task_struct *task;
+
+	task = current;
+	return (atomic_read(&task->kthread_flags) & KTHREAD_SHOULD_PARK_MASK);
+}
+
+void
+linux_kthread_unpark(struct task_struct *task)
+{
+
+	atomic_andnot(KTHREAD_SHOULD_PARK_MASK, &task->kthread_flags);
+	if ((atomic_fetch_andnot(KTHREAD_IS_PARKED_MASK, &task->kthread_flags) &
+	    KTHREAD_IS_PARKED_MASK) != 0)
+		wake_up_state(task, TASK_PARKED);
 }
 
 struct task_struct *
@@ -174,10 +154,10 @@ linux_kthread_fn(void *arg __unused)
 {
 	struct task_struct *task = current;
 
-	if (kthread_should_stop_task(task) == 0)
+	if (linux_kthread_should_stop_task(task) == 0)
 		task->task_ret = task->task_fn(task->task_data);
 
-	if (kthread_should_stop_task(task) != 0) {
+	if (linux_kthread_should_stop_task(task) != 0) {
 		struct thread *td = curthread;
 
 		/* let kthread_stop() free data */
@@ -187,158 +167,4 @@ linux_kthread_fn(void *arg __unused)
 		complete(&task->exited);
 	}
 	kthread_exit();
-}
-
-int
-linux_try_to_wake_up(struct task_struct *task, unsigned state)
-{
-	int retval;
-
-	/*
-	 * To avoid loosing any wakeups this function must be made
-	 * atomic with regard to wakeup by locking the sleep_lock:
-	 */
-	mtx_lock(&task->sleep_lock);
-
-	/* first check if the there are any sleepers */
-	if (atomic_read(&task->state) & state) {
-		if (atomic_xchg(&task->state, TASK_WAKING) != TASK_WAKING) {
-			wakeup_one(task);
-			retval = 1;
-		} else {
-			retval = 0;
-		}
-	} else {
-		retval = 0;
-	}
-	mtx_unlock(&task->sleep_lock);
-
-	return (retval);
-}
-
-int
-default_wake_function(wait_queue_t *wq, unsigned mode,
-    int wake_flags, void *key)
-{
-	return (linux_try_to_wake_up(wq->private, mode));
-}
-
-int
-autoremove_wake_function(wait_queue_t *wq, unsigned mode,
-    int sync, void *key)
-{
-	int ret = linux_try_to_wake_up(wq->private, mode);
-
-	if (ret)
-		list_del_init(&wq->task_list);
-	return (ret);
-}
-
-int
-wake_bit_function(wait_queue_t *wq, unsigned mode,
-    int sync, void *key_arg)
-{
-	struct wait_bit_key *key = key_arg;
-	struct wait_bit_queue *wait_bit = container_of(wq,
-	    struct wait_bit_queue, wait);
-
-	if (wait_bit->key.flags == key->flags &&
-	    wait_bit->key.bit_nr == key->bit_nr &&
-	    test_bit(key->bit_nr, key->flags) == 0)
-		return (autoremove_wake_function(wq, mode, sync, key));
-
-	return (0);
-}
-
-void
-linux_wake_up(wait_queue_head_t *wqh, unsigned mode,
-    int nr, void *key)
-{
-	struct list_head *ptmp;
-	struct list_head *p;
-
-	spin_lock(&wqh->lock);
-	selwakeup(&wqh->wqh_si);
-	if (__predict_false(!list_empty(&wqh->wqh_file_list))) {
-		list_for_each_safe(p, ptmp, &wqh->wqh_file_list) {
-			struct linux_file *f;
-
-			f = list_entry(p, struct linux_file, f_entry);
-			tasklet_schedule(&f->f_kevent_tasklet);
-		}
-	}
-	linux_wake_up_locked(wqh, mode, nr, key);
-	spin_unlock(&wqh->lock);
-}
-
-void
-linux_wake_up_locked(wait_queue_head_t *wqh, unsigned mode,
-    int nr, void *key)
-{
-	wait_queue_t *curr;
-	wait_queue_t *next;
-
-	list_for_each_entry_safe(curr, next, &wqh->task_list, task_list) {
-		unsigned flags = curr->flags;
-
-		if (curr->func(curr, TASK_NORMAL, 0, key) &&
-		    (flags & WQ_FLAG_EXCLUSIVE) && !--nr)
-			break;
-	}
-}
-
-void
-linux_abort_exclusive_wait(wait_queue_head_t *wqh, wait_queue_t *wait,
-    unsigned mode, void *key)
-{
-
-	__set_current_state(TASK_RUNNING);
-	spin_lock(&wqh->lock);
-	if (!list_empty(&wait->task_list))
-		list_del_init(&wait->task_list);
-	else if (waitqueue_active(wqh))
-		linux_wake_up_locked_key(wqh, mode, key);
-	spin_unlock(&wqh->lock);
-}
-
-DECLARE_WAIT_QUEUE_HEAD(linux_bit_wait_queue_head);
-
-static inline int
-linux_wait_on_bit_timeout_sub(struct wait_bit_key *key, unsigned mode)
-{
-	int timeout = key->timeout - jiffies;
-
-	linux_set_current(curthread);
-
-	if (time_after_eq(0, timeout))
-		return (-EAGAIN);
-
-	schedule_timeout(timeout);
-
-	if (signal_pending_state(mode, current))
-		return (-EINTR);
-
-	return (0);
-}
-
-int
-linux_wait_on_bit_timeout(wait_queue_head_t *wq, struct wait_bit_queue *wqh,
-    unsigned mode)
-{
-	int ret = 0;
-
-	while (1) {
-		prepare_to_wait(wq, &wqh->wait, mode);
-		if (test_bit(wqh->key.bit_nr, wqh->key.flags) == 0)
-			break;
-		ret = linux_wait_on_bit_timeout_sub(&wqh->key, mode);
-		if (ret != 0)
-			break;
-		if (test_bit(wqh->key.bit_nr, wqh->key.flags) == 0)
-			break;
-	}
-
-	finish_wait(wq, &wqh->wait);
-
-	return (ret);
 }

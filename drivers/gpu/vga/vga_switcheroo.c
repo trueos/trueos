@@ -30,7 +30,9 @@
 
 #define pr_fmt(fmt) "vga_switcheroo: " fmt
 
+#ifndef __FreeBSD__
 #include <linux/apple-gmux.h>
+#endif
 #include <linux/console.h>
 #include <linux/debugfs.h>
 #include <linux/fb.h>
@@ -394,6 +396,9 @@ bool vga_switcheroo_client_probe_defer(struct pci_dev *pdev)
 	 * apple-gmux is needed on pre-retina MacBook Pro
 	 * to probe the panel if pdev is the inactive GPU.
 	 */
+#ifdef __FreeBSD__
+#define	apple_gmux_present()	0
+#endif
 	if (apple_gmux_present() && pdev != vga_default_device() &&
 	    !vgasr_priv.handler_flags)
 		return true;

@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,8 +65,17 @@ extern void linux_file_free(struct linux_file *filp);
 static inline void
 fput(struct linux_file *filp)
 {
-	if (filp->_file == NULL || refcount_release(&filp->_file->f_count))
+	if (refcount_release(filp->_file == NULL ?
+	    &filp->f_count : &filp->_file->f_count)) {
 		linux_file_free(filp);
+	}
+}
+
+static inline unsigned int
+file_count(struct linux_file *filp)
+{
+	return (filp->_file == NULL ?
+	    filp->f_count : filp->_file->f_count);
 }
 
 static inline void
@@ -102,6 +111,10 @@ fd_install(unsigned int fd, struct linux_file *filp)
 	} else {
 		filp->_file = file;
 		finit(file, filp->f_mode, DTYPE_DEV, filp, &linuxfileops);
+
+		/* transfer reference count from "filp" to "file" */
+		while (refcount_release(&filp->f_count) == 0)
+			refcount_acquire(&file->f_count);
 	}
 
 	/* drop the extra reference */
@@ -138,18 +151,18 @@ get_unused_fd_flags(int flags)
 	return fd;
 }
 
+extern struct linux_file *linux_file_alloc(void);
+
 static inline struct linux_file *
 alloc_file(int mode, const struct file_operations *fops)
 {
 	struct linux_file *filp;
 
-	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
-	if (filp == NULL)
-		return (NULL);
+	filp = linux_file_alloc();
 	filp->f_op = fops;
 	filp->f_mode = mode;
 
-	return filp;
+	return (filp);
 }
 
 struct fd {

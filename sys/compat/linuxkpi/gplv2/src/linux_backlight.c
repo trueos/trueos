@@ -118,7 +118,9 @@ static void backlight_generate_event(struct backlight_device *bd,
 	}
 	envp[1] = NULL;
 	kobject_uevent_env(&bd->dev.kobj, KOBJ_CHANGE, envp);
+#ifndef __FreeBSD__
 	sysfs_notify(&bd->dev.kobj, NULL, "actual_brightness");
+#endif
 }
 
 static ssize_t bl_power_show(struct device *dev, struct device_attribute *attr,

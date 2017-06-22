@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <linux/compat.h>
+#include <linux/completion.h>
 #include <linux/mm.h>
 #include <linux/kthread.h>
 
@@ -67,8 +68,9 @@ linux_alloc_current(struct thread *td, int flags)
 	ts->comm = td->td_name;
 	ts->pid = td->td_tid;
 	atomic_set(&ts->usage, 1);
-	mtx_init(&ts->sleep_lock, "lkpislplock", NULL, MTX_DEF);
 	atomic_set(&ts->state, TASK_RUNNING);
+	init_completion(&ts->parked);
+	init_completion(&ts->exited);
 
 	proc = td->td_proc;
 
@@ -97,7 +99,6 @@ linux_alloc_current(struct thread *td, int flags)
 		init_rwsem(&mm->mmap_sem);
 		atomic_set(&mm->mm_count, 1);
 		atomic_set(&mm->mm_users, 1);
-		mm->vmspace = vmspace_acquire_ref(proc);
 		/* set mm_struct pointer */
 		ts->mm = mm;
 		/* clear pointer to not free memory */
@@ -120,7 +121,7 @@ linux_get_task_mm(struct task_struct *task)
 	struct mm_struct *mm;
 
 	mm = task->mm;
-	if (mm != NULL && mm->vmspace != NULL) {
+	if (mm != NULL) {
 		atomic_inc(&mm->mm_users);
 		return (mm);
 	}
@@ -130,8 +131,6 @@ linux_get_task_mm(struct task_struct *task)
 void
 linux_mm_dtor(struct mm_struct *mm)
 {
-	if (mm->vmspace != NULL)
-		vmspace_free(mm->vmspace);
 	free(mm, M_LINUX_CURRENT);
 }
 
@@ -139,7 +138,6 @@ void
 linux_free_current(struct task_struct *ts)
 {
 	mmput(ts->mm);
-	mtx_destroy(&ts->sleep_lock);
 	free(ts, M_LINUX_CURRENT);
 }
 

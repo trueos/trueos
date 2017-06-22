@@ -2,26 +2,18 @@
 .PATH:	${SRCTOP}/sys/compat/linuxkpi/common/src ${SRCTOP}/sys/compat/linsysfs
 
 KMOD=	linuxkpi
-SRCS=	linux_acpi.c \
-	linux_compat.c \
+SRCS=	linux_compat.c \
 	linux_current.c \
-	linux_device.c \
-	linux_fs.c \
-	linux_firmware.c \
-	linux_hrtimer.c \
 	linux_idr.c \
 	linux_kmod.c \
 	linux_kthread.c \
 	linux_lock.c \
-	linux_mtrr.c \
 	linux_page.c \
 	linux_pci.c \
 	linux_radix.c \
 	linux_rcu.c \
 	linux_schedule.c \
-	linux_seq_file.c \
 	linux_slab.c \
-	linux_stubs.c \
 	linux_sysfs.c \
 	linux_tasklet.c \
 	linux_usb.c \
@@ -32,6 +24,7 @@ SRCS+=	bus_if.h \
 	pci_if.h \
 	vnode_if.h \
 	usb_if.h \
+	opt_acpi.h \
 	opt_ddb.h \
 	opt_ktrace.h \
 	opt_param.h \
@@ -53,4 +46,3 @@ CFLAGS+= -include ${SRCTOP}/sys/dev/drm/drm_os_config.h
 
 .include <bsd.kmod.mk>
 CWARNFLAGS 		+= -Wno-pointer-arith
-CWARNFLAGS.linux_acpi.c=	-Wno-cast-qual

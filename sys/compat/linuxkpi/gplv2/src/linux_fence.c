@@ -1,12 +1,6 @@
 #include <linux/fence.h>
 #include <linux/fence-array.h>
-
-#include <sys/param.h>
-#include <sys/proc.h>
-#include <sys/condvar.h>
-
-#include <sys/types.h>
-#include <machine/atomic.h>
+#include <asm/atomic64.h>
 
 static atomic64_t fence_context_counter = ATOMIC64_INIT(0);
 

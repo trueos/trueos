@@ -8,11 +8,17 @@
     bin
         cat
         ..
+        chmod
+        ..
         date
         ..
         dd
         ..
+        echo
+        ..
         expr
+        ..
+        ln
         ..
         ls
         ..
@@ -606,6 +612,8 @@
         ..
         cmp
         ..
+        compress
+        ..
         cpio
         ..
         col
@@ -620,7 +628,11 @@
         ..
         dirname
         ..
+        du
+        ..
         file2c
+        ..
+        getconf
         ..
         grep
         ..
@@ -650,6 +662,8 @@
         ..
         printf
         ..
+        procstat
+        ..
         sdiff
         ..
         sed
@@ -657,6 +671,8 @@
             ..
         ..
         soelim
+        ..
+        stat
         ..
         tail
         ..

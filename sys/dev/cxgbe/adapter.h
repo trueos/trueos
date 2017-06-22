@@ -647,7 +647,7 @@ struct sge_wrq {
 
 } __aligned(CACHE_LINE_SIZE);
 
-
+#define INVALID_NM_RXQ_CNTXT_ID ((uint16_t)(-1))
 struct sge_nm_rxq {
 	struct vi_info *vi;
 
@@ -680,6 +680,7 @@ struct sge_nm_rxq {
 	bus_addr_t fl_ba;
 } __aligned(CACHE_LINE_SIZE);
 
+#define INVALID_NM_TXQ_CNTXT_ID ((u_int)(-1))
 struct sge_nm_txq {
 	struct tx_desc *desc;
 	uint16_t cidx;
@@ -796,6 +797,7 @@ struct adapter {
 	struct tom_tunables tt;
 	void *iwarp_softc;	/* (struct c4iw_dev *) */
 	void *iscsi_ulp_softc;	/* (struct cxgbei_data *) */
+	void *ccr_softc;	/* (struct ccr_softc *) */
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 

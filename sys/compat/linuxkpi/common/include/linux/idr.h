@@ -36,7 +36,6 @@
 #include <sys/mutex.h>
 
 #include <linux/types.h>
-#include <linux/rcupdate.h>
 
 #define	IDR_BITS	5
 #define	IDR_SIZE	(1 << IDR_BITS)

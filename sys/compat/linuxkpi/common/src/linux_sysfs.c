@@ -3,7 +3,7 @@
 #include <linux/sysfs.h>
 
 
-int
+static int
 sysctl_handle_attr(SYSCTL_HANDLER_ARGS)
 {
 	struct kobject *kobj;

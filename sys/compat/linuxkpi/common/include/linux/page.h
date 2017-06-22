@@ -34,7 +34,6 @@
 #include <linux/types.h>
 
 #include <sys/param.h>
-#include <sys/eventhandler.h>
 #include <sys/vmmeter.h>
 
 #include <machine/atomic.h>
@@ -49,16 +48,10 @@ typedef unsigned long pgprot_t;
 
 #define page	vm_page
 
-#define	PAGE_KERNEL	0x0000
-#define PAGE_KERNEL_IO  PAGE_KERNEL
-/*
-#define __PAGE_KERNEL_EXEC						\
-	(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_GLOBAL)
-#define __PAGE_KERNEL		(__PAGE_KERNEL_EXEC | _PAGE_NX)
-*/
-
 #define	LINUXKPI_PROT_VALID (1 << 4)
 #define	LINUXKPI_CACHE_MODE_SHIFT 3
+
+#define PAGE_KERNEL_IO  0x0000
 
 static inline pgprot_t
 cachemode2protval(vm_memattr_t attr)
@@ -84,64 +77,25 @@ pgprot2cachemode(pgprot_t prot)
 #define	pfn_to_page(pfn)	(PHYS_TO_VM_PAGE((pfn) << PAGE_SHIFT))
 #define	nth_page(page,n)	pfn_to_page(page_to_pfn((page)) + (n))
 
-#define	clear_page(addr)		memset((addr), 0, PAGE_SIZE)
-#define clear_highpage(addr)	clear_page((addr))
+#define	clear_page(page)		memset((page), 0, PAGE_SIZE)
 #define	pgprot_noncached(prot)		((prot) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
 #define	pgprot_writecombine(prot)	((prot) | cachemode2protval(VM_MEMATTR_WRITE_COMBINING))
 
 #undef	PAGE_MASK
 #define	PAGE_MASK	(~(PAGE_SIZE-1))
 /*
- * Modifying PAGE_MASK in the above way breaks trunc_page, round_page, and btoc
- * macros.  Therefore, redefine them in a way that makes sense so linuxkpi
- * consumers don't get totally broken behavior.
+ * Modifying PAGE_MASK in the above way breaks trunc_page, round_page,
+ * and btoc macros. Therefore, redefine them in a way that makes sense
+ * so linuxkpi consumers don't get totally broken behavior.
  */
 #undef	btoc
-#define	btoc(x)	(((vm_offset_t)(x)+PAGE_SIZE-1)>>PAGE_SHIFT)
+#define	btoc(x)	(((vm_offset_t)(x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
 #undef	round_page
-#define	round_page(x)	((((uintptr_t)(x)) + PAGE_SIZE-1) & ~(PAGE_SIZE-1))
+#define	round_page(x)	((((uintptr_t)(x)) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 #undef	trunc_page
-#define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE-1))
+#define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE - 1))
 
-/* XXX note that this is incomplete */
-void *kmap(vm_page_t page);
-void *kmap_atomic(vm_page_t page);
-void *kmap_atomic_prot(vm_page_t page, pgprot_t prot);
-void kunmap(vm_page_t page);
-void kunmap_atomic(void *vaddr);
-void page_cache_release(vm_page_t page);
-
-extern void * iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
-
-void iounmap_atomic(void *vaddr);
-
-static inline int
-page_count(vm_page_t page __unused)
-{
-	return (1);
-}
-
-int set_pages_array_wb(struct page **pages, int addrinarray);
-int set_pages_array_uc(struct page **pages, int addrinarray);
-int set_pages_array_wc(struct page **pages, int addrinarray);
-
-/* bump refcount */
-
-int set_pages_wb(vm_page_t page, int numpages);
-int set_memory_wb(unsigned long addr, int numpages);
-int set_pages_uc(vm_page_t page, int numpages);
-int set_memory_uc(unsigned long addr, int numpages);
-int set_pages_wc(vm_page_t page, int numpages);
-int set_memory_wc(unsigned long addr, int numpages);
-
-vm_paddr_t page_to_phys(vm_page_t page);
-
-void *acpi_os_ioremap(vm_paddr_t pa, vm_size_t size);
-
-void unmap_mapping_range(void *obj,
-			 loff_t const holebegin, loff_t const holelen, int even_cows);
-
-#define linux_clflushopt(arg) __linux_clflushopt((u_long)(arg))
-extern void __linux_clflushopt(u_long addr);
+extern void *iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
+extern void iounmap_atomic(void *vaddr);
 
 #endif	/* _LINUX_PAGE_H_ */

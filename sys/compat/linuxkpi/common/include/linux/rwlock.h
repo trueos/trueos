@@ -33,7 +33,6 @@
 
 #include <sys/types.h>
 #include <sys/lock.h>
-#include <sys/libkern.h>
 #include <sys/rwlock.h>
 #include <sys/libkern.h>
 
@@ -58,20 +57,12 @@ typedef struct {
 #define	write_unlock_irqrestore(lock, flags)				\
     do { write_unlock(lock); } while (0)
 
-
-
-#define rwlock_init(lock) _rwlock_init((lock), #lock)
-
 static inline void
-_rwlock_init(rwlock_t *lock, char * name)
+rwlock_init(rwlock_t *lock)
 {
 
 	memset(&lock->rw, 0, sizeof(lock->rw));
-#ifdef WITNESS_ALL
-	rw_init_flags(&lock->rw, name, 0);
-#else	
-	rw_init_flags(&lock->rw, name, RW_NOWITNESS);
-#endif	
+	rw_init_flags(&lock->rw, "lnxrw", RW_NOWITNESS);
 }
 
 #endif	/* _LINUX_RWLOCK_H_ */

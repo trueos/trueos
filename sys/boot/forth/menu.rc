@@ -58,6 +58,7 @@ s" currdev" getenv dup 0> [if] drop 4 s" zfs:" compare 0= [if]
     set mainansi_caption[3]="Select Boot ^[1mE^[37mnvironment..."
 [then] [else] drop [then]
 
+
 \ 
 \ BOOT OPTIONS MENU
 \ 
