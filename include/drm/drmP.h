@@ -33,7 +33,6 @@
 #define _DRM_P_H_
 
 #if defined(_KERNEL) || defined(__KERNEL__)
-#define _SYS_TREE_H_
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
