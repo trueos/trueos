@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=   jinit
+SCRIPTS=jinit
 MAN=	jinit.8
 LIBADD= jail util
 
