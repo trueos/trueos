@@ -5,6 +5,7 @@
 
 struct device;
 struct device_driver;
+struct kobj_uevent_env;
 
 static inline int of_driver_match_device(struct device *dev,
 					 const struct device_driver *drv)
