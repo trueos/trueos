@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PACKAGE=openrc
+PACKAGE=runtime
 PROG=	openrc
 LINKS=  ${BINDIR}/openrc ${BINDIR}/rc
 SRCS=	${.CURDIR}/../../contrib/openrc/src/rc/rc.c \

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PACKAGE=openrc
+PACKAGE=runtime
 PROG=	openrc-run
 LINKS=  ${BINDIR}/openrc-run ${BINDIR}/runscript
 SRCS=	${.CURDIR}/../../contrib/openrc/src/rc/openrc-run.c \

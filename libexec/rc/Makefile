@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PACKAGE=openrc
+PACKAGE=runtime
 
 SUBDIR= sh
 SUBDIR+= bin
