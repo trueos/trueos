@@ -37,8 +37,8 @@ __nl="
 IFCONFIG_CMD="/sbin/ifconfig"
 
 # Needed for network scripts
-. /etc/openrc.subr
-. /etc/network-openrc.subr
+. /etc/rc.subr
+. /etc/network.subr
 
 depend()
 {
