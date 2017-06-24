@@ -159,7 +159,6 @@ linux_pci_get_class(unsigned int class, struct pci_dev *from)
 		pcic = PCIC_DISPLAY;
 	} else {
 		log(LOG_WARNING, "unrecognized class %x in %s\n", class, __FUNCTION__);
-		BACKTRACE();
 		return (NULL);
 	}
 
