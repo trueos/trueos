@@ -500,7 +500,7 @@ static int __init i915_init(void)
 
 	/* FreeBSD specific hackery */
 	i915_pci_driver.busname = "vgapci";
-	i915_pci_driver.bsdclass = &drm_devclass;
+	i915_pci_driver.bsdclass = drm_devclass;
 	i915_pci_driver.name = "drmn";
 
 	return pci_register_driver(&i915_pci_driver);

@@ -302,7 +302,7 @@ pci_register_driver(struct pci_driver *pdrv)
 	mtx_lock(&Giant);
 	if (bus != NULL) {
 		error = devclass_add_driver(bus, &pdrv->bsddriver,
-		    BUS_PASS_DEFAULT, pdrv->bsdclass);
+		    BUS_PASS_DEFAULT, &pdrv->bsdclass);
 	}
 	mtx_unlock(&Giant);
 

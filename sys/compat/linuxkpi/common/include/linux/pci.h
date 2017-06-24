@@ -206,7 +206,7 @@ struct pci_driver {
 	int  (*resume) (struct pci_dev *dev);		/* Device woken up */
 	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
 	driver_t			bsddriver;
-	devclass_t			*bsdclass;
+	devclass_t			bsdclass;
 	char				*busname;
 	struct device_driver	driver;
         const struct pci_error_handlers       *err_handler;

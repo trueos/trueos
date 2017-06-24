@@ -324,7 +324,7 @@ int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver)
 
 	/* FreeBSD specific hackery */
 	pdriver->busname = "vgapci";
-	pdriver->bsdclass = &drm_devclass;
+	pdriver->bsdclass = drm_devclass;
 	pdriver->name = "drmn";
 
 	if (!(driver->driver_features & DRIVER_LEGACY))
