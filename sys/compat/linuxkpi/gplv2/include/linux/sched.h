@@ -5,6 +5,9 @@
 
 #include <linux/hrtimer.h>
 
+/* XXX */
+struct seq_file;
+
 static inline int
 sched_setscheduler(struct task_struct *t, int policy,
     const struct sched_param *param)

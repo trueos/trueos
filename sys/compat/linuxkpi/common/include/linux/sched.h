@@ -60,8 +60,6 @@
 
 #define	TASK_COMM_LEN		(MAXCOMLEN + 1)
 
-struct seq_file;
-
 struct task_struct {
 	struct thread *task_thread;
 	struct mm_struct *mm;
