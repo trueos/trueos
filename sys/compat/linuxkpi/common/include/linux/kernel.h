@@ -196,9 +196,6 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 	return (i);
 }
 
-#define	irqs_disabled() (curthread->td_critnest != 0 || curthread->td_intr_nesting_level != 0)
-
-
 /*
  * The "pr_debug()" and "pr_devel()" macros should produce zero code
  * unless DEBUG is defined:
