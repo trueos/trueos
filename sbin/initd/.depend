@@ -1,0 +1,1 @@
+openrc-init.full: /usr/lib/libc.a /usr/lib/libutil.a /usr/lib/libcrypt.a
