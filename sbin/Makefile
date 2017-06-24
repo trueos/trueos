@@ -67,7 +67,6 @@ SUBDIR=adjkerntz \
 	restore \
 	route \
 	savecore \
-	service \
 	setkey \
 	shutdown \
 	spppcontrol \
