@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SCRIPTS=jdestroy
+PROG=   jdestroy
 MAN=	jdestroy.8
 LIBADD= jail util
 
