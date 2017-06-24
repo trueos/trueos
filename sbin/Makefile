@@ -14,7 +14,6 @@ SUBDIR=adjkerntz \
 	ddb \
 	devfs \
 	dhclient \
-    dhcpcd \
 	dmesg \
 	dump \
 	dumpfs \

@@ -230,8 +230,8 @@ ifconfig_up()
 			${IFCONFIG_CMD} $1 up
 		fi
 		if syncdhcpif $1; then
-			ln -fs /etc/init.d/dhcpcd \
-			 /etc/init.d/dhcpcd.${1}
+			ln -fs /usr/local/etc/init.d/dhcpcd \
+			 /usr/local/etc/init.d/dhcpcd.${1}
 			service dhcpcd.${1} start
 		fi
 		_cfg=0
@@ -259,8 +259,8 @@ ifconfig_down()
 	fi
 
 	if dhcpif $1; then
-		ln -fs /etc/init.d/dhcpcd \
-		 /etc/init.d/dhcpcd.${1}
+		ln -fs /usr/local/etc/init.d/dhcpcd \
+		 /usr/local/etc/init.d/dhcpcd.${1}
 		service dhcpcd.${1} stop
 		_cfg=0
 	fi
