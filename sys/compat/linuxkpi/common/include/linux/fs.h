@@ -72,13 +72,6 @@ struct file_operations;
 #define i_mapping v_bufobj.bo_object
 #define file_inode(f) ((f)->f_vnode)
 
-/* this value isn't needed by the compat layer */
-static inline void
-i_size_write(void *inode, off_t i_size)
-{
-	/* NOP */
-}
-
 struct linux_file {
 	struct file	*_file;
 	const struct file_operations	*f_op;
