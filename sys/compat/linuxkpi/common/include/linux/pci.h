@@ -163,13 +163,6 @@ struct pci_device_id {
 #define	IORESOURCE_IO	(1 << SYS_RES_IOPORT)
 #define	IORESOURCE_IRQ	(1 << SYS_RES_IRQ)
 
-enum pci_bus_speed {
-	PCI_SPEED_UNKNOWN = -1,
-	PCIE_SPEED_2_5GT,
-	PCIE_SPEED_5_0GT,
-	PCIE_SPEED_8_0GT,
-};
-
 enum pcie_link_width {
 	PCIE_LNK_WIDTH_UNKNOWN = 0xFF,
 };
@@ -230,7 +223,6 @@ struct pci_bus {
 	struct pci_ops	*ops;		/* configuration access functions */
 
 	unsigned char	number;		/* bus number */
-	unsigned char   max_bus_speed;  /* enum pci_bus_speed */
 	struct device		dev;
 };
 
@@ -852,14 +844,6 @@ pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
                 return 0;
 
         return pci_write_config_word(dev, pci_pcie_cap(dev) + pos, val);
-}
-
-static inline int pcie_get_minimum_link(struct pci_dev *dev,
-    enum pci_bus_speed *speed, enum pcie_link_width *width)
-{
-	*speed = PCI_SPEED_UNKNOWN;
-	*width = PCIE_LNK_WIDTH_UNKNOWN;
-	return (0);
 }
 
 static inline int
