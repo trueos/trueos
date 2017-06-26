@@ -2114,11 +2114,15 @@ int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon)
 	 * temporarily disable the rpm helpers so this doesn't deadlock us.
 	 */
 #ifdef CONFIG_PM
+#ifndef __FreeBSD__
 	dev->dev->power.disable_depth++;
+#endif
 #endif
 	drm_helper_hpd_irq_event(dev);
 #ifdef CONFIG_PM
+#ifndef __FreeBSD__
 	dev->dev->power.disable_depth--;
+#endif
 #endif
 
 	if (fbcon) {
