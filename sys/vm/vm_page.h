@@ -125,18 +125,9 @@ typedef uint32_t vm_page_bits_t;
 typedef uint64_t vm_page_bits_t;
 #endif
 
-#ifndef LIST_HEAD_DEF
-#define  LIST_HEAD_DEF
-struct list_head {
-       struct list_head *next;
-       struct list_head *prev;
-};
-#endif
-
 struct vm_page {
 	union {
 		TAILQ_ENTRY(vm_page) q; /* page queue or free list (Q) */
-		struct list_head lq;
 		struct {
 			SLIST_ENTRY(vm_page) ss; /* private slists */
 			void *pv;
