@@ -1519,7 +1519,7 @@ void *
 vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 {
 	vm_offset_t off;
-	size_t size;
+	vm_size_t size;
 	int attr;
 
 	size = count * PAGE_SIZE;
@@ -1529,6 +1529,10 @@ vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 	vmmap_add((void *)off, size);
 	attr = pgprot2cachemode(prot);
 	pmap_qenter(off, pages, count);
+	if (pmap_change_attr(off, size, attr) != 0) {
+		vunmap((void *)off);
+		return (NULL);
+	}
 
 	return ((void *)off);
 }
