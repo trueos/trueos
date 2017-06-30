@@ -1664,6 +1664,10 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		/* doorbell bar mapping */
 		amdgpu_doorbell_init(adev);
 
+#ifdef __FreeBSD__
+#define	DEVICE_COUNT_RESOURCE	5
+#endif
+
 	/* io port mapping */
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 		if (pci_resource_flags(adev->pdev, i) & IORESOURCE_IO) {
