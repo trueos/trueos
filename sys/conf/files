@@ -1723,6 +1723,7 @@ dev/iicbus/ds3231.c		optional ds3231
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
 dev/iicbus/iic.c		optional iic
+dev/iicbus/iic_recover_bus.c	optional iicbus
 dev/iicbus/iicbb.c		optional iicbb
 dev/iicbus/iicbb_if.m		optional iicbb
 dev/iicbus/iicbus.c		optional iicbus
@@ -4268,6 +4269,8 @@ compat/linuxkpi/common/src/linux_kmod.c		optional compat_linuxkpi \
 compat/linuxkpi/common/src/linux_compat.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_current.c	optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_hrtimer.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_kthread.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"

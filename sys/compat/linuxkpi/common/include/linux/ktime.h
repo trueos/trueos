@@ -51,6 +51,15 @@ ktime_to_ns(ktime_t kt)
 	return kt.tv64;
 }
 
+static inline ktime_t
+ns_to_ktime(uint64_t nsec)
+{
+	ktime_t kt;
+
+	kt.tv64 = nsec;
+	return (kt);
+}
+
 static inline int64_t
 ktime_divns(const ktime_t kt, int64_t div)
 {
@@ -162,15 +171,6 @@ ktime_get(void)
 
 	ktime_get_ts(&ts);
 	return (timespec_to_ktime(ts));
-}
-
-static inline ktime_t
-ns_to_ktime(u64 ns)
-{
-	ktime_t kt;
-
-	kt.tv64 = ns;
-	return (kt);
 }
 
 #include <linux/timekeeping.h>

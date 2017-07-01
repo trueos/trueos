@@ -68,6 +68,7 @@ gid_t nfsrv_defaultgid = GID_NOGROUP;
 int nfsrv_lease = NFSRV_LEASE;
 int ncl_mbuf_mlen = MLEN;
 int nfsd_enable_stringtouid = 0;
+int nfsd_enable_uidtostring = 0;
 NFSNAMEIDMUTEX;
 NFSSOCKMUTEX;
 extern int nfsrv_lughashsize;
@@ -175,7 +176,7 @@ static struct nfsrv_lughash	*nfsgroupnamehash;
  */
 int nfs_bigreply[NFSV41_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 };
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 };
 
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
@@ -2561,7 +2562,7 @@ nfsv4_uidtostr(uid_t uid, u_char **cpp, int *retlenp, NFSPROC_T *p)
 
 	cnt = 0;
 tryagain:
-	if (nfsrv_dnsnamelen > 0) {
+	if (nfsrv_dnsnamelen > 0 && !nfsd_enable_uidtostring) {
 		/*
 		 * Always map nfsrv_defaultuid to "nobody".
 		 */
@@ -2823,7 +2824,7 @@ nfsv4_gidtostr(gid_t gid, u_char **cpp, int *retlenp, NFSPROC_T *p)
 
 	cnt = 0;
 tryagain:
-	if (nfsrv_dnsnamelen > 0) {
+	if (nfsrv_dnsnamelen > 0 && !nfsd_enable_uidtostring) {
 		/*
 		 * Always map nfsrv_defaultgid to "nogroup".
 		 */

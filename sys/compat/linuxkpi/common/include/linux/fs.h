@@ -290,13 +290,15 @@ iput(struct inode *inode)
 static inline loff_t 
 no_llseek(struct linux_file *file, loff_t offset, int whence)
 {
-        return -ESPIPE;
+
+	return (-ESPIPE);
 }
 
-static inline loff_t 
+static inline loff_t
 noop_llseek(struct linux_file *file, loff_t offset, int whence)
 {
-        return file->_file->f_offset;
+
+	return (file->_file->f_offset);
 }
 
 #endif /* _LINUX_FS_H_ */
