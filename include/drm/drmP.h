@@ -59,6 +59,7 @@
 #include <sys/poll.h>
 #include <sys/sbuf.h>
 #include <sys/taskqueue.h>
+#include <sys/resourcevar.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -110,6 +111,7 @@
 #include <linux/ioctl.h>
 #include <linux/workqueue.h>
 #include <linux/fence.h>
+#include <linux/math64.h>
 
 #include <drm/drm_hashtab.h>
 
