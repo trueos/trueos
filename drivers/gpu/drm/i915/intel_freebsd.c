@@ -98,7 +98,7 @@ intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 		 struct agp_bridge_data *bridge)
 {
 	DRM_DEBUG("entering %s\n", __func__);
-	intel_private.registers = intel_gtt_get_registers();
+	intel_private.registers = NULL; //intel_gtt_get_registers();
 	intel_private.gma_bus_addr = pci_bus_address(gpu_pdev, I915_GMADR_BAR);
 	DRM_DEBUG("bus_addr %lx\n", intel_private.gma_bus_addr);
 	INTEL_GTT_GEN = 4;
