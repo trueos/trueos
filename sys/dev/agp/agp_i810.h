@@ -71,6 +71,7 @@ struct intel_gtt {
 	bus_addr_t gma_bus_addr;
 };
 
+struct intel_gtt agp_intel_gtt_get(device_t dev);
 int agp_intel_gtt_chipset_flush(device_t dev);
 void agp_intel_gtt_unmap_memory(device_t dev, struct sglist *sg_list);
 void agp_intel_gtt_clear_range(device_t dev, u_int first_entry,
@@ -79,7 +80,8 @@ int agp_intel_gtt_map_memory(device_t dev, vm_page_t *pages, u_int num_entries,
     struct sglist **sg_list);
 void agp_intel_gtt_insert_pages(device_t dev, u_int first_entry,
     u_int num_entries, vm_page_t *pages, u_int flags);
-void _intel_gtt_get(size_t *gtt_total, size_t *stolen_size, unsigned long *mappable_end);
+
+struct intel_gtt *intel_gtt_get(void);
 int intel_gtt_chipset_flush(void);
 void intel_gtt_unmap_memory(struct sglist *sg_list);
 void intel_gtt_clear_range(u_int first_entry, u_int num_entries);
