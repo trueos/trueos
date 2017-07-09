@@ -13,7 +13,7 @@ description="Loads a user defined list of kernel modules."
 
 depend()
 {
-	use isapnp
+	before sysctl
 	keyword -jail -prefix
 }
 
