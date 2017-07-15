@@ -1571,7 +1571,7 @@ vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		    find_space, prot, max, cow);
 		if (rv == KERN_SUCCESS || min_addr >= hint)
 			return (rv);
-		*addr = min_addr;
+		*addr = hint = min_addr;
 	}
 }
 
@@ -1962,7 +1962,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 			    (pagesizes[p->psind] - 1)) == 0) {
 				mask = atop(pagesizes[p->psind]) - 1;
 				if (tmpidx + mask < psize &&
-				    vm_page_ps_is_valid(p)) {
+				    vm_page_ps_test(p, PS_ALL_VALID, NULL)) {
 					p += mask;
 					threshold += mask;
 				}
@@ -3685,7 +3685,7 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 	struct vmspace *vm;
 	struct ucred *cred;
 	vm_offset_t gap_end, gap_start, grow_start;
-	size_t grow_amount, max_grow;
+	size_t grow_amount, guard, max_grow;
 	rlim_t lmemlim, stacklim, vmemlim;
 	int rv, rv1;
 	bool gap_deleted, grow_down, is_procstack;
@@ -3701,6 +3701,7 @@ vm_map_growstack(vm_map_t map, vm_offset_t addr, vm_map_entry_t gap_entry)
 	MPASS(map == &p->p_vmspace->vm_map);
 	MPASS(!map->system_map);
 
+	guard = stack_guard_page * PAGE_SIZE;
 	lmemlim = lim_cur(curthread, RLIMIT_MEMLOCK);
 	stacklim = lim_cur(curthread, RLIMIT_STACK);
 	vmemlim = lim_cur(curthread, RLIMIT_VMEM);
@@ -3727,8 +3728,10 @@ retry:
 	} else {
 		return (KERN_FAILURE);
 	}
-	max_grow = gap_entry->end - gap_entry->start - stack_guard_page *
-	    PAGE_SIZE;
+	max_grow = gap_entry->end - gap_entry->start;
+	if (guard > max_grow)
+		return (KERN_NO_SPACE);
+	max_grow -= guard;
 	if (grow_amount > max_grow)
 		return (KERN_NO_SPACE);
 
