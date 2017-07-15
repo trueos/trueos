@@ -90,10 +90,11 @@ struct linux_file {
 	struct selinfo	f_selinfo;
 	struct sigio	*f_sigio;
 	struct vnode	*f_vnode;
+#define	f_inode	f_vnode
 	volatile u_int	f_count;
 
 	/* anonymous shmem object */
-	vm_object_t	_shmem;
+	vm_object_t	f_shmem;
 
 	/* kqfilter support */
 	int		f_kqflags;
@@ -170,7 +171,8 @@ struct file_operations {
 	int (*setlease)(struct file *, long, struct file_lock **);
 #endif
 };
-#define	fops_get(fops)	(fops)
+#define	fops_get(fops)		(fops)
+#define	replace_fops(f, fops)	((f)->f_op = (fops))
 
 #define	FMODE_READ	FREAD
 #define	FMODE_WRITE	FWRITE
@@ -179,17 +181,6 @@ struct file_operations {
 /* Alas, no aliases. Too much hassle with bringing module.h everywhere */
 #define fops_put(fops) \
 	do { if (fops) module_put((fops)->owner); } while(0)
-/*
- * This one is to be used *ONLY* from ->open() instances.
- * fops must be non-NULL, pinned down *and* module dependencies
- * should be sufficient to pin the caller down as well.
- */
-#define replace_fops(f, fops) \
-	do {	\
-		struct file *__file = (f); \
-		fops_put(__file->f_op); \
-		BUG_ON(!(__file->f_op = (fops))); \
-	} while(0)
 
 int __register_chrdev(unsigned int major, unsigned int baseminor,
     unsigned int count, const char *name,

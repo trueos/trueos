@@ -2231,8 +2231,8 @@ agp_intel_gtt_map_memory(device_t dev, vm_page_t *pages, u_int num_entries,
 }
 
 static void
-agp_intel_gtt_install_pte(device_t dev, unsigned int index, vm_paddr_t addr,
-    unsigned int flags)
+agp_intel_gtt_install_pte(device_t dev, u_int index, vm_paddr_t addr,
+    u_int flags)
 {
 	struct agp_i810_softc *sc;
 
@@ -2279,13 +2279,8 @@ intel_gtt_map_memory(vm_page_t *pages, u_int num_entries,
 	    sg_list));
 }
 
-/*
- * The _intel_gtt_install_pte() helper is internal and used by
- * intel_agp_freebsd.c in DRM.
- */
 void
-_intel_gtt_install_pte(unsigned int index, vm_paddr_t addr,
-    unsigned int flags)
+intel_gtt_install_pte(u_int index, vm_paddr_t addr, u_int flags)
 {
 
 	agp_intel_gtt_install_pte(intel_agp, index, addr, flags);

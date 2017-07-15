@@ -155,6 +155,17 @@ struct dev_pm_ops {
 	int (*runtime_idle)(struct device *dev);
 };
 
+#ifdef notyet
+struct device_driver {
+	const char	*name;
+	const struct dev_pm_ops *pm;
+};
+
+struct device_type {
+	const char	*name;
+};
+#endif
+
 struct device {
 	struct device	*parent;
 	struct list_head irqents;
@@ -167,6 +178,8 @@ struct device {
 	 * done somewhere else.
 	 */
 	bool		bsddev_attached_here;
+	struct device_driver *driver;
+	struct device_type *type;
 	dev_t		devt;
 	struct class	*class;
 	void		(*release)(struct device *dev);
@@ -178,9 +191,7 @@ struct device {
 	unsigned int	msix;
 	unsigned int	msix_max;
 	const struct attribute_group **groups;
-	struct device_type *type;
 	struct fwnode_handle	*fwnode;
-	struct device_driver *driver;	/* which driver has allocated this device */
 	struct dev_pm_info	power;
 	struct bus_type	*bus;		/* type of bus device is on */
 
@@ -320,12 +331,6 @@ class_unregister(struct class *class)
 	kobject_put(&class->kobj);
 }
 
-static inline int
-device_is_registered(struct device *dev)
-{
-	return dev->kobj.state_in_sysfs;
-}
-
 static inline struct device *
 kobj_to_dev(struct kobject *kobj)
 {
@@ -442,13 +447,20 @@ device_create_with_groups(struct class *class,
 	return dev;
 }
 
+static inline bool
+device_is_registered(struct device *dev)
+{
+
+	return (dev->bsddev != NULL);
+}
+
 static inline int
 device_register(struct device *dev)
 {
 	device_t bsddev = NULL;
 	int unit = -1;
 
-	if (dev->bsddev != NULL)
+	if (device_is_registered(dev))
 		goto done;
 
 	if (dev->devt) {
