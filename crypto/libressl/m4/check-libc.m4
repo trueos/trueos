@@ -149,10 +149,16 @@ fi
 ])
 
 AC_DEFUN([GENERATE_CRYPTO_PORTABLE_SYM], [
+AS_CASE([$host_cpu],
+	[i?86], [HOSTARCH=intel],
+	[x86_64], [HOSTARCH=intel],
+	[amd64], [HOSTARCH=intel],
+)
+AC_SUBST([HOSTARCH])
 crypto_sym=$srcdir/crypto/crypto.sym
-crypto_p_sym=$srcdir/crypto/crypto_portable.sym
+crypto_p_sym=./crypto/crypto_portable.sym
 echo "generating $crypto_p_sym ..."
-chmod u+w $srcdir/crypto
+mkdir -p ./crypto
 cp $crypto_sym $crypto_p_sym
 chmod u+w $crypto_p_sym
 if test "x$ac_cv_func_arc4random_buf" = "xno" ; then
@@ -202,6 +208,9 @@ if test "x$ac_cv_func_timingsafe_bcmp" = "xno" ; then
 fi
 if test "x$ac_cv_func_timingsafe_memcmp" = "xno" ; then
 	echo timingsafe_memcmp >> $crypto_p_sym
+fi
+if test "x$HOSTARCH" = "xintel" ; then
+	echo OPENSSL_ia32cap_P >> $crypto_p_sym
 fi
 if test "x$HOST_OS" = "xwin" ; then
 	echo posix_perror >> $crypto_p_sym

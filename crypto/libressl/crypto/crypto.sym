@@ -1814,7 +1814,6 @@ OPENSSL_cleanse
 OPENSSL_config
 OPENSSL_cpu_caps
 OPENSSL_cpuid_setup
-OPENSSL_ia32cap_P
 OPENSSL_init
 OPENSSL_load_builtin_modules
 OPENSSL_no_config

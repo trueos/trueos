@@ -896,6 +896,7 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
 GREP = @GREP@
+HOSTARCH = @HOSTARCH@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -1001,7 +1002,9 @@ lib_LTLIBRARIES = libcrypto.la
 # needed for a CMake target
 EXTRA_DIST = VERSION CMakeLists.txt crypto.sym compat/strcasecmp.c \
 	$(ASM_X86_64_ELF) $(ASM_X86_64_MACOSX)
-libcrypto_la_LDFLAGS = -version-info @LIBCRYPTO_VERSION@ -no-undefined -export-symbols $(top_srcdir)/crypto/crypto_portable.sym
+BUILT_SOURCES = crypto_portable.sym
+CLEANFILES = crypto_portable.sym
+libcrypto_la_LDFLAGS = -version-info @LIBCRYPTO_VERSION@ -no-undefined -export-symbols crypto_portable.sym
 libcrypto_la_LIBADD = libcompat.la $(am__append_1)
 libcrypto_la_CPPFLAGS = $(AM_CPPFLAGS) -DLIBRESSL_INTERNAL \
 	-DOPENSSL_NO_HW_PADLOCK $(am__append_2) $(am__append_3) \
@@ -1311,7 +1314,8 @@ ASM_X86_64_MACOSX = aes/aes-macosx-x86_64.S aes/bsaes-macosx-x86_64.S \
 	sha/sha1-macosx-x86_64.S sha/sha256-macosx-x86_64.S \
 	sha/sha512-macosx-x86_64.S whrlpool/wp-macosx-x86_64.S \
 	cpuid-macosx-x86_64.S
-all: all-am
+all: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) all-am
 
 .SUFFIXES:
 .SUFFIXES: .S .c .lo .o .obj
@@ -7934,13 +7938,15 @@ distdir: $(DISTFILES)
 	  fi; \
 	done
 check-am: all-am
-check: check-am
+check: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) check-am
 all-am: Makefile $(LTLIBRARIES) $(HEADERS)
 installdirs:
 	for dir in "$(DESTDIR)$(libdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
-install: install-am
+install: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) install-am
 install-exec: install-exec-am
 install-data: install-data-am
 uninstall: uninstall-am
@@ -7962,6 +7968,7 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
@@ -8070,6 +8077,7 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
+	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-am
 
 clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
@@ -8141,7 +8149,7 @@ ps-am:
 
 uninstall-am: uninstall-libLTLIBRARIES
 
-.MAKE: install-am install-strip
+.MAKE: all check install install-am install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am check check-am clean clean-generic \
 	clean-libLTLIBRARIES clean-libtool clean-noinstLTLIBRARIES \
