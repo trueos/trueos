@@ -655,7 +655,8 @@ LIBCOMPAT= SOFT
 # when the ABI breaks though that we want to force rebuilding WORLDTMP
 # to get updated host tools.
 .if ${MK_META_MODE} == "yes" && defined(NO_CLEAN) && \
-    !defined(NO_META_IGNORE_HOST) && !defined(NO_META_IGNORE_HOST_HEADERS)
+    !defined(NO_META_IGNORE_HOST) && !defined(NO_META_IGNORE_HOST_HEADERS) && \
+    !make(showconfig)
 # r318736 - ino64 major ABI breakage
 META_MODE_BAD_ABI_VERS+=	1200031
 
@@ -761,7 +762,15 @@ _worldtmp: .PHONY
 .endif
 .else
 	rm -rf ${WORLDTMP}/legacy/usr/include
-.endif
+.if ${USING_SYSTEM_COMPILER} == "yes"
+.for cc in cc c++
+	if [ -x ${WORLDTMP}/usr/bin/${cc} ]; then \
+		inum=$$(stat -f %i ${WORLDTMP}/usr/bin/${cc}); \
+		find ${WORLDTMP}/usr/bin -inum $${inum} -delete; \
+	fi
+.endfor
+.endif	# ${USING_SYSTEM_COMPILER} == "yes"
+.endif	# !defined(NO_CLEAN)
 
 # Our current approach to dependency tracking cannot cope with certain source
 # tree changes, particularly with respect to removing source files and
@@ -803,6 +812,16 @@ _worldtmp: .PHONY
 	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/${f}.* \
 	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*
 .endif
+.endfor
+# 20170724 remove stale lib/clang/libllvm/Options.inc file, of which there are
+# two different versions after r308421, one for llvm-lib, one for llvm-dlltool
+.for d in ${OBJTREE} ${WORLDTMP}
+.for f in ${d}${.CURDIR}/lib/clang/libllvm/Options.inc
+.if exists(${f}) || exists(${f}.d)
+	@echo Removing stale generated ${f} files
+	@rm -f ${f} ${f}.d
+.endif
+.endfor
 .endfor
 .for _dir in \
     lib lib/casper usr legacy/bin legacy/usr
@@ -1641,8 +1660,8 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 .if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
 .for flavor in "" -debug
-create-kernel-packages: create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}
-create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap .PHONY
+create-kernel-packages: create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}
+create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/kernel.${_kernel} ; \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${_kernel} \
