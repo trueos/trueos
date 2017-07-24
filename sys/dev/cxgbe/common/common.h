@@ -399,16 +399,18 @@ struct trace_params {
 };
 
 struct link_config {
+	/* OS-specific code owns all the requested_* fields */
+	unsigned char  requested_aneg;   /* link aneg user has requested */
+	unsigned char  requested_fc;     /* flow control user has requested */
+	unsigned char  requested_fec;    /* FEC user has requested */
+	unsigned int   requested_speed;  /* speed user has requested */
+
 	unsigned short supported;        /* link capabilities */
 	unsigned short advertising;      /* advertised capabilities */
 	unsigned short lp_advertising;   /* peer advertised capabilities */
-	unsigned int   requested_speed;  /* speed user has requested */
 	unsigned int   speed;            /* actual link speed */
-	unsigned char  requested_fc;     /* flow control user has requested */
 	unsigned char  fc;               /* actual link flow control */
-	unsigned char  requested_fec;    /* FEC user has requested */
 	unsigned char  fec;              /* actual FEC */
-	unsigned char  autoneg;          /* autonegotiating? */
 	unsigned char  link_ok;          /* link up? */
 	unsigned char  link_down_rc;     /* link down reason */
 };
@@ -497,6 +499,15 @@ static inline unsigned int dack_ticks_to_usec(const struct adapter *adap,
 					      unsigned int ticks)
 {
 	return (ticks << adap->params.tp.dack_re) / core_ticks_per_usec(adap);
+}
+
+static inline u_int ms_to_tcp_ticks(const struct adapter *adap, u_int ms)
+{
+	u_long l;
+
+	l = (u_long)ms * adap->params.vpd.cclk >> adap->params.tp.tre;
+
+	return (l);
 }
 
 void t4_set_reg_field(struct adapter *adap, unsigned int addr, u32 mask, u32 val);
@@ -691,6 +702,8 @@ int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force);
 int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset);
 int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 		  const u8 *fw_data, unsigned int size, int force);
+int t4_fw_forceinstall(struct adapter *adap, const u8 *fw_data,
+    unsigned int size);
 int t4_fw_initialize(struct adapter *adap, unsigned int mbox);
 int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
@@ -766,6 +779,7 @@ int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid, enum ctxt_type cty
 		      u32 *data);
 int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
 const char *t4_link_down_rc_str(unsigned char link_down_rc);
+int t4_update_port_info(struct port_info *pi);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox, u32 addr, u32 val);
 int t4_sched_config(struct adapter *adapter, int type, int minmaxen,
