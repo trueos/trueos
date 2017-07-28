@@ -51,8 +51,6 @@ typedef unsigned long pgprot_t;
 #define	LINUXKPI_PROT_VALID (1 << 4)
 #define	LINUXKPI_CACHE_MODE_SHIFT 3
 
-#define PAGE_KERNEL_IO  0x0000
-
 static inline pgprot_t
 cachemode2protval(vm_memattr_t attr)
 {
@@ -78,8 +76,10 @@ pgprot2cachemode(pgprot_t prot)
 #define	nth_page(page,n)	pfn_to_page(page_to_pfn((page)) + (n))
 
 #define	clear_page(page)		memset((page), 0, PAGE_SIZE)
-#define	pgprot_noncached(prot)		((prot) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
-#define	pgprot_writecombine(prot)	((prot) | cachemode2protval(VM_MEMATTR_WRITE_COMBINING))
+#define	pgprot_noncached(prot)		\
+	((prot) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
+#define	pgprot_writecombine(prot)	\
+	((prot) | cachemode2protval(VM_MEMATTR_WRITE_COMBINING))
 
 #undef	PAGE_MASK
 #define	PAGE_MASK	(~(PAGE_SIZE-1))
@@ -94,8 +94,5 @@ pgprot2cachemode(pgprot_t prot)
 #define	round_page(x)	((((uintptr_t)(x)) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
 #undef	trunc_page
 #define	trunc_page(x)	((uintptr_t)(x) & ~(PAGE_SIZE - 1))
-
-extern void *iomap_atomic_prot_pfn(unsigned long pfn, vm_prot_t prot);
-extern void iounmap_atomic(void *vaddr);
 
 #endif	/* _LINUX_PAGE_H_ */

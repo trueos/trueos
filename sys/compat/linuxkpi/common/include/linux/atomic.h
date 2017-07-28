@@ -12,6 +12,4 @@
 #define smb_wmb() wmb()
 #define smb_mb() mb()
 
-#define smp_mb__before_atomic() smb_mb()
-
 #endif

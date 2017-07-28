@@ -7,6 +7,11 @@
 
 #include_next <linux/fs.h>
 
+static inline void
+i_size_write(void *inode, uint64_t size)
+{
+}
+
 extern loff_t default_llseek(struct file *file, loff_t offset, int whence);
 extern loff_t generic_file_llseek(struct file *file, loff_t offset, int whence);
 

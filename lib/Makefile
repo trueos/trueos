@@ -40,6 +40,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libdevctl \
 	libdevinfo \
 	libdevstat \
+	${_libdl} \
 	libdwarf \
 	libedit \
 	libeinfo \
@@ -183,6 +184,10 @@ SUBDIR.${MK_BHYVE}+=	libvmmapi
 .if ${MACHINE_CPUARCH} != "sparc64"
 _libproc=	libproc
 _librtld_db=	librtld_db
+.endif
+
+.if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mfilter}
+_libdl=		libdl
 .endif
 
 SUBDIR.${MK_OPENSSL}+=	libmp

@@ -249,7 +249,10 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		break;
 	}
 #endif
-	do_cpuid(0x80000006, cache_size);
+	if (cpu_exthigh >= 0x80000006)
+		do_cpuid(0x80000006, cache_size);
+	else
+		memset(cache_size, 0, sizeof(cache_size));
 	for (i = 0; i < mp_ncpus; ++i) {
 		fqmhz = 0;
 		fqkhz = 0;
@@ -1453,7 +1456,6 @@ static char *type2name[] = {
 	"pts",
 	"dev",
 	"linuxefd",
-	"dmabuf"
 };
 	
 static int
@@ -1471,7 +1473,7 @@ linprocfs_fdfill(PFS_FILL_ARGS)
 	}
 	rc = 0;
 	fpthread = FIRST_THREAD_IN_PROC(p);
-	MPASS(fp->f_type > 0 && fp->f_type <= DTYPE_DMABUF);
+	MPASS(fp->f_type > 0 && fp->f_type <= DTYPE_LINUXTFD);
 
 	switch (fp->f_type) {
 	case DTYPE_VNODE:
@@ -1490,7 +1492,6 @@ linprocfs_fdfill(PFS_FILL_ARGS)
 	case DTYPE_PTS:
 	case DTYPE_DEV:
 	case DTYPE_LINUXEFD:
-	case DTYPE_DMABUF:
 		sbuf_printf(sb, "[%s]", type2name[fp->f_type]);
 		break;
 	default:

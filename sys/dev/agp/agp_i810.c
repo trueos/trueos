@@ -236,6 +236,10 @@ struct agp_i810_driver {
 	void (*chipset_flush)(device_t);
 };
 
+static struct {
+	struct intel_gtt base;
+} intel_private;
+
 static const struct agp_i810_driver agp_i810_i810_driver = {
 	.chiptype = CHIP_I810,
 	.gen = 1,
@@ -1958,15 +1962,23 @@ agp_intel_gtt_insert_pages(device_t dev, u_int first_entry, u_int num_entries,
 	sc->match->driver->read_gtt_pte(dev, first_entry + num_entries - 1);
 }
 
-void
-_intel_gtt_get(size_t *gtt_total, size_t *stolen_size, unsigned long *mappable_end)
+struct intel_gtt
+agp_intel_gtt_get(device_t dev)
 {
 	struct agp_i810_softc *sc;
+	struct intel_gtt res;
 
-	sc = device_get_softc(intel_agp);
-	*stolen_size = sc->stolen_size;
-	*gtt_total = sc->gtt_total_entries << PAGE_SHIFT;
-	*mappable_end = sc->gtt_mappable_entries << PAGE_SHIFT;
+	sc = device_get_softc(dev);
+	res.stolen_size = sc->stolen_size;
+	res.gtt_total_entries = sc->gtt_total_entries;
+	res.gtt_mappable_entries = sc->gtt_mappable_entries;
+	res.do_idle_maps = 0;
+	res.scratch_page_dma = VM_PAGE_TO_PHYS(bogus_page);
+	if (sc->agp.as_aperture != NULL)
+		res.gma_bus_addr = rman_get_start(sc->agp.as_aperture);
+	else
+		res.gma_bus_addr = 0;
+	return (res);
 }
 
 static int
@@ -2231,8 +2243,8 @@ agp_intel_gtt_map_memory(device_t dev, vm_page_t *pages, u_int num_entries,
 }
 
 static void
-agp_intel_gtt_install_pte(device_t dev, unsigned int index, vm_paddr_t addr,
-    unsigned int flags)
+agp_intel_gtt_install_pte(device_t dev, u_int index, vm_paddr_t addr,
+    u_int flags)
 {
 	struct agp_i810_softc *sc;
 
@@ -2254,6 +2266,14 @@ intel_gtt_insert_pages(u_int first_entry, u_int num_entries, vm_page_t *pages,
 
 	agp_intel_gtt_insert_pages(intel_agp, first_entry, num_entries,
 	    pages, flags);
+}
+
+struct intel_gtt *
+intel_gtt_get(void)
+{
+
+	intel_private.base = agp_intel_gtt_get(intel_agp);
+	return (&intel_private.base);
 }
 
 int
@@ -2279,13 +2299,8 @@ intel_gtt_map_memory(vm_page_t *pages, u_int num_entries,
 	    sg_list));
 }
 
-/*
- * The _intel_gtt_install_pte() helper is internal and used by
- * intel_agp_freebsd.c in DRM.
- */
 void
-_intel_gtt_install_pte(unsigned int index, vm_paddr_t addr,
-    unsigned int flags)
+intel_gtt_install_pte(u_int index, vm_paddr_t addr, u_int flags)
 {
 
 	agp_intel_gtt_install_pte(intel_agp, index, addr, flags);

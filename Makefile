@@ -131,7 +131,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	build32 distribute32 install32 buildsoft distributesoft installsoft \
 	builddtb xdev xdev-build xdev-install \
 	xdev-links native-xtools stageworld stagekernel stage-packages \
-	create-world-packages create-kernel-packages create-packages \
+	create-packages-world create-packages-kernel create-packages \
 	packages installconfig real-packages sign-packages package-pkg \
 	print-dir test-system-compiler
 
@@ -158,8 +158,18 @@ META_TGT_WHITELIST+= \
 	toolchains universe world worlds xdev xdev-build
 
 .ORDER: buildworld installworld
+.ORDER: buildworld distrib-dirs
+.ORDER: buildworld distribution
+.ORDER: buildworld distribute
 .ORDER: buildworld distributeworld
 .ORDER: buildworld buildkernel
+.ORDER: distrib-dirs distribute
+.ORDER: distrib-dirs distributeworld
+.ORDER: distrib-dirs installworld
+.ORDER: distribution distribute
+.ORDER: distributeworld distribute
+.ORDER: distributeworld distribution
+.ORDER: installworld distribute
 .ORDER: installworld distribution
 .ORDER: installworld installkernel
 .ORDER: buildkernel installkernel
@@ -195,7 +205,8 @@ HAVE_MAKE=	bmake
 .else
 HAVE_MAKE=	fmake
 .endif
-.if ${HAVE_MAKE} != ${WANT_MAKE} || \
+.if defined(ALWAYS_BOOTSTRAP_MAKE) || \
+    ${HAVE_MAKE} != ${WANT_MAKE} || \
     (defined(WANT_MAKE_VERSION) && ${MAKE_VERSION} < ${WANT_MAKE_VERSION})
 NEED_MAKE_UPGRADE= t
 .endif

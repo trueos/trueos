@@ -1,6 +1,8 @@
 #ifndef _LINUX_STOP_MACHINE
 #define _LINUX_STOP_MACHINE
 
+#include <sys/sched.h>
+
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/list.h>

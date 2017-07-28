@@ -449,9 +449,6 @@ void acpi_initialize_hp_context(struct acpi_device *adev,
 				int (*notify)(struct acpi_device *, u32),
 				void (*uevent)(struct acpi_device *, u32));
 
-/* acpi_device.dev.bus == &acpi_bus_type */
-extern struct bus_type acpi_bus_type;
-
 /*
  * Events
  * ------

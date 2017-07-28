@@ -1461,6 +1461,10 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (rdev->family >= CHIP_BONAIRE)
 		radeon_doorbell_init(rdev);
 
+#ifdef __FreeBSD__
+#define	DEVICE_COUNT_RESOURCE	5
+#endif
+
 	/* io port mapping */
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
 		if (pci_resource_flags(rdev->pdev, i) & IORESOURCE_IO) {
@@ -1476,7 +1480,7 @@ int radeon_device_init(struct radeon_device *rdev,
 
 			rdev->rio_mem = (void *)rman_get_bushandle(res);
 			rdev->rio_mem_size = rman_get_size(res);
-			rdev->rio_rid = rid;
+			rdev->rio_rid = i;
 #else
 			rdev->rio_mem_size = pci_resource_len(rdev->pdev, i);
 			rdev->rio_mem = pci_iomap(rdev->pdev, i, rdev->rio_mem_size);

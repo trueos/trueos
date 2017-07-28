@@ -29,6 +29,22 @@
 #ifndef	_LINUX_RBTREE_H
 #define	_LINUX_RBTREE_H
 
+/*
+ * Include some FreeBSD headers which depend on tree.h.
+ */
+#include <sys/param.h>
+#include <sys/socket.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
+
+#include <netinet/in.h>
+#include <netinet/in_var.h>
+
+#undef RB_ROOT
+#undef RB_RED
+#undef RB_BLACK
+
 #include <linux/stddef.h>
 #include <linux/rcupdate.h>
 

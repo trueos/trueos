@@ -196,9 +196,6 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
 	return (i);
 }
 
-#define	irqs_disabled() (curthread->td_critnest != 0 || curthread->td_intr_nesting_level != 0)
-
-
 /*
  * The "pr_debug()" and "pr_devel()" macros should produce zero code
  * unless DEBUG is defined:
@@ -297,7 +294,7 @@ scnprintf(char *buf, size_t size, const char *fmt, ...)
   
 #define	ARRAY_SIZE(x)	(sizeof(x) / sizeof((x)[0]))
 
-#define	u64_to_user_ptr(x)	((void __user *)(uintptr_t)(x))
+#define	u64_to_user_ptr(val)	((void *)(uintptr_t)(val))
 
 static inline unsigned long long
 simple_strtoull(const char *cp, char **endp, unsigned int base)

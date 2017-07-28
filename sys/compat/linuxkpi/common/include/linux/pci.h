@@ -68,7 +68,7 @@
 struct pci_device_id {
 	uint32_t	vendor;
 	uint32_t	device;
-        uint32_t	subvendor;
+	uint32_t	subvendor;
 	uint32_t	subdevice;
 	uint32_t	class;
 	uint32_t	class_mask;
@@ -76,6 +76,13 @@ struct pci_device_id {
 };
 
 #define	MODULE_DEVICE_TABLE(bus, table)
+
+#define	PCI_BASE_CLASS_DISPLAY		0x03
+#define	PCI_CLASS_DISPLAY_VGA		0x0300
+#define	PCI_CLASS_DISPLAY_OTHER		0x0380
+#define	PCI_BASE_CLASS_BRIDGE		0x06
+#define	PCI_CLASS_BRIDGE_ISA		0x0601
+
 #define	PCI_ANY_ID		(-1)
 #define	PCI_VENDOR_ID_APPLE		0x106b
 #define	PCI_VENDOR_ID_ASUSTEK		0x1043
@@ -156,13 +163,6 @@ struct pci_device_id {
 #define	IORESOURCE_IO	(1 << SYS_RES_IOPORT)
 #define	IORESOURCE_IRQ	(1 << SYS_RES_IRQ)
 
-enum pci_bus_speed {
-	PCI_SPEED_UNKNOWN = -1,
-	PCIE_SPEED_2_5GT,
-	PCIE_SPEED_5_0GT,
-	PCIE_SPEED_8_0GT,
-};
-
 enum pcie_link_width {
 	PCIE_LNK_WIDTH_UNKNOWN = 0xFF,
 };
@@ -198,8 +198,8 @@ struct pci_driver {
 	int  (*suspend) (struct pci_dev *dev, pm_message_t state);	/* Device suspended */
 	int  (*resume) (struct pci_dev *dev);		/* Device woken up */
 	void (*shutdown) (struct pci_dev *dev);		/* Device shutdown */
-	driver_t			bsd_driver;
-	devclass_t			*bsdclass;
+	driver_t			bsddriver;
+	devclass_t			bsdclass;
 	char				*busname;
 	struct device_driver	driver;
         const struct pci_error_handlers       *err_handler;
@@ -223,7 +223,6 @@ struct pci_bus {
 	struct pci_ops	*ops;		/* configuration access functions */
 
 	unsigned char	number;		/* bus number */
-	unsigned char   max_bus_speed;  /* enum pci_bus_speed */
 	struct device		dev;
 };
 
@@ -241,8 +240,8 @@ struct pci_dev {
 	unsigned int		irq;
 	uint16_t		subsystem_vendor; /* XXXMJ are these set? */
 	uint16_t		subsystem_device;
-	unsigned int		class;
-	u8			revision;
+	uint32_t		class;
+	uint8_t			revision;
 
 	unsigned int		msi_enabled:1;
 };
@@ -845,14 +844,6 @@ pcie_capability_write_word(struct pci_dev *dev, int pos, u16 val)
                 return 0;
 
         return pci_write_config_word(dev, pci_pcie_cap(dev) + pos, val);
-}
-
-static inline int pcie_get_minimum_link(struct pci_dev *dev,
-    enum pci_bus_speed *speed, enum pcie_link_width *width)
-{
-	*speed = PCI_SPEED_UNKNOWN;
-	*width = PCIE_LNK_WIDTH_UNKNOWN;
-	return (0);
 }
 
 static inline int

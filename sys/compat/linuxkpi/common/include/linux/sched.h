@@ -60,8 +60,6 @@
 
 #define	TASK_COMM_LEN		(MAXCOMLEN + 1)
 
-struct seq_file;
-
 struct task_struct {
 	struct thread *task_thread;
 	struct mm_struct *mm;
@@ -76,7 +74,6 @@ struct task_struct {
 	atomic_t state;
 	pid_t	pid;	/* BSD thread ID */
 	const char *comm;
-	int	prio;
 
 	void   *bsd_ioctl_data;
 	unsigned bsd_ioctl_len;
