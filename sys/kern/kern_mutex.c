@@ -233,7 +233,8 @@ __mtx_lock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 
 	m = mtxlock2mtx(c);
 
-	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	KASSERT(kdb_active != 0 || SCHEDULER_STOPPED() ||
+	    !TD_IS_IDLETHREAD(curthread),
 	    ("mtx_lock() by idle thread %p on sleep mutex %s @ %s:%d",
 	    curthread, m->lock_object.lo_name, file, line));
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
@@ -390,7 +391,7 @@ _mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file, int line)
 
 	m = mtxlock2mtx(c);
 
-	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(td),
 	    ("mtx_trylock() by idle thread %p on sleep mutex %s @ %s:%d",
 	    curthread, m->lock_object.lo_name, file, line));
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
@@ -765,7 +766,7 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
 	    contested, waittime, file, line);
 #ifdef KDTRACE_HOOKS
-	if (spin_time != 0)
+	if (lda.spin_cnt != 0)
 		LOCKSTAT_RECORD1(spin__spin, m, spin_time);
 #endif
 }
@@ -878,7 +879,7 @@ retry:
 		LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(spin__acquire, m,
 		    contested, waittime, file, line);
 #ifdef KDTRACE_HOOKS
-	if (spin_time != 0)
+	if (lda.spin_cnt != 0)
 		LOCKSTAT_RECORD1(thread__spin, m, spin_time);
 #endif
 }

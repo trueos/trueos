@@ -506,6 +506,17 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->rx_rings[i].vaddr = vaddrs[i * nrxqs + 1];
 		softc->rx_rings[i].paddr = paddrs[i * nrxqs + 1];
 
+		/* Allocate the TPA start buffer */
+		softc->rx_rings[i].tpa_start = malloc(sizeof(struct bnxt_full_tpa_start) *
+	    		(RX_TPA_START_CMPL_AGG_ID_MASK >> RX_TPA_START_CMPL_AGG_ID_SFT),
+	    		M_DEVBUF, M_NOWAIT | M_ZERO);
+		if (softc->rx_rings[i].tpa_start == NULL) {
+			rc = -ENOMEM;
+			device_printf(softc->dev,
+					"Unable to allocate space for TPA\n");
+			goto tpa_alloc_fail;
+		}
+
 		/* Allocate the AG ring */
 		softc->ag_rings[i].phys_id = (uint16_t)HWRM_NA_SIGNATURE;
 		softc->ag_rings[i].softc = softc;
@@ -571,7 +582,10 @@ rss_grp_alloc_fail:
 	iflib_dma_free(&softc->vnic_info.rss_hash_key_tbl);
 rss_hash_alloc_fail:
 	iflib_dma_free(&softc->vnic_info.mc_list);
+tpa_alloc_fail:
 mc_list_alloc_fail:
+	for (i = i - 1; i >= 0; i--)
+		free(softc->rx_rings[i].tpa_start, M_DEVBUF);
 	iflib_dma_free(&softc->rx_stats);
 hw_stats_alloc_fail:
 	free(softc->grp_info, M_DEVBUF);
@@ -635,16 +649,6 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (rc)
 		goto dma_fail;
 
-	/* Allocate the TPA start buffer */
-	softc->tpa_start = malloc(sizeof(struct bnxt_full_tpa_start) *
-	    (RX_TPA_START_CMPL_AGG_ID_MASK >> RX_TPA_START_CMPL_AGG_ID_SFT),
-	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (softc->tpa_start == NULL) {
-		rc = ENOMEM;
-		device_printf(softc->dev,
-		    "Unable to allocate space for TPA\n");
-		goto tpa_failed;
-	}
 
 	/* Get firmware version and compare with driver */
 	softc->ver_info = malloc(sizeof(struct bnxt_ver_info),
@@ -684,6 +688,12 @@ bnxt_attach_pre(if_ctx_t ctx)
 	rc = bnxt_hwrm_func_drv_rgtr(softc);
 	if (rc) {
 		device_printf(softc->dev, "attach: hwrm drv rgtr failed\n");
+		goto drv_rgtr_fail;
+	}
+
+        rc = bnxt_hwrm_func_rgtr_async_events(softc, NULL, 0);
+	if (rc) {
+		device_printf(softc->dev, "attach: hwrm rgtr async evts failed\n");
 		goto drv_rgtr_fail;
 	}
 
@@ -751,12 +761,12 @@ bnxt_attach_pre(if_ctx_t ctx)
 	    scctx->isc_nrxd[1];
 	scctx->isc_rxqsizes[2] = sizeof(struct rx_prod_pkt_bd) *
 	    scctx->isc_nrxd[2];
-	scctx->isc_max_rxqsets = min(pci_msix_count(softc->dev)-1,
+	scctx->isc_nrxqsets_max = min(pci_msix_count(softc->dev)-1,
 	    softc->func.max_cp_rings - 1);
-	scctx->isc_max_rxqsets = min(scctx->isc_max_rxqsets,
+	scctx->isc_nrxqsets_max = min(scctx->isc_nrxqsets_max,
 	    softc->func.max_rx_rings);
-	scctx->isc_max_txqsets = min(softc->func.max_rx_rings,
-	    softc->func.max_cp_rings - scctx->isc_max_rxqsets - 1);
+	scctx->isc_ntxqsets_max = min(softc->func.max_rx_rings,
+	    softc->func.max_cp_rings - scctx->isc_nrxqsets_max - 1);
 	scctx->isc_rss_table_size = HW_HASH_INDEX_SIZE;
 	scctx->isc_rss_table_mask = scctx->isc_rss_table_size - 1;
 
@@ -814,8 +824,6 @@ nvm_alloc_fail:
 ver_fail:
 	free(softc->ver_info, M_DEVBUF);
 ver_alloc_fail:
-	free(softc->tpa_start, M_DEVBUF);
-tpa_failed:
 	bnxt_free_hwrm_dma_mem(softc);
 dma_fail:
 	BNXT_HWRM_LOCK_DESTROY(softc);
@@ -877,7 +885,8 @@ bnxt_detach(if_ctx_t ctx)
 	SLIST_FOREACH_SAFE(tag, &softc->vnic_info.vlan_tags, next, tmp)
 		free(tag, M_DEVBUF);
 	iflib_dma_free(&softc->def_cp_ring_mem);
-	free(softc->tpa_start, M_DEVBUF);
+	for (i = 0; i < softc->nrxqsets; i++)
+		free(softc->rx_rings[i].tpa_start, M_DEVBUF);
 	free(softc->ver_info, M_DEVBUF);
 	free(softc->nvm_info, M_DEVBUF);
 
@@ -1009,14 +1018,17 @@ bnxt_init(if_ctx_t ctx)
 	if (rc)
 		goto fail;
 
-#ifdef notyet
-	/* Enable LRO/TPA/GRO */
+	/* 
+         * Enable LRO/TPA/GRO 
+         * TBD: 
+         *      Enable / Disable HW_LRO based on
+         *      ifconfig lro / ifconfig -lro setting
+         */
 	rc = bnxt_hwrm_vnic_tpa_cfg(softc, &softc->vnic_info,
 	    (if_getcapenable(iflib_get_ifp(ctx)) & IFCAP_LRO) ?
 	    HWRM_VNIC_TPA_CFG_INPUT_FLAGS_TPA : 0);
 	if (rc)
 		goto fail;
-#endif
 
 	for (i = 0; i < softc->ntxqsets; i++) {
 		/* Allocate the statistics context */
@@ -2280,11 +2292,11 @@ bnxt_report_link(struct bnxt_softc *softc)
 		    HWRM_PORT_PHY_QCFG_OUTPUT_PAUSE_RX)
 			flow_ctrl = "FC - receive";
 		else
-			flow_ctrl = "none";
+			flow_ctrl = "FC - none";
 		iflib_link_state_change(softc->ctx, LINK_STATE_UP,
 		    IF_Gbps(100));
-		device_printf(softc->dev, "Link is UP %s, %s\n", duplex,
-		    flow_ctrl);
+		device_printf(softc->dev, "Link is UP %s, %s - %d Mbps \n", duplex,
+		    flow_ctrl, (softc->link_info.link_speed * 100));
 	} else {
 		iflib_link_state_change(softc->ctx, LINK_STATE_DOWN,
 		    bnxt_get_baudrate(&softc->link_info));

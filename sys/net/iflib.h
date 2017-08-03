@@ -33,7 +33,6 @@
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <machine/bus.h>
-#include <sys/bus_dma.h>
 #include <sys/nv.h>
 #include <sys/gtaskqueue.h>
 
@@ -201,8 +200,6 @@ typedef struct if_softc_ctx {
 	uint8_t isc_txd_size[8];
 	uint8_t isc_rxd_size[8];
 
-	int isc_max_txqsets;
-	int isc_max_rxqsets;
 	int isc_tx_tso_segments_max;
 	int isc_tx_tso_size_max;
 	int isc_tx_tso_segsize_max;

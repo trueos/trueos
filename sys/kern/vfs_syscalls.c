@@ -2106,7 +2106,7 @@ cvtstat(struct stat *st, struct ostat *ost)
 }
 #endif /* COMPAT_43 */
 
-#if defined(COMPAT_FREEBSD11)
+#if defined(COMPAT_43) || defined(COMPAT_FREEBSD11)
 int ino64_trunc_error;
 SYSCTL_INT(_vfs, OID_AUTO, ino64_trunc_error, CTLFLAG_RW,
     &ino64_trunc_error, 0,
@@ -2484,7 +2484,7 @@ kern_readlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		return (error);
 	}
 #endif
-	if (vp->v_type != VLNK)
+	if (vp->v_type != VLNK && (vp->v_vflag & VV_READLINK) == 0)
 		error = EINVAL;
 	else {
 		aiov.iov_base = buf;

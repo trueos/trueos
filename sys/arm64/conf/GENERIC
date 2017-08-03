@@ -89,6 +89,7 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 
 # SoC support
 options 	SOC_ALLWINNER_A64
+options 	SOC_ALLWINNER_H5
 options 	SOC_CAVM_THUNDERX
 options 	SOC_HISI_HI6220
 options 	SOC_BRCM_BCM2837
@@ -176,6 +177,7 @@ device		aw_rsb		# Allwinner Reduced Serial Bus
 device		bcm2835_bsc	# Broadcom BCM283x I2C bus
 device		iicbus
 device		iic
+device		twsi		# Allwinner I2C controller
 
 # Clock and reset controllers
 device		aw_ccu		# Allwinner clock controller
