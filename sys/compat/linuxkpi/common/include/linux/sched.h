@@ -35,17 +35,17 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
+#include <sys/sleepqueue.h>
+#include <sys/time.h>
 
+#include <linux/bitmap.h>
 #include <linux/compat.h>
 #include <linux/completion.h>
+#include <linux/mm_types.h>
 #include <linux/pid.h>
 #include <linux/slab.h>
-#include <linux/mm_types.h>
-#include <linux/time64.h>
 #include <linux/string.h>
-#include <linux/bitmap.h>
-#include <linux/atomic.h>
-#include <linux/smp.h>
+#include <linux/time.h>
 
 #include <asm/atomic.h>
 
@@ -116,15 +116,6 @@ put_task_struct(struct task_struct *task)
 		linux_free_current(task);
 }
 
-static inline u64
-local_clock(void)
-{
-	struct timespec ts;
-
-	nanotime(&ts);
-	return (ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
-}
-
 #define	cond_resched()	if (!cold)	sched_relinquish(curthread)
 
 #define	need_resched()	(curthread->td_flags & TDF_NEEDRESCHED)
@@ -165,9 +156,13 @@ int linux_schedule_timeout(int timeout);
 #define	io_schedule()			schedule()
 #define	io_schedule_timeout(timeout)	schedule_timeout(timeout)
 
-#define	yield() kern_yield(PRI_UNCHANGED)
+static inline uint64_t
+local_clock(void)
+{
+	struct timespec ts;
 
-#define	io_schedule()			schedule()
-#define	io_schedule_timeout(timeout)	schedule_timeout(timeout)
+	nanotime(&ts);
+	return ((uint64_t)ts.tv_sec * NSEC_PER_SEC + ts.tv_nsec);
+}
 
 #endif	/* _LINUX_SCHED_H_ */
