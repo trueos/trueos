@@ -31,44 +31,42 @@
 
 #include_next <linux/scatterlist.h>
 
-/*
- * XXX please review these
- *
- * XXXMJ curoff is ignored
- */
 static inline size_t
 sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
-    const void *buf, size_t buflen, off_t skip)
+    const void *buf, size_t buflen, off_t offset)
 {
 	struct sg_page_iter iter;
 	struct scatterlist *sg;
 	struct page *page;
 	void *vaddr;
-	off_t off;
-	int len, curlen, curoff;
+	size_t total = 0;
+	size_t len;
 
-	off = 0;
 	for_each_sg_page(sgl, &iter, nents, 0) {
 		sg = iter.sg;
-		curlen = sg->length;
-		curoff = sg->offset;
-		if (skip != 0 && curlen >= skip) {
-			skip -= curlen;
+
+		if (offset >= sg->length) {
+			offset -= sg->length;
 			continue;
 		}
-		if (skip != 0) {
-			curlen -= skip;
-			curoff += skip;
-			skip = 0;
-		}
-		len = min(curlen, buflen - off);
+		len = min(buflen, sg->length - offset);
+		if (len == 0)
+			break;
+
 		page = sg_page_iter_page(&iter);
-		vaddr = ((caddr_t)kmap(page)) + sg->offset;
-		memcpy(vaddr, (const char *)buf + off, len);
-		off += len;
+		vaddr = ((caddr_t)kmap(page)) + sg->offset + offset;
+		memcpy(vaddr, buf, len);
 		kunmap(page);
+
+		/* start at beginning of next page */
+		offset = 0;
+
+		/* advance buffer */
+		buf = (const char *)buf + len;
+		buflen -= len;
+		total += len;
 	}
-	return (off);
+	return (total);
 }
 
 static inline size_t
@@ -80,37 +78,40 @@ sg_copy_from_buffer(struct scatterlist *sgl, unsigned int nents,
 
 static inline size_t
 sg_pcopy_to_buffer(struct scatterlist *sgl, unsigned int nents,
-    void *buf, size_t buflen, off_t skip)
+    void *buf, size_t buflen, off_t offset)
 {
 	struct sg_page_iter iter;
 	struct scatterlist *sg;
 	struct page *page;
 	void *vaddr;
-	off_t off;
-	int len, curlen, curoff;
+	size_t total = 0;
+	size_t len;
 
-	off = 0;
 	for_each_sg_page(sgl, &iter, nents, 0) {
 		sg = iter.sg;
-		curlen = sg->length;
-		curoff = sg->offset;
-		if (skip != 0 && curlen >= skip) {
-			skip -= curlen;
+
+		if (offset >= sg->length) {
+			offset -= sg->length;
 			continue;
 		}
-		if (skip != 0) {
-			curlen -= skip;
-			curoff += skip;
-			skip = 0;
-		}
-		len = min(curlen, buflen - off);
+		len = min(buflen, sg->length - offset);
+		if (len == 0)
+			break;
+
 		page = sg_page_iter_page(&iter);
-		vaddr = (caddr_t)kmap(page) + sg->offset;
-		memcpy(((caddr_t)buf) + off, vaddr, len);
-		off += len;
+		vaddr = ((caddr_t)kmap(page)) + sg->offset + offset;
+		memcpy(buf, vaddr, len);
 		kunmap(page);
+
+		/* start at beginning of next page */
+		offset = 0;
+
+		/* advance buffer */
+		buf = (char *)buf + len;
+		buflen -= len;
+		total += len;
 	}
-	return (off);
+	return (total);
 }
 
-#endif /* _LINUX_GPLV2_SCATTERLIST_H_ */
+#endif					/* _LINUX_GPLV2_SCATTERLIST_H_ */
