@@ -29,7 +29,8 @@ SRCS=	linux_kmod_gplv2.c	\
 SRCS+=	bus_if.h		\
 	device_if.h		\
 	pci_if.h		\
-	vnode_if.h
+	vnode_if.h		\
+	opt_acpi.h
 
 CFLAGS+= -include ${SRCTOP}/sys/dev/drm/drm_os_config.h
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/gplv2/include
