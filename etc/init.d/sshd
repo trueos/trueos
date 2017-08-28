@@ -4,6 +4,7 @@ name="sshd"
 command=/usr/sbin/sshd
 command_args=$sshd_args
 pidfile=/var/run/sshd.pid
+command_args_background="-o PidFile=${pidfile}"
 required_files=/etc/ssh/sshd_config
 extra_commands="keygen configtest"
 
