@@ -1,16 +1,15 @@
 #!/sbin/openrc-run
 
 command=/usr/sbin/automountd
+command_args="-d"
 name="autofs Mounting Daemon"
+pidfile="/var/run/automountdaemond.pid"
+supervisor=supervise-daemon
+supervise_daemon_args="-1 /var/log/automountdaemond.log -2 /var/log/automountdaemond.log"
 
 depend()
 {
-	need localmount
-	use net logger dns
-	before inetd xinetd
-}
-
-stop_post()
-{
-	sleep 1
+        need localmount
+        use net logger dns
+        before inetd xinetd
 }
