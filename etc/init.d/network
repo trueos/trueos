@@ -65,7 +65,9 @@ start()
 	ifnet_rename $cmdifn
 
 	# Configure the interface(s).
-	netif_common ifn_start $cmdifn
+	if [ -n "$cmdifn" ] ; then
+	  netif_common ifn_start $cmdifn
+	fi
 
 	#if [ -f /etc/rc.d/ipfilter ] ; then
 		# Resync ipfilter
