@@ -11,7 +11,7 @@ FILES=          abi accounting adjkerntz amd auditd auditdistd automount automou
 		blacklistd bluetooth bootmisc bridge cron \
 		devd devfs dumpon encswap fsck ftpd ftp-proxy \
 		gssd hostid hostname inetd iscsictl iscsid ipfw jail \
-		ldconfig local localmount local_unbound lockd loopback hostapd \
+		ldconfig local localmount local_unbound lockd loopback lpd hostapd \
 		mixer modules mountd mountlate moused motd \
 		natd netmount network newsyslog nfsclient nfsd nfsuserd nisdomain nsswitch \
 		nscd pf pflog powerd rarpd rc-enabled root routing rpcbind runsvdir \
