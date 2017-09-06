@@ -4,7 +4,7 @@ name="NFS Automount Client"
 
 depend()
 {
-	need localmount nfsclient automountd
+	need localmount nfsclient automountd autounmountd
 	use net logger dns
 	before inetd xinetd
 }

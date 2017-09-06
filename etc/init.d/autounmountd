@@ -2,7 +2,7 @@
 
 command=/usr/sbin/autounmountd
 command_args="-d $autounmountd_args ${autounmountd_flags}"
-name="autofs Unmounting Daemon"
+name="autounmountd"
 pidfile="/var/run/autounmountdaemond.pid"
 supervisor=supervise-daemon
 supervise_daemon_args="-1 /var/log/autounmountdaemond.log -2 /var/log/autounmountdaemond.log"

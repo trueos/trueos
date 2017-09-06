@@ -2,7 +2,7 @@
 
 command=/usr/sbin/automountd
 command_args="-d"
-name="autofs Mounting Daemon"
+name="automountd"
 pidfile="/var/run/automountdaemond.pid"
 supervisor=supervise-daemon
 supervise_daemon_args="-1 /var/log/automountdaemond.log -2 /var/log/automountdaemond.log"
