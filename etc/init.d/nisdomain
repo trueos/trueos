@@ -17,7 +17,6 @@ start()
 	#
 	case ${nisdomainname} in
 	[Nn][Oo]|'')
-			mark_service_inactive
 			return 0
 		;;
 	*)

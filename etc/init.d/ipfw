@@ -40,7 +40,6 @@ start()
 
 	if [ -r "${firewall_script}" ]; then
 		/bin/sh "${firewall_script}" "${_firewall_type}"
-		einfo 'Firewall rules loaded.'
 	elif [ "`ipfw list 65535`" = "65535 deny ip from any to any" ]; then
 		ewarn 'Warning: kernel has firewall functionality, but' \
 		    ' firewall rules are not enabled.'
@@ -50,12 +49,10 @@ start()
 	# Firewall logging
 	#
 	if yesno firewall_logging; then
-		einfo 'Firewall logging enabled.'
 		sysctl net.inet.ip.fw.verbose=1 >/dev/null
 	fi
 	if yesno firewall_logif; then
 		ifconfig ipfw0 create
-		einfo 'Firewall logging pseudo-interface (ipfw0) created.'
 	fi
 	eend 0
 }
@@ -75,12 +72,12 @@ start_post()
 	# Enable the firewall
 	#
 	if ! ${SYSCTL} net.inet.ip.fw.enable=1 1>/dev/null 2>&1; then
-		warn "failed to enable IPv4 firewall"
+		ewarn "failed to enable IPv4 firewall"
 	fi
 	if afexists inet6; then
 		if ! ${SYSCTL} net.inet6.ip6.fw.enable=1 1>/dev/null 2>&1
 		then
-			warn "failed to enable IPv6 firewall"
+			ewarn "failed to enable IPv6 firewall"
 		fi
 	fi
 }
