@@ -20,7 +20,6 @@ start()
 	err=0
 	mount -a -L
 	err=$?
-	echo '.'
 
 	case ${err} in
 	0)

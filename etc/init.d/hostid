@@ -27,15 +27,13 @@ _set()
 		id=$(echo "$1" | md5)
 		id="0x${id%????????????????????????}"
 	fi
-	ebegin "Setting Host ID: $id"
 	sysctl -w kern.hostid="$id" >/dev/null
-	eend $? || return 1
+	if [ $? -ne 0 ] ; then return 1 ; fi
 
 	if sysctl -n kern.hostuuid >/dev/null 2>&1; then
 		[ -n "$1" ] && id=$1
-		ebegin "Setting Host UUID: $id"
 		sysctl kern.hostuuid="$id" >/dev/null
-		eend $? || return 1
+		if [ $? -ne 0 ] ; then return 1 ; fi
 	fi
 
 }

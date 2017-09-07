@@ -44,7 +44,7 @@ unmount_all()
 
 start()
 {
-	ebegin "Enabling NFS Client support"
+	ebegin "Starting ${name}"
 	nfsclient_start
 	eend $?
 }
