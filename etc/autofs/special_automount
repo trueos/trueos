@@ -43,7 +43,7 @@ print_map_entry() {
 		fi
 		;;
 	"msdosfs")
-		echo "-fstype=${_fstype},nosuid,async,-M=777,-o=large	:/dev/${_p}" 
+		echo "-fstype=${_fstype},nosuid,async	:/dev/${_p}" 
 		;;
 	"exfat")
 		#NOTE: EXFAT might be detected as an invalid NTFS - will probably need some verification/adjustment
