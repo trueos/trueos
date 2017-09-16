@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 # Vendor sources and generated files
 LDNSDIR= ${SRCTOP}/contrib/ldns
 UNBOUNDDIR= ${SRCTOP}/contrib/unbound
@@ -12,5 +14,9 @@ SRCS=	acl_list.c cachedump.c daemon.c remote.c stats.c ub_event.c \
 CFLAGS+=	-I${UNBOUNDDIR} -I${LDNSDIR}
 LIBADD=	unbound util ssl crypto pthread
 MAN=	unbound.8 unbound.conf.5
+
+.if ${MK_LIBRESSL} != "no"
+CFLAGS+= -DHAVE_LIBRESSL=1
+.endif
 
 .include <bsd.prog.mk>

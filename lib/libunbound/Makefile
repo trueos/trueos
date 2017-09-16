@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 PACKAGE=lib${LIB}
 # Vendor sources and generated files
 LDNSDIR= ${SRCTOP}/contrib/ldns
@@ -40,5 +42,9 @@ CLEANFILES+= configlexer.l
 # Symbol prefix for lex and yacc
 LFLAGS= -Pub_c_
 YFLAGS= -pub_c_ -d
+
+.if ${MK_LIBRESSL} != "no"
+CFLAGS+= -DHAVE_LIBRESSL=1
+.endif
 
 .include <bsd.lib.mk>
