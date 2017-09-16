@@ -5,7 +5,7 @@
 /*-
  * Copyright (c) 1999 James Howard and Dag-Erling Coïdan Smørgrav
  * Copyright (C) 2008-2010 Gabor Kovesdan <gabor@FreeBSD.org>
- * Copyright (C) 2017 Kyle Evans <kevans91@ksu.edu>
+ * Copyright (C) 2017 Kyle Evans <kevans@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -259,16 +259,8 @@ procfile(const char *fn)
 		pc.ln.boff = 0;
 		pc.ln.off += pc.ln.len + 1;
 		if ((pc.ln.dat = grep_fgetln(f, &pc.ln.len)) == NULL ||
-		    pc.ln.len == 0) {
-			if (pc.ln.line_no == 0 && matchall)
-				/*
-				 * An empty file with an empty pattern and the
-				 * -w flag does not match
-				 */
-				exit(matchall && wflag ? 1 : 0);
-			else
-				break;
-		}
+		    pc.ln.len == 0)
+			break;
 
 		if (pc.ln.len > 0 && pc.ln.dat[pc.ln.len - 1] == fileeol)
 			--pc.ln.len;

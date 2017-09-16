@@ -183,9 +183,7 @@ kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 	int error;
 
 	kobj->parent = kobject_get(parent);
-	error = sysfs_create_dir_ns(kobj, NULL);
-	if (error)
-		log(LOG_ERR, "sysfs_create_dir_ns failed: %d\n", error);
+	error = sysfs_create_dir(kobj);
 	if (error == 0 && kobj->ktype && kobj->ktype->default_attrs) {
 		struct attribute **attr;
 		t = kobj->ktype;
@@ -201,8 +199,6 @@ kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 		}
 		
 	}
-	if (error == 0)
-		kobj->state_in_sysfs = 1;
 	return (error);
 }
 
@@ -229,10 +225,7 @@ linux_kobject_release(struct kref *kref)
 	char *name;
 
 	kobj = container_of(kref, struct kobject, kref);
-	/* we need to work out how to do this in a way that it works */
-	if (kobj->state_in_sysfs) {
-		kobject_del(kobj);
-	}
+	sysfs_remove_dir(kobj);
 	name = kobj->name;
 	if (kobj->ktype && kobj->ktype->release)
 		kobj->ktype->release(kobj);
@@ -479,9 +472,8 @@ void
 linux_file_free(struct linux_file *filp)
 {
 	if (filp->_file == NULL) {
-		if (filp->_shmem != NULL)
-			vm_object_deallocate(filp->_shmem);
-
+		if (filp->f_shmem != NULL)
+			vm_object_deallocate(filp->f_shmem);
 		kfree(filp);
 	} else {
 		/*
@@ -493,11 +485,57 @@ linux_file_free(struct linux_file *filp)
 }
 
 static int
+linux_cdev_pager_fault(vm_object_t vm_obj, vm_ooffset_t offset, int prot,
+    vm_page_t *mres)
+{
+	struct vm_area_struct *vmap;
+
+	vmap = linux_cdev_handle_find(vm_obj->handle);
+
+	MPASS(vmap != NULL);
+	MPASS(vmap->vm_private_data == vm_obj->handle);
+
+	if (likely(vmap->vm_ops != NULL && offset < vmap->vm_len)) {
+		vm_paddr_t paddr = IDX_TO_OFF(vmap->vm_pfn) + offset;
+		vm_page_t page;
+
+		if (((*mres)->flags & PG_FICTITIOUS) != 0) {
+			/*
+			 * If the passed in result page is a fake
+			 * page, update it with the new physical
+			 * address.
+			 */
+			page = *mres;
+			vm_page_updatefake(page, paddr, vm_obj->memattr);
+		} else {
+			/*
+			 * Replace the passed in "mres" page with our
+			 * own fake page and free up the all of the
+			 * original pages.
+			 */
+			VM_OBJECT_WUNLOCK(vm_obj);
+			page = vm_page_getfake(paddr, vm_obj->memattr);
+			VM_OBJECT_WLOCK(vm_obj);
+
+			vm_page_replace_checked(page, vm_obj,
+			    (*mres)->pindex, *mres);
+
+			vm_page_lock(*mres);
+			vm_page_free(*mres);
+			vm_page_unlock(*mres);
+			*mres = page;
+		}
+		page->valid = VM_PAGE_BITS_ALL;
+		return (VM_PAGER_OK);
+	}
+	return (VM_PAGER_FAIL);
+}
+
+static int
 linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
     vm_prot_t max_prot, vm_pindex_t *first, vm_pindex_t *last)
 {
 	struct vm_area_struct *vmap;
-	struct vm_fault vmf;
 	int err;
 
 	linux_set_current(curthread);
@@ -507,18 +545,20 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 	MPASS(vmap != NULL);
 	MPASS(vmap->vm_private_data == vm_obj->handle);
 
-	/* fill out VM fault structure */
-	vmf.virtual_address = (void *)((uintptr_t)pidx << PAGE_SHIFT);
-	vmf.flags = (fault_type & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
-	vmf.pgoff = 0;
-	vmf.page = NULL;
-
 	VM_OBJECT_WUNLOCK(vm_obj);
 
 	down_write(&vmap->vm_mm->mmap_sem);
-	if (unlikely(vmap->vm_ops == NULL || vmap->vm_ops->fault == NULL)) {
+	if (unlikely(vmap->vm_ops == NULL)) {
 		err = VM_FAULT_SIGBUS;
 	} else {
+		struct vm_fault vmf;
+
+		/* fill out VM fault structure */
+		vmf.virtual_address = (void *)((uintptr_t)pidx << PAGE_SHIFT);
+		vmf.flags = (fault_type & VM_PROT_WRITE) ? FAULT_FLAG_WRITE : 0;
+		vmf.pgoff = 0;
+		vmf.page = NULL;
+
 		vmap->vm_pfn_count = 0;
 		vmap->vm_pfn_pcount = &vmap->vm_pfn_count;
 		vmap->vm_obj = vm_obj;
@@ -650,10 +690,19 @@ linux_cdev_pager_dtor(void *handle)
 	linux_cdev_handle_free(vmap);
 }
 
-static struct cdev_pager_ops linux_cdev_pager_ops = {
+static struct cdev_pager_ops linux_cdev_pager_ops[2] = {
+  {
+	/* OBJT_MGTDEVICE */
 	.cdev_pg_populate	= linux_cdev_pager_populate,
 	.cdev_pg_ctor	= linux_cdev_pager_ctor,
 	.cdev_pg_dtor	= linux_cdev_pager_dtor
+  },
+  {
+	/* OBJT_DEVICE */
+	.cdev_pg_fault	= linux_cdev_pager_fault,
+	.cdev_pg_ctor	= linux_cdev_pager_ctor,
+	.cdev_pg_dtor	= linux_cdev_pager_dtor
+  },
 };
 
 static int
@@ -1170,7 +1219,7 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	vmap->vm_end = size;
 	vmap->vm_pgoff = *offset / PAGE_SIZE;
 	vmap->vm_pfn = 0;
-	vmap->vm_flags = vmap->vm_page_prot = nprot;
+	vmap->vm_flags = vmap->vm_page_prot = (nprot & VM_PROT_ALL);
 	vmap->vm_ops = NULL;
 	vmap->vm_file = get_file(filp);
 	vmap->vm_mm = mm;
@@ -1203,8 +1252,15 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 
 		vmap = linux_cdev_handle_insert(vm_private_data, vmap);
 
-		*object = cdev_pager_allocate(vm_private_data, OBJT_MGTDEVICE,
-		    &linux_cdev_pager_ops, size, nprot, *offset, curthread->td_ucred);
+		if (vmap->vm_ops->fault == NULL) {
+			*object = cdev_pager_allocate(vm_private_data, OBJT_DEVICE,
+			    &linux_cdev_pager_ops[1], size, nprot, *offset,
+			    curthread->td_ucred);
+		} else {
+			*object = cdev_pager_allocate(vm_private_data, OBJT_MGTDEVICE,
+			    &linux_cdev_pager_ops[0], size, nprot, *offset,
+			    curthread->td_ucred);
+		}
 
 		if (*object == NULL) {
 			linux_cdev_handle_remove(vmap);
@@ -1215,7 +1271,8 @@ linux_dev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 		struct sglist *sg;
 
 		sg = sglist_alloc(1, M_WAITOK);
-		sglist_append_phys(sg, (vm_paddr_t)vmap->vm_pfn << PAGE_SHIFT, vmap->vm_len);
+		sglist_append_phys(sg,
+		    (vm_paddr_t)vmap->vm_pfn << PAGE_SHIFT, vmap->vm_len);
 
 		*object = vm_pager_allocate(OBJT_SG, sg, vmap->vm_len,
 		    nprot, 0, curthread->td_ucred);
@@ -1369,6 +1426,21 @@ linux_file_fill_kinfo(struct file *fp, struct kinfo_file *kif,
 	return (0);
 }
 
+unsigned int
+linux_iminor(struct inode *inode)
+{
+	struct linux_cdev *ldev;
+
+	if (inode == NULL || inode->v_rdev == NULL ||
+	    inode->v_rdev->si_devsw != &linuxcdevsw)
+		return (-1U);
+	ldev = inode->v_rdev->si_drv1;
+	if (ldev == NULL)
+		return (-1U);
+
+	return (minor(ldev->dev));
+}
+
 struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
 	.fo_write = invfo_rdwr,
@@ -1466,7 +1538,7 @@ void *
 vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 {
 	vm_offset_t off;
-	size_t size;
+	vm_size_t size;
 	int attr;
 
 	size = count * PAGE_SIZE;
@@ -1476,6 +1548,10 @@ vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 	vmmap_add((void *)off, size);
 	attr = pgprot2cachemode(prot);
 	pmap_qenter(off, pages, count);
+	if (pmap_change_attr(off, size, attr) != 0) {
+		vunmap((void *)off);
+		return (NULL);
+	}
 
 	return ((void *)off);
 }
@@ -1536,7 +1612,7 @@ linux_timer_callback_wrapper(void *context)
 }
 
 void
-mod_timer(struct timer_list *timer, unsigned long expires)
+mod_timer(struct timer_list *timer, int expires)
 {
 
 	timer->expires = expires;
@@ -1598,10 +1674,10 @@ linux_complete_common(struct completion *c, int all)
 /*
  * Indefinite wait for done != 0 with or without signals.
  */
-long
+int
 linux_wait_for_common(struct completion *c, int flags)
 {
-	long error;
+	int error;
 
 	if (unlikely(SKIP_SLEEP()))
 		return (0);
@@ -1638,10 +1714,11 @@ intr:
 /*
  * Time limited wait for done != 0 with or without signals.
  */
-long
-linux_wait_for_timeout_common(struct completion *c, long timeout, int flags)
+int
+linux_wait_for_timeout_common(struct completion *c, int timeout, int flags)
 {
-	long end = jiffies + timeout, error;
+	int end = jiffies + timeout;
+	int error;
 	int ret;
 
 	if (SKIP_SLEEP())
@@ -1928,13 +2005,13 @@ linux_in_atomic(void)
 struct linux_cdev *
 linux_find_cdev(const char *name, unsigned major, unsigned minor)
 {
-	int unit = MKDEV(major, minor);
+	dev_t dev = MKDEV(major, minor);
 	struct cdev *cdev;
 
 	dev_lock();
 	LIST_FOREACH(cdev, &linuxcdevsw.d_devs, si_list) {
 		struct linux_cdev *ldev = cdev->si_drv1;
-		if (dev2unit(cdev) == unit &&
+		if (ldev->dev == dev &&
 		    strcmp(kobject_name(&ldev->kobj), name) == 0) {
 			break;
 		}
@@ -2039,7 +2116,7 @@ linux_compat_init(void *arg)
 	for (i = 0; i < VMMAP_HASH_SIZE; i++)
 		LIST_INIT(&vmmaphead[i]);
 }
-SYSINIT(linux_compat, SI_SUB_VFS, SI_ORDER_ANY, linux_compat_init, NULL);
+SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);
 
 static void
 linux_compat_uninit(void *arg)
@@ -2052,7 +2129,7 @@ linux_compat_uninit(void *arg)
 	spin_lock_destroy(&pci_lock);
 	rw_destroy(&linux_vma_lock);
 }
-SYSUNINIT(linux_compat, SI_SUB_VFS, SI_ORDER_ANY, linux_compat_uninit, NULL);
+SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);
 
 /*
  * NOTE: Linux frequently uses "unsigned long" for pointer to integer

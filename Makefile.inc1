@@ -87,7 +87,8 @@ OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
 
 # Pull in compiler metadata from buildworld/toolchain if possible to avoid
 # running CC from bsd.compiler.mk.
-.if make(installworld) || make(install)
+.if make(installworld) || make(install) || make(distributeworld) || \
+    make(stageworld)
 .-include "${OBJTREE}${.CURDIR}/compiler-metadata.mk"
 .endif
 
@@ -149,7 +150,8 @@ TEST_SYSTEM_COMPILER_VARS= \
 	WANT_COMPILER_TYPE WANT_COMPILER_VERSION WANT_COMPILER_VERSION_FILE \
 	WANT_COMPILER_FREEBSD_VERSION WANT_COMPILER_FREEBSD_VERSION_FILE \
 	CC COMPILER_TYPE COMPILER_FEATURES COMPILER_VERSION \
-	COMPILER_FREEBSD_VERSION
+	COMPILER_FREEBSD_VERSION \
+	LINKER_TYPE LINKER_VERSION
 test-system-compiler: .PHONY
 .for v in ${TEST_SYSTEM_COMPILER_VARS}
 	${_+_}@printf "%-35s= %s\n" "${v}" "${${v}}"
@@ -181,7 +183,9 @@ CROSSENV+=	COMPILER_VERSION=${X_COMPILER_VERSION} \
 _COMPILER_METADATA_VARS=	COMPILER_VERSION \
 				COMPILER_TYPE \
 				COMPILER_FEATURES \
-				COMPILER_FREEBSD_VERSION
+				COMPILER_FREEBSD_VERSION \
+				LINKER_VERSION \
+				LINKER_TYPE
 compiler-metadata.mk: .PHONY .META
 	@: > ${.TARGET}
 	@echo ".info Using cached compiler metadata from build at $$(hostname) on $$(date)" \
@@ -341,6 +345,12 @@ SVN=   ${_P}/${_S}
 . endfor
 .endif
 SVNFLAGS?=	-r HEAD
+.if !defined(VCS_REVISION) && empty(VCS_REVISION)
+_VCS_REVISION?=	$$(eval ${SVNVERSION_CMD} ${SRCDIR})
+. if !empty(_VCS_REVISION)
+VCS_REVISION=	$$(echo r${_VCS_REVISION})
+. endif
+.endif
 
 .if !defined(OSRELDATE)
 .if exists(/usr/include/osreldate.h)
@@ -439,7 +449,7 @@ BUILD_ARCH!=	uname -p
 .endif
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
-BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
+BPATH=		${CCACHE_WRAPPER_PATH_PFX}${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
 XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin
 STRICTTMPPATH=	${BPATH}:${XPATH}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
@@ -619,8 +629,7 @@ XCFLAGS+=	-isystem ${WORLDTMP}/usr/include -L${WORLDTMP}/usr/lib
 # combined with --sysroot.
 XCFLAGS+=	-B${WORLDTMP}/usr/lib
 # Force using libc++ for external GCC.
-# XXX: This should be checking MK_GNUCXX == no
-.if ${X_COMPILER_VERSION} >= 40800
+.if ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800
 XCXXFLAGS+=	-isystem ${WORLDTMP}/usr/include/c++/v1 -std=c++11 \
 		-nostdinc++
 .endif
@@ -650,7 +659,8 @@ LIBCOMPAT= SOFT
 # when the ABI breaks though that we want to force rebuilding WORLDTMP
 # to get updated host tools.
 .if ${MK_META_MODE} == "yes" && defined(NO_CLEAN) && \
-    !defined(NO_META_IGNORE_HOST) && !defined(NO_META_IGNORE_HOST_HEADERS)
+    !defined(NO_META_IGNORE_HOST) && !defined(NO_META_IGNORE_HOST_HEADERS) && \
+    !make(showconfig)
 # r318736 - ino64 major ABI breakage
 META_MODE_BAD_ABI_VERS+=	1200031
 
@@ -713,6 +723,7 @@ _INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
 INSTALL_DDIR=	${_INSTALL_DDIR:S://:/:g:C:/$::}
 .if defined(NO_ROOT)
 METALOG?=	${DESTDIR}/${DISTDIR}/METALOG
+METALOG:=	${METALOG:C,//+,/,g}
 IMAKE+=		-DNO_ROOT METALOG=${METALOG}
 INSTALLFLAGS+=	-U -M ${METALOG} -D ${INSTALL_DDIR}
 MTREEFLAGS+=	-W
@@ -754,16 +765,37 @@ _worldtmp: .PHONY
 	rm -rf ${LIBCOMPATTMP}
 .endif
 .else
-	rm -rf ${WORLDTMP}/legacy/usr/include
+.if exists(${WORLDTMP})
+	@echo ">>> Deleting stale files in build tree..."
+	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+	    delete-old delete-old-libs >/dev/null
 .endif
-# Dependencies cannot cope with certain source tree changes, particularly
-# with respect to removing source files and replacing generated files.
-# Handle these cases here in an ad-hoc fashion.
-# 20160829 remove stale dependencies for ptrace stub, rewritten in C
-# in r305012
-.for f in ptrace
+.if defined(LIBCOMPAT) && exists(${LIBCOMPATTMP})
+	${_+_}cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
+	    DESTDIR=${LIBCOMPATTMP} \
+	    delete-old delete-old-libs >/dev/null
+.endif
+	rm -rf ${WORLDTMP}/legacy/usr/include
+.if ${USING_SYSTEM_COMPILER} == "yes"
+.for cc in cc c++
+	if [ -x ${WORLDTMP}/usr/bin/${cc} ]; then \
+		inum=$$(stat -f %i ${WORLDTMP}/usr/bin/${cc}); \
+		find ${WORLDTMP}/usr/bin -inum $${inum} -delete; \
+	fi
+.endfor
+.endif	# ${USING_SYSTEM_COMPILER} == "yes"
+
+# Our current approach to dependency tracking cannot cope with certain source
+# tree changes, particularly with respect to removing source files and
+# replacing generated files.  Handle these cases here in an ad-hoc fashion.
+#
+# Syscall stubs rewritten in C
+# Date      SVN Rev  Syscalls
+# 20160829  r305012  ptrace
+# 20170624  r320278  fstat fstatat fstatfs getdirentries getfsstat statfs
+.for f in fstat fstatat fstatfs getdirentries getfsstat ptrace statfs           
 .if exists(${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o)
-	@if egrep -q '/${f}.[sS]' \
+	@if egrep -qw '${f}\.[sS]' \
 	    ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.o; then \
 		echo Removing stale dependencies for ${f} syscall wrappers; \
 		rm -f ${OBJTREE}${.CURDIR}/lib/libc/.depend.${f}.* \
@@ -794,6 +826,9 @@ _worldtmp: .PHONY
 	    ${OBJTREE}${.CURDIR}/world32/${.CURDIR}/lib/libc/.depend.${f}.*
 .endif
 .endfor
+
+.endif	# !defined(NO_CLEAN)
+
 .for _dir in \
     lib lib/casper usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
@@ -877,7 +912,7 @@ _cross-tools:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3: cross tools"
 	@echo "--------------------------------------------------------------"
-	@rm -f ${.OBJDIR}/compiler-metadata.mk
+	@rm -f ${OBJTREE}${.CURDIR}/compiler-metadata.mk
 	${_+_}cd ${.CURDIR}; ${XMAKE} cross-tools
 	${_+_}cd ${.CURDIR}; ${XMAKE} kernel-tools
 _build-metadata:
@@ -1463,20 +1498,24 @@ packagekernel: .PHONY
 	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
 .endif
+.if ${MK_DEBUG_FILES} != "no"
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - --include '*/*/*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
+.endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - --exclude '*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
+.if ${MK_DEBUG_FILES} != "no"
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - --include '*/*/*.debug' \
 	    @${DESTDIR}/${DISTDIR}/kernel.${_kernel}.meta | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
+.endif
 .endfor
 .endif
 .else
@@ -1485,17 +1524,21 @@ packagekernel: .PHONY
 	    tar cvf - --exclude '*.debug' . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.txz
 .endif
+.if ${MK_DEBUG_FILES} != "no"
 	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel-dbg.txz
+.endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
 .for _kernel in ${BUILDKERNELS:[2..-1]}
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - --exclude '*.debug' . | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/kernel.${_kernel}.txz
+.if ${MK_DEBUG_FILES} != "no"
 	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
 	    tar cvf - --include '*/*/*.debug' $$(eval find .) | \
 	    ${XZ_CMD} > ${DESTDIR}/${DISTDIR}/kernel.${_kernel}-dbg.txz
+.endif
 .endfor
 .endif
 .endif
@@ -1531,20 +1574,35 @@ package-pkg: .PHONY
 
 real-packages:	stage-packages create-packages sign-packages .PHONY
 
-stage-packages: .PHONY
-	@mkdir -p ${REPODIR} ${WSTAGEDIR} ${KSTAGEDIR}
+stage-packages-world: .PHONY
+	@mkdir -p ${WSTAGEDIR}
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} DESTDIR=${WSTAGEDIR} -DNO_ROOT -B stageworld ; \
-		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT -B stagekernel
+		${MAKE} DESTDIR=${WSTAGEDIR} -DNO_ROOT stageworld
 
-create-packages:	_pkgbootstrap .PHONY
-	@mkdir -p ${REPODIR}
+stage-packages-kernel: .PHONY
+	@mkdir -p ${KSTAGEDIR}
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} DESTDIR=${WSTAGEDIR} \
-			PKG_VERSION=${PKG_VERSION} create-world-packages ; \
-		${MAKE} DESTDIR=${KSTAGEDIR} \
+		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT stagekernel
+
+stage-packages: .PHONY stage-packages-world stage-packages-kernel
+
+_repodir: .PHONY
+	@mkdir -p ${REPODIR}
+
+create-packages-world:	_pkgbootstrap _repodir .PHONY
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} -f Makefile.inc1 \
+			DESTDIR=${WSTAGEDIR} \
+			PKG_VERSION=${PKG_VERSION} create-world-packages
+
+create-packages-kernel:	_pkgbootstrap _repodir .PHONY
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} -f Makefile.inc1 \
+			DESTDIR=${KSTAGEDIR} \
 			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
 			create-kernel-packages
+
+create-packages: .PHONY create-packages-world create-packages-kernel
 
 create-world-packages:	_pkgbootstrap .PHONY
 	@rm -f ${WSTAGEDIR}/*.plist 2>/dev/null || :
@@ -1552,28 +1610,48 @@ create-world-packages:	_pkgbootstrap .PHONY
 		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		${WSTAGEDIR}/METALOG
 	@for plist in ${WSTAGEDIR}/*.plist; do \
-		plist=$${plist##*/} ; \
-		pkgname=$${plist%.plist} ; \
-		sh ${SRCDIR}/release/packages/generate-ucl.sh -o $${pkgname} \
-			-s ${SRCDIR} -u ${WSTAGEDIR}/$${pkgname}.ucl ; \
-	done
-	@for plist in ${WSTAGEDIR}/*.plist; do \
-		plist=$${plist##*/} ; \
-		pkgname=$${plist%.plist} ; \
-		awk -F\" ' \
-			/^name/ { printf("===> Creating %s-", $$2); next } \
-			/^version/ { print $$2; next } \
-			' ${WSTAGEDIR}/$${pkgname}.ucl ; \
-		${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
-			create -M ${WSTAGEDIR}/$${pkgname}.ucl \
-			-p ${WSTAGEDIR}/$${pkgname}.plist \
-			-r ${WSTAGEDIR} \
-			-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
-	done
+	  plist=$${plist##*/} ; \
+	  pkgname=$${plist%.plist} ; \
+	  echo "_PKGS+= $${pkgname}" ; \
+	done > ${WSTAGEDIR}/packages.mk
+	${_+_}@cd ${.CURDIR}; \
+		${MAKE} -f Makefile.inc1 create-world-packages-jobs \
+		.MAKE.JOB.PREFIX=
 
-create-kernel-packages:	_pkgbootstrap .PHONY
+.if make(create-world-packages-jobs)
+.include "${WSTAGEDIR}/packages.mk"
+.endif
+
+create-world-packages-jobs: .PHONY
+.for pkgname in ${_PKGS}
+create-world-packages-jobs: create-world-package-${pkgname}
+create-world-package-${pkgname}: .PHONY
+	@sh ${SRCDIR}/release/packages/generate-ucl.sh -o ${pkgname} \
+		-s ${SRCDIR} -u ${WSTAGEDIR}/${pkgname}.ucl
+	@awk -F\" ' \
+		/^name/ { printf("===> Creating %s-", $$2); next } \
+		/^version/ { print $$2; next } \
+		' ${WSTAGEDIR}/${pkgname}.ucl
+	@if [ "${pkgname}" == "runtime" ]; then \
+		sed -i '' -e "s/%KERNCONF%/${INSTALLKERNEL:tl}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
+		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
+	fi
+	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+		create -M ${WSTAGEDIR}/${pkgname}.ucl \
+		-p ${WSTAGEDIR}/${pkgname}.plist \
+		-r ${WSTAGEDIR} \
+		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
+.endfor
+
+create-kernel-packages:	.PHONY
+_default_flavor=	-default
 .if exists(${KSTAGEDIR}/kernel.meta)
-.for flavor in "" -debug
+. if ${MK_DEBUG_FILES} != "no"
+_debug=-debug
+. endif
+. for flavor in "" ${_debug}
+create-kernel-packages: create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}
+create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/${DISTDIR} ; \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${INSTALLKERNEL} \
@@ -1586,6 +1664,7 @@ create-kernel-packages:	_pkgbootstrap .PHONY
 		-e "s/%DESC%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
 		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
+		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
 		${SRCDIR}/release/packages/kernel.ucl \
 		> ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	awk -F\" ' \
@@ -1597,12 +1676,17 @@ create-kernel-packages:	_pkgbootstrap .PHONY
 		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
 		-r ${KSTAGEDIR}/${DISTDIR} \
 		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
-.endfor
+. endfor
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
-.for _kernel in ${BUILDKERNELS:[2..-1]}
-.if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
-.for flavor in "" -debug
+. for _kernel in ${BUILDKERNELS:[2..-1]}
+.  if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
+.   if ${MK_DEBUG_FILES} != "no"
+_debug=-debug
+.   endif
+.   for flavor in "" ${_debug}
+create-kernel-packages: create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}
+create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/kernel.${_kernel} ; \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${_kernel} \
@@ -1615,6 +1699,7 @@ create-kernel-packages:	_pkgbootstrap .PHONY
 		-e "s/%DESC%/FreeBSD ${_kernel} kernel ${flavor}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
 		-e "s/%PWD_MKDB_ENDIAN%/$${pwd_arg}/g" \
+		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
 		${SRCDIR}/release/packages/kernel.ucl \
 		> ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	awk -F\" ' \
@@ -1626,9 +1711,9 @@ create-kernel-packages:	_pkgbootstrap .PHONY
 		-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
 		-r ${KSTAGEDIR}/kernel.${_kernel} \
 		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
-.endfor
-.endif
-.endfor
+.   endfor
+.  endif
+. endfor
 .endif
 
 sign-packages:	_pkgbootstrap .PHONY
@@ -2278,11 +2363,12 @@ _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
 _cddl_lib_libavl= cddl/lib/libavl
 _cddl_lib_libuutil= cddl/lib/libuutil
+.if ${MK_ZFS} != "no"
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
+cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
+.endif
 _cddl_lib_libctf= cddl/lib/libctf
 _cddl_lib= cddl/lib
-cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
-cddl/lib/libzfs__L: lib/libgeom__L
 cddl/lib/libctf__L: lib/libz__L
 .endif
 # cddl/lib/libdtrace requires lib/libproc and lib/librtld_db; it's only built
@@ -2681,8 +2767,7 @@ CD2CFLAGS+=	-isystem ${XDDESTDIR}/usr/include -L${XDDESTDIR}/usr/lib
 # combined with --sysroot.
 CD2CFLAGS+=	-B${XDDESTDIR}/usr/lib
 # Force using libc++ for external GCC.
-# XXX: This should be checking MK_GNUCXX == no
-.if ${X_COMPILER_VERSION} >= 40800
+.if ${X_COMPILER_TYPE} == gcc && ${X_COMPILER_VERSION} >= 40800
 CD2CXXFLAGS+=	-isystem ${XDDESTDIR}/usr/include/c++/v1 -std=c++11 \
 		-nostdinc++
 .endif
@@ -2700,9 +2785,6 @@ CD2MAKE=${CD2ENV} PATH=${CDTMP}/usr/bin:${XDDESTDIR}/usr/bin:${PATH} ${MAKE} ${N
 CD2MAKE+=	BUILD_TOOLS_META=.NOMETA
 .endif
 XDDESTDIR=${DESTDIR}/${XDTP}
-.if !defined(OSREL)
-OSREL!= uname -r | sed -e 's/[-(].*//'
-.endif
 
 .ORDER: xdev-build xdev-install xdev-links
 xdev: xdev-build xdev-install .PHONY
@@ -2796,7 +2878,7 @@ xdev-links: .PHONY
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}-$$i; \
 			ln -sf ../../${XDTP}/usr/bin/$$i \
-			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
+			    ../../../../usr/bin/${XDDIR}${_REVISION}-$$i; \
 		done
 .else
 xdev xdev-build xdev-install xdev-links: .PHONY

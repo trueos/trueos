@@ -39,6 +39,8 @@
             ..
             expansion
             ..
+            invocation
+            ..
             parameters
             ..
             parser
@@ -378,6 +380,10 @@
         ..
         mdconfig
         ..
+        pfctl
+            files
+            ..
+        ..
     ..
     secure
         lib
@@ -396,7 +402,11 @@
                 ..
                 plain
                 ..
+                tap
+                ..
             ..
+        ..
+        zoneinfo
         ..
     ..
     sys
@@ -492,6 +502,8 @@
             truncate
             ..
             unlink
+            ..
+            utimensat
             ..
         ..
         posixshm
@@ -637,6 +649,8 @@
         grep
         ..
         gzip
+        ..
+        hexdump
         ..
         ident
         ..

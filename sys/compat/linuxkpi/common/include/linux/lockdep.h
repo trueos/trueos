@@ -40,15 +40,15 @@ struct lock_class_key {
 
 #define	lockdep_set_class_and_name(lock, key, name)
 
+#define	lockdep_assert_held(m)				\
+	sx_assert(&(m)->sx, SA_XLOCKED)
+
 #define	lockdep_assert_held_once(m)			\
 	sx_assert(&(m)->sx, SA_XLOCKED | SA_NOTRECURSED)
 
+#define	lockdep_is_held(m)	(sx_xholder(&(m)->sx) == curthread)
+
 #define might_lock(lock) do { } while (0)
 #define might_lock_read(lock) do { } while (0)
-
-#define lockdep_assert_held(m)
-
-/* XXX */
-#define lockdep_is_held(m) 
 
 #endif /* _LINUX_LOCKDEP_H_ */

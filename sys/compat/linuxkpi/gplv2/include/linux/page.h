@@ -3,6 +3,8 @@
 
 #include_next <linux/page.h>
 
+#define PAGE_KERNEL_IO  0x0000
+
 /* XXX note that this is incomplete */
 void *kmap(vm_page_t page);
 void *kmap_atomic(vm_page_t page);

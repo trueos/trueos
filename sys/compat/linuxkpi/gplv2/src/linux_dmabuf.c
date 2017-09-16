@@ -85,6 +85,8 @@ struct fileops dma_buf_fileops  = {
 	.fo_flags = DFLAG_PASSABLE|DFLAG_SEEKABLE,
 };
 
+/* XXX */
+#define	DTYPE_DMABUF	100
 
 #define fp_is_db(fp) ((fp)->f_ops == &dma_buf_fileops)
 

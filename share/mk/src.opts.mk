@@ -144,7 +144,6 @@ __DEFAULT_YES_OPTIONS = \
     PPP \
     QUOTAS \
     RADIUS_SUPPORT \
-    RCMDS \
     RBOOTD \
     RESCUE \
     ROUTED \
@@ -186,11 +185,14 @@ __DEFAULT_NO_OPTIONS = \
     NTP \
     OFED \
     OPENLDAP \
+    RCMDS \
     REPRODUCIBLE_BUILD \
     RPCBIND_WARMSTART_SUPPORT \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
     SVN \
+    ZONEINFO_LEAPSECONDS_SUPPORT \
+    ZONEINFO_OLD_TIMEZONES_SUPPORT \
 
 
 #
@@ -223,7 +225,7 @@ __TT=${MACHINE}
 # Clang is enabled, and will be installed as the default /usr/bin/cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC LLD
 __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
-.elif ${COMPILER_FEATURES:Mc++11} && ${__T} != "riscv64" && ${__T} != "sparc64"
+.elif ${COMPILER_FEATURES:Mc++11} && ${__T:Mriscv*} == "" && ${__T} != "sparc64"
 # If an external compiler that supports C++11 is used as ${CC} and Clang
 # supports the target, then Clang is enabled but GCC is installed as the
 # default /usr/bin/cc.
@@ -254,7 +256,7 @@ __DEFAULT_YES_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
 .else
 __DEFAULT_NO_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
 .endif
-.if ${__T} == "aarch64" || ${__T} == "amd64"
+.if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=LLDB
 .else
 __DEFAULT_NO_OPTIONS+=LLDB
@@ -281,7 +283,10 @@ BROKEN_OPTIONS+=SSP
 .if ${__T:Mmips*} || ${__T:Mpowerpc*} || ${__T:Msparc64} || ${__T:Mriscv*}
 BROKEN_OPTIONS+=EFI
 .endif
-
+.if ${__T:Mmips64*}
+# profiling won't work on MIPS64 because there is only assembly for o32
+BROKEN_OPTIONS+=PROFILE
+.endif
 .if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "i386" || \
     ${__T} == "powerpc64" || ${__T} == "sparc64"
 __DEFAULT_YES_OPTIONS+=CXGBETOOL
@@ -375,6 +380,10 @@ MK_ATM:=	no
 MK_BLUETOOTH:=	no
 .endif
 
+.if ${MK_NLS} == "no"
+MK_NLS_CATALOGS:= no
+.endif
+
 .if ${MK_OPENSSL} == "no"
 MK_OPENSSH:=	no
 MK_KERBEROS:=	no
@@ -386,6 +395,11 @@ MK_AUTHPF:=	no
 
 .if ${MK_TESTS} == "no"
 MK_DTRACE_TESTS:= no
+.endif
+
+.if ${MK_ZONEINFO} == "no"
+MK_ZONEINFO_LEAPSECONDS_SUPPORT:= no
+MK_ZONEINFO_OLD_TIMEZONES_SUPPORT:= no
 .endif
 
 .if ${MK_CROSS_COMPILER} == "no"

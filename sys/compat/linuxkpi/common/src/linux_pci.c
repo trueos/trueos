@@ -119,10 +119,8 @@ linux_pci_probe(device_t dev)
 		printf("linux_pci_find failed!\n");
 		return (ENXIO);
 	}
-	if (device_get_driver(dev) != &pdrv->bsd_driver) {
-		printf("device_get_driver failed!\n");
+	if (device_get_driver(dev) != &pdrv->bsddriver)
 		return (ENXIO);
-	}
 	device_set_desc(dev, pdrv->name);
 	return (0);
 }
@@ -131,49 +129,39 @@ static int
 linux_pci_attach(device_t dev)
 {
 	struct resource_list_entry *rle;
+	struct pci_bus *pbus;
 	struct pci_dev *pdev;
+	struct pci_devinfo *dinfo;
 	struct pci_driver *pdrv;
 	const struct pci_device_id *id;
-	struct pci_bus *pbus;
-	devclass_t dc;
-	device_t ggparent, gparent, parent;
-	int error, isroot;
+	device_t parent;
+	devclass_t devclass;
+	int error;
 
-	isroot = error = 0;
 	linux_set_current(curthread);
-	parent = device_get_parent(dev);
-	dc = device_get_devclass(parent);
-	if (strcmp(devclass_get_name(dc), "pci") != 0) {
-		device_set_ivars(dev, device_get_ivars(parent));
-		gparent = device_get_parent(parent);
-		ggparent = device_get_parent(gparent);
-		if (ggparent != NULL)
-			gparent = ggparent;
-	} else
-		gparent = device_get_parent(parent);
-
-	dc = device_get_devclass(gparent);
-	if (strcmp(devclass_get_name(dc), "nexus") == 0)
-		isroot = 1;
 
 	pdrv = linux_pci_find(dev, &id);
 	pdev = device_get_softc(dev);
-	pdev->dev.parent = &linux_root_device;
-	pdev->dev.bsddev = dev;
-	if (pdev->bus == NULL) {
-		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK|M_ZERO);
-		if (isroot == 0)
-			pbus->self = pdev;
-		pdev->bus = pbus;
+
+	parent = device_get_parent(dev);
+	devclass = device_get_devclass(parent);
+	if (pdrv->isdrm) {
+		dinfo = device_get_ivars(parent);
+		device_set_ivars(dev, dinfo);
+	} else {
+		dinfo = device_get_ivars(dev);
 	}
 
+	pdev->dev.parent = &linux_root_device;
+	pdev->dev.bsddev = dev;
 	INIT_LIST_HEAD(&pdev->dev.irqents);
-	pdev->bus->number = pci_get_bus(dev);
 	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
 	pdev->device = id->device;
 	pdev->vendor = id->vendor;
-	pdev->revision = pci_get_revid(dev);
+	pdev->subsystem_vendor = dinfo->cfg.subvendor;
+	pdev->subsystem_device = dinfo->cfg.subdevice;
 	pdev->class = pci_get_class(dev);
+	pdev->revision = pci_get_revid(dev);
 	pdev->dev.dma_mask = &pdev->dma_mask;
 	pdev->pdrv = pdrv;
 	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
@@ -186,6 +174,14 @@ linux_pci_attach(device_t dev)
 	else
 		pdev->dev.irq = LINUX_IRQ_INVALID;
 	pdev->irq = pdev->dev.irq;
+
+	if (pdev->bus == NULL) {
+		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK | M_ZERO);
+		pbus->self = pdev;
+		pdev->bus = pbus;
+		pdev->bus->number = pci_get_bus(dev);
+	}
+
 	DROP_GIANT();
 	spin_lock(&pci_lock);
 	list_add(&pdev->links, &pci_devices);
@@ -224,32 +220,47 @@ linux_pci_detach(device_t dev)
 static int
 linux_pci_suspend(device_t dev)
 {
+	const struct dev_pm_ops *pmops;
 	struct pm_message pm = { };
 	struct pci_dev *pdev;
-	int err;
+	int error;
 
+	error = 0;
 	linux_set_current(curthread);
 	pdev = device_get_softc(dev);
+	pmops = pdev->pdrv->driver.pm;
+
 	if (pdev->pdrv->suspend != NULL)
-		err = -pdev->pdrv->suspend(pdev, pm);
-	else
-		err = 0;
-	return (err);
+		error = -pdev->pdrv->suspend(pdev, pm);
+	else if (pmops != NULL && pmops->suspend != NULL) {
+		error = -pmops->suspend(&pdev->dev);
+		if (error == 0 && pmops->suspend_late != NULL)
+			error = -pmops->suspend_late(&pdev->dev);
+	}
+	return (error);
 }
 
 static int
 linux_pci_resume(device_t dev)
 {
+	const struct dev_pm_ops *pmops;
 	struct pci_dev *pdev;
-	int err;
+	int error;
 
+	error = 0;
 	linux_set_current(curthread);
 	pdev = device_get_softc(dev);
+	pmops = pdev->pdrv->driver.pm;
+
 	if (pdev->pdrv->resume != NULL)
-		err = -pdev->pdrv->resume(pdev);
-	else
-		err = 0;
-	return (err);
+		error = -pdev->pdrv->resume(pdev);
+	else if (pmops != NULL && pmops->resume != NULL) {
+		if (pmops->resume_early != NULL)
+			error = -pmops->resume_early(&pdev->dev);
+		if (error == 0 && pmops->resume != NULL)
+			error = -pmops->resume(&pdev->dev);
+	}
+	return (error);
 }
 
 static int
@@ -268,86 +279,63 @@ linux_pci_shutdown(device_t dev)
 }
 
 static int
-pci_default_suspend(struct pci_dev *dev, pm_message_t state __unused)
+_linux_pci_register_driver(struct pci_driver *pdrv, devclass_t dc)
 {
-        int err = 0;
-
-        if (dev->pdrv->driver.pm->suspend != NULL) {
-                err = -dev->pdrv->driver.pm->suspend(&(dev->dev));
-		if (err == 0 && dev->pdrv->driver.pm->suspend_late != NULL)
-			err = -dev->pdrv->driver.pm->suspend_late(&(dev->dev));
-	}
-
-        return (err);
-}
-
-static int
-pci_default_resume(struct pci_dev *dev)
-{
-        int err = 0;
-
-	if (dev->pdrv->driver.pm->resume_early != NULL )
-		if ((err = -dev->pdrv->driver.pm->resume_early(&(dev->dev)))) {
-			printf("resume early failed: %d\n", -err);
-			return (err);
-		}
-        if (dev->pdrv->driver.pm->resume != NULL)
-                err = -dev->pdrv->driver.pm->resume(&(dev->dev));
-	if (err)
-		printf("resume failed: %d\n", -err);
-        return (err);
-}
-
-int
-pci_register_driver(struct pci_driver *pdrv)
-{
-	devclass_t bus;
-	int error = 0;
-
-	if (pdrv->busname != NULL)
-		bus = devclass_create(pdrv->busname);
-	else
-		bus = devclass_find("pci");
+	int error;
 
 	linux_set_current(curthread);
 	spin_lock(&pci_lock);
 	list_add(&pdrv->links, &pci_drivers);
 	spin_unlock(&pci_lock);
-	pdrv->bsd_driver.name = pdrv->name;
-	pdrv->bsd_driver.methods = pci_methods;
-	if (pdrv->suspend == NULL)
-		pdrv->suspend = pci_default_suspend;
-	if (pdrv->resume == NULL)
-		pdrv->resume = pci_default_resume;
-
-	pdrv->bsd_driver.size = sizeof(struct pci_dev);
+	pdrv->bsddriver.name = pdrv->name;
+	pdrv->bsddriver.methods = pci_methods;
+	pdrv->bsddriver.size = sizeof(struct pci_dev);
 
 	mtx_lock(&Giant);
-	if (bus != NULL) {
-		error = devclass_add_driver(bus, &pdrv->bsd_driver, BUS_PASS_DEFAULT,
-		    pdrv->bsdclass);
-		if (error)
-			printf("devclass_add_driver failed with %d\n", error);
-	} else
-		error = -ENXIO;
+	error = devclass_add_driver(dc, &pdrv->bsddriver,
+	    BUS_PASS_DEFAULT, &pdrv->bsdclass);
 	mtx_unlock(&Giant);
 
 	return (-error);
 }
 
+int
+linux_pci_register_driver(struct pci_driver *pdrv)
+{
+	devclass_t dc;
+
+	dc = devclass_find("pci");
+	if (dc == NULL)
+		return (-ENXIO);
+	pdrv->isdrm = false;
+	return (_linux_pci_register_driver(pdrv, dc));
+}
+
+int
+linux_pci_register_drm_driver(struct pci_driver *pdrv)
+{
+	devclass_t dc;
+
+	dc = devclass_create("vgapci");
+	if (dc == NULL)
+		return (-ENXIO);
+	pdrv->isdrm = true;
+	pdrv->name = "drmn";
+	return (_linux_pci_register_driver(pdrv, dc));
+}
+
 void
-pci_unregister_driver(struct pci_driver *pdrv)
+linux_pci_unregister_driver(struct pci_driver *pdrv)
 {
 	devclass_t bus;
 
-	if (pdrv->busname != NULL)
-		bus = devclass_create(pdrv->busname);
-	else
-		bus = devclass_find("pci");
+	bus = devclass_find("pci");
 
+	spin_lock(&pci_lock);
 	list_del(&pdrv->links);
+	spin_unlock(&pci_lock);
 	mtx_lock(&Giant);
 	if (bus != NULL)
-		devclass_delete_driver(bus, &pdrv->bsd_driver);
+		devclass_delete_driver(bus, &pdrv->bsddriver);
 	mtx_unlock(&Giant);
 }

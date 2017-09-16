@@ -68,7 +68,9 @@ __pm_runtime_idle(struct device *dev, int rpmflags)
 static inline void
 pm_runtime_get_noresume(struct device *dev)
 {
+#ifndef __FreeBSD__
 	atomic_inc(&dev->power.usage_count);
+#endif
 }
 
 static inline int pm_runtime_resume(struct device *dev)
@@ -96,7 +98,9 @@ pm_runtime_put(struct device *dev)
 
 static inline void pm_runtime_put_noidle(struct device *dev)
 {
+#ifndef __FreeBSD__
 	atomic_add_unless(&dev->power.usage_count, -1, 0);
+#endif
 }
 
 static inline int

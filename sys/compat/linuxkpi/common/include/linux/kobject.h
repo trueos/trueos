@@ -33,35 +33,18 @@
 
 #include <machine/stdarg.h>
 
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/sysfs.h>
-#include <linux/compiler.h>
-#include <linux/spinlock.h>
+#include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 struct kobject;
 struct sysctl_oid;
-struct pfs_node;
-
-enum kobject_action {
-	KOBJ_ADD,
-	KOBJ_REMOVE,
-	KOBJ_CHANGE,
-	KOBJ_MOVE,
-	KOBJ_ONLINE,
-	KOBJ_OFFLINE,
-	KOBJ_MAX
-};
 
 struct kobj_type {
 	void (*release)(struct kobject *kobj);
 	const struct sysfs_ops *sysfs_ops;
 	struct attribute **default_attrs;
-};
-
-struct kobj_uevent_env {
 };
 
 extern const struct kobj_type linux_kfree_type;
@@ -73,12 +56,15 @@ struct kobject {
 	const struct kobj_type	*ktype;
 	struct list_head	entry;
 	struct sysctl_oid	*oidp;
-	struct pfs_node		*sd;
-	unsigned int state_in_sysfs:1;
 };
 
 extern struct kobject *mm_kobj;
 
+struct attribute {
+	const char 	*name;
+	struct module	*owner;
+	mode_t		mode;
+};
 
 struct kobj_attribute {
         struct attribute attr;
@@ -96,7 +82,6 @@ kobject_init(struct kobject *kobj, const struct kobj_type *ktype)
 	INIT_LIST_HEAD(&kobj->entry);
 	kobj->ktype = ktype;
 	kobj->oidp = NULL;
-	kobj->state_in_sysfs = 0;
 }
 
 void linux_kobject_release(struct kref *kref);
@@ -157,25 +142,13 @@ kobject_name(const struct kobject *kobj)
 	return kobj->name;
 }
 
-int	kobject_set_name(struct kobject *kobj, const char *fmt, ...);
-int	kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
-	    struct kobject *parent, const char *fmt, ...);
-
 static inline void
 kobject_del(struct kobject *kobj)
 {
-	if (!kobj)
-		return;
-	sysfs_remove_dir(kobj);
-	kobj->state_in_sysfs = 0;
-	/* list removal? */
-	kobject_put(kobj->parent);
-	kobj->parent = NULL;
 }
 
-static inline void
-kobject_uevent_env(struct kobject *kobj, enum kobject_action action, char *envp_ext[])
-{
-}
+int	kobject_set_name(struct kobject *kobj, const char *fmt, ...);
+int	kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
+	    struct kobject *parent, const char *fmt, ...);
 
 #endif /* _LINUX_KOBJECT_H_ */

@@ -11,17 +11,10 @@
 
 command=/usr/sbin/rpc.statd
 command_args=$lockd_args
-name="Host Status Monitoring Daemon"
+name="statd"
 
 depend()
 {
 	need localmount rpcbind
 	use net logger dns
-	before inetd xinetd
-}
-
-stop_post()
-{
-	# lockd returns too fast, so sleep for a second
-	sleep 1
 }

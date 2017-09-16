@@ -33,7 +33,6 @@
 #define _DRM_P_H_
 
 #if defined(_KERNEL) || defined(__KERNEL__)
-#define _SYS_TREE_H_
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
@@ -60,6 +59,7 @@
 #include <sys/poll.h>
 #include <sys/sbuf.h>
 #include <sys/taskqueue.h>
+#include <sys/resourcevar.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -111,6 +111,7 @@
 #include <linux/ioctl.h>
 #include <linux/workqueue.h>
 #include <linux/fence.h>
+#include <linux/math64.h>
 
 #include <drm/drm_hashtab.h>
 

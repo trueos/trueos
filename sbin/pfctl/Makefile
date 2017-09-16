@@ -31,4 +31,6 @@ YFLAGS=
 
 LIBADD=	m md
 
+SUBDIR.${MK_TESTS}+= tests
+
 .include <bsd.prog.mk>

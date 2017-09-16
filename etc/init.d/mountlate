@@ -18,16 +18,14 @@ start()
 	# Mount "late" filesystems.
 	#
 	err=0
-	echo -n 'Mounting late filesystems:'
 	mount -a -L
 	err=$?
-	echo '.'
 
 	case ${err} in
 	0)
 		;;
 	*)
-		echo 'Mounting /etc/fstab filesystems failed,' \
+		ewarn 'Mounting /etc/fstab filesystems failed,' \
 		    ' startup aborted'
 		stop_boot true
 		;;

@@ -101,30 +101,39 @@ static sig_atomic_t got_siginfo;
 static void infohandler(int);
 
 static void
-printheader(xo_handle_t *xo, const struct kerneldumpheader *h, const char *device,
-    int bounds, const int status)
+printheader(xo_handle_t *xo, const struct kerneldumpheader *h,
+    const char *device, int bounds, const int status)
 {
 	uint64_t dumplen;
 	time_t t;
 	const char *stat_str;
 
 	xo_flush_h(xo);
-	xo_emit_h(xo, "{Lwc:Dump header from device}{:dump_device/%s}\n", device);
-	xo_emit_h(xo, "{P:  }{Lwc:Architecture}{:architecture/%s}\n", h->architecture);
-	xo_emit_h(xo, "{P:  }{Lwc:Architecture Version}{:architecture_version/%u}\n", dtoh32(h->architectureversion));
+	xo_emit_h(xo, "{Lwc:Dump header from device}{:dump_device/%s}\n",
+	    device);
+	xo_emit_h(xo, "{P:  }{Lwc:Architecture}{:architecture/%s}\n",
+	    h->architecture);
+	xo_emit_h(xo,
+	    "{P:  }{Lwc:Architecture Version}{:architecture_version/%u}\n",
+	    dtoh32(h->architectureversion));
 	dumplen = dtoh64(h->dumplength);
-	xo_emit_h(xo, "{P:  }{Lwc:Dump Length}{:dump_length_bytes/%lld}\n", (long long)dumplen);
-	xo_emit_h(xo, "{P:  }{Lwc:Blocksize}{:blocksize/%d}\n", dtoh32(h->blocksize));
+	xo_emit_h(xo, "{P:  }{Lwc:Dump Length}{:dump_length_bytes/%lld}\n",
+	    (long long)dumplen);
+	xo_emit_h(xo, "{P:  }{Lwc:Blocksize}{:blocksize/%d}\n",
+	    dtoh32(h->blocksize));
+
 	t = dtoh64(h->dumptime);
 	xo_emit_h(xo, "{P:  }{Lwc:Dumptime}{:dumptime/%s}", ctime(&t));
 	xo_emit_h(xo, "{P:  }{Lwc:Hostname}{:hostname/%s}\n", h->hostname);
 	xo_emit_h(xo, "{P:  }{Lwc:Magic}{:magic/%s}\n", h->magic);
-	xo_emit_h(xo, "{P:  }{Lwc:Version String}{:version_string/%s}", h->versionstring);
-	xo_emit_h(xo, "{P:  }{Lwc:Panic String}{:panic_string/%s}\n", h->panicstring);
+	xo_emit_h(xo, "{P:  }{Lwc:Version String}{:version_string/%s}",
+	    h->versionstring);
+	xo_emit_h(xo, "{P:  }{Lwc:Panic String}{:panic_string/%s}\n",
+	    h->panicstring);
 	xo_emit_h(xo, "{P:  }{Lwc:Dump Parity}{:dump_parity/%u}\n", h->parity);
 	xo_emit_h(xo, "{P:  }{Lwc:Bounds}{:bounds/%d}\n", bounds);
 
-	switch(status) {
+	switch (status) {
 	case STATUS_BAD:
 		stat_str = "bad";
 		break;
@@ -133,13 +142,15 @@ printheader(xo_handle_t *xo, const struct kerneldumpheader *h, const char *devic
 		break;
 	default:
 		stat_str = "unknown";
+		break;
 	}
 	xo_emit_h(xo, "{P:  }{Lwc:Dump Status}{:dump_status/%s}\n", stat_str);
 	xo_flush_h(xo);
 }
 
 static int
-getbounds(void) {
+getbounds(void)
+{
 	FILE *fp;
 	char buf[6];
 	int ret;
@@ -170,7 +181,8 @@ getbounds(void) {
 }
 
 static void
-writebounds(int bounds) {
+writebounds(int bounds)
+{
 	FILE *fp;
 
 	if ((fp = fopen("bounds", "w")) == NULL) {
@@ -334,6 +346,13 @@ check_space(const char *savedir, off_t dumpsize, int bounds)
 	return (1);
 }
 
+static bool
+compare_magic(const struct kerneldumpheader *kdh, const char *magic)
+{
+
+	return (strncmp(kdh->magic, magic, sizeof(kdh->magic)) == 0);
+}
+
 #define BLOCKSIZE (1<<12)
 #define BLOCKMASK (~(BLOCKSIZE-1))
 
@@ -390,8 +409,8 @@ DoRegularFile(int fd, bool isencrypted, off_t dumpsize, char *buf,
 				/*
 				 * At this point, we have a partial ordering:
 				 *     nw <= hs <= he <= nr
-				 * If hs > nw, buf[nw..hs] contains non-zero data.
-				 * If he > hs, buf[hs..he] is all zeroes.
+				 * If hs > nw, buf[nw..hs] contains non-zero
+				 * data. If he > hs, buf[hs..he] is all zeroes.
 				 */
 				if (hs > nw)
 					if (fwrite(buf + nw, hs - nw, 1, fp)
@@ -564,7 +583,7 @@ DoFile(const char *savedir, const char *device)
 	}
 	memcpy(&kdhl, temp, sizeof(kdhl));
 	istextdump = 0;
-	if (strncmp(kdhl.magic, TEXTDUMPMAGIC, sizeof kdhl) == 0) {
+	if (compare_magic(&kdhl, TEXTDUMPMAGIC)) {
 		if (verbose)
 			printf("textdump magic on last dump header on %s\n",
 			    device);
@@ -578,8 +597,7 @@ DoFile(const char *savedir, const char *device)
 			if (force == 0)
 				goto closefd;
 		}
-	} else if (memcmp(kdhl.magic, KERNELDUMPMAGIC, sizeof kdhl.magic) ==
-	    0) {
+	} else if (compare_magic(&kdhl, KERNELDUMPMAGIC)) {
 		if (dtoh32(kdhl.version) != KERNELDUMPVERSION) {
 			syslog(LOG_ERR,
 			    "unknown version (%d) in last dump header on %s",
@@ -598,8 +616,7 @@ DoFile(const char *savedir, const char *device)
 		if (force == 0)
 			goto closefd;
 
-		if (memcmp(kdhl.magic, KERNELDUMPMAGIC_CLEARED,
-			    sizeof kdhl.magic) == 0) {
+		if (compare_magic(&kdhl, KERNELDUMPMAGIC_CLEARED)) {
 			if (verbose)
 				printf("forcing magic on %s\n", device);
 			memcpy(kdhl.magic, KERNELDUMPMAGIC,
@@ -700,7 +717,7 @@ DoFile(const char *savedir, const char *device)
 		goto closefd;
 	}
 
-	oumask = umask(S_IRWXG|S_IRWXO); /* Restrict access to the core file.*/
+	oumask = umask(S_IRWXG|S_IRWXO); /* Restrict access to the core file. */
 	isencrypted = (dumpkeysize > 0);
 	if (compress) {
 		snprintf(corename, sizeof(corename), "%s.%d.gz",
@@ -955,7 +972,8 @@ main(int argc, char **argv)
 	} else if (nsaved == 0) {
 		if (nerr != 0) {
 			if (verbose)
-				syslog(LOG_WARNING, "unsaved dumps found but not saved");
+				syslog(LOG_WARNING,
+				    "unsaved dumps found but not saved");
 			exit(1);
 		} else if (verbose)
 			syslog(LOG_WARNING, "no unsaved dumps found");

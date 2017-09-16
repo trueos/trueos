@@ -1312,9 +1312,8 @@ wlan_up()
 		done
 	done
 	if [ -n "${_list# }" ]; then
-		einfo "Created wlan(4) interfaces: ${_list# }."
+		debug "Created wlan(4)s: ${_list# }"
 	fi
-	debug "Created wlan(4)s: ${_list# }"
 }
 
 # wlan_down

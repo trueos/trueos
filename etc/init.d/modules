@@ -40,8 +40,6 @@ FreeBSD_modules()
                 #eend $? "Failed to load $x" && : $(( cnt += 1 ))
                 : $(( cnt += 1 ))
         done
-	einfo "Autoloaded $cnt module(s)"
-
 }
 
 start()

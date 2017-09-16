@@ -25,48 +25,6 @@ struct devres_group {
 	int				color;
 };
 
-static inline int
-driver_register(struct device_driver *drv)
-{
-	WARN_NOT();
-	return (-ENOTSUPP);
-}
-
-static inline void
-driver_unregister(struct device_driver *drv)
-{
-	WARN_NOT();
-}
-
-static inline struct device *
-bus_find_device(struct bus_type *bus, struct device *start, void *data,
-		int (*match)(struct device *dev, void *data))
-{
-	WARN_NOT();
-	return (NULL);
-}
-
-static inline int
-bus_register(struct bus_type *bus)
-{
-	WARN_NOT();
-	return (0);
-}
-
-static inline void
-bus_unregister(struct bus_type *bus)
-{
-	WARN_NOT();
-}
-
-static inline int
-device_for_each_child(struct device *dev, void *data,
-    int (*fn)(struct device *dev, void *data))
-{
-	WARN_NOT();
-	return (0);
-}
-
 static inline void *
 devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
 {

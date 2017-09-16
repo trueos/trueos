@@ -658,6 +658,8 @@ mmap_eof_not_eol_body()
 		atf_expect_fail "gnu grep from ports has no --mmap option"
 	fi
 
+	atf_expect_fail "relies on jemalloc feature no longer available; needs to be rewritten - bug 220309"
+
 	printf "ABC" > test1
 	jot -b " "  -s "" 4096 >> test2
 
@@ -666,6 +668,24 @@ mmap_eof_not_eol_body()
 	# unreliably produces a SIGSEGV or SIGBUS
 	atf_check -s exit:0 -o not-empty \
 	    env MALLOC_CONF="redzone:true" grep --mmap -e " " test2
+}
+
+atf_test_case matchall
+matchall_head()
+{
+	atf_set "descr" "Check proper behavior of matching all with an empty string"
+}
+matchall_body()
+{
+	printf "" > test1
+	printf "A" > test2
+	printf "A\nB" > test3
+
+	atf_check -o inline:"test2:A\ntest3:A\ntest3:B\n" grep "" test1 test2 test3
+	atf_check -o inline:"test3:A\ntest3:B\ntest2:A\n" grep "" test3 test1 test2
+	atf_check -o inline:"test2:A\ntest3:A\ntest3:B\n" grep "" test2 test3 test1
+
+	atf_check -s exit:1 grep "" test1
 }
 # End FreeBSD
 
@@ -707,5 +727,6 @@ atf_init_test_cases()
 	atf_add_test_case badcontext
 	atf_add_test_case mmap
 	atf_add_test_case mmap_eof_not_eol
+	atf_add_test_case matchall
 # End FreeBSD
 }

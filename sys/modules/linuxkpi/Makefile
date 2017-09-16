@@ -4,6 +4,7 @@
 KMOD=	linuxkpi
 SRCS=	linux_compat.c \
 	linux_current.c \
+	linux_hrtimer.c \
 	linux_idr.c \
 	linux_kmod.c \
 	linux_kthread.c \
@@ -14,7 +15,6 @@ SRCS=	linux_compat.c \
 	linux_rcu.c \
 	linux_schedule.c \
 	linux_slab.c \
-	linux_sysfs.c \
 	linux_tasklet.c \
 	linux_usb.c \
 	linux_work.c
@@ -32,8 +32,8 @@ SRCS+=	bus_if.h \
 	opt_usb.h \
 	opt_vm.h
 
-SRCS+= 	linsysfs_init.c \
-	linsysfs_extern.c
+#SRCS+= 	linsysfs_init.c \
+#	linsysfs_extern.c
 
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include

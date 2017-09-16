@@ -36,13 +36,20 @@
  * XXX: from gcc 6.2 manual:
  * Note, the ms_abi attribute for Microsoft Windows 64-bit targets
  * currently requires the -maccumulate-outgoing-args option.
+ *
+ * Avoid EFIABI_ATTR declarations for compilers that don't support it.
+ * GCC support began in version 4.4.
  */
+#if defined(__clang__) || defined(__GNUC__) && \
+    (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 4)
 #define	EFIABI_ATTR	__attribute__((ms_abi))
+#endif
 
 #ifdef _KERNEL
 struct uuid;
 struct efi_tm;
 
+int efi_rt_ok(void);
 int efi_get_table(struct uuid *uuid, void **ptr);
 int efi_get_time(struct efi_tm *tm);
 int efi_get_time_locked(struct efi_tm *tm);

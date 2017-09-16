@@ -68,7 +68,6 @@ struct vnode;
 #define	DTYPE_PROCDESC	12	/* process descriptor */
 #define	DTYPE_LINUXEFD	13	/* emulation eventfd type */
 #define	DTYPE_LINUXTFD	14	/* emulation timerfd type */
-#define	DTYPE_DMABUF	15	/* dma_buf compatibility */
 
 #ifdef _KERNEL
 
