@@ -242,7 +242,9 @@
 
 /* Define if we have LibreSSL */
 /* KPM 9-4-16 Enable LibreSSL */
+#ifdef LIBRESSL_VERSION_NUMBER
 #define HAVE_LIBRESSL 1
+#endif
 
 /* Define to 1 if you have the `localtime_r' function. */
 #define HAVE_LOCALTIME_R 1
