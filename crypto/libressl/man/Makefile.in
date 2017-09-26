@@ -149,7 +149,8 @@ am__uninstall_files_from_dir = { \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
 man3dir = $(mandir)/man3
-am__installdirs = "$(DESTDIR)$(man3dir)"
+am__installdirs = "$(DESTDIR)$(man3dir)" "$(DESTDIR)$(man5dir)"
+man5dir = $(mandir)/man5
 NROFF = nroff
 MANS = $(dist_man_MANS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
@@ -418,7 +419,8 @@ dist_man_MANS = BIO_f_ssl.3 DTLSv1_listen.3 PEM_read_SSL_SESSION.3 \
 	d2i_X509_ATTRIBUTE.3 d2i_X509_CRL.3 d2i_X509_EXTENSION.3 \
 	d2i_X509_NAME.3 d2i_X509_REQ.3 d2i_X509_SIG.3 des_read_pw.3 \
 	engine.3 evp.3 get_rfc3526_prime_8192.3 i2d_PKCS7_bio_stream.3 \
-	lh_new.3 lh_stats.3 tls_accept_socket.3 tls_client.3 \
+	lh_new.3 lh_stats.3 openssl.cnf.5 x509v3.cnf.5 \
+	tls_accept_socket.3 tls_client.3 \
 	tls_config_ocsp_require_stapling.3 tls_config_set_protocols.3 \
 	tls_config_set_session_id.3 tls_config_verify.3 \
 	tls_conn_version.3 tls_connect.3 tls_init.3 tls_load_file.3 \
@@ -504,6 +506,49 @@ uninstall-man3:
 	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^3][0-9a-z]*$$,3,;x' \
 	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
 	dir='$(DESTDIR)$(man3dir)'; $(am__uninstall_files_from_dir)
+install-man5: $(dist_man_MANS)
+	@$(NORMAL_INSTALL)
+	@list1=''; \
+	list2='$(dist_man_MANS)'; \
+	test -n "$(man5dir)" \
+	  && test -n "`echo $$list1$$list2`" \
+	  || exit 0; \
+	echo " $(MKDIR_P) '$(DESTDIR)$(man5dir)'"; \
+	$(MKDIR_P) "$(DESTDIR)$(man5dir)" || exit 1; \
+	{ for i in $$list1; do echo "$$i"; done;  \
+	if test -n "$$list2"; then \
+	  for i in $$list2; do echo "$$i"; done \
+	    | sed -n '/\.5[a-z]*$$/p'; \
+	fi; \
+	} | while read p; do \
+	  if test -f $$p; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; echo "$$p"; \
+	done | \
+	sed -e 'n;s,.*/,,;p;h;s,.*\.,,;s,^[^5][0-9a-z]*$$,5,;x' \
+	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,' | \
+	sed 'N;N;s,\n, ,g' | { \
+	list=; while read file base inst; do \
+	  if test "$$base" = "$$inst"; then list="$$list $$file"; else \
+	    echo " $(INSTALL_DATA) '$$file' '$(DESTDIR)$(man5dir)/$$inst'"; \
+	    $(INSTALL_DATA) "$$file" "$(DESTDIR)$(man5dir)/$$inst" || exit $$?; \
+	  fi; \
+	done; \
+	for i in $$list; do echo "$$i"; done | $(am__base_list) | \
+	while read files; do \
+	  test -z "$$files" || { \
+	    echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(man5dir)'"; \
+	    $(INSTALL_DATA) $$files "$(DESTDIR)$(man5dir)" || exit $$?; }; \
+	done; }
+
+uninstall-man5:
+	@$(NORMAL_UNINSTALL)
+	@list=''; test -n "$(man5dir)" || exit 0; \
+	files=`{ for i in $$list; do echo "$$i"; done; \
+	l2='$(dist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
+	  sed -n '/\.5[a-z]*$$/p'; \
+	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^5][0-9a-z]*$$,5,;x' \
+	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
+	dir='$(DESTDIR)$(man5dir)'; $(am__uninstall_files_from_dir)
 tags TAGS:
 
 ctags CTAGS:
@@ -545,7 +590,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(MANS)
 installdirs:
-	for dir in "$(DESTDIR)$(man3dir)"; do \
+	for dir in "$(DESTDIR)$(man3dir)" "$(DESTDIR)$(man5dir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -615,7 +660,7 @@ install-info: install-info-am
 
 install-info-am:
 
-install-man: install-man3
+install-man: install-man3 install-man5
 
 install-pdf: install-pdf-am
 
@@ -645,7 +690,7 @@ ps-am:
 
 uninstall-am: uninstall-local uninstall-man
 
-uninstall-man: uninstall-man3
+uninstall-man: uninstall-man3 uninstall-man5
 
 .MAKE: install-am install-data-am install-strip
 
@@ -655,12 +700,13 @@ uninstall-man: uninstall-man3
 	install install-am install-data install-data-am \
 	install-data-hook install-dvi install-dvi-am install-exec \
 	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-man3 install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-generic \
-	mostlyclean-libtool pdf pdf-am ps ps-am tags-am uninstall \
-	uninstall-am uninstall-local uninstall-man uninstall-man3
+	install-info-am install-man install-man3 install-man5 \
+	install-pdf install-pdf-am install-ps install-ps-am \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
+	tags-am uninstall uninstall-am uninstall-local uninstall-man \
+	uninstall-man3 uninstall-man5
 
 .PRECIOUS: Makefile
 
