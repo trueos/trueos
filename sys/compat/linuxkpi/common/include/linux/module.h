@@ -106,6 +106,6 @@ _module_run(void *arg)
 #define	module_put(module)
 #define	try_module_get(module)	1
 
-#define symbol_put(x)
+#define	postcore_initcall(fn)	module_init(fn)
 
 #endif	/* _LINUX_MODULE_H_ */

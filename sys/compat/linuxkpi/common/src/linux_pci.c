@@ -178,6 +178,7 @@ linux_pci_attach(device_t dev)
 	if (pdev->bus == NULL) {
 		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK | M_ZERO);
 		pbus->self = pdev;
+		pbus->number = pci_get_bus(dev);
 		pdev->bus = pbus;
 		pdev->bus->number = pci_get_bus(dev);
 	}

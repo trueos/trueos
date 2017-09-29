@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2012,2016 Microsoft Corp.
+ * Copyright (c) 2009-2012,2016-2017 Microsoft Corp.
  * Copyright (c) 2010-2012 Citrix Inc.
  * Copyright (c) 2012 NetApp Inc.
  * All rights reserved.
@@ -183,6 +183,24 @@ hn_rndis_get_linkstatus(struct hn_softc *sc, uint32_t *link_status)
 		return (error);
 	if (size != sizeof(uint32_t)) {
 		if_printf(sc->hn_ifp, "invalid link status len %zu\n", size);
+		return (EINVAL);
+	}
+	return (0);
+}
+
+int
+hn_rndis_get_mtu(struct hn_softc *sc, uint32_t *mtu)
+{
+	size_t size;
+	int error;
+
+	size = sizeof(*mtu);
+	error = hn_rndis_query(sc, OID_GEN_MAXIMUM_FRAME_SIZE, NULL, 0,
+	    mtu, &size);
+	if (error)
+		return (error);
+	if (size != sizeof(uint32_t)) {
+		if_printf(sc->hn_ifp, "invalid mtu len %zu\n", size);
 		return (EINVAL);
 	}
 	return (0);
@@ -497,10 +515,12 @@ hn_rndis_query_rsscaps(struct hn_softc *sc, int *rxr_cnt0)
 		    caps.ndis_caps);
 		return (EOPNOTSUPP);
 	}
+	if (bootverbose)
+		if_printf(sc->hn_ifp, "RSS caps %#x\n", caps.ndis_caps);
 
 	/* Commit! */
 	sc->hn_rss_ind_size = indsz;
-	sc->hn_rss_hash = hash_func | hash_types;
+	sc->hn_rss_hcap = hash_func | hash_types;
 	*rxr_cnt0 = rxr_cnt;
 	return (0);
 }

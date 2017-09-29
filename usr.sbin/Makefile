@@ -62,7 +62,6 @@ SUBDIR=	adduser \
 	periodic \
 	pkg_sanity \
 	powerd \
-	procctl \
 	prometheus_sysctl_exporter \
 	pstat \
 	pw \

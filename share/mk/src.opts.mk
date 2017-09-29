@@ -62,7 +62,6 @@ __DEFAULT_YES_OPTIONS = \
     BOOTPARAMD \
     BOOTPD \
     BSD_CPIO \
-    BSD_GREP_FASTMATCH \
     BSDINSTALL \
     BSNMP \
     BZIP2 \
@@ -160,7 +159,6 @@ __DEFAULT_YES_OPTIONS = \
     TCP_WRAPPERS \
     TCSH \
     TELNET \
-    TESTS \
     TEXTPROC \
     TFTP \
     TIMED \
@@ -176,11 +174,13 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
+    BSD_GREP_FASTMATCH \
     CLANG_EXTRAS \
     DTRACE_TESTS \
     GNU_GREP_COMPAT \
     HESIOD \
     LIBSOFT \
+    LOADER_FORCE_LE \
     NAND \
     NTP \
     OFED \

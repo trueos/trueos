@@ -568,6 +568,8 @@ main(int argc, char **argv)
 			continue;
 		rv |= (*action)(kp);
 	}
+	if (rv && pgrep && !quiet)
+		putchar('\n');
 	if (!did_action && !pgrep && longfmt)
 		fprintf(stderr,
 		    "No matching processes belonging to you were found\n");

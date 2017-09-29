@@ -1984,6 +1984,7 @@ device		xmphy		# XaQti XMAC II
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
+# lio:  Support for Cavium 23XX Ethernet adapters
 # malo: Marvell Libertas wireless NICs.
 # mwl:  Marvell 88W8363 802.11n wireless NICs.
 #	Requires the mwl firmware module
@@ -2524,8 +2525,7 @@ device		iicoc		# OpenCores I2C controller support
 # I2C peripheral devices
 #
 device		ds1307		# Dallas DS1307 RTC and compatible
-device		ds133x		# Dallas DS1337, DS1338 and DS1339 RTC
-device		ds1374		# Dallas DS1374 RTC
+device		ds13rtc		# All Dallas/Maxim ds13xx chips
 device		ds1672		# Dallas DS1672 RTC
 device		ds3231		# Dallas DS3231 RTC + temperature
 device		icee		# AT24Cxxx and compatible EEPROMs

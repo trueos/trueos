@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014-2015 Vladimir Kondratyev <wulf@cicgroup.ru>
+ * Copyright (c) 2014-2017 Vladimir Kondratyev <wulf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,56 +22,53 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include <sys/stdint.h>
-#include <sys/stddef.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+/*
+ * MS Windows 7/8/10 compatible USB HID Multi-touch Device driver.
+ * https://msdn.microsoft.com/en-us/library/windows/hardware/jj151569(v=vs.85).aspx
+ * https://www.kernel.org/doc/Documentation/input/multi-touch-protocol.txt
+ */
+
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/sysctl.h>
-#include <sys/unistd.h>
-#include <sys/malloc.h>
-#include <sys/priv.h>
 #include <sys/conf.h>
-#include <sys/fcntl.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/stddef.h>
+#include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include "usbdevs.h"
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbhid.h>
-#include <dev/usb/usb_ioctl.h>
 
-#define	WMT_FIFO_ENABLE	1
+#include <dev/usb/quirk/usb_quirk.h>
+
+#include <dev/evdev/evdev.h>
+#include <dev/evdev/input.h>
+
 #define	USB_DEBUG_VAR wmt_debug
 #include <dev/usb/usb_debug.h>
 
 #ifdef USB_DEBUG
-static int wmt_debug = 1;
+static int wmt_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, wmt, CTLFLAG_RW, 0,
-    "USB MSWindows 7/8 compatible multitouch Pointer Device");
+    "USB MSWindows 7/8/10 compatible Multi-touch Device");
 SYSCTL_INT(_hw_usb_wmt, OID_AUTO, debug, CTLFLAG_RWTUN,
     &wmt_debug, 1, "Debug level");
 #endif
 
-#include <dev/evdev/input.h>
-#include <dev/evdev/evdev.h>
-
-#include <sys/ioccom.h>
-#include <sys/filio.h>
-#include <sys/tty.h>
-
 #define	WMT_BSIZE	1024	/* bytes, buffer size */
-#define	WMT_FRAME_NUM	50	/* bytes, frame number */
 
 enum {
 	WMT_INTR_DT,
@@ -85,148 +82,147 @@ enum {
 #define	WMT_MAJOR	WMT_WIDTH
 	WMT_HEIGHT,
 #define WMT_MINOR	WMT_HEIGHT
-	WMT_TOOL_WIDTH,
-#define	WMT_TOOL_MAJOR	WMT_TOOL_WIDTH
-	WMT_TOOL_HEIGHT,
-#define WMT_TOOL_MINOR	WMT_TOOL_HEIGHT
 	WMT_ORIENTATION,
 	WMT_X,
 	WMT_Y,
-	WMT_TOOL_TYPE,
-	WMT_BLOB_ID,
-	WMT_CONTACT_ID,
+	WMT_CONTACTID,
 	WMT_PRESSURE,
+	WMT_IN_RANGE,
 	WMT_CONFIDENCE,
 	WMT_TOOL_X,
 	WMT_TOOL_Y,
 	WMT_N_USAGES,
 };
 
+#define	WMT_NO_CODE	(ABS_MAX + 10)
+#define	WMT_NO_USAGE	-1
+
 struct wmt_hid_map_item {
-	int32_t usage;
-	uint32_t code;
+	char		name[5];
+	int32_t 	usage;		/* HID usage */
+	uint32_t	code;		/* Evdev event code */
+	bool		required;	/* Required for MT Digitizers */
 };
 
 static const struct wmt_hid_map_item wmt_hid_map[WMT_N_USAGES] = {
-	{	/* WMT_TIP_SWITCH, WMT_SLOT */
+
+	[WMT_TIP_SWITCH] = {	/* WMT_SLOT */
+		.name = "TIP",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_TIP_SWITCH),
-		.code = ABS_MT_SLOT
-	}, {	/* WMT_WIDTH, WMT_MAJOR */
+		.code = ABS_MT_SLOT,
+		.required = true,
+	},
+	[WMT_WIDTH] = {		/* WMT_MAJOR */
+		.name = "WDTH",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_WIDTH),
-		.code = ABS_MT_TOUCH_MAJOR
-	}, {	/* WMT_HEIGHT, WMT_MINOR */
+		.code = ABS_MT_TOUCH_MAJOR,
+		.required = false,
+	},
+	[WMT_HEIGHT] = {	/* WMT_MINOR */
+		.name = "HGHT",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_HEIGHT),
-		.code = ABS_MT_TOUCH_MINOR
-	}, {	/* WMT_TOOL_WIDTH, WMT_TOOL_MAJOR */
-		.usage = -1,
-		.code = ABS_MT_WIDTH_MAJOR
-	}, {	/* WMT_TOOL_HEIGHT, WMT_TOOL_MINOR */
-		.usage = -1,
-		.code = ABS_MT_WIDTH_MINOR
-	}, {	/* WMT_ORIENTATION */
-		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_HEIGHT),
-		.code = ABS_MT_ORIENTATION
-	}, {	/* WMT_X */
+		.code = ABS_MT_TOUCH_MINOR,
+		.required = false,
+	},
+	[WMT_ORIENTATION] = {
+		.name = "ORIE",
+		.usage = WMT_NO_USAGE,
+		.code = ABS_MT_ORIENTATION,
+		.required = false,
+	},
+	[WMT_X] = {
+		.name = "X",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
-		.code = ABS_MT_POSITION_X
-	}, {	/* WMT_Y */
+		.code = ABS_MT_POSITION_X,
+		.required = true,
+	},
+	[WMT_Y] = {
+		.name = "Y",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
-		.code = ABS_MT_POSITION_Y
-	}, {	/* WMT_TOOL_TYPE */
-		.usage = -1,
-		.code = ABS_MT_TOOL_TYPE
-	}, {	/* WMT_BLOB_ID */
-		.usage = -1,
-		.code = ABS_MT_BLOB_ID
-	}, {	/* WMT_CONTACT_ID */
-		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_IDENTIFIER),
-		.code = ABS_MT_TRACKING_ID
-	}, {	/* WMT_PRESSURE */
+		.code = ABS_MT_POSITION_Y,
+		.required = true,
+	},
+	[WMT_CONTACTID] = {
+		.name = "C_ID",
+		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACTID),
+		.code = ABS_MT_TRACKING_ID,
+		.required = true,
+	},
+	[WMT_PRESSURE] = {
+		.name = "PRES",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_TIP_PRESSURE),
-		.code = ABS_MT_PRESSURE
-	}, {	/* WMT_CONFIDENCE */
+		.code = ABS_MT_PRESSURE,
+		.required = false,
+	},
+	[WMT_IN_RANGE] = {
+		.name = "RANG",
+		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_IN_RANGE),
+		.code = ABS_MT_DISTANCE,
+		.required = false,
+	},
+	[WMT_CONFIDENCE] = {
+		.name = "CONF",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_CONFIDENCE),
-		.code = ABS_MT_DISTANCE
-	}, {	/* WMT_TOOL_X */
+		.code = WMT_NO_CODE,
+		.required = false,
+	},
+	[WMT_TOOL_X] = {	/* Shares HID usage with WMT_X */
+		.name = "TL_X",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
-		.code = ABS_MT_TOOL_X
-	}, {	/* WMT_TOOL_Y */
+		.code = ABS_MT_TOOL_X,
+		.required = false,
+	},
+	[WMT_TOOL_Y] = {	/* Shares HID usage with WMT_Y */
+		.name = "TL_Y",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
-		.code = ABS_MT_TOOL_Y
-	}
+		.code = ABS_MT_TOOL_Y,
+		.required = false,
+	},
 };
 
-#define WMT_ABSINFO_RESET	((struct input_absinfo) { .value = INT32_MIN })
-#define WMT_ABSINFO_IS_SET(x)	((x)->value != INT32_MIN)
+struct wmt_absinfo {
+	int32_t			min;
+	int32_t			max;
+	int32_t			res;
+};
 
 struct wmt_softc
 {
 	device_t		dev;
+	struct mtx		mtx;
+	struct wmt_absinfo	ai[WMT_N_USAGES];
+	struct hid_location	locs[MAX_MT_SLOTS][WMT_N_USAGES];
+	struct hid_location	nconts_loc;
+
+	struct usb_xfer		*xfer[WMT_N_TRANSFER];
 	struct evdev_dev	*evdev;
 
-#ifdef WMT_FIFO_ENABLE
-	struct usb_device	*udev;
-	struct usb_fifo_sc	fifo;
-#endif
-	struct mtx		sc_mtx;
-	struct usb_xfer		*xfer[WMT_N_TRANSFER];
+	uint32_t		slot_data[WMT_N_USAGES];
+	uint32_t		caps;
 	uint32_t		isize;
-	uint32_t		fsize;
-	void			*repdesc_ptr;
-	uint16_t		repdesc_size;
-	uint8_t			iid;
-	uint8_t			fid;
-
-#ifdef WMT_FIFO_ENABLE
-	uint8_t			iface_no;
-	uint8_t			iface_index;
-#endif
-	uint32_t		flags;
-#define WMT_FLAG_TIP_SWITCH	0x0001
-#define	WMT_FLAG_OPENED		0x0002
-#define	WMT_FLAG_EV_OPENED	0x0004
-#define	WMT_FLAG_RD_STARTED	0x0008
-
+	uint32_t		nconts_max;
 	uint8_t			report_id;
-	struct hid_location	ncontacts;
-	struct hid_location	hid_items[MAX_MT_SLOTS][WMT_N_USAGES];
-	struct input_absinfo	ai[WMT_N_USAGES];
 
-	uint8_t	buf[WMT_BSIZE] __aligned(4);
+	uint8_t			buf[WMT_BSIZE] __aligned(4);
 };
 
-static usb_callback_t wmt_intr_callback;
+#define	USAGE_SUPPORTED(caps, usage)	((caps) & (1 << (usage)))
+#define	WMT_FOREACH_USAGE(caps, usage)			\
+	for ((usage) = 0; (usage) < WMT_N_USAGES; ++(usage))	\
+		if (USAGE_SUPPORTED((caps), (usage)))
+
+static bool wmt_hid_parse(struct wmt_softc *, const void *, uint16_t);
+
+static usb_callback_t	wmt_intr_callback;
 
 static device_probe_t	wmt_probe;
 static device_attach_t	wmt_attach;
 static device_detach_t	wmt_detach;
 
-static evdev_open_t wmt_ev_open;
-static evdev_close_t wmt_ev_close;
+static evdev_open_t	wmt_ev_open;
+static evdev_close_t	wmt_ev_close;
 
-static uint32_t wmt_hid_test(const void *, uint16_t);
-static void wmt_hid_parse(struct wmt_softc *);
-
-#ifdef WMT_FIFO_ENABLE
-static usb_fifo_cmd_t	wmt_start_read;
-static usb_fifo_cmd_t	wmt_stop_read;
-static usb_fifo_open_t	wmt_open;
-static usb_fifo_close_t	wmt_close;
-static usb_fifo_ioctl_t	wmt_ioctl;
-
-static void wmt_put_queue(struct wmt_softc *, uint8_t *, usb_size_t);
-
-static struct usb_fifo_methods wmt_fifo_methods = {
-	.f_open =	&wmt_open,
-	.f_close =	&wmt_close,
-	.f_ioctl =	&wmt_ioctl,
-	.f_start_read =	&wmt_start_read,
-	.f_stop_read =	&wmt_stop_read,
-	.basename[0] =	"wmt",
-};
-#endif
-
-static struct evdev_methods wmt_evdev_methods = {
+static const struct evdev_methods wmt_evdev_methods = {
 	.ev_open = &wmt_ev_open,
 	.ev_close = &wmt_ev_close,
 };
@@ -257,13 +253,15 @@ wmt_probe(device_t dev)
 	if (uaa->info.bInterfaceClass != UICLASS_HID)
 		return (ENXIO);
 
+	if (usb_test_quirk(uaa, UQ_WMT_IGNORE))
+		return (ENXIO);
+
 	err = usbd_req_get_hid_desc(uaa->device, NULL,
 	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
-
 	if (err)
 		return (ENXIO);
 
-	if (wmt_hid_test(d_ptr, d_len))
+	if (wmt_hid_parse(NULL, d_ptr, d_len))
 		err = BUS_PROBE_DEFAULT;
 	else
 		err = ENXIO;
@@ -277,87 +275,66 @@ wmt_attach(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct wmt_softc *sc = device_get_softc(dev);
+	void *d_ptr;
+	uint16_t d_len;
 	size_t i;
 	int err;
 
 	device_set_usb_desc(dev);
 	sc->dev = dev;
-	sc->udev = uaa->device;
-	sc->iface_no = uaa->info.bIfaceNum;
-	sc->iface_index = uaa->info.bIfaceIndex;
 
 	/* Get HID descriptor */
-	if (usbd_req_get_hid_desc(uaa->device, NULL, &sc->repdesc_ptr,
-	    &sc->repdesc_size, M_TEMP, uaa->info.bIfaceIndex) !=
-	    USB_ERR_NORMAL_COMPLETION)
+	err = usbd_req_get_hid_desc(uaa->device, NULL,
+	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
+	if (err) {
+		DPRINTF("usbd_req_get_hid_desc error=%s\n", usbd_errstr(err));
 		return (ENXIO);
+	}
 
-	mtx_init(&sc->sc_mtx, "wmt lock", NULL, MTX_DEF | MTX_RECURSE);
+	mtx_init(&sc->mtx, "wmt lock", NULL, MTX_DEF);
 
-	/* Get HID report descriptor length */
-	sc->isize = hid_report_size
-	    (sc->repdesc_ptr, sc->repdesc_size, hid_input, &sc->iid);
-	sc->fsize = hid_report_size
-	    (sc->repdesc_ptr, sc->repdesc_size, hid_feature, &sc->fid);
-
+	/* Get HID report length */
+	sc->isize = hid_report_size(d_ptr, d_len, hid_input, NULL);
 	if (sc->isize <= 0 || sc->isize > WMT_BSIZE) {
-		DPRINTF("wmt_attach: input size invalid or too large: %d\n",
-		    sc->isize);
+		DPRINTF("Input size invalid or too large: %d\n", sc->isize);
 		goto detach;
 	}
-	if (sc->fsize <= 0 || sc->fsize > WMT_BSIZE) {
-		DPRINTF("wmt_attach: feature size invalid or too large: %d\n",
-		    sc->fsize);
-		goto detach;
-	}
-
-	err = usbd_req_set_protocol(uaa->device, NULL,
-	    uaa->info.bIfaceIndex, 1);
 
 	err = usbd_transfer_setup(uaa->device, &uaa->info.bIfaceIndex,
-	    sc->xfer, wmt_config, WMT_N_TRANSFER, sc, &sc->sc_mtx);
+	    sc->xfer, wmt_config, WMT_N_TRANSFER, sc, &sc->mtx);
 	if (err) {
 		DPRINTF("usbd_transfer_setup error=%s\n", usbd_errstr(err));
 		goto detach;
 	}
-#ifdef WMT_FIFO_ENABLE
-	err = usb_fifo_attach(uaa->device, sc, &sc->sc_mtx,
-	    &wmt_fifo_methods, &sc->fifo, device_get_unit(dev), -1,
-	    uaa->info.bIfaceIndex, UID_ROOT, GID_OPERATOR, 0644);
-	if (err) {
-		DPRINTF("usb_fifo_attach error=%s\n", usbd_errstr(err));
-		goto detach;
-	}
-#endif
 
-	wmt_hid_parse(sc);
+	if (!wmt_hid_parse(sc, d_ptr, d_len))
+		goto detach;
 
 	sc->evdev = evdev_alloc();
-
 	evdev_set_name(sc->evdev, device_get_desc(dev));
-	evdev_set_serial(sc->evdev, "0");
+	evdev_set_phys(sc->evdev, device_get_nameunit(dev));
+	evdev_set_id(sc->evdev, BUS_USB, uaa->info.idVendor,
+	    uaa->info.idProduct, 0);
+	evdev_set_serial(sc->evdev, usb_get_serial(uaa->device));
 	evdev_set_methods(sc->evdev, sc, &wmt_evdev_methods);
+	evdev_set_flag(sc->evdev, EVDEV_FLAG_MT_STCOMPAT);
 	evdev_support_prop(sc->evdev, INPUT_PROP_DIRECT);
 	evdev_support_event(sc->evdev, EV_SYN);
 	evdev_support_event(sc->evdev, EV_ABS);
-	evdev_set_flag(sc->evdev, EVDEV_FLAG_MT_STCOMPAT);
+	WMT_FOREACH_USAGE(sc->caps, i) {
+		if (wmt_hid_map[i].code != WMT_NO_CODE)
+			evdev_support_abs(sc->evdev, wmt_hid_map[i].code, 0,
+			    sc->ai[i].min, sc->ai[i].max, 0, 0, sc->ai[i].res);
+	}
 
-	/* Report absolute contacts and axes information */
-	for (i = 0; i < WMT_N_USAGES; i++)
-		if (WMT_ABSINFO_IS_SET(&sc->ai[i]))
-			evdev_support_abs(sc->evdev, wmt_hid_map[i].code,
-			    (struct input_absinfo *)&sc->ai[i]);
-
-	err = evdev_register(dev, sc->evdev);
+	err = evdev_register_mtx(sc->evdev, &sc->mtx);
 	if (err)
 		goto detach;
 
 	return (0);
 
 detach:
-	if (sc->repdesc_ptr)
-		free(sc->repdesc_ptr, M_TEMP);
-
+	free(d_ptr, M_TEMP);
 	wmt_detach(dev);
 	return (ENXIO);
 }
@@ -367,75 +344,92 @@ wmt_detach(device_t dev)
 {
 	struct wmt_softc *sc = device_get_softc(dev);
 
-	/* Stop intr transfer if running */
-	wmt_ev_close(sc->evdev, sc);
-
-	evdev_unregister(dev, sc->evdev);
 	evdev_free(sc->evdev);
-#ifdef WMT_FIFO_ENABLE
-	usb_fifo_detach(&sc->fifo);
-#endif
 	usbd_transfer_unsetup(sc->xfer, WMT_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+	mtx_destroy(&sc->mtx);
 	return (0);
 }
 
 static void
-wmt_process_frame(struct wmt_softc *sc, uint8_t *buf, int len)
+wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 {
-	int32_t slot_data[WMT_N_USAGES];
-	int32_t slot, contact, contacts_count, width, height;
-	uint8_t id;
-	size_t i;
+	size_t usage;
+	uint32_t *slot_data = sc->slot_data;
+	uint32_t cont;
+	uint32_t nconts;
+	uint32_t width;
+	uint32_t height;
+	int32_t slot;
 
-	if (sc->iid) {
-		id = *buf;
-		len--;
-		buf++;
-	} else {
-		id = 0;
+	nconts = hid_get_data_unsigned(buf, len, &sc->nconts_loc);
+
+#ifdef USB_DEBUG
+	DPRINTFN(6, "nconts = %u   ", (unsigned)nconts);
+	if (wmt_debug >= 6) {
+		WMT_FOREACH_USAGE(sc->caps, usage) {
+			if (wmt_hid_map[usage].usage != WMT_NO_USAGE)
+				printf(" %-4s", wmt_hid_map[usage].name);
+		}
+		printf("\n");
+	}
+#endif
+
+	if (nconts > sc->nconts_max) {
+		DPRINTF("Contact count overflow %u\n", (unsigned)nconts);
+		nconts = sc->nconts_max;
 	}
 
-	if (id != sc->report_id)
-		return;
-
-	contacts_count = hid_get_data(buf, len, &sc->ncontacts);
-
 	/* Use protocol Type B for reporting events */
-	for (contact = 0; contact < contacts_count; contact++) {
+	for (cont = 0; cont < nconts; cont++) {
 
-		memset(slot_data, 0, sizeof(slot_data));
-		for (i = 0; i < WMT_N_USAGES; i++)
-			if (WMT_ABSINFO_IS_SET(&sc->ai[i]))
-				slot_data[i] = hid_get_data(buf, len,
-				    &sc->hid_items[contact][i]);
+		bzero(slot_data, sizeof(sc->slot_data));
+		WMT_FOREACH_USAGE(sc->caps, usage) {
+			if (sc->locs[cont][usage].size > 0)
+				slot_data[usage] = hid_get_data_unsigned(
+				    buf, len, &sc->locs[cont][usage]);
+		}
 
 		slot = evdev_get_mt_slot_by_tracking_id(sc->evdev,
-		    slot_data[WMT_CONTACT_ID]);
+		    slot_data[WMT_CONTACTID]);
+
+#ifdef USB_DEBUG
+		DPRINTFN(6, "cont%01x: data = ", cont);
+		if (wmt_debug >= 6) {
+			WMT_FOREACH_USAGE(sc->caps, usage) {
+				if (wmt_hid_map[usage].usage != WMT_NO_USAGE)
+					printf("%04x ", slot_data[usage]);
+			}
+			printf("slot = %d\n", (int)slot);
+		}
+#endif
+
 		if (slot == -1) {
-			printf("Slot overflow for contact_id %d",
-			    (int)slot_data[WMT_CONTACT_ID]);
+			DPRINTF("Slot overflow for contact_id %u\n",
+			    (unsigned)slot_data[WMT_CONTACTID]);
 			continue;
 		}
 
-		if (slot_data[WMT_TIP_SWITCH] == 0) {
-			evdev_push_event(sc->evdev, EV_ABS, ABS_MT_SLOT, slot);
-			evdev_push_event(sc->evdev, EV_ABS, ABS_MT_TRACKING_ID,
-			    -1);
-		} else {
-			/* this finger is in proximity of the sensor */
+		if (slot_data[WMT_TIP_SWITCH] != 0 &&
+		    !(USAGE_SUPPORTED(sc->caps, WMT_CONFIDENCE) &&
+		      slot_data[WMT_CONFIDENCE] == 0)) {
+			/* This finger is in proximity of the sensor */
 			slot_data[WMT_SLOT] = slot;
-
-			/* divided by two to match visual scale of touch */
+			slot_data[WMT_IN_RANGE] = !slot_data[WMT_IN_RANGE];
+			/* Divided by two to match visual scale of touch */
 			width = slot_data[WMT_WIDTH] >> 1;
 			height = slot_data[WMT_HEIGHT] >> 1;
 			slot_data[WMT_ORIENTATION] = width > height;
-			slot_data[WMT_MAJOR] = width > height ? width : height;
-			slot_data[WMT_MINOR] = width < height ? width : height;
-			for (i = 0; i < WMT_N_USAGES; i++)
-				if (WMT_ABSINFO_IS_SET(&sc->ai[i]))
-					evdev_push_event(sc->evdev, EV_ABS,
-					    wmt_hid_map[i].code, slot_data[i]);
+			slot_data[WMT_MAJOR] = MAX(width, height);
+			slot_data[WMT_MINOR] = MIN(width, height);
+
+			WMT_FOREACH_USAGE(sc->caps, usage)
+				if (wmt_hid_map[usage].code != WMT_NO_CODE)
+					evdev_push_abs(sc->evdev,
+					    wmt_hid_map[usage].code,
+					    slot_data[usage]);
+		} else {
+			evdev_push_abs(sc->evdev, ABS_MT_SLOT, slot);
+			evdev_push_abs(sc->evdev, ABS_MT_TRACKING_ID, -1);
 		}
 	}
 	evdev_sync(sc->evdev);
@@ -455,41 +449,43 @@ wmt_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 		pc = usbd_xfer_get_frame(xfer, 0);
 
-		if (len >= (int)sc->isize || (len > 0 && sc->iid == 0)) {
-			/* limit report length to the maximum */
+		DPRINTFN(6, "sc=%p actlen=%d\n", sc, len);
+
+		if (len >= (int)sc->isize || (len > 0 && sc->report_id != 0)) {
+			/* Limit report length to the maximum */
 			if (len > (int)sc->isize)
 				len = sc->isize;
 
 			usbd_copy_out(pc, 0, buf, len);
-			if (len < sc->isize) {
-				/* make sure we don't process old data */
-				memset(buf + len, 0, sc->isize - len);
+
+			/* Ignore irrelevant reports */
+			if (sc->report_id && *buf != sc->report_id)
+				goto tr_ignore;
+
+			/* Make sure we don't process old data */
+			if (len < sc->isize)
+				bzero(buf + len, sc->isize - len);
+
+			/* Strip leading "report ID" byte */
+			if (sc->report_id) {
+				len--;
+				buf++;
 			}
 
-#ifdef WMT_FIFO_ENABLE
-			wmt_put_queue(sc, buf, sc->isize);
-#endif
-			wmt_process_frame(sc, buf, len);
+			wmt_process_report(sc, buf, len);
 		} else {
-			/* ignore it */
-			DPRINTF("ignored transfer, %d bytes\n", len);
+tr_ignore:
+			DPRINTF("Ignored transfer, %d bytes\n", len);
 		}
 
 	case USB_ST_SETUP:
 tr_setup:
-#if WMT_FIFO_ENABLE
-		/* check if we can put more data into the FIFO */
-		if (usb_fifo_put_bytes_max(sc->fifo.fp[USB_FIFO_RX]) == 0)
-#endif
-			if ((sc->flags & WMT_FLAG_EV_OPENED) == 0)
-				break;
-
 		usbd_xfer_set_frame_len(xfer, 0, sc->isize);
 		usbd_transfer_submit(xfer);
 		break;
 	default:
 		if (error != USB_ERR_CANCELLED) {
-			/* try clear stall first */
+			/* Try clear stall first */
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
@@ -497,186 +493,13 @@ tr_setup:
 	}
 }
 
-#if WMT_FIFO_ENABLE
-static void
-wmt_start_read(struct usb_fifo *fifo)
-{
-	struct wmt_softc *sc = usb_fifo_softc(fifo);
-
-	if (!(sc->flags & WMT_FLAG_EV_OPENED))
-		usbd_transfer_start(sc->xfer[WMT_INTR_DT]);
-	sc->flags |= WMT_FLAG_RD_STARTED;
-}
-
-static void
-wmt_stop_read(struct usb_fifo *fifo)
-{
-	struct wmt_softc *sc = usb_fifo_softc(fifo);
-
-	if (!(sc->flags & WMT_FLAG_EV_OPENED))
-		usbd_transfer_stop(sc->xfer[WMT_INTR_DT]);
-	sc->flags &= ~WMT_FLAG_RD_STARTED;
-}
-
-static void
-wmt_put_queue(struct wmt_softc *sc, uint8_t *buf, usb_size_t len)
-{
-
-	usb_fifo_put_data_linear(sc->fifo.fp[USB_FIFO_RX], buf, len, 1);
-}
-
-static int
-wmt_get_report(struct wmt_softc *sc, uint8_t type, uint8_t id,
-    void *kern_data, void *user_data, uint16_t len)
-{
-	int err;
-	uint8_t free_data = 0;
-
-	if (kern_data == NULL) {
-		kern_data = malloc(len, M_USBDEV, M_WAITOK);
-		if (kern_data == NULL) {
-			err = ENOMEM;
-			goto done;
-		}
-		free_data = 1;
-	}
-	err = usbd_req_get_report(sc->udev, NULL, kern_data, len,
-	    sc->iface_index, type, id);
-	if (err) {
-		err = ENXIO;
-		goto done;
-	}
-	if (user_data) {
-		/* dummy buffer */
-		err = copyout(kern_data, user_data, len);
-		if (err)
-			goto done;
-	}
-done:
-	if (free_data)
-		free(kern_data, M_USBDEV);
-
-	return (err);
-}
-
-
-
-static int
-wmt_open(struct usb_fifo *fifo, int fflags)
-{
-	/*
-	 * The buffers are one byte larger than maximum so that one
-	 * can detect too large read/writes and short transfers:
-	 */
-	if (fflags & FREAD) {
-		struct wmt_softc *sc = usb_fifo_softc(fifo);
-		if (sc->flags & WMT_FLAG_OPENED)
-			return (EBUSY);
-		if (usb_fifo_alloc_buffer(fifo,
-		    sc->isize + 1, WMT_FRAME_NUM))
-			return (ENOMEM);
-
-		sc->flags |= WMT_FLAG_OPENED;
-	}
-	return (0);
-}
-
-static void
-wmt_close(struct usb_fifo *fifo, int fflags)
-{
-	if (fflags & (FREAD)) {
-		struct wmt_softc *sc = usb_fifo_softc(fifo);
-		sc->flags &= ~(WMT_FLAG_OPENED);
-		usb_fifo_free_buffer(fifo);
-	}
-}
-
-static int
-wmt_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr, int fflags)
-{
-	struct wmt_softc *sc = usb_fifo_softc(fifo);
-	struct usb_gen_descriptor *ugd;
-	uint32_t size;
-	int error = 0;
-	uint8_t id;
-
-	switch (cmd) {
-	case USB_GET_REPORT_DESC:
-		ugd = addr;
-		if (sc->repdesc_size > ugd->ugd_maxlen) {
-			size = ugd->ugd_maxlen;
-		} else {
-			size = sc->repdesc_size;
-		}
-		ugd->ugd_actlen = size;
-		if (ugd->ugd_data == NULL)
-			break;		/* descriptor length only */
-		error = copyout(sc->repdesc_ptr, ugd->ugd_data, size);
-		break;
-
-	case USB_SET_IMMED:
-		if (!(fflags & FREAD)) {
-			error = EPERM;
-			break;
-		}
-		error = EINVAL;
-		break;
-
-	case USB_GET_REPORT:
-		if (!(fflags & FREAD)) {
-			error = EPERM;
-			break;
-		}
-		ugd = addr;
-		switch (ugd->ugd_report_type) {
-		case UHID_INPUT_REPORT:
-			size = sc->isize;
-			id = sc->iid;
-			break;
-		case UHID_FEATURE_REPORT:
-			size = sc->fsize;
-			id = sc->fid;
-			break;
-		case UHID_OUTPUT_REPORT:
-		default:
-			return (EINVAL);
-		}
-		if (id != 0)
-			copyin(ugd->ugd_data, &id, 1);
-		error = wmt_get_report(sc, ugd->ugd_report_type, id,
-		    sc->buf, ugd->ugd_data, imin(ugd->ugd_maxlen, size));
-		break;
-
-	case USB_SET_REPORT:
-		if (!(fflags & FWRITE)) {
-			error = EPERM;
-			break;
-		}
-		error = EINVAL;
-		break;
-
-	case USB_GET_REPORT_ID:
-		*(int *)addr = 0;	/* XXX: we only support reportid 0? */
-		break;
-
-	default:
-		error = EINVAL;
-		break;
-	}
-	return (error);
-}
-#endif
-
 static void
 wmt_ev_close(struct evdev_dev *evdev, void *ev_softc)
 {
 	struct wmt_softc *sc = (struct wmt_softc *)ev_softc;
 
-	mtx_lock(&sc->sc_mtx);
-	if (!(sc->flags & WMT_FLAG_RD_STARTED))
-		usbd_transfer_stop(sc->xfer[WMT_INTR_DT]);
-	sc->flags &= ~(WMT_FLAG_EV_OPENED);
-	mtx_unlock(&sc->sc_mtx);
+	mtx_assert(&sc->mtx, MA_OWNED);
+	usbd_transfer_stop(sc->xfer[WMT_INTR_DT]);
 }
 
 static int
@@ -684,182 +507,145 @@ wmt_ev_open(struct evdev_dev *evdev, void *ev_softc)
 {
 	struct wmt_softc *sc = (struct wmt_softc *)ev_softc;
 
-	mtx_lock(&sc->sc_mtx);
-	if (!(sc->flags & WMT_FLAG_RD_STARTED))
-		usbd_transfer_start(sc->xfer[WMT_INTR_DT]);
-	sc->flags |= WMT_FLAG_EV_OPENED;
-	mtx_unlock(&sc->sc_mtx);
+	mtx_assert(&sc->mtx, MA_OWNED);
+	usbd_transfer_start(sc->xfer[WMT_INTR_DT]);
 
 	return (0);
 }
 
-
-static uint32_t
-wmt_hid_test(const void *d_ptr, uint16_t d_len)
+static bool
+wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 {
-	struct hid_data *hd;
 	struct hid_item hi;
-	int mdepth;
-	uint32_t found;
+	struct hid_data *hd;
+	size_t i;
+	size_t cont = 0;
+	uint32_t caps = 0;
+	int32_t cont_count_max = 0;
+	uint8_t report_id = 0;
+	bool touch_coll = false;
+	bool finger_coll = false;
+	bool cont_count_found = false;
+	bool scan_time_found = false;
 
+#define WMT_HI_ABSOLUTE(hi)	\
+	(((hi).flags & (HIO_CONST|HIO_VARIABLE|HIO_RELATIVE)) == HIO_VARIABLE)
+
+	/* Parse features for maximum contact count */
 	hd = hid_start_parse(d_ptr, d_len, 1 << hid_feature);
-	if (hd == NULL)
-		return (0);
-
-	mdepth = 0;
-	found = 0;
-
 	while (hid_get_item(hd, &hi)) {
 		switch (hi.kind) {
 		case hid_collection:
-			if (mdepth != 0)
-				mdepth++;
-			else if (hi.collection == 1 &&
-			     hi.usage ==
-			      HID_USAGE2(HUP_DIGITIZERS, HUD_TOUCHSCREEN))
-				mdepth++;
+			if (hi.collevel == 1 && hi.usage ==
+			    HID_USAGE2(HUP_DIGITIZERS, HUD_TOUCHSCREEN))
+				touch_coll = true;
 			break;
 		case hid_endcollection:
-			if (mdepth != 0)
-				mdepth--;
+			if (hi.collevel == 0 && touch_coll)
+				touch_coll = false;
 			break;
 		case hid_feature:
-			if (mdepth == 0)
-				break;
-			if (hi.usage == HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_COUNT_MAX) &&
-			    (hi.flags & (HIO_CONST|HIO_VARIABLE|HIO_RELATIVE)) == HIO_VARIABLE)
-				found = hi.logical_maximum;
+			if (hi.collevel == 1 && touch_coll &&
+			    WMT_HI_ABSOLUTE(hi) && hi.usage ==
+			      HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_MAX))
+				cont_count_max = hi.logical_maximum;
 			break;
 		default:
 			break;
 		}
 	}
 	hid_end_parse(hd);
-	return (found);
-}
 
-static void
-hid_item_to_absinfo(struct hid_item *hi, struct input_absinfo *ia)
-{
-	/*
-	 * hid unit scaling table according to HID Usage Table Review
-	 * Request 39 Tbl 17 http://www.usb.org/developers/hidpage/HUTRR39b.pdf
-	 * Modified to do cm to 1/mm conversion.
-	 */
-	static const int64_t scale[][2] = {
-	    { 2, 20 },		/* 0x00 */
-	    { 2, 200 },		/* 0x01 */
-	    { 2, 2000 },	/* 0x02 */
-	    { 2, 20000 },	/* 0x03 */
-	    { 2, 200000 },	/* 0x04 */
-	    { 2, 2000000 },	/* 0x05 */
-	    { 2, 20000000 },	/* 0x06 */
-	    { 2, 200000000 },	/* 0x07 */
-	    { 10000000, 1 },	/* 0x08 */
-	    { 1000000, 1 },	/* 0x09 */
-	    { 100000, 1 },	/* 0x0A */
-	    { 10000, 1 },	/* 0x0B */
-	    { 1000, 1 },	/* 0x0C */
-	    { 100, 1 },		/* 0x0D */
-	    { 10, 1 },		/* 0x0E */
-	    { 2, 2 },		/* 0x0F */
-	};
-	int64_t logical_size, physical_size, resolution;
+	/* Maximum contact count is required usage */
+	if (cont_count_max < 1)
+		return (false);
 
-	if (WMT_ABSINFO_IS_SET(ia))
-		return;
+	touch_coll = false;
 
-	memset(ia, 0, sizeof(*ia));
-	ia->maximum = hi->logical_maximum;
-	ia->minimum = hi->logical_minimum;
-#define HIUU_CENTIMETER 0x11
-	if (hi->unit == HIUU_CENTIMETER &&
-	    hi->logical_maximum > hi->logical_minimum &&
-	    hi->physical_maximum > hi->physical_minimum) {
-		logical_size = (int64_t)hi->logical_maximum -
-		    (int64_t)hi->logical_minimum + 1;
-		physical_size = (int64_t)hi->physical_maximum -
-		    (int64_t)hi->physical_minimum + 1;
-
-		if (hi->unit_exponent >= 0 &&
-		    hi->unit_exponent < nitems(scale)) {
-			resolution = ((scale[hi->unit_exponent][0] / 2) +
-			    logical_size * scale[hi->unit_exponent][0]) /
-			    (physical_size * scale[hi->unit_exponent][1]);
-			if (resolution <= INT32_MAX)
-				ia->resolution = resolution;
-		}
-	}
-}
-
-static void
-wmt_hid_parse(struct wmt_softc *sc)
-{
-	struct hid_data *hd;
-	struct hid_item hi;
-	int mdepth, touch_coll, finger_coll;
-	size_t i;
-	int32_t finger_idx;
-
-	finger_idx = mdepth = touch_coll = finger_coll = 0;
-
-	hd = hid_start_parse
-	    (sc->repdesc_ptr, sc->repdesc_size, 1 << hid_input);
-	if (hd == NULL)
-		return;
-
-	for (i = 0; i < WMT_N_USAGES; i++)
-		sc->ai[i] = WMT_ABSINFO_RESET;
-
+	/* Parse input for other parameters */
+	hd = hid_start_parse(d_ptr, d_len, 1 << hid_input);
 	while (hid_get_item(hd, &hi)) {
 		switch (hi.kind) {
 		case hid_collection:
-			if (hi.collection == 1 && mdepth == 0 &&
-			    hi.usage ==
-			      HID_USAGE2(HUP_DIGITIZERS, HUD_TOUCHSCREEN))
-				touch_coll = 1;
-			if (hi.collection == 2 && mdepth == 1 &&
-			    hi.usage == HID_USAGE2(HUP_DIGITIZERS, HUD_FINGER)) {
-				finger_coll = 1;
-				sc->report_id = hi.report_ID;
-			}
-			mdepth++;
+			if (hi.collevel == 1 && hi.usage ==
+			    HID_USAGE2(HUP_DIGITIZERS, HUD_TOUCHSCREEN))
+				touch_coll = true;
+			else if (touch_coll && hi.collevel == 2 &&
+			    (report_id == 0 || report_id == hi.report_ID) &&
+			    hi.usage == HID_USAGE2(HUP_DIGITIZERS, HUD_FINGER))
+				finger_coll = true;
 			break;
 		case hid_endcollection:
-			if (mdepth != 0)
-				mdepth--;
-			if (mdepth == 1 && finger_coll == 1) {
-				finger_coll = 0;
-				++finger_idx;
-			}
-			if (mdepth == 0 && touch_coll == 1)
-				touch_coll = 0;
+			if (hi.collevel == 1 && finger_coll) {
+				finger_coll = false;
+				cont++;
+			} else if (hi.collevel == 0 && touch_coll)
+				touch_coll = false;
 			break;
 		case hid_input:
-			if ((hi.flags & (HIO_CONST|HIO_VARIABLE|HIO_RELATIVE))
-			    != HIO_VARIABLE)
+			/*
+			 * Ensure that all usages are located within the same
+			 * report and proper collection.
+			 */
+			if (WMT_HI_ABSOLUTE(hi) && touch_coll &&
+			    (report_id == 0 || report_id == hi.report_ID))
+				report_id = hi.report_ID;
+			else
 				break;
-			if (touch_coll == 1 && mdepth == 1) {
-				sc->ncontacts = hi.loc;
+
+			if (hi.collevel == 1 && hi.usage ==
+			    HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACTCOUNT)) {
+				cont_count_found = true;
+				if (sc != NULL)
+					sc->nconts_loc = hi.loc;
+				break;
+			}
+			/* Scan time is required but clobbered by evdev */
+			if (hi.collevel == 1 && hi.usage ==
+			    HID_USAGE2(HUP_DIGITIZERS, HUD_SCAN_TIME)) {
+				scan_time_found = true;
 				break;
 			}
 
-			if (finger_coll == 0 || mdepth != 2)
+			if (!finger_coll || hi.collevel != 2)
 				break;
-			if (finger_idx >= MAX_MT_SLOTS) {
-				DPRINTF("Finger %d ignored\n", finger_idx);
+			if (sc == NULL && cont > 0)
+				break;
+			if (cont >= MAX_MT_SLOTS) {
+				DPRINTF("Finger %zu ignored\n", cont);
 				break;
 			}
-
-			if (hi.usage ==
-			    HID_USAGE2(HUP_DIGITIZERS, HUD_TIP_SWITCH))
-				sc->flags |= WMT_FLAG_TIP_SWITCH;
 
 			for (i = 0; i < WMT_N_USAGES; i++) {
-				if (hi.usage == wmt_hid_map[i].usage &&
-				    sc->hid_items[finger_idx][i].size == 0) {
-					sc->hid_items[finger_idx][i] = hi.loc;
-					hid_item_to_absinfo(&hi, &sc->ai[i]);
+				if (hi.usage == wmt_hid_map[i].usage) {
+					if (sc == NULL) {
+						if (USAGE_SUPPORTED(caps, i))
+							continue;
+						caps |= 1 << i;
+						break;
+					}
+					/*
+					 * HUG_X usage is an array mapped to
+					 * both ABS_MT_POSITION and ABS_MT_TOOL
+					 * events. So don`t stop search if we
+					 * already have HUG_X mapping done.
+					 */
+					if (sc->locs[cont][i].size)
+						continue;
+					sc->locs[cont][i] = hi.loc;
+					/*
+					 * Hid parser returns valid logical and
+					 * physical sizes for first finger only
+					 * at least on ElanTS 0x04f3:0x0012.
+					 */
+					if (cont > 0)
+						break;
+					caps |= 1 << i;
+					sc->ai[i] = (struct wmt_absinfo) {
+					    .max = hi.logical_maximum,
+					    .min = hi.logical_minimum,
+					    .res = hid_item_resolution(&hi),
+					};
 					break;
 				}
 			}
@@ -870,23 +656,55 @@ wmt_hid_parse(struct wmt_softc *sc)
 	}
 	hid_end_parse(hd);
 
-	sc->ai[WMT_SLOT] =
-	    (struct input_absinfo) { .maximum = finger_idx - 1 };
-	if (WMT_ABSINFO_IS_SET(&sc->ai[WMT_WIDTH]) &&
-	    WMT_ABSINFO_IS_SET(&sc->ai[WMT_HEIGHT]))
-		sc->ai[WMT_ORIENTATION] =
-		    (struct input_absinfo) { .maximum = 1 };
+	/* Check for required HID Usages */
+	if (!cont_count_found || !scan_time_found || cont == 0)
+		return (false);
+	for (i = 0; i < WMT_N_USAGES; i++) {
+		if (wmt_hid_map[i].required && !USAGE_SUPPORTED(caps, i))
+			return (false);
+	}
 
-	/* Announce information about the pointer device */
+	/* Stop probing here */
+	if (sc == NULL)
+		return (true);
+
+	/* Cap contact count maximum to MAX_MT_SLOTS */
+	if (cont_count_max > MAX_MT_SLOTS) {
+		DPRINTF("Hardware reported %d contacts while only %d is "
+		    "supported\n", (int)cont_count_max, MAX_MT_SLOTS);
+		cont_count_max = MAX_MT_SLOTS;
+	}
+
+	/* Set number of MT protocol type B slots */
+	sc->ai[WMT_SLOT] = (struct wmt_absinfo) {
+		.min = 0,
+		.max = cont_count_max - 1,
+		.res = 0,
+	};
+
+	/* Report touch orientation if both width and height are supported */
+	if (USAGE_SUPPORTED(caps, WMT_WIDTH) &&
+	    USAGE_SUPPORTED(caps, WMT_HEIGHT)) {
+		caps |= (1 << WMT_ORIENTATION);
+		sc->ai[WMT_ORIENTATION].max = 1;
+	}
+
+	sc->report_id = report_id;
+	sc->caps = caps;
+	sc->nconts_max = cont;
+
+	/* Announce information about the touch device */
 	device_printf(sc->dev,
-	    "%d contacts and [%s%s%s%s]. Report range [%d:%d] - [%d:%d]\n",
-	    (int)finger_idx,
-	    WMT_ABSINFO_IS_SET(&sc->ai[WMT_CONFIDENCE]) ? "C" : "",
-	    WMT_ABSINFO_IS_SET(&sc->ai[WMT_WIDTH]) ? "W" : "",
-	    WMT_ABSINFO_IS_SET(&sc->ai[WMT_HEIGHT]) ? "H" : "",
-	    WMT_ABSINFO_IS_SET(&sc->ai[WMT_PRESSURE]) ? "P" : "",
-	    (int)sc->ai[WMT_X].minimum, (int)sc->ai[WMT_Y].minimum,
-	    (int)sc->ai[WMT_X].maximum, (int)sc->ai[WMT_Y].maximum);
+	    "%d contacts and [%s%s%s%s%s]. Report range [%d:%d] - [%d:%d]\n",
+	    (int)cont_count_max,
+	    USAGE_SUPPORTED(sc->caps, WMT_IN_RANGE) ? "R" : "",
+	    USAGE_SUPPORTED(sc->caps, WMT_CONFIDENCE) ? "C" : "",
+	    USAGE_SUPPORTED(sc->caps, WMT_WIDTH) ? "W" : "",
+	    USAGE_SUPPORTED(sc->caps, WMT_HEIGHT) ? "H" : "",
+	    USAGE_SUPPORTED(sc->caps, WMT_PRESSURE) ? "P" : "",
+	    (int)sc->ai[WMT_X].min, (int)sc->ai[WMT_Y].min,
+	    (int)sc->ai[WMT_X].max, (int)sc->ai[WMT_Y].max);
+	return (true);
 }
 
 static devclass_t wmt_devclass;
@@ -907,4 +725,5 @@ static driver_t wmt_driver = {
 
 DRIVER_MODULE(wmt, uhub, wmt_driver, wmt_devclass, NULL, 0);
 MODULE_DEPEND(wmt, usb, 1, 1, 1);
+MODULE_DEPEND(wmt, evdev, 1, 1, 1);
 MODULE_VERSION(wmt, 1);

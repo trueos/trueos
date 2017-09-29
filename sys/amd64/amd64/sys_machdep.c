@@ -254,39 +254,45 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		error = amd64_set_ioperm(td, &iargs);
 		break;
 	case I386_GET_FSBASE:
+		update_pcb_bases(pcb);
 		i386base = pcb->pcb_fsbase;
 		error = copyout(&i386base, uap->parms, sizeof(i386base));
 		break;
 	case I386_SET_FSBASE:
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
 		if (!error) {
+			set_pcb_flags(pcb, PCB_FULL_IRET);
 			pcb->pcb_fsbase = i386base;
 			td->td_frame->tf_fs = _ufssel;
 			update_gdt_fsbase(td, i386base);
 		}
 		break;
 	case I386_GET_GSBASE:
+		update_pcb_bases(pcb);
 		i386base = pcb->pcb_gsbase;
 		error = copyout(&i386base, uap->parms, sizeof(i386base));
 		break;
 	case I386_SET_GSBASE:
 		error = copyin(uap->parms, &i386base, sizeof(i386base));
 		if (!error) {
+			set_pcb_flags(pcb, PCB_FULL_IRET);
 			pcb->pcb_gsbase = i386base;
 			td->td_frame->tf_gs = _ugssel;
 			update_gdt_gsbase(td, i386base);
 		}
 		break;
 	case AMD64_GET_FSBASE:
-		error = copyout(&pcb->pcb_fsbase, uap->parms, sizeof(pcb->pcb_fsbase));
+		update_pcb_bases(pcb);
+		error = copyout(&pcb->pcb_fsbase, uap->parms,
+		    sizeof(pcb->pcb_fsbase));
 		break;
 		
 	case AMD64_SET_FSBASE:
 		error = copyin(uap->parms, &a64base, sizeof(a64base));
 		if (!error) {
 			if (a64base < VM_MAXUSER_ADDRESS) {
-				pcb->pcb_fsbase = a64base;
 				set_pcb_flags(pcb, PCB_FULL_IRET);
+				pcb->pcb_fsbase = a64base;
 				td->td_frame->tf_fs = _ufssel;
 			} else
 				error = EINVAL;
@@ -294,15 +300,17 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		break;
 
 	case AMD64_GET_GSBASE:
-		error = copyout(&pcb->pcb_gsbase, uap->parms, sizeof(pcb->pcb_gsbase));
+		update_pcb_bases(pcb);
+		error = copyout(&pcb->pcb_gsbase, uap->parms,
+		    sizeof(pcb->pcb_gsbase));
 		break;
 
 	case AMD64_SET_GSBASE:
 		error = copyin(uap->parms, &a64base, sizeof(a64base));
 		if (!error) {
 			if (a64base < VM_MAXUSER_ADDRESS) {
-				pcb->pcb_gsbase = a64base;
 				set_pcb_flags(pcb, PCB_FULL_IRET);
+				pcb->pcb_gsbase = a64base;
 				td->td_frame->tf_gs = _ugssel;
 			} else
 				error = EINVAL;
@@ -575,22 +583,22 @@ amd64_get_ldt(td, uap)
 }
 
 int
-amd64_set_ldt(td, uap, descs)
-	struct thread *td;
-	struct i386_ldt_args *uap;
-	struct user_segment_descriptor *descs;
+amd64_set_ldt(struct thread *td, struct i386_ldt_args *uap,
+    struct user_segment_descriptor *descs)
 {
-	int error = 0;
-	unsigned int largest_ld, i;
-	struct mdproc *mdp = &td->td_proc->p_md;
+	struct mdproc *mdp;
 	struct proc_ldt *pldt;
 	struct user_segment_descriptor *dp;
 	struct proc *p;
+	int error;
+	unsigned int largest_ld, i;
 
 #ifdef	DEBUG
 	printf("amd64_set_ldt: start=%d num=%d descs=%p\n",
 	    uap->start, uap->num, (void *)uap->descs);
 #endif
+	mdp = &td->td_proc->p_md;
+	error = 0;
 
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 	p = td->td_proc;
@@ -608,10 +616,9 @@ amd64_set_ldt(td, uap, descs)
 			largest_ld = max_ldt_segment;
 		if (largest_ld < uap->start)
 			return (EINVAL);
-		i = largest_ld - uap->start;
 		mtx_lock(&dt_lock);
-		bzero(&((struct user_segment_descriptor *)(pldt->ldt_base))
-		    [uap->start], sizeof(struct user_segment_descriptor) * i);
+		for (i = uap->start; i < largest_ld; i++)
+			((uint64_t *)(pldt->ldt_base))[i] = 0;
 		mtx_unlock(&dt_lock);
 		return (0);
 	}
@@ -733,14 +740,18 @@ int
 amd64_set_ldt_data(struct thread *td, int start, int num,
     struct user_segment_descriptor *descs)
 {
-	struct mdproc *mdp = &td->td_proc->p_md;
-	struct proc_ldt *pldt = mdp->md_ldt;
+	struct mdproc *mdp;
+	struct proc_ldt *pldt;
+	uint64_t *dst, *src;
+	int i;
 
 	mtx_assert(&dt_lock, MA_OWNED);
 
-	/* Fill in range */
-	bcopy(descs,
-	    &((struct user_segment_descriptor *)(pldt->ldt_base))[start],
-	    num * sizeof(struct user_segment_descriptor));
+	mdp = &td->td_proc->p_md;
+	pldt = mdp->md_ldt;
+	dst = (uint64_t *)(pldt->ldt_base);
+	src = (uint64_t *)descs;
+	for (i = 0; i < num; i++)
+		dst[start + i] = src[i];
 	return (0);
 }

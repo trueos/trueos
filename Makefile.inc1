@@ -556,7 +556,7 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		MK_GDB=no MK_TESTS=no
+		MK_GDB=no MK_LLD_IS_LD=${MK_LLD_BOOTSTRAP} MK_TESTS=no
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -1633,7 +1633,6 @@ create-world-package-${pkgname}: .PHONY
 		/^version/ { print $$2; next } \
 		' ${WSTAGEDIR}/${pkgname}.ucl
 	@if [ "${pkgname}" == "runtime" ]; then \
-		sed -i '' -e "s/%KERNCONF%/${INSTALLKERNEL:tl}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
 	fi
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
@@ -1786,7 +1785,8 @@ update: .PHONY
 
 # ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
 # r296685 fix cross-endian objcopy
-.if ${BOOTSTRAPPING} < 1100102
+# r310724 fixed PR 215350, a crash in libdwarf with objects built by GCC 6.2.
+.if ${BOOTSTRAPPING} < 1200020
 _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
@@ -1984,8 +1984,12 @@ _gcc_tools= gnu/usr.bin/cc/cc_tools
 _rescue=rescue/rescue
 .endif
 
+.if ${MK_TCSH} != "no"
+_tcsh=bin/csh
+.endif
+
 .for _tool in \
-    bin/csh \
+    ${_tcsh} \
     bin/sh \
     ${LOCAL_TOOL_DIRS} \
     lib/ncurses/ncurses \
@@ -2143,7 +2147,7 @@ native-xtools: .PHONY
     bin/cat \
     bin/chmod \
     bin/cp \
-    bin/csh \
+    ${_tcsh} \
     bin/echo \
     bin/expr \
     bin/hostname \
@@ -2554,7 +2558,7 @@ delete-old-files: .PHONY
 	done
 # Remove catpages without corresponding manpages.
 	@exec 3<&0; \
-	find ${DESTDIR}/usr/share/man/cat* ! -type d | \
+	find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | \
 	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
 	while read catpage; do \
 		read manpage; \
