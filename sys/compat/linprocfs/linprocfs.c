@@ -45,11 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/blist.h>
-#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
-#include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
@@ -108,8 +106,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
-
-#include <compat/linprocfs/linprocfs.h>
 
 /*
  * Various conversion macros
@@ -755,13 +751,10 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	struct thread *td2;
 	struct sigacts *ps;
 	l_sigset_t siglist, sigignore, sigcatch;
-	int i, thread_count;
+	int i;
 
-	thread_count = 0;
 	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
-	FOREACH_THREAD_IN_PROC(p, td2)
-		thread_count++;
 	td2 = FIRST_THREAD_IN_PROC(p); /* XXXKSE pretend only one thread */
 
 	if (P_SHOULDSTOP(p)) {
@@ -807,20 +800,9 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	/*
 	 * Credentials
 	 */
-	sbuf_printf(sb, "Tgid:\t%d\n",		p->p_pid);
-	sbuf_printf(sb, "Ngid:\t0\n");
 	sbuf_printf(sb, "Pid:\t%d\n",		p->p_pid);
-	if (p->p_pptr) {
-		sbuf_printf(sb, "PPid:\t%d\n",
-			    p->p_flag & P_TRACED ?
-			    p->p_oppid : p->p_pptr->p_pid);
-		sbuf_printf(sb, "TracerPid:\t%d\n",
-			    p->p_flag & P_TRACED ? p->p_pptr->p_pid :
-			    0);
-	} else {
-		sbuf_printf(sb, "PPid:\t1\n");
-		sbuf_printf(sb, "TracerPid:\t0\n");
-	}
+	sbuf_printf(sb, "PPid:\t%d\n",		p->p_pptr ?
+						p->p_pptr->p_pid : 0);
 	sbuf_printf(sb, "Uid:\t%d %d %d %d\n",	p->p_ucred->cr_ruid,
 						p->p_ucred->cr_uid,
 						p->p_ucred->cr_svuid,
@@ -831,18 +813,11 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 						p->p_ucred->cr_svgid,
 						/* FreeBSD doesn't have fsgid */
 						p->p_ucred->cr_gid);
-	/* XXX FDSize */
 	sbuf_cat(sb, "Groups:\t");
 	for (i = 0; i < p->p_ucred->cr_ngroups; i++)
 		sbuf_printf(sb, "%d ",		p->p_ucred->cr_groups[i]);
 	PROC_UNLOCK(p);
 	sbuf_putc(sb, '\n');
-	/* XXX
-	 * NStgid
-	 * NSpid
-	 * NSpgid
-	 * NSsid
-	 */
 
 	/*
 	 * Memory
@@ -855,14 +830,8 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	 * could also compute VmLck, but I don't really care enough to
 	 * implement it. Submissions are welcome.
 	 */
-	/* XXX VmPeak */
 	sbuf_printf(sb, "VmSize:\t%8ju kB\n",	B2K((uintmax_t)kp.ki_size));
 	sbuf_printf(sb, "VmLck:\t%8u kB\n",	P2K(0)); /* XXX */
-	/*
-	 * XXX
-	 * VmPin
-	 * VmHWM
-	 */
 	sbuf_printf(sb, "VmRSS:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_rssize));
 	sbuf_printf(sb, "VmData:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_dsize));
 	sbuf_printf(sb, "VmStk:\t%8ju kB\n",	P2K((uintmax_t)kp.ki_ssize));
@@ -870,13 +839,6 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	lsize = B2P(kp.ki_size) - kp.ki_dsize -
 	    kp.ki_ssize - kp.ki_tsize - 1;
 	sbuf_printf(sb, "VmLib:\t%8ju kB\n",	P2K((uintmax_t)lsize));
-	/*
-	 * XXX
-	 * VmPTE
-	 * VmPMD
-	 * VmSwap
-	 */
-	sbuf_printf(sb, "Threads:\t%d\n",		thread_count);
 
 	/*
 	 * Signal masks
@@ -890,7 +852,6 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	mtx_unlock(&ps->ps_mtx);
 	PROC_UNLOCK(p);
 
-	/* XXX SigQ */
 	sbuf_printf(sb, "SigPnd:\t%016jx\n",	siglist.__mask);
 	/*
 	 * XXX. SigBlk - target thread's signal mask, td_sigmask.
@@ -908,18 +869,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	sbuf_printf(sb, "CapInh:\t%016x\n",	0);
 	sbuf_printf(sb, "CapPrm:\t%016x\n",	0);
 	sbuf_printf(sb, "CapEff:\t%016x\n",	0);
-	/* XXX CapBnd */
 
-
-	/* XXX
-	 * Seccomp
-	 * Cpus_allowed
-	 * Cpus_allowed_list
-	 * Mems_allowed
-	 * Mems_allowed_list
-	 * voluntary_ctxt_switches
-	 * nonvoluntary_ctxt_switches
-	 */
 	return (0);
 }
 
@@ -1409,125 +1359,17 @@ linprocfs_domodules(PFS_FILL_ARGS)
 }
 #endif
 
-static int
-linprocfs_sofill(struct sbuf *sb, struct socket *so)
-{
-	sbuf_printf(sb, "[socket]");
-	return (0);
-}
-
-static int
-linprocfs_vnfill(struct sbuf *sb, struct thread *td, struct vnode *vp)
-{
-	char *fullpath = "unknown";
-	char *freepath = NULL;
-
-	if (vp == NULL) {
-		sbuf_printf(sb, "");
-		return (0);
-	}
-
-	if (vp->v_type == VNON) {
-		sbuf_printf(sb, "VNON");
-		return (0);
-	}
-	VREF(vp);
-
-	vn_fullpath(td, vp, &fullpath, &freepath);
-	if (vp != NULL)
-		vrele(vp);
-	sbuf_printf(sb, "%s", fullpath);
-	if (freepath)
-		free(freepath, M_TEMP);
-	return (0);
-}
-
-static char *type2name[] = {
-	"invalid",
-	"vnode",
-	"socket",
-	"pipe",
-	"fifo",
-	"kqueue",
-	"crypto",
-	"mqueue",
-	"shm",
-	"sem",
-	"pts",
-	"dev",
-	"linuxefd",
-};
-	
-static int
-linprocfs_fdfill(PFS_FILL_ARGS)
-{
-	struct file *fp;
-	struct thread *fpthread;
-	cap_rights_t rights;
-	int rc, fd;
-
-	fd = (int)pn->pn_data;
-	if (fget(td, fd,  cap_rights_init(&rights, CAP_FSTAT), &fp)) {
-		sbuf_printf(sb, "unknown");
-		return (0);
-	}
-	rc = 0;
-	fpthread = FIRST_THREAD_IN_PROC(p);
-	MPASS(fp->f_type > 0 && fp->f_type <= DTYPE_LINUXTFD);
-
-	switch (fp->f_type) {
-	case DTYPE_VNODE:
-		rc = linprocfs_vnfill(sb, fpthread, fp->f_data);
-		break;
-	case DTYPE_SOCKET:
-		rc = linprocfs_sofill(sb, fp->f_data);
-		break;
-	case DTYPE_PIPE:
-	case DTYPE_FIFO:
-	case DTYPE_KQUEUE:
-	case DTYPE_CRYPTO:
-	case DTYPE_MQUEUE:
-	case DTYPE_SHM:
-	case DTYPE_SEM:
-	case DTYPE_PTS:
-	case DTYPE_DEV:
-	case DTYPE_LINUXEFD:
-		sbuf_printf(sb, "[%s]", type2name[fp->f_type]);
-		break;
-	default:
-		sbuf_printf(sb, "invalid");
-		break;
-	}
-	fdrop(fp, fpthread);
-
-	return (rc);
-}
-
-
 /*
  * Filler function for proc/pid/fd
  */
 static int
-linprocfs_dirfill(PFS_FILL_ARGS)
+linprocfs_dofdescfs(PFS_FILL_ARGS)
 {
-	int i, lastfile;
-	struct filedesc *fdp;
-	struct pfs_node *pnnew;
-	char buf[10];
 
-	fdp = p->p_fd;
-	if (fdp == NULL || fdp->fd_files->fdt_nfiles == 0)
-		return (0);
-
-	lastfile = fdp->fd_lastfile;
-	for (i = 0; i < lastfile; i++) {
-		if (fdp->fd_ofiles[i].fde_file == NULL)
-			continue;
-		snprintf(buf, 9, "%d", i);
-		pnnew = pfs_create_link(pn, buf, linprocfs_fdfill, NULL, NULL,
-					NULL, 0);
-		pnnew->pn_data = (void *)(uintptr_t)i;
-	}
+	if (p == curproc)
+		sbuf_printf(sb, "/dev/fd");
+	else
+		sbuf_printf(sb, "unknown");
 	return (0);
 }
 
@@ -1758,7 +1600,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "status", &linprocfs_doprocstatus,
 	    NULL, NULL, NULL, PFS_RD);
-	pfs_create_dyndir(dir, "fd", linprocfs_dirfill, NULL, NULL, NULL, 0);
+	pfs_create_link(dir, "fd", &linprocfs_dofdescfs,
+	    NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "auxv", &linprocfs_doauxv,
 	    NULL, &procfs_candebug, NULL, PFS_RD|PFS_RAWRD);
 	pfs_create_file(dir, "limits", &linprocfs_doproclimits,
@@ -1773,10 +1616,6 @@ linprocfs_init(PFS_INIT_ARGS)
 
 	/* /proc/sys/... */
 	dir = pfs_create_dir(root, "sys", NULL, NULL, NULL, 0);
-
-	/* /proc/sys/vm/... */
-	linprocfs_vm_init(dir);
-
 	/* /proc/sys/kernel/... */
 	dir = pfs_create_dir(dir, "kernel", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "osrelease", &linprocfs_doosrelease,

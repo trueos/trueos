@@ -38,6 +38,7 @@
 #include <sys/event.h>
 #include <sys/lock.h>
 #include <sys/priority.h>
+#include <sys/seq.h>
 #include <sys/sx.h>
 
 #include <machine/_limits.h>
@@ -53,7 +54,7 @@ struct filedescent {
 	struct file	*fde_file;	/* file structure for open file */
 	struct filecaps	 fde_caps;	/* per-descriptor rights */
 	uint8_t		 fde_flags;	/* per-process open file flags */
-	uint32_t	 fde_seq;	/* keep file and caps in sync */
+	seq_t		 fde_seq;	/* keep file and caps in sync */
 };
 #define	fde_rights	fde_caps.fc_rights
 #define	fde_fcntls	fde_caps.fc_fcntls
@@ -196,7 +197,7 @@ int	fget_cap(struct thread *td, int fd, cap_rights_t *needrightsp,
 
 /* Return a referenced file from an unlocked descriptor. */
 int	fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
-	    struct file **fpp, uint32_t *seqp);
+	    struct file **fpp, seq_t *seqp);
 
 /* Requires a FILEDESC_{S,X}LOCK held and returns without a ref. */
 static __inline struct file *
@@ -210,8 +211,6 @@ fget_locked(struct filedesc *fdp, int fd)
 
 	return (fdp->fd_ofiles[fd].fde_file);
 }
-
-bool fd_modified(struct filedesc *fdp, int fd, uint32_t seq);
 
 static __inline struct filedescent *
 fdeget_locked(struct filedesc *fdp, int fd)
@@ -229,6 +228,15 @@ fdeget_locked(struct filedesc *fdp, int fd)
 
 	return (fde);
 }
+
+#ifdef CAPABILITIES
+static __inline bool
+fd_modified(struct filedesc *fdp, int fd, seq_t seq)
+{
+
+	return (!seq_consistent(fd_seq(fdp->fd_files, fd), seq));
+}
+#endif
 
 /* cdir/rdir/jdir manipulation functions. */
 void	pwd_chdir(struct thread *td, struct vnode *vp);

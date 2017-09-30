@@ -59,7 +59,6 @@ const struct firmware	*firmware_register(const char *,
 	const void *, size_t, unsigned int, const struct firmware *);
 int	 firmware_unregister(const char *);
 const struct firmware *firmware_get(const char *);
-const struct firmware *firmware_get2(const char *, int verbose);
 #define	FIRMWARE_UNLOAD		0x0001	/* unload if unreferenced */
 void		 firmware_put(const struct firmware *, int);
 #endif /* _SYS_FIRMWARE_H_ */

@@ -88,10 +88,6 @@ _module_run(void *arg)
 #define	module_exit(fn)						\
 	SYSUNINIT(fn, SI_SUB_OFED_MODINIT, SI_ORDER_SECOND, _module_run, (fn))
 
-
-#define postcore_initcall(fn)		module_init(fn)
-#define late_initcall(fn)		module_init(fn)
-
 /*
  * The following two macros are a workaround for not having a module
  * load and unload order resolver:

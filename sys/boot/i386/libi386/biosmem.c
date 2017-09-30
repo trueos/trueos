@@ -125,7 +125,7 @@ bios_getmem(void)
 		}
 
 		/*
-		 * Look for the highest segment in 'extended' memory beyond
+		 * Look for the largest segment in 'extended' memory beyond
 		 * 1MB but below 4GB.
 		 */
 		if ((smap.type == SMAP_TYPE_MEMORY) &&
@@ -140,13 +140,9 @@ bios_getmem(void)
 			if (smap.base + size > 0x100000000ull)
 				size = 0x100000000ull - smap.base;
 
-			/*
-			 * To make maximum space for the kernel and the modules,
-			 * set heap to use highest HEAP_MIN bytes below 4GB.
-			 */
-			if (high_heap_base < smap.base && size >= HEAP_MIN) {
-				high_heap_base = smap.base + size - HEAP_MIN;
-				high_heap_size = HEAP_MIN;
+			if (size > high_heap_size) {
+				high_heap_size = size;
+				high_heap_base = smap.base;
 			}
 		}
 	} while (v86.ebx != 0);
@@ -207,11 +203,7 @@ bios_getmem(void)
 	}
 
 	/* Set memtop to actual top of memory */
-	if (high_heap_size != 0) {
-		memtop = memtop_copyin = high_heap_base;
-	} else {
-		memtop = memtop_copyin = 0x100000 + bios_extmem;
-	}
+	memtop = memtop_copyin = 0x100000 + bios_extmem;
 
 	/*
 	 * If we have extended memory and did not find a suitable heap
@@ -221,7 +213,6 @@ bios_getmem(void)
 	if (bios_extmem >= HEAP_MIN && high_heap_size < HEAP_MIN) {
 		high_heap_size = HEAP_MIN;
 		high_heap_base = memtop - HEAP_MIN;
-		memtop = memtop_copyin = high_heap_base;
 	}
 }
 

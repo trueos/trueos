@@ -440,10 +440,8 @@ mmc_highest_voltage(uint32_t ocr)
 {
 	int i;
 
-    // Changed lower bound from MMC_OCR_MIN_VOLTAGE_SHIFT
-    // to 7 to make it work on Cherryview. Tip from DragonFlyBSD.
-    // Make more permanent fix? Does this break anything?
-	for (i = MMC_OCR_MAX_VOLTAGE_SHIFT; i >= 7; i--)
+	for (i = MMC_OCR_MAX_VOLTAGE_SHIFT;
+	    i >= MMC_OCR_MIN_VOLTAGE_SHIFT; i--)
 		if (ocr & (1 << i))
 			return (i);
 	return (-1);
@@ -658,7 +656,7 @@ mmc_send_if_cond(struct mmc_softc *sc, uint8_t vhs)
 	cmd.flags = MMC_RSP_R7 | MMC_CMD_BCR;
 	cmd.data = NULL;
 
-	err = mmc_wait_for_cmd(sc->dev, sc->dev, &cmd, 5*CMD_RETRIES);
+	err = mmc_wait_for_cmd(sc->dev, sc->dev, &cmd, CMD_RETRIES);
 	return (err);
 }
 

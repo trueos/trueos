@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <machine/cpufunc.h>
-#include <machine/cpu.h>
 
 SDT_PROVIDER_DEFINE(lock);
 SDT_PROBE_DEFINE1(lock, , , starvation, "u_int");

@@ -38,7 +38,6 @@
 struct thread;
 struct task_struct;
 
-extern void *compat_alloc_user_space(unsigned long len);
 extern int linux_alloc_current(struct thread *, int flags);
 extern void linux_free_current(struct task_struct *);
 

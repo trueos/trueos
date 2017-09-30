@@ -31,7 +31,6 @@
 
 #ifndef _LINUX_LOCKDEP_H_
 #define	_LINUX_LOCKDEP_H_
-#include <linux/list.h>
 
 struct lock_class_key {
 };

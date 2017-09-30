@@ -58,10 +58,7 @@ MALLOC_DEFINE(M_EPOLL, "lepoll", "Linux events structures");
 MALLOC_DEFINE(M_FUTEX, "futex", "Linux futexes");
 MALLOC_DEFINE(M_FUTEX_WP, "futex wp", "Linux futex waiting proc");
 
-char      linux_emul_path[MAXPATHLEN] = "/compat/linux";
-
-
-
+const char      linux_emul_path[] = "/compat/linux";
 
 /*
  * Search an alternate path before passing pathname arguments on to

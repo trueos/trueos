@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #define        DEB(x)
+#define        DDB(x) x
 
 /*
  * Dynamic rule support for ipfw

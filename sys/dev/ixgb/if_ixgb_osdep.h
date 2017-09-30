@@ -90,7 +90,7 @@ struct ixgb_osdep
 {
 	bus_space_tag_t    mem_bus_space_tag;
 	bus_space_handle_t mem_bus_space_handle;
-	device_t	   dev;
+	device_t dev;
 };
 
 #define IXGB_WRITE_FLUSH(a) IXGB_READ_REG(a, STATUS)

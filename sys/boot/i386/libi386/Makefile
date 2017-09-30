@@ -12,10 +12,10 @@ SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 .PATH:	${.CURDIR}/../../zfs
 SRCS+=	devicename_stubs.c
 
+# Enable PXE TFTP or NFS support, not both.
 .if defined(LOADER_TFTP_SUPPORT)
 CFLAGS+=	-DLOADER_TFTP_SUPPORT
-.endif
-.if defined(LOADER_NFS_SUPPORT)
+.else
 CFLAGS+=	-DLOADER_NFS_SUPPORT
 .endif
 

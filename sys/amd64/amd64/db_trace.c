@@ -384,20 +384,6 @@ db_trace_self(void)
 	db_backtrace(curthread, NULL, frame, callpc, 0, -1);
 }
 
-void
-db_trace_self_depth(int depth)
-{
-	struct amd64_frame *frame;
-	db_addr_t callpc;
-	register_t rbp;
-
-	__asm __volatile("movq %%rbp,%0" : "=r" (rbp));
-	frame = (struct amd64_frame *)rbp;
-	callpc = (db_addr_t)db_get_value((long)&frame->f_retaddr, 8, FALSE);
-	frame = frame->f_frame;
-	db_backtrace(curthread, NULL, frame, callpc, 0, depth);
-}
-
 int
 db_trace_thread(struct thread *thr, int count)
 {

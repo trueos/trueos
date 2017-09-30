@@ -2253,6 +2253,29 @@ agp_intel_gtt_install_pte(device_t dev, u_int index, vm_paddr_t addr,
 }
 
 void
+agp_intel_gtt_insert_sg_entries(device_t dev, struct sglist *sg_list,
+    u_int first_entry, u_int flags)
+{
+	struct agp_i810_softc *sc;
+	vm_paddr_t spaddr;
+	size_t slen;
+	u_int i, j;
+
+	sc = device_get_softc(dev);
+	for (i = j = 0; j < sg_list->sg_nseg; j++) {
+		spaddr = sg_list->sg_segs[i].ss_paddr;
+		slen = sg_list->sg_segs[i].ss_len;
+		for (; slen > 0; i++) {
+			sc->match->driver->install_gtt_pte(dev, first_entry + i,
+			    spaddr, flags);
+			spaddr += AGP_PAGE_SIZE;
+			slen -= AGP_PAGE_SIZE;
+		}
+	}
+	sc->match->driver->read_gtt_pte(dev, first_entry + i - 1);
+}
+
+void
 intel_gtt_clear_range(u_int first_entry, u_int num_entries)
 {
 
@@ -2300,6 +2323,14 @@ intel_gtt_map_memory(vm_page_t *pages, u_int num_entries,
 }
 
 void
+intel_gtt_insert_sg_entries(struct sglist *sg_list, u_int first_entry,
+    u_int flags)
+{
+
+	agp_intel_gtt_insert_sg_entries(intel_agp, sg_list, first_entry, flags);
+}
+
+void
 intel_gtt_install_pte(u_int index, vm_paddr_t addr, u_int flags)
 {
 
@@ -2340,13 +2371,4 @@ intel_gtt_write(u_int entry, uint32_t val)
 
 	sc = device_get_softc(intel_agp);
 	return (sc->match->driver->write_gtt(intel_agp, entry, val));
-}
-
-void *
-intel_gtt_get_registers(void)
-{
-	struct agp_i810_softc *sc;
-
-	sc = device_get_softc(intel_agp);
-	return (sc->sc_res[0]);
 }

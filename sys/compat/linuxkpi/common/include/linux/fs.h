@@ -38,14 +38,10 @@
 #include <sys/vnode.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-
 #include <linux/types.h>
 #include <linux/wait.h>
-#include <linux/dcache.h>
 #include <linux/semaphore.h>
-#include <linux/atomic.h>
 #include <linux/spinlock.h>
-#include <linux/interrupt.h>
 
 struct module;
 struct kiocb;
@@ -65,6 +61,7 @@ struct pfs_node;
 
 #define	S_IRUGO	(S_IRUSR | S_IRGRP | S_IROTH)
 #define	S_IWUGO	(S_IWUSR | S_IWGRP | S_IWOTH)
+
 
 typedef struct files_struct *fl_owner_t;
 
@@ -114,7 +111,6 @@ struct linux_file {
 	struct linux_file_wait_queue f_wait_queue;
 };
 
-#define f_inode		f_vnode
 #define	file		linux_file
 #define	fasync_struct	sigio *
 
@@ -185,10 +181,6 @@ struct file_operations {
 #define	FMODE_READ	FREAD
 #define	FMODE_WRITE	FWRITE
 #define	FMODE_EXEC	FEXEC
-
-/* Alas, no aliases. Too much hassle with bringing module.h everywhere */
-#define fops_put(fops) \
-	do { if (fops) module_put((fops)->owner); } while(0)
 
 int __register_chrdev(unsigned int major, unsigned int baseminor,
     unsigned int count, const char *name,
@@ -283,7 +275,7 @@ iput(struct inode *inode)
 }
 
 static inline loff_t 
-no_llseek(struct linux_file *file, loff_t offset, int whence)
+no_llseek(struct file *file, loff_t offset, int whence)
 {
 
 	return (-ESPIPE);

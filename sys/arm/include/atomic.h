@@ -119,5 +119,4 @@ atomic_store_long(volatile u_long *dst, u_long src)
 #define atomic_store_rel_int		atomic_store_rel_32
 #define atomic_swap_int			atomic_swap_32
 
-
 #endif /* _MACHINE_ATOMIC_H_ */

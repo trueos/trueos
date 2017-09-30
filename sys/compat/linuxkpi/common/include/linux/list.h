@@ -59,7 +59,12 @@
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
+#include <netinet/tcp_lro.h>
+
+#include <netinet6/in6_var.h>
+#include <netinet6/nd6.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -138,9 +143,6 @@ static inline void
 linux_list_add(struct list_head *new, struct list_head *prev,
     struct list_head *next)
 {
-	MPASS(new != NULL);
-	MPASS(prev != NULL);
-	MPASS(next != NULL);
 
 	next->prev = new;
 	new->next = next;

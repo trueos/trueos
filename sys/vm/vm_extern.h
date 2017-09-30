@@ -83,8 +83,6 @@ int vm_fault_hold(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags, vm_page_t *m_hold);
 int vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
     vm_prot_t prot, vm_page_t *ma, int max_count);
-int vm_fault_quick_hold_pages_simple(vm_map_t map, vm_offset_t addr, vm_size_t len,
-    vm_prot_t prot);
 int vm_forkproc(struct thread *, struct proc *, struct thread *,
     struct vmspace *, int);
 void vm_waitproc(struct proc *);
@@ -112,8 +110,6 @@ void vmspace_switch_aio(struct vmspace *);
 void vnode_pager_setsize(struct vnode *, vm_ooffset_t);
 int vslock(void *, size_t);
 void vsunlock(void *, size_t);
-int vshold(void *, size_t);
-void vsunhold(void *, size_t);
 struct sf_buf *vm_imgact_map_page(vm_object_t object, vm_ooffset_t offset);
 void vm_imgact_unmap_page(struct sf_buf *sf);
 void vm_thread_dispose(struct thread *td);

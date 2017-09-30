@@ -72,10 +72,8 @@ __FBSDID("$FreeBSD$");
 #include <linux/netdevice.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
-#include <linux/compat.h>
 #include <linux/uaccess.h>
 #include <linux/list.h>
-#include <linux/smp.h>
 #include <linux/kthread.h>
 #include <linux/kernel.h>
 #include <linux/compat.h>
@@ -87,14 +85,15 @@ __FBSDID("$FreeBSD$");
 #endif
 
 SYSCTL_NODE(_compat, OID_AUTO, linuxkpi, CTLFLAG_RW, 0, "LinuxKPI parameters");
-int linux_db_trace;
-SYSCTL_INT(_compat_linuxkpi, OID_AUTO, db_trace, CTLFLAG_RWTUN, &linux_db_trace, 0, "enable backtrace instrumentation");
 
 MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
-MALLOC_DEFINE(M_LCINT, "linuxint", "Linux compat internal");
 
+#include <linux/rbtree.h>
+/* Undo Linux compat changes. */
+#undef RB_ROOT
 #undef file
 #undef cdev
+#define	RB_ROOT(head)	(head)->rbh_root
 
 static struct vm_area_struct *linux_cdev_handle_find(void *handle);
 
@@ -107,17 +106,13 @@ spinlock_t pci_lock;
 
 unsigned long linux_timer_hz_mask;
 
-/*
- * XXX this leaks right now, we need to track
- * this memory so that it's freed on return from
- * the compatibility ioctl calls
- */
-void *
-compat_alloc_user_space(unsigned long len)
+int
+panic_cmp(struct rb_node *one, struct rb_node *two)
 {
-
-	return (malloc(len, M_LCINT, M_NOWAIT));
+	panic("no cmp");
 }
+
+RB_GENERATE(linux_root, rb_node, __entry, panic_cmp);
 
 int
 kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
@@ -142,10 +137,9 @@ kobject_set_name_vargs(struct kobject *kobj, const char *fmt, va_list args)
 	len++;
 
 	/* check for error */
-	if (len < 1) {
-		printf("kobj name too short\n");
+	if (len < 1)
 		return (-EINVAL);
-	}
+
 	/* allocate memory for string */
 	name = kzalloc(len, GFP_KERNEL);
 	if (name == NULL)
@@ -182,7 +176,7 @@ kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 	const struct kobj_type *t;
 	int error;
 
-	kobj->parent = kobject_get(parent);
+	kobj->parent = parent;
 	error = sysfs_create_dir(kobj);
 	if (error == 0 && kobj->ktype && kobj->ktype->default_attrs) {
 		struct attribute **attr;
@@ -193,10 +187,8 @@ kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 			if (error)
 				break;
 		}
-		if (error) {
-			log(LOG_ERR, "sysfs_create_file failed in kobject_add_complete - error: %d\n", error);
+		if (error)
 			sysfs_remove_dir(kobj);
-		}
 		
 	}
 	return (error);
@@ -211,10 +203,9 @@ kobject_add(struct kobject *kobj, struct kobject *parent, const char *fmt, ...)
 	va_start(args, fmt);
 	error = kobject_set_name_vargs(kobj, fmt, args);
 	va_end(args);
-	if (error) {
-		log(LOG_ERR, "kobject_set_name_vargs failed\n");
+	if (error)
 		return (error);
-	}
+
 	return kobject_add_complete(kobj, parent);
 }
 
@@ -1633,24 +1624,19 @@ iounmap(void *addr)
 	kfree(vmmap);
 }
 
+
 void *
 vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 {
 	vm_offset_t off;
-	vm_size_t size;
-	int attr;
+	size_t size;
 
 	size = count * PAGE_SIZE;
 	off = kva_alloc(size);
 	if (off == 0)
 		return (NULL);
 	vmmap_add((void *)off, size);
-	attr = pgprot2cachemode(prot);
 	pmap_qenter(off, pages, count);
-	if (pmap_change_attr(off, size, attr) != 0) {
-		vunmap((void *)off);
-		return (NULL);
-	}
 
 	return ((void *)off);
 }
@@ -1778,7 +1764,7 @@ linux_wait_for_common(struct completion *c, int flags)
 {
 	int error;
 
-	if (unlikely(SKIP_SLEEP()))
+	if (SCHEDULER_STOPPED())
 		return (0);
 
 	DROP_GIANT();
@@ -1820,7 +1806,7 @@ linux_wait_for_timeout_common(struct completion *c, int timeout, int flags)
 	int error;
 	int ret;
 
-	if (SKIP_SLEEP())
+	if (SCHEDULER_STOPPED())
 		return (0);
 
 	DROP_GIANT();
@@ -2194,7 +2180,6 @@ linux_compat_init(void *arg)
 
 	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
-
 	kobject_init(&linux_class_root, &linux_class_ktype);
 	kobject_set_name(&linux_class_root, "class");
 	linux_class_root.oidp = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(rootoid),
@@ -2204,7 +2189,6 @@ linux_compat_init(void *arg)
 	linux_root_device.kobj.oidp = SYSCTL_ADD_NODE(NULL,
 	    SYSCTL_CHILDREN(rootoid), OID_AUTO, "device", CTLFLAG_RD, NULL,
 	    "device");
-
 	linux_root_device.bsddev = root_bus;
 	linux_class_misc.name = "misc";
 	class_register(&linux_class_misc);

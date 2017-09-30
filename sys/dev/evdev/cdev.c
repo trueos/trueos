@@ -123,7 +123,7 @@ evdev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	if (ret != 0)
 		evdev_revoke_client(client);
 	/*
-	 * Unlock evdev here because non-sleepable lock held
+	 * Unlock evdev here because non-sleepable lock held 
 	 * while calling devfs_set_cdevpriv upsets WITNESS
 	 */
 	EVDEV_UNLOCK(evdev);
@@ -681,8 +681,8 @@ evdev_cdev_create(struct evdev_dev *evdev)
 	mda.mda_flags = MAKEDEV_WAITOK | MAKEDEV_CHECKNAME;
 	mda.mda_devsw = &evdev_cdevsw;
 	mda.mda_uid = UID_ROOT;
-	mda.mda_gid = GID_VIDEO;
-	mda.mda_mode = 0660;
+	mda.mda_gid = GID_WHEEL;
+	mda.mda_mode = 0600;
 	mda.mda_si_drv1 = evdev;
 
 	/* Try to coexist with cuse-backed input/event devices */

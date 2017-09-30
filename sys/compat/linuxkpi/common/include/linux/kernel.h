@@ -41,20 +41,16 @@
 #include <sys/smp.h>
 #include <sys/stddef.h>
 #include <sys/syslog.h>
-#include <sys/kdb.h>
 #include <sys/time.h>
 
-
+#include <linux/bitops.h>
+#include <linux/compiler.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/types.h>
-#include <linux/compiler.h>
-#include <linux/bitops.h>
 #include <linux/jiffies.h>
-#include <linux/log2.h>
-#include <linux/printk.h>
+#include <linux/log2.h> 
 #include <asm/byteorder.h>
-#include <asm/smp.h>
 
 #include <machine/stdarg.h>
 
@@ -90,10 +86,6 @@
 #define	S64_C(x) x ## LL
 #define	U64_C(x) x ## ULL
 
-#if !defined(__x86_64__) && defined(__amd64__)
-#define __x86_64__
-#endif
-
 #define	BUILD_BUG_ON(x)			CTASSERT(!(x))
 #define	BUILD_BUG_ON_MSG(x, msg)	BUILD_BUG_ON(x)
 #define	BUILD_BUG_ON_NOT_POWER_OF_2(x)	BUILD_BUG_ON(!powerof2(x))
@@ -106,34 +98,11 @@
 	}							\
 } while (0)
 
-extern int linux_db_trace;
-#ifdef DDB
-extern void db_trace_self_depth(int);
-#define BACKTRACE()				\
-	do {					\
-		if (linux_db_trace)		\
-			db_trace_self_depth(6); \
-	} while (0)
-
-#define COND_BACKTRACE(cond)			\
-	do {					\
-		if ((cond))			\
-			BACKTRACE();		\
-	} while (0)
-#else
-#define BACKTRACE()
-#define COND_BACKTRACE(cord)
-#endif
-
 #define	WARN_ON(cond) ({					\
-      static bool __bt_on_once;				        \
       bool __ret = (cond);					\
-      struct thread *td = curthread;				\
       if (__ret) {						\
-	      COND_BACKTRACE(!__bt_on_once);			\
-	      __bt_on_once = 1;					\
-	      printf("%s:%d WARNING %s failed at %s:%d\n",	\
-		     td->td_name, td->td_tid, __stringify(cond), __FILE__, __LINE__); \
+		printf("WARNING %s failed at %s:%d\n",		\
+		    __stringify(cond), __FILE__, __LINE__);	\
       }								\
       unlikely(__ret);						\
 })
@@ -143,15 +112,12 @@ extern void db_trace_self_depth(int);
 #define	WARN_ON_ONCE(cond) ({					\
       static bool __warn_on_once;				\
       bool __ret = (cond);					\
-      struct thread *td = curthread;				\
       if (__ret && !__warn_on_once) {				\
 		__warn_on_once = 1;				\
-		BACKTRACE();						\
-		printf("%s:%d WARNING %s failed at %s:%d\n",		\
-		     td->td_name, td->td_tid, __stringify(cond), __FILE__, __LINE__); \
-									\
-      }									\
-      unlikely(__ret);							\
+		printf("WARNING %s failed at %s:%d\n",		\
+		    __stringify(cond), __FILE__, __LINE__);	\
+      }								\
+      unlikely(__ret);						\
 })
 
 #define	oops_in_progress	SCHEDULER_STOPPED()
@@ -462,10 +428,6 @@ abs64(int64_t x)
 {
 	return (x < 0 ? -x : x);
 }
-
-/* XXX move us */
-#define rdmsrl(msr, val)			\
-	((val) = rdmsr((msr)))
 
 typedef struct linux_ratelimit {
 	struct timeval lasttime;

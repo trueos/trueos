@@ -31,9 +31,6 @@
 #ifndef	_LINUX_INETDEVICE_H_
 #define	_LINUX_INETDEVICE_H_
 
-#include <sys/types.h>
-#include <netinet/in.h>
-
 #include <linux/netdevice.h>
 
 static inline struct net_device *

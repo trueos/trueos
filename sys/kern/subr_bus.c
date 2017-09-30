@@ -87,7 +87,7 @@ struct driverlink {
  */
 typedef TAILQ_HEAD(devclass_list, devclass) devclass_list_t;
 typedef TAILQ_HEAD(driver_list, driverlink) driver_list_t;
-typedef TAILQ_HEAD(device_list, device_) device_list_t;
+typedef TAILQ_HEAD(device_list, device) device_list_t;
 
 struct devclass {
 	TAILQ_ENTRY(devclass) link;
@@ -106,7 +106,7 @@ struct devclass {
 /**
  * @brief Implementation of device.
  */
-struct device_ {
+struct device {
 	/*
 	 * A device is a kernel object. The first field must be the
 	 * current ops table for the object.
@@ -116,8 +116,8 @@ struct device_ {
 	/*
 	 * Device hierarchy.
 	 */
-	TAILQ_ENTRY(device_)	link;	/**< list of devices in parent */
-	TAILQ_ENTRY(device_)	devlink; /**< global device list membership */
+	TAILQ_ENTRY(device)	link;	/**< list of devices in parent */
+	TAILQ_ENTRY(device)	devlink; /**< global device list membership */
 	device_t	parent;		/**< parent of this device  */
 	device_list_t	children;	/**< list of child devices */
 
@@ -151,7 +151,7 @@ static void devctl2_init(void);
 
 #ifdef BUS_DEBUG
 
-static int bus_debug = 0;
+static int bus_debug = 1;
 SYSCTL_INT(_debug, OID_AUTO, bus_debug, CTLFLAG_RWTUN, &bus_debug, 0,
     "Bus debug level");
 
@@ -877,7 +877,7 @@ devctl_safe_quote(char *dst, const char *src, size_t len)
 
 /* End of /dev/devctl code */
 
-static TAILQ_HEAD(,device_)	bus_data_devices;
+static TAILQ_HEAD(,device)	bus_data_devices;
 static int bus_data_generation = 1;
 
 static kobj_method_t null_methods[] = {

@@ -78,6 +78,8 @@ void agp_intel_gtt_clear_range(device_t dev, u_int first_entry,
     u_int num_entries);
 int agp_intel_gtt_map_memory(device_t dev, vm_page_t *pages, u_int num_entries,
     struct sglist **sg_list);
+void agp_intel_gtt_insert_sg_entries(device_t dev, struct sglist *sg_list,
+    u_int pg_start, u_int flags);
 void agp_intel_gtt_insert_pages(device_t dev, u_int first_entry,
     u_int num_entries, vm_page_t *pages, u_int flags);
 
@@ -88,13 +90,13 @@ void intel_gtt_clear_range(u_int first_entry, u_int num_entries);
 void intel_gtt_install_pte(u_int index, vm_paddr_t addr, u_int flags);
 int intel_gtt_map_memory(vm_page_t *pages, u_int num_entries,
     struct sglist **sg_list);
+void intel_gtt_insert_sg_entries(struct sglist *sg_list, u_int pg_start,
+    u_int flags);
 void intel_gtt_insert_pages(u_int first_entry, u_int num_entries,
     vm_page_t *pages, u_int flags);
 vm_paddr_t intel_gtt_read_pte_paddr(u_int entry);
 u_int32_t intel_gtt_read_pte(u_int entry);
 device_t intel_gtt_get_bridge_device(void);
 void intel_gtt_write(u_int entry, uint32_t val);
-
-void *intel_gtt_get_registers(void);
 
 #endif

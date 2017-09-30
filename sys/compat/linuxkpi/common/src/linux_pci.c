@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2015-2016 Mellanox Technologies, Ltd.
- * Copyright (c) 2016 Matthew Macy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,14 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <linux/pci.h>
 #include <linux/compat.h>
 
-/* assumes !e820 */
-unsigned long pci_mem_start;
-
-
-const char *pci_power_names[] = {
-	"error", "D0", "D1", "D2", "D3hot", "D3cold", "unknown",
-};
-
 static device_probe_t linux_pci_probe;
 static device_attach_t linux_pci_attach;
 static device_detach_t linux_pci_detach;
@@ -115,10 +106,8 @@ linux_pci_probe(device_t dev)
 	const struct pci_device_id *id;
 	struct pci_driver *pdrv;
 
-	if ((pdrv = linux_pci_find(dev, &id)) == NULL) {
-		printf("linux_pci_find failed!\n");
+	if ((pdrv = linux_pci_find(dev, &id)) == NULL)
 		return (ENXIO);
-	}
 	if (device_get_driver(dev) != &pdrv->bsddriver)
 		return (ENXIO);
 	device_set_desc(dev, pdrv->name);
@@ -180,7 +169,6 @@ linux_pci_attach(device_t dev)
 		pbus->self = pdev;
 		pbus->number = pci_get_bus(dev);
 		pdev->bus = pbus;
-		pdev->bus->number = pci_get_bus(dev);
 	}
 
 	DROP_GIANT();
@@ -194,7 +182,6 @@ linux_pci_attach(device_t dev)
 		list_del(&pdev->links);
 		spin_unlock(&pci_lock);
 		put_device(&pdev->dev);
-		device_printf(dev, "linux_pci_attach failed! %d", error);
 		error = -error;
 	}
 	return (error);
@@ -296,7 +283,6 @@ _linux_pci_register_driver(struct pci_driver *pdrv, devclass_t dc)
 	error = devclass_add_driver(dc, &pdrv->bsddriver,
 	    BUS_PASS_DEFAULT, &pdrv->bsdclass);
 	mtx_unlock(&Giant);
-
 	return (-error);
 }
 

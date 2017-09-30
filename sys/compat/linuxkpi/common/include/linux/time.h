@@ -28,18 +28,12 @@
 #ifndef _LINUX_TIME_H_
 #define	_LINUX_TIME_H_
 
-#include <linux/time64.h>
-
-#define tsc_khz tsc_freq/1000L
+#define	NSEC_PER_USEC	1000L
+#define	NSEC_PER_MSEC	1000000L
+#define	NSEC_PER_SEC	1000000000L
 
 #include <sys/time.h>
-#include <machine/clock.h>
 #include <sys/stdint.h>
-# include <linux/math64.h>
-
-typedef unsigned long cycles_t;
-#define USEC_PER_SEC	1000000L
-extern int hz;
 
 static inline struct timeval
 ns_to_timeval(const int64_t nsec)
@@ -132,7 +126,7 @@ timespec_valid(const struct timespec *ts)
 static inline unsigned long
 get_seconds(void)
 {
-	return time_second;
+	return time_uptime;
 }
 
 #endif /* _LINUX_TIME_H_ */

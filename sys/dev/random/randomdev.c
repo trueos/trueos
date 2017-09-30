@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/randomdev.h>
 #include <dev/random/random_harvestq.h>
 
-#include <machine/cpu.h>
-
 #define	RANDOM_UNIT	0
 
 #if defined(RANDOM_LOADABLE)

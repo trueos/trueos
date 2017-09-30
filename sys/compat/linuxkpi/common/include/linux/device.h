@@ -32,17 +32,17 @@
 #define	_LINUX_DEVICE_H_
 
 #include <linux/err.h>
+#include <linux/types.h>
 #include <linux/kobject.h>
-#include <linux/klist.h>
+#include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <linux/mutex.h>
-#include <linux/atomic.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/sysfs.h>
 #include <linux/kdev_t.h>
+#include <asm/atomic.h>
 
 #include <sys/bus.h>
 
@@ -61,33 +61,6 @@ struct class {
 	void		(*class_release)(struct class *class);
 	void		(*dev_release)(struct device *dev);
 	char *		(*devnode)(struct device *dev, umode_t *mode);
-	const struct dev_pm_ops *pm;
-};
-
-struct device_driver {
-	const char		*name;
-	struct module		*owner;
-	int (*probe) (struct device *dev);
-	int (*remove) (struct device *dev);
-	void (*shutdown) (struct device *dev);
-	int (*suspend) (struct device *dev, pm_message_t state);
-	int (*resume) (struct device *dev);
-	const struct attribute_group **groups;
-	const struct dev_pm_ops *pm;
-};
-
-struct device_type {
-	const char *name;
-	const struct attribute_group **groups;
-	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
-	char *(*devnode)(struct device *dev, umode_t *mode);
-	void (*release)(struct device *dev);
-};
-
-struct dev_pm_info {
-	atomic_t	usage_count;
-	unsigned int	disable_depth;
-	bool		is_suspended;
 };
 
 struct dev_pm_ops {
@@ -108,7 +81,6 @@ struct dev_pm_ops {
 	int (*runtime_idle)(struct device *dev);
 };
 
-#ifdef notyet
 struct device_driver {
 	const char	*name;
 	const struct dev_pm_ops *pm;
@@ -117,7 +89,6 @@ struct device_driver {
 struct device_type {
 	const char	*name;
 };
-#endif
 
 struct device {
 	struct device	*parent;
@@ -207,10 +178,6 @@ show_class_attr_string(struct class *class,
 	struct class_attribute_string class_attr_##_name = \
 		_CLASS_ATTR_STRING(_name, _mode, _str)
 
-/*
- * should we create device_printf with corresponding
- * syslog priorities?
- */
 #define	dev_err(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_warn(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
 #define	dev_info(dev, fmt, ...)	device_printf((dev)->bsddev, fmt, ##__VA_ARGS__)
@@ -281,17 +248,18 @@ class_register(struct class *class)
 	kobject_init(&class->kobj, &linux_class_ktype);
 	kobject_set_name(&class->kobj, class->name);
 	kobject_add(&class->kobj, &linux_class_root, class->name);
+
 	return (0);
 }
 
 static inline void
 class_unregister(struct class *class)
 {
+
 	kobject_put(&class->kobj);
 }
 
-static inline struct device *
-kobj_to_dev(struct kobject *kobj)
+static inline struct device *kobj_to_dev(struct kobject *kobj)
 {
 	return container_of(kobj, struct device, kobj);
 }
@@ -326,8 +294,6 @@ device_initialize(struct device *dev)
 	if (bsddev != NULL)
 		device_set_softc(bsddev, dev);
 
-	INIT_LIST_HEAD(&dev->devres_head);
-	spin_lock_init(&dev->devres_lock);
 	dev->bsddev = bsddev;
 	MPASS(dev->bsddev != NULL);
 	kobject_init(&dev->kobj, &linux_dev_ktype);

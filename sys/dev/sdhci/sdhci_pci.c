@@ -144,7 +144,7 @@ static const struct sdhci_device {
 	{ 0,		0xffff,	NULL,
 	    0 }
 };
- 
+
 struct sdhci_pci_softc {
 	u_int		quirks;		/* Chip specific quirks */
 	struct resource *irq_res;	/* IRQ resource */

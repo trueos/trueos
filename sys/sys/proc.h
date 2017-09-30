@@ -182,7 +182,6 @@ struct td_sched;
 struct thread;
 struct trapframe;
 struct turnstile;
-struct socket;
 
 /*
  * XXX: Does this belong in resource.h or resourcevar.h instead?

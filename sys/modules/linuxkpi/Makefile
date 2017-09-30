@@ -1,5 +1,5 @@
 # $FreeBSD$
-.PATH:	${SRCTOP}/sys/compat/linuxkpi/common/src ${SRCTOP}/sys/compat/linsysfs
+.PATH:	${SRCTOP}/sys/compat/linuxkpi/common/src
 
 KMOD=	linuxkpi
 SRCS=	linux_compat.c \
@@ -24,25 +24,9 @@ SRCS+=	bus_if.h \
 	pci_if.h \
 	vnode_if.h \
 	usb_if.h \
-	opt_acpi.h \
-	opt_ddb.h \
-	opt_ktrace.h \
-	opt_param.h \
-	opt_sched.h \
-	opt_usb.h \
-	opt_vm.h
-
-#SRCS+= 	linsysfs_init.c \
-#	linsysfs_extern.c
+	opt_usb.h
 
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
-CFLAGS+= '-DKBUILD_MODNAME="${KMOD}"'
-CFLAGS+= -include ${SRCTOP}/sys/dev/drm/drm_os_config.h
-
-#CFLAGS += -DPRINT_UNIMPLEMENTED
-# until stable
-#CFLAGS+= -O0
 
 .include <bsd.kmod.mk>
-CWARNFLAGS 		+= -Wno-pointer-arith

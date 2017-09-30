@@ -58,11 +58,6 @@ static int efipart_printfd(int);
 static int efipart_printcd(int);
 static int efipart_printhd(int);
 
-/* EISA PNP ID's for floppy controllers */
-#define	PNP0604	0x604
-#define	PNP0700	0x700
-#define	PNP0701	0x701
-
 struct devsw efipart_fddev = {
 	.dv_name = "fd",
 	.dv_type = DEVT_FD,
@@ -181,18 +176,18 @@ efipart_inithandles(void)
 static ACPI_HID_DEVICE_PATH *
 efipart_floppy(EFI_DEVICE_PATH *node)
 {
-	ACPI_HID_DEVICE_PATH *acpi;
+	ACPI_HID_DEVICE_PATH *acpi = NULL;
 
 	if (DevicePathType(node) == ACPI_DEVICE_PATH &&
 	    DevicePathSubType(node) == ACPI_DP) {
 		acpi = (ACPI_HID_DEVICE_PATH *) node;
-		if (acpi->HID == EISA_PNP_ID(PNP0604) ||
-		    acpi->HID == EISA_PNP_ID(PNP0700) ||
-		    acpi->HID == EISA_PNP_ID(PNP0701)) {
+		if (acpi->HID == EISA_PNP_ID(0x604) ||
+		    acpi->HID == EISA_PNP_ID(0x700) ||
+		    acpi->HID == EISA_ID(0x41d1, 0x701)) {
 			return (acpi);
 		}
 	}
-	return (NULL);
+	return (acpi);
 }
 
 /*
@@ -203,11 +198,12 @@ efipart_fdinfo_add(EFI_HANDLE handle, uint32_t uid, EFI_DEVICE_PATH *devpath)
 {
 	pdinfo_t *fd;
 
-	fd = calloc(1, sizeof(pdinfo_t));
+	fd = malloc(sizeof(pdinfo_t));
 	if (fd == NULL) {
 		printf("Failed to register floppy %d, out of memory\n", uid);
 		return (ENOMEM);
 	}
+	memset(fd, 0, sizeof(pdinfo_t));
 	STAILQ_INIT(&fd->pd_part);
 
 	fd->pd_unit = uid;
@@ -268,7 +264,7 @@ efipart_cdinfo_add(EFI_HANDLE handle, EFI_HANDLE alias,
 
 	unit = 0;
 	STAILQ_FOREACH(pd, &cdinfo, pd_link) {
-		if (efi_devpath_match(pd->pd_devpath, devpath) == true) {
+		if (efi_devpath_match(pd->pd_devpath, devpath) != 0) {
 			pd->pd_handle = handle;
 			pd->pd_alias = alias;
 			return (0);
@@ -276,11 +272,12 @@ efipart_cdinfo_add(EFI_HANDLE handle, EFI_HANDLE alias,
 		unit++;
 	}
 
-	cd = calloc(1, sizeof(pdinfo_t));
+	cd = malloc(sizeof(pdinfo_t));
 	if (cd == NULL) {
 		printf("Failed to add cd %d, out of memory\n", unit);
 		return (ENOMEM);
 	}
+	memset(cd, 0, sizeof(pdinfo_t));
 	STAILQ_INIT(&cd->pd_part);
 
 	cd->pd_handle = handle;
@@ -388,15 +385,16 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
 	if (node == NULL)
 		return (ENOENT);	/* This should not happen. */
 
-	pd = calloc(1, sizeof(pdinfo_t));
+	pd = malloc(sizeof(pdinfo_t));
 	if (pd == NULL) {
 		printf("Failed to add disk, out of memory\n");
 		return (ENOMEM);
 	}
+	memset(pd, 0, sizeof(pdinfo_t));
 	STAILQ_INIT(&pd->pd_part);
 
 	STAILQ_FOREACH(hd, &hdinfo, pd_link) {
-		if (efi_devpath_match(hd->pd_devpath, disk_devpath) == true) {
+		if (efi_devpath_match(hd->pd_devpath, disk_devpath) != 0) {
 			/* Add the partition. */
 			pd->pd_handle = part_handle;
 			pd->pd_unit = node->PartitionNumber;
@@ -419,11 +417,12 @@ efipart_hdinfo_add(EFI_HANDLE disk_handle, EFI_HANDLE part_handle)
 	hd->pd_devpath = disk_devpath;
 	STAILQ_INSERT_TAIL(&hdinfo, hd, pd_link);
 
-	pd = calloc(1, sizeof(pdinfo_t));
+	pd = malloc(sizeof(pdinfo_t));
 	if (pd == NULL) {
 		printf("Failed to add partition, out of memory\n");
 		return (ENOMEM);
 	}
+	memset(pd, 0, sizeof(pdinfo_t));
 	STAILQ_INIT(&pd->pd_part);
 
 	/* Add the partition. */
@@ -457,11 +456,12 @@ efipart_hdinfo_add_filepath(EFI_HANDLE disk_handle)
 	if (node == NULL)
 		return (ENOENT);	/* This should not happen. */
 
-	pd = calloc(1, sizeof(pdinfo_t));
+	pd = malloc(sizeof(pdinfo_t));
 	if (pd == NULL) {
 		printf("Failed to add disk, out of memory\n");
 		return (ENOMEM);
 	}
+	memset(pd, 0, sizeof(pdinfo_t));
 	STAILQ_INIT(&pd->pd_part);
 	last = STAILQ_LAST(&hdinfo, pdinfo, pd_link);
 	if (last != NULL)
@@ -494,14 +494,7 @@ efipart_hdinfo_add_filepath(EFI_HANDLE disk_handle)
 		return (0);
 	}
 	p++;	/* skip the colon */
-	errno = 0;
 	unit = (int)strtol(p, NULL, 0);
-	if (errno != 0) {
-		printf("Bad unit number for partition \"%s\"\n", pathname);
-		free(pathname);
-		free(pd);
-		return (EUNIT);
-	}
 
 	/*
 	 * We should have disk registered, if not, we are receiving
@@ -644,9 +637,8 @@ efipart_print_common(struct devsw *dev, pdinfo_list_t *pdlist, int verbose)
 			if (blkio->Media->MediaPresent) {
 				if (blkio->Media->RemovableMedia)
 					printf(" (removable)");
-			} else {
+			} else
 				printf(" (no media)");
-			}
 			if ((ret = pager_output("\n")) != 0)
 				break;
 			if (!blkio->Media->MediaPresent)
@@ -870,7 +862,7 @@ efipart_strategy(void *devdata, int rw, daddr_t blk, size_t size,
 
 	if (pd->pd_blkio->Media->RemovableMedia &&
 	    !pd->pd_blkio->Media->MediaPresent)
-		return (ENXIO);
+		return (EIO);
 
 	bcd.dv_strategy = efipart_realstrategy;
 	bcd.dv_devdata = devdata;

@@ -37,9 +37,6 @@
 #include <sys/kernel.h>
 #include <sys/callout.h>
 
-#include <linux/list.h>
-#include <linux/ktime.h>
-
 struct timer_list {
 	struct callout timer_callout;
 	void    (*function) (unsigned long);
@@ -72,8 +69,8 @@ extern void mod_timer(struct timer_list *, int);
 extern void add_timer(struct timer_list *);
 extern void add_timer_on(struct timer_list *, int cpu);
 
-#define	del_timer(timer)	(callout_stop(&(timer)->timer_callout) == 1)
-#define	del_timer_sync(timer)	(callout_drain(&(timer)->timer_callout) == 1)
+#define	del_timer(timer)	callout_stop(&(timer)->timer_callout)
+#define	del_timer_sync(timer)	callout_drain(&(timer)->timer_callout)
 #define	timer_pending(timer)	callout_pending(&(timer)->timer_callout)
 #define	round_jiffies(j)	\
 	((int)(((j) + linux_timer_hz_mask) & ~linux_timer_hz_mask))

@@ -30,7 +30,7 @@
 #ifndef _LINUX_MATH64_H
 #define	_LINUX_MATH64_H
 
-#include <asm/types.h>
+#include <sys/stdint.h>
 
 #define	do_div(n, base) ({			\
 	uint32_t __base = (base);		\

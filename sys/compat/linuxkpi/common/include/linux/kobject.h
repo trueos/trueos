@@ -147,11 +147,6 @@ kobject_name(const struct kobject *kobj)
 	return kobj->name;
 }
 
-static inline void
-kobject_del(struct kobject *kobj)
-{
-}
-
 int	kobject_set_name(struct kobject *kobj, const char *fmt, ...);
 int	kobject_init_and_add(struct kobject *kobj, const struct kobj_type *ktype,
 	    struct kobject *parent, const char *fmt, ...);

@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #define KASSERT_PN_IS_DIR(pn)						\
 	KASSERT((pn)->pn_type == pfstype_root ||			\
 	    (pn)->pn_type == pfstype_dir ||				\
-	    (pn)->pn_type == pfstype_dyndir ||				\
 	    (pn)->pn_type == pfstype_procdir,				\
 	    ("%s(): VDIR vnode refers to non-directory pfs_node", __func__))
 
@@ -223,7 +222,6 @@ pfs_getattr(struct vop_getattr_args *va)
 	case pfstype_procdir:
 	case pfstype_root:
 	case pfstype_dir:
-	case pfstype_dyndir:
 #if 0
 		pfs_lock(pn);
 		/* compute link count */
@@ -696,54 +694,12 @@ ret:
 	PFS_RETURN (error);
 }
 
-static void
-pfs_depopulate(struct pfs_node *pn)
-{
-	struct pfs_node *iter, *iternext;
-
-	iter = pn;
-	while (iter) {
-		iternext = iter->pn_next;
-		pfs_destroy(iter);
-		iter = iternext;
-	}
-}
-
-static void
-pfs_populate(struct pfs_node *pn, struct proc *p, struct pfs_node **deferred)
-{
-	struct pfs_node *tail;
-	struct thread *td;
-
-	if (pn->pn_nodes != NULL) {
-		if (*deferred == NULL)
-			*deferred = pn->pn_nodes;
-		else {
-			tail = *deferred;
-			while (tail->pn_next != NULL)
-				tail = tail->pn_next;
-			tail->pn_next = pn->pn_nodes;
-		}
-		pn->pn_nodes = NULL;
-	}
-
-	td = FIRST_THREAD_IN_PROC(p);
-	pfs_unlock(pn);
-	_PHOLD(p);
-	PROC_UNLOCK(p);
-	pn->pn_fill(td, p, pn, NULL, NULL);
-	pfs_lock(pn);
-	PROC_LOCK(p);
-	_PRELE(p);
-
-}
-
 /*
  * Iterate through directory entries
  */
 static int
 pfs_iterate(struct thread *td, struct proc *proc, struct pfs_node *pd,
-	    struct pfs_node **pn, struct proc **p, struct pfs_node **deferred)
+	    struct pfs_node **pn, struct proc **p)
 {
 	int visible;
 
@@ -752,9 +708,6 @@ pfs_iterate(struct thread *td, struct proc *proc, struct pfs_node *pd,
  again:
 	if (*pn == NULL) {
 		/* first node */
-		if (pd->pn_type == pfstype_dyndir && proc != NULL)
-			pfs_populate(pd, proc, deferred);
-
 		*pn = pd->pn_nodes;
 	} else if ((*pn)->pn_type != pfstype_procdir) {
 		/* next node */
@@ -808,7 +761,7 @@ pfs_readdir(struct vop_readdir_args *va)
 	struct pfs_node *pd = pvd->pvd_pn;
 	pid_t pid = pvd->pvd_pid;
 	struct proc *p, *proc;
-	struct pfs_node *pn, *deferred;
+	struct pfs_node *pn;
 	struct uio *uio;
 	struct pfsentry *pfsent, *pfsent2;
 	struct pfsdirentlist lst;
@@ -817,7 +770,6 @@ pfs_readdir(struct vop_readdir_args *va)
 
 	STAILQ_INIT(&lst);
 	error = 0;
-	deferred = NULL;
 	KASSERT(pd->pn_info == vn->v_mount->mnt_data,
 	    ("%s(): pn_info does not match mountpoint", __func__));
 	PFS_TRACE(("%s pid %lu", pd->pn_name, (unsigned long)pid));
@@ -851,7 +803,7 @@ pfs_readdir(struct vop_readdir_args *va)
 
 	/* skip unwanted entries */
 	for (pn = NULL, p = NULL; offset > 0; offset -= PFS_DELEN) {
-		if (pfs_iterate(curthread, proc, pd, &pn, &p, &deferred) == -1) {
+		if (pfs_iterate(curthread, proc, pd, &pn, &p) == -1) {
 			/* nothing left... */
 			if (proc != NULL)
 				PROC_UNLOCK(proc);
@@ -862,7 +814,7 @@ pfs_readdir(struct vop_readdir_args *va)
 	}
 
 	/* fill in entries */
-	while (pfs_iterate(curthread, proc, pd, &pn, &p, &deferred) != -1 &&
+	while (pfs_iterate(curthread, proc, pd, &pn, &p) != -1 &&
 	    resid >= PFS_DELEN) {
 		if ((pfsent = malloc(sizeof(struct pfsentry), M_IOV,
 		    M_NOWAIT | M_ZERO)) == NULL) {
@@ -885,7 +837,6 @@ pfs_readdir(struct vop_readdir_args *va)
 			/* fall through */
 		case pfstype_root:
 		case pfstype_dir:
-		case pfstype_dyndir:
 		case pfstype_this:
 		case pfstype_parent:
 			pfsent->entry.d_type = DT_DIR;
@@ -915,7 +866,6 @@ pfs_readdir(struct vop_readdir_args *va)
 		free(pfsent, M_IOV);
 		i++;
 	}
-	pfs_depopulate(deferred);
 	PFS_TRACE(("%ju bytes", (uintmax_t)(i * PFS_DELEN)));
 	PFS_RETURN (error);
 }

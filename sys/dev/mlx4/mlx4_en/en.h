@@ -53,7 +53,6 @@
 #include <dev/mlx4/doorbell.h>
 #include <dev/mlx4/cmd.h>
 
-#include <netinet/in.h>
 #include <netinet/tcp_lro.h>
 
 #include "en_port.h"

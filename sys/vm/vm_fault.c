@@ -1530,68 +1530,6 @@ error:
 	return (-1);
 }
 
-int
-vm_fault_quick_hold_pages_simple(vm_map_t map, vm_offset_t addr, vm_size_t len,
-    vm_prot_t prot)
-{
-	vm_offset_t end, va, va2;
-	vm_paddr_t pa;
-	vm_page_t m;
-	int count;
-	boolean_t pmap_failed;
-
-	if (len == 0)
-		return (0);
-	end = round_page(addr + len);
-	addr = trunc_page(addr);
-
-	/*
-	 * Check for illegal addresses.
-	 */
-	if (addr < vm_map_min(map) || addr > end || end > vm_map_max(map))
-		return (-1);
-
-	count = atop(end - addr);
-
-	/*
-	 * Most likely, the physical pages are resident in the pmap, so it is
-	 * faster to try pmap_extract_and_hold() first.
-	 */
-	pmap_failed = FALSE;
-	for (va = addr; va < end; va += PAGE_SIZE) {
-		m = pmap_extract_and_hold(map->pmap, va, prot);
-		if (m == NULL) {
-			if (vm_fault_hold(map, va, prot,
-					  VM_FAULT_NORMAL, &m) != KERN_SUCCESS)
-				goto error;
-		}
-		if ((prot & VM_PROT_WRITE) != 0 &&
-		    m->dirty != VM_PAGE_BITS_ALL) {
-			/*
-			 * Explicitly dirty the physical page.  Otherwise, the
-			 * caller's changes may go unnoticed because they are
-			 * performed through an unmanaged mapping or by a DMA
-			 * operation.
-			 *
-			 * The object lock is not held here.
-			 * See vm_page_clear_dirty_mask().
-			 */
-			vm_page_dirty(m);
-		}
-	}
-	return (KERN_SUCCESS);
-error:
-	for (va2 = addr; va2 < va; va2 += PAGE_SIZE) {
-		pa = pmap_extract(map->pmap, va2);
-		m = PHYS_TO_VM_PAGE(pa);
-		vm_page_lock(m);
-		vm_page_unhold(m);
-		vm_page_unlock(m);
-	}
-	return (KERN_FAILURE);
-}
-
-
 /*
  *	Routine:
  *		vm_fault_copy_entry

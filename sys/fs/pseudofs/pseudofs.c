@@ -100,7 +100,6 @@ pfs_add_node(struct pfs_node *parent, struct pfs_node *pn)
 	    ("%s(): parent has no pn_info", __func__));
 	KASSERT(parent->pn_type == pfstype_dir ||
 	    parent->pn_type == pfstype_procdir ||
-	    parent->pn_type == pfstype_dyndir ||
 	    parent->pn_type == pfstype_root,
 	    ("%s(): parent is not a directory", __func__));
 
@@ -110,9 +109,6 @@ pfs_add_node(struct pfs_node *parent, struct pfs_node *pn)
 		for (iter = parent; iter != NULL; iter = iter->pn_parent)
 			KASSERT(iter->pn_type != pfstype_procdir,
 			    ("%s(): nested process directories", __func__));
-	if (pn->pn_type == pfstype_dyndir)
-		MPASS(pn->pn_fill != NULL);
-
 	for (iter = parent->pn_nodes; iter != NULL; iter = iter->pn_next) {
 		KASSERT(strcmp(pn->pn_name, iter->pn_name) != 0,
 		    ("%s(): homonymous siblings", __func__));
@@ -182,14 +178,9 @@ pfs_create_dir(struct pfs_node *parent, const char *name,
 	       int flags)
 {
 	struct pfs_node *pn;
-	pfs_type_t ptype;
 
-	if (flags & PFS_PROCDEP)
-		ptype = pfstype_procdir;
-	else
-		ptype = pfstype_dir;
-
-	pn = pfs_alloc_node(parent->pn_info, name, ptype);
+	pn = pfs_alloc_node(parent->pn_info, name,
+	    (flags & PFS_PROCDEP) ? pfstype_procdir : pfstype_dir);
 	pn->pn_attr = attr;
 	pn->pn_vis = vis;
 	pn->pn_destroy = destroy;
@@ -198,27 +189,6 @@ pfs_create_dir(struct pfs_node *parent, const char *name,
 	pfs_fixup_dir(pn);
 
 	return (pn);
-
-}
-
-struct pfs_node	*
-pfs_create_dyndir(struct pfs_node *parent, const char *name,
-		  pfs_fill_t fill, pfs_attr_t attr, pfs_vis_t vis,
-		  pfs_destroy_t destroy, int flags)
-{
-	struct pfs_node *pn;
-
-	pn = pfs_alloc_node(parent->pn_info, name, pfstype_dyndir);
-	pn->pn_attr = attr;
-	pn->pn_vis = vis;
-	pn->pn_destroy = destroy;
-	pn->pn_flags = flags;
-	pn->pn_fill = fill;
-	pfs_add_node(parent, pn);
-	pfs_fixup_dir(pn);
-
-	return (pn);
-
 }
 
 /*

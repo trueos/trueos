@@ -84,7 +84,7 @@ options 	RCTL			# Resource limits
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
 options 	KDB_TRACE		# Print a stack trace for a panic.
-options		DDB			# Support DDB.
+options 	DDB			# Support DDB.
 
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
@@ -222,6 +222,7 @@ device		ppi			# Parallel port interface device
 device		puc			# Multi I/O cards and multi-channel UARTs
 
 # PCI Ethernet NICs.
+device		bxe			# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		de			# DEC/Intel DC21x4x (``Tulip'')
 device		em			# Intel PRO/1000 Gigabit Ethernet Family
 device		ix			# Intel PRO/10GbE PCIE PF Ethernet
@@ -368,12 +369,12 @@ device		crypto			# Required by IPSEC
 
 # Enable ALTQ
 options ALTQ
-options ALTQ_CBQ # Class Based Queuing (CBQ)
-options ALTQ_RED # Random Early Detection (RED)
-options ALTQ_RIO # RED In/Out
-options ALTQ_HFSC # Hierarchical Packet Scheduler (HFSC)
-options ALTQ_PRIQ # Priority Queuing (PRIQ)
-options ALTQ_NOPCC # Required for SMP build
+options ALTQ_CBQ	# Class Based Queuing (CBQ)
+options ALTQ_RED	# Random Early Detection (RED)
+options ALTQ_RIO	# RED In/Out
+options ALTQ_HFSC	# Hierarchical Packet Scheduler (HFSC)
+options ALTQ_PRIQ	# Priority Queuing (PRIQ)
+options ALTQ_NOPCC	# Required for SMP build
 
 # Enable VIMAGE
 options VIMAGE

@@ -33,7 +33,6 @@
 #ifndef _LINUX_WAIT_H_
 #define	_LINUX_WAIT_H_
 
-#include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>

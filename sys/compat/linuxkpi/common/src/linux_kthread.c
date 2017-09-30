@@ -30,9 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/compat.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
-#include <linux/compat.h>
 #include <linux/wait.h>
-#include <linux/file.h>
 
 #include <sys/bus.h>
 #include <sys/interrupt.h>

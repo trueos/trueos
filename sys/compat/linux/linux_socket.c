@@ -63,8 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #endif
 
-#define        SO_PASSCRED     0x1017          /* name to pass credentials */
-
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
 #include <machine/../linux32/linux32_proto.h>
@@ -72,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #endif
-
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_timer.h>
@@ -375,10 +372,6 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_OOBINLINE);
 	case LINUX_SO_LINGER:
 		return (SO_LINGER);
-#ifndef COMPAT_LINUX32
-	case LINUX_SO_PASSCRED:
-		return (SO_PASSCRED);
-#endif
 	case LINUX_SO_PEERCRED:
 		return (LOCAL_PEERCRED);
 	case LINUX_SO_RCVLOWAT:
@@ -1127,7 +1120,6 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		return (error);
 
 #ifdef COMPAT_LINUX32
-	/* We need to set up a different sysent for 32-bit if we want compat */
 	error = linux32_copyiniov(PTRIN(msg.msg_iov), msg.msg_iovlen,
 	    &iov, EMSGSIZE);
 #else
@@ -1537,16 +1529,12 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	struct timeval tv;
 	int error, name;
 
-	if (args->optlen < sizeof(int))
-		return (EINVAL);
 	bsd_args.s = args->s;
 	bsd_args.level = linux_to_bsd_sockopt_level(args->level);
 	switch (bsd_args.level) {
 	case SOL_SOCKET:
 		name = linux_to_bsd_so_sockopt(args->optname);
 		switch (name) {
-		case SO_PASSCRED:
-			return (0);
 		case SO_RCVTIMEO:
 			/* FALLTHROUGH */
 		case SO_SNDTIMEO:

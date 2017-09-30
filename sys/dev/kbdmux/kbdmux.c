@@ -35,7 +35,6 @@
 #include "opt_evdev.h"
 #include "opt_kbd.h"
 #include "opt_kbdmux.h"
-#include "opt_evdev.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>

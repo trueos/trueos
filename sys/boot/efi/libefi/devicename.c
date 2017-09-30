@@ -87,9 +87,9 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 {
 	struct devdesc *idev;
 	struct devsw *dv;
-	int i, unit, err;
 	char *cp;
 	const char *np;
+	int i, err;
 
 	/* minimum length check */
 	if (strlen(devspec) < 2)
@@ -105,7 +105,6 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 		return (ENOENT);
 
 	np = devspec + strlen(dv->dv_name);
-	idev = NULL;
 	err = 0;
 
 	switch (dv->dv_type) {
@@ -118,8 +117,10 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 			return (ENOMEM);
 
 		err = disk_parsedev((struct disk_devdesc *)idev, np, path);
-		if (err != 0)
-			goto fail;
+		if (err != 0) {
+			free(idev);
+			return (err);
+		}
 		break;
 
 #ifdef EFI_ZFS_BOOT
@@ -129,8 +130,10 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 			return (ENOMEM);
 
 		err = zfs_parsedev((struct zfs_devdesc*)idev, np, path);
-		if (err != 0)
-			goto fail;
+		if (err != 0) {
+			free(idev);
+			return (err);
+		}
 		break;
 #endif
 	default:
@@ -138,23 +141,20 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 		if (idev == NULL)
 			return (ENOMEM);
 
-		unit = 0;
+		idev->d_unit = -1;
 		cp = (char *)np;
-
 		if (*np != '\0' && *np != ':') {
-			errno = 0;
-			unit = strtol(np, &cp, 0);
-			if (errno != 0 || cp == np) {
-				err = EUNIT;
-				goto fail;
+			idev->d_unit = strtol(np, &cp, 0);
+			if (cp == np) {
+				free(idev);
+				return (EUNIT);
 			}
 		}
 		if (*cp != '\0' && *cp != ':') {
-			err = EINVAL;
-			goto fail;
+			free(idev);
+			return (EINVAL);
 		}
 
-		idev->d_unit = unit;
 		if (path != NULL)
 			*path = (*cp == 0) ? cp : cp + 1;
 		break;
@@ -168,10 +168,6 @@ efi_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 	else
 		free(idev);
 	return (0);
-
-fail:
-	free(idev);
-	return (err);
 }
 
 char *

@@ -176,50 +176,6 @@ useracc(addr, len, rw)
 }
 
 int
-vshold(void *addr, size_t len)
-{
-	vm_offset_t end, last, start;
-	vm_size_t npages;
-	int error;
-
-	last = (vm_offset_t)addr + len;
-	start = trunc_page((vm_offset_t)addr);
-	end = round_page(last);
-	if (last < (vm_offset_t)addr || end < (vm_offset_t)addr)
-		return (EINVAL);
-	npages = atop(end - start);
-	if (npages > vm_page_max_wired)
-		return (ENOMEM);
-
-	error = vm_fault_quick_hold_pages_simple(&curproc->p_vmspace->vm_map, start, end - start,
-					  VM_PROT_RW);
-	/*
-	 * Return EFAULT on error to match copy{in,out}() behaviour
-	 * rather than returning ENOMEM like mlock() would.
-	 */
-	return (error == KERN_SUCCESS ? 0 : EFAULT);
-}
-
-void
-vsunhold(void *addr, size_t len)
-{
-	vm_offset_t va, start, end;
-	vm_paddr_t pa;
-	vm_page_t m;
-
-	start = trunc_page((vm_offset_t)addr);
-	end = round_page((vm_offset_t)addr + len);
-
-	for (va = start; va < end; va += PAGE_SIZE) {
-		pa = pmap_extract(curproc->p_vmspace->vm_map.pmap, va);
-		m = PHYS_TO_VM_PAGE(pa);
-		vm_page_lock(m);
-		vm_page_unhold(m);
-		vm_page_unlock(m);
-	}
-}
-
-int
 vslock(void *addr, size_t len)
 {
 	vm_offset_t end, last, start;

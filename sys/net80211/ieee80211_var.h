@@ -789,8 +789,7 @@ ieee80211_runtask(struct ieee80211com *ic, struct task *task)
 static __inline void
 ieee80211_draintask(struct ieee80211com *ic, struct task *task)
 {
-	if (ic->ic_tq && task)
-		taskqueue_drain(ic->ic_tq, task);
+	taskqueue_drain(ic->ic_tq, task);
 }
 
 /* 

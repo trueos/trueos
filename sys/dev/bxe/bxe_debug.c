@@ -283,7 +283,7 @@ bxe_dump_mbuf_data(struct bxe_softc *sc,
     mtx_unlock(&bxe_prev_mtx);
 }
 
-#if defined(DDB) && defined(BROADCOM_DOES_NOT_PRODUCE_GARBAGE)
+#ifdef DDB
 
 static void bxe_ddb_usage()
 {

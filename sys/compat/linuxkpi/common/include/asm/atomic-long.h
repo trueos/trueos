@@ -33,16 +33,13 @@
 
 #include <linux/compiler.h>
 #include <sys/types.h>
-
-#include <linux/bitops.h>
-
 #include <machine/atomic.h>
 
-#include <asm/atomic64.h>
+#define	ATOMIC_LONG_INIT(x)	{ .counter = (x) }
 
-#if BITS_PER_LONG == 64
-typedef atomic64_t atomic_long_t;
-#endif
+typedef struct {
+	volatile long counter;
+} atomic_long_t;
 
 #define	atomic_long_add(i, v)		atomic_long_add_return((i), (v))
 #define	atomic_long_inc_return(v)	atomic_long_add_return(1, (v))

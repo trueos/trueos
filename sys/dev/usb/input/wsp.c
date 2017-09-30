@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_evdev.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -55,11 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_debug.h>
 
 #include <sys/mouse.h>
-
-#ifdef EVDEV_SUPPORT
-#include <dev/evdev/input.h>
-#include <dev/evdev/evdev.h>
-#endif
 
 #define	WSP_DRIVER_NAME "wsp"
 #define	WSP_BUFFER_MAX	1024
@@ -90,7 +83,6 @@ SYSCTL_INT(_hw_usb_wsp, OID_AUTO, debug, CTLFLAG_RWTUN,
 static struct wsp_tuning {
 	int	scale_factor;
 	int	z_factor;
-	int	t_factor;
 	int	pressure_touch_threshold;
 	int	pressure_untouch_threshold;
 	int	pressure_tap_threshold;
@@ -101,7 +93,6 @@ static struct wsp_tuning {
 {
 	.scale_factor = 12,
 	.z_factor = 5,
-	.t_factor = 5,
 	.pressure_touch_threshold = 50,
 	.pressure_untouch_threshold = 10,
 	.pressure_tap_threshold = 120,
@@ -125,8 +116,6 @@ SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scale_factor, CTLFLAG_RWTUN,
     &wsp_tuning.scale_factor, 0, "movement scale factor");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, z_factor, CTLFLAG_RWTUN,
     &wsp_tuning.z_factor, 0, "Z-axis scale factor");
-SYSCTL_INT(_hw_usb_wsp, OID_AUTO, t_factor, CTLFLAG_RWTUN,
-    &wsp_tuning.t_factor, 0, "T-axis scale factor");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, pressure_touch_threshold, CTLFLAG_RWTUN,
     &wsp_tuning.pressure_touch_threshold, 0, "touch pressure threshold");
 SYSCTL_INT(_hw_usb_wsp, OID_AUTO, pressure_untouch_threshold, CTLFLAG_RWTUN,
@@ -557,12 +546,7 @@ struct wsp_softc {
 	u_int	sc_pollrate;
 	mousestatus_t sc_status;
 	u_int	sc_state;
-	u_int	sc_fflags;
 #define	WSP_ENABLED	       0x01
-#ifdef EVDEV_SUPPORT
-	int sc_evflags;
-#define	WSP_EVDEV_OPENED	1
-#endif
 
 	struct tp_finger *index[MAX_FINGERS];	/* finger index data */
 	int16_t	pos_x[MAX_FINGERS];	/* position array */
@@ -580,12 +564,9 @@ struct wsp_softc {
 	int	dz_count;
 #define	WSP_DZ_MAX_COUNT	32
 	int	dt_sum;			/* T-axis cumulative movement */
-	int	dt_count;
-#define	WSP_DT_MAX_COUNT	32
 	int	rdx;			/* x axis remainder of divide by scale_factor */
 	int	rdy;			/* y axis remainder of divide by scale_factor */
 	int	rdz;			/* z axis remainder of divide by scale_factor */
-	int	rdt;			/* t axis remainder of divide by scale_factor */
 	int	tp_datalen;
 	uint8_t o_ntouch;		/* old touch finger status */
 	uint8_t	finger;			/* 0 or 1 *, check which finger moving */
@@ -596,15 +577,11 @@ struct wsp_softc {
 #define	MAX_DISTANCE		2500	/* the max allowed distance */
 	uint8_t	ibtn;			/* button status in tapping */
 	uint8_t	ntaps;			/* finger status in tapping */
-	uint8_t	scroll_mode;		/* scroll status in movement */
-#define	WSP_SCROLL_NONE		0
-#define	WSP_SCROLL_VER		1
-#define	WSP_SCROLL_HOR		2
+	uint8_t	scr_mode;		/* scroll status in movement */
+#define	WSP_SCR_NONE		0
+#define	WSP_SCR_VER		1
+#define	WSP_SCR_HOR		2
 	uint8_t tp_data[WSP_BUFFER_MAX] __aligned(4);		/* trackpad transferred data */
-
-#ifdef EVDEV_SUPPORT
-	struct evdev_dev *sc_evdev;
-#endif
 };
 
 /*
@@ -616,14 +593,6 @@ static usb_fifo_open_t wsp_open;
 static usb_fifo_close_t wsp_close;
 static usb_fifo_ioctl_t wsp_ioctl;
 
-static void wsp_start_rx(struct wsp_softc *sc);
-static void wsp_stop_rx(struct wsp_softc *sc);
-
-#ifdef EVDEV_SUPPORT
-static evdev_open_t wsp_ev_open;
-static evdev_close_t wsp_ev_close;
-#endif
-
 static struct usb_fifo_methods wsp_fifo_methods = {
 	.f_open = &wsp_open,
 	.f_close = &wsp_close,
@@ -633,20 +602,13 @@ static struct usb_fifo_methods wsp_fifo_methods = {
 	.basename[0] = WSP_DRIVER_NAME,
 };
 
-#ifdef EVDEV_SUPPORT
-static struct evdev_methods wsp_evdev_methods = {
-	.ev_open = &wsp_ev_open,
-	.ev_close = &wsp_ev_close,
-};
-#endif
-
 /* device initialization and shutdown */
 static int wsp_enable(struct wsp_softc *sc);
 static void wsp_disable(struct wsp_softc *sc);
 
 /* updating fifo */
 static void wsp_reset_buf(struct wsp_softc *sc);
-static void wsp_add_to_queue(struct wsp_softc *, int, int, int, int, uint32_t);
+static void wsp_add_to_queue(struct wsp_softc *, int, int, int, uint32_t);
 
 /* Device methods. */
 static device_probe_t wsp_probe;
@@ -696,11 +658,11 @@ wsp_set_device_mode(struct wsp_softc *sc, uint8_t on)
 	 */
 	pause("WHW", hz / 4);
 
-	mode_bytes[params->um_switch_idx] =
+	mode_bytes[params->um_switch_idx] = 
 	    on ? params->um_switch_on : params->um_switch_off;
 
 	return (usbd_req_set_report(sc->sc_usb_device, NULL,
-	    mode_bytes, params->um_size, params->iface_index,
+	    mode_bytes, params->um_size, params->iface_index, 
 	    params->um_req_val, params->um_req_idx));
 }
 
@@ -842,29 +804,7 @@ wsp_attach(device_t dev)
 	sc->sc_mode.syncmask[1] = MOUSE_MSC_SYNC;
 
 	sc->sc_touch = WSP_UNTOUCH;
-	sc->scroll_mode = WSP_SCROLL_NONE;
-
-#ifdef EVDEV_SUPPORT
-	sc->sc_evdev = evdev_alloc();
-	evdev_set_name(sc->sc_evdev, device_get_desc(dev));
-	evdev_set_serial(sc->sc_evdev, "0");
-	evdev_set_methods(sc->sc_evdev, sc, &wsp_evdev_methods);
-	evdev_support_prop(sc->sc_evdev, INPUT_PROP_POINTER);
-	evdev_support_event(sc->sc_evdev, EV_SYN);
-	evdev_support_event(sc->sc_evdev, EV_REL);
-	evdev_support_event(sc->sc_evdev, EV_KEY);
-	evdev_support_rel(sc->sc_evdev, REL_X);
-	evdev_support_rel(sc->sc_evdev, REL_Y);
-	evdev_support_rel(sc->sc_evdev, REL_WHEEL);
-	evdev_support_rel(sc->sc_evdev, REL_HWHEEL);
-
-	for(int i = 0; i < sc->sc_hw.buttons; i++)
-		evdev_support_key(sc->sc_evdev, BTN_MOUSE + i);
-
-	err = evdev_register(sc->sc_evdev);
-	if (err)
-		goto detach;
-#endif
+	sc->scr_mode = WSP_SCR_NONE;
 
 	return (0);
 
@@ -887,11 +827,6 @@ wsp_detach(device_t dev)
 
 	usb_fifo_detach(&sc->sc_fifo);
 
-#ifdef EVDEV_SUPPORT
-	evdev_unregister(sc->sc_evdev);
-	evdev_free(sc->sc_evdev);
-#endif
-
 	usbd_transfer_unsetup(sc->sc_xfer, WSP_N_TRANSFER);
 
 	mtx_destroy(&sc->sc_mutex);
@@ -913,11 +848,9 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	int dx = 0;
 	int dy = 0;
 	int dz = 0;
-	int dt = 0;
 	int rdx = 0;
 	int rdy = 0;
 	int rdz = 0;
-	int rdt = 0;
 	int len;
 	int i;
 
@@ -925,9 +858,6 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	if (sc->dz_count == 0)
 		sc->dz_count = WSP_DZ_MAX_COUNT;
-
-	if (sc->dt_count == 0)
-		sc->dt_count = WSP_DT_MAX_COUNT;
 
 	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 
@@ -979,7 +909,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				f->pressure = le16toh((uint16_t)f->pressure);
 				f->multi = le16toh((uint16_t)f->multi);
 			}
-			DPRINTFN(WSP_LLEVEL_INFO,
+			DPRINTFN(WSP_LLEVEL_INFO, 
 			    "[%d]ibt=%d, taps=%d, o=%4d, ax=%5d, ay=%5d, "
 			    "rx=%5d, ry=%5d, tlmaj=%4d, tlmin=%4d, ot=%4x, "
 			    "tchmaj=%4d, tchmin=%4d, presure=%4d, m=%4x\n",
@@ -1042,7 +972,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				switch (sc->ntaps) {
 				case 1:
 					if (!(params->caps & HAS_INTEGRATED_BUTTON) || tun.enable_single_tap_clicks) {
-						wsp_add_to_queue(sc, 0, 0, 0, 0, MOUSE_BUTTON1DOWN);
+						wsp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON1DOWN);
 						DPRINTFN(WSP_LLEVEL_INFO, "LEFT CLICK!\n");
 					}
 					break;
@@ -1051,23 +981,21 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 					    sc->dx_sum, sc->dy_sum);
 					if (sc->distance < MAX_DISTANCE && abs(sc->dx_sum) < 5 &&
 					    abs(sc->dy_sum) < 5) {
-						wsp_add_to_queue(sc, 0, 0, 0, 0, MOUSE_BUTTON3DOWN);
+						wsp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON3DOWN);
 						DPRINTFN(WSP_LLEVEL_INFO, "RIGHT CLICK!\n");
 					}
 					break;
 				case 3:
-					wsp_add_to_queue(sc, 0, 0, 0, 0, MOUSE_BUTTON2DOWN);
+					wsp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON2DOWN);
 					break;
 				default:
 					/* we don't handle taps of more than three fingers */
 					break;
 				}
-				wsp_add_to_queue(sc, 0, 0, 0, 0, 0);	/* button release */
+				wsp_add_to_queue(sc, 0, 0, 0, 0);	/* button release */
 			}
-
-#if 0 // Replace back/forward with horizontal scroll
 			if ((sc->dt_sum / tun.scr_hor_threshold) != 0 &&
-			    sc->ntaps == 2 && sc->scroll_mode == WSP_SCROLL_HOR) {
+			    sc->ntaps == 2 && sc->scr_mode == WSP_SCR_HOR) {
 
 				/*
 				 * translate T-axis into button presses
@@ -1078,23 +1006,20 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				else if (sc->dt_sum < 0)
 					wsp_add_to_queue(sc, 0, 0, 0, 1UL << 4);
 			}
-#endif
 			sc->dz_count = WSP_DZ_MAX_COUNT;
-			sc->dt_count = WSP_DT_MAX_COUNT;
+			sc->dz_sum = 0;
 			sc->intr_count = 0;
 			sc->ibtn = 0;
 			sc->ntaps = 0;
 			sc->finger = 0;
 			sc->distance = 0;
+			sc->dt_sum = 0;
 			sc->dx_sum = 0;
 			sc->dy_sum = 0;
-			sc->dz_sum = 0;
-			sc->dt_sum = 0;
 			sc->rdx = 0;
 			sc->rdy = 0;
 			sc->rdz = 0;
-			sc->rdt = 0;
-			sc->scroll_mode = WSP_SCROLL_NONE;
+			sc->scr_mode = WSP_SCR_NONE;
 		} else if (sc->index[0]->touch_major >= tun.pressure_touch_threshold &&
 		    sc->sc_touch == WSP_UNTOUCH) {	/* ignore first touch */
 			sc->sc_touch = WSP_FIRST_TOUCH;
@@ -1124,15 +1049,15 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				if (ntouch == 1 && sc->index[0]->tool_major > 1200)
 					dx = dy = 0;
 
-				if (sc->ibtn != 0 && ntouch == 1 &&
-				    sc->intr_count < WSP_TAP_MAX_COUNT &&
+				if (sc->ibtn != 0 && ntouch == 1 && 
+				    sc->intr_count < WSP_TAP_MAX_COUNT && 
 				    abs(sc->dx_sum) < 1 && abs(sc->dy_sum) < 1 )
 					dx = dy = 0;
 
 				if (ntouch == 2 && sc->sc_status.button != 0) {
 					dx = sc->pos_x[sc->finger] - sc->pre_pos_x;
 					dy = sc->pos_y[sc->finger] - sc->pre_pos_y;
-
+					
 					/*
 					 * Ignore movement of switch finger or
 					 * movement from ibt=0 to ibt=1
@@ -1159,7 +1084,6 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 					DPRINTFN(WSP_LLEVEL_INFO, "dx=%5d, dy=%5d, mov=%5d\n",
 					    dx, dy, sc->finger);
 				}
-
 				if (sc->dz_count--) {
 					rdz = (dy + sc->rdz) % tun.scale_factor;
 					sc->dz_sum -= (dy + sc->rdz) / tun.scale_factor;
@@ -1167,14 +1091,6 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				}
 				if ((sc->dz_sum / tun.z_factor) != 0)
 					sc->dz_count = 0;
-
-				if (sc->dt_count--) {
-					rdt = (dx + sc->rdt) % tun.scale_factor;
-					sc->dt_sum += (dx + sc->rdt) / tun.scale_factor;
-					sc->rdt = rdt;
-				}
-				if ((sc->dt_sum / tun.t_factor) != 0)
-					sc->dt_count = 0;
 			}
 			rdx = (dx + sc->rdx) % tun.scale_factor;
 			dx = (dx + sc->rdx) / tun.scale_factor;
@@ -1188,48 +1104,44 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			sc->dy_sum += dy;
 
 			if (ntouch == 2 && sc->sc_status.button == 0) {
-
-				if (sc->scroll_mode == WSP_SCROLL_NONE &&
+				if (sc->scr_mode == WSP_SCR_NONE &&
 				    abs(sc->dx_sum) + abs(sc->dy_sum) > tun.scr_hor_threshold)
-					sc->scroll_mode = abs(sc->dx_sum) >
-						abs(sc->dy_sum) * 2 ? WSP_SCROLL_HOR : WSP_SCROLL_VER;
-
-				DPRINTFN(WSP_LLEVEL_INFO, "scroll_mode=%5d, count=%d, dx_sum=%d, dy_sum=%d\n",
-				    sc->scroll_mode, sc->intr_count, sc->dx_sum, sc->dy_sum);
+					sc->scr_mode = abs(sc->dx_sum) >
+					    abs(sc->dy_sum) * 2 ? WSP_SCR_HOR : WSP_SCR_VER;
+				DPRINTFN(WSP_LLEVEL_INFO, "scr_mode=%5d, count=%d, dx_sum=%d, dy_sum=%d\n",
+				    sc->scr_mode, sc->intr_count, sc->dx_sum, sc->dy_sum);
+				if (sc->scr_mode == WSP_SCR_HOR)
+					sc->dt_sum += dx;
+				else
+					sc->dt_sum = 0;
 
 				dx = dy = 0;
-				if (sc->dz_count == 0) {
+				if (sc->dz_count == 0)
 					dz = sc->dz_sum / tun.z_factor;
-				}
-				if (sc->dt_count == 0) {
-					dt = sc->dt_sum / tun.t_factor;
-				}
+				if (sc->scr_mode == WSP_SCR_HOR || 
+				    abs(sc->pos_x[0] - sc->pos_x[1]) > MAX_DISTANCE ||
+				    abs(sc->pos_y[0] - sc->pos_y[1]) > MAX_DISTANCE)
+					dz = 0;
 			}
 			if (ntouch == 3)
-				dx = dy = dz = dt = 0;
+				dx = dy = dz = 0;
 			if (sc->intr_count < WSP_TAP_MAX_COUNT &&
-			    abs(dx) < 3 && abs(dy) < 3 && abs(dz) < 3 && abs(dt) < 3)
-				dx = dy = dz = dt = 0;
+			    abs(dx) < 3 && abs(dy) < 3 && abs(dz) < 3)
+				dx = dy = dz = 0;
 			else
 				sc->intr_count = WSP_TAP_MAX_COUNT;
-			if (dx || dy || dz || dt)
+			if (dx || dy || dz)
 				sc->sc_status.flags |= MOUSE_POSCHANGED;
-			DPRINTFN(WSP_LLEVEL_INFO, "dx=%5d, dy=%5d, dz=%5d, dt=%5d,sc_touch=%x, btn=%x\n",
-					 dx, dy, dz, dt, sc->sc_touch, sc->sc_status.button);
+			DPRINTFN(WSP_LLEVEL_INFO, "dx=%5d, dy=%5d, dz=%5d, sc_touch=%x, btn=%x\n",
+			    dx, dy, dz, sc->sc_touch, sc->sc_status.button);
 			sc->sc_status.dx += dx;
 			sc->sc_status.dy += dy;
 			sc->sc_status.dz += dz;
-			/* No support for dt this (yet) */
-			/* sc->sc_status.dt += dt; */
 
-			wsp_add_to_queue(sc, dx, -dy, dz, dt, sc->sc_status.button);
+			wsp_add_to_queue(sc, dx, -dy, dz, sc->sc_status.button);
 			if (sc->dz_count == 0) {
 				sc->dz_sum = 0;
 				sc->rdz = 0;
-			}
-			if (sc->dt_count == 0) {
-				sc->dt_sum = 0;
-				sc->rdt = 0;
 			}
 
 		}
@@ -1245,17 +1157,14 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 tr_setup:
 		/* check if we can put more data into the FIFO */
-		if (usb_fifo_put_bytes_max(sc->sc_fifo.fp[USB_FIFO_RX]) == 0) {
-#ifdef EVDEV_SUPPORT
-			if (sc->sc_evflags == 0)
-				break;
-#else
-			break;
-#endif
+		if (usb_fifo_put_bytes_max(
+		    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
+			usbd_xfer_set_frame_len(xfer, 0,
+			    sc->tp_datalen);
+			usbd_transfer_submit(xfer);
 		}
-		usbd_xfer_set_frame_len(xfer, 0, sc->tp_datalen);
-		usbd_transfer_submit(xfer);
 		break;
+
 	default:			/* Error */
 		if (error != USB_ERR_CANCELLED) {
 			/* try clear stall first */
@@ -1268,7 +1177,7 @@ tr_setup:
 
 static void
 wsp_add_to_queue(struct wsp_softc *sc, int dx, int dy, int dz,
-				 int dt, uint32_t buttons_in)
+    uint32_t buttons_in)
 {
 	uint32_t buttons_out;
 	uint8_t buf[8];
@@ -1279,8 +1188,6 @@ wsp_add_to_queue(struct wsp_softc *sc, int dx, int dy, int dz,
 	dy = imax(dy, -256);
 	dz = imin(dz, 126);
 	dz = imax(dz, -128);
-	dt = imin(dt, 126);
-	dt = imax(dt, -128);
 
 	buttons_out = MOUSE_MSC_BUTTONS;
 	if (buttons_in & MOUSE_BUTTON1DOWN)
@@ -1305,63 +1212,7 @@ wsp_add_to_queue(struct wsp_softc *sc, int dx, int dy, int dz,
 	}
 	usb_fifo_put_data_linear(sc->sc_fifo.fp[USB_FIFO_RX], buf,
 	    sc->sc_mode.packetsize, 1);
-
-#ifdef EVDEV_SUPPORT
-	/* Push evdev event */
-	if (dx != 0 || dy != 0) {
-		evdev_push_event(sc->sc_evdev, EV_REL, REL_X, dx);
-		evdev_push_event(sc->sc_evdev, EV_REL, REL_Y, -dy);
-	}
-	if (dz != 0)
-		evdev_push_event(sc->sc_evdev, EV_REL, REL_WHEEL, -dz);
-	if (dt != 0) {
-		evdev_push_event(sc->sc_evdev, EV_REL, REL_HWHEEL, dt);
-	}
-	evdev_push_mouse_btn(sc->sc_evdev,
-						 (buttons_in & ~MOUSE_STDBUTTONS) |
-						 (buttons_in & (1 << 0) ? MOUSE_BUTTON1DOWN : 0) |
-						 (buttons_in & (1 << 1) ? MOUSE_BUTTON2DOWN : 0) |
-						 (buttons_in & (1 << 2) ? MOUSE_BUTTON3DOWN : 0));
-	evdev_sync(sc->sc_evdev);
-#endif
-
 }
-
-#ifdef EVDEV_SUPPORT
-static int
-wsp_ev_open(struct evdev_dev *evdev, void *ev_softc)
-{
-	struct wsp_softc *sc = (struct wsp_softc *)ev_softc;
-
-	mtx_lock(&sc->sc_mutex);
-
-	sc->sc_evflags = WSP_EVDEV_OPENED;
-
-	if (sc->sc_fflags == 0) {
-		/* wsp_reset(sc); */
-		wsp_start_rx(sc);
-	}
-
-	mtx_unlock(&sc->sc_mutex);
-
-	return (0);
-}
-
-static void
-wsp_ev_close(struct evdev_dev *evdev, void *ev_softc)
-{
-	struct wsp_softc *sc = (struct wsp_softc *)ev_softc;
-
-	mtx_lock(&sc->sc_mutex);
-
-	sc->sc_evflags = 0;
-
-	if (sc->sc_fflags == 0)
-		wsp_stop_rx(sc);
-
-	mtx_unlock(&sc->sc_mutex);
-}
-#endif
 
 static void
 wsp_reset_buf(struct wsp_softc *sc)
@@ -1371,8 +1222,9 @@ wsp_reset_buf(struct wsp_softc *sc)
 }
 
 static void
-wsp_start_rx(struct wsp_softc *sc)
+wsp_start_read(struct usb_fifo *fifo)
 {
+	struct wsp_softc *sc = usb_fifo_softc(fifo);
 	int rate;
 
 	/* Check if we should override the default polling interval */
@@ -1393,23 +1245,11 @@ wsp_start_rx(struct wsp_softc *sc)
 }
 
 static void
-wsp_start_read(struct usb_fifo *fifo)
-{
-	struct wsp_softc *sc = usb_fifo_softc(fifo);
-	wsp_start_rx(sc);
-}
-
-static void
-wsp_stop_rx(struct wsp_softc *sc)
-{
-	usbd_transfer_stop(sc->sc_xfer[WSP_INTR_DT]);
-}
-
-static void
 wsp_stop_read(struct usb_fifo *fifo)
 {
 	struct wsp_softc *sc = usb_fifo_softc(fifo);
-	wsp_stop_rx(sc);
+
+	usbd_transfer_stop(sc->sc_xfer[WSP_INTR_DT]);
 }
 
 
@@ -1420,7 +1260,6 @@ wsp_open(struct usb_fifo *fifo, int fflags)
 
 	if (fflags & FREAD) {
 		struct wsp_softc *sc = usb_fifo_softc(fifo);
-		sc->sc_fflags = fflags;
 		int rc;
 
 		if (sc->sc_state & WSP_ENABLED)

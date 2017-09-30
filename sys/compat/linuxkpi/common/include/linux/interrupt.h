@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2015 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,8 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 
-#include <linux/hardirq.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 typedef	irqreturn_t	(*irq_handler_t)(int, void *);
 
@@ -148,7 +149,7 @@ free_irq(unsigned int irq, void *device)
 }
 
 /*
- * Tasklet support
+ * LinuxKPI tasklet support
  */
 typedef void tasklet_func_t(unsigned long);
 

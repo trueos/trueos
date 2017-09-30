@@ -229,7 +229,7 @@ NMD_DEFNACB(void, rings_delete);
 
 static int netmap_mem_map(struct netmap_obj_pool *, struct netmap_adapter *);
 static int netmap_mem_unmap(struct netmap_obj_pool *, struct netmap_adapter *);
-static int nm_mem_assign_group(struct netmap_mem_d *, device_t);
+static int nm_mem_assign_group(struct netmap_mem_d *, struct device *);
 static void nm_mem_release_id(struct netmap_mem_d *);
 
 nm_memid_t
@@ -580,7 +580,7 @@ netmap_mem_find(nm_memid_t id)
 }
 
 static int
-nm_mem_assign_group(struct netmap_mem_d *nmd, device_t dev)
+nm_mem_assign_group(struct netmap_mem_d *nmd, struct device *dev)
 {
 	int err = 0, id;
 	id = nm_iommu_group_id(dev);
