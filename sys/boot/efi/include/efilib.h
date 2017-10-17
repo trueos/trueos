@@ -80,7 +80,8 @@ EFI_DEVICE_PATH *efi_lookup_devpath(EFI_HANDLE);
 EFI_HANDLE efi_devpath_handle(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_devpath_last_node(EFI_DEVICE_PATH *);
 EFI_DEVICE_PATH *efi_devpath_trim(EFI_DEVICE_PATH *);
-int efi_devpath_match(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
+bool efi_devpath_match(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
+int efi_devpath_is_prefix(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *);
 CHAR16 *efi_devpath_name(EFI_DEVICE_PATH *);
 void efi_free_devpath_name(CHAR16 *);
 
@@ -93,7 +94,7 @@ void efi_time_fini(void);
 EFI_STATUS efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE* Xsystab);
 
 EFI_STATUS main(int argc, CHAR16 *argv[]);
-void exit(EFI_STATUS status) __dead2;
+void efi_exit(EFI_STATUS status) __dead2;
 void delay(int usecs);
 
 /* EFI environment initialization. */
