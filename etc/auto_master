@@ -7,4 +7,4 @@
 # to move the call to "automount -c" out of the comments section.
 #/media		-media		-nosuid,noatime
 #/-		-noauto
-/autofs         -automount      -nosuid,noatime
+/.autofs         -automount      -nosuid,noatime
