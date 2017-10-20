@@ -2,9 +2,10 @@
 
 MAN=
 
-.include <src.opts.mk>
+.include "../Makefile.inc"
 
 MK_SSP=		no
+MK_FORTH=	no
 
 PROG=		boot1.sym
 INTERNALPROG=
@@ -90,8 +91,8 @@ LIBEFI=		${.OBJDIR}/../libefi/libefi.a
 # __aeabi_* (arm) or __divdi3 (i386).
 # as well as required string and memory functions for all platforms.
 #
-DPADD+=		${LIBEFI} ${LIBSTAND}
-LDADD+=		${LIBEFI} -lstand
+DPADD+=		${LIBEFI} ${LIBSA}
+LDADD+=		${LIBEFI} ${LIBSA}
 
 DPADD+=		${LDSCRIPT}
 
@@ -120,7 +121,7 @@ boot1.efi: ${PROG}
 		-j .rela.dyn -j .reloc -j .eh_frame \
 		--output-target=${EFI_TARGET} ${.ALLSRC} ${.TARGET}
 
-boot1.o: ${.CURDIR}/../../common/ufsread.c
+boot1.o: ${SASRC}/ufsread.c
 
 # The following inserts our objects into a template FAT file system
 # created by generate-fat.sh

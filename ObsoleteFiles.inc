@@ -38,6 +38,36 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20171017: Removal of mbpool(9)
+OLD_FILES+=usr/include/sys/mbpool.h
+OLD_FILES+=usr/share/man/man9/mbpool.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_destroy.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_alloc.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_ext_free.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_count.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_card_free.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_get_keep.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_free.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_get.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_create.9.gz
+OLD_FILES+=usr/share/man/man9/mbp_sync.9.gz
+# 20171010: Remove libstand
+OLD_FILES+=usr/lib/libstand.a
+OLD_FILES+=usr/lib/libstand_p.a
+OLD_FILES+=usr/include/stand.h
+OLD_FILES+=usr/share/man/man3/libstand.3
+# 20171003: remove RCMDS
+OLD_FILES+=bin/rcp
+OLD_FILES+=rescue/rcp
+OLD_FILES+=usr/bin/rlogin
+OLD_FILES+=usr/bin/rsh
+OLD_FILES+=usr/libexec/rlogind
+OLD_FILES+=usr/libexec/rshd
+OLD_FILES+=usr/share/man/man1/rcp.1.gz
+OLD_FILES+=usr/share/man/man1/rlogin.1.gz
+OLD_FILES+=usr/share/man/man1/rsh.1.gz
+OLD_FILES+=usr/share/man/man8/rlogind.8.gz
+OLD_FILES+=usr/share/man/man8/rshd.8.gz
 # 20170927: crshared
 OLD_FILES+=usr/share/man/man9/crshared.9.gz
 # 20170927: procctl

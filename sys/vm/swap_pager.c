@@ -541,7 +541,15 @@ swap_pager_swap_init(void)
 		 */
 		n -= ((n + 2) / 3);
 	} while (n > 0);
-	if (n2 != n)
+
+	/*
+	 * Often uma_zone_reserve_kva() cannot reserve exactly the
+	 * requested size.  Account for the difference when
+	 * calculating swap_maxpages.
+	 */
+	n = uma_zone_get_max(swblk_zone);
+
+	if (n < n2)
 		printf("Swap blk zone entries reduced from %lu to %lu.\n",
 		    n2, n);
 	swap_maxpages = n * SWAP_META_PAGES;
@@ -1524,7 +1532,7 @@ swp_pager_async_iodone(struct buf *bp)
 				 * so it doesn't clog the inactive list,
 				 * then finish the I/O.
 				 */
-				vm_page_dirty(m);
+				MPASS(m->dirty == VM_PAGE_BITS_ALL);
 				vm_page_lock(m);
 				vm_page_activate(m);
 				vm_page_unlock(m);
@@ -1635,9 +1643,12 @@ swp_pager_force_pagein(vm_object_t object, vm_pindex_t pindex)
 	if (m->valid == VM_PAGE_BITS_ALL) {
 		vm_object_pip_wakeup(object);
 		vm_page_dirty(m);
+#ifdef INVARIANTS
 		vm_page_lock(m);
-		vm_page_activate(m);
+		if (m->wire_count == 0 && m->queue == PQ_NONE)
+			panic("page %p is neither wired nor queued", m);
 		vm_page_unlock(m);
+#endif
 		vm_page_xunbusy(m);
 		vm_pager_page_unswapped(m);
 		return;
