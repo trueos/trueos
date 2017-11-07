@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
 
-.PATH: ${.CURDIR}/../../common
+.PATH: ${LDRSRC}
 
 LIB=		uboot
 INTERNALLIB=
@@ -24,26 +24,19 @@ LOADER_FDT_SUPPORT=	no
 .endif
 
 .if ${LOADER_FDT_SUPPORT} == "yes"
-CFLAGS+= -DLOADER_FDT_SUPPORT -I${.CURDIR}/../../fdt
+CFLAGS+= -DLOADER_FDT_SUPPORT -I${FDTSRC}
 .endif
 
 # Pick up FDT includes
-CFLAGS+=	-I${.CURDIR}/../../../../sys/contrib/libfdt/
+CFLAGS+=	-I${SYSDIR}/contrib/libfdt/
 
 # Pick up the bootstrap header for some interface items
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
+CFLAGS+=	-I${LDRSRC} -I${SYSDIR} -I.
 
 .ifdef(BOOT_DISK_DEBUG)
 # Make the disk code more talkative
 CFLAGS+= -DDISK_DEBUG
 .endif
 
-machine: .NOMETA
-	ln -sf ${.CURDIR}/../../../${MACHINE_CPUARCH}/include machine
-
-CLEANFILES+=	machine
-
 .include <bsd.stand.mk>
 .include <bsd.lib.mk>
-
-beforedepend ${OBJS}: machine

@@ -2780,6 +2780,16 @@ bool
 vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 {
 
+#if defined(DIAGNOSTIC) && defined(PHYS_TO_DMAP)
+	if ((m->flags & PG_ZERO) != 0) {
+		uint64_t *p;
+		int i;
+		p = (uint64_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+		for (i = 0; i < PAGE_SIZE / sizeof(uint64_t); i++, p++)
+			KASSERT(*p == 0, ("vm_page_free_prep %p PG_ZERO %d %jx",
+			    m, i, (uintmax_t)*p));
+	}
+#endif
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		vm_page_lock_assert(m, MA_OWNED);
 		KASSERT(!pmap_page_is_mapped(m),
@@ -2792,27 +2802,26 @@ vm_page_free_prep(vm_page_t m, bool pagequeue_locked)
 	if (vm_page_sbusied(m))
 		panic("vm_page_free: freeing busy page %p", m);
 
+	vm_page_remove(m);
+
 	/*
-	 * Unqueue, then remove page.  Note that we cannot destroy
-	 * the page here because we do not want to call the pager's
-	 * callback routine until after we've put the page on the
-	 * appropriate free queue.
+	 * If fictitious remove object association and
+	 * return.
 	 */
+	if ((m->flags & PG_FICTITIOUS) != 0) {
+		KASSERT(m->wire_count == 1,
+		    ("fictitious page %p is not wired", m));
+		KASSERT(m->queue == PQ_NONE,
+		    ("fictitious page %p is queued", m));
+		return (false);
+	}
+
 	if (m->queue != PQ_NONE) {
 		if (pagequeue_locked)
 			vm_page_dequeue_locked(m);
 		else
 			vm_page_dequeue(m);
 	}
-	vm_page_remove(m);
-
-	/*
-	 * If fictitious remove object association and
-	 * return, otherwise delay object association removal.
-	 */
-	if ((m->flags & PG_FICTITIOUS) != 0)
-		return (false);
-
 	m->valid = 0;
 	vm_page_undirty(m);
 
@@ -2857,6 +2866,8 @@ vm_page_free_phys_pglist(struct pglist *tq)
 {
 	vm_page_t m;
 
+	if (TAILQ_EMPTY(tq))
+		return;
 	mtx_lock(&vm_page_queue_free_mtx);
 	TAILQ_FOREACH(m, tq, listq)
 		vm_page_free_phys(m);

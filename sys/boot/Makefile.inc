@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 .include "defs.mk"
 
 .if !defined(__BOOT_MAKEFILE_INC__)

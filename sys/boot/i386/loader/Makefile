@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-.include <src.opts.mk>
+.include <bsd.init.mk>
+
 MK_SSP=		no
 
 LOADER?=	loader
@@ -17,6 +18,8 @@ LOADER_CD9660_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no
 LOADER_MSDOS_SUPPORT?=	no
 LOADER_UFS_SUPPORT?=	yes
+LOADER_GZIP_SUPPORT?=	yes
+LOADER_BZIP2_SUPPORT?=	yes
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c chain.c
@@ -24,13 +27,17 @@ SRCS=		main.c conf.c vers.c chain.c
 # Put LOADER_FIREWIRE_SUPPORT=yes in /etc/make.conf for FireWire/dcons support
 .if defined(LOADER_FIREWIRE_SUPPORT)
 CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
-LIBFIREWIRE=	${.OBJDIR}/../libfirewire/libfirewire.a
+LIBFIREWIRE=	${BOOTOBJ}/i386/libfirewire/libfirewire.a
 .endif
 
 # Set by zfsloader Makefile
 .if defined(LOADER_ZFS_SUPPORT)
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
-LIBZFSBOOT=	${.OBJDIR}/../../zfs/libzfsboot.a
+.if ${MACHINE} == "amd64"
+LIBZFSBOOT=	${BOOTOBJ}/zfs32/libzfsboot.a
+.else
+LIBZFSBOOT=	${BOOTOBJ}/zfs/libzfsboot.a
+.endif
 .endif
 
 # Include bcache code.
@@ -42,35 +49,32 @@ HAVE_ISABUS=	yes
 
 .if ${LOADER_GELI_SUPPORT:Uyes} == "yes"
 CFLAGS+=	-DLOADER_GELI_SUPPORT
-CFLAGS+=	-I${.CURDIR}/../../geli
-LIBGELIBOOT=	${.OBJDIR}/../../geli/libgeliboot.a
-.PATH:		${.CURDIR}/../../../opencrypto
+CFLAGS+=	-I${BOOTSRC}/geli
+LIBGELIBOOT=	${BOOTOBJ}/geli/libgeliboot.a
+.PATH:		${SYSDIR}/opencrypto
 SRCS+=		xform_aes_xts.c
-CFLAGS+=	-I${.CURDIR}/../../.. -D_STAND
+CFLAGS+=	-I${SYSDIR} -D_STAND
 .endif
 
 # Always add MI sources
-.include	"../../loader.mk"
+.include	"${BOOTSRC}/loader.mk"
 CFLAGS+=	-I.
 
 CLEANFILES=	${LOADER} ${LOADER}.bin loader.help
 
 CFLAGS+=	-Wall
-LDFLAGS=	-static -Ttext 0x0
+LDFLAGS+=	-static -Ttext 0x0
 
 # i386 standalone support library
-LIBI386=	${.OBJDIR}/../libi386/libi386.a
-CFLAGS+=	-I${.CURDIR}/..
+LIBI386=	${BOOTOBJ}/i386/libi386/libi386.a
+CFLAGS+=	-I${BOOTSRC}/i386
 
 # BTX components
-CFLAGS+=	-I${.CURDIR}/../btx/lib
+CFLAGS+=	-I${BTXLIB}
 
 # Debug me!
 #CFLAGS+=	-g
 #LDFLAGS+=	-g
-
-# Pick up ../Makefile.inc early.
-.include <bsd.init.mk>
 
 ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
@@ -80,15 +84,15 @@ ${LOADER}.bin: ${LOADER}.sym
 	strip -R .comment -R .note -o ${.TARGET} ${.ALLSRC}
 
 loader.help: help.common help.i386
-	cat ${.ALLSRC} | awk -f ${LDR_MI}/merge_help.awk > ${.TARGET}
+	cat ${.ALLSRC} | awk -f ${LDRSRC}/merge_help.awk > ${.TARGET}
 
 FILES=	${LOADER}
 # XXX INSTALLFLAGS_loader= -b
 FILESMODE_${LOADER}= ${BINMODE} -b
 
 .if !defined(LOADER_ONLY)
-.PATH: ${.CURDIR}/../../forth
-.include	"${.CURDIR}/../../forth/Makefile.inc"
+.PATH: ${BOOTSRC}/forth
+.include	"${BOOTSRC}/forth/Makefile.inc"
 FILES+=	pcibios.4th
 
 FILES+=	loader.rc menu.rc
@@ -97,22 +101,11 @@ FILES+=	loader.rc menu.rc
 # XXX crt0.o needs to be first for pxeboot(8) to work
 OBJS=	${BTXCRT}
 
-# XXX not happy with this construct, revisit
-.if ${MACHINE_CPUARCH} == "amd64"
-FICL=	${LIBFICL32}
-.else
-FICL=	${LIBFICL}
-.endif
+DPADD=	${LIBFICL32} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBGELIBOOT} ${LIBSA32}
+LDADD=	${LIBFICL32} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBGELIBOOT} ${LIBSA32}
 
-DPADD=	${FICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBGELIBOOT} ${LIBSA32}
-LDADD=	${FICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBGELIBOOT} ${LIBSA32}
+.if ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+=	-DLOADER_PREFER_AMD64
+.endif
 
 .include <bsd.prog.mk>
-
-.if ${MACHINE_CPUARCH} == "amd64"
-beforedepend ${OBJS}: machine
-CLEANFILES+=	machine
-CFLAGS+=	-DLOADER_PREFER_AMD64
-machine: .NOMETA
-	ln -sf ${.CURDIR}/../../../i386/include machine
-.endif
