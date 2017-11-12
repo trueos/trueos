@@ -152,9 +152,10 @@ man3dir = $(mandir)/man3
 am__installdirs = "$(DESTDIR)$(man3dir)" "$(DESTDIR)$(man5dir)"
 man5dir = $(mandir)/man5
 NROFF = nroff
-MANS = $(dist_man_MANS)
+MANS = $(dist_man3_MANS) $(dist_man5_MANS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
-am__DIST_COMMON = $(dist_man_MANS) $(srcdir)/Makefile.in
+am__DIST_COMMON = $(dist_man3_MANS) $(dist_man5_MANS) \
+	$(srcdir)/Makefile.in
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
@@ -280,7 +281,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 EXTRA_DIST = CMakeLists.txt
-dist_man_MANS = BIO_f_ssl.3 DTLSv1_listen.3 PEM_read_SSL_SESSION.3 \
+dist_man3_MANS = BIO_f_ssl.3 DTLSv1_listen.3 PEM_read_SSL_SESSION.3 \
 	SSL_CIPHER_get_name.3 SSL_COMP_add_compression_method.3 \
 	SSL_CTX_add_extra_chain_cert.3 SSL_CTX_add_session.3 \
 	SSL_CTX_ctrl.3 SSL_CTX_flush_sessions.3 SSL_CTX_free.3 \
@@ -419,12 +420,12 @@ dist_man_MANS = BIO_f_ssl.3 DTLSv1_listen.3 PEM_read_SSL_SESSION.3 \
 	d2i_X509_ATTRIBUTE.3 d2i_X509_CRL.3 d2i_X509_EXTENSION.3 \
 	d2i_X509_NAME.3 d2i_X509_REQ.3 d2i_X509_SIG.3 des_read_pw.3 \
 	engine.3 evp.3 get_rfc3526_prime_8192.3 i2d_PKCS7_bio_stream.3 \
-	lh_new.3 lh_stats.3 openssl.cnf.5 x509v3.cnf.5 \
-	tls_accept_socket.3 tls_client.3 \
+	lh_new.3 lh_stats.3 tls_accept_socket.3 tls_client.3 \
 	tls_config_ocsp_require_stapling.3 tls_config_set_protocols.3 \
 	tls_config_set_session_id.3 tls_config_verify.3 \
 	tls_conn_version.3 tls_connect.3 tls_init.3 tls_load_file.3 \
 	tls_ocsp_process_response.3 tls_read.3
+dist_man5_MANS = openssl.cnf.5 x509v3.cnf.5
 all: all-am
 
 .SUFFIXES:
@@ -463,10 +464,10 @@ mostlyclean-libtool:
 
 clean-libtool:
 	-rm -rf .libs _libs
-install-man3: $(dist_man_MANS)
+install-man3: $(dist_man3_MANS)
 	@$(NORMAL_INSTALL)
-	@list1=''; \
-	list2='$(dist_man_MANS)'; \
+	@list1='$(dist_man3_MANS)'; \
+	list2=''; \
 	test -n "$(man3dir)" \
 	  && test -n "`echo $$list1$$list2`" \
 	  || exit 0; \
@@ -499,17 +500,15 @@ install-man3: $(dist_man_MANS)
 
 uninstall-man3:
 	@$(NORMAL_UNINSTALL)
-	@list=''; test -n "$(man3dir)" || exit 0; \
+	@list='$(dist_man3_MANS)'; test -n "$(man3dir)" || exit 0; \
 	files=`{ for i in $$list; do echo "$$i"; done; \
-	l2='$(dist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
-	  sed -n '/\.3[a-z]*$$/p'; \
 	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^3][0-9a-z]*$$,3,;x' \
 	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
 	dir='$(DESTDIR)$(man3dir)'; $(am__uninstall_files_from_dir)
-install-man5: $(dist_man_MANS)
+install-man5: $(dist_man5_MANS)
 	@$(NORMAL_INSTALL)
-	@list1=''; \
-	list2='$(dist_man_MANS)'; \
+	@list1='$(dist_man5_MANS)'; \
+	list2=''; \
 	test -n "$(man5dir)" \
 	  && test -n "`echo $$list1$$list2`" \
 	  || exit 0; \
@@ -542,10 +541,8 @@ install-man5: $(dist_man_MANS)
 
 uninstall-man5:
 	@$(NORMAL_UNINSTALL)
-	@list=''; test -n "$(man5dir)" || exit 0; \
+	@list='$(dist_man5_MANS)'; test -n "$(man5dir)" || exit 0; \
 	files=`{ for i in $$list; do echo "$$i"; done; \
-	l2='$(dist_man_MANS)'; for i in $$l2; do echo "$$i"; done | \
-	  sed -n '/\.5[a-z]*$$/p'; \
 	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^5][0-9a-z]*$$,5,;x' \
 	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
 	dir='$(DESTDIR)$(man5dir)'; $(am__uninstall_files_from_dir)
