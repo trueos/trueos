@@ -250,6 +250,9 @@ SUBDIR+=secure
 .if !defined(NO_SHARE)
 SUBDIR+=share
 .endif
+.if ${MK_BOOT} != "no"
+SUBDIR+=stand
+.endif
 SUBDIR+=sys usr.bin usr.sbin
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests
@@ -987,6 +990,14 @@ buildenvvars: .PHONY
 .endif
 .endif
 BUILDENV_DIR?=	${.CURDIR}
+#
+# Note: make will report any errors the shell reports. This can
+# be odd if the last command in an interactive shell generates an
+# error or is terminated by SIGINT. These reported errors look bad,
+# but are harmless. Allowing them also allows BUIDLENV_SHELL to
+# be a complex command whose status will be returned to the caller.
+# Some scripts in tools rely on this behavior to report build errors.
+#
 buildenv: .PHONY
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
 .if ${BUILDENV_SHELL:M*zsh*}
@@ -1601,8 +1612,8 @@ create-packages: .PHONY create-packages-world create-packages-kernel
 create-world-packages:	_pkgbootstrap .PHONY
 	@rm -f ${WSTAGEDIR}/*.plist 2>/dev/null || :
 	@cd ${WSTAGEDIR} ; \
-		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
-		${WSTAGEDIR}/METALOG
+		env -i LC_COLLATE=C sort ${WSTAGEDIR}/METALOG | \
+		awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk
 	@for plist in ${WSTAGEDIR}/*.plist; do \
 	  plist=$${plist##*/} ; \
 	  pkgname=$${plist%.plist} ; \
@@ -1646,9 +1657,9 @@ _debug=-debug
 create-kernel-packages: create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}
 create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/${DISTDIR} ; \
+	env -i LC_COLLATE=C sort ${KSTAGEDIR}/kernel.meta | \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
-		-v kernel=yes -v _kernconf=${INSTALLKERNEL} \
-		${KSTAGEDIR}/kernel.meta ; \
+		-v kernel=yes -v _kernconf=${INSTALLKERNEL} ; \
 	cap_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VCAP_MKDB_ENDIAN` ; \
 	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
@@ -1681,9 +1692,9 @@ _debug=-debug
 create-kernel-packages: create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}
 create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}: _pkgbootstrap .PHONY
 	@cd ${KSTAGEDIR}/kernel.${_kernel} ; \
+	env -i LC_COLLATE=C sort ${KSTAGEDIR}/kernel.${_kernel}.meta | \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
-		-v kernel=yes -v _kernconf=${_kernel} \
-		${KSTAGEDIR}/kernel.${_kernel}.meta ; \
+		-v kernel=yes -v _kernconf=${_kernel} ; \
 	cap_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VCAP_MKDB_ENDIAN` ; \
 	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
@@ -1977,6 +1988,9 @@ _rescue=rescue/rescue
 .if ${MK_TCSH} != "no"
 _tcsh=bin/csh
 .endif
+.if ${MK_FILE} != "no"
+_libmagic=lib/libmagic
+.endif
 
 # kernel-toolchain skips _cleanobj, so handle cleaning up previous
 # build-tools directories if needed.
@@ -1993,7 +2007,7 @@ _bt_clean=	${CLEANDIR}
     ${_rescue} \
     ${_share} \
     usr.bin/awk \
-    lib/libmagic \
+    ${_libmagic} \
     usr.bin/mkesdb_static \
     usr.bin/mkcsmapper_static \
     usr.bin/vi/catalog \
@@ -2070,7 +2084,7 @@ _clang_libs=	lib/clang
 _gcc=		gnu/usr.bin/cc
 .endif
 .if ${MK_USB} != "no"
-_usb_tools=	sys/boot/usb/tools
+_usb_tools=	stand/usb/tools
 .endif
 
 cross-tools: .MAKE .PHONY
@@ -2101,7 +2115,7 @@ cross-tools: .MAKE .PHONY
 # to pickup.
 #
 NXBOBJROOT=	${OBJROOT}${MACHINE}.${MACHINE_ARCH}/nxb/
-NXBOBJTOP=	${NXBOBJROOT}${TARGET}.${TARGET_ARCH}
+NXBOBJTOP=	${NXBOBJROOT}${NXB_TARGET}.${NXB_TARGET_ARCH}
 NXTP?=		/nxb-bin
 .if ${NXTP:N/*}
 .error NXTP variable should be an absolute path
@@ -2171,20 +2185,27 @@ NXBDIRS+= \
     usr.bin/yacc \
     usr.sbin/chown
 
+SUBDIR_DEPEND_usr.bin/clang=	lib/clang
 .if ${MK_CLANG} != "no"
 NXBDIRS+=	lib/clang
-SUBDIR_DEPEND_usr.bin/clang=	lib/clang
 NXBDIRS+=	usr.bin/clang
-.elif ${MK_GCC} != "no"
+.endif
+.if ${MK_GCC} != "no"
 NXBDIRS+=	gnu/usr.bin/cc
 .endif
 .if ${MK_BINUTILS} != "no"
 NXBDIRS+=	gnu/usr.bin/binutils
 .endif
+# XXX: native-xtools passes along ${NXBDIRS} in SUBDIR_OVERRIDE that needs
+# to be evaluated after NXBDIRS is set.
+.if make(install) && !empty(SUBDIR_OVERRIDE)
+SUBDIR=	${SUBDIR_OVERRIDE}
+.endif
 
 NXBMAKEARGS+= \
 	OBJTOP=${NXBOBJTOP:Q} \
 	OBJROOT=${NXBOBJROOT:Q} \
+	MAKEOBJDIRPREFIX= \
 	-DNO_SHARED \
 	-DNO_CPU_CFLAGS \
 	-DNO_PIC \
@@ -2207,7 +2228,10 @@ NXBMAKEARGS+= \
 	MK_WARNS=no \
 	MK_ZFS=no
 
-
+.if make(native-xtools*) && \
+    (!defined(NXB_TARGET) || !defined(NXB_TARGET_ARCH))
+.error Missing NXB_TARGET / NXB_TARGET_ARCH
+.endif
 # For 'toolchain' we want to produce native binaries that themselves generate
 # native binaries.
 NXBTMAKE=	${NXBMAKEENV} ${MAKE} ${NXBMAKEARGS:N-DNO_PIC:N-DNO_SHARED} \
@@ -2215,11 +2239,32 @@ NXBTMAKE=	${NXBMAKEENV} ${MAKE} ${NXBMAKEARGS:N-DNO_PIC:N-DNO_SHARED} \
 # For 'everything' we want to produce native binaries (hence -target to
 # be MACHINE) that themselves generate TARGET.TARGET_ARCH binaries.
 # TARGET/TARGET_ARCH are still passed along from user.
-NXBMAKE=	${NXBMAKEENV} ${MAKE} ${NXBMAKEARGS} \
+#
+# Use the toolchain we create as an external toolchain.
+.if ${USING_SYSTEM_COMPILER} == "yes" || ${XCC:N${CCACHE_BIN}:M/*}
+NXBMAKE+=	XCC="${XCC}" \
+		XCXX="${XCXX}" \
+		XCPP="${XCPP}"
+.else
+NXBMAKE+=	XCC="${NXBOBJTOP}/tmp/usr/bin/cc" \
+		XCXX="${NXBOBJTOP}/tmp/usr/bin/c++" \
+		XCPP="${NXBOBJTOP}/tmp/usr/bin/cpp"
+.endif
+NXBMAKE+=	${NXBMAKEENV} ${MAKE} -f Makefile.inc1 ${NXBMAKEARGS} \
+		TARGET=${NXB_TARGET} TARGET_ARCH=${NXB_TARGET_ARCH} \
 		TARGET_TRIPLE=${MACHINE_TRIPLE:Q}
+# NXBDIRS is improperly based on MACHINE rather than NXB_TARGET.  Need to
+# invoke a sub-make to reevaluate MK_GCC, etc, for NXBDIRS.
+NXBMAKE+=	SUBDIR_OVERRIDE='$${NXBDIRS:M*}'
+# Need to avoid the -isystem logic when using clang as an external toolchain
+# even if the TARGET being built for wants GCC.
+NXBMAKE+=	WANT_COMPILER_TYPE='$${X_COMPILER_TYPE}'
 native-xtools: .PHONY
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _cleanobj
 	# Build the bootstrap/host/cross tools that produce native binaries
-	${_+_}cd ${.CURDIR}; ${NXBTMAKE} kernel-toolchain
+	# Pass along MK_GCC=yes to ensure GCC-needed build tools are built.
+	# We don't quite know what the NXB_TARGET wants so just build it.
+	${_+_}cd ${.CURDIR}; ${NXBTMAKE} kernel-toolchain MK_GCC=yes
 	# Populate includes/libraries sysroot that produce native binaries.
 	# This is split out from 'toolchain' above mostly so that target LLVM
 	# libraries have a proper LLVM_DEFAULT_TARGET_TRIPLE without
@@ -2229,10 +2274,9 @@ native-xtools: .PHONY
 	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _includes MK_CLANG=no MK_GCC=no
 	${_+_}cd ${.CURDIR}; ${NXBTMAKE} _libraries MK_CLANG=no MK_GCC=no
 .if !defined(NO_OBJWALK)
-	${_+_}cd ${.CURDIR}; ${NXBMAKE} SUBDIR_OVERRIDE="${NXBDIRS:M*}" _obj
+	${_+_}cd ${.CURDIR}; ${NXBMAKE} _obj
 .endif
-	${_+_}cd ${.CURDIR}; ${NXBMAKE} SUBDIR_OVERRIDE="${NXBDIRS:M*}" \
-	    everything
+	${_+_}cd ${.CURDIR}; ${NXBMAKE} everything
 	@echo ">> native-xtools done.  Use 'make native-xtools-install' to install to a given DESTDIR"
 
 native-xtools-install: .PHONY
@@ -2241,9 +2285,8 @@ native-xtools-install: .PHONY
 	    -p ${NXBDESTDIR}/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${NXBDESTDIR}/usr/include >/dev/null
-	${_+_}cd ${.CURDIR}; ${NXBMAKE} -f Makefile.inc1 \
+	${_+_}cd ${.CURDIR}; ${NXBMAKE} \
 	    DESTDIR=${NXBDESTDIR} \
-	    SUBDIR_OVERRIDE="${NXBDIRS:M*}" \
 	    -DNO_ROOT \
 	    install
 
@@ -2387,6 +2430,9 @@ lib/libcasper__L: lib/libnv__L
 lib/liblzma__L: lib/libthr__L
 
 _generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
+.if ${MK_IPFILTER} != "no"
+_generic_libs+=	sbin/ipf/libipf
+.endif
 .for _DIR in ${LOCAL_LIB_DIRS}
 .if exists(${.CURDIR}/${_DIR}/Makefile) && empty(_generic_libs:M${_DIR})
 _generic_libs+= ${_DIR}
@@ -2767,12 +2813,14 @@ BW_CANONICALOBJDIR:=${OBJROOT}
 .endif
 .endif
 cleanworld cleanuniverse: .PHONY
-.if !empty(BW_CANONICALOBJDIR) && exists(${BW_CANONICALOBJDIR})
+.if !empty(BW_CANONICALOBJDIR) && exists(${BW_CANONICALOBJDIR}) && \
+    ${.CURDIR:tA} != ${BW_CANONICALOBJDIR:tA}
 	-rm -rf ${BW_CANONICALOBJDIR}*
 	-chflags -R 0 ${BW_CANONICALOBJDIR}
 	rm -rf ${BW_CANONICALOBJDIR}*
 .endif
-.if make(cleanworld) && ${MK_AUTO_OBJ} == "no"
+.if make(cleanworld) && ${MK_AUTO_OBJ} == "no" && \
+    (empty(BW_CANONICALOBJDIR) || ${.CURDIR:tA} == ${BW_CANONICALOBJDIR:tA})
 .if ${.CURDIR} == ${.OBJDIR} || ${.CURDIR}/obj == ${.OBJDIR}
 	#   To be safe in this case, fall back to a 'make cleandir'
 	${_+_}@cd ${.CURDIR}; ${MAKE} cleandir

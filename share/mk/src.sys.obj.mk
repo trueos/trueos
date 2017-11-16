@@ -26,7 +26,7 @@ _default_makeobjdir=	$${.CURDIR:S,^$${SRCTOP},$${OBJTOP},}
 .include <bsd.mkopt.mk>
 
 .if ${.MAKE.LEVEL} == 0 || empty(OBJROOT)
-.if ${MK_UNIFIED_OBJDIR} == "no"
+.if ${MK_UNIFIED_OBJDIR} == "no" && ${MK_DIRDEPS_BUILD} == "no"
 # Fall back to historical behavior.
 # We always want to set a default MAKEOBJDIRPREFIX...
 MAKEOBJDIRPREFIX?=	${_default_makeobjdirprefix}
@@ -70,19 +70,32 @@ OBJROOT:=	${OBJROOT:H:tA}/${OBJROOT:T}
 .export OBJROOT SRCTOP
 .endif
 
-.if ${MK_UNIFIED_OBJDIR} == "yes"
-OBJTOP:=	${OBJROOT}${TARGET:D${TARGET}.${TARGET_ARCH}:U${MACHINE}.${MACHINE_ARCH}}
+.if ${MK_DIRDEPS_BUILD} == "no"
+.if empty(OBJTOP)
+# SRCTOP == OBJROOT only happens with clever MAKEOBJDIRPREFIX=/.  Don't
+# append TARGET.TARGET_ARCH for that case since the user wants to build
+# in the source tree.
+.if ${MK_UNIFIED_OBJDIR} == "yes" && ${SRCTOP} != ${OBJROOT:tA}
+.if defined(TARGET) && defined(TARGET_ARCH)
+OBJTOP:=	${OBJROOT}${TARGET}.${TARGET_ARCH}
+.elif defined(TARGET) && ${.CURDIR} == ${SRCTOP}
+# Not enough information, just use basic OBJDIR.  This can happen with some
+# 'make universe' targets or if TARGET is not being used as expected.
+OBJTOP:=	${OBJROOT:H}
+.else
+OBJTOP:=	${OBJROOT}${MACHINE}.${MACHINE_ARCH}
+.endif
 .else
 # TARGET.TARGET_ARCH handled in OBJROOT already.
 OBJTOP:=	${OBJROOT:H}
 .endif	# ${MK_UNIFIED_OBJDIR} == "yes"
+.endif	# empty(OBJTOP)
 
-# Fixup OBJROOT/OBJTOP if using MAKEOBJDIRPREFIX but leave it alone
-# for DIRDEPS_BUILD which really wants to know the absolute top at
-# all times.  This intenionally comes after adding TARGET.TARGET_ARCH
-# so that is truncated away for nested objdirs.  This logic also
-# will not trigger if the OBJROOT block above unsets MAKEOBJDIRPREFIX.
-.if !empty(MAKEOBJDIRPREFIX) && ${MK_DIRDEPS_BUILD} == "no"
+# Fixup OBJROOT/OBJTOP if using MAKEOBJDIRPREFIX.
+# This intenionally comes after adding TARGET.TARGET_ARCH so that is truncated
+# away for nested objdirs.  This logic also will not trigger if the OBJROOT
+# block above unsets MAKEOBJDIRPREFIX.
+.if !empty(MAKEOBJDIRPREFIX)
 OBJTOP:=	${MAKEOBJDIRPREFIX}${SRCTOP}
 OBJROOT:=	${OBJTOP}/
 .endif
@@ -97,19 +110,23 @@ OBJROOT:=	${OBJTOP}/
 # __objdir is the expected .OBJDIR we want to use and that auto.obj.mk will
 # try to create.
 .if !empty(MAKEOBJDIRPREFIX)
+.if ${.CURDIR:M${MAKEOBJDIRPREFIX}/*} != ""
+# we are already in obj tree!
+__objdir=	${.CURDIR}
+.else
 __objdir:=	${MAKEOBJDIRPREFIX}${.CURDIR}
+.endif
 .elif !empty(MAKEOBJDIR)
 __objdir:=	${MAKEOBJDIR}
 .endif
 
 # Try to enable MK_AUTO_OBJ by default if we can write to the __objdir.  Only
-# do this if AUTO_OBJ is not disabled by the user, not cleaning, and this is
-# the first make ran.
-.if 0 && ${.MAKE.LEVEL} == 0 && \
+# do this if AUTO_OBJ is not disabled by the user, and this is the first make
+# ran.
+.if ${.MAKE.LEVEL} == 0 && \
     ${MK_AUTO_OBJ} == "no" && empty(.MAKEOVERRIDES:MMK_AUTO_OBJ) && \
     !defined(WITHOUT_AUTO_OBJ) && !make(showconfig) && !make(print-dir) && \
-    !defined(NO_OBJ) && \
-    (${.TARGETS} == "" || ${.TARGETS:Nclean*:N*clean:Ndestroy*} != "")
+    !defined(NO_OBJ)
 # Find the last existing directory component and check if we can write to it.
 # If the last component is a symlink then recurse on the new path.
 CheckAutoObj= \
@@ -147,8 +164,12 @@ CheckAutoObj() { \
 	fi; \
 }
 .if !empty(__objdir)
+.if ${.CURDIR} == ${__objdir}
+__objdir_writable?= yes
+.else
 __objdir_writable!= \
 	${CheckAutoObj}; CheckAutoObj "${__objdir}" || echo no
+.endif
 .endif
 __objdir_writable?= no
 # Export the decision to sub-makes.
@@ -179,3 +200,16 @@ MK_AUTO_OBJ:=	${__objdir_writable}
 # auto.obj.mk or bsd.obj.mk will create the directory and fix .OBJDIR later.
 .OBJDIR: ${.CURDIR}
 .endif
+
+# Ensure .OBJDIR=.CURDIR cases have a proper OBJTOP and .OBJDIR
+.if defined(NO_OBJ) || ${__objdir_writable:Uunknown} == "no" || \
+    ${__objdir} == ${.CURDIR}
+OBJTOP=		${SRCTOP}
+OBJROOT=	${SRCTOP}/
+# Compare only to avoid an unneeded chdir(2), :tA purposely left out.
+.if ${.OBJDIR} != ${.CURDIR}
+.OBJDIR:	${.CURDIR}
+.endif
+.endif	# defined(NO_OBJ)
+
+.endif	# ${MK_DIRDEPS_BUILD} == "no"

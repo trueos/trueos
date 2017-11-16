@@ -100,6 +100,9 @@ ${CONF}: Makefile
 .else
 	echo special ${P} buildopts DIRPRFX=${DIRPRFX}${P}/ >>${.TARGET}
 .endif
+.ifdef CRUNCH_LIBS_${P}
+	echo special ${P} lib ${CRUNCH_LIBS_${P}} >>${.TARGET}
+.endif
 .for A in ${CRUNCH_ALIAS_${P}}
 	echo ln ${P} ${A} >>${.TARGET}
 .endfor
@@ -119,7 +122,11 @@ ${OUTPUTS}: ${CONF}
 	    ${CRUNCHGEN} -fq -m ${OUTMK} -c ${OUTC} ${CONF}
 	# Avoid redundantly calling 'make objs' which we've done by our
 	# own dependencies.
-	sed -i '' -e "s/^\(${PROG}:.*\) \$$(SUBMAKE_TARGETS)/\1/" ${OUTMK}
+	# Also avoid unneeded 'make depend' call.
+	sed -i '' \
+	    -e "s/^\(${PROG}:.*\) \$$(SUBMAKE_TARGETS)/\1/" \
+	    -e '/$$(CRUNCHMAKE) $$(BUILDOPTS).* \<depend\> &&.*/d' \
+	    ${OUTMK}
 
 # These 2 targets cannot use .MAKE since they depend on the generated
 # ${OUTMK} above.
@@ -151,14 +158,18 @@ build-tools: build-tools-${_tool}
 # Yes, this does seem to partly duplicate bsd.subdir.mk, but I can't
 # get that to cooperate with bsd.prog.mk.  Besides, many of the standard
 # targets should NOT be propagated into the components.
-.for __target in clean cleandepend cleandir obj objlink
+.if ${MK_AUTO_OBJ} == "no"
+_obj=	obj
+.endif
+.for __target in clean cleandepend cleandir ${_obj} objlink
 .for D in ${CRUNCH_SRCDIRS}
 .for P in ${CRUNCH_PROGS_${D}}
 ${__target}_crunchdir_${P}: .PHONY .MAKE
 	${_+_}cd ${CRUNCH_SRCDIR_${P}} && \
 	    ${CRUNCHENV} MAKEOBJDIRPREFIX=${CANONICALOBJDIR} ${MAKE} \
 	    ${CRUNCHARGS} \
-	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} ${__target}
+	    DIRPRFX=${DIRPRFX}${P}/ ${CRUNCH_BUILDOPTS} \
+	    ${CRUNCH_BUILDOPTS_${P}} ${__target}
 ${__target}: ${__target}_crunchdir_${P}
 .endfor
 .endfor
