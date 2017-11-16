@@ -21,7 +21,7 @@ stop()
 clean_shortcuts()
 {
   #Cleanup any device *.desktop files within the /media directory
-  for i in `ls /media | grep -E "^(da|ada).*(.desktop)"` ; do
+  for i in `ls /media | grep -E "^(da|ada)[0-9].*(.desktop)"` ; do
     rm /media/${i}
   done
   return 0
