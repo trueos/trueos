@@ -82,7 +82,7 @@ start()
 stop_wpa_service()
 {
 	# Stop DHCPCD for the wireless device
-	service dhcpd.${1} stop >/dev/null 2>/dev/null
+	service dhcpcd.${1} stop >/dev/null 2>/dev/null
 	start-stop-daemon --stop --exec $BIN -p ${pidfile} -- ${wpa_args}
 }
 
