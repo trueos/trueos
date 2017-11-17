@@ -47,8 +47,8 @@ print_map_entry() {
 		;;
 	"exfat")
 		#NOTE: EXFAT might be detected as an invalid NTFS - will probably need some verification/adjustment
-		if [ -f "/usr/local/bin/mount.exfat-fuse" ]; then
-			echo "-mountprog=/usr/local/bin/mount.exfat-fuse,-fstype=${_fstype},nosuid,async	:/dev/${_p}" 
+		if [ -f "/usr/local/sbin/mount.exfat-fuse" ]; then
+			echo "-mountprog=/usr/local/sbin/mount.exfat-fuse,fstype=${_fstype},nosuid,async	:/dev/${_p}" 
 		else
 			/usr/bin/logger -p info -t "special_media[$$]" \
 			    "Cannot mount ${_fstype} formatted device /dev/${_p}: Install sysutils/fusefs-exfat first"
