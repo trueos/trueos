@@ -154,6 +154,7 @@ ppt_attach(device_t dev)
 
 	ppt = device_get_softc(dev);
 
+	iommu_remove_device(iommu_host_domain(), pci_get_rid(dev));
 	num_pptdevs++;
 	TAILQ_INSERT_TAIL(&pptdev_list, ppt, next);
 	ppt->dev = dev;
@@ -175,6 +176,8 @@ ppt_detach(device_t dev)
 		return (EBUSY);
 	num_pptdevs--;
 	TAILQ_REMOVE(&pptdev_list, ppt, next);
+	pci_disable_busmaster(dev);
+	iommu_add_device(iommu_host_domain(), pci_get_rid(dev));
 
 	return (0);
 }
@@ -348,6 +351,34 @@ ppt_is_mmio(struct vm *vm, vm_paddr_t gpa)
 	return (FALSE);
 }
 
+static void
+ppt_pci_reset(device_t dev)
+{
+	int ps;
+
+	if (pcie_flr(dev,
+		     max(pcie_get_max_completion_timeout(dev) / 1000, 10),
+		     true))
+		return;
+	/* Secondary Bus Reset */
+	/* Link Disable / Enable */
+	/*
+	 * PCI spec says we can only go into D3 state from D0 state.
+	 * Transition from D[12] into D0 before going to D3 state.
+	 */
+	ps = pci_get_powerstate(dev);
+	if (ps != PCI_POWERSTATE_D0 && ps != PCI_POWERSTATE_D3)
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D3)
+		pci_set_powerstate(dev, PCI_POWERSTATE_D3);
+	pci_set_powerstate(dev, ps);
+	/*
+	 * At this point we've lost any device state and need to do a config
+	 * restore before trying anything else. However, this should ultimately
+	 * be the last thing we try.
+	 */
+}
+
 int
 ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 {
@@ -363,12 +394,9 @@ ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 			return (EBUSY);
 
 		pci_save_state(ppt->dev);
-		pcie_flr(ppt->dev,
-		    max(pcie_get_max_completion_timeout(ppt->dev) / 1000, 10),
-		    true);
+		ppt_pci_reset(ppt->dev);
 		pci_restore_state(ppt->dev);
 		ppt->vm = vm;
-		iommu_remove_device(iommu_host_domain(), pci_get_rid(ppt->dev));
 		iommu_add_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
 		return (0);
 	}
@@ -389,15 +417,12 @@ ppt_unassign_device(struct vm *vm, int bus, int slot, int func)
 			return (EBUSY);
 
 		pci_save_state(ppt->dev);
-		pcie_flr(ppt->dev,
-		    max(pcie_get_max_completion_timeout(ppt->dev) / 1000, 10),
-		    true);
+		ppt_pci_reset(ppt->dev);
 		pci_restore_state(ppt->dev);
 		ppt_unmap_mmio(vm, ppt);
 		ppt_teardown_msi(ppt);
 		ppt_teardown_msix(ppt);
 		iommu_remove_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
-		iommu_add_device(iommu_host_domain(), pci_get_rid(ppt->dev));
 		ppt->vm = NULL;
 		return (0);
 	}

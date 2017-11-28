@@ -5100,7 +5100,7 @@ key_updateaddresses(struct socket *so, struct mbuf *m,
 	newsav->natt = NULL;
 	newsav->sah = sah;
 	newsav->state = SADB_SASTATE_MATURE;
-	error = key_setnatt(sav, mhp);
+	error = key_setnatt(newsav, mhp);
 	if (error != 0)
 		goto fail;
 
@@ -6263,7 +6263,7 @@ key_getsizes_ah(const struct auth_hash *ah, int alg, u_int16_t* min,
     u_int16_t* max)
 {
 
-	*min = *max = ah->keysize;
+	*min = *max = ah->hashsize;
 	if (ah->keysize == 0) {
 		/*
 		 * Transform takes arbitrary key size but algorithm

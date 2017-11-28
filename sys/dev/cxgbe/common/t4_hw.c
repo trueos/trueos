@@ -3682,7 +3682,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 {
 	struct fw_port_cmd c;
 	unsigned int mdi = V_FW_PORT_CAP_MDI(FW_PORT_CAP_MDI_AUTO);
-	unsigned int aneg, fc, fec, speed;
+	unsigned int aneg, fc, fec, speed, rcap;
 
 	fc = 0;
 	if (lc->requested_fc & PAUSE_RX)
@@ -3727,6 +3727,14 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		    V_FW_PORT_CAP_SPEED(M_FW_PORT_CAP_SPEED);
 	}
 
+	rcap = aneg | speed | fc | fec;
+	if ((rcap | lc->supported) != lc->supported) {
+		CH_WARN(adap, "rcap 0x%08x, pcap 0x%08x\n", rcap,
+		    lc->supported);
+		rcap &= lc->supported;
+	}
+	rcap |= mdi;
+
 	memset(&c, 0, sizeof(c));
 	c.op_to_portid = cpu_to_be32(V_FW_CMD_OP(FW_PORT_CMD) |
 				     F_FW_CMD_REQUEST | F_FW_CMD_EXEC |
@@ -3734,7 +3742,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 	c.action_to_len16 =
 		cpu_to_be32(V_FW_PORT_CMD_ACTION(FW_PORT_ACTION_L1_CFG) |
 			    FW_LEN16(c));
-	c.u.l1cfg.rcap = cpu_to_be32(aneg | speed | fc | fec | mdi);
+	c.u.l1cfg.rcap = cpu_to_be32(rcap);
 
 	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
 }
@@ -5895,6 +5903,24 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
  */
 static unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
 {
+	u32 n;
+
+	if (adap->params.mps_bg_map)
+		return ((adap->params.mps_bg_map >> (idx << 3)) & 0xff);
+
+	n = G_NUMPORTS(t4_read_reg(adap, A_MPS_CMN_CTL));
+	if (n == 0)
+		return idx == 0 ? 0xf : 0;
+	if (n == 1 && chip_id(adap) <= CHELSIO_T5)
+		return idx < 2 ? (3 << (2 * idx)) : 0;
+	return 1 << idx;
+}
+
+/*
+ * TP RX e-channels associated with the port.
+ */
+static unsigned int t4_get_rx_e_chan_map(struct adapter *adap, int idx)
+{
 	u32 n = G_NUMPORTS(t4_read_reg(adap, A_MPS_CMN_CTL));
 
 	if (n == 0)
@@ -5972,7 +5998,7 @@ void t4_get_port_stats_offset(struct adapter *adap, int idx,
  */
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 {
-	u32 bgmap = t4_get_mps_bg_map(adap, idx);
+	u32 bgmap = adap2pinfo(adap, idx)->mps_bg_map;
 	u32 stat_ctl = t4_read_reg(adap, A_MPS_STAT_CTL);
 
 #define GET_STAT(name) \
@@ -6074,7 +6100,7 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
  */
 void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
 {
-	u32 bgmap = t4_get_mps_bg_map(adap, idx);
+	u32 bgmap = adap2pinfo(adap, idx)->mps_bg_map;
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
@@ -8379,7 +8405,8 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 	else
 		p->vi[0].smt_idx = (ret & 0x7f);
 	p->tx_chan = j;
-	p->rx_chan_map = t4_get_mps_bg_map(adap, j);
+	p->mps_bg_map = t4_get_mps_bg_map(adap, j);
+	p->rx_e_chan_map = t4_get_rx_e_chan_map(adap, j);
 	p->lport = j;
 	p->vi[0].rss_size = rss_size;
 	t4_os_set_hw_addr(p, addr);
@@ -9374,7 +9401,7 @@ int t4_set_filter_mode(struct adapter *adap, unsigned int mode_map,
 void t4_clr_port_stats(struct adapter *adap, int idx)
 {
 	unsigned int i;
-	u32 bgmap = t4_get_mps_bg_map(adap, idx);
+	u32 bgmap = adap2pinfo(adap, idx)->mps_bg_map;
 	u32 port_base_addr;
 
 	if (is_t4(adap))

@@ -1,6 +1,10 @@
 #!/sbin/openrc-run
 
 name="NFS Automount Client"
+command="/usr/sbin/automount"
+command_args=${automount_flags}
+desktop_generator="/usr/local/bin/trueos-mount"
+extra_actions=clean_shortcuts
 
 depend()
 {
@@ -9,14 +13,59 @@ depend()
 	before inetd xinetd
 }
 
-start()
-{
-	ebegin "Starting $name"
-	/usr/sbin/automount ${automount_flags}
-	eend $?
-}
-
 stop()
 {
 	/sbin/umount -At autofs
+}
+
+clean_shortcuts()
+{
+  #Cleanup any device *.desktop files within the /media directory
+  for i in `ls /media | grep -E "^(da|ada)[0-9].*(.desktop)"` ; do
+    rm /media/${i}
+  done
+  return 0
+}
+
+stop_post()
+{
+  clean_shortcuts
+}
+
+start_pre(){
+  clean_shortcuts
+}
+
+skip_device()
+{
+  #internal function which checks if the argument is currently in-use
+  #and returns 0 if unused
+  dev=$1
+  tmp=`/sbin/mount | grep ${dev}`
+  if [ "x${tmp}" == "x" ] ; then
+    tmp=`/sbin/zpool list -vH | grep ${dev}`
+  fi
+  if [ "x${tmp}" == "x" ] ; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+start_post()
+{
+  #Generate any device *.desktop files within the /media directory for things that are currently attached but unmounted
+  
+  if [ -e ${desktop_generator} ] ; then
+    for i in `ls /dev | grep -E "^(da|ada).*"` ; do
+      #einfo "Checking device ${i}"
+      skip_device ${i}
+      if [ $? -eq 0 ] ; then
+        #einfo "Generate Shortcut ${i}"
+        ${desktop_generator} ${i} 1>/dev/null 2>/dev/null
+      fi
+    done
+
+  fi
+  exit 0
 }

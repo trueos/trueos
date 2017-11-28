@@ -842,10 +842,13 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 	struct lock_delay_arg lda;
 #endif
 #ifdef KDTRACE_HOOKS
-	uintptr_t state;
 	u_int sleep_cnt = 0;
 	int64_t sleep_time = 0;
 	int64_t all_time = 0;
+#endif
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	uintptr_t state;
+	int doing_lockprof;
 #endif
 
 	if (SCHEDULER_STOPPED())
@@ -875,10 +878,17 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 		CTR5(KTR_LOCK, "%s: %s contested (lock=%p) at %s:%d", __func__,
 		    rw->lock_object.lo_name, (void *)rw->rw_lock, file, line);
 
-#ifdef KDTRACE_HOOKS
-	all_time -= lockstat_nsecs(&rw->lock_object);
+#ifdef LOCK_PROFILING
+	doing_lockprof = 1;
 	state = v;
+#elif defined(KDTRACE_HOOKS)
+	doing_lockprof = lockstat_enabled;
+	if (__predict_false(doing_lockprof)) {
+		all_time -= lockstat_nsecs(&rw->lock_object);
+		state = v;
+	}
 #endif
+
 	for (;;) {
 		if (v == RW_UNLOCKED) {
 			if (_rw_write_lock_fetch(rw, &v, tid))
@@ -919,9 +929,8 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 		if ((v & RW_LOCK_READ) && RW_READERS(v) &&
 		    spintries < rowner_retries) {
 			if (!(v & RW_LOCK_WRITE_SPINNER)) {
-				if (!atomic_cmpset_ptr(&rw->rw_lock, v,
+				if (!atomic_fcmpset_ptr(&rw->rw_lock, &v,
 				    v | RW_LOCK_WRITE_SPINNER)) {
-					v = RW_READ_VALUE(rw);
 					continue;
 				}
 			}
@@ -1024,6 +1033,10 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v, uintptr_t tid,
 #endif
 		v = RW_READ_VALUE(rw);
 	}
+#if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
+	if (__predict_true(!doing_lockprof))
+		return;
+#endif
 #ifdef KDTRACE_HOOKS
 	all_time += lockstat_nsecs(&rw->lock_object);
 	if (sleep_time)

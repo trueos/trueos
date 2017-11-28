@@ -1789,6 +1789,7 @@ dev/iicbus/ds1307.c		optional ds1307
 dev/iicbus/ds13rtc.c		optional ds13rtc | ds133x | ds1374
 dev/iicbus/ds1672.c		optional ds1672
 dev/iicbus/ds3231.c		optional ds3231
+dev/iicbus/rtc8583.c		optional rtc8583
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
 dev/iicbus/iic.c		optional iic
@@ -2010,6 +2011,20 @@ iwm8000C.fw			optional iwm8000Cfw | iwmfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwm8000C.fw"
+iwm8265.fw			optional iwm8265fw | iwmfw		\
+	dependency	"$S/contrib/dev/iwm/iwm-8265-22.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwm8265.fw"
+iwm8265fw.c			optional iwm8265fw | iwmfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm8265.fw:iwm8265fw -miwm8265fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwm8265fw.c"
+iwm8265fw.fwo			optional iwm8265fw | iwmfw		\
+	dependency	"iwm8265.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwm8265fw.fwo"
 dev/iwn/if_iwn.c		optional iwn
 iwn1000fw.c			optional iwn1000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn1000.fw:iwn1000fw -miwn1000fw -c${.TARGET}" \
@@ -4554,6 +4569,8 @@ dev/mlx4/mlx4_core/mlx4_eq.c			optional mlx4 pci \
 	compile-with "${OFED_C}"
 dev/mlx4/mlx4_core/mlx4_fw.c			optional mlx4 pci \
 	compile-with "${OFED_C}"
+dev/mlx4/mlx4_core/mlx4_fw_qos.c		optional mlx4 pci \
+	compile-with "${OFED_C}"
 dev/mlx4/mlx4_core/mlx4_icm.c			optional mlx4 pci \
 	compile-with "${OFED_C}"
 dev/mlx4/mlx4_core/mlx4_intf.c			optional mlx4 pci \
@@ -4579,8 +4596,6 @@ dev/mlx4/mlx4_core/mlx4_sense.c			optional mlx4 pci \
 dev/mlx4/mlx4_core/mlx4_srq.c			optional mlx4 pci \
 	compile-with "${OFED_C}"
 dev/mlx4/mlx4_core/mlx4_resource_tracker.c	optional mlx4 pci \
-	compile-with "${OFED_C}"
-dev/mlx4/mlx4_core/mlx4_sys_tune.c		optional mlx4 pci \
 	compile-with "${OFED_C}"
 
 dev/mlx4/mlx4_en/mlx4_en_cq.c			optional mlx4en pci inet inet6	\
@@ -4629,7 +4644,9 @@ dev/mlx5/mlx5_core/mlx5_diagnostics.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_eq.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
-dev/mlx5/mlx5_core/mlx5_flow_table.c		optional mlx5 pci	\
+dev/mlx5/mlx5_core/mlx5_fs_cmd.c		optional mlx5 pci	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_core/mlx5_fs_tree.c		optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_fw.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
@@ -4828,6 +4845,7 @@ vm/swap_pager.c			standard
 vm/uma_core.c			standard
 vm/uma_dbg.c			standard
 vm/memguard.c			optional DEBUG_MEMGUARD
+vm/vm_domain.c			standard
 vm/vm_fault.c			standard
 vm/vm_glue.c			standard
 vm/vm_init.c			standard
@@ -4842,7 +4860,8 @@ vm/vm_pager.c			standard
 vm/vm_phys.c			standard
 vm/vm_radix.c			standard
 vm/vm_reserv.c			standard
-vm/vm_domain.c			standard
+vm/vm_swapout.c			optional !NO_SWAPPING
+vm/vm_swapout_dummy.c		optional NO_SWAPPING
 vm/vm_unix.c			standard
 vm/vnode_pager.c		standard
 xen/features.c			optional xenhvm
