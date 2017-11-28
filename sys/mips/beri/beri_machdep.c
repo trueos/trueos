@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2006 Wojciech A. Koszek <wkoszek@FreeBSD.org>
  * Copyright (c) 2012-2014 Robert N. M. Watson
  * All rights reserved.
@@ -174,9 +176,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	char **envp = (char **)a2;
 	long memsize;
 #ifdef FDT
-	char buf[2048];		/* early stack supposedly big enough */
 	vm_offset_t dtbp;
-	phandle_t chosen;
 	void *kmdp;
 #endif
 	int i;

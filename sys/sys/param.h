@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -84,6 +86,7 @@
 #define	P_OSREL_SHUTDOWN_ENOTCONN	1100077
 #define	P_OSREL_MAP_GUARD		1200035
 #define	P_OSREL_WRFSBASE		1200041
+#define	P_OSREL_CK_CYLGRP		1200046
 #define	P_OSREL_VMTOTAL64		1200054
 
 #define	P_OSREL_MAJOR(x)		((x) / 100000)
@@ -318,7 +321,6 @@ __END_DECLS
 #endif
 #endif
 
-#ifndef lint
 #ifndef _BYTEORDER_FUNC_DEFINED
 #define	_BYTEORDER_FUNC_DEFINED
 #define	htonl(x)	__htonl(x)
@@ -326,7 +328,6 @@ __END_DECLS
 #define	ntohl(x)	__ntohl(x)
 #define	ntohs(x)	__ntohs(x)
 #endif /* !_BYTEORDER_FUNC_DEFINED */
-#endif /* lint */
 #endif /* _KERNEL */
 
 /*

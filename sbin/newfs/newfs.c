@@ -1,4 +1,6 @@
-/*
+/*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -397,10 +399,6 @@ main(int argc, char *argv[])
 		fssize *= secperblk;
 		if (pp != NULL)
 			pp->p_size *= secperblk;
-	}
-	if (getosreldate() < __FreeBSD_version) {
-		warnx("%s is newer than the running kernel and may not be compatible",
-		    getprogname());
 	}
 	mkfs(pp, special);
 	ufs_disk_close(&disk);
