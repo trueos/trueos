@@ -3,6 +3,8 @@
 
 PROG=	acpiconf
 MAN=	acpiconf.8
+BINOWN=	root
+BINMODE=4555
 WARNS?=	3
 
 .include <bsd.prog.mk>
