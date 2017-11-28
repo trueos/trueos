@@ -4,7 +4,7 @@
 PACKAGE=runtime
 PROG=	shutdown
 MAN=	shutdown.8
-LINKS=	${BINDIR}/poweroff ${BINDIR}/shutdown
+LINKS=	${BINDIR}/shutdown ${BINDIR}/poweroff
 MLINKS=	shutdown.8 poweroff.8
 
 BINOWN=	root
