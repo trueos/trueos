@@ -8,8 +8,7 @@ command_args="${nis_client_flags}"
 
 depend()
 {
-	need localmount
-	want ypserv
+	need localmount net-online
 	keyword -shutdown -stop
 }
 
