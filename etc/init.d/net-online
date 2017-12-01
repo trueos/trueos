@@ -25,17 +25,10 @@ start ()
 
 	ebegin "Checking to see if the network is online"
 	rc=0
-	interfaces=${interfaces:-$(ifconfig -nl "ether")}
 	timeout=${timeout:-120}
 	[ "$timeout" -eq 0 ] && infinite=true || infinite=false
-	found=false
 	while $infinite || [ "$timeout" -gt 0 ]; do
-		for dev in ${interfaces}; do
-			if ifconfig "$dev" | grep "status:" | grep -E "active|associated" > /dev/null 2>&1; then
-				ifconfig "$dev" | grep "^[[:blank:]]inet " | grep " broadcast "  > /dev/null 2>&1 && { found=true; break; }
-			fi
-		done
-		[ $found = true ] && break
+		nc -uz 255.255.255.255 111 > /dev/null 2>&1 && break
 		sleep 1
 		: $((timeout -= 1))
 	done
