@@ -1,5 +1,5 @@
 /*-
- * SPDX-License-Identifier: BSD-3-Clause
+ * SPDX-License-Identifier: (BSD-3-Clause AND MIT-CMU)
  *
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -1189,9 +1189,9 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_inherit_t inheritance;
 
 	VM_MAP_ASSERT_LOCKED(map);
-	KASSERT((object != kmem_object && object != kernel_object) ||
+	KASSERT(object != kernel_object ||
 	    (cow & MAP_COPY_ON_WRITE) == 0,
-	    ("vm_map_insert: kmem or kernel object and COW"));
+	    ("vm_map_insert: kernel object and COW"));
 	KASSERT(object == NULL || (cow & MAP_NOFAULT) == 0,
 	    ("vm_map_insert: paradoxical MAP_NOFAULT request"));
 	KASSERT((prot & ~max) == 0,
@@ -1558,6 +1558,18 @@ again:
 	return (result);
 }
 
+/*
+ *	vm_map_find_min() is a variant of vm_map_find() that takes an
+ *	additional parameter (min_addr) and treats the given address
+ *	(*addr) differently.  Specifically, it treats *addr as a hint
+ *	and not as the minimum address where the mapping is created.
+ *
+ *	This function works in two phases.  First, it tries to
+ *	allocate above the hint.  If that fails and the hint is
+ *	greater than min_addr, it performs a second pass, replacing
+ *	the hint with min_addr as the minimum address for the
+ *	allocation.
+ */
 int
 vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr, vm_size_t length, vm_offset_t min_addr,
@@ -2990,7 +3002,7 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		VM_OBJECT_WLOCK(object);
 		if (object->ref_count != 1 && ((object->flags & (OBJ_NOSPLIT |
 		    OBJ_ONEMAPPING)) == OBJ_ONEMAPPING ||
-		    object == kernel_object || object == kmem_object)) {
+		    object == kernel_object)) {
 			vm_object_collapse(object);
 
 			/*
