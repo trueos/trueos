@@ -41,11 +41,18 @@ skip_device()
   #internal function which checks if the argument is currently in-use
   #and returns 0 if unused
   dev=$1
-  tmp=`/sbin/mount | grep ${dev}`
-  if [ "x${tmp}" == "x" ] ; then
-    tmp=`/sbin/zpool list -vH | grep ${dev}`
+  if [ -z "${activelist}" ] ; then
+    #Load all the mount/zpool information if first-run
+    mntlist=`/sbin/mount`
+    zlist=`/sbin/zpool list -vH`
+    activelist="${tmp}
+${zlist}"
+    unset mntlist
+    unset zlist
+    #einfo "#activelist: ${activelist}"
   fi
-  if [ "x${tmp}" == "x" ] ; then
+  tmp=`echo "${activelist}" | grep ${dev}`
+  if [ -z "${tmp}" ] ; then
     return 0
   else
     return 1
@@ -57,8 +64,8 @@ start_post()
   #Generate any device *.desktop files within the /media directory for things that are currently attached but unmounted
   
   if [ -e ${desktop_generator} ] ; then
-    for i in `ls /dev | grep -E "^(da|ada).*"` ; do
-      #einfo "Checking device ${i}"
+    for i in `ls /dev | grep -E "^(da|ada|cd|acd).*"` ; do
+      einfo "Checking device ${i}"
       skip_device ${i}
       if [ $? -eq 0 ] ; then
         #einfo "Generate Shortcut ${i}"
@@ -67,5 +74,5 @@ start_post()
     done
 
   fi
-  exit 0
+  return 0
 }
