@@ -6,6 +6,8 @@ command_args=${automount_flags}
 desktop_generator="/usr/local/bin/trueos-mount"
 extra_actions=clean_shortcuts
 
+tmp_proc_flag="/tmp/.automount.isrunning"
+
 depend()
 {
 	need localmount nfsclient automountd autounmountd
@@ -30,10 +32,25 @@ clean_shortcuts()
 stop_post()
 {
   clean_shortcuts
+  rm ${tmp_proc_flag} 1>/dev/null 2>/dev/null
+  return 0
 }
 
-start_pre(){
+start(){
   clean_shortcuts
+  #Note: This command is a one-off, it does not remain running persistantly.
+  # As such, create/use a sentinal flag/file for determining if the service has been started yet (for status reporting)
+  touch ${tmp_proc_flag}
+  ${command} ${command_args}
+  return 0 #don't worry about the return code of the autmount command - the automountd service is what handles the main daemon
+}
+
+status(){
+  if [ -f ${tmp_proc_flag} ] ; then
+    exit 0
+  else
+    return 1
+  fi
 }
 
 skip_device()
