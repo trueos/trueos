@@ -29,8 +29,8 @@ CFLAGS+=-DBOOTPROG=\"zfsboot\" \
 	-I${BOOTSRC}/i386/common \
 	-I${BOOTSRC}/i386 \
 	-I${ZFSSRC} \
+	-I${SYSDIR}/crypto/skein \
 	-I${SYSDIR}/cddl/boot/zfs \
-	-I${BTXLIB} \
 	-I${BOOTSRC}/i386/boot2 \
 	-Wall -Waggregate-return -Wbad-function-cast -Wno-cast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \

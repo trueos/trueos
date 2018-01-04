@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <efi.h>
 #include <eficonsctl.h>
-typedef CHAR16 efi_char;
 #include <efichar.h>
 
 #include "boot_module.h"
@@ -431,10 +430,10 @@ efi_main(EFI_HANDLE Ximage, EFI_SYSTEM_TABLE *Xsystab)
 	conout = ST->ConOut;
 	conout->Reset(conout, TRUE);
 	max_dim = best_mode = 0;
-	for (i = 0; ; i++) {
+	for (i = 0; i < conout->Mode->MaxMode; i++) {
 		status = conout->QueryMode(conout, i, &cols, &rows);
 		if (EFI_ERROR(status))
-			break;
+			continue;
 		if (cols * rows > max_dim) {
 			max_dim = cols * rows;
 			best_mode = i;

@@ -1545,10 +1545,8 @@ debug()
 #			created as well.
 #
 #	update		`file' has changed and needs to be backed up.
-#			If `cur' exists, it is copied to to `back' or
-#			checked into RCS (if the repository file is old),
-#			and then `file' is copied to `cur'.  Another RCS
-#			check in done here if RCS is being used.
+#			If `cur' exists, it is copied to `back'
+#			and then `file' is copied to `cur'.
 #
 #	remove		`file' is no longer being tracked by the backups
 #			system.  If RCS is not being used, `cur' is moved

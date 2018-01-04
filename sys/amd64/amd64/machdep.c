@@ -184,8 +184,6 @@ struct init_ops init_ops = {
  */
 extern char kernphys[];
 
-struct msgbuf *msgbufp;
-
 /*
  * Physical address of the EFI System Table. Stashed from the metadata hints
  * passed into the kernel and used by the EFI code to call runtime services.
@@ -1527,6 +1525,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	size_t kstack0_sz;
 	int late_console;
 
+	TSRAW(&thread0, TS_ENTER, __func__, NULL);
+
 	/*
  	 * This may be done better later if it gets more high level
  	 * components in it. If so just link td->td_proc here.
@@ -1775,6 +1775,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	x86_init_fdt();
 #endif
 	thread0.td_critnest = 0;
+
+	TSEXIT();
 
 	/* Location of kernel stack for locore */
 	return ((u_int64_t)thread0.td_pcb);

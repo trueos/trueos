@@ -164,9 +164,6 @@ SYSCTL_INT(_machdep, OID_AUTO, uprintf_signal, CTLFLAG_RWTUN,
 void
 trap(struct trapframe *frame)
 {
-#ifdef KDTRACE_HOOKS
-	struct reg regs;
-#endif
 	ksiginfo_t ksi;
 	struct thread *td;
 	struct proc *p;
@@ -278,9 +275,8 @@ trap(struct trapframe *frame)
 			enable_intr();
 #ifdef KDTRACE_HOOKS
 			if (type == T_BPTFLT) {
-				fill_frame_regs(frame, &regs);
 				if (dtrace_pid_probe_ptr != NULL &&
-				    dtrace_pid_probe_ptr(&regs) == 0)
+				    dtrace_pid_probe_ptr(frame) == 0)
 					return;
 			}
 #endif
@@ -406,9 +402,8 @@ trap(struct trapframe *frame)
 #ifdef KDTRACE_HOOKS
 		case T_DTRACE_RET:
 			enable_intr();
-			fill_frame_regs(frame, &regs);
 			if (dtrace_return_probe_ptr != NULL)
-				dtrace_return_probe_ptr(&regs);
+				dtrace_return_probe_ptr(frame);
 			return;
 #endif
 		}
@@ -613,7 +608,6 @@ trap_pfault(struct trapframe *frame, int usermode)
 	td = curthread;
 	p = td->td_proc;
 	eva = frame->tf_addr;
-	rv = 0;
 
 	if (__predict_false((td->td_pflags & TDP_NOFAULTING) != 0)) {
 		/*
@@ -665,7 +659,7 @@ trap_pfault(struct trapframe *frame, int usermode)
 		 * Don't allow user-mode faults in kernel address space.
 		 */
 		if (usermode)
-			goto nogo;
+			return (SIGSEGV);
 
 		map = kernel_map;
 	} else {
@@ -720,7 +714,6 @@ trap_pfault(struct trapframe *frame, int usermode)
 #endif
 		return (0);
 	}
-nogo:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
 		    curpcb->pcb_onfault != NULL) {
