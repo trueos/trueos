@@ -66,8 +66,10 @@ start(){
 
 status_pre(){
   # If the automatic retest routine is currently running, show the status of that as well
-  tout=`service_get_value timeout`
-  if [ ${tout:-0} -gt 0 ] ; then
-    einfo "Automatically retesting connection: ${tout} seconds remaining"
+  if service_inactive ; then
+    tout=`service_get_value timeout`
+    if [ ${tout:-0} -gt 0 ] ; then
+      einfo "Automatically retesting connection: ${tout} seconds remaining"
+    fi
   fi
 }
