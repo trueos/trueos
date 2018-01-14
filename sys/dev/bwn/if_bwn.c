@@ -1421,7 +1421,7 @@ bwn_phy_getinfo(struct bwn_mac *mac, int gmode)
 	    (phy->type == BWN_PHYTYPE_B && phy->rev != 2 &&
 		phy->rev != 4 && phy->rev != 6 && phy->rev != 7) ||
 	    (phy->type == BWN_PHYTYPE_G && phy->rev > 9) ||
-	    (phy->type == BWN_PHYTYPE_N && phy->rev > 4) ||
+	    (phy->type == BWN_PHYTYPE_N && phy->rev > 6) ||
 	    (phy->type == BWN_PHYTYPE_LP && phy->rev > 2))
 		goto unsupphy;
 
@@ -1755,15 +1755,18 @@ bwn_wme_update(struct ieee80211com *ic)
 {
 	struct bwn_softc *sc = ic->ic_softc;
 	struct bwn_mac *mac = sc->sc_curmac;
+	struct chanAccParams chp;
 	struct wmeParams *wmep;
 	int i;
+
+	ieee80211_wme_ic_getparams(ic, &chp);
 
 	BWN_LOCK(sc);
 	mac = sc->sc_curmac;
 	if (mac != NULL && mac->mac_status >= BWN_MAC_STATUS_INITED) {
 		bwn_mac_suspend(mac);
 		for (i = 0; i < N(sc->sc_wmeParams); i++) {
-			wmep = &ic->ic_wme.wme_chanParams.cap_wmeParams[i];
+			wmep = &chp.cap_wmeParams[i];
 			bwn_wme_loadparams(mac, wmep, bwn_wme_shm_offsets[i]);
 		}
 		bwn_mac_enable(mac);
@@ -3110,6 +3113,7 @@ bwn_dma_setup(struct bwn_dma_ring *dr)
 			addrext = ((ring64 >> 32) & SIBA_DMA_TRANSLATION_MASK)
 			    >> 30;
 			value = BWN_DMA64_TXENABLE;
+			value |= BWN_DMA64_TXPARITY_DISABLE;
 			value |= (addrext << BWN_DMA64_TXADDREXT_SHIFT)
 			    & BWN_DMA64_TXADDREXT_MASK;
 			BWN_DMA_WRITE(dr, BWN_DMA64_TXCTL, value);
@@ -3122,6 +3126,7 @@ bwn_dma_setup(struct bwn_dma_ring *dr)
 			ring32 = (uint32_t)(dr->dr_ring_dmabase);
 			addrext = (ring32 & SIBA_DMA_TRANSLATION_MASK) >> 30;
 			value = BWN_DMA32_TXENABLE;
+			value |= BWN_DMA32_TXPARITY_DISABLE;
 			value |= (addrext << BWN_DMA32_TXADDREXT_SHIFT)
 			    & BWN_DMA32_TXADDREXT_MASK;
 			BWN_DMA_WRITE(dr, BWN_DMA32_TXCTL, value);
@@ -3141,6 +3146,7 @@ bwn_dma_setup(struct bwn_dma_ring *dr)
 		addrext = ((ring64 >> 32) & SIBA_DMA_TRANSLATION_MASK) >> 30;
 		value = (dr->dr_frameoffset << BWN_DMA64_RXFROFF_SHIFT);
 		value |= BWN_DMA64_RXENABLE;
+		value |= BWN_DMA64_RXPARITY_DISABLE;
 		value |= (addrext << BWN_DMA64_RXADDREXT_SHIFT)
 		    & BWN_DMA64_RXADDREXT_MASK;
 		BWN_DMA_WRITE(dr, BWN_DMA64_RXCTL, value);
@@ -3155,6 +3161,7 @@ bwn_dma_setup(struct bwn_dma_ring *dr)
 		addrext = (ring32 & SIBA_DMA_TRANSLATION_MASK) >> 30;
 		value = (dr->dr_frameoffset << BWN_DMA32_RXFROFF_SHIFT);
 		value |= BWN_DMA32_RXENABLE;
+		value |= BWN_DMA32_RXPARITY_DISABLE;
 		value |= (addrext << BWN_DMA32_RXADDREXT_SHIFT)
 		    & BWN_DMA32_RXADDREXT_MASK;
 		BWN_DMA_WRITE(dr, BWN_DMA32_RXCTL, value);

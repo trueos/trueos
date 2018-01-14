@@ -30,8 +30,6 @@
         ..
         bluetooth
         ..
-        casper
-        ..
 	conf.d
 	..
         cron.d
@@ -91,8 +89,6 @@
 	    ..
 	..
         security
-        ..
-        skel
         ..
         ssh
         ..

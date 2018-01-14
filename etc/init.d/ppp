@@ -1,11 +1,10 @@
 #!/sbin/openrc-run
 name="ppp"
 description="Point to point protocol connections"
-required_files="/etc/ppp/ppp.conf"
 
 depend()
 {
-    after localmount
+    after localmount boot
     keyword -jail
 }
 
@@ -20,8 +19,8 @@ fi
 
 if [ -n "${profile}" ] ; then
   #only set these for the subservices (profiles)
-  in_background="true"
-  pidfile="/var/run/ppp-${profile}.pid"
+  #in_background="true"
+  #pidfile="/var/run/ppp-${profile}.pid"
   command="/usr/sbin/ppp"
   #determine the settings for this profile
   mode=$(eval "echo \$ppp_${profile}_mode" )
@@ -43,6 +42,9 @@ if [ -n "${profile}" ] ; then
     command_args="-${mode} ${profile}"
   fi
   command_user="${user}"
+  #ppp is weird in that it *always* backgrounds itself automatically
+  # - need to keep tabs on it by the full process name because the pidfiles are all the daemon process
+  #procname="${command} ${command_args}"
 fi
 
 cleanup_sessions() {
@@ -71,11 +73,11 @@ start_pre() {
     done
     exit 0 #ensure we stop here for the base service - no actual "start" for the meta-service
   fi
+  einfo "Starting Profile with command: ${procname}"
 }
 
-stop_pre() {
+stop() {
   if [ -z "${profile}" ] ; then
-    export OPENRC_SILENT=TRUE
     for subservice in `ls ${SERVICEDIR}/ppp.* 2> /dev/null`
     do
         _profile=${subservice##*.}
@@ -85,7 +87,11 @@ stop_pre() {
         fi
       rm ${subservice} #Now remove the subservice symlink
     done
-    exit 0 #Completely done with base service right now (nothing to do in stop() function)
+  else
+    # ppp is weird in that it *always* backgrounds itself automatically
+    # - need to keep tabs on it by the full process name because the pidfiles are all the daemon process
+    p_name="${command} ${command_args}"
+    /bin/pkill -f "^${command}.*[[:space:]]${profile}\$"
+    return 0
   fi
-  return 0
 }
