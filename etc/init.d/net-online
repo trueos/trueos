@@ -38,7 +38,7 @@ check_online()
 retest(){
   tout=`service_get_value timeout`
   #einfo "Retest connection: ${tout}"
-  if [ ${tout} -gt 0 ] && ( ! service_starting net-online) ; then
+  if [ ${tout} -gt 0 ] && ( service_inactive net-online) ; then
     : $((tout -= ${interval}))
     service_set_value timeout ${tout}
     if (! check_online) && [ ${tout} -gt 0 ] && (service_inactive net-online) ; then
@@ -52,8 +52,10 @@ retest(){
   fi
 }
 
-start(){
+start_pre(){
   mark_service_starting net-online
+}
+start(){
   if  ! check_online ; then
     #Start the automatic retest routine in the background
     tout=${retest_timeout:-120} #retry for 120 seconds by default
