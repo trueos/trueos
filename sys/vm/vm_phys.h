@@ -48,6 +48,11 @@ struct mem_affinity {
 	vm_paddr_t end;
 	int domain;
 };
+#ifdef NUMA
+extern struct mem_affinity *mem_affinity;
+extern int *mem_locality;
+#endif
+extern int vm_ndomains;
 
 struct vm_freelist {
 	struct pglist pl;
@@ -62,9 +67,6 @@ struct vm_phys_seg {
 	struct vm_freelist (*free_queues)[VM_NFREEPOOL][VM_NFREEORDER];
 };
 
-extern struct mem_affinity *mem_affinity;
-extern int *mem_locality;
-extern int vm_ndomains;
 extern struct vm_phys_seg vm_phys_segs[];
 extern int vm_phys_nsegs;
 
@@ -77,7 +79,7 @@ vm_page_t vm_phys_alloc_contig(int domain, u_long npages, vm_paddr_t low,
 vm_page_t vm_phys_alloc_freelist_pages(int domain, int freelist, int pool,
     int order);
 vm_page_t vm_phys_alloc_pages(int domain, int pool, int order);
-boolean_t vm_phys_domain_intersects(long mask, vm_paddr_t low, vm_paddr_t high);
+int vm_phys_domain_match(int prefer, vm_paddr_t low, vm_paddr_t high);
 int vm_phys_fictitious_reg_range(vm_paddr_t start, vm_paddr_t end,
     vm_memattr_t memattr);
 void vm_phys_fictitious_unreg_range(vm_paddr_t start, vm_paddr_t end);
@@ -86,8 +88,8 @@ void vm_phys_free_contig(vm_page_t m, u_long npages);
 void vm_phys_free_pages(vm_page_t m, int order);
 void vm_phys_init(void);
 vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
-vm_page_t vm_phys_scan_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
-    u_long alignment, vm_paddr_t boundary, int options);
+vm_page_t vm_phys_scan_contig(int domain, u_long npages, vm_paddr_t low,
+    vm_paddr_t high, u_long alignment, vm_paddr_t boundary, int options);
 void vm_phys_set_pool(int pool, vm_page_t m, int order);
 boolean_t vm_phys_unfree_page(vm_page_t m);
 int vm_phys_mem_affinity(int f, int t);
@@ -101,7 +103,7 @@ int vm_phys_mem_affinity(int f, int t);
 static inline int
 vm_phys_domidx(vm_page_t m)
 {
-#ifdef VM_NUMA_ALLOC
+#ifdef NUMA
 	int domn, segind;
 
 	/* XXXKIB try to assert that the page is managed */

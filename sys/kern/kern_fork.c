@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/acct.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
-#include <sys/unistd.h>	
+#include <sys/unistd.h>
 #include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/sysent.h>
@@ -83,7 +83,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
-#include <vm/vm_domain.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -187,7 +186,7 @@ sys_rfork(struct thread *td, struct rfork_args *uap)
 
 int	nprocs = 1;		/* process 0 */
 int	lastpid = 0;
-SYSCTL_INT(_kern, OID_AUTO, lastpid, CTLFLAG_RD, &lastpid, 0, 
+SYSCTL_INT(_kern, OID_AUTO, lastpid, CTLFLAG_RD, &lastpid, 0,
     "Last used PID");
 
 /*
@@ -220,7 +219,7 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 		else if (pid < 0 || pid > pid_max - 100)
 			/* out of range */
 			randompid = pid_max - 100;
-		else if (pid < 100)	 
+		else if (pid < 100)
 			/* Make it reasonable */
 			randompid = 100;
 		else
@@ -462,7 +461,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 			fdtol->fdl_refcount++;
 			FILEDESC_XUNLOCK(p1->p_fd);
 		} else {
-			/* 
+			/*
 			 * Shared file descriptor table, and different
 			 * process leaders.
 			 */
@@ -511,14 +510,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
-
-	/*
-	 * Whilst the proc lock is held, copy the VM domain data out
-	 * using the VM domain method.
-	 */
-	vm_domain_policy_init(&p2->p_vm_dom_policy);
-	vm_domain_policy_localcopy(&p2->p_vm_dom_policy,
-	    &p1->p_vm_dom_policy);
 
 	if (fr->fr_flags & RFSIGSHARE) {
 		p2->p_sigacts = sigacts_hold(p1->p_sigacts);

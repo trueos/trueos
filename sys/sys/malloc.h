@@ -41,6 +41,7 @@
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+#include <machine/_limits.h>
 
 #define	MINALLOCSIZE	UMA_SMALLEST_UNIT
 
@@ -174,9 +175,20 @@ void	*contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 	    vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
 	    vm_paddr_t boundary) __malloc_like __result_use_check
 	    __alloc_size(1) __alloc_align(6);
+void	*contigmalloc_domain(unsigned long size, struct malloc_type *type,
+	    int domain, int flags, vm_paddr_t low, vm_paddr_t high,
+	    unsigned long alignment, vm_paddr_t boundary)
+	    __malloc_like __result_use_check __alloc_size(1) __alloc_align(6);
 void	free(void *addr, struct malloc_type *type);
+void	free_domain(void *addr, struct malloc_type *type);
 void	*malloc(unsigned long size, struct malloc_type *type, int flags)
 	    __malloc_like __result_use_check __alloc_size(1);
+void	*malloc_domain(unsigned long size, struct malloc_type *type,
+	    int domain, int flags)
+	    __malloc_like __result_use_check __alloc_size(1);
+void	*mallocarray(size_t nmemb, size_t size, struct malloc_type *type,
+	    int flags) __malloc_like __result_use_check
+	    __alloc_size(1) __alloc_size(2);
 void	malloc_init(void *);
 int	malloc_last_fail(void);
 void	malloc_type_allocated(struct malloc_type *type, unsigned long size);
@@ -186,9 +198,23 @@ void	malloc_uninit(void *);
 void	*realloc(void *addr, unsigned long size, struct malloc_type *type,
 	    int flags) __result_use_check __alloc_size(2);
 void	*reallocf(void *addr, unsigned long size, struct malloc_type *type,
-	    int flags) __alloc_size(2);
+	    int flags) __result_use_check __alloc_size(2);
 
 struct malloc_type *malloc_desc2type(const char *desc);
+
+/*
+ * This is sqrt(SIZE_MAX+1), as s1*s2 <= SIZE_MAX
+ * if both s1 < MUL_NO_OVERFLOW and s2 < MUL_NO_OVERFLOW
+ */
+#define MUL_NO_OVERFLOW		(1UL << (sizeof(size_t) * 8 / 2))
+static inline bool
+WOULD_OVERFLOW(size_t nmemb, size_t size)
+{
+
+	return ((nmemb >= MUL_NO_OVERFLOW || size >= MUL_NO_OVERFLOW) &&
+	    nmemb > 0 && __SIZE_T_MAX / nmemb < size);
+}
+#undef MUL_NO_OVERFLOW
 #endif /* _KERNEL */
 
 #endif /* !_SYS_MALLOC_H_ */

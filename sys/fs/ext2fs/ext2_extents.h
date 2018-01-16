@@ -43,6 +43,13 @@
 #define	EXT4_EXT_CACHE_IN	2
 
 /*
+ * Ext4 extent tail with csum
+ */
+struct ext4_extent_tail {
+	uint32_t et_checksum;	/* crc32c(uuid+inum+extent_block) */
+};
+
+/*
  * Ext4 file system extent on disk.
  */
 struct ext4_extent {
@@ -120,7 +127,8 @@ void ext4_ext_path_free(struct ext4_extent_path *path);
 int ext4_ext_remove_space(struct inode *ip, off_t length, int flags,
     struct ucred *cred, struct thread *td);
 int ext4_ext_get_blocks(struct inode *ip, int64_t iblock,
-    unsigned long max_blocks, struct ucred *cred, struct buf **bpp, int *allocate, uint32_t *);
+    unsigned long max_blocks, struct ucred *cred, struct buf **bpp,
+    int *allocate, daddr_t *);
 #ifdef EXT2FS_DEBUG
 void ext4_ext_print_extent_tree_status(struct inode * ip);
 #endif
