@@ -72,174 +72,6 @@ static struct nlist namelist[] = {
  * the list for entries to update.  Updates are O(n^2) due to searching for
  * each entry before adding it.
  */
-static int
-memstat_sysctl_lkpi_uma(struct memory_type_list *list, int flags)
-{
-	struct uma_stream_header *ushp;
-	struct uma_type_header *uthp;
-	struct uma_percpu_stat *upsp;
-	struct memory_type *mtp;
-	int count, hint_dontsearch, i, j, maxcpus, maxid;
-	char *buffer, *p;
-	size_t size;
-
-	hint_dontsearch = LIST_EMPTY(&list->mtl_list);
-
-	/*
-	 * Query the number of CPUs, number of malloc types so that we can
-	 * guess an initial buffer size.  We loop until we succeed or really
-	 * fail.  Note that the value of maxcpus we query using sysctl is not
-	 * the version we use when processing the real data -- that is read
-	 * from the header.
-	 */
-retry:
-	size = sizeof(maxid);
-	if (sysctlbyname("kern.smp.maxid", &maxid, &size, NULL, 0) < 0) {
-		if (errno == EACCES || errno == EPERM)
-			list->mtl_error = MEMSTAT_ERROR_PERMISSION;
-		else
-			list->mtl_error = MEMSTAT_ERROR_DATAERROR;
-		return (-1);
-	}
-	if (size != sizeof(maxid)) {
-		list->mtl_error = MEMSTAT_ERROR_DATAERROR;
-		return (-1);
-	}
-
-	size = sizeof(count);
-	if (sysctlbyname("vm.lkpi_zone_count", &count, &size, NULL, 0) < 0) {
-		if (errno == EACCES || errno == EPERM)
-			list->mtl_error = MEMSTAT_ERROR_PERMISSION;
-		else
-			list->mtl_error = MEMSTAT_ERROR_VERSION;
-		return (-1);
-	}
-	if (size != sizeof(count)) {
-		list->mtl_error = MEMSTAT_ERROR_DATAERROR;
-		return (-1);
-	}
-
-	size = sizeof(*uthp) + count * (sizeof(*uthp) + sizeof(*upsp) *
-	    (maxid + 1));
-
-	buffer = malloc(size);
-	if (buffer == NULL) {
-		list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
-		return (-1);
-	}
-
-	if (sysctlbyname("vm.lkpi_zone_stats", buffer, &size, NULL, 0) < 0) {
-		/*
-		 * XXXRW: ENOMEM is an ambiguous return, we should bound the
-		 * number of loops, perhaps.
-		 */
-		if (errno == ENOMEM) {
-			free(buffer);
-			goto retry;
-		}
-		if (errno == EACCES || errno == EPERM)
-			list->mtl_error = MEMSTAT_ERROR_PERMISSION;
-		else
-			list->mtl_error = MEMSTAT_ERROR_VERSION;
-		free(buffer);
-		return (-1);
-	}
-
-	if (size == 0) {
-		free(buffer);
-		return (0);
-	}
-
-	if (size < sizeof(*ushp)) {
-		list->mtl_error = MEMSTAT_ERROR_VERSION;
-		free(buffer);
-		return (-1);
-	}
-	p = buffer;
-	ushp = (struct uma_stream_header *)p;
-	p += sizeof(*ushp);
-
-	if (ushp->ush_version != UMA_STREAM_VERSION) {
-		list->mtl_error = MEMSTAT_ERROR_VERSION;
-		free(buffer);
-		return (-1);
-	}
-
-	/*
-	 * For the remainder of this function, we are quite trusting about
-	 * the layout of structures and sizes, since we've determined we have
-	 * a matching version and acceptable CPU count.
-	 */
-	maxcpus = ushp->ush_maxcpus;
-	count = ushp->ush_count;
-	for (i = 0; i < count; i++) {
-		uthp = (struct uma_type_header *)p;
-		p += sizeof(*uthp);
-
-		if (hint_dontsearch == 0) {
-			mtp = memstat_mtl_find(list, ALLOCATOR_UMA,
-			    uthp->uth_name);
-		} else
-			mtp = NULL;
-		if (mtp == NULL)
-			mtp = _memstat_mt_allocate(list, ALLOCATOR_UMA,
-			    uthp->uth_name, maxid + 1);
-		if (mtp == NULL) {
-			_memstat_mtl_empty(list);
-			free(buffer);
-			list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
-			return (-1);
-		}
-
-		/*
-		 * Reset the statistics on a current node.
-		 */
-		_memstat_mt_reset_stats(mtp, maxid + 1);
-
-		mtp->mt_numallocs = uthp->uth_allocs;
-		mtp->mt_numfrees = uthp->uth_frees;
-		mtp->mt_failures = uthp->uth_fails;
-		mtp->mt_sleeps = uthp->uth_sleeps;
-
-		for (j = 0; j < maxcpus; j++) {
-			upsp = (struct uma_percpu_stat *)p;
-			p += sizeof(*upsp);
-
-			mtp->mt_percpu_cache[j].mtp_free =
-			    upsp->ups_cache_free;
-			mtp->mt_free += upsp->ups_cache_free;
-			mtp->mt_numallocs += upsp->ups_allocs;
-			mtp->mt_numfrees += upsp->ups_frees;
-		}
-
-		mtp->mt_size = uthp->uth_size;
-		mtp->mt_rsize = uthp->uth_rsize;
-		mtp->mt_memalloced = mtp->mt_numallocs * uthp->uth_size;
-		mtp->mt_memfreed = mtp->mt_numfrees * uthp->uth_size;
-		mtp->mt_bytes = mtp->mt_memalloced - mtp->mt_memfreed;
-		mtp->mt_countlimit = uthp->uth_limit;
-		mtp->mt_byteslimit = uthp->uth_limit * uthp->uth_size;
-
-		mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
-		mtp->mt_zonefree = uthp->uth_zone_free;
-
-		/*
-		 * UMA secondary zones share a keg with the primary zone.  To
-		 * avoid double-reporting of free items, report keg free
-		 * items only in the primary zone.
-		 */
-		if (!(uthp->uth_zone_flags & UTH_ZONE_SECONDARY)) {
-			mtp->mt_kegfree = uthp->uth_keg_free;
-			mtp->mt_free += mtp->mt_kegfree;
-		}
-		mtp->mt_free += mtp->mt_zonefree;
-	}
-	free(buffer);
-
-	return (0);
-}
-
-
 int
 memstat_sysctl_uma(struct memory_type_list *list, int flags)
 {
@@ -253,8 +85,6 @@ memstat_sysctl_uma(struct memory_type_list *list, int flags)
 
 	hint_dontsearch = LIST_EMPTY(&list->mtl_list);
 
-	if (sysctlbyname("vm.lkpi_zone_stats", buffer, &size, NULL, 0) == 0)
-		memstat_sysctl_lkpi_uma(list, flags);
 	/*
 	 * Query the number of CPUs, number of malloc types so that we can
 	 * guess an initial buffer size.  We loop until we succeed or really
@@ -468,7 +298,6 @@ int
 memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 {
 	LIST_HEAD(, uma_keg) uma_kegs;
-	LIST_HEAD(, uma_keg) lkpi_uma_kegs;
 	struct memory_type *mtp;
 	struct uma_zone_domain uzd;
 	struct uma_bucket *ubp, ub;
@@ -508,9 +337,6 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 		list->mtl_error = ret;
 		return (-1);
 	}
-	ret = kread_symbol(kvm, X_LKPI_UMA_KEGS, &lkpi_uma_kegs, sizeof(lkpi_uma_kegs), 0);
-	has_lkpi  = (ret == 0);
-
 	cpusetsize = sysconf(_SC_CPUSET_SIZE);
 	if (cpusetsize == -1 || (u_long)cpusetsize > sizeof(cpuset_t)) {
 		list->mtl_error = MEMSTAT_ERROR_KVM_NOSYMBOL;
@@ -650,125 +476,6 @@ skip_percpu:
 			mtp->mt_free += mtp->mt_zonefree;
 		}
 	}
-	if (!has_lkpi)
-		goto done;
-	for (kzp = LIST_FIRST(&lkpi_uma_kegs); kzp != NULL; kzp =
-	    LIST_NEXT(&kz, uk_link)) {
-		ret = kread(kvm, kzp, &kz, sizeof(kz), 0);
-		if (ret != 0) {
-			free(ucp_array);
-			_memstat_mtl_empty(list);
-			list->mtl_error = ret;
-			return (-1);
-		}
-		for (uzp = LIST_FIRST(&kz.uk_zones); uzp != NULL; uzp =
-		    LIST_NEXT(&uz, uz_link)) {
-			ret = kread(kvm, uzp, &uz, sizeof(uz), 0);
-			if (ret != 0) {
-				free(ucp_array);
-				_memstat_mtl_empty(list);
-				list->mtl_error = ret;
-				return (-1);
-			}
-			ret = kread(kvm, uzp, ucp_array,
-			    sizeof(struct uma_cache) * (mp_maxid + 1),
-			    offsetof(struct uma_zone, uz_cpu[0]));
-			if (ret != 0) {
-				free(ucp_array);
-				_memstat_mtl_empty(list);
-				list->mtl_error = ret;
-				return (-1);
-			}
-			ret = kread_string(kvm, uz.uz_name, name,
-			    MEMTYPE_MAXNAME);
-			if (ret != 0) {
-				free(ucp_array);
-				_memstat_mtl_empty(list);
-				list->mtl_error = ret;
-				return (-1);
-			}
-			if (hint_dontsearch == 0) {
-				mtp = memstat_mtl_find(list, ALLOCATOR_UMA,
-				    name);
-			} else
-				mtp = NULL;
-			if (mtp == NULL)
-				mtp = _memstat_mt_allocate(list, ALLOCATOR_UMA,
-				    name, mp_maxid + 1);
-			if (mtp == NULL) {
-				free(ucp_array);
-				_memstat_mtl_empty(list);
-				list->mtl_error = MEMSTAT_ERROR_NOMEMORY;
-				return (-1);
-			}
-			/*
-			 * Reset the statistics on a current node.
-			 */
-			_memstat_mt_reset_stats(mtp, mp_maxid + 1);
-			mtp->mt_numallocs = uz.uz_allocs;
-			mtp->mt_numfrees = uz.uz_frees;
-			mtp->mt_failures = uz.uz_fails;
-			mtp->mt_sleeps = uz.uz_sleeps;
-			if (kz.uk_flags & UMA_ZFLAG_INTERNAL)
-				goto skip_percpu_2;
-			for (i = 0; i < mp_maxid + 1; i++) {
-				if (!CPU_ISSET(i, &all_cpus))
-					continue;
-				ucp = &ucp_array[i];
-				mtp->mt_numallocs += ucp->uc_allocs;
-				mtp->mt_numfrees += ucp->uc_frees;
-
-				if (ucp->uc_allocbucket != NULL) {
-					ret = kread(kvm, ucp->uc_allocbucket,
-					    &ub, sizeof(ub), 0);
-					if (ret != 0) {
-						free(ucp_array);
-						_memstat_mtl_empty(list);
-						list->mtl_error = ret;
-						return (-1);
-					}
-					mtp->mt_free += ub.ub_cnt;
-				}
-				if (ucp->uc_freebucket != NULL) {
-					ret = kread(kvm, ucp->uc_freebucket,
-					    &ub, sizeof(ub), 0);
-					if (ret != 0) {
-						free(ucp_array);
-						_memstat_mtl_empty(list);
-						list->mtl_error = ret;
-						return (-1);
-					}
-					mtp->mt_free += ub.ub_cnt;
-				}
-			}
-skip_percpu_2:
-			mtp->mt_size = kz.uk_size;
-			mtp->mt_rsize = kz.uk_rsize;
-			mtp->mt_memalloced = mtp->mt_numallocs * mtp->mt_size;
-			mtp->mt_memfreed = mtp->mt_numfrees * mtp->mt_size;
-			mtp->mt_bytes = mtp->mt_memalloced - mtp->mt_memfreed;
-			if (kz.uk_ppera > 1)
-				mtp->mt_countlimit = kz.uk_maxpages /
-				    kz.uk_ipers;
-			else
-				mtp->mt_countlimit = kz.uk_maxpages *
-				    kz.uk_ipers;
-			mtp->mt_byteslimit = mtp->mt_countlimit * mtp->mt_size;
-			mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
-			for (ubp = LIST_FIRST(&uz.uz_buckets); ubp !=
-			    NULL; ubp = LIST_NEXT(&ub, ub_link)) {
-				ret = kread(kvm, ubp, &ub, sizeof(ub), 0);
-				mtp->mt_zonefree += ub.ub_cnt;
-			}
-			if (!((kz.uk_flags & UMA_ZONE_SECONDARY) &&
-			    LIST_FIRST(&kz.uk_zones) != uzp)) {
-				mtp->mt_kegfree = kz.uk_free;
-				mtp->mt_free += mtp->mt_kegfree;
-			}
-			mtp->mt_free += mtp->mt_zonefree;
-		}
-	}
-done:
 	free(ucp_array);
 	return (0);
 }
