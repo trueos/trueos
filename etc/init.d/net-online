@@ -4,8 +4,9 @@
 
 name="net-online"
 description="Becomes active when networking is usable"
-extra_commands=retest
+extra_commands="retest autorestart"
 interval=${retest_interval:-2}
+start_inactive="yes"
 
 depend()
 {
@@ -38,23 +39,42 @@ check_online()
 retest(){
   tout=`service_get_value timeout`
   #einfo "Retest connection: ${tout}"
-  if [ ${tout} -gt 0 ] && ( service_inactive net-online) ; then
+  if [ ${tout} -gt 0 ] && ( ! service_started net-online) ; then
     : $((tout -= ${interval}))
     service_set_value timeout ${tout}
-    if (! check_online) && [ ${tout} -gt 0 ] && (service_inactive net-online) ; then
-      (sleep ${interval}; /sbin/service net-online retest) &
+    if (! check_online) ; then
+      if [ ${tout} -gt 0 ] ; then
+        (sleep ${interval}; /sbin/service net-online retest) &
+      else
+        mark_service_stopped net-online
+      fi
     fi
   else
     #While the retest command is designed only for the internal auto-refresh system, 
-    #  it is still possible for the user to manually run it. Show an error in that situation.
-    eerror "Retest limit exceeded: service restart required"
+    #  it is still possible for the user to manually run it.
+    /sbin/service net-online restart
     return 1
   fi
 }
 
-start_pre(){
-  mark_service_starting net-online
+autorestart(){
+  #Used for automatic systems to poke this service when device states change
+  # NOTE: If the current state is inactive, just restart the automatic timer system
+  #  This keeps scheduled apps on the schedule for when this becomes active
+  #  if this is already started, go ahead and restart it (scheduling other services which need this for restart as well)
+  if (service_started net-online) ; then
+    /sbin/service net-online restart
+  else
+    tout=`service_get_value timeout`
+    service_set_value timeout ${retest_timeout:-120}
+    if [ ${tout} -lt 0 ] ; then
+      #Need to restart the automatic interval test
+      (/sbin/service net-online retest) &
+    fi
+  fi
 }
+
+
 start(){
   if  ! check_online ; then
     #Start the automatic retest routine in the background
@@ -66,7 +86,7 @@ start(){
 
 status_pre(){
   # If the automatic retest routine is currently running, show the status of that as well
-  if service_inactive ; then
+  if ! service_started ; then
     tout=`service_get_value timeout`
     if [ ${tout:-0} -gt 0 ] ; then
       einfo "Automatically retesting connection: ${tout} seconds remaining"
