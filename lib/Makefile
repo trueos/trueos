@@ -73,6 +73,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	${_libproc} \
 	libprocstat \
 	librc \
+	libregex \
 	librpcsvc \
 	librss \
 	librt \

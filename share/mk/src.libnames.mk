@@ -150,6 +150,7 @@ _LIBRARIES=	\
 		radius \
 		readline \
 		rc \
+		regex \
 		roken \
 		rpcsec_gss \
 		rpcsvc \
