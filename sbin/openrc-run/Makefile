@@ -3,19 +3,24 @@
 PACKAGE=runtime
 PROG=	openrc-run
 LINKS=  ${BINDIR}/openrc-run ${BINDIR}/runscript
-SRCS=	${.CURDIR}/../../contrib/openrc/src/rc/openrc-run.c \
-	${.CURDIR}/../../contrib/openrc/src/rc/rc-misc.c \
-	${.CURDIR}/../../contrib/openrc/src/rc/rc-plugin.c \
-	${.CURDIR}/../../contrib/openrc/src/rc/_usage.c
-CFLAGS+=	-I${.CURDIR}/../../contrib/openrc/src/rc \
-		-I${.CURDIR}/../../contrib/openrc/src/libeinfo \
-		-I${.CURDIR}/../../contrib/openrc/src/librc \
-                -I${.OBJDIR}/../../lib/librc/contrib/openrc/src/librc \
-		-I${.CURDIR}/../../contrib/openrc/src/includes
+
+OPENRC=	${.CURDIR}/../../contrib/openrc
+
+RC=	${OPENRC}/src/rc
+EINFO=	${OPENRC}/src/libeinfo
+LIBRC=	${OPENRC}/src/librc
+OLIBRC=	${.OBJDIR}/../../lib/librc/contrib/openrc/src/librc
+INC=	${OPENRC}/src/includes
+
+SRCS=	openrc-run.c rc-misc.c rc-plugin.c _usage.c
+CFLAGS+= -I${RC} -I${EINFO} -I${LIBRC} -I${OLIBRC} -I${INC}
 
 WARNS?=	3
-MAN=	${.CURDIR}/../../contrib/openrc/man/openrc-run.8
+MAN=	openrc-run.8
 
 LIBADD=	einfo rc util
+
+.PATH: ${RC}
+.PATH: ${OPENRC}/man
 
 .include <bsd.prog.mk>

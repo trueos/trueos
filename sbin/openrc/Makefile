@@ -2,22 +2,25 @@
 
 PACKAGE=runtime
 PROG=	openrc
-LINKS=  ${BINDIR}/openrc ${BINDIR}/rc
-SRCS=	${.CURDIR}/../../contrib/openrc/src/rc/rc.c \
-	${.CURDIR}/../../contrib/openrc/src/rc/rc-logger.c \
-	${.CURDIR}/../../contrib/openrc/src/rc/rc-misc.c \
-	${.CURDIR}/../../contrib/openrc/src/rc/rc-plugin.c \
-	${.CURDIR}/../../contrib/openrc/src/rc/_usage.c
-INCS=	${.CURDIR}/../../contrib/openrc/src/rc/rc-logger.h
-CFLAGS+=	-I${.CURDIR}/../../contrib/openrc/src/rc \
-		-I${.CURDIR}/../../contrib/openrc/src/libeinfo \
-		-I${.CURDIR}/../../contrib/openrc/src/librc \
-                -I${.OBJDIR}/../../lib/librc/contrib/openrc/src/librc \
-		-I${.CURDIR}/../../contrib/openrc/src/includes
+LINKS=	${BINDIR}/openrc ${BINDIR}/rc
+
+OPENRC=	${.CURDIR}/../../contrib/openrc
+
+RC=	${OPENRC}/src/rc
+EINFO=	${OPENRC}/src/libeinfo
+LIBRC=	${OPENRC}/src/librc
+OLIBRC=	${.OBJDIR}/../../lib/librc/contrib/openrc/src/librc
+INC=	${OPENRC}/src/includes
+
+SRCS=	rc.c rc-logger.c rc-misc.c rc-plugin.c _usage.c rc-logger.h
+CFLAGS+= -I${RC} -I${EINFO} -I${LIBRC} -I${OLIBRC} -I${INC}
 
 WARNS?=	3
-MAN=	${.CURDIR}/../../contrib/openrc/man/openrc.8
+MAN=	openrc.8
 
 LIBADD=	einfo rc util
+
+.PATH: ${RC}
+.PATH: ${OPENRC}/man
 
 .include <bsd.prog.mk>
