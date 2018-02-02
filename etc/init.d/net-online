@@ -6,7 +6,7 @@ name="net-online"
 description="Becomes active when networking is usable"
 extra_commands="retest autorestart"
 interval=${retest_interval:-2}
-start_inactive="yes"
+#start_inactive="yes"
 
 depend()
 {
@@ -31,7 +31,7 @@ check_online()
     mark_service_started net-online
     return 0
   else
-    mark_service_inactive net-online
+    mark_service_starting net-online
     return 1
   fi
 }
