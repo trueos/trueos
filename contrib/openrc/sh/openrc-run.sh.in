@@ -199,7 +199,19 @@ start()
 	default_start
 }
 
+# Shim for FreeBSD service command
+onestart()
+{
+	default_start
+}
+
 stop()
+{
+	default_stop
+}
+
+# Shim for FreeBSD service command
+onestop()
 {
 	default_stop
 }
