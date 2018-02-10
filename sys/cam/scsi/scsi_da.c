@@ -1497,9 +1497,6 @@ static MALLOC_DEFINE(M_SCSIDA, "scsi_da", "scsi_da buffers");
 #endif
 
 #if DA_TRACK_REFS > 1
-#define CAM_PERIPH_PRINT(p, msg, args...)				\
-    printf("%s%d:" msg, (periph)->periph_name, (periph)->unit_number, ##args)
-
 static const char *da_ref_text[] = {
 	"bogus",
 	"open",
@@ -1513,8 +1510,10 @@ static const char *da_ref_text[] = {
 	"max -- also bogus"
 };
 
+#define DA_PERIPH_PRINT(periph, msg, args...)		\
+	CAM_PERIPH_PRINT(periph, msg, ##args)
 #else
-#define CAM_PERIPH_PRINT(p, msg, args...)
+#define DA_PERIPH_PRINT(periph, msg, args...)
 #endif
 
 static inline void
@@ -1530,7 +1529,7 @@ da_periph_hold(struct cam_periph *periph, int priority, da_ref_token token)
 	int err = cam_periph_hold(periph, priority);
 
 	token_sanity(token);
-	CAM_PERIPH_PRINT(periph, "Holding device %s (%d): %d\n",
+	DA_PERIPH_PRINT(periph, "Holding device %s (%d): %d\n",
 	    da_ref_text[token], token, err);
 	if (err == 0) {
 		int cnt;
@@ -1550,12 +1549,12 @@ da_periph_unhold(struct cam_periph *periph, da_ref_token token)
 	struct da_softc *softc = periph->softc;
 
 	token_sanity(token);
-	cam_periph_unhold(periph);
-	CAM_PERIPH_PRINT(periph, "Unholding device %s (%d)\n",
+	DA_PERIPH_PRINT(periph, "Unholding device %s (%d)\n",
 	    da_ref_text[token], token);
 	cnt = atomic_fetchadd_int(&softc->ref_flags[token], -1);
 	if (cnt != 1)
 		panic("Unholding %d with cnt = %d", token, cnt);
+	cam_periph_unhold(periph);
 }
 
 static inline int
@@ -1564,9 +1563,9 @@ da_periph_acquire(struct cam_periph *periph, da_ref_token token)
 	int err = cam_periph_acquire(periph);
 
 	token_sanity(token);
-	CAM_PERIPH_PRINT(periph, "acquiring device %s (%d): %d\n",
+	DA_PERIPH_PRINT(periph, "acquiring device %s (%d): %d\n",
 	    da_ref_text[token], token, err);
-	if (err == CAM_REQ_CMP) {
+	if (err == 0) {
 		int cnt;
 		struct da_softc *softc = periph->softc;
 
@@ -1584,12 +1583,12 @@ da_periph_release(struct cam_periph *periph, da_ref_token token)
 	struct da_softc *softc = periph->softc;
 
 	token_sanity(token);
-	cam_periph_release(periph);
-	CAM_PERIPH_PRINT(periph, "releasing device %s (%d)\n",
+	DA_PERIPH_PRINT(periph, "releasing device %s (%d)\n",
 	    da_ref_text[token], token);
 	cnt = atomic_fetchadd_int(&softc->ref_flags[token], -1);
 	if (cnt != 1)
-		panic("Unholding %d with cnt = %d", token, cnt);
+		panic("Releasing %d with cnt = %d", token, cnt);
+	cam_periph_release(periph);
 }
 
 static inline void
@@ -1599,12 +1598,12 @@ da_periph_release_locked(struct cam_periph *periph, da_ref_token token)
 	struct da_softc *softc = periph->softc;
 
 	token_sanity(token);
-	cam_periph_release_locked(periph);
-	CAM_PERIPH_PRINT(periph, "releasing device (locked) %s (%d)\n",
+	DA_PERIPH_PRINT(periph, "releasing device (locked) %s (%d)\n",
 	    da_ref_text[token], token);
 	cnt = atomic_fetchadd_int(&softc->ref_flags[token], -1);
 	if (cnt != 1)
 		panic("Unholding %d with cnt = %d", token, cnt);
+	cam_periph_release_locked(periph);
 }
 
 #define cam_periph_hold POISON
@@ -1629,7 +1628,7 @@ daopen(struct disk *dp)
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	if (da_periph_acquire(periph, DA_REF_OPEN) != CAM_REQ_CMP) {
+	if (da_periph_acquire(periph, DA_REF_OPEN) != 0) {
 		return (ENXIO);
 	}
 
@@ -2062,7 +2061,7 @@ daasync(void *callback_arg, u_int32_t code,
 	case AC_SCSI_AEN:
 		softc = (struct da_softc *)periph->softc;
 		if (!cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR)) {
-			if (da_periph_acquire(periph, DA_REF_TUR) == CAM_REQ_CMP) {
+			if (da_periph_acquire(periph, DA_REF_TUR) == 0) {
 				cam_iosched_set_work_flags(softc->cam_iosched, DA_WORK_TUR);
 				daschedule(periph);
 			}
@@ -2733,7 +2732,7 @@ daregister(struct cam_periph *periph, void *arg)
 	 * We'll release this reference once GEOM calls us back (via
 	 * dadiskgonecb()) telling us that our provider has been freed.
 	 */
-	if (da_periph_acquire(periph, DA_REF_GEOM) != CAM_REQ_CMP) {
+	if (da_periph_acquire(periph, DA_REF_GEOM) != 0) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
 		cam_periph_lock(periph);
@@ -4701,7 +4700,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * we have successfully attached.
 			 */
 			/* increase the refcount */
-			if (da_periph_acquire(periph, DA_REF_SYSCTL) == CAM_REQ_CMP) {
+			if (da_periph_acquire(periph, DA_REF_SYSCTL) == 0) {
 
 				taskqueue_enqueue(taskqueue_thread,
 						  &softc->sysctl_task);
@@ -5559,7 +5558,7 @@ static void
 dareprobe(struct cam_periph *periph)
 {
 	struct da_softc	  *softc;
-	cam_status status;
+	int status;
 
 	softc = (struct da_softc *)periph->softc;
 
@@ -5568,8 +5567,7 @@ dareprobe(struct cam_periph *periph)
 		return;
 
 	status = da_periph_acquire(periph, DA_REF_REPROBE);
-	KASSERT(status == CAM_REQ_CMP,
-	    ("dareprobe: cam_periph_acquire failed"));
+	KASSERT(status == 0, ("dareprobe: cam_periph_acquire failed"));
 
 	softc->state = DA_STATE_PROBE_WP;
 	xpt_schedule(periph, CAM_PRIORITY_DEV);
@@ -5667,7 +5665,7 @@ damediapoll(void *arg)
 
 	if (!cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR) &&
 	    LIST_EMPTY(&softc->pending_ccbs)) {
-		if (da_periph_acquire(periph, DA_REF_TUR) == CAM_REQ_CMP) {
+		if (da_periph_acquire(periph, DA_REF_TUR) == 0) {
 			cam_iosched_set_work_flags(softc->cam_iosched, DA_WORK_TUR);
 			daschedule(periph);
 		}

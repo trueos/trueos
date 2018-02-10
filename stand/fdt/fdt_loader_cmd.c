@@ -67,15 +67,13 @@ static struct fdt_header *fdt_to_load = NULL;
 static struct fdt_header *fdtp = NULL;
 /* Size of FDT blob */
 static size_t fdtp_size = 0;
-/* Location of FDT in kernel or module. */
-/* This won't be set if FDT is loaded from disk or memory. */
-/* If it is set, we'll update it when fdt_copy() gets called. */
-static vm_offset_t fdtp_va = 0;
 
 static int fdt_load_dtb(vm_offset_t va);
 static void fdt_print_overlay_load_error(int err, const char *filename);
+static int fdt_check_overlay_compatible(void *base_fdt, void *overlay_fdt);
 
 static int fdt_cmd_nyi(int argc, char *argv[]);
+static int fdt_load_dtb_overlays_string(const char * filenames);
 
 static int fdt_cmd_addr(int argc, char *argv[]);
 static int fdt_cmd_mkprop(int argc, char *argv[]);
@@ -219,7 +217,6 @@ fdt_load_dtb(vm_offset_t va)
 		return (1);
 	}
 
-	fdtp_va = va;
 	COPYOUT(va, fdtp, fdtp_size);
 	debugf("DTB blob found at 0x%jx, size: 0x%jx\n", (uintmax_t)va, (uintmax_t)fdtp_size);
 
@@ -246,7 +243,6 @@ fdt_load_dtb_addr(struct fdt_header *header)
 		return (1);
 	}
 
-	fdtp_va = 0; // Don't write this back into module or kernel.
 	bcopy(header, fdtp, fdtp_size);
 	return (0);
 }
@@ -331,15 +327,15 @@ fdt_print_overlay_load_error(int err, const char *filename)
 	}
 }
 
-int
-fdt_load_dtb_overlays(const char * filenames)
+static int
+fdt_load_dtb_overlays_string(const char * filenames)
 {
 	char *names;
 	char *name, *name_ext;
 	char *comaptr;
 	int err, namesz;
 
-	debugf("fdt_load_dtb_overlay(%s)\n", filenames);
+	debugf("fdt_load_dtb_overlays_string(%s)\n", filenames);
 
 	names = strdup(filenames);
 	if (names == NULL)
@@ -373,6 +369,62 @@ fdt_load_dtb_overlays(const char * filenames)
 	return (0);
 }
 
+/*
+ * fdt_check_overlay_compatible - check that the overlay_fdt is compatible with
+ * base_fdt before we attempt to apply it. It will need to re-calculate offsets
+ * in the base every time, rather than trying to cache them earlier in the
+ * process, because the overlay application process can/will invalidate a lot of
+ * offsets.
+ */
+static int
+fdt_check_overlay_compatible(void *base_fdt, void *overlay_fdt)
+{
+	const char *compat;
+	int compat_len, ocompat_len;
+	int oroot_offset, root_offset;
+	int slidx, sllen;
+
+	oroot_offset = fdt_path_offset(overlay_fdt, "/");
+	if (oroot_offset < 0)
+		return (oroot_offset);
+	/*
+	 * If /compatible in the overlay does not exist or if it is empty, then
+	 * we're automatically compatible. We do this for the sake of rapid
+	 * overlay development for overlays that aren't intended to be deployed.
+	 * The user assumes the risk of using an overlay without /compatible.
+	 */
+	if (fdt_get_property(overlay_fdt, oroot_offset, "compatible",
+	    &ocompat_len) == NULL || ocompat_len == 0)
+		return (0);
+	root_offset = fdt_path_offset(base_fdt, "/");
+	if (root_offset < 0)
+		return (root_offset);
+	/*
+	 * However, an empty or missing /compatible on the base is an error,
+	 * because allowing this offers no advantages.
+	 */
+	if (fdt_get_property(base_fdt, root_offset, "compatible",
+	    &compat_len) == NULL)
+		return (compat_len);
+	else if(compat_len == 0)
+		return (1);
+
+	slidx = 0;
+	compat = fdt_stringlist_get(overlay_fdt, oroot_offset, "compatible",
+	    slidx, &sllen);
+	while (compat != NULL) {
+		if (fdt_stringlist_search(base_fdt, root_offset, "compatible",
+		    compat) >= 0)
+			return (0);
+		++slidx;
+		compat = fdt_stringlist_get(overlay_fdt, oroot_offset,
+		    "compatible", slidx, &sllen);
+	};
+
+	/* We've exhausted the overlay's /compatible property... no match */
+	return (1);
+}
+
 void
 fdt_apply_overlays()
 {
@@ -380,7 +432,6 @@ fdt_apply_overlays()
 	size_t max_overlay_size, next_fdtp_size;
 	size_t current_fdtp_size;
 	void *current_fdtp;
-	void *new_fdtp;
 	void *next_fdtp;
 	void *overlay;
 	int rv;
@@ -388,7 +439,6 @@ fdt_apply_overlays()
 	if ((fdtp == NULL) || (fdtp_size == 0))
 		return;
 
-	new_fdtp = NULL;
 	max_overlay_size = 0;
 	for (fp = file_findfile(NULL, "dtbo"); fp != NULL; fp = fp->f_next) {
 		if (max_overlay_size < fp->f_size)
@@ -407,6 +457,13 @@ fdt_apply_overlays()
 	current_fdtp = fdtp;
 	current_fdtp_size = fdtp_size;
 	for (fp = file_findfile(NULL, "dtbo"); fp != NULL; fp = fp->f_next) {
+		COPYOUT(fp->f_addr, overlay, fp->f_size);
+		/* Check compatible first to avoid unnecessary allocation */
+		rv = fdt_check_overlay_compatible(current_fdtp, overlay);
+		if (rv != 0) {
+			printf("DTB overlay '%s' not compatible\n", fp->f_name);
+			continue;
+		}
 		printf("applying DTB overlay '%s'\n", fp->f_name);
 		next_fdtp_size = current_fdtp_size + fp->f_size;
 		next_fdtp = malloc(next_fdtp_size);
@@ -424,8 +481,7 @@ fdt_apply_overlays()
 			printf("failed to open base dtb into overlay base\n");
 			continue;
 		}
-		COPYOUT(fp->f_addr, overlay, fp->f_size);
-		/* Both overlay and new_fdtp may be modified in place */
+		/* Both overlay and next_fdtp may be modified in place */
 		rv = fdt_overlay_apply(next_fdtp, overlay);
 		if (rv == 0) {
 			/* Rotate next -> current */
@@ -832,6 +888,25 @@ fdt_fixup_stdout(const char *str)
 	}
 }
 
+void
+fdt_load_dtb_overlays(const char *extras)
+{
+	const char *s;
+
+	/* Any extra overlays supplied by pre-loader environment */
+	if (extras != NULL && *extras != '\0') {
+		printf("Loading DTB overlays: '%s'\n", extras);
+		fdt_load_dtb_overlays_string(extras);
+	}
+
+	/* Any overlays supplied by loader environment */
+	s = getenv("fdt_overlays");
+	if (s != NULL && *s != '\0') {
+		printf("Loading DTB overlays: '%s'\n", s);
+		fdt_load_dtb_overlays_string(s);
+	}
+}
+
 /*
  * Locate the blob, fix it up and return its location.
  */
@@ -881,11 +956,6 @@ fdt_copy(vm_offset_t va)
 	if (fdt_fixup() == 0)
 		return (0);
 
-	if (fdtp_va != 0) {
-		/* Overwrite the FDT with the fixed version. */
-		/* XXX Is this really appropriate? */
-		COPYIN(fdtp, fdtp_va, fdtp_size);
-	}
 	COPYIN(fdtp, va, fdtp_size);
 	return (fdtp_size);
 }
