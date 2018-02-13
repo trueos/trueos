@@ -41,3 +41,13 @@ alias g='egrep -i'
 
 # search path for cd(1)
 # CDPATH=:$HOME
+
+# If VIM is installed, setup colors and such as default
+# This provides compatibility with what former Linux-users expect
+if [ -e "/usr/local/bin/vim" ]; then
+  alias vi="vim"
+  alias ls="ls -G" #colorized output for ls
+  # Enable colors and such for git diffs
+  MORE="-erX" ; export MORE
+  CLICOlOR="true" ; export CLICOLOR
+fi
