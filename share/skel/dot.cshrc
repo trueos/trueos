@@ -24,7 +24,7 @@ setenv	PAGER	more
 
 if ($?prompt) then
 	# An interactive shell -- set some stuff up
-	set prompt = "%N@%m:%~ %# "
+	set prompt = '[%B%n@%m%b] %B%~%b%# '
 	set promptchars = "%#"
 
 	set filec
@@ -42,3 +42,12 @@ if ($?prompt) then
 	endif
 
 endif
+
+# See if we have VIM installed
+if ( -e /usr/local/bin/vim ) then
+        alias vi "vim"
+endif
+
+#Setup colorized output
+setenv CLICOLOR true
+setenv MORE "-erX"
