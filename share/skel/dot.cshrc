@@ -24,7 +24,16 @@ setenv	PAGER	more
 
 if ($?prompt) then
 	# An interactive shell -- set some stuff up
-	set prompt = '[%B%n@%m%b] %B%~%b%# '
+	switch ($TERM)
+	case "xterm*":
+		# This sets up a special xterm header section for graphical
+		# terminals to see/use text for tab headers and such
+                set prompt = '%{\033]0;%n@%m:%~\007%}[%B%n@%m%b] %B%~%b%# '
+                breaksw
+        default:
+		set prompt = '[%B%n@%m%b] %B%~%b%# '
+                breaksw
+        endsw
 	set promptchars = "%#"
 
 	set filec
