@@ -21,3 +21,12 @@ PATH=/etc:/bin:/sbin:/usr/bin:/usr/sbin
 # Adjust the time zone if the CMOS clock keeps local time, as opposed to
 # UTC time.  See adjkerntz(8) for details.
 1,31	0-5	*	*	*	root	adjkerntz -a
+
+# Purge old cups jobs
+10      3       *       *       6       root    /usr/local/bin/cancel -a
+
+# Run anacron periodically
+2       0       *       *       *       root    /usr/local/sbin/anacron
+
+# Ensure atrun can do its job
+*/5     *       *       *       *       root    /usr/libexec/atrun
