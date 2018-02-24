@@ -89,7 +89,7 @@ load_kld()
 	local _loaded _mod _opt _re
 
 	while getopts "e:m:" _opt; do
-		case "$_opt" in
+	case "$_opt" in
 		e) _re="$OPTARG" ;;
 		m) _mod="$OPTARG" ;;
 		*) eend 3 'USAGE: load_kld [-e regex] [-m module] file' ;;

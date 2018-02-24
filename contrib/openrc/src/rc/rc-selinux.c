@@ -39,7 +39,6 @@
 #include "rc-selinux.h"
 
 /* the context files for selinux */
-#define RUN_INIT_FILE "run_init_type"
 #define INITRC_FILE "initrc_context"
 
 #ifdef HAVE_AUDIT
@@ -257,19 +256,19 @@ static int read_context_file(const char *filename, char **context)
 {
 	int ret = -1;
 	FILE *fp;
-	char filepath[PATH_MAX];
+	char *filepath = NULL;
 	char *line = NULL;
 	char *p;
 	char *p2;
 	size_t len = 0;
 	ssize_t read;
 
-	memset(filepath, '\0', PATH_MAX);
-	snprintf(filepath, PATH_MAX - 1, "%s/%s", selinux_contexts_path(), filename);
+	xasprintf(&filepath, "%s/%s", selinux_contexts_path(), filename);
 
 	fp = fopen(filepath, "r");
 	if (fp == NULL) {
 		eerror("Failed to open context file: %s", filename);
+		free(filepath);
 		return -1;
 	}
 
@@ -295,7 +294,28 @@ static int read_context_file(const char *filename, char **context)
 	}
 
 	free(line);
+	free(filepath);
 	fclose(fp);
+	return ret;
+}
+
+static int read_run_init_context(char **context)
+{
+	int ret = -1;
+	RC_STRINGLIST *list;
+	char *value = NULL;
+
+	list = rc_config_list(selinux_openrc_contexts_path());
+	if (list == NULL)
+		return ret;
+
+	value = rc_config_value(list, "run_init");
+	if (value != NULL && strlen(value) > 0) {
+		*context = xstrdup(value);
+		ret = 0;
+	}
+
+	rc_stringlist_free(list);
 	return ret;
 }
 
@@ -312,7 +332,7 @@ void selinux_setup(char **argv)
 		return;
 	}
 
-	if (read_context_file(RUN_INIT_FILE, &run_init_t) != 0) {
+	if (read_run_init_context(&run_init_t) != 0) {
 		/* assume a reasonable default, rather than bailing out */
 		run_init_t = xstrdup("run_init_t");
 		ewarn("Assuming SELinux run_init type is %s", run_init_t);
@@ -339,14 +359,13 @@ void selinux_setup(char **argv)
 		goto out;
 	}
 
-	curr_t = context_type_get(curr_con);
+	curr_t = xstrdup(context_type_get(curr_con));
 	if (!curr_t) {
 		context_free(curr_con);
 		free(curr_context);
 		goto out;
 	}
 
-	curr_t = xstrdup(curr_t);
 	/* dont need them anymore so free() now */
 	context_free(curr_con);
 	free(curr_context);

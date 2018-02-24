@@ -101,45 +101,10 @@ mount_misc()
 	if [ -d /sys/firmware/efi/efivars ] &&
 		! mountinfo -q /sys/firmware/efi/efivars; then
 		ebegin "Mounting efivarfs filesystem"
-		mount -n -t efivarfs -o ${sysfs_opts} \
+		mount -n -t efivarfs -o ro \
 			efivarfs /sys/firmware/efi/efivars 2> /dev/null
 		eend 0
 	fi
-}
-
-mount_cgroups()
-{
-	# set up kernel support for cgroups
-	if [ -d /sys/fs/cgroup ] && ! mountinfo -q /sys/fs/cgroup; then
-		if grep -qs cgroup /proc/filesystems; then
-			ebegin "Mounting cgroup filesystem"
-			local opts="${sysfs_opts},mode=755,size=${rc_cgroupsize:-10m}"
-			mount -n -t tmpfs -o ${opts} cgroup_root /sys/fs/cgroup
-			eend $?
-		fi
-	fi
-
-	mountinfo -q /sys/fs/cgroup || return 0
-
-	if ! mountinfo -q /sys/fs/cgroup/openrc; then
-		local agent="@LIBEXECDIR@/sh/cgroup-release-agent.sh"
-		mkdir /sys/fs/cgroup/openrc
-		mount -n -t cgroup \
-			-o none,${sysfs_opts},name=openrc,release_agent="$agent" \
-			openrc /sys/fs/cgroup/openrc
-		printf 1 > /sys/fs/cgroup/openrc/notify_on_release
-	fi
-
-	yesno ${rc_controller_cgroups:-YES} && [ -e /proc/cgroups ] || return 0
-	while read name hier groups enabled rest; do
-		case "${enabled}" in
-			1)	mountinfo -q /sys/fs/cgroup/${name} && continue
-				mkdir /sys/fs/cgroup/${name}
-				mount -n -t cgroup -o ${sysfs_opts},${name} \
-					${name} /sys/fs/cgroup/${name}
-				;;
-		esac
-	done < /proc/cgroups
 }
 
 restorecon_sys()
@@ -147,7 +112,6 @@ restorecon_sys()
 	if [ -x /sbin/restorecon ]; then
 		ebegin "Restoring SELinux contexts in /sys"
 		restorecon -F /sys/devices/system/cpu/online >/dev/null 2>&1
-		restorecon -rF /sys/fs/cgroup >/dev/null 2>&1
 		eend $?
 	fi
 }
@@ -156,7 +120,6 @@ start()
 {
 	mount_sys
 	mount_misc
-	mount_cgroups
 	restorecon_sys
 	return 0
 }

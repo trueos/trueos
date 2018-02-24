@@ -131,7 +131,8 @@ env_config(void)
 	char *npp;
 	char *tok;
 	const char *sys = rc_sys();
-	char buffer[PATH_MAX];
+	char *buffer = NULL;
+	size_t size = 0;
 
 	/* Ensure our PATH is prefixed with the system locations first
 	   for a little extra security */
@@ -170,8 +171,7 @@ env_config(void)
 	free(e);
 
 	if ((fp = fopen(RC_KRUNLEVEL, "r"))) {
-		memset(buffer, 0, sizeof (buffer));
-		if (fgets(buffer, sizeof (buffer), fp)) {
+		if (getline(&buffer, &size, fp) != -1) {
 			l = strlen (buffer) - 1;
 			if (buffer[l] == '\n')
 				buffer[l] = 0;
@@ -181,6 +181,7 @@ env_config(void)
 	} else
 		setenv("RC_DEFAULTLEVEL", RC_LEVEL_DEFAULT, 1);
 
+	free(buffer);
 	if (sys)
 		setenv("RC_SYS", sys, 1);
 
@@ -218,13 +219,26 @@ signal_setup(int sig, void (*handler)(int))
 }
 
 int
+signal_setup_restart(int sig, void (*handler)(int))
+{
+	struct sigaction sa;
+
+	memset(&sa, 0, sizeof (sa));
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = handler;
+	sa.sa_flags = SA_RESTART;
+	return sigaction(sig, &sa, NULL);
+}
+
+int
 svc_lock(const char *applet)
 {
-	char file[PATH_MAX];
+	char *file = NULL;
 	int fd;
 
-	snprintf(file, sizeof(file), RC_SVCDIR "/exclusive/%s", applet);
+	xasprintf(&file, RC_SVCDIR "/exclusive/%s", applet);
 	fd = open(file, O_WRONLY | O_CREAT | O_NONBLOCK, 0664);
+	free(file);
 	if (fd == -1)
 		return -1;
 	if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
@@ -238,11 +252,12 @@ svc_lock(const char *applet)
 int
 svc_unlock(const char *applet, int fd)
 {
-	char file[PATH_MAX];
+	char *file = NULL;
 
-	snprintf(file, sizeof(file), RC_SVCDIR "/exclusive/%s", applet);
+	xasprintf(&file, RC_SVCDIR "/exclusive/%s", applet);
 	close(fd);
 	unlink(file);
+	free(file);
 	return -1;
 }
 
@@ -346,7 +361,7 @@ RC_DEPTREE * _rc_deptree_load(int force, int *regen)
 	int serrno = errno;
 	int merrno;
 	time_t t;
-	char file[PATH_MAX];
+	char *file = NULL;
 	struct stat st;
 	struct utimbuf ut;
 	FILE *fp;
@@ -368,7 +383,10 @@ RC_DEPTREE * _rc_deptree_load(int force, int *regen)
 		eend (retval, "Failed to update the dependency tree");
 
 		if (retval == 0) {
-			stat(RC_DEPTREE_CACHE, &st);
+			if (stat(RC_DEPTREE_CACHE, &st) != 0) {
+				eerror("stat(%s): %s", RC_DEPTREE_CACHE, strerror(errno));
+				return NULL;
+			}
 			if (st.st_mtime < t) {
 				eerror("Clock skew detected with `%s'", file);
 				eerrorn("Adjusting mtime of `" RC_DEPTREE_CACHE
@@ -457,8 +475,7 @@ time_t to_time_t(char *timestring)
 	int hour = 0;
 	int min = 0;
 	int sec = 0;
-	struct tm breakdown;
-	//struct tm breakdown = {0};
+	struct tm breakdown = {0};
 	time_t result = -1;
 
 	check = sscanf(timestring, "%4d-%2d-%2d %2d:%2d:%2d",
@@ -474,4 +491,28 @@ time_t to_time_t(char *timestring)
 		result = mktime(&breakdown);
 	}
 	return result;
+}
+
+pid_t get_pid(const char *applet,const char *pidfile)
+{
+	FILE *fp;
+	pid_t pid;
+
+	if (! pidfile)
+		return -1;
+
+	if ((fp = fopen(pidfile, "r")) == NULL) {
+		ewarnv("%s: fopen `%s': %s", applet, pidfile, strerror(errno));
+		return -1;
+	}
+
+	if (fscanf(fp, "%d", &pid) != 1) {
+		ewarnv("%s: no pid found in `%s'", applet, pidfile);
+		fclose(fp);
+		return -1;
+	}
+
+	fclose(fp);
+
+	return pid;
 }

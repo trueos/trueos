@@ -199,19 +199,7 @@ start()
 	default_start
 }
 
-# Shim for FreeBSD service command
-onestart()
-{
-	default_start
-}
-
 stop()
-{
-	default_stop
-}
-
-# Shim for FreeBSD service command
-onestop()
 {
 	default_stop
 }
@@ -226,7 +214,6 @@ yesno $RC_DEBUG && set -x
 
 # Load configuration settings. First the global ones, then any
 # service-specific settings.
-sourcex -e "@SYSCONFDIR@/defaults/rc.conf"
 sourcex -e "@SYSCONFDIR@/rc.conf"
 if [ -d "@SYSCONFDIR@/rc.conf.d" ]; then
 	for _f in "@SYSCONFDIR@"/rc.conf.d/*.conf; do
@@ -256,6 +243,9 @@ sourcex "@LIBEXECDIR@/sh/s6.sh"
 sourcex "@LIBEXECDIR@/sh/start-stop-daemon.sh"
 sourcex "@LIBEXECDIR@/sh/supervise-daemon.sh"
 
+# Load our script
+sourcex "$RC_SERVICE"
+
 # Set verbose mode
 if yesno "${rc_verbose:-$RC_VERBOSE}"; then
 	EINFO_VERBOSE=yes
@@ -268,25 +258,25 @@ for _cmd; do
 		[ -n "${rc_ulimit:-$RC_ULIMIT}" ] && \
 			ulimit ${rc_ulimit:-$RC_ULIMIT}
 		# Apply cgroups settings if defined
-		if [ "$(command -v cgroup_add_service)" = \
-		    "cgroup_add_service" ]
+		if [ "$(command -v cgroup_add_service)" = "cgroup_add_service" ]
 		then
-			if [ -d /sys/fs/cgroup -a ! -w /sys/fs/cgroup ]; then
-				eerror "No permission to apply cgroup settings"
-				break
+			if grep -qs /sys/fs/cgroup /proc/1/mountinfo
+			then
+				if [ -d /sys/fs/cgroup -a ! -w /sys/fs/cgroup ]; then
+					eerror "No permission to apply cgroup settings"
+					break
+				fi
 			fi
-			cgroup_add_service /sys/fs/cgroup/openrc
-			cgroup_add_service /sys/fs/cgroup/systemd/system
+			cgroup_add_service
 		fi
-		[ "$(command -v cgroup_set_limits)" = \
-		    "cgroup_set_limits" ] && \
-		    cgroup_set_limits
+		[ "$(command -v cgroup_set_limits)" = "cgroup_set_limits" ] &&
+			cgroup_set_limits
+		[ "$(command -v cgroup2_set_limits)" = "cgroup2_set_limits" ] &&
+			[ "$_cmd" = start ] &&
+			cgroup2_set_limits
 		break
 	fi
 done
-
-# Load our script
-sourcex "$RC_SERVICE"
 
 eval "printf '%s\n' $required_dirs" | while read _d; do
 	if [ -n "$_d" ] && [ ! -d "$_d" ]; then
@@ -377,10 +367,14 @@ while [ -n "$1" ]; do
 				then
 					"$1"_post || exit $?
 				fi
-				[ "$(command -v cgroup_cleanup)" = "cgroup_cleanup" -a \
-				"$1" = "stop" ] && \
-				yesno "${rc_cgroup_cleanup}" && \
+				[ "$(command -v cgroup_cleanup)" = "cgroup_cleanup" ] &&
+					[ "$1" = "stop" ] &&
+					yesno "${rc_cgroup_cleanup}" && \
 					cgroup_cleanup
+				if [ "$(command -v cgroup2_remove)" = "cgroup2_remove" ]; then
+					[ "$1" = stop ] || [ -z "${command}" ] &&
+					cgroup2_remove
+				fi
 				shift
 				continue 2
 			else

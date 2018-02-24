@@ -1,7 +1,69 @@
-# OpenRC NEWS
+OpenRC NEWS
+===========
 
 This file will contain a list of notable changes for each release. Note
 the information in this file is in reverse order.
+
+## OpenRC 0.35
+
+In this version, the cgroups mounting logic has been moved from the
+sysfs service to the cgroups service. This was done so cgroups can be
+mounted inside an lxc/lxd container without using the other parts of the
+sysfs service.
+
+?As a result of this change, if you are upgrading, you need to add
+cgroups to your sysinit runlevel by running the following command as
+root:
+
+```
+# rc-update add cgroups sysinit
+```
+
+For more information, see the following issue:
+
+https://github.com/openrc/openrc/issues/187
+
+Consider this your second notification with regard to /etc/mtab being a
+file instead of a symbolic link.
+
+In this version, the mtab service will complain loudly if you have
+mtab_is_file set to yes and recommend that you change this to no and
+restart the mtab service to migrate /etc/mtab to a symbolic link.
+
+If there is a valid technical reason to keep /etc/mtab as a flat file
+instead of a symbolic link to /proc/self/mounts, we are interested and
+we will keep the support in that case. Please open an issue and let us
+know however. Otherwise, consider this your final notice that the mtab
+service will be removed in the future.
+
+## OpenRC 0.33
+
+This version removes the "service" binary which was just a copy of
+"rc-service" provided for compatibility.
+
+If you still need the "service" binary, as opposed to "rc-service", it is
+recommended that you use something like Debian's init-system-helpers.
+Otherwise, just use "rc-service" in place of "service".
+
+## OpenRC 0.31
+
+This version adds support for Control Groups version 2, which is
+considered stable as of Linux-4.13. Please see /etc/rc.conf for
+documentation on how to configure control groups.
+
+## OpenRC-0.28
+
+This version mounts efivars read only due to concerns about changes in
+this file system making systems unbootable.  If you need to change something
+in this path, you will need to re-mount it read-write, make the change
+and re-mount it read-only.
+
+Also, you can override this behavior by adding a line for efivars to
+fstab if you want efivars mounted read-write.
+
+For more information on this issue, see the following url:
+
+https://github.com/openrc/openrc/issues/134
 
 ## OpenRC-0.25
 

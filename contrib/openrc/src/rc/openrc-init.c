@@ -32,6 +32,7 @@
 
 #include "helpers.h"
 #include "rc.h"
+#include "rc-wtmp.h"
 #include "version.h"
 
 static const char *rc_default_runlevel = "default";
@@ -82,6 +83,7 @@ static void init(const char *default_runlevel)
 	}
 	pid = do_openrc(runlevel);
 	waitpid(pid, NULL, 0);
+	log_wtmp("reboot", "~~", 0, RUN_LVL, "~~");
 }
 
 static void handle_reexec(char *my_name)
@@ -195,7 +197,7 @@ int main(int argc, char **argv)
 				perror("fopen");
 			continue;
 		}
-		count = fread(buf, 1, 2048, fifo);
+		count = fread(buf, 1, sizeof(buf) - 1, fifo);
 		buf[count] = 0;
 		fclose(fifo);
 		printf("PID1: Received \"%s\" from FIFO...\n", buf);

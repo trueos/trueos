@@ -8,7 +8,7 @@
 .\" This file may not be copied, modified, propagated, or distributed
 .\"    except according to the terms contained in the LICENSE file.
 .\"
-.Dd December 31, 2011
+.Dd November 30, 2017
 .Dt openrc-run 8 SMM
 .Os OpenRC
 .Sh NAME
@@ -111,9 +111,12 @@ The path to the s6 service directory if you are monitoring this service
 with S6. The default is /var/svc.d/${RC_SVCNAME}.
 .It Ar s6_svwait_options_start
 The options to pass to s6-svwait when starting the service via s6.
+.It Ar s6_force_kill
+Should we force-kill this service if s6_service_timeout_stop expires
+but the service doesn't go down during shutdown? The default is yes.
 .It Ar s6_service_timeout_stop
 The amount of time, in milliseconds, s6-svc should wait for the service
-to go down when stopping the service. The default is 10000.
+to go down when stopping the service. The default is 60000.
 .It Ar start_stop_daemon_args
 List of arguments passed to start-stop-daemon when starting the daemon.
 .It Ar command
@@ -139,21 +142,39 @@ List of arguments to pass to the daemon when starting via
 .Nm supervise-daemon .
 to force the daemon to stay in the foreground
 .It Ar command_background
-Set this to "true", "yes" or "1" (case-insensitive) if you want 
+Set this to "true", "yes" or "1" (case-insensitive) if you want
 .Xr start-stop-daemon 8
 to force the daemon into the background. This forces the
 "--make-pidfile" and "--pidfile" options, so the pidfile variable must be set.
 .It Ar command_progress
-Set this to "true", "yes" or "1" (case-insensitive) if you want 
+Set this to "true", "yes" or "1" (case-insensitive) if you want
 .Xr start-stop-daemon 8
 to display a progress meter when waiting for a daemon to stop.
 .It Ar command_user
 If the daemon does not support changing to a different user id, you can
-use this to change the user id before
+use this to change the user id, and optionally group id,  before
 .Xr start-stop-daemon 8
 or
 .Xr supervise-daemon 8
-launches the daemon
+launches the daemon.
+.It Ar output_log
+This is the path to a file or named pipe where the standard output from
+the service will be redirected. If you are starting this service with
+.Xr start-stop-daemon 8 ,
+,  you must set
+.Pa command_background
+to true. Keep in mind that this path will be inside the chroot if the
+.Pa chroot
+variable is set.
+.It Ar error_log
+The same thing as
+.Pa output_log
+but for the standard error output.
+.It Ar directory
+.Xr start-stop-daemon 8
+and
+.Xr supervise-daemon 8
+will chdir to this directory before starting the daemon.
 .It Ar chroot
 .Xr start-stop-daemon 8
 and
@@ -198,6 +219,8 @@ used along with in_background_fake to support re-entrant services.
 .It Ar in_background_fake
 Space separated list of commands which should always succeed when
 in_background is yes.
+.It Ar umask
+Set the umask of the daemon.
 .Pp
 Keep in mind that eval is used to process chroot, command, command_args_*,
 command_user, pidfile and procname. This may affect how they are
@@ -217,8 +240,10 @@ that dependency type to the function, or prefix the names with ! to
 remove them from the dependencies.
 .Bl -tag -width "RC_DEFAULTLEVEL"
 .It Ic need
-The service will refuse to start until needed services have started and it
-will refuse to stop until any services that need it have stopped.
+The service will attempt to start any services it needs regardless of
+whether they have been added to the runlevel. It will refuse to start
+until all services it needs have started, and it will refuse to stop until all
+services that need it have stopped.
 .It Ic use
 The service will attempt to start any services it uses that have been added
 to the runlevel.
@@ -284,6 +309,18 @@ system.
 To see how to influence dependencies in configuration files, see the
 .Sx FILES
 section below.
+.Sh _pre AND _post FUNCTIONS
+Any command defined in extra_commands, extra_started_commands or
+extra_stopped_commands can have _pre and _post functions in the service
+script. If the command function is called foo, the_pre and _post
+functions for it should be called foo_pre and foo_post.
+.Pp
+These functions should be used to perform preparation before the
+command is run and cleanup after the command completes. In order for
+.Nm
+to record the command as being run successfully, the _pre
+function, command function itself and the _post function should all exit
+with a zero return code.
 .Sh BUILTINS
 .Nm
 defines some builtin functions that you can use inside your service scripts:
@@ -412,27 +449,65 @@ If -d, -f or -p is specified, checkpath checks to see if the path
 exists, is the right type and has the correct owner and access modes. If
 any of these tests fail, the path is created and set up as specified. If
 more than one of -d, -f or -p are specified, the last one will be used.
-
+.Pp
 The argument to -m is a three or four digit octal number. If this option
 is not provided, the value defaults to 0644 for files and 0775 for
 directories.
-
+.Pp
 The argument to -o is a representation of the user and/or group which
 should own the path. The user and group can be represented numerically
 or with names, and are separated by a colon.
-
+.Pp
 The truncate options (-D and -F) cause the directory or file to be
 cleared of all contents.
-
+.Pp
 If -W is specified, checkpath checks to see if the first path given on
 the command line is writable.  This is different from how the test
 command in the shell works, because it also checks to make sure the file
 system is not read only.
-
+.Pp
 Also, the -d, -f or -p options should not be specified along with this option.
-
+.Pp
 The -q option suppresses all informational output. If it is specified
 twice, all error messages are suppressed as well.
+.It Xo
+.Ic fstabinfo
+.Op Fl M , -mount
+.Op Fl R , -remount
+.Op Fl b , -blockdevice
+.Op Fl m , -mountargs
+.Op Fl o , -options
+.Op Fl p , -passno Ar passno
+.Op Fl t , -type Ar fstype
+.Ar path
+.Xc
+If -b, -m, -o, -p or -t is specified,the appropriate information is
+extracted from fstab. If -M or -R are given, file systems are mounted or
+remounted.
+.Pp
+The -q option suppresses all informational output. If it is specified
+twice, all error messages are suppressed as well.
+.It Xo
+.Ic mountinfo
+.Op Fl f, -fstype-regex Ar regex
+.Op Fl F, -skip-fstype-regex Ar regex
+.Op Fl n, -node-regex Ar regex
+.Op Fl N, -skip-node-regex Ar regex
+.Op Fl o, -options-regex Ar regex
+.Op Fl O, -skip-options-regex Ar regex
+.Op Fl p, -point-regex Ar regex
+.Op Fl P, -skip-point-regex Ar regex
+.Op Fl e, -netdev
+.Op Fl E, -nonetdev
+.Op Fl i, -options
+.Op Fl s, -fstype
+.Op Fl t, -node
+.Ar mount1 mount2 ...
+.Xc
+The f, F, n, N, o, O, p, P, e and E options specify what you want to
+search for or skip in the mounted file systems. The i, s and t options
+specify what you want to display. If no mount points are given, all
+mount points will be considered.
 .It Ic yesno Ar value
 If
 .Ar value
@@ -658,6 +733,8 @@ Users are encouraged to use the is_newer_than function which returns correctly.
 .Xr rc_plugin_hook 3 ,
 .Xr sh 1p ,
 .Xr start-stop-daemon 8 ,
+.Xr supervise-daemon 8 ,
 .Xr uname 1
 .Sh AUTHORS
 .An Roy Marples <roy@marples.name>
+.An William Hubbs <w.d.hubbs@gmail.com>

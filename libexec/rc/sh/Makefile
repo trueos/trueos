@@ -1,7 +1,6 @@
 # $FreeBSD$
 #
 #
-.include <src.opts.mk>
 
 SHSRC=    ${SRCTOP}/contrib/openrc/
 
@@ -23,7 +22,8 @@ FILES+=	rc-mount.sh \
 	openrc-run.sh \
 	rc-functions.sh
 
-CLEANFILES= functions.sh init.sh gendepends.sh openrc-run.sh rc-functions.sh
+CLEANFILES+= functions.sh init.sh gendepends.sh openrc-run.sh rc-functions.sh
+
 
 functions.sh:
 	sed 's|@SHELL@|/bin/sh|g' ${SRCTOP}/contrib/openrc/sh/functions.sh.in >${.TARGET}
@@ -80,9 +80,7 @@ init.sh:
 	sed -i '' 's|@LIB@|/lib|g' ${.TARGET}
 	sed -i '' 's|@PREFIX@||g' ${.TARGET}
 
-NO_OBJ=
 FILESDIR=       /libexec/rc/sh
 FILESMODE=      755
 
 .include <bsd.prog.mk>
-

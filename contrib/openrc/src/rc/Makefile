@@ -14,7 +14,7 @@ SRCS+=		rc-selinux.c
 endif
 
 ifeq (${OS},Linux)
-SRCS+=		kill_all.c openrc-init.c openrc-shutdown.c
+SRCS+=		kill_all.c openrc-init.c openrc-shutdown.c rc-wtmp.c
 endif
 
 CLEANFILES=	version.h rc-selinux.o
@@ -24,7 +24,7 @@ SBINDIR=	${PREFIX}/sbin
 LINKDIR=	${LIBEXECDIR}
 
 BINPROGS=	rc-status
-SBINPROGS = openrc openrc-run rc rc-service rc-update runscript service \
+SBINPROGS = openrc openrc-run rc rc-service rc-update runscript \
 			start-stop-daemon supervise-daemon
 RC_BINPROGS=	einfon einfo ewarnn ewarn eerrorn eerror ebegin eend ewend \
 				eindent eoutdent esyslog eval_ecolors ewaitfile \
@@ -111,7 +111,7 @@ veinfo vewarn vebegin veend vewend veindent veoutdent: do_e.o rc-misc.o
 fstabinfo: fstabinfo.o _usage.o rc-misc.o
 	${CC} ${LOCAL_CFLAGS} ${LOCAL_LDFLAGS} ${CFLAGS} ${LDFLAGS} -o $@ $^ ${LDADD}
 
-openrc-init: openrc-init.o
+openrc-init: openrc-init.o rc-wtmp.o
 	${CC} ${LOCAL_CFLAGS} ${LOCAL_LDFLAGS} ${CFLAGS} ${LDFLAGS} -o $@ $^ ${LDADD}
 
 is_newer_than: is_newer_than.o rc-misc.o
@@ -132,7 +132,7 @@ mountinfo: mountinfo.o _usage.o rc-misc.o
 openrc rc: rc.o rc-logger.o rc-misc.o rc-plugin.o _usage.o
 	${CC} ${LOCAL_CFLAGS} ${LOCAL_LDFLAGS} ${CFLAGS} ${LDFLAGS} -o $@ $^ ${LDADD}
 
-openrc-shutdown: openrc-shutdown.o _usage.o
+openrc-shutdown: openrc-shutdown.o _usage.o rc-wtmp.o
 	${CC} ${LOCAL_CFLAGS} ${LOCAL_LDFLAGS} ${CFLAGS} ${LDFLAGS} -o $@ $^ ${LDADD}
 
 openrc-run runscript: openrc-run.o _usage.o rc-misc.o rc-plugin.o
@@ -150,16 +150,16 @@ rc-depend: rc-depend.o _usage.o rc-misc.o
 rc-status: rc-status.o _usage.o rc-misc.o
 	${CC} ${LOCAL_CFLAGS} ${LOCAL_LDFLAGS} ${CFLAGS} ${LDFLAGS} -o $@ $^ ${LDADD}
 
-rc-service service: rc-service.o _usage.o rc-misc.o
+rc-service: rc-service.o _usage.o rc-misc.o
 	${CC} ${LOCAL_CFLAGS} ${LOCAL_LDFLAGS} ${CFLAGS} ${LDFLAGS} -o $@ $^ ${LDADD}
 
 rc-update: rc-update.o _usage.o rc-misc.o
 	${CC} ${LOCAL_CFLAGS} ${LOCAL_LDFLAGS} ${CFLAGS} ${LDFLAGS} -o $@ $^ ${LDADD}
 
-start-stop-daemon: start-stop-daemon.o _usage.o rc-misc.o
+start-stop-daemon: start-stop-daemon.o _usage.o rc-misc.o rc-schedules.o
 	${CC} ${LOCAL_CFLAGS} ${LOCAL_LDFLAGS} ${CFLAGS} ${LDFLAGS} -o $@ $^ ${LDADD}
 
-supervise-daemon: supervise-daemon.o _usage.o rc-misc.o
+supervise-daemon: supervise-daemon.o _usage.o rc-misc.o rc-schedules.o
 	${CC} ${LOCAL_CFLAGS} ${LOCAL_LDFLAGS} ${CFLAGS} ${LDFLAGS} -o $@ $^ ${LDADD}
 
 service_get_value service_set_value get_options save_options: do_value.o rc-misc.o

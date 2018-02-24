@@ -11,6 +11,7 @@ SDSRC=    ${SRCTOP}/contrib/openrc/src
 
 SRCS=	supervise-daemon.c \
 	rc-misc.c \
+	rc-schedules.c \
 	_usage.c
 CFLAGS+=	-I${SDSRC}/rc \
 		-I${SDSRC}/libeinfo \

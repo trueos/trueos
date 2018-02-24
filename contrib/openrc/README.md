@@ -1,4 +1,5 @@
-# OpenRC README
+OpenRC README
+=============
 
 OpenRC is a dependency-based init system that works with the
 system-provided init program, normally `/sbin/init`. Currently, it does
@@ -22,14 +23,17 @@ below arguments to the make command
 PROGLDFLAGS=-static
 LIBNAME=lib64
 DESTDIR=/tmp/openrc-image
+MKBASHCOMP=no
 MKNET=no
 MKPAM=pam
 MKPREFIX=yes
 MKPKGCONFIG=no
 MKSELINUX=yes
 MKSTATICLIBS=no
+MKSYSVINIT=yes
 MKTERMCAP=ncurses
 MKTERMCAP=termcap
+MKZSHCOMP=no
 PKG_PREFIX=/usr/pkg
 LOCAL_PREFIX=/usr/local
 PREFIX=/usr/local

@@ -47,6 +47,7 @@ bool rc_conf_yesno(const char *var);
 void env_filter(void);
 void env_config(void);
 int signal_setup(int sig, void (*handler)(int));
+int signal_setup_restart(int sig, void (*handler)(int));
 int svc_lock(const char *);
 int svc_unlock(const char *, int);
 pid_t exec_service(const char *, const char *);
@@ -71,5 +72,6 @@ bool _rc_can_find_pids(void);
 RC_SERVICE lookup_service_state(const char *service);
 void from_time_t(char *time_string, time_t tv);
 time_t to_time_t(char *timestring);
+pid_t get_pid(const char *applet, const char *pidfile);
 
 #endif
