@@ -290,6 +290,7 @@ SUBDIR=	\
 	nullfs \
 	${_ntb} \
 	${_nvd} \
+	${_nvdimm} \
 	${_nvme} \
 	${_nvram} \
 	${_nxge} \
@@ -681,6 +682,7 @@ _mlx5ib=	mlx5ib
 _mly=		mly
 _nfe=		nfe
 _nvd=		nvd
+_nvdimm=	nvdimm
 _nvme=		nvme
 _nvram=		nvram
 _nxge=		nxge
