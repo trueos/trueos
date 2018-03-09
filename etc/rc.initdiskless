@@ -67,7 +67,7 @@
 # /conf/T/M/remount
 #		The contents of the file is a mount command. E.g. if
 # 		/conf/1.2.3.4/foo/remount contains "mount -o ro /dev/ad0s3",
-#		then /dev/ad0s3 will be mounted on /conf/1.2.3.4/foo/
+#		then /dev/ad0s3 will be be mounted on /conf/1.2.3.4/foo/
 #
 # /conf/T/M/remount_optional
 #		If this file exists, then failure to execute the mount
@@ -146,6 +146,7 @@
 # (end of documentation, now get to the real code)
 
 dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
+DEFAULT_TMPFS_SIZE=$(($(/sbin/sysctl -n hw.physmem) / 1536))
 
 # DEBUGGING
 # log something on stdout if verbose.
@@ -199,7 +200,7 @@ handle_remount() { # $1 = mount point
 # The 'auto' parameter will attempt to use tmpfs(5), falls back to md(4).
 # $1 is size in 512-byte sectors, $2 is the mount point.
 mount_md() {
-    /sbin/mdmfs -s $1 auto $2
+	/sbin/mount -t tmpfs -o size=$1 tmpfs $2
 }
 
 # Create the memory filesystem if it has not already been created
@@ -207,11 +208,12 @@ mount_md() {
 create_md() {
 	[ "x`eval echo \\$md_created_$1`" = "x" ] || return # only once
 	if [ "x`eval echo \\$md_size_$1`" = "x" ]; then
-	    md_size=10240
+	    md_size=${DEFAULT_TMPFS_SIZE}
 	else
 	    md_size=`eval echo \\$md_size_$1`
 	fi
-	log create_md $1 with size $md_size
+	md_size=$((${md_size} * 512))
+	log mount_md $1 with size $md_size
 	mount_md $md_size /$1
 	/bin/chmod 755 /$1
 	eval md_created_$1=created
