@@ -220,9 +220,7 @@ ifconfig_up()
 	fi
 
 	if wpaif $1; then
-		rm /etc/init.d/wpa_supplicant.${1} >/dev/null 2>/dev/null
-		cp /etc/init.d/wpa_supplicant /etc/init.d/wpa_supplicant.${1}
-		service wpa_supplicant.${1} start
+		/etc/rc.devd wpa_supplicant.${1} start
 		_cfg=0		# XXX: not sure this should count
 	elif hostapif $1; then
 		/etc/rc.d/hostapd start $1
@@ -236,10 +234,7 @@ ifconfig_up()
 			${IFCONFIG_CMD} $1 up
 		fi
 		if syncdhcpif $1; then
-			rm /usr/local/etc/init.d/dhcpcd.${1} >/dev/null 2>/dev/null
-			cp /usr/local/etc/init.d/dhcpcd \
-			 /usr/local/etc/init.d/dhcpcd.${1}
-			service dhcpcd.${1} start
+			/etc/rc.devd dhcpcd.${1} start
 		fi
 		_cfg=0
 	fi
@@ -257,9 +252,7 @@ ifconfig_down()
 	_cfg=1
 
 	if wpaif $1; then
-		rm /etc/init.d/wpa_supplicant.${1} >/dev/null 2>/dev/null
-		cp /etc/init.d/wpa_supplicant /etc/init.d/wpa_supplicant.${1}
-		service wpa_supplicant.${1} stop
+		/etc/rc.devd wpa_supplicant.${1} stop
 		_cfg=0
 	elif hostapif $1; then
 		/etc/rc.d/hostapd stop $1
@@ -267,10 +260,7 @@ ifconfig_down()
 	fi
 
 	if dhcpif $1; then
-		rm /usr/local/etc/init.d/dhcpcd.${1} >/dev/null 2>/dev/null
-		cp /usr/local/etc/init.d/dhcpcd \
-		 /usr/local/etc/init.d/dhcpcd.${1}
-		service dhcpcd.${1} stop
+		/etc/rc.devd dhcpcd.${1} stop
 		_cfg=0
 	fi
 
