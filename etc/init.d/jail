@@ -416,7 +416,10 @@ start()
 
 	# Start the jail sub-services
 	for _j in $jail_list; do
-		ln -fs /etc/init.d/jail /etc/init.d/jail.${_j}		
+		if [ -e "/etc/init.d/jail.${_j}" ] ; then
+			rm /etc/init.d/jail.${_j}
+		fi
+		cp /etc/init.d/jail /etc/init.d/jail.${_j}
 		service jail.${_j} start
 	done
 
@@ -461,7 +464,10 @@ stop()
 	# Stop the jails
 	yesno jail_reverse_stop && set -- $(reverse_list $jail_list)
 	for _j in $jail_list; do
-		ln -fs /etc/init.d/jail /etc/init.d/jail.${_j}
+		if [ -e "/etc/init.d/jail.${_j}" ] ; then
+			rm /etc/init.d/jail.${_j}
+		fi
+		cp /etc/init.d/jail /etc/init.d/jail.${_j}
 		service jail.${_j} stop
 	done
 	return 0

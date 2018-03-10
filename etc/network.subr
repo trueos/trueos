@@ -122,14 +122,14 @@ ifn_vnet0()
 #
 ifconfig_up()
 {
-	local _cfg _ifconfig_descr _ipv6_opts ifconfig_args 
+	local _cfg _ifconfig_descr _ipv6_opts ifconfig_args
 	_cfg=1
 
 	# Make sure lo0 always comes up.
 	if [ "$1" = "lo0" ]; then
 		_cfg=0
 	fi
-	
+
 	# inet6 specific
 	if ! noafif $1 && afexists inet6; then
 		if checkyesno ipv6_activate_all_interfaces; then
@@ -220,7 +220,8 @@ ifconfig_up()
 	fi
 
 	if wpaif $1; then
-		ln -fs /etc/init.d/wpa_supplicant /etc/init.d/wpa_supplicant.${1}
+		rm /etc/init.d/wpa_supplicant.${1} >/dev/null 2>/dev/nul
+		cp /etc/init.d/wpa_supplicant /etc/init.d/wpa_supplicant.${1}
 		service wpa_supplicant.${1} start
 		_cfg=0		# XXX: not sure this should count
 	elif hostapif $1; then
@@ -235,7 +236,8 @@ ifconfig_up()
 			${IFCONFIG_CMD} $1 up
 		fi
 		if syncdhcpif $1; then
-			ln -fs /usr/local/etc/init.d/dhcpcd \
+			rm /usr/local/etc/init.d/dhcpcd.${1} >/dev/null 2>/dev/null
+			cp /usr/local/etc/init.d/dhcpcd \
 			 /usr/local/etc/init.d/dhcpcd.${1}
 			service dhcpcd.${1} start
 		fi
@@ -255,7 +257,8 @@ ifconfig_down()
 	_cfg=1
 
 	if wpaif $1; then
-		ln -fs /etc/init.d/wpa_supplicant /etc/init.d/wpa_supplicant.${1}
+		rm /etc/init.d/wpa_supplicant.${1} >/dev/null 2>/dev/null
+		cp /etc/init.d/wpa_supplicant /etc/init.d/wpa_supplicant.${1}
 		service wpa_supplicant.${1} stop
 		_cfg=0
 	elif hostapif $1; then
@@ -264,7 +267,8 @@ ifconfig_down()
 	fi
 
 	if dhcpif $1; then
-		ln -fs /usr/local/etc/init.d/dhcpcd \
+		rm /usr/local/etc/init.d/dhcpcd.${1} >/dev/null 2>/dev/null
+		cp /usr/local/etc/init.d/dhcpcd \
 		 /usr/local/etc/init.d/dhcpcd.${1}
 		service dhcpcd.${1} stop
 		_cfg=0
@@ -1816,4 +1820,33 @@ network6_getladdr()
 
 		return
 	done
+}
+
+
+# ltr str src dst [var]
+#	Change every $src in $str to $dst.
+#	Useful when /usr is not yet mounted and we cannot use tr(1), sed(1) nor
+#	awk(1). If var is non-NULL, set it to the result.
+ltr()
+{
+	local _str _src _dst _out _com _var
+	_str="$1"
+	_src="$2"
+	_dst="$3"
+	_var="$4"
+	_out=""
+
+	local IFS="${_src}"
+	for _com in ${_str}; do
+		if [ -z "${_out}" ]; then
+			_out="${_com}"
+		else
+			_out="${_out}${_dst}${_com}"
+		fi
+	done
+	if [ -n "${_var}" ]; then
+		setvar "${_var}" "${_out}"
+	else
+		echo "${_out}"
+	fi
 }

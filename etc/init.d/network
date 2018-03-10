@@ -35,7 +35,6 @@ description="Configures network interfaces."
 __nl="
 "
 IFCONFIG_CMD="/sbin/ifconfig"
-extra_commands="cloneup clonedown vnetup vnetdown"
 
 # Needed for network scripts
 . /etc/rc.subr
@@ -47,22 +46,6 @@ depend()
         need localmount
         after bootmisc modules
 	keyword -jail -prefix -vserver -stop
-}
-
-cloneup()
-{
-	# Set the list of interfaces to work on.
-	cmdifn=$network_device
-	# Create cloned interfaces
-	clone_up $cmdifn
-}
-
-clonedown()
-{
-	# Set the list of interfaces to work on.
-	cmdifn=$network_device
-	# Create cloned interfaces
-	clone_down $cmdifn
 }
 
 start()
@@ -159,16 +142,6 @@ vnet_down()
 	cmdifn=$*
 
 	netif_common ifn_vnetdown $cmdifn
-}
-
-vnetup()
-{
-  vnet_up $network_device
-}
-
-vnetdown()
-{
-  vnet_down $network_device
 }
 
 # netif_common routine

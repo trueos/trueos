@@ -8,6 +8,8 @@
 # distribution and at https://github.com/OpenRC/openrc/blob/master/LICENSE
 # This file may not be copied, modified, propagated, or distributed
 # except according to the terms contained in the LICENSE file.
+#
+#
 
 depend()
 {
@@ -18,6 +20,7 @@ depend()
 }
 
 mouse=${RC_SVCNAME##*.}
+
 if [ -n "$mouse" -a "$mouse" != "moused" ]; then
 	moused_device=/dev/"$mouse"
 	pidfile=/var/run/moused-"$mouse".pid
@@ -26,7 +29,6 @@ else
 fi
 name="Console Mouse Daemon"
 [ -n "$moused_device" ] && name="$name ($moused_device)"
-
 
 
 start()
@@ -40,7 +42,8 @@ start()
 		for dev in /dev/psm[0-9]* /dev/ums[0-9]*; do
 			[ -c "$dev" ] || continue
 			[ -e /var/run/moused-"${dev##*/}".pid ] && continue
-			ln -fs /etc/init.d/moused /etc/init.d/moused.${dev##*/}
+			rm /etc/init.d/moused.${dev##*/} >/dev/null 2>/dev/null
+			cp /etc/init.d/moused /etc/init.d/moused.${dev##*/}
 			/sbin/service moused.${dev##*/} start
 		done
 		if [ $founddev ] ; then
@@ -90,7 +93,8 @@ stop()
 		for dev in /dev/psm[0-9]* /dev/ums[0-9]*; do
 			[ -c "$dev" ] || continue
 			[ -e /var/run/moused-"${dev##*/}".pid ] || continue
-			ln -fs /etc/init.d/moused /etc/init.d/moused.${dev##*/}
+			rm /etc/init.d/moused.${dev##*/} >/dev/null 2>/dev/null
+			cp /etc/init.d/moused /etc/init.d/moused.${dev##*/}
 			/sbin/service moused.${dev##*/} stop
 		done
 		return 0

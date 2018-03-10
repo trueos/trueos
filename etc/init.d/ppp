@@ -64,7 +64,8 @@ start_pre() {
     for _profile in ${ppp_profile}
     do
       if [ ! -f "${SERVICEDIR}/ppp.${_profile}" ] ; then
-        ln -fs "${SERVICEDIR}/ppp" "${SERVICEDIR}/ppp.${_profile}"
+        rm "${SERVICEDIR}/ppp.${_profile}" >/dev/null 2>/dev/null
+        cp "${SERVICEDIR}/ppp" "${SERVICEDIR}/ppp.${_profile}"
       fi
       if service_stopped ppp.${_profile} ; then
         einfo "Starting ppp profile: ${_profile}"
