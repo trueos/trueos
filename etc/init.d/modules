@@ -21,7 +21,7 @@ FreeBSD_modules()
 {
 	local cnt=0 x
 	for x in $modules; do
-		if [ !`kldstat -q -m ${x}` ] ; then 
+		if [ !`kldstat -q -m ${x}` ] ; then
 			#ebegin "Loading module $x"
 			load_kld "$x"
 			#eend $? "Failed to load $x" && : $(( cnt += 1 ))
@@ -37,11 +37,11 @@ FreeBSD_modules()
 		fi
 	done
         for x in $kld_list; do
-		if [ !`kldstat -q -m ${x}` ] ; then 
-              		#ebegin "Loading module $x"
-                	load_kld "$x"
-                	#eend $? "Failed to load $x" && : $(( cnt += 1 ))
-                	: $(( cnt += 1 ))
+		if [ !`kldstat -q -m ${x}` ] ; then
+			#ebegin "Loading module $x"
+			load_kld "$x"
+			#eend $? "Failed to load $x" && : $(( cnt += 1 ))
+			: $(( cnt += 1 ))
 		fi
         done
 }
