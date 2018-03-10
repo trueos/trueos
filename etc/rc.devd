@@ -25,15 +25,32 @@ getmedia() {
 # Try and create an init script for network interfaces
 if [ ! -e /etc/init.d/"$1" -a ! -e /usr/local/init.d/"$1" ]; then
 	base=${1%%.*}
-	if [ "${base}" = "net" ]; then
+	if [ "${base}" = "network" ]; then
 		# We only create links for pyhsical interfaces
 		[ -n "$(getmedia ${1#*.})" ] || exit 1
-		base="net.lo0"
+		base="network.lo0"
 	fi
 	if [ -e /etc/init.d/"${base}" -a "${base}" != "$1" ]; then
-		ln -s "${base}" /etc/init.d/"$1"
+		if [ ! -e "/etc/init.d/${1}" ] ; then
+			ln -f /etc/init.d/"${base}" /etc/init.d/"$1"
+		fi
+		# Symlinks Broken in OpenRC 0.35
+		if [ -s "/etc/init.d/${1}" ] ; then
+			ln -f /etc/init.d/"${base}" /etc/init.d/"$1"
+		fi
+		rundir=/etc/init.d
+	fi
+	if [ -e "/usr/local/etc/init.d/${base}" -a "${base}" != "$1" ]; then
+		if [ ! -e "/usr/local/etc/init.d/${1}" ] ; then
+			ln -f /usr/local/etc/init.d/"${base}" /usr/local/etc/init.d/"$1"
+		fi
+		# Symlinks Broken in OpenRC 0.35
+		if [ -s "/usr/local/etc/init.d/${1}" ] ; then
+			ln -f /usr/local/etc/init.d/"${base}" /usr/local/etc/init.d/"$1"
+		fi
+		rundir=/usr/local/etc/init.d
 	fi
 fi
 
 # Run the init script
-exec /etc/init.d/"$1" "$2"
+exec "$rundir/$1" "$2"
