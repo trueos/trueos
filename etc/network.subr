@@ -220,7 +220,7 @@ ifconfig_up()
 	fi
 
 	if wpaif $1; then
-		rm /etc/init.d/wpa_supplicant.${1} >/dev/null 2>/dev/nul
+		rm /etc/init.d/wpa_supplicant.${1} >/dev/null 2>/dev/null
 		cp /etc/init.d/wpa_supplicant /etc/init.d/wpa_supplicant.${1}
 		service wpa_supplicant.${1} start
 		_cfg=0		# XXX: not sure this should count
