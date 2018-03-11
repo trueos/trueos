@@ -10,6 +10,7 @@ supervise_daemon_args="-1 /var/log/automountdaemond.log -2 /var/log/automountdae
 depend()
 {
         need localmount
+	provide automountd
         use net logger dns
         before inetd xinetd
 }
