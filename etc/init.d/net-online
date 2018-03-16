@@ -32,7 +32,8 @@ check_online()
     mark_service_started net-online
     return 0
   else
-    mark_service_starting net-online
+    #Not ready yet
+    mark_service_inactive net-online
     return 1
   fi
 }
