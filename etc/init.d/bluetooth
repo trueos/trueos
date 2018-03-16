@@ -1,4 +1,6 @@
 #!/sbin/openrc-run
+# Copyright (c) 2018 - Ken Moore <ken@ixsystems.com>
+#
 # Copyright (c) 2016 - Kris Moore <kris@ixsystems.com>
 #
 # Copyright (c) 2005 Maksim Yevmenkin <m_evmenkin@yahoo.com>
@@ -34,12 +36,38 @@ required_modules="ng_bluetooth ng_hci ng_l2cap ng_btsocket"
 hccontrol="${bluetooth_hccontrol:-/usr/sbin/hccontrol}"
 hcseriald="${bluetooth_hcseriald:-/usr/sbin/hcseriald}"
 
+#Get the sub-service device name
+dev=${RC_SVCNAME##*.}
+
 depend()
 {
 	need localmount
 	keyword -jail
 }
 
+#########################################
+#  Start/Stop individual device services
+#########################################
+
+start_dev_services(){
+  svcdir=`dirname ${RC_SERVICE}`
+  for _dev in `ls /dev | grep -e "^\(uart\|btccc\|ubt\)[0-9]"`
+  do
+    _dev=`basename "${_dev}"`
+    ln -f "${RC_SERVICE}" "${RC_SERVICE}.${_dev}"
+    /sbin/service "${name}.${_dev}" start
+  done
+}
+
+stop_dev_services(){
+  for _svc in `ls ${RC_SERVICE}.* 2>/dev/null`
+  do
+  	_svc=`basename ${_svc}`
+  	if service_started ${_svc} ; then
+  		/sbin/service ${_svc} stop
+  	fi
+  done
+}
 
 ##############################################################################
 # Read and parse Bluetooth device configuration file
@@ -47,10 +75,10 @@ depend()
 
 bluetooth_read_conf()
 {
-	local _err _file _line _namespace
+	local _err _line _namespace
 
-	_file=$1
-	_namespace=$2
+	#NOTE: This needs the "_file" variable to be pre-set to the config file path
+	_namespace="bluetooth_device_"
 	_err=0
 
 	if [ ! -e $_file ]; then
@@ -93,10 +121,7 @@ bluetooth_read_conf()
 
 bluetooth_setup_stack()
 {
-	dev=$1
-	shift
-	hook=$1
-	shift
+	hook="hook"
 
 	# Setup HCI
 	ngctl mkpeer ${dev}: hci ${hook} drv \
@@ -217,8 +242,6 @@ bluetooth_setup_stack()
 
 bluetooth_shutdown_stack()
 {
-	dev=$1
-
 	ngctl shutdown ${dev}hci: > /dev/null 2>&1
 	ngctl shutdown ${dev}l2cap: > /dev/null 2>&1
 
@@ -226,14 +249,29 @@ bluetooth_shutdown_stack()
 }
 
 ##############################################################################
-# bluetooth_start()
+# start()
 ##############################################################################
+
+start_pre(){
+  #Make sure all the required modules are loaded
+  for _mod in ${required_modules}
+  do
+    kldload -nq "${_mod}"
+    if [ 0 -ne $? ] ; then
+    	ewarn "Could not load kernel module: ${_mod}"
+    fi
+  done
+  
+}
 
 start()
 {
-	local _file
+	if [ -z ${dev} ] || [ "${dev}" = "bluetooth" ] ; then
+		#Master service, detect/start all BT device services
+		start_dev_services
+		return 0
+	fi
 
-	dev=$1
 
 	ebegin "Starting Bluetooth for: $dev"
 
@@ -242,8 +280,6 @@ start()
 	# uartX - serial/UART Bluetooth device
 	uart*)
 		load_kld ng_h4 || return 1
-
-		hook="hook"
 
 		# Obtain unit number from device.
 		unit=`expr ${dev} : 'uart\([0-9]\{1,\}\)'`
@@ -261,8 +297,6 @@ start()
 
 	# 3Com Bluetooth Adapter 3CRWB60-A
 	btccc*)
-		hook="hook"
-
 		# Obtain unit number from device.
 		unit=`expr ${dev} : 'btccc\([0-9]\{1,\}\)'`
 		if [ -z "${unit}" ]; then
@@ -272,8 +306,6 @@ start()
 
 	# USB Bluetooth adapters
 	ubt*)
-		hook="hook"
-
 		# Obtain unit number from device.
 		unit=`expr ${dev} : 'ubt\([0-9]\{1,\}\)'`
 		if [ -z "${unit}" ]; then
@@ -298,23 +330,21 @@ start()
 	bluetooth_device_local_name="`/usr/bin/uname -n` (${dev})"
 	bluetooth_device_role_switch="1"
 
-	# Load default device configuration parameters
+	# Load the general device defaults
 	_file="/etc/defaults/bluetooth.device.conf"
-
-	if ! bluetooth_read_conf $_file bluetooth_device_ ; then
+	if ! bluetooth_read_conf ; then
 		eend 1 "Unable to read default Bluetooth configuration from $_file"
 	fi
 
 	# Load device specific overrides
 	_file="/etc/bluetooth/$dev.conf"
-
-	if ! bluetooth_read_conf $_file bluetooth_device_ ; then
+	if ! bluetooth_read_conf ; then
 		eend 1 "Unable to read Bluetooth device configuration from $_file"
 	fi
 
 	# Setup stack
-	if ! bluetooth_setup_stack ${dev} ${hook} ; then
-		bluetooth_shutdown_stack $dev
+	if ! bluetooth_setup_stack ; then
+		bluetooth_shutdown_stack
 		eend 1 "Unable to setup Bluetooth stack for device ${dev}"
 	fi
 
@@ -322,12 +352,16 @@ start()
 }
 
 ##############################################################################
-# bluetooth_stop()
+# stop()
 ##############################################################################
 
 stop()
 {
-	dev=$1
+	if [ -z ${dev} ] || [ "${dev}" = "bluetooth" ] ; then
+		#Master service, detect/stop all BT device services
+		stop_dev_services
+		return 0
+	fi
 
 	# Try to figure out device type by looking at device name
 	case "${dev}" in
@@ -353,7 +387,7 @@ stop()
 		;;
 	esac
 
-	bluetooth_shutdown_stack ${dev}
+	bluetooth_shutdown_stack
 
 	return 0
 }
