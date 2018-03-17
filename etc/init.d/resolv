@@ -37,7 +37,7 @@ desc="Create /etc/resolv.conf from kenv"
 depend()
 {
 	provide resolv
-	require network
+	need network
 	keyword -jail
 }
 
