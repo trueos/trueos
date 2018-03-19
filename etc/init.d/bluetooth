@@ -55,7 +55,9 @@ start_dev_services(){
   for _dev in `ls /dev | grep -e "^\(uart\|btccc\|ubt\)[0-9]"`
   do
     _dev=`basename "${_dev}"`
-    ln -f "${RC_SERVICE}" "${RC_SERVICE}.${_dev}"
+    if [ ! -e "${RC_SERVICE}.${_dev}" ] ; then
+      ln -f "${RC_SERVICE}" "${RC_SERVICE}.${_dev}"
+    fi
     if ! service_started "${name}.${_dev}" ; then
       /sbin/service "${name}.${_dev}" start
     fi
