@@ -1,16 +1,24 @@
 #!/sbin/openrc-run
 
 command=/usr/sbin/automountd
-command_args="-d"
+command_args="-i"
 name="automountd"
-pidfile="/var/run/automountdaemond.pid"
-supervisor=supervise-daemon
-supervise_daemon_args="-1 /var/log/automountdaemond.log -2 /var/log/automountdaemond.log"
+pidfile="/var/run/automountd.pid"
+output_log="/var/log/automountd_service.log"
+error_log=${output_log}
+
+#Using supervise-daemon (NOT WORKING: automountd in non-daemon mode exits after one run)
+#command_args_foreground="-d"
+#supervisor=supervise-daemon
+
+#Using start-stop-daemon
+command_background="true"
 
 depend()
 {
-        need localmount
+        need nfsclient localmount
 	provide automountd
         use net logger dns
         before inetd xinetd
 }
+
