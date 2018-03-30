@@ -49,10 +49,7 @@ zfs_cleanup_unmount()
         then
           # Make sure we haven't already added the zfs boot line when
           # Creating a dedicated "/boot" partition
-          cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep -q "vfs.root.mountfrom=" 2>/dev/null
-          if [ $? -ne 0 ] ; then
-            echo "vfs.root.mountfrom=\"zfs:${ZPOOLNAME}/ROOT/default\"" >> ${FSMNT}/boot/loader.conf
-          fi
+          echo "vfs.root.mountfrom=\"zfs:${ZPOOLNAME}/ROOT/${BENAME}\"" >> ${FSMNT}/boot/loader.conf
           export FOUNDZFSROOT="${ZPOOLNAME}"
         fi
       done
@@ -113,6 +110,8 @@ zfs_cleanup_unmount()
         # Some ZFS like /swap aren't mounted, and dont need unmounting
         mount | grep -q "${FSMNT}${ZMNT}"
 	if [ $? -eq 0 ] ; then
+          echo_log "ZFS Unmount: ${ZPOOLNAME}${ZMNT}"
+          sleep 2
           rc_halt "zfs unmount ${ZPOOLNAME}${ZMNT}"
           rc_halt "zfs set mountpoint=${ZMNT} ${ZPOOLNAME}${ZMNT}"
         fi
@@ -178,7 +177,14 @@ setup_fstab()
     # Figure out if we are using a glabel, or the raw name for this entry
     if [ -n "${PARTLABEL}" ]
     then
-      DEVICE="label/${PARTLABEL}"
+      # Check if using encryption
+      if [ "${PARTENC}" = "ON" ] ; then
+        EXT=".eli"
+      fi
+      if [ "${PARTFS}" = "UFS+J" ] ; then
+        EXT="${EXT}.journal"
+      fi
+      DEVICE="label/${PARTLABEL}${EXT}"
     else
       # Check if using encryption 
       if [ "${PARTENC}" = "ON" ] ; then
@@ -198,7 +204,7 @@ setup_fstab()
       if [ "${PARTFS}" = "ZFS" ] ; then
         ROOTFSTYPE="zfs"
         ZPOOLNAME=$(get_zpool_name "${PARTDEV}")
-        ROOTFS="${ZPOOLNAME}/ROOT/default"
+        ROOTFS="${ZPOOLNAME}/ROOT/${BENAME}"
       else
         ROOTFS="${DEVICE}"
         ROOTFSTYPE="ufs"
@@ -237,6 +243,9 @@ setup_fstab()
   then
     echo "procfs			/proc			procfs		rw		0	0" >> ${FSTAB}
     echo "linprocfs		/compat/linux/proc	linprocfs	rw		0	0" >> ${FSTAB}
+    if [ ! -d "${FSMNT}/compat/linux/proc" ] ; then
+      mkdir -p ${FSMNT}/compat/linux/proc
+    fi
   fi
 
   # If we have a dedicated /boot, run the post-install setup of it now
@@ -285,14 +294,6 @@ setup_geli_loading()
      fi
 
   done
-
-  # Make sure we have geom_eli set to load at boot
-  cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep -q 'geom_eli_load="YES"' 2>/dev/null
-  if [ $? -ne 0 ]
-  then
-    echo 'geom_eli_load="YES"' >>${FSMNT}/boot/loader.conf
-  fi
-
 };
 
 
@@ -305,7 +306,7 @@ gen_hostname()
   then
     VAL="freebsd-${RAND}" 
   else
-    VAL="pcbsd-${RAND}" 
+    VAL="trueos-${RAND}" 
   fi
 
   export VAL
@@ -327,8 +328,10 @@ setup_hostname()
   fi
 
   # Clean up any saved hostname
-  cat ${FSMNT}/etc/rc.conf | grep -v "hostname=" >${FSMNT}/etc/rc.conf.new
-  mv ${FSMNT}/etc/rc.conf.new ${FSMNT}/etc/rc.conf
+  if [ -e "${FSMNT}/etc/rc.conf" ]  ;then
+    cat ${FSMNT}/etc/rc.conf | grep -v "hostname=" >${FSMNT}/etc/rc.conf.new
+    mv ${FSMNT}/etc/rc.conf.new ${FSMNT}/etc/rc.conf
+  fi
 
   # Set the hostname now
   echo_log "Setting hostname: ${HOSTNAME}"
@@ -383,12 +386,11 @@ set_root_pw()
 
 };
 
-
 run_final_cleanup()
 {
   # Check if we need to run any gmirror setup
   ls ${MIRRORCFGDIR}/* >/dev/null 2>/dev/null
-  if [ $? -eq 0 ]
+  if [ $? -eq 0 -o -n "$ZFS_SWAP_DEVS" ]
   then
     # Lets setup gmirror now
     setup_gmirror
@@ -402,6 +404,14 @@ run_final_cleanup()
     setup_geli_loading
   fi
 
+  # Make sure we have geom_eli set to load at boot
+  cat ${FSMNT}/boot/loader.conf 2>/dev/null | grep -q 'geom_eli_load="YES"' 2>/dev/null
+  if [ $? -ne 0 ]; then
+    echo 'crypto_load="YES"' >>${FSMNT}/boot/loader.conf
+    echo 'aesni_load="YES"' >>${FSMNT}/boot/loader.conf
+    echo 'geom_eli_load="YES"' >>${FSMNT}/boot/loader.conf
+  fi
+
   # Set a hostname on the install system
   setup_hostname
 
@@ -410,4 +420,9 @@ run_final_cleanup()
 
   # Generate the fstab for the installed system
   setup_fstab
+
+  # Workaround to issue in FreeBSD pkg base
+  rc_nohalt "chroot ${FSMNT} chown root:operator /sbin/shutdown"
+  rc_nohalt "chroot ${FSMNT} chmod 4554 /sbin/shutdown"
+
 };

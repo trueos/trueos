@@ -2,7 +2,7 @@
 #-
 # SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 #
-# Copyright (c) 2010 iXsystems, Inc.  All rights reserved.
+# Copyright (c) 2018 iXsystems, Inc.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -248,26 +248,22 @@ delete_all_gpart()
     swapoff ${i} >/dev/null 2>/dev/null
   done
 
-  # Delete the gparts now
-  for i in `gpart show ${DISK} 2>/dev/null | tr -s ' ' | cut -d ' ' -f 4`
-  do
-   if [ "/dev/${i}" != "${DISK}" -a "${i}" != "-" ] ; then
-     rc_nohalt "gpart delete -i ${i} ${DISK}"
-   fi
-  done
-
   # Destroy the disk geom
-  rc_nohalt "gpart destroy ${DISK}"
+  rc_nohalt "gpart destroy -F ${DISK}"
+  rc_nohalt "zpool labelclear -f ${DISK}"
 
-  wipe_metadata "${DISK}"
+  # Make double-sure
+  rc_halt "gpart create -s gpt ${DISK}"
+  rc_halt "gpart destroy -F ${DISK}"
+
+  # Make sure we clear any hidden gpt tables
+  clear_backup_gpt_table "${DISK}"
+
 };
 
 # Function to export all zpools before starting an install
 stop_all_zfs()
 {
-  if [ ! -c /dev/zfs ]; then
-    return;
-  fi
   local DISK="`echo ${1} | sed 's|/dev/||g'`"
 
   # Export any zpools using this device so we can overwrite
@@ -283,20 +279,21 @@ stop_all_zfs()
 # Function which stops all gmirrors before doing any disk manipulation
 stop_all_gmirror()
 {
-  if [ ! -d /dev/mirror ]; then
-    return;
-  fi
   local DISK="`echo ${1} | sed 's|/dev/||g'`"
   GPROV="`gmirror list | grep ". Name: mirror/" | cut -d '/' -f 2`"
   for gprov in $GPROV 
   do
-    gmirror list | grep -q "Name: ${DISK}" 2>/dev/null
-    if [ $? -eq 0 ]
-    then
-      echo_log "Stopping mirror $gprov $DISK"
-      rc_nohalt "gmirror remove $gprov $DISK"
-      wipe_metadata "${DISK}"
-    fi
+    echo_log "Stopping mirror $gprov"
+    rc_nohalt "gmirror stop -f $gprov"
+    rc_nohalt "gmirror destroy $gprov"
+
+    dName=`gmirror list | grep -v 'mirror/' | grep "Name: " | awk '{print $3}'`
+    for rmDisk in $dName
+    do
+      rc_nohalt "gmirror remove $gprov $rmDisk"
+      rc_nohalt "gmirror deactivate $gprov $rmDisk"
+      rc_nohalt "gmirror clear $rmDisk"
+    done
   done
 };
 
@@ -415,26 +412,30 @@ setup_disk_slice()
       if [ "${PTYPE}" = "free" ]
       then
         # Lets figure out what number this slice will be
-        LASTSLICE="`gpart show ${DISK} \
-          | grep -v ${DISK} \
+	gDISK=`echo $DISK | sed 's|/dev/||g'`
+        LASTSLICE="`gpart show ${gDISK} \
+          | grep -v ${gDISK} \
           | grep -v ' free' \
           | tr -s '\t' ' ' \
           | cut -d ' ' -f 4 \
           | sed '/^$/d' \
           | tail -n 1`"
-
         if [ -z "${LASTSLICE}" ]
         then
           LASTSLICE="1"
         else
-            LASTSLICE=$((LASTSLICE+1))
+          LASTSLICE=`expr $LASTSLICE + 1`
         fi
 
-        if [ $LASTSLICE -gt 4 ]
-        then
-          exit_err "ERROR: BSD only supports primary partitions, and there are none available on $DISK"
+        # Set if we are doing GPT/MBR
+	gpart show $gDISK | grep -q "GPT"
+        if [ $? -eq 0 ] ; then
+          LASTSLICETYPE="GPT"
+        else
+          LASTSLICETYPE="MBR"
         fi
-
+        # Set that we are doing free space only
+	FREESPACEINSTALL="1"
       fi
     fi
 
@@ -469,6 +470,10 @@ setup_disk_slice()
       get_value_from_string "${line}"
       strip_white_space "$VAL"
       BMANAGER="$VAL"
+      # Convert to upper
+      if [ "$BMANAGER" = "bsd" ] ; then BMANAGER="BSD" ; fi
+      if [ "$BMANAGER" = "grub" ] ; then BMANAGER="GRUB" ; fi
+      if [ "$BMANAGER" = "grub-slice" ] ; then BMANAGER="GRUB-slice" ; fi
     fi
 
     echo $line | grep -q "^commitDiskPart" 2>/dev/null
@@ -500,11 +505,11 @@ setup_disk_slice()
               gmnum=$((gmknum+1))
             fi
 
-            if [ "$PSCHEME" = "MBR" -o -z "$PSCHEME" ] ; then
-              PSCHEME="MBR"
-              tmpSLICE="${DISK}s1"  
-            else
+            if [ "$PSCHEME" = "GPT" -o -z "$PSCHEME" ] ; then
+              PSCHEME="GPT"
               tmpSLICE="${DISK}p1"  
+            else
+              tmpSLICE="${DISK}s1"  
             fi
 
 	    if [ `uname -m` = "powerpc" -o `uname -m` = "powerpc64" ]
@@ -523,16 +528,29 @@ setup_disk_slice()
             run_gpart_slice "${DISK}" "${BMANAGER}" "${s}"
             ;;
 
-          p1|p2|p3|p4|p5|p6|p7|p8|p9|p10|p11|p12|p13|p14|p15|p16|p17|p18|p19|p20)
+          p1|p2|p3|p4|p5|p6|p7|p8|p9|p10|p11|p12|p13|p14|p15|p16|p17|p18|p19|p20|p21|p22|p23|p24|p25|p26|p27)
             tmpSLICE="${DISK}${PTYPE}" 
             # Get the number of the gpt partition we are working on
-            s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`" 
+            s="`echo ${PTYPE} | cut -c 2-3`"
             run_gpart_gpt_part "${DISK}" "${BMANAGER}" "${s}"
             ;;
 
           free)
-            tmpSLICE="${DISK}s${LASTSLICE}"
+	    # We can't take for granted what
+	    # the next partition number is. It could be
+	    # something in-between other partitions
+	    LASTSLICE=$(get_next_part "$DISK")
             run_gpart_free "${DISK}" "${LASTSLICE}" "${BMANAGER}"
+            gpart show ${DISK} | head -n 1 | grep -q MBR
+            if [ $? -eq 0 ] ; then
+              tmpSLICE="${DISK}s${LASTSLICE}"
+	    else
+	      if [ $LASTSLICE -eq 1 ] ; then
+                tmpSLICE="${DISK}p2"
+              else
+                tmpSLICE="${DISK}p${LASTSLICE}"
+              fi
+            fi
             ;;
 
           image)
@@ -614,17 +632,12 @@ stop_gjournal()
 } ;
 
 
-# Function to wipe the potential metadata from a disk
-wipe_metadata()
+# Function to wipe the potential backup gpt table from a disk
+clear_backup_gpt_table()
 {
-  echo_log "Wiping possible metadata on ${1}"
-  local SIZE="`diskinfo ${1} | awk '{print int($3/(1024*1024)) }'`"
-  if [ "$SIZE" -gt "5" ]  ; then
-    rc_halt "dd if=/dev/zero of=${1} bs=1m count=1"
-    rc_nohalt "dd if=/dev/zero of=${1} bs=1m oseek=$((SIZE-4))"
-  else
-    rc_nohalt "dd if=/dev/zero of=${1} bs=128k"
-  fi
+  echo_log "Clearing gpt backup table location on disk"
+  rc_nohalt "dd if=/dev/zero of=${1} bs=1m count=1"
+  rc_nohalt "dd if=/dev/zero of=${1} bs=1m oseek=`diskinfo ${1} | awk '{print int($3 / (1024*1024)) - 4;}'`"
 } ;
 
 # Function which runs gpart and creates a single large APM partition scheme
@@ -634,6 +647,7 @@ init_apm_full_disk()
  
   # Set our sysctl so we can overwrite any geom using drives
   sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
+  sysctl kern.geom.label.disk_ident.enable=0 >>${LOGOUT} 2>>${LOGOUT}
 
   # Stop any journaling
   stop_gjournal "${_intDISK}"
@@ -656,9 +670,11 @@ init_apm_full_disk()
 init_gpt_full_disk()
 {
   _intDISK=$1
+  _intBOOT=$2
  
   # Set our sysctl so we can overwrite any geom using drives
   sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
+  sysctl kern.geom.label.disk_ident.enable=0 >>${LOGOUT} 2>>${LOGOUT}
 
   # Stop any journaling
   stop_gjournal "${_intDISK}"
@@ -669,11 +685,33 @@ init_gpt_full_disk()
   sleep 2
 
   echo_log "Running gpart on ${_intDISK}"
-  rc_halt "gpart create -s GPT ${_intDISK}"
-  rc_halt "gpart add -b 34 -s 128 -t freebsd-boot ${_intDISK}"
-  
-  echo_log "Stamping boot sector on ${_intDISK}"
-  rc_halt "gpart bootcode -b /boot/pmbr ${_intDISK}"
+  rc_halt "gpart create -s GPT -f active ${_intDISK}"
+
+  if [ "${_intBOOT}" = "GRUB" ] ; then
+    touch ${TMPDIR}/.grub-full-gpt
+    echo "${_intDISK}" >> ${TMPDIR}/.grub-install
+  fi
+
+  # Check the boot mode we are using {pc|efi}
+  if [ "$BOOTMODE" = "UEFI" ]; then
+    # Need to enable EFI booting, lets add the partition
+    rc_halt "gpart add -a 4k -s 100M -t efi ${_intDISK}"
+    rc_halt "newfs_msdos -F 16 ${_intDISK}p1"
+    if [ -z "${EFI_POST_SETUP}" ] ; then
+      EFI_POST_SETUP="${_intDISK}"
+    else
+      EFI_POST_SETUP="${EFI_POST_SETUP} ${_intDISK}"
+    fi
+  else
+    if [ "${_intBOOT}" = "GRUB" ] ; then
+      # Doing bios-boot partition
+      rc_halt "gpart add -s 1M -t bios-boot ${_intDISK}"
+    else
+      rc_halt "gpart add -s 512 -t freebsd-boot ${_intDISK}"
+      echo_log "Stamping boot sector on ${_intDISK}"
+      rc_halt "gpart bootcode -b /boot/pmbr ${_intDISK}"
+    fi
+  fi
 
 }
 
@@ -683,10 +721,9 @@ init_mbr_full_disk()
   _intDISK=$1
   _intBOOT=$2
  
-  startblock="2016"
-
   # Set our sysctl so we can overwrite any geom using drives
   sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
+  sysctl kern.geom.label.disk_ident.enable=0 >>${LOGOUT} 2>>${LOGOUT}
 
   # Stop any journaling
   stop_gjournal "${_intDISK}"
@@ -701,17 +738,23 @@ init_mbr_full_disk()
 
   # Install new partition setup
   echo_log "Running gpart add on ${_intDISK}"
-  rc_halt "gpart add -a 4k -t freebsd -i 1 ${_intDISK}"
+  if [ "${INSTALLTYPE}" = "GhostBSD" ] ; then 
+    rc_halt "gpart add -a 4k -t freebsd -i 1 ${_intDISK}"
+  else
+    rc_halt "gpart add -b 2048 -a 4k -t freebsd -i 1 ${_intDISK}"
+  fi
   sleep 2
-  
-  wipe_metadata "${_intDISK}s1"
   
   # Make the partition active
   rc_halt "gpart set -a active -i 1 ${_intDISK}"
 
-  if [ "$_intBOOT" = "bsd" ] ; then
+  if [ "$_intBOOT" = "BSD" ] ; then
     echo_log "Stamping boot0 on ${_intDISK}"
     rc_halt "gpart bootcode -b /boot/boot0 ${_intDISK}"
+  elif [ "$_intBOOT" = "GRUB" ] ; then
+    # Doing a GRUB stamp? Lets save it for post-install
+    touch ${TMPDIR}/.grub-full-mbr
+    echo "${_intDISK}" >> ${TMPDIR}/.grub-install
   else
     echo_log "Stamping boot1 on ${_intDISK}"
     rc_halt "gpart bootcode -b /boot/boot1 ${_intDISK}"
@@ -733,7 +776,7 @@ run_gpart_full()
     init_mbr_full_disk "$DISK" "$BOOT"
     slice=`echo "${DISK}:1:mbr" | sed 's|/|-|g'`
   else
-    init_gpt_full_disk "$DISK"
+    init_gpt_full_disk "$DISK" "$BOOT"
     slice=`echo "${DISK}:1:gpt" | sed 's|/|-|g'`
   fi
 
@@ -752,46 +795,55 @@ run_gpart_full()
 run_gpart_gpt_part()
 {
   DISK=$1
+  _intBOOT=$2
 
   # Set the slice we will use later
   slice="${1}p${3}"
  
   # Set our sysctl so we can overwrite any geom using drives
   sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
+  sysctl kern.geom.label.disk_ident.enable=0 >>${LOGOUT} 2>>${LOGOUT}
 
-  # Get the number of the slice we are working on
+  # Get the number of the partition we are working on
   slicenum="$3"
 
   # Stop any journaling
   stop_gjournal "${slice}"
 
-  # Make sure we have disabled swap on this drive
-  if [ -e "${slice}b" ]
-  then
-   swapoff ${slice}b >/dev/null 2>/dev/null
-   swapoff ${slice}b.eli >/dev/null 2>/dev/null
+  # Save this disk to be used for EFI later
+  if [ "$BOOTMODE" = "UEFI" ]; then
+    if [ -z "${EFI_POST_SETUP}" ] ; then
+      EFI_POST_SETUP="${DISK}"
+    else
+      EFI_POST_SETUP="${EFI_POST_SETUP} ${DISK}"
+    fi
   fi
 
-  # Modify partition type
-  echo_log "Running gpart modify on ${DISK}"
-  rc_halt "gpart modify -t freebsd -i ${slicenum} ${DISK}"
-  sleep 2
+  # We only install boot-loader if using GRUB for dual-boot GPT
+  if [ "${_intBOOT}" = "GRUB" ] ; then
+    # Doing a GRUB stamp? Lets save it for post-install
+    grep -q "$DISK" ${TMPDIR}/.grub-install 2>/dev/null
+    if [ $? -ne 0 ] ; then
+      echo "${DISK}" >> ${TMPDIR}/.grub-install
+    fi
+  else
+    if [ "$BOOTMODE" ! = "UEFI" ] ; then
+      # Setting boot for GhostBSD utile grub support is part of the Project.
+      rc_halt "gpart bootcode -b /boot/pmbr ${DISK}"
+    fi
+  fi
 
-  wipe_metadata "${slice}"
+  # Adding slice information
+  if [ "${INSTALLTYPE}" = "GhostBSD" ]
+  then
+    # No slice modification for GhostBSD
+    slice=`echo "${1}:${3}:gpt" | sed 's|/|-|g'`
+  else
+    # Add the slice with the :mod tag, so we know we are modifying only
+    slice=`echo "${1}:${3}:gpt:mod" | sed 's|/|-|g'`
+  fi
 
-  sleep 4
-
-  # Init the MBR partition
-  rc_halt "gpart create -s BSD ${DISK}p${slicenum}"
-
-  # Stamp the bootloader
-  sleep 4
-  rc_halt "gpart bootcode -b /boot/boot ${DISK}p${slicenum}"
-
-  # Set the slice to the format we'll be using for gpart later
-  slice=`echo "${1}:${3}:gptslice" | sed 's|/|-|g'`
-
-  # Lets save our slice, so we know what to look for in the config file later on
+  # Let's save the slices
   if [ -z "$WORKINGSLICES" ]
   then
     WORKINGSLICES="${slice}"
@@ -816,6 +868,7 @@ run_gpart_slice()
  
   # Set our sysctl so we can overwrite any geom using drives
   sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
+  sysctl kern.geom.label.disk_ident.enable=0 >>${LOGOUT} 2>>${LOGOUT}
 
   # Get the number of the slice we are working on
   slicenum="$3"
@@ -835,14 +888,17 @@ run_gpart_slice()
   rc_halt "gpart modify -t freebsd -i ${slicenum} ${DISK}"
   sleep 2
 
-  wipe_metadata "${slice}"
-
   sleep 1
 
-  if [ "${BMANAGER}" = "bsd" ]
-  then
+  if [ "${BMANAGER}" = "BSD" ]; then
     echo_log "Stamping boot sector on ${DISK}"
     rc_halt "gpart bootcode -b /boot/boot0 ${DISK}"
+  elif [ "${BMANAGER}" = "GRUB" ] ; then
+    # Doing a GRUB stamp? Lets save it for post-install
+    echo "${DISK}" >> ${TMPDIR}/.grub-install
+  elif [ "${BMANAGER}" = "GRUB-slice" ] ; then
+    # Lets stamp GRUB on the slice, let the user worry about how to chain-load it
+    echo "${slice}" >> ${TMPDIR}/.grub-install
   fi
 
   # Set the slice to the format we'll be using for gpart later
@@ -864,47 +920,79 @@ run_gpart_free()
 {
   DISK=$1
   SLICENUM=$2
-  if [ -n "$3" ]
-  then
+  if [ -n "$3" ]; then
     BMANAGER="$3"
   fi
 
   # Set our sysctl so we can overwrite any geom using drives
   sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
+  sysctl kern.geom.label.disk_ident.enable=0 >>${LOGOUT} 2>>${LOGOUT}
 
-  slice="${DISK}s${SLICENUM}"
-  slicenum="${SLICENUM}" 
-
-  # Working on the first slice, make sure we have MBR setup
+  # Working on the first slice, make sure we have a partition scheme setup
   gpart show ${DISK} >/dev/null 2>/dev/null
   if [ $? -ne 0 -a "$SLICENUM" = "1" ] ; then
-    echo_log "Initializing disk, no existing MBR setup"
-    rc_halt "gpart create -s mbr ${DISK}"
+    echo_log "Initializing disk, no existing partition scheme"
+    rc_halt "gpart create -s gpt ${DISK}"
   fi
 
-  # Install new partition setup
-  echo_log "Running gpart on ${DISK}"
-  rc_halt "gpart add -a 4k -t freebsd -i ${slicenum} ${DISK}"
-  sleep 2
+  gpart show ${DISK} | head -n 1 | grep -q MBR
+  if [ $? -eq 0 ] ; then
+    tag="freembr"
+    slice="${DISK}s${SLICENUM}"
+  else
+    tag="freegpt"
+    slice="${DISK}p${SLICENUM}"
+  fi
 
-  wipe_metadata "${slice}"
+  # Check if on MBR and have >4 slices
+  if [ "$tag" = "freembr" -a $SLICENUM -gt 4 ]; then
+    exit_err "ERROR: BSD only supports 4 MBR primary partitions, and there are none available on $DISK"
+  fi
 
-  sleep 1
+  if [ "$tag" = "freegpt" -a "$SLICENUM" -eq 1 ] ; then
+    if [ "$BOOTMODE" != "UEFI" ]; then
+      # Doing bios-boot partition
+      rc_halt "gpart add -s 1M -t bios-boot ${DISK}"
+    fi
+    SLICENUM="2"
+  fi
 
-  if [ "${BMANAGER}" = "bsd" ]
-  then
+  # Save this disk to be used for EFI later
+  if [ "$BOOTMODE" = "UEFI" ]; then
+    if [ -z "${EFI_POST_SETUP}" ] ; then
+      EFI_POST_SETUP="${DISK}"
+    else
+      EFI_POST_SETUP="${EFI_POST_SETUP} ${DISK}"
+    fi
+  fi
+
+  if [ "${BMANAGER}" = "BSD" -a "$BOOTMODE" != "UEFI" ]; then
     echo_log "Stamping boot sector on ${DISK}"
     rc_halt "gpart bootcode -b /boot/boot0 ${DISK}"
+  elif [ "${BMANAGER}" = "GRUB" ] ; then
+    # Doing a GRUB stamp? Lets save it for post-install
+    echo "${DISK}" >> ${TMPDIR}/.grub-install
   fi
 
-  slice=`echo "${DISK}:${SLICENUM}:mbr" | sed 's|/|-|g'`
+  slice=`echo "${DISK}:${SLICENUM}:${tag}" | sed 's|/|-|g'`
   # Lets save our slice, so we know what to look for in the config file later on
-  if [ -z "$WORKINGSLICES" ]
-  then
+  if [ -z "$WORKINGSLICES" ]; then
     WORKINGSLICES="${slice}"
     export WORKINGSLICES
   else
     WORKINGSLICES="${WORKINGSLICES} ${slice}"
     export WORKINGSLICES
   fi
+};
+
+get_next_part()
+{
+  local nextnum="1"
+  while :
+  do
+    gpart show $1 | grep -v "GPT" | grep -v "MBR" | awk '{print $2 " " $3 " " $4}'| grep -q " ${nextnum} "
+    if [ $? -ne 0 ] ; then break; fi
+    nextnum=$(expr $nextnum + 1)
+  done
+  echo $nextnum
 };

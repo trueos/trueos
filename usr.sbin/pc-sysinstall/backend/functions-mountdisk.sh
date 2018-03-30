@@ -84,7 +84,7 @@ mount_partition()
 
       if [ "${ZMNT}" = "/" ] ; then
 	# If creating ZFS / dataset, give it name that beadm works with
-        ZNAME="/ROOT/default"
+        ZNAME="/ROOT/${BENAME}"
         ZMKMNT=""
         echo_log "zfs create $zcopt -p ${ZPOOLNAME}/ROOT"
         rc_halt "zfs create $zcopt -p ${ZPOOLNAME}/ROOT"
@@ -93,6 +93,40 @@ mount_partition()
       else
         ZNAME="${ZMNT}"
         ZMKMNT="${ZMNT}"
+
+	# Lets check if we are missing any parent dataset
+	chkDir=`dirname $ZMNT`
+	mkParents=""
+	while
+	z=0
+	do
+		# Are we at the base dataset?
+		if [ "$chkDir" = "/" ]; then break ; fi
+
+		# Do we have this dataset?
+		zfs list | grep -q "^${ZPOOLNAME}${chkDir} "
+		if [ $? -eq 0 ]; then break ; fi
+
+		# Save this dataset to create
+		mkParents="$chkDir $mkParents"
+		
+		# Get the next dir to check
+		chkDir=`dirname $chkDir`
+	done
+
+	# Any ZFS parent datasets to create?
+	if [ -n "$mkParents" ] ; then
+		for p in $mkParents
+		do
+			# Since the user didn't explictly specify this dataset
+			# we assume they don't really want it mounted
+        		echo_log "zfs create -o canmount=off -p ${ZPOOLNAME}${p}"
+        		rc_halt "zfs create -o canmount=off -p ${ZPOOLNAME}${p}"
+        		rc_halt "zfs set mountpoint=none ${ZPOOLNAME}${p}"
+		done
+	fi
+
+	# Create the target ZFS dataset now
         echo_log "zfs create $zcopt -p ${ZPOOLNAME}${ZNAME}"
         rc_halt "zfs create $zcopt -p ${ZPOOLNAME}${ZNAME}"
       fi
@@ -103,8 +137,8 @@ mount_partition()
 
       # Do we need to make this / zfs dataset bootable?
       if [ "$ZMNT" = "/" ] ; then
-        echo_log "Stamping ${ZPOOLNAME}/ROOT/default as bootfs"
-        rc_halt "zpool set bootfs=${ZPOOLNAME}/ROOT/default ${ZPOOLNAME}"
+        echo_log "Stamping ${ZPOOLNAME}/ROOT/${BENAME} as bootfs"
+        rc_halt "zpool set bootfs=${ZPOOLNAME}/ROOT/${BENAME} ${ZPOOLNAME}"
       fi
 
       # Do we need to make this /boot zfs dataset bootable?
@@ -214,20 +248,7 @@ mount_all_filesystems()
          UFS+SUJ) mount_partition ${PARTDEV}${EXT} ${PARTFS} ${PARTMNT} "noatime" ;;
          UFS+J) mount_partition ${PARTDEV}${EXT}.journal ${PARTFS} ${PARTMNT} "async,noatime" ;;
          ZFS) mount_partition ${PARTDEV} ${PARTFS} ${PARTMNT} ;;
-         SWAP)
-		   # Lets enable this swap now
-           if [ "$PARTENC" = "ON" ]
-           then
-             echo_log "Enabling encrypted swap on ${PARTDEV}"
-             rc_halt "geli onetime -d -e 3des ${PARTDEV}"
-             sleep 5
-             rc_halt "swapon ${PARTDEV}.eli"
-           else
-             echo_log "swapon ${PARTDEV}"
-             sleep 5
-             rc_halt "swapon ${PARTDEV}"
-            fi
-            ;;
+         SWAP) ;;
          IMAGE)
            if [ ! -d "${PARTMNT}" ]
            then

@@ -2,7 +2,7 @@
 #-
 # SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 #
-# Copyright (c) 2010 iXsystems, Inc.  All rights reserved.
+# Copyright (c) 2014 iXsystems, Inc.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -29,6 +29,18 @@
 
 # Functions related to disk operations using newfs
 
+# Features to enable on freshly created ZPOOLS
+DEFAULT_ZPOOLFLAGS="async_destroy empty_bpobj filesystem_limits lz4_compress multi_vdev_crash_dump spacemap_histogram extensible_dataset bookmarks enabled_txg"
+
+get_zpool_flags()
+{
+  ZPOOLFLAGS="-d"
+  for i in $DEFAULT_ZPOOLFLAGS
+  do
+    ZPOOLFLAGS="$ZPOOLFLAGS -o feature@$i=enabled"
+  done
+}
+
 
 # Function which performs the ZFS magic
 setup_zfs_filesystem()
@@ -41,6 +53,7 @@ setup_zfs_filesystem()
   ZPOOLOPTS="$6"
   ROOTSLICE="`echo ${PART} | rev | cut -b 2- | rev`"
   ZPOOLNAME=$(get_zpool_name "${PART}")
+  export ZPOOLNAME
 
   # Sleep a few moments, let the disk catch its breath
   sleep 5
@@ -49,68 +62,39 @@ setup_zfs_filesystem()
   # Check if we have multiple zfs mounts specified
   for i in `echo ${PARTMNT} | sed 's|,| |g'`
   do
+    # Strip off any ZFS options
+    i=`echo $i | cut -d '(' -f 1`
+
     # Check if we ended up with needing a zfs bootable partition
     if [ "${i}" = "/" -o "${i}" = "/boot" ]
     then
       if [ "$HAVEBOOT" = "YES" ] ; then continue ; fi
       if [ "${PARTGEOM}" = "MBR" ] ; then
         # Lets stamp the proper ZFS boot loader
-        echo_log "Setting up ZFS boot loader support" 
+        echo_log "Setting up ZFS boot loader support"
         rc_halt "dd if=/boot/zfsboot of=${ROOTSLICE} count=1"
         rc_halt "dd if=/boot/zfsboot of=${PART}${EXT} skip=1 seek=1024"
       fi
     fi
-  done 
+  done
 
-  # Check if we have some custom zpool arguments and use them if so
-  if [ ! -z "${ZPOOLOPTS}" ] ; then
-    # Sort through devices and run gnop on them
-    local gnopDev=""
-    local newOpts=""
-    for i in $ZPOOLOPTS
-    do
-       echo "$i" | grep -q '/dev/'
-       if [ $? -eq 0 ] ; then
-          rc_halt "gnop create -S 4096 ${i}"
-          gnopDev="$gnopDev $i"
-          newOpts="$newOpts ${i}.nop"
-       else
-          newOpts="$newOpts $i"
-       fi
-    done
-    
-    echo_log "Creating zpool ${ZPOOLNAME} with $newOpts"
-    rc_halt "zpool create -m none -f ${ZPOOLNAME} ${newOpts}"
+  # Get the default zpool flags
+  get_zpool_flags
 
-    # Export the pool
-    rc_halt "zpool export ${ZPOOLNAME}"
-
-    # Destroy the gnop devices
-    for i in $gnopDev
-    do
-       rc_halt "gnop destroy ${i}.nop"
-    done
-
-    # And lastly re-import the pool
-    rc_halt "zpool import ${ZPOOLNAME}"
-  else
-    # Lets do our pseudo-4k drive
-    rc_halt "gnop create -S 4096 ${PART}${EXT}"
-
-    # No zpool options, create pool on single device
-    echo_log "Creating zpool ${ZPOOLNAME} on ${PART}${EXT}"
-    rc_halt "zpool create -m none -f ${ZPOOLNAME} ${PART}${EXT}.nop"
-
-    # Finish up the gnop 4k trickery
-    rc_halt "zpool export ${ZPOOLNAME}"
-    rc_halt "gnop destroy ${PART}${EXT}.nop"
-    rc_halt "zpool import ${ZPOOLNAME}"
+  if [ -n "${ZFSFORCE4K}" ] ; then
+    # Set minimum ashift to 4K mode
+    sysctl vfs.zfs.min_auto_ashift=12
   fi
 
-  # Disable atime for this zfs partition, speed increase
-  rc_nohalt "zfs set atime=off ${ZPOOLNAME}"
-
-
+  if [ -n "${ZPOOLOPTS}" ] ; then
+    echo_log "Creating storage pool ${ZPOOLNAME} with $ZPOOLOPTS"
+    rc_halt "zpool create -m none -f ${ZPOOLNAME} ${ZPOOLOPTS}"
+  else
+    # No zpool options, create pool on single device
+    echo_log "Creating storage pool ${ZPOOLNAME} on ${PART}${EXT}"
+    rc_halt "zpool create -m none -f ${ZPOOLNAME} ${PART}${EXT}"
+  fi
+  return 0
 
 };
 
@@ -137,7 +121,7 @@ setup_filesystems()
 
     if [ ! -e "${PARTDEV}" ] ; then
       exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
-    fi 
+    fi
 
     # Make sure journaling isn't enabled on this device
     if [ -e "${PARTDEV}.journal" ]
@@ -153,13 +137,13 @@ setup_filesystems()
 
       if [ -e "${PARTDIR}-enc/${PART}-encpass" ] ; then
 	# Using a passphrase
-        rc_halt "dd if=/dev/random of=${GELIKEYDIR}/${PART}.key bs=64 count=1"
-        rc_halt "geli init -J ${PARTDIR}-enc/${PART}-encpass ${PARTDEV}"
+        rc_halt "geli init -g -b -J ${PARTDIR}-enc/${PART}-encpass ${PARTDEV}"
         rc_halt "geli attach -j ${PARTDIR}-enc/${PART}-encpass ${PARTDEV}"
+	touch ${TMPDIR}/.grub-install-geli
       else
 	# No Encryption password, use key file
         rc_halt "dd if=/dev/random of=${GELIKEYDIR}/${PART}.key bs=64 count=1"
-        rc_halt "geli init -b -s 4096 -P -K ${GELIKEYDIR}/${PART}.key ${PARTDEV}"
+        rc_halt "geli init -g -b -s 4096 -P -K ${GELIKEYDIR}/${PART}.key ${PARTDEV}"
         rc_halt "geli attach -p -k ${GELIKEYDIR}/${PART}.key ${PARTDEV}"
 
       fi
@@ -168,6 +152,16 @@ setup_filesystems()
     else
       # No Encryption
       EXT=""
+    fi
+
+    # If we are doing mirrored ZFS disks
+    if [ -n "$GELI_CLONE_ZFS_DISKS" -a "$GELI_CLONE_ZFS_DEV" = "$PARTDEV" ] ; then
+       for gC in $GELI_CLONE_ZFS_DISKS
+       do
+         echo_log "Setting up GELI on mirrored disks: ${gC}"
+         rc_halt "geli init -g -b -J ${PARTDIR}-enc/${PART}-encpass ${gC}"
+         rc_halt "geli attach -j ${PARTDIR}-enc/${PART}-encpass ${gC}"
+       done
     fi
 
     case ${PARTFS} in
@@ -241,13 +235,19 @@ setup_filesystems()
         ;;
 
       ZFS)
-        echo_log "NEWFS: ${PARTDEV} - ${PARTFS}" 
+        echo_log "NEWFS: ${PARTDEV} - ${PARTFS}"
         setup_zfs_filesystem "${PARTDEV}" "${PARTFS}" "${PARTMNT}" "${EXT}" "${PARTGEOM}" "${PARTXTRAOPTS}"
         ;;
 
       SWAP)
         rc_halt "sync"
-        rc_halt "glabel label ${PARTLABEL} ${PARTDEV}${EXT}" 
+	if [ -n "$ZFS_SWAP_DEVS" ] ; then
+	  setup_gmirror_swap "$ZFS_SWAP_DEVS"
+	  sleep 5
+          rc_halt "glabel label ${PARTLABEL} /dev/mirror/swapmirror"
+        else
+          rc_halt "glabel label ${PARTLABEL} ${PARTDEV}${EXT}"
+        fi
         rc_halt "sync"
         sleep 2
         ;;
@@ -255,10 +255,18 @@ setup_filesystems()
       IMAGE)
         write_image "${PARTIMAGE}" "${PARTDEV}"
         sleep 2
-        ;; 
+        ;;
 
       *) exit_err "ERROR: Got unknown file-system type $PARTFS" ;;
     esac
 
   done
 };
+
+
+# Takes a list of args to setup as a swapmirror
+setup_gmirror_swap()
+{
+  rc_nohalt "gmirror destroy swapmirror"
+  rc_halt "gmirror label swapmirror ${@}"
+}

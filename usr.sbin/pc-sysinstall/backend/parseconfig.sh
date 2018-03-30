@@ -35,6 +35,7 @@
 . ${BACKEND}/functions-bsdlabel.sh
 . ${BACKEND}/functions-cleanup.sh
 . ${BACKEND}/functions-disk.sh
+. ${BACKEND}/functions-ftp.sh
 . ${BACKEND}/functions-extractimage.sh
 . ${BACKEND}/functions-installcomponents.sh
 . ${BACKEND}/functions-installpackages.sh
@@ -45,10 +46,10 @@
 . ${BACKEND}/functions-packages.sh
 . ${BACKEND}/functions-parse.sh
 . ${BACKEND}/functions-runcommands.sh
-. ${BACKEND}/functions-ftp.sh
 . ${BACKEND}/functions-unmount.sh
 . ${BACKEND}/functions-upgrade.sh
 . ${BACKEND}/functions-users.sh
+. ${BACKEND}/functions-zfsrestore.sh
 
 # Check that the config file exists
 if [ ! -e "${1}" ]
@@ -64,22 +65,40 @@ CFGF="$1"
 CFGF="`realpath ${CFGF}`"
 export CFGF
 
+# Figure out if UEFI or BIOS
+BOOTMODE=`sysctl -n machdep.bootmethod`
+export BOOTMODE
+
+# Check if booted via GRUB and set BOOTMODE correctly (For GhostBSD and friends)
+if [ -n "`kenv grub.platform 2>/dev/null`" -a "`kenv grub.platform 2>/dev/null`" = "efi" ] ; then
+  BOOTMODE="UEFI"
+fi
+
 # Start by doing a sanity check, which will catch any obvious mistakes in the config
-file_sanity_check "installMode installType installMedium packageType"
 
 # We passed the Sanity check, lets grab some of the universal config settings and store them
-check_value installMode "fresh upgrade extract"
-check_value installType "PCBSD FreeBSD"
-check_value installMedium "dvd usb ftp rsync image local"
-check_value packageType "uzip tar rsync split dist"
-if_check_value_exists mirrorbal "load prefer round-robin split"
-
-# We passed all sanity checks! Yay, lets start the install
-echo "File Sanity Check -> OK"
+check_value installMode "fresh upgrade extract zfsrestore zfsrestoreiscsi"
 
 # Lets load the various universal settings now
 get_value_from_cfg installMode
 export INSTALLMODE="${VAL}"
+
+if [ "$INSTALLMODE" = "zfsrestore" ] ; then
+  file_sanity_check "sshHost sshPort sshUser zfsRemoteDataset"
+elif [ "$INSTALLMODE" = "zfsrestoreiscsi" ] ; then
+  file_sanity_check "iscsiFile iscsiPass"
+elif [ "$INSTALLMODE" = "upgrade" ] ; then
+  file_sanity_check "zpoolName"
+else
+  file_sanity_check "installMode installType installMedium packageType"
+  check_value installType "FreeBSD GhostBSD DesktopBSD TrueOS"
+  check_value installMedium "dvd usb ftp rsync image local"
+  check_value packageType "uzip tar rsync split dist zfs livecd pkg"
+  if_check_value_exists mirrorbal "load prefer round-robin split"
+fi
+
+# We passed all sanity checks! Yay, lets start the install
+echo "File Sanity Check -> OK"
 
 get_value_from_cfg installType
 export INSTALLTYPE="${VAL}"
@@ -90,11 +109,25 @@ export INSTALLMEDIUM="${VAL}"
 get_value_from_cfg packageType
 export PACKAGETYPE="${VAL}"
 
+# See if the user wants a custom zpool starting name
+get_value_from_cfg zpoolName
+if [ -n "$VAL" ] ; then
+  export ZPOOLCUSTOMNAME="${VAL}"
+fi
+
+# Check if we are going to force ZFS 4k sectors
+get_value_from_cfg zfsForce4k
+if [ -n "$VAL" ] ; then
+  export ZFSFORCE4K="${VAL}"
+fi
+
 # Check if we are doing any networking setup
 start_networking
 
 # If we are not doing an upgrade, lets go ahead and setup the disk
 case "${INSTALLMODE}" in
+       zfsrestore) restore_zfs ;;
+  zfsrestoreiscsi) restore_zfs_iscsi ;;
   fresh)
     if [ "${INSTALLMEDIUM}" = "image" ]
     then

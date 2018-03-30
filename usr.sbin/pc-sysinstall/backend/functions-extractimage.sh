@@ -31,12 +31,60 @@
 
 . ${BACKEND}/functions-mountoptical.sh
 
+# Do the package base installation
+start_extract_pkg()
+{
+  # Set the default ABI
+  ABI="FreeBSD:`uname -r | cut -d '.' -f 1`:`uname -m`"
+  export ABI
+
+  # Ugly hack to get distribution files on disk until pkg DTRT
+  if [ -e "${1}/packages/All/fbsd-distrib.txz" ] ; then
+    rc_nohalt "tar xvpf ${1}/packages/All/fbsd-distrib.txz -C ${FSMNT}"
+  fi
+
+  # Create some common mountpoints that pkgng doesn't do right now
+  for mpnt in dev compat mnt proc root var/run
+  do
+    if [ ! -d "${FSMNT}/${mpnt}" ] ; then
+      rc_halt "mkdir -p ${FSMNT}/${mpnt}"
+    fi
+  done
+
+  # Mount the packages into the chroot
+  rc_nohalt "mkdir -p ${FSMNT}/packages"
+  rc_halt "mount_nullfs ${1}/packages ${FSMNT}/packages"
+
+  # Do the package installation
+  for pkg in `ls ${FSMNT}/packages/All/FreeBSD-*`
+  do
+    inspkg=$(basename $pkg)
+    echo_log "pkg -c ${FSMNT} add /packages/All/$inspkg"
+    env ASSUME_ALWAYS_YES=YES pkg -c ${FSMNT} add -f /packages/All/$inspkg
+    if [ $? -ne 0 ] ; then
+      exit_err "Failed installing $inspkg!"
+    fi
+  done
+
+  # Don't allow any of the FreeBSD packages to be auto-removed
+  pkg -c ${FSMNT} set -y -A 00 -g FreeBSD-\*
+
+  # Workaround to issue in FreeBSD pkg base
+  rc_nohalt "chroot ${FSMNT} chown root:operator /sbin/shutdown"
+  rc_nohalt "chroot ${FSMNT} chmod 4554 /sbin/shutdown"
+
+  # Unmount packages
+  rc_halt "umount -f ${FSMNT}/packages"
+
+}
+
 # Performs the extraction of data to disk from FreeBSD dist files
 start_extract_dist()
 {
   if [ -z "$1" ] ; then exit_err "Called dist extraction with no directory set!"; fi
   if [ -z "$INSFILE" ]; then exit_err "Called extraction with no install file set!"; fi
   local DDIR="$1"
+
 
   # Check if we are doing an upgrade, and if so use our exclude list
   if [ "${INSTALLMODE}" = "upgrade" ]; then
@@ -45,19 +93,27 @@ start_extract_dist()
    TAROPTS=""
   fi
 
+  get_value_from_cfg installQuiet
+  if [ -z "$VAL" -o "$VAL" = "no" ] ; then
+     TAROPTS="${TAROPTS} -v"
+  fi
+
   # Loop though and extract dist files
   for di in $INSFILE
   do
       # Check the MANIFEST see if we have an archive size / count
-      if [ -e "${DDIR}/MANIFEST" ]; then 
+      if [ -e "${DDIR}/MANIFEST" ]; then
          count=`grep "^${di}.txz" ${DDIR}/MANIFEST | awk '{print $3}'`
 	 if [ ! -z "$count" ] ; then
             echo "INSTALLCOUNT: $count"
 	 fi
       fi
       echo_log "pc-sysinstall: Starting Extraction (${di})"
-      tar -xpv -C ${FSMNT} -f ${DDIR}/${di}.txz ${TAROPTS} >&1 2>&1
+      tar -xp -C ${FSMNT} ${TAROPTS} -f ${DDIR}/${di}.txz 2>&1 | tee -a ${FSMNT}/.tar-extract.log
       if [ $? -ne 0 ]; then
+        cd /
+        echo "TAR failure occurred:" >>${LOGOUT}
+        cat ${FSMNT}/.tar-extract.log | grep "tar:" >>${LOGOUT}
         exit_err "ERROR: Failed extracting the dist file: $di"
       fi
   done
@@ -90,15 +146,20 @@ start_extract_uzip_tar()
    TAROPTS=""
   fi
 
+  get_value_from_cfg installQuiet
+  if [ -z "$VAL" -o "$VAL" = "no" ] ; then
+    TAROPTS="${TAROPTS} -v"
+  fi
+
   echo_log "pc-sysinstall: Starting Extraction"
 
   case ${PACKAGETYPE} in
     uzip)
       if ! kldstat -v | grep -q "geom_uzip" ; then
-	exit_err "Kernel module geom_uzip not loaded"
+        exit_err "Kernel module geom_uzip not loaded"
       fi
 
-	  # Start by mounting the uzip image
+      # Start by mounting the uzip image
       MDDEVICE=`mdconfig -a -t vnode -o readonly -f ${INSFILE}`
       mkdir -p ${FSMNT}.uzip
       mount -r /dev/${MDDEVICE}.uzip ${FSMNT}.uzip
@@ -109,7 +170,7 @@ start_extract_uzip_tar()
       cd ${FSMNT}.uzip
 
       # Copy over all the files now!
-      tar cvf - . 2>/dev/null | tar -xpv -C ${FSMNT} ${TAROPTS} -f - 2>&1 | tee -a ${FSMNT}/.tar-extract.log
+      tar cvf - . 2>/dev/null | tar -xp -C ${FSMNT} ${TAROPTS} -f - 2>&1 | tee -a ${FSMNT}/.tar-extract.log
       if [ $? -ne 0 ]
       then
         cd /
@@ -124,12 +185,45 @@ start_extract_uzip_tar()
       cd /
       umount ${FSMNT}.uzip
       mdconfig -d -u ${MDDEVICE}
-       ;;
+      ;;
     tar)
       tar -xpv -C ${FSMNT} -f ${INSFILE} ${TAROPTS} >&1 2>&1
       if [ $? -ne 0 ]; then
         exit_err "ERROR: Failed extracting the tar image"
       fi
+      ;;
+    livecd)
+      # Code to extract livecd build from livebsd code
+      if ! kldstat -v | grep -q "geom_uzip" ; then
+        exit_err "Kernel module geom_uzip not loaded"
+      fi
+
+      # Start by mounting the uzip image
+      MDDEVICE=`mdconfig -a -t vnode -o readonly -f ${INSFILE}`
+      mkdir -p ${FSMNT}.uzip
+      mount -r /dev/${MDDEVICE}.uzip ${FSMNT}.uzip
+      if [ $? -ne 0 ]
+      then
+        exit_err "ERROR: Failed mounting the ${INSFILE}"
+      fi
+      cd ${FSMNT}.uzip
+
+      # Copy over all the files now!
+      tar cvf - . 2>/dev/null | tar -xp -C ${FSMNT} -f - 2>&1 | tee -a ${FSMNT}/.tar-extract.log
+      if [ $? -ne 0 ]
+      then
+        cd /
+        echo "TAR failure occurred:" >>${LOGOUT}
+        cat ${FSMNT}/.tar-extract.log | grep "tar:" >>${LOGOUT}
+        umount ${FSMNT}.uzip
+        mdconfig -d -u ${MDDEVICE}
+        exit_err "ERROR: Failed extracting the tar image"
+      fi
+
+      # All finished, now lets umount and cleanup
+      cd /
+      umount ${FSMNT}.uzip
+      mdconfig -d -u ${MDDEVICE}
       ;;
   esac
 
@@ -137,8 +231,8 @@ start_extract_uzip_tar()
   if [ "${INSTALLMEDIUM}" = "ftp" ]
   then
     echo_log "Cleaning up downloaded archive"
-    rm ${INSFILE} 
-    rm ${INSFILE}.count >/dev/null 2>/dev/null 
+    rm ${INSFILE}
+    rm ${INSFILE}.count >/dev/null 2>/dev/null
     rm ${INSFILE}.md5 >/dev/null 2>/dev/null
   fi
 
@@ -178,7 +272,7 @@ start_extract_split()
     fi
   done
   cd "${HERE}"
-  
+
   KERNELS=`ls -d ${INSDIR}/*|grep kernels`
   cd "${KERNELS}"
   if [ -f "install.sh" ]
@@ -220,11 +314,15 @@ fetch_dist_file()
   get_value_from_cfg ftpPath
   if [ -z "$VAL" ]
   then
-    exit_err "ERROR: Install medium was set to ftp, but no ftpPath was provided!" 
+    exit_err "ERROR: Install medium was set to ftp, but no ftpPath was provided!"
   fi
 
   FTPPATH="${VAL}"
-  
+  FBSDVER=`uname -r | cut -d "-" -f 1-2`
+  ARCH=`uname -m`
+  FTPPATH=`echo $FTPPATH | sed "s|%VERSION%|${FBSDVER}|g"`
+  FTPPATH=`echo $FTPPATH | sed "s|%ARCH%|${ARCH}|g"`
+
   # Check if we have a /usr partition to save the download
   if [ -d "${FSMNT}/usr" ]
   then
@@ -253,11 +351,11 @@ fetch_install_file()
   get_value_from_cfg ftpPath
   if [ -z "$VAL" ]
   then
-    exit_err "ERROR: Install medium was set to ftp, but no ftpPath was provided!" 
+    exit_err "ERROR: Install medium was set to ftp, but no ftpPath was provided!"
   fi
 
   FTPPATH="${VAL}"
-  
+
   # Check if we have a /usr partition to save the download
   if [ -d "${FSMNT}/usr" ]
   then
@@ -286,14 +384,14 @@ fetch_split_files()
   get_ftpHost
   if [ -z "$VAL" ]
   then
-    exit_err "ERROR: Install medium was set to ftp, but no ftpHost was provided!" 
+    exit_err "ERROR: Install medium was set to ftp, but no ftpHost was provided!"
   fi
   FTPHOST="${VAL}"
 
   get_ftpDir
   if [ -z "$VAL" ]
   then
-    exit_err "ERROR: Install medium was set to ftp, but no ftpDir was provided!" 
+    exit_err "ERROR: Install medium was set to ftp, but no ftpDir was provided!"
   fi
   FTPDIR="${VAL}"
 
@@ -305,7 +403,7 @@ fetch_split_files()
     OUTFILE="${FSMNT}/.fetch-${INSFILE}"
   fi
 
-  DIRS="base catpages dict doc info manpages proflibs kernels src"
+  DIRS="base catpages dict doc games info manpages proflibs kernels src"
   if [ "${FBSD_ARCH}" = "amd64" ]
   then
     DIRS="${DIRS} lib32"
@@ -399,7 +497,7 @@ start_rsync_copy()
     fi
 
     COUNT=$((COUNT+1))
-  done 
+  done
 
 };
 
@@ -460,16 +558,15 @@ init_extraction()
       case $PACKAGETYPE in
         uzip) INSFILE="${FBSD_UZIP_FILE}" ;;
         tar) INSFILE="${FBSD_TAR_FILE}" ;;
-        dist) 
-	  get_value_from_cfg_with_spaces distFiles
-	  if [ -z "$VAL" ] ; then
-	     exit_err "No dist files specified!"
-	  fi
-	  INSFILE="${VAL}" 
-  	  ;;
+        dist)
+          get_value_from_cfg_with_spaces distFiles
+          if [ -z "$VAL" ] ; then
+            exit_err "No dist files specified!"
+          fi
+          INSFILE="${VAL}"
+          ;;
         split)
           INSDIR="${FBSD_BRANCH_DIR}"
-
           # This is to trick opt_mount into not failing
           INSFILE="${INSDIR}"
           ;;
@@ -478,13 +575,14 @@ init_extraction()
       case $PACKAGETYPE in
         uzip) INSFILE="${UZIP_FILE}" ;;
         tar) INSFILE="${TAR_FILE}" ;;
-        dist) 
-	  get_value_from_cfg_with_spaces distFiles
-	  if [ -z "$VAL" ] ; then
-	     exit_err "No dist files specified!"
-	  fi
-	  INSFILE="${VAL}" 
-  	  ;;
+        livecd) INSFILE="${SYSTEM_UZIP_FILE}" ;;
+        dist)
+          get_value_from_cfg_with_spaces distFiles
+          if [ -z "$VAL" ] ; then
+            exit_err "No dist files specified!"
+          fi
+          INSFILE="${VAL}"
+          ;;
       esac
     fi
     export INSFILE
@@ -493,26 +591,26 @@ init_extraction()
   # Lets start by figuring out what medium we are using
   case ${INSTALLMEDIUM} in
     dvd|usb)
-      # Lets start by mounting the disk 
-      opt_mount 
+      # Lets start by mounting the disk
+      opt_mount
       if [ -n "${INSDIR}" ]
       then
         INSDIR="${CDMNT}/${INSDIR}" ; export INSDIR
-	    start_extract_split
+        start_extract_split
 
       else
-	if [ "$PACKAGETYPE" = "dist" ] ; then
+        if [ "$PACKAGETYPE" = "dist" ] ; then
           start_extract_dist "${CDMNT}/usr/freebsd-dist"
-	else
+        else
           INSFILE="${CDMNT}/${INSFILE}" ; export INSFILE
           start_extract_uzip_tar
-	fi
+        fi
       fi
       ;;
 
     ftp)
       case $PACKAGETYPE in
-	 split)
+    split)
            fetch_split_files
 
            INSDIR="${INSFILE}" ; export INSDIR
@@ -524,7 +622,7 @@ init_extraction()
 	   ;;
 	     *)
            fetch_install_file
-           start_extract_uzip_tar 
+           start_extract_uzip_tar
 	   ;;
        esac
       ;;
@@ -543,6 +641,8 @@ init_extraction()
       if [ "$PACKAGETYPE" = "dist" ] ; then
         INSFILE="${INSFILE}" ; export INSFILE
         start_extract_dist "$LOCALPATH"
+      elif [ "$PACKAGETYPE" = "pkg" ] ; then
+        start_extract_pkg "$LOCALPATH"
       else
         INSFILE="${LOCALPATH}/${INSFILE}" ; export INSFILE
         start_extract_uzip_tar

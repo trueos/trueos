@@ -1,8 +1,7 @@
 #!/bin/sh
 #-
-# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+# Copyright (c) 2016 iXsystems, Inc.  All rights reserved.
 #
-# Copyright (c) 2018 iXsystems, Inc.  All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
 # are met:
@@ -24,10 +23,9 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
 
-if devinfo | grep -q acpi_acad0; then
-  echo "laptop: YES"
-else
-  echo "laptop: NO"
-fi
+# Now loop through these devices, and list the disk drives
+for i in `zpool import | grep 'pool: ' | awk '{print $2}'`
+do
+  echo "$i"
+done

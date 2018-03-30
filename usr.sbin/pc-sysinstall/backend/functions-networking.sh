@@ -48,19 +48,6 @@ Type=Application" > ${FSMNT}/usr/share/skel/.kde4/Autostart/tray-${NIC}.desktop
 
 };
 
-# Function which checks is a nic is wifi or not
-check_is_wifi()
-{
-  NIC="$1"
-  ifconfig ${NIC} | grep -q "802.11" 2>/dev/null
-  if [ $? -eq 0 ]
-  then
-    return 0
-  else 
-    return 1
-  fi
-};
-
 # Function to get the first available wired nic, used for setup
 get_first_wired_nic()
 {
@@ -72,12 +59,8 @@ get_first_wired_nic()
     while read line
     do
       NIC="`echo $line | cut -d ':' -f 1`"
-      check_is_wifi ${NIC}
-      if [ $? -ne 0 ]
-      then
-        export VAL="${NIC}"
-        return
-      fi
+      export VAL="${NIC}"
+      return
     done < ${TMPDIR}/.niclist
   fi
 
@@ -89,44 +72,51 @@ get_first_wired_nic()
 # Function which simply enables plain dhcp on all detected nics
 enable_dhcp_all()
 {
+  local dFlags=""
+  case $1 in
+    IPv4) dFlags="DHCP" ;;
+    IPv6) dFlags="IPV6" ;;
+    ALL) dFlags="ALL" ;;
+      *) dFlags="DHCP" ;;
+  esac
+
   rm ${TMPDIR}/.niclist >/dev/null 2>/dev/null
   # start by getting a list of nics on this system
   ${QUERYDIR}/detect-nics.sh > ${TMPDIR}/.niclist
   if [ -e "${TMPDIR}/.niclist" ]
   then
     echo "# Auto-Enabled NICs from pc-sysinstall" >>${FSMNT}/etc/rc.conf
-    WLANCOUNT="0"
     while read line
     do
       NIC="`echo $line | cut -d ':' -f 1`"
       DESC="`echo $line | cut -d ':' -f 2`"
       echo_log "Setting $NIC to DHCP on the system."
-      check_is_wifi ${NIC}
-      if [ $? -eq 0 ]
-      then
-        # We have a wifi device, setup a wlan* entry for it
-        WLAN="wlan${WLANCOUNT}"
-	cat ${FSMNT}/etc/rc.conf | grep -q "wlans_${NIC}="
-	if [ $? -ne 0 ] ; then
-          echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
-	fi
-        echo "ifconfig_${WLAN}=\"DHCP\"" >>${FSMNT}/etc/rc.conf
-        CNIC="${WLAN}"
-        WLANCOUNT=$((WLANCOUNT+1))
-      else
-        echo "ifconfig_${NIC}=\"DHCP\"" >>${FSMNT}/etc/rc.conf
-        CNIC="${NIC}"
-      fi
- 
+      echo "ifconfig_${NIC}=\"${dFlags}\"" >>${FSMNT}/etc/rc.conf
+      CNIC="${NIC}"
     done < ${TMPDIR}/.niclist 
   fi
+
+  WLANCOUNT="0"
+  for wnic in `sysctl -b net.wlan.devices`
+  do
+    # We have a wifi device, setup a wlan* entry for it
+    WLAN="wlan${WLANCOUNT}"
+    echo_log "Creating parent $WLAN for $wnic"
+    cat ${FSMNT}/etc/rc.conf 2>/dev/null | grep -q "wlans_${wnic}="
+    if [ $? -ne 0 ] ; then
+      echo "wlans_${wnic}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
+    fi
+    echo "ifconfig_${WLAN}=\"WPA ${dFlags}\"" >>${FSMNT}/etc/rc.conf
+    CNIC="${WLAN}"
+    WLANCOUNT=$((WLANCOUNT+1))
+  done
 };
 
 
 # Function which detects available nics, and enables dhcp on them
 save_auto_dhcp()
 {
-  enable_dhcp_all
+  enable_dhcp_all "$1"
 };
 
 # Function which simply enables iPv6 SLAAC on all detected nics
@@ -144,29 +134,27 @@ enable_slaac_all()
       NIC="`echo $line | cut -d ':' -f 1`"
       DESC="`echo $line | cut -d ':' -f 2`"
       echo_log "Setting $NIC to accepting RAs on the system."
-      check_is_wifi ${NIC}
-      if [ $? -eq 0 ]
-      then
-        # We have a wifi device, setup a wlan* entry for it
-        # Given we cannot have DHCP and SLAAC the same time currently
-	# it's save to just duplicate.
-        WLAN="wlan${WLANCOUNT}"
-	cat ${FSMNT}/etc/rc.conf | grep -q "wlans_${NIC}="
-	if [ $? -ne 0 ] ; then
-          echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
-	fi
-	#echo "ifconfig_${NIC}=\"up\"" >>${FSMNT}/etc/rc.conf
-        echo "ifconfig_${WLAN}_ipv6=\"inet6 accept_rtadv\"" >>${FSMNT}/etc/rc.conf
-        CNIC="${WLAN}"
-        WLANCOUNT=$((WLANCOUNT+1))
-      else
-	#echo "ifconfig_${NIC}=\"up\"" >>${FSMNT}/etc/rc.conf
-        echo "ifconfig_${NIC}_ipv6=\"inet6 accept_rtadv\"" >>${FSMNT}/etc/rc.conf
-        CNIC="${NIC}"
-      fi
- 
+      echo "ifconfig_${NIC}_ipv6=\"inet6 accept_rtadv\"" >>${FSMNT}/etc/rc.conf
+      CNIC="${NIC}"
     done < ${TMPDIR}/.niclist 
   fi
+
+  WLANCOUNT="0"
+  for wnic in `sysctl -b net.wlan.devices`
+  do
+     # We have a wifi device, setup a wlan* entry for it
+     # Given we cannot have DHCP and SLAAC the same time currently
+     # it's save to just duplicate.
+     WLAN="wlan${WLANCOUNT}"
+     echo_log "Setting $WLAN to accepting RAs on the system."
+     cat ${FSMNT}/etc/rc.conf 2>/dev/null | grep -q "wlans_${wnic}="
+     if [ $? -ne 0 ] ; then
+       echo "wlans_${wnic}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
+     fi
+     echo "ifconfig_${WLAN}_ipv6=\"inet6 accept_rtadv\"" >>${FSMNT}/etc/rc.conf
+     CNIC="${WLAN}"
+     WLANCOUNT=$((WLANCOUNT+1))
+  done
 
   # Given we cannot yet rely on RAs to provide DNS information as much
   # as we can in the DHCP world, we should append a given nameserver.
@@ -389,9 +377,9 @@ enable_manual_nic()
     NETMASK="${VAL}"
     if [ -n "${NETMASK}" ]
     then
-      rc_halt "ifconfig inet ${NIC} netmask ${NETMASK}"
+      rc_halt "ifconfig ${NIC} inet ${NETIP} netmask ${NETMASK}"
     else
-      rc_halt "ifconfig inet ${NIC} ${NETIP}"
+      rc_halt "ifconfig ${NIC} inet ${NETIP}"
     fi
   fi
 
@@ -408,7 +396,7 @@ enable_manual_nic()
   # Set static IPv6 address
   get_value_from_cfg netIPv6
   NETIP="${VAL}"
-  if [ -n ${NETIP} ]
+  if [ -n "${NETIP}" ]
   then
       rc_halt "ifconfig inet6 ${NIC} ${NETIP} -ifdisabled up"
   fi
@@ -482,14 +470,13 @@ save_networking_install()
   NETDEVLIST="${VAL}"
   if [ "$NETDEVLIST" = "AUTO-DHCP" ]
   then
-    save_auto_dhcp
+    save_auto_dhcp "IPv4"
   elif [ "$NETDEVLIST" = "IPv6-SLAAC" ]
   then
-    save_auto_slaac
+    save_auto_dhcp "IPv6"
   elif [ "$NETDEVLIST" = "AUTO-DHCP-SLAAC" ]
   then
-    save_auto_dhcp
-    save_auto_slaac
+    save_auto_dhcp "ALL"
   else
     for NETDEV in ${NETDEVLIST}
     do

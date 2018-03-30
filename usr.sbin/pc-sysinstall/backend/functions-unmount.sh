@@ -36,7 +36,9 @@ umount_all_dir()
   _umntdirs=`mount | sort -r | grep "on $_udir" | cut -d ' ' -f 3`
   for _ud in $_umntdirs
   do
-    umount -f ${_ud} 
+    echo_log "Unmounting: ${_ud}"
+    sleep 2
+    umount -f ${_ud}
   done
 }
 
@@ -50,7 +52,7 @@ start_gmirror_sync()
     MIRRORDISK="`cat ${DISK} | cut -d ':' -f 1`"
     MIRRORBAL="`cat ${DISK} | cut -d ':' -f 2`"
     MIRRORNAME="`cat ${DISK} | cut -d ':' -f 3`"
-   
+
     # Start the mirroring service
     rc_nohalt "gmirror forget ${MIRRORNAME}"
     rc_halt "gmirror insert ${MIRRORNAME} ${MIRRORDISK}"
@@ -62,9 +64,13 @@ start_gmirror_sync()
 # Unmounts all our mounted file-systems
 unmount_all_filesystems()
 {
+  cd /
+
+  # Check if we have any boot setup to do
+  post_install_boot_setup
+
   # Copy the logfile to disk before we unmount
   cp ${LOGOUT} ${FSMNT}/root/pc-sysinstall.log
-  cd /
 
   # Start by unmounting any ZFS partitions
   zfs_cleanup_unmount
@@ -73,7 +79,7 @@ unmount_all_filesystems()
   ##################################################################
   for PART in `ls ${PARTDIR}`
   do
-    PARTDEV=`echo $PART | sed 's|-|/|g'`    
+    PARTDEV=`echo $PART | sed 's|-|/|g'`
     PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
     PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
     PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
@@ -88,12 +94,13 @@ unmount_all_filesystems()
 
     if [ "${PARTFS}" = "SWAP" ]
     then
-      rc_nohalt "swapoff ${PARTDEV}${EXT}"
+      rc_nohalt "swapoff ${PARTDEV}${EXT}" >/dev/null 2>/dev/null
     fi
 
     # Check if we've found "/", and unmount that last
     if [ "$PARTMNT" != "/" -a "${PARTMNT}" != "none" -a "${PARTFS}" != "ZFS" ]
     then
+      echo_log "Unmounting: ${PARTDEV}${EXT}"
       rc_halt "umount -f ${PARTDEV}${EXT}"
 
       # Re-check if we are missing a label for this device and create it again if so
@@ -105,7 +112,7 @@ unmount_all_filesystems()
           UFS+SUJ) glabel label ${PARTLABEL} ${PARTDEV}${EXT} ;;
           UFS+J) glabel label ${PARTLABEL} ${PARTDEV}${EXT}.journal ;;
           *) ;;
-        esac 
+        esac
       fi
     fi
 
@@ -120,19 +127,21 @@ unmount_all_filesystems()
           UFS+SUJ) ROOTRELABEL="glabel label ${PARTLABEL} ${PARTDEV}${EXT}" ;;
           UFS+J) ROOTRELABEL="glabel label ${PARTLABEL} ${PARTDEV}${EXT}.journal" ;;
           *) ;;
-        esac 
+        esac
       fi
     fi
   done
 
   # Last lets the /mnt partition
   #########################################################
+  echo_log "Unmounting: ${FSMNT}"
   rc_nohalt "umount -f ${FSMNT}"
 
    # If are using a ZFS on "/" set it to legacy
   if [ ! -z "${FOUNDZFSROOT}" ]
   then
     rc_halt "zfs set mountpoint=legacy ${FOUNDZFSROOT}"
+    rc_halt "zfs set mountpoint=/ ${FOUNDZFSROOT}/ROOT/${BENAME}"
   fi
 
   # If we need to relabel "/" do it now
@@ -141,8 +150,14 @@ unmount_all_filesystems()
     ${ROOTRELABEL}
   fi
 
-  # Unmount our CDMNT
-  rc_nohalt "umount -f ${CDMNT}" >/dev/null 2>/dev/null
+  # Check if we need to unmount a media
+  case $INSTALLMEDIUM in
+     dvd|usb) echo_log "Unmounting DVD/USB media: ${CDMNT}"
+              sleep 5
+              rc_nohalt "umount -f ${CDMNT}" >/dev/null 2>/dev/null
+              ;;
+           *) ;;
+  esac
 
   # Check if we need to run any gmirror syncing
   ls ${MIRRORCFGDIR}/* >/dev/null 2>/dev/null
@@ -159,54 +174,223 @@ unmount_all_filesystems_failure()
 {
   cd /
 
-  # if we did a fresh install, start unmounting
-  if [ "${INSTALLMODE}" = "fresh" ]
-  then
+  # Start by unmounting any ZFS partitions
+  zfs_cleanup_unmount
 
-    # Lets read our partition list, and unmount each
-    ##################################################################
-    if [ -d "${PARTDIR}" ]
+  # Lets read our partition list, and unmount each
+  ##################################################################
+  for PART in `ls ${PARTDIR}`
+  do
+    PARTDEV=`echo $PART | sed 's|-|/|g'`
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
+    PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
+    PARTLABEL="`cat ${PARTDIR}/${PART} | cut -d '#' -f 4`"
+
+    if [ "${PARTENC}" = "ON" ]
     then
-    for PART in `ls ${PARTDIR}`
-    do
-      PARTDEV=`echo $PART | sed 's|-|/|g'` 
-      PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
-      PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
-      PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
+      EXT=".eli"
+    else
+      EXT=""
+    fi
 
-      if [ "${PARTFS}" = "SWAP" ]
-      then
-        if [ "${PARTENC}" = "ON" ]
-        then
-          swapoff ${PARTDEV}.eli >/dev/null 2>/dev/null
-        else
-          swapoff ${PARTDEV} >/dev/null 2>/dev/null
-        fi
-      fi
+    if [ "${PARTFS}" = "SWAP" ]
+    then
+      rc_nohalt "swapoff ${PARTDEV}${EXT}" >/dev/null 2>/dev/null
+    fi
 
-      # Check if we've found "/" again, don't need to mount it twice
-      if [ "$PARTMNT" != "/" -a "${PARTMNT}" != "none" -a "${PARTFS}" != "ZFS" ]
-      then
-        umount -f ${PARTDEV} >/dev/null 2>/dev/null
-        umount -f ${FSMNT}${PARTMNT} >/dev/null 2>/dev/null
-      fi
-    done
+    # Check if we've found "/", and unmount that last
+    if [ "$PARTMNT" != "/" -a "${PARTMNT}" != "none" -a "${PARTFS}" != "ZFS" ]
+    then
+      echo_log "Unmounting: ${PARTDEV}${EXT}"
+      rc_halt "umount -f ${PARTDEV}${EXT}"
+    fi
+  done
 
-    # Last lets the /mnt partition
-    #########################################################
-    umount -f ${FSMNT} >/dev/null 2>/dev/null
+  # Last lets the /mnt partition
+  #########################################################
+  echo_log "Unmounting: ${FSMNT}"
+  rc_nohalt "umount -f ${FSMNT}"
 
-   fi
-  else
-    # We are doing a upgrade, try unmounting any of these filesystems
-    chroot ${FSMNT} /sbin/umount -a >/dev/null 2>/dev/null
-    umount -f ${FSMNT}/usr >/dev/null 2>/dev/null
-    umount -f ${FSMNT}/dev >/dev/null 2>/dev/null
-    umount -f ${FSMNT} >/dev/null 2>/dev/null 
-    sh ${TMPDIR}/.upgrade-unmount >/dev/null 2>/dev/null
-  fi
-   
-  # Unmount our CDMNT
-  umount ${CDMNT} >/dev/null 2>/dev/null
+  # Check if we need to unmount a media
+  case $INSTALLMEDIUM in
+     dvd|usb) echo_log "Unmounting DVD/USB media: ${CDMNT}"
+              sleep 5
+              rc_nohalt "umount -f ${CDMNT}" >/dev/null 2>/dev/null
+              ;;
+           *) ;;
+  esac
 
 };
+
+# Script which stamps grub on the specified disks
+setup_grub()
+{
+  # Check for a custom beadm.install to copy before we run grub
+  if [ -e "/root/beadm.install" ] ; then
+     rc_halt "cp /root/beadm.install ${FSMNT}/root/beadm.install"
+     rc_halt "chmod 755 ${FSMNT}/root/beadm.install"
+  fi
+
+  # Are we using GELI?
+  if [ -e "${TMPDIR}/.grub-install-geli" ] ; then
+     echo "GRUB_ENABLE_CRYPTODISK=y" >> ${FSMNT}/usr/local/etc/default/grub
+  fi
+
+  # Check the first disk, see if this is EFI or BIOS formatted
+  EFIMODE="FALSE"
+  FORMATEFI="FALSE"
+  BOOTMODE="pc"
+  while read gdisk
+  do
+     gpart show $gdisk | grep -q " efi "
+     if [ $? -eq 0 ] ; then
+       BOOTMODE="efi"
+     fi
+     break
+  done < ${TMPDIR}/.grub-install
+
+  # If on EFI mode, set some grub flags and see if we need to format the EFI partition
+  if [ "$BOOTMODE" = "efi" ]; then
+    GRUBFLAGS="$GRUBFLAGS --efi-directory=/boot/efi --removable --target=x86_64-efi"
+    EFIMODE="TRUE"
+    if [ -e "${TMPDIR}/.grub-full-gpt" -o -e "${TMPDIR}/.grub-full-mbr" ] ; then
+      FORMATEFI="TRUE"
+    fi
+  fi
+
+  # Read through our list and stamp grub for each device
+  while read line
+  do
+    # Make sure we have a /dev in front of the disk name
+    echo $line | grep -q '/dev/'
+    if [ $? -eq 0 ] ; then
+      gDisk="$line"
+    else
+      gDisk="/dev/$line"
+    fi
+
+    # Do any EFI creation
+    if [ "$EFIMODE" = "TRUE" ] ;then
+       # Installing to disk with existing EFI setup
+       efip=`gpart show $gDisk | grep ' efi ' | awk '{print $3}'`
+       EFIPART="${gDisk}p${efip}"
+
+       if [ -z "$DONEEFILABEL" ] ; then
+         # Label this sucker
+         rc_halt "glabel label efibsd ${EFIPART}"
+
+         # Save to systems fstab file
+         echo "/dev/label/efibsd	/boot/efi		msdosfs		rw	0	0" >> ${FSMNT}/etc/fstab
+	 DONEEFILABEL="YES"
+       fi
+
+       # Mount the partition
+       mkdir ${FSMNT}/boot/efi
+       rc_halt "mount -t msdosfs ${EFIPART} ${FSMNT}/boot/efi"
+    fi
+
+    # Stamp GRUB now
+    rc_halt "chroot ${FSMNT} grub-install $GRUBFLAGS --force $gDisk"
+
+    # Cleanup after EFI
+    if [ "$EFIMODE" = "TRUE" ] ;then
+       rc_halt "umount ${FSMNT}/boot/efi"
+    fi
+  done < ${TMPDIR}/.grub-install
+
+  # Make sure we re-create the default grub.cfg
+  # For some reason this returns non-0 on EFI, but works perfectly fine with no
+  # warnings / errors, need to investigate further
+  rc_nohalt "chroot ${FSMNT} grub-mkconfig -o /boot/grub/grub.cfg"
+
+  # Sleep and cleanup
+  if [ -e "${FSMNT}/root/beadm.install" ] ; then
+     rc_halt "rm ${FSMNT}/root/beadm.install"
+  fi
+};
+
+setup_efi_boot()
+{
+  # Read through our disk list and setup EFI loader on each
+  for disk in $EFI_POST_SETUP
+  do
+    # Make sure we have a /dev in front of the disk name
+    echo $disk | grep -q '/dev/'
+    if [ $? -eq 0 ] ; then
+      gDisk="$disk"
+    else
+      gDisk="/dev/$disk"
+    fi
+
+    # Installing to the EFI partition on disk
+    efip=`gpart show $gDisk | grep ' efi ' | awk '{print $3}'`
+    EFIPART="${gDisk}p${efip}"
+
+    # Mount the partition
+    rc_nohalt "mkdir ${FSMNT}/boot/efi"
+    rc_halt "mount -t msdosfs ${EFIPART} ${FSMNT}/boot/efi"
+
+    # Copy the .efi file
+    rc_nohalt "mkdir -p ${FSMNT}/boot/efi/efi/boot"
+
+    # Check if efiLoader is specified
+    get_value_from_cfg efiLoader
+    EFILOADER="${VAL}"
+    if [ -z "$EFILOADER" ] ; then EFILOADER="refind" ; fi
+
+    if [ -d '/root/refind' -a "$EFILOADER" = "refind" ] ; then
+      # We have refind on the install media, lets use that for dual-boot purposes
+      rc_halt "cp /root/refind/refind_x64.efi ${FSMNT}/boot/efi/efi/boot/BOOTx64.efi"
+      rc_halt "cp /root/refind/refind.conf ${FSMNT}/boot/efi/efi/boot/refind.conf"
+      rc_halt "cp -r /root/refind/icons ${FSMNT}/boot/efi/efi/boot/icons"
+      rc_halt "cp ${FSMNT}/boot/boot1.efi ${FSMNT}/boot/efi/efi/boot/bootx64-trueos.efi"
+    else
+      # BSD Loader only
+      rc_halt "cp ${FSMNT}/boot/boot1.efi ${FSMNT}/boot/efi/efi/boot/BOOTx64.efi"
+    fi
+
+    # Cleanup
+    rc_halt "umount ${FSMNT}/boot/efi"
+  done
+}
+
+post_install_boot_setup()
+{
+  # Mount devfs
+  rc_halt "mount -t devfs devfs ${FSMNT}/dev"
+
+  # Verify that we are installing ZFS
+  grep -Rq 'ZFS' ${PARTDIR}
+  if [ $? -eq 0 ] ; then
+    # Make sure to copy zpool.cache first
+    if [ ! -d "${FSMNT}/boot/zfs/" ] ; then
+     rc_halt "mkdir ${FSMNT}/boot/zfs"
+    fi
+
+    # Make sure that chach is created for ZFS.
+    if [ -e "/boot/zfs/zpool.cache" ] ; then
+      rc_halt "cp /boot/zfs/zpool.cache ${FSMNT}/boot/zfs/"
+    fi
+
+    if [ ! -e "${FSMNT}/boot/kernel/zfs" ] ; then
+      rc_halt "ln -s ../zfs ${FSMNT}/boot/kernel/zfs"
+    fi
+
+    # Copy the hostid so that our zfs cache works
+    rc_nohalt "cp /etc/hostid ${FSMNT}/etc/hostid"
+  fi
+
+  # Check if we need to setup GRUB
+  if [ -e "${TMPDIR}/.grub-install" ] ; then
+    setup_grub
+  else
+    # No GRUB, but do we have post-install EFI setup to do?
+    if [ -n "$EFI_POST_SETUP" ] ; then
+      setup_efi_boot
+    fi
+  fi
+
+  sleep 2
+  rc_halt "umount ${FSMNT}/dev"
+}

@@ -106,7 +106,8 @@ exit_err()
   echo "EXITERROR: ${1}" >>$LOGOUT
 
   # Check if we need to unmount any file-systems after this failure
-  unmount_all_filesystems_failure
+  echo "Cleaning up..."
+  unmount_all_filesystems_failure >/dev/null 2>/dev/null
 
   echo "For more details see log file: $LOGOUT"
 
@@ -123,6 +124,10 @@ rc_nohalt()
     exit_err "Error: missing argument in rc_nohalt()"
   fi
 
+  # Fixes some panics we saw
+  sync
+  sleep 0.01
+
   echo "Running: ${CMD}" >>${LOGOUT}
   ${CMD} >>${LOGOUT} 2>>${LOGOUT}
 
@@ -137,6 +142,10 @@ rc_halt()
   then
     exit_err "Error: missing argument in rc_halt()"
   fi
+
+  # Fixes some panics we saw
+  sync
+  sleep 0.01
 
   echo "Running: ${CMD}" >>${LOGOUT}
   eval ${CMD} >>${LOGOUT} 2>>${LOGOUT}
@@ -213,8 +222,13 @@ fetch_file()
   EXITFILE="${TMPDIR}/.fetchExit"
 
   rm ${FETCHOUTFILE} 2>/dev/null >/dev/null
+  FSIZE=$(`fetch -s "${FETCHFILE}"`)
+  is_num "$FSIZE"
+  if [ $? -eq 0 ] ; then
+    SIZE=$(expr $FSIZE / 1024 )
+  fi
 
-  SIZE=$(( `fetch -s "${FETCHFILE}"` / 1024 ))
+  echo "Downloading: `basename ${FETCHFILE}`"
   echo "FETCH: ${FETCHFILE}"
   echo "FETCH: ${FETCHOUTFILE}" >>${LOGOUT}
 
@@ -262,7 +276,11 @@ get_zpool_name()
   DEVICE="$1"
 
   # Set the base name we use for zpools
-  BASENAME="tank"
+  if [ -n "$ZPOOLCUSTOMNAME" ] ; then
+    BASENAME="$ZPOOLCUSTOMNAME"
+  else
+    BASENAME="tank"
+  fi
 
   if [ ! -d "${TMPDIR}/.zpools" ] ; then
     mkdir -p ${TMPDIR}/.zpools
@@ -278,12 +296,20 @@ get_zpool_name()
     # Is it used in another zpool?
     while :
     do
-      NEWNAME="${BASENAME}${NUM}"
+      # If on the 0 device, drop the 0 alltogether
+      if [ "$NUM" = "0" ] ; then
+        NEWNAME="${BASENAME}"
+      else
+        NEWNAME="${BASENAME}${NUM}"
+      fi
       zpool list | grep -qw "${NEWNAME}"
       local chk1=$?
-      zpool import | grep -qw "${NEWNAME}"
-      local chk2=$?
-      if [ $chk1 -eq 1 -a $chk2 -eq 1 ] ; then break ; fi 
+      if [ $chk1 -eq 1 ] ; then
+        # Check any exported pools also
+        zpool import | grep -qw "${NEWNAME}"
+        chk1=$?
+        if [ $chk1 -eq 1 ] ; then break; fi
+      fi
       NUM=$((NUM+1))
     done
 
@@ -439,18 +465,24 @@ install_fresh()
     # Lets mount the partitions now
     mount_all_filesystems
 
+    # Run any pre-extract commands
+    run_preextract_commands
+
     # We are ready to begin extraction, lets start now
-    init_extraction 
+    init_extraction
 
     # Check if we have any optional modules to load 
     install_components
+
+    # Run any pre-package commands
+    run_prepkg_commands
 
     # Check if we have any packages to install
     install_packages
 
     # Do any localization in configuration
     run_localize
-  
+
     # Save any networking config on the installed system
     save_networking_install
 
@@ -473,11 +505,17 @@ install_fresh()
 # Extract the system to a pre-mounted directory
 install_extractonly()
 {
+  # Run any pre-extract commands
+  run_preextract_commands
+
   # We are ready to begin extraction, lets start now
-  init_extraction 
+  init_extraction
 
   # Check if we have any optional modules to load 
   install_components
+
+  # Run any pre-package commands
+  run_prepkg_commands
 
   # Check if we have any packages to install
   install_packages
@@ -506,7 +544,7 @@ install_extractonly()
 install_image()
 {
   # We are ready to begin extraction, lets start now
-  init_extraction 
+  init_extraction
 
   echo_log "Installation finished!"
 };
@@ -514,29 +552,78 @@ install_image()
 install_upgrade()
 {
   # We're going to do an upgrade, skip all the disk setup 
-  # and start by mounting the target drive/slices
-  mount_upgrade
+  # and start by importing an existing zpool
+  mount_zpool_upgrade
   
-  # Start the extraction process
+  # Run any pre-extract commands
+  run_preextract_commands
+
+  # We are ready to begin extraction, lets start now
   init_extraction
-
-  # Do any localization in configuration
-  run_localize
-
-  # Now run any commands specified
-  run_commands
-  
-  # Merge any old configuration files
-  merge_old_configs
 
   # Check if we have any optional modules to load 
   install_components
 
+  # Run any pre-package commands
+  run_prepkg_commands
+
   # Check if we have any packages to install
   install_packages
+
+  # Do any localization in configuration
+  run_localize
+
+  # Save any networking config on the installed system
+  save_networking_install
+
+  # Now add any users
+  setup_users
+
+  # Do any last cleanup / setup before unmounting
+  run_final_cleanup
+
+  # Now run any commands specified
+  run_commands
 
   # All finished, unmount the file-systems
   unmount_upgrade
 
   echo_log "Upgrade finished!"
+};
+
+# We are restoring a ZFS replication
+restore_zfs()
+{
+  # Lets start setting up the disk slices now
+  setup_disk_slice
+
+  # Disk setup complete, now lets parse WORKINGSLICES and setup the bsdlabels
+  setup_disk_label
+
+  # Now we've setup the bsdlabels, lets go ahead and run newfs / zfs
+  # to setup the filesystems
+  setup_filesystems
+
+  # We are ready to begin the restore process
+  do_zfs_restore
+
+  echo_log "Installation finished!"
+};
+
+restore_zfs_iscsi()
+{
+  # Lets start setting up the disk slices now
+  setup_disk_slice
+
+  # Disk setup complete, now lets parse WORKINGSLICES and setup the bsdlabels
+  setup_disk_label
+
+  # Now we've setup the bsdlabels, lets go ahead and run newfs / zfs
+  # to setup the filesystems
+  setup_filesystems
+
+  # We are ready to begin the restore process
+  do_zfs_restore_iscsi
+
+  echo_log "Installation finished!"
 };

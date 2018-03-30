@@ -9,6 +9,7 @@
 # SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 #
 # Copyright 2010 iXsystems
+# Copyright 2013 iXsystems
 # All rights reserved
 #
 # Redistribution and use in source and binary forms, with or without
@@ -51,10 +52,6 @@ export COMPDIR
 CONFDIR="${PROGDIR}/conf"
 export CONFDIR
 
-# Set this to the packages location
-PKGDIR="${CONFDIR}"
-export PKGDIR
-
 # End of user-editable configuration
 #####################################################################
 
@@ -77,6 +74,10 @@ else
   echo "ERROR: Could not find ${PROGDIR}/conf/pc-sysinstall.conf"
   exit 1
 fi
+
+# PKG - I... HATE... YOU...
+IGNORE_OSVERSION="yes"
+export IGNORE_OSVERSION=yes
 
 # Now source our functions.sh 
 if [ -e "${PROGDIR}/backend/functions.sh" ]
@@ -126,16 +127,12 @@ case $1 in
   start-autoinstall) ${BACKEND}/startautoinstall.sh ${2}
   ;;
 
-  # The user is wanting to create a new partition
-  create-part) ${PARTMANAGERDIR}/create-part.sh "${2}" "${3}" "${4}" "${5}"
-  ;;
-
-  # The user is wanting to delete an existing partition
-  delete-part) ${PARTMANAGERDIR}/delete-part.sh "${2}"
-  ;;
-
   # The user is wanting to check if we are on a laptop or desktop
   detect-laptop) ${QUERYDIR}/detect-laptop.sh
+  ;;
+
+  # Get geo-location data for this system
+  detect-country) ${QUERYDIR}/detect-country.sh
   ;;
 
   # The user is wanting to see what nics are available on the system
@@ -174,10 +171,6 @@ case $1 in
   list-mirrors) ${QUERYDIR}/list-mirrors.sh "${2}"
   ;;
 
-  # Function which lists available packages
-  list-packages) ${QUERYDIR}/list-packages.sh "${2}" "${3}"
-  ;;
-
   # Function which lists available backups on a rsync/ssh server
   list-rsync-backups) ${QUERYDIR}/list-rsync-backups.sh "${2}" "${3}" "${4}"
   ;;
@@ -186,16 +179,16 @@ case $1 in
   list-tzones) ${QUERYDIR}/list-tzones.sh
   ;;
 
+  # Function which lists timezones available
+  list-zpools) ${QUERYDIR}/list-zpools.sh
+  ;;
+
   # Requested a list of languages this install will support
   query-langs) ${QUERYDIR}/query-langs.sh
   ;;
 
   # Function which creates a error report, and mails it to the specified address
   send-logs) ${QUERYDIR}/send-logs.sh ${2}
-  ;;
-
-  # Function to get package index
-  get-packages) ${QUERYDIR}/get-packages.sh "${2}"
   ;;
 
   # Function to set FTP mirror

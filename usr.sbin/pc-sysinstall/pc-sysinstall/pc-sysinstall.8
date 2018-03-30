@@ -93,12 +93,6 @@ Returns a list of keyboard layouts that xorg supports.
 Returns a list of keyboard models that xorg supports.
 .It xkeyboard-variants
 Returns a list of keyboard variants that xorg supports.
-.It create-part Ar disk Ar size
-Create a new MBR primary slice on the target disk using size MB.
-.It delete-part Ar partition
-Delete the disk partition specified.  If this is the last partition, the
-disk partition layout will also be scrubbed, leaving a clean disk ready
-for MBR or GPT file system layouts.
 .It start-autoinstall Ar file
 Start an automated installation with the specified file.  Normally only
 used by automated install scripts.
@@ -112,7 +106,7 @@ This version of
 first appeared in
 .Fx 9.0 .
 .Sh AUTHORS
-.An Kris Moore Aq Mt kmoore@FreeBSD.org
+.An Kris Moore Aq kmoore@FreeBSD.org
 .Sh BUGS
 This utility was written to install PC-BSD and has seen limited use as an
 installer for FreeBSD.  It's likely that usage to install FreeBSD will expose

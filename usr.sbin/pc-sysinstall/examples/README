@@ -12,7 +12,7 @@ installed system
 When hostname= is not present, pc-sysinstall will auto-generate
 a hostname such as freebsd-XXXX or pcbsd-XXXX
 
-# installMode=(fresh/upgrade/extract)
+# installMode=(fresh/upgrade/extract/zfsrestore)
 
 Set the type of install we are doing.
 
@@ -21,17 +21,21 @@ extracting the install images to the system. Using this mode
 it is also possible to do a system restore, by specifying a
 full system backup as the install source.
 
-Upgrades will mount the target disk, and extract the system
-archive to the disk, overwriting files on the disk. 
-The conf/exclude-from-upgrade file can be used to specify
-additional files to exclude from overwriting during the
-install process.
+Upgrades will import the specified ZFS pool using the
+zpoolName= variable. Once imported a new BE will be created and
+a fresh install performed, preserving old datasets. No merging
+is done, to provide a 'fresh' experience and avoid conflicts
+when installing older versions of the OS into a pool.
 
 Extract will skip any disk setup, and perform an installation
 to the directory specified by "installLocation=". This location
 should be a directory with your pre-mounted file-systems ready
 for file extraction. When using the "extract" option, /etc/fstab
 on the installed system will *not* be automatically configured. 
+
+'zfsrestore' will use zfs send / recv to replicate a remote ZFS
+dataset to your local install. It requires several other flags
+documented below in the ZFS RESTORE section. 
 
 # installLocation=
 
@@ -127,7 +131,7 @@ root zpool of the target system to update. I.E:
  # disk0=ada0s1a
 
 
-# partition=(all, free, s1, s1, s3, s4, image)
+# partition=(all, free, s1, s2, s3, s4, image)
 
 After setting disk[0-9], the partition= variable is used to specify which target
 partition we will be working with for this device.
@@ -161,10 +165,10 @@ than the drive being mirrored.
 Allows the setting of the mirror balance method to be used, if not
 specified this defaults to "round-robin"
 
-# bootManager=(none, bsd)
+# bootManager=(none, bsd, GRUB)
 
 Setting this option will instruct pc-sysinstall to install the BSD boot Manager,
-or leave it empty
+GRUB boot-manager, or leave it empty
 
 # image=(/path/to/image/file) (/mountpoint)
 
@@ -257,11 +261,15 @@ Location of the directory we will be pulling installation files from
 
 Set the type of system we are installing, PCBSD or FreeBSD
 
+# installQuiet={yes|no}
+
+Display less information during the installation
+
 # installFile=fbsd-release.tbz
 
 The installer archive, if not using the defaults specified in conf/pc-sysinstall.conf
 
-# packageType=(tar, uzip, split, dist)
+# packageType=(tar, uzip, split, dist, pkg)
 
 The archive type we are extracting from when using dvd, usb or ftp
 
@@ -293,6 +301,13 @@ The port to use when connecting to a ssh + rsync server
 
 The specified components to install, view available with "./pc-sysinstall list-components"
 
+# installPackages=xorg cabextract
+
+List of packages to install, can be either pkgng or old style packages
+
+# pkgExt=.txz
+
+Set the file-extension uses for packages, usually .txz or .tbz
 
 ########################################################################
 # UPGRADE OPTIONS
@@ -331,6 +346,7 @@ or
 # userEncPass=<encryptedstring>
 # userShell=/bin/csh
 # userHome=/home/kris
+# defaultGroup=wheel
 # userGroups=wheel,operator
 # commitUser
 
@@ -355,6 +371,16 @@ the installed system and run
 
 runExtCommand is used when you wish to run a command outside the chroot
 The variable $FSMNT is set to the mount-point of your installed system
+
+In addition to these commands, the following may also be used to run
+commands before doing package installation, and dist extraction respectively:
+
+# runPrePkgCommand
+# runPrePkgScript=
+# runPrePkgExtCommand=
+# runPreExtractCommand
+# runPreExtractScript=
+# runPreExtractExtCommand=
 
 
 ########################################################################
@@ -400,4 +426,33 @@ localizeKeyVariant is used to update the xorg config to set the keyboard variant
 Setting autoLoginUser will enable the specified user to log into the desktop 
 automatically without entering a password
 
-$FreeBSD$
+########################################################################
+# ZFS RESTORE
+########################################################################
+
+When setting installMode=zfsrestore, the following options are also required
+
+# sshHost=mybackupserver
+
+Hostname or IP address of the machine to pull data via SSH from
+
+# sshPort=22
+
+Port to use for SSH
+
+# sshUser=kdeskbackup
+
+Username to log into SSH with
+
+# sshKey=/root/id_rsa
+
+SSH key file to use with auth into the remote server
+
+# zfsProps=.lp-props-tank1#backups#krisbackup
+
+Location of dataset properties file, usually created by "Life-Preserver" during replication
+
+# zfsRemoteDataset=tank1/backups/krisbackup
+
+Location of remote dataset we will be restoring from
+
