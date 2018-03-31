@@ -196,7 +196,7 @@ disc1: packagesystem
 	cp reldoc/* ${.TARGET}
 .endif
 # Set up installation environment
-	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
+	ln -fs /tmp/install_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
@@ -222,7 +222,7 @@ bootonly: packagesystem
 	cp reldoc/* ${.TARGET}
 .endif
 # Set up installation environment
-	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
+	ln -fs /tmp/install_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
@@ -245,7 +245,7 @@ dvd: packagesystem
 	cp reldoc/* ${.TARGET}
 .endif
 # Set up installation environment
-	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
+	ln -fs /tmp/install_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
