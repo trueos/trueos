@@ -186,11 +186,10 @@ disc1: packagesystem
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
-# Copy distfiles
-	mkdir -p ${.TARGET}/usr/freebsd-dist
-	for dist in MANIFEST $$(ls *.txz | grep -vE -- '(base|lib32)-dbg'); \
-	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
-	done
+	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
+# Copy base packages
+	mkdir -p ${.TARGET}/dist
+	cp -r $${OBJROOT}repo/* ${.TARGET}/dist;
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
@@ -235,11 +234,9 @@ dvd: packagesystem
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
 		MK_TESTS=no MK_DEBUG_FILES=no
-# Copy distfiles
-	mkdir -p ${.TARGET}/usr/freebsd-dist
-	for dist in MANIFEST $$(ls *.txz | grep -v -- '(base|lib32)-dbg'); \
-	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
-	done
+# Copy base packages
+	mkdir -p ${.TARGET}/dist
+	cp -r $${OBJROOT}repo/* ${.TARGET}/dist;
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
