@@ -71,7 +71,7 @@ VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 .endif
 
 .if !defined(VOLUME_LABEL) || empty(VOLUME_LABEL)
-VOLUME_LABEL=	FreeBSD_Install
+VOLUME_LABEL=	TrueOS_Install
 .endif
 
 .if !exists(${DOCDIR})
