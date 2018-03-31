@@ -291,6 +291,8 @@
             ..
             netgraph
             ..
+            pc-installdialog
+            ..
             pc-sysinstall
             ..
             perfmon
