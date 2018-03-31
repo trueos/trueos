@@ -10,6 +10,10 @@
 
 MACHINE=`uname -m`
 
+# We need writable tmp
+mount -t tmpfs tmpfs /tmp
+mount -t tmpfs tmpfs /var/tmp
+
 # resolv.conf from DHCP ends up in here, so make sure the directory exists
 mkdir /tmp/install_etc
 

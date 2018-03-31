@@ -197,10 +197,15 @@ disc1: packagesystem
 # Set up installation environment
 	ln -fs /tmp/install_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
+	echo rc_logger=\"NO\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
+	rm ${.TARGET}/etc/runlevels/boot/*
+.for i in abi localmount
+	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/boot/${i}
+.endfor
 	touch ${.TARGET}
 
 bootonly: packagesystem
@@ -223,10 +228,16 @@ bootonly: packagesystem
 # Set up installation environment
 	ln -fs /tmp/install_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
+	echo rc_logger=\"NO\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
+	rm ${.TARGET}/etc/runlevels/boot/*
+.for i in abi localmount
+	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/boot/${i}
+.endfor
+	touch ${.TARGET}
 
 dvd: packagesystem
 # Install system
@@ -244,10 +255,15 @@ dvd: packagesystem
 # Set up installation environment
 	ln -fs /tmp/install_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
+	echo rc_logger=\"NO\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
+	rm ${.TARGET}/etc/runlevels/boot/*
+.for i in abi localmount
+	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/boot/${i}
+.endfor
 	touch ${.TARGET}
 
 release.iso: disc1.iso
