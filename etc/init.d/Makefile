@@ -9,7 +9,7 @@ FILESGROUP=	FILES
 
 FILES=          abi accounting adjkerntz amd auditd auditdistd automount automountd autounmountd \
 		blacklistd bluetooth bootmisc bridge cron \
-		devd devfs dumpon earlykld encswap fsck ftpd ftp-proxy \
+		devd devfs dhcpcd dumpon earlykld encswap fsck ftpd ftp-proxy \
 		gssd hostid hostname inetd iscsictl iscsid ipfw jail \
 		ldconfig local localmount local_unbound lockd loopback lpd hostapd \
 		mixer modules mountd mountlate moused motd \
