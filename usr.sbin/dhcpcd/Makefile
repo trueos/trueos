@@ -23,7 +23,7 @@ CFLAGS+=	-lmd
 CPPFLAGS+=      -I${ORSRC} -I${ORSRC}/../ -I./crypt
 
 WARNS?=	1
-MAN=	dhcpcd.conf.5
-MAN+=	dhcpcd.8
+MAN=	${ORSRC}/dhcpcd.conf.5
+MAN+=	${ORSRC}/dhcpcd.8
 
 .include <bsd.prog.mk>
