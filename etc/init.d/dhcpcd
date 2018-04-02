@@ -9,7 +9,7 @@
 # This file may not be copied, modified, propagated, or distributed
 # except according to the terms contained in the LICENSE file.
 
-command=/usr/sbin/dhcpcd
+command=/sbin/dhcpcd
 command_args="-q"
 
 dhcpcd=${RC_SVCNAME##*.}
