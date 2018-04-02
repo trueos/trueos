@@ -1,5 +1,4 @@
 # Ignore configure generated files
-config.h
 config.mk
 config.log
 
