@@ -231,8 +231,6 @@
             ..
             csh
             ..
-            dhcpcd
-            ..
             diskless
             ..
             dma
