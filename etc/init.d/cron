@@ -1,20 +1,13 @@
 #!/sbin/openrc-run
-# Copyright 1999-2004 Gentoo Foundation
-# Distributed under the terms of the GNU General Public License v2
+
+name="cron"
+desc="Daemon to execute scheduled commands"
+command="/usr/sbin/${name}"
+command_args_foreground="-n -s"
+pidfile=/var/run/supervised-cron.pid
+supervisor=supervise-daemon
 
 depend() {
-	use clock logger
-	need localmount
-}
-
-start() {
-	ebegin "Starting cron daemon"
-	start-stop-daemon --start --quiet --exec /usr/sbin/cron -- -s
-	eend $?
-}
-
-stop() {
-	ebegin "Stopping cron daemon"
-	start-stop-daemon --stop --quiet --pidfile /var/run/cron.pid
-	eend $?
+        use clock logger
+        need localmount
 }
