@@ -52,6 +52,7 @@ BIN1=	crontab \
 	devfs.conf \
 	ddb.conf \
 	dhclient.conf \
+	dhcpcd.conf \
 	disktab \
 	fbtab \
 	gettytab \
