@@ -1,12 +1,17 @@
 pipeline {
   agent { label 'TrueOS-World' }
-  checkout scm
 
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'freebsd'
   }
   stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
     stage('Pre-Clean') {
       steps {
         sh 'make clean'
