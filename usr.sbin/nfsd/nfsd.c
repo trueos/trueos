@@ -1204,7 +1204,6 @@ parse_dsserver(const char *dsoptarg, struct nfsd_nfsd_args *nfsdargp)
 	size_t mirrorcnt, mirrorstrsiz, mirrorindex;
 	size_t dsaddrsiz, dshostsiz, dspathsiz, nfsprtsiz, mirrorsiz;
 	struct addrinfo hints, *ai_tcp;
-	struct sockaddr_in *sin;
 	union {
 		struct sockaddr *sa;
 		struct sockaddr_in *sin;
