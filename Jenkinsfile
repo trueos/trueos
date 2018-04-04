@@ -7,27 +7,27 @@ pipeline {
     GH_REPO = 'freebsd'
   }
   stages {
-    stage('Clean') {
+    stage('Pre-Clean') {
       steps {
         sh 'make clean'
       }
     }
     stage('World') {
       steps {
-        sh 'make -j24 buildworld'
+        sh 'make -j32 buildworld'
       }
     }
     stage('Kernel') {
       steps {
-        sh 'make -j24 buildkernel'
+        sh 'make -j32 buildkernel'
       }
     }
     stage('Packages') {
       steps {
-        sh 'make -j24 packages'
+        sh 'make -j32 packages'
       }
     }
-    stage('Clean') {
+    stage('Post-Clean') {
       steps {
         sh 'make clean'
       }
