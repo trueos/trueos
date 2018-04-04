@@ -1,0 +1,63 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use autodie;
+use feature qw(switch);
+
+require 5.10.1;
+
+$0 =~ s@.*/@@;
+
+MAIN:
+{
+    my @xrefs;
+    my $see_also;
+
+    @xrefs =
+      map { ".Xr $_->[0] $_->[1]" }
+      sort {
+             ( $a->[1] <=> $b->[1] )
+          || ( ( $b->[0] eq 'pkg' ) <=> ( $a->[0] eq 'pkg' ) )
+          || ( $a->[0] cmp $b->[0] )
+      }
+      map {
+        [m/^(\S+)\.(\d)$/]
+      } @ARGV;
+
+    eval {
+        for my $man (@ARGV) {
+            my ($match) = ( $man =~ m/^(\S+)\./ );
+
+            open READ,  "<$man";
+            open WRITE, ">$man.new";
+
+            $see_also = undef;
+
+            while (<READ>) {
+                if (/^\.Sh SEE ALSO/) {
+                    $see_also = 1;
+                    print WRITE $_;
+                    print WRITE join( " ,\n", grep { !m/$match / } @xrefs ),
+                      "\n";
+                    next;
+                }
+                if ( $see_also && /^\.Xr/ ) {
+                    next;
+                }
+                print WRITE $_;
+            }
+            close READ;
+            close WRITE;
+
+            rename "$man.new", $man;
+        }
+    };
+    given ($@) {
+        when (undef)  { exit 0; }
+        when ('')     { exit 0; }
+        when ('open') { die "$0: open() failed -- $@\n"; }
+        default       { die "$0: Error -- $@\n"; }
+    }
+    exit 0;
+}

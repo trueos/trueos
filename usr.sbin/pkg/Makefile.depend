@@ -16,6 +16,7 @@ DIRDEPS = \
 	lib/liblzma \
 	lib/libsbuf \
 	lib/libthr \
+	lib/libpkg \
 	lib/libucl \
 	lib/libz \
 	lib/msun \

@@ -142,6 +142,7 @@ _LIBRARIES=	\
 		pcap \
 		pcsclite \
 		pjdlog \
+		pkg \
 		pmc \
 		proc \
 		procstat \
