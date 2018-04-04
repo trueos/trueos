@@ -1,5 +1,5 @@
 pipeline {
-  agent TrueOS-World
+  agent { label 'TrueOS-World' }
   checkout scm
 
   environment {
