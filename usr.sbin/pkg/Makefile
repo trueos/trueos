@@ -23,7 +23,7 @@ WARNS?= 0
 
 CFLAGS+=-I${SRCTOP}/contrib/libucl/include
 #.PATH:	${SRCTOP}/contrib/libucl/include
-LIBADD=	pkg util ssl crypto jail
+LIBADD=	pkg archive fetch ucl util ssl crypto jail
 
 MAN=	${LIBPKGSRC}/docs/pkg_printf.3
 MAN+=	${LIBPKGSRC}/docs/pkg_repos.3

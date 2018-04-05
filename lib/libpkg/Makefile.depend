@@ -8,8 +8,11 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \
-	lib/libutil \
-
+	lib/libucl \
+	lib/libarchive \
+	lib/libfetch \
+	lib/libjail \
+	lib/libutil
 
 .include <dirdeps.mk>
 
