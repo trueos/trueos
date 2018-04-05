@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=	pkg
+PROG?=	pkg
 
 LIBPKGSRC=	${SRCTOP}/contrib/pkg
 .PATH:	${LIBPKGSRC}/src
@@ -12,7 +12,7 @@ SRCS+= plugins.c query.c register.c repo.c rquery.c search.c set.c
 SRCS+= shell.c shlib.c ssh.c stats.c update.c updating.c upgrade.c
 SRCS+= utils.c version.c which.c
 
-CFLAGS+=-I${LIBPKGSRC}/libpkg -I${LIBPKGSRC}/compat -I${.CURDIR}
+CFLAGS+=-I${LIBPKGSRC}/libpkg -I${LIBPKGSRC}/compat -I${SRCTOP}/usr.sbin/pkg
 CFLAGS+=-I${LIBPKGSRC}/external/sqlite -I${LIBPKGSRC}/external/uthash
 CFLAGS+=-I${LIBPKGSRC}/external/libucl/include -I${LIBPKGSRC}/external/libucl/klib
 CFLAGS+=-I${LIBPKGSRC}/external/expat/lib -I${LIBPKGSRC}/external/blake2
@@ -21,9 +21,9 @@ CFLAGS+=-DHAVE_CONFIG_H
 
 WARNS?= 0
 
-CFLAGS+=-I${SRCTOP}/contrib/libucl/include -lutil -ljail -lpkg -lelf
-.PATH:	${SRCTOP}/contrib/libucl/include
-LIBADD=	archive pkg fetch ucl sbuf crypto ssl
+CFLAGS+=-I${SRCTOP}/contrib/libucl/include
+#.PATH:	${SRCTOP}/contrib/libucl/include
+LIBADD=	pkg util ssl crypto jail
 
 MAN=	${LIBPKGSRC}/docs/pkg_printf.3
 MAN+=	${LIBPKGSRC}/docs/pkg_repos.3

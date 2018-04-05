@@ -326,6 +326,7 @@ _DP_stdthreads=	pthread
 _DP_tacplus=	md
 _DP_panel=	ncurses
 _DP_panelw=	ncursesw
+_DP_pkg=	archive fetch ucl sbuf crypto ssl util jail elf
 _DP_rpcsec_gss=	gssapi
 _DP_smb=	kiconv
 _DP_ulog=	md

@@ -35,7 +35,10 @@ CFLAGS+=-I${LIBPKGSRC}/external/libucl/include -I${LIBPKGSRC}/external/libucl/kl
 CFLAGS+=-I${LIBPKGSRC}/external/expat/lib -I${LIBPKGSRC}/external/blake2
 CFLAGS+=-I${LIBPKGSRC}/external/include -I${LIBPKGSRC}/external/picosat
 CFLAGS+=-I${LIBPKGSRC}/libpkg/repo/binary -I${LIBPKGSRC}/compat
-CFLAGS+=-DHAVE_CONFIG_H -lelf
+CFLAGS+=-DHAVE_CONFIG_H
+CFLAGS+=-lutil -ljail -lpkg -lelf -larchive -lcrypto -lssl
+
+LIBADD= archive pkg fetch ucl sbuf crypto ssl util jail elf
 
 WARNS?= 0
 
