@@ -38,7 +38,7 @@ CFLAGS+=-I${LIBPKGSRC}/libpkg/repo/binary -I${LIBPKGSRC}/compat
 CFLAGS+=-DHAVE_CONFIG_H
 CFLAGS+=-lutil -ljail -lpkg -lelf -larchive -lcrypto -lssl
 
-LIBADD= archive pkg fetch ucl sbuf crypto ssl util jail elf
+LIBADD= archive fetch ucl sbuf crypto ssl util jail elf
 
 WARNS?= 0
 
