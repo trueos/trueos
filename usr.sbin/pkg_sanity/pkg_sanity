@@ -100,4 +100,4 @@ do
   fi
 done
 
-exec /usr/local/sbin/pkg-static "$@"
+exec /usr/sbin/pkg-static "$@"
