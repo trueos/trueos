@@ -8,7 +8,7 @@ BINDIR=		/etc/init.d
 FILESGROUP=	FILES
 
 FILES=          abi accounting adjkerntz amd auditd auditdistd automount automountd autounmountd \
-		blacklistd bluetooth bootmisc bridge cron \
+		blacklistd bluetooth bootmisc bridge cleanvar cleartmp cron \
 		devd devfs dhcpcd dumpon earlykld encswap fsck ftpd ftp-proxy \
 		gssd hostid hostname inetd iscsictl iscsid ipfw jail \
 		ldconfig local localmount local_unbound lockd loopback lpd hostapd \
@@ -16,8 +16,8 @@ FILES=          abi accounting adjkerntz amd auditd auditdistd automount automou
 		natd netmount network newsyslog nfsclient nfsd nfsuserd nisdomain nsswitch \
 		nscd ntpd ntpdate pf pflog powerd ppp rarpd rc-enabled resolv root routing rpcbind runsvdir \
 		s6-svscan savecache savecore sendmail \
-		sshd statd staticroute swap syscons sysctl syslogd tmpfiles.setup urandom \
-		wpa_supplicant \
+		sshd statd staticroute swap syscons sysctl syslogd tmp tmpfiles.setup urandom \
+		var wpa_supplicant \
 		ypbind ypldap yppasswdd ypserv ypset ypupdated ypxfrd \
 		zfs zvol
 FILESMODE=	755
