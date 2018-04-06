@@ -94,12 +94,12 @@ install_packages()
 	 sleep 2
          continue
       fi
-      if [ ! -e "${FSMNT}/mnt/All/${PKGFILENAME}.txz" ] ; then
+      if [ ! -e "${FSMNT}/mnt/${PKGFILENAME}.txz" ] ; then
          echo_log "Warning: No such package file in repo: ${PKGFILENAME}"
 	 sleep 2
          continue
       fi
-      PKGADD="pkg add /mnt/All/${PKGFILENAME}.txz"
+      PKGADD="pkg add /mnt/${PKGFILENAME}.txz"
     else
       # Doing a network install, use the default pkg.conf
       PKGADD="pkg install -y ${PKGNAME}"

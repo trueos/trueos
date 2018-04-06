@@ -49,7 +49,7 @@ bootstrap_pkgng()
   PKGFLAG="add"
   case "${INSTALLMEDIUM}" in
     usb|dvd|local) rc_halt "cd ${LOCALPATH}/packages"
-		   PKGPTH="/mnt/`ls All/pkg-[0-9]*.txz`"
+		   PKGPTH="/mnt/`ls pkg-[0-9]*.txz`"
 		   ;;
               ftp) if [ ! -e "${FSMNT}/usr/local/etc/pkg" ] ; then
 		      mkdir ${FSMNT}/usr/local/etc
