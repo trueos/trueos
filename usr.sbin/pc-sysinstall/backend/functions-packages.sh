@@ -74,7 +74,7 @@ get_package_location()
   case "${INSTALLMEDIUM}" in
   usb|dvd) rc_halt "mount_nullfs ${CDMNT}/packages ${FSMNT}/mnt"
            PKGDLDIR="${FSMNT}/mnt" ;;
-    local) rc_halt "mount_nullfs ${LOCALPATH}/packages ${FSMNT}/mnt"
+    local) rc_halt "mount_nullfs ${LOCALPATH} ${FSMNT}/mnt"
            PKGDLDIR="${FSMNT}/mnt" ;;
         *) PKGDLDIR="${FSMNT}${PKGTMPDIR}" ;;
   esac
