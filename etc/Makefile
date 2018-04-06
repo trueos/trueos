@@ -317,6 +317,7 @@ distribution:
 		${INSTALL_SYMLINK} /etc/init.d/$${rlink} \
 		    ${DESTDIR}/etc/runlevels/shutdown/$${rlink}; \
 	done
+	${_+_}cd ${.CURDIR}/ssl; ${MAKE} install
 	${_+_}cd ${.CURDIR}/sysctl.d; ${MAKE} install
 	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${.CURDIR}/syslog.d; ${MAKE} install

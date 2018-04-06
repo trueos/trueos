@@ -5,7 +5,8 @@
 
 # Do not include `info' in the SUBDIR list, it is handled separately.
 
-SUBDIR=	${_colldef} \
+SUBDIR=	certs \
+	${_colldef} \
 	${_ctypedef} \
 	${_dict} \
 	${_doc} \
