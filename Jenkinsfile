@@ -39,7 +39,7 @@ pipeline {
         }
       }
       steps {
-        sh 'cd release && make dvd1.iso'
+        sh 'cd release && make release'
         sh 'mkdir -p ${WORKSPACE}/artifacts'
         sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
       }
