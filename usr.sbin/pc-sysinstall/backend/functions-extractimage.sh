@@ -53,7 +53,7 @@ start_extract_pkg()
 
   # Mount the packages into the chroot
   rc_nohalt "mkdir -p ${FSMNT}/packages"
-  rc_halt "mount_nullfs ${1}/packages ${FSMNT}/packages"
+  rc_halt "mount_nullfs ${1} ${FSMNT}/packages"
 
   # Do the package installation
   for pkg in `ls ${FSMNT}/packages/All/FreeBSD-*`
