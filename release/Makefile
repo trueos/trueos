@@ -186,7 +186,6 @@ disc1: packagesystem
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
-	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 # Copy base packages
 	mkdir -p ${.TARGET}/dist
 	cp -r $${OBJROOT}repo/* ${.TARGET}/dist;
