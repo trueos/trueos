@@ -808,7 +808,7 @@ gen_pc-sysinstall_cfg()
    else
      # Doing local installation
      echo "installMedium=local" >>${CFGFILE}
-     echo "localPath=/dist" >>${CFGFILE}
+     echo "localPath=/dist/FreeBSD:$(uname -r | cut -d '.' -f 1 | cut -d '-' -f 1):$(uname -m)/latest" >>${CFGFILE}
    fi
 
    if [ -n "$SYSHOSTNAME" ] ; then
