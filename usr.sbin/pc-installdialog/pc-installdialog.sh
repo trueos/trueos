@@ -163,7 +163,7 @@ get_zfs_dset_opt()
     zOps=`echo $z | cut -d '(' -f 2 | cut -d ')' -f 1`
     for o in `echo $zOps | sed 's,|, ,g'`
     do
-       d="$o" 
+       d="$o"
        desc="($o)"
        dOpts="$dOpts $d \"$desc\""
     done
@@ -218,7 +218,7 @@ edit_dataset()
     delete) NEWLAYOUT=""
             for z in `echo $ZFSLAYOUT | sed 's|,| |g'`
             do
-              d=`echo $z | cut -d '(' -f 1`  
+              d=`echo $z | cut -d '(' -f 1`
 	      if [ "$d" = "$1" ] ; then continue ; fi
 	      if [ -z "$NEWLAYOUT" ] ; then
 	        NEWLAYOUT="${z}"
@@ -245,7 +245,7 @@ edit_dataset()
                  fi
 	         continue
 	       fi
-		
+
 	       # Add this option to our optList
 	       NEWOPTLIST=""
 	       optList="`echo $z | cut -d '(' -f 2 | cut -d ')' -f 1`"
@@ -401,20 +401,20 @@ get_hardware_info()
 
  #detect CPU
    echo "CPU Detected:" >> /tmp/.hardwareinfo.$$
-   sysctl -a | egrep -i 'hw.machine|hw.model|hw.ncpu' >> /tmp/.hardwareinfo.$$  
+   sysctl -a | egrep -i 'hw.machine|hw.model|hw.ncpu' >> /tmp/.hardwareinfo.$$
    echo " " >> /tmp/.hardwareinfo.$$
-   
+
  #grep for amount of physical memory and free memory
    echo "Memory Information:" >> /tmp/.hardwareinfo.$$
    grep "real memory" /var/run/dmesg.boot | head -n 1 >> /tmp/.hardwareinfo.$$
    grep "avail memory" /var/run/dmesg.boot | head -n 1 >> /tmp/.hardwareinfo.$$
    echo " " >> /tmp/.hardwareinfo.$$
-   
- #list detected hard disks  
+
+ #list detected hard disks
    echo "Detected Hard Disks:" >> /tmp/.hardwareinfo.$$
    $PCSYS disk-list >> /tmp/.hardwareinfo.$$
    echo " " >> /tmp/.hardwareinfo.$$
- 
+
  #detect an active network card.  Also now lists hard disk info and checks for a sound card.
    ifconfig | grep -q 'UP'
    if [ $? -eq 0 ] ; then
@@ -429,10 +429,10 @@ get_hardware_info()
      sed  -i '' 's/usbus//g' /tmp/.hardwareinfo.$$
      sed  -i '' 's/tun//g' /tmp/.hardwareinfo.$$
    else
-     echo "No Compatible Network Interface Detected:" >> /tmp/.hardwareinfo.$$  
+     echo "No Compatible Network Interface Detected:" >> /tmp/.hardwareinfo.$$
      echo " " >> /tmp/.hardwareinfo.$$
-     fi
-   
+   fi
+
  #check active sound devices
    cat /dev/sndstat | grep 'pcm0:'
       if [ $? -eq 0 ] ; then
@@ -446,7 +446,7 @@ get_hardware_info()
    sed -i '' '/Installed devices:/d' /tmp/.hardwareinfo.$$
    dialog --tailbox /tmp/.hardwareinfo.$$ 30 60
    rm /tmp/.hardwareinfo.$$
-   
+
 }
 
 
@@ -489,7 +489,7 @@ get_target_part()
      do
 	get_dlg_ans "--menu \"Select the disk format you would like to use.\" 12 45 10 1. GPT 2. MBR"
 	if [ -z "$ANS" ] ; then
-	  echo "Invalid disk format entered!" 
+	  echo "Invalid disk format entered!"
 	  continue
 	else
 	  break
@@ -546,7 +546,7 @@ get_user_pw()
        continue
     fi
     # Check for invalid characters
-    USERPW="$ANS"   
+    USERPW="$ANS"
     get_dlg_ans "--passwordbox 'Confirm password' 8 40"
     if [ -z "$ANS" ] ; then
        echo "Invalid password entered!  Please Enter a Password!" >> /tmp/.vartemp.$$
@@ -574,19 +574,19 @@ get_user_name()
        dialog --tailbox /tmp/.vartemp.$$ 8 35
        rm /tmp/.vartemp.$$
        continue
-    fi   
+    fi
     #check for invalid characters
     echo "$ANS" | grep -q '^[a-zA-Z0-9]*$'
     if [ $? -eq 1 ] ; then
        echo "Name contains invalid characters!" >> /tmp/.vartemp.$$
        dialog --tailbox /tmp/.vartemp.$$ 8 35
        rm /tmp/.vartemp.$$
-       continue      
+       continue
     fi
     USERNAME="$ANS"
     break
   done
-  
+
 }
 
 get_user_realname()
@@ -619,9 +619,9 @@ get_user_shell()
 {
   while :
   do
-    get_dlg_ans "--menu \"Select the users shell\" 12 45 10 /bin/sh SH /bin/csh CSH /bin/tcsh TCSH /usr/local/bin/bash BASH"
+    get_dlg_ans "--menu \"Select the users shell\" 12 45 10 /bin/sh SH /bin/csh CSH /bin/tcsh TCSH"
     if [ -z "$ANS" ] ; then
-      echo "Invalid SHELL entered!" 
+      echo "Invalid SHELL entered!"
       continue
     else
       break
@@ -646,8 +646,8 @@ get_hostname()
       echo "Hostname contains invalid characters!" >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 48
       rm /tmp/.vartemp.$$
-      continue  
-    else 
+      continue
+    else
       break
     fi
   done
@@ -920,7 +920,7 @@ change_disk_selection() {
   gen_pc-sysinstall_cfg
 }
 
-start_full_wizard() 
+start_full_wizard()
 {
   # Start the wizard
   get_sys_type
@@ -931,8 +931,8 @@ start_full_wizard()
   if [ "$SYSTYPE" = "server" ] ; then
      get_root_pw
      get_user_name
-     get_user_pw
      get_user_realname
+     get_user_pw
      get_user_shell
      change_networking
   fi
