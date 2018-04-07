@@ -194,7 +194,7 @@ devfs_domount()
 
 devfs_apply()
 {
-	if [ ! -e /etc/devfs.rules ] ; then return 1 ; fi	
+	if [ ! -e /etc/devfs.rules ] ; then return 0 ; fi
 	if [ -z "$devfs_system_ruleset" ] ; then devfs_system_ruleset="devfsrules_common"; fi
 	if [ -n "$devfs_system_ruleset" -o -n "$devfs_set_rulesets" ]; then
 		devfs_init_rulesets
