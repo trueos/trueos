@@ -44,7 +44,7 @@ start_extract_pkg()
   fi
 
   # Create some common mountpoints that pkgng doesn't do right now
-  for mpnt in dev compat mnt proc root var/run
+  for mpnt in dev compat mnt proc root var/run libexec/rc/init.d
   do
     if [ ! -d "${FSMNT}/${mpnt}" ] ; then
       rc_halt "mkdir -p ${FSMNT}/${mpnt}"
