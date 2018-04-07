@@ -1,88 +1,40 @@
-FreeBSD Source:
----------------
-This is the top level of the FreeBSD source directory.  This file
-was last revised on:
-$FreeBSD$
+TrueOS Source:
+--------------
 
-For copyright information, please see the file COPYRIGHT in this
-directory (additional copyright information also exists for some
-sources in this tree - please see the specific source directories for
-more information).
+This is the top level TrueOS source directory. It is more or less a fork
+of the [https://github.com/freebsd/freebsd](FreeBSD source tree).
 
-The Makefile in this directory supports a number of targets for
-building components (or all) of the FreeBSD source tree.  See build(7)
-and https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
-for more information, including setting make(1) variables.
+TrueOS Differences:
+--------------
 
-The `buildkernel` and `installkernel` targets build and install
-the kernel and the modules (see below).  Please see the top of
-the Makefile in this directory for more information on the
-standard build targets and compile-time flags.
+In what ways does TrueOS differ from stock FreeBSD you may be wondering?
+Read on for a list of the distinctions in no particular order:
 
-Building a kernel is a somewhat more involved process.  See build(7), config(8),
-and https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig.html
-for more information.
+* Bi-Annual Release Cycle - TrueOS follows traditional FreeBSD HEAD and cuts new releases
+on a 6 months schedule which includes OS and Ports.
 
-Note: If you want to build and install the kernel with the
-`buildkernel` and `installkernel` targets, you might need to build
-world before.  More information is available in the handbook.
+* [https://github.com/openrc/openrc/](OpenRC) - This replaces the legacy rc.d scripts with
+OpenRC's init.d subsystem, allowing faster boots, as well as a host of other service improvements.
 
-The kernel configuration files reside in the `sys/<arch>/conf`
-sub-directory.  GENERIC is the default configuration used in release builds.
-NOTES contains entries and documentation for all possible
-devices, not just those commonly used.
+* Package Base - TrueOS is installed and based on using Packages for the Base OS.
 
+* [https://github.com/freebsd/pkg](pkg in base) - To go along with using base system packages,
+TrueOS has also integrated PKG directly in the base system.
 
-Source Roadmap:
----------------
+* Root NSS Certs - Since it really is a bummer to not be able to use HTTPS out of box...
+
+* Custom Installer - TrueOS includes its own [https://github.com/trueos/trueos/tree/trueos-master/usr.sbin/pc-sysinstall](pc-sysinstall) installation system, along with
+[https://github.com/trueos/trueos/tree/trueos-master/usr.sbin/pc-installdialog](text-based) front-end. This allows a wide variety of ZFS-based installation options, as well
+as scriptability.
+
+* More as they come...
+
+Build Instructions:
+--------------
+The following instructions may be used to generate TrueOS installation
+images:
+
 ```
-bin				System/user commands.
-
-cddl			Various commands and libraries under the Common Development  
-				and Distribution License.
-
-contrib			Packages contributed by 3rd parties.
-
-crypto			Cryptography stuff (see crypto/README).
-
-etc				Template files for /etc.
-
-gnu				Various commands and libraries under the GNU Public License.  
-				Please see gnu/COPYING* for more information.
-
-include			System include files.
-
-kerberos5		Kerberos5 (Heimdal) package.
-
-lib				System libraries.
-
-libexec			System daemons.
-
-release			Release building Makefile & associated tools.
-
-rescue			Build system for statically linked /rescue utilities.
-
-sbin			System commands.
-
-secure			Cryptographic libraries and commands.
-
-share			Shared resources.
-
-stand			Boot loader sources.
-
-sys				Kernel sources.
-
-tests			Regression tests which can be run by Kyua.  See tests/README
-				for additional information.
-
-tools			Utilities for regression testing and miscellaneous tasks.
-
-usr.bin			User commands.
-
-usr.sbin		System administration commands.
+make buildworld buildkernel packages
+cd release && make release
 ```
-
-For information on synchronizing your source tree with one or more of
-the FreeBSD Project's development branches, please see:
-
-   https://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html
