@@ -1252,7 +1252,7 @@ packageworld: .PHONY
 # We need an additional distrib.txz for pkg base
 .if ${dist} == "base"
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvf - ./etc ./var | \
+	    tar cvf - ./etc ./var ./boot/device.hints | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/distrib.txz
 .endif
 .if defined(NO_ROOT)
