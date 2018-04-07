@@ -188,7 +188,8 @@ disc1: packagesystem
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
 # Copy base packages
 	mkdir -p ${.TARGET}/dist
-	cp -r $${OBJROOT}repo/* ${.TARGET}/dist;
+	cp -r $${OBJROOT}repo/* ${.TARGET}/dist
+	cp distrib.txz ${.TARGET}/dist/
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
@@ -246,7 +247,8 @@ dvd: packagesystem
 		MK_TESTS=no MK_DEBUG_FILES=no
 # Copy base packages
 	mkdir -p ${.TARGET}/dist
-	cp -r $${OBJROOT}repo/* ${.TARGET}/dist;
+	cp -r $${OBJROOT}repo/* ${.TARGET}/dist
+	cp distrib.txz ${.TARGET}/dist/
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}

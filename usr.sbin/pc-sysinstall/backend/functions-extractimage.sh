@@ -39,8 +39,8 @@ start_extract_pkg()
   export ABI
 
   # Ugly hack to get distribution files on disk until pkg DTRT
-  if [ -e "${1}/packages/fbsd-distrib.txz" ] ; then
-    rc_nohalt "tar xvpf ${1}/packages/fbsd-distrib.txz -C ${FSMNT}"
+  if [ -e "${1}/../../distrib.txz" ] ; then
+    rc_nohalt "tar xvpf ${1}/../../distrib.txz -C ${FSMNT}"
   fi
 
   # Create some common mountpoints that pkgng doesn't do right now
