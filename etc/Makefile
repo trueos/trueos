@@ -17,12 +17,12 @@ OPENRC_BOOT_LINK=	abi \
 			bootmisc \
 			bridge \
 			cron \
+			devd \
 			dumpon \
 			fsck \
 			hostid \
 			hostname \
 			localmount \
-			loopback \
 			modules \
 			motd \
 			network \

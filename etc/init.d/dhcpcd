@@ -172,6 +172,8 @@ stop()
 	if [ -n "$dhcpcd_device" ] ; then
 		check_dhcpcd "$dhcpcd_device"
 		if [ $? -ne 0 ] ; then return 0; fi
+		if [ ! -e "$pidfile" ] ; then return 0 ; fi
+		pgrep -q -F $pidfile || return 0
 		if [ -z "$OPENRC_SILENT" ] ; then
 			ebegin "Stopping $name"
 		fi
