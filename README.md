@@ -13,6 +13,9 @@ Read on for a list of the distinctions in no particular order:
 * Bi-Annual Release Cycle - TrueOS follows traditional FreeBSD HEAD and cuts new releases
 on a 6 months schedule which includes OS and Ports.
 
+* [dhcpcd](https://github.com/rsmarples/dhcpcd) - dhcpcd has been integrated directly into base,
+allowing more advanced IPv4 and IPv6 network configuration
+
 * [OpenRC](https://github.com/openrc/openrc/) - This replaces the legacy rc.d scripts with
 OpenRC's init.d subsystem, allowing faster boots, as well as a host of other service improvements.
 
