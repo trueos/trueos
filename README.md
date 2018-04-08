@@ -1,3 +1,5 @@
+[![Build Status](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20World%20CI/job/trueos-master/badge/icon)](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20World%20CI/job/trueos-master/)
+
 TrueOS Source:
 --------------
 
@@ -12,6 +14,10 @@ Read on for a list of the distinctions in no particular order:
 
 * Bi-Annual Release Cycle - TrueOS follows traditional FreeBSD HEAD and cuts new releases
 on a 6 months schedule which includes OS and Ports.
+
+* GitHub - TrueOS uses Git/GitHub as the "Source of truth", Pull-Requests welcome!
+
+* CI - Our [Jenkins build cluster](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20World%20CI/) is constantly building [new versions](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20World%20CI/job/trueos-master/) of TrueOS for testing.
 
 * [dhcpcd](https://github.com/rsmarples/dhcpcd) - dhcpcd has been integrated directly into base,
 allowing more advanced IPv4 and IPv6 network configuration
