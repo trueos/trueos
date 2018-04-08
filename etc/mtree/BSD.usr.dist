@@ -1181,7 +1181,7 @@
             ..
             html
                 assets
-                    DataTables-1.10.1
+                    DataTables-1.10.0
                         css
                         ..
                         images

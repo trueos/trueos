@@ -8,7 +8,7 @@ FILES=	glyphicons-halflings-regular.eot \
 	glyphicons-halflings-regular.ttf \
 	glyphicons-halflings-regular.woff
 
-FILESDIR=	/usr/share/poudirere/html/assets/bootstrap-3.1.1/fonts
+FILESDIR=	/usr/share/poudriere/html/assets/bootstrap-3.1.1/fonts
 FILESMODE=	644
 
 .include <bsd.prog.mk>

@@ -15,7 +15,7 @@ FILES=	favicon.ico \
 	poudriere.css \
 	poudriere.js
 
-FILESDIR=	/usr/share/poudirere/html/assets
+FILESDIR=	/usr/share/poudriere/html/assets
 FILESMODE=	644
 
 .include <bsd.prog.mk>

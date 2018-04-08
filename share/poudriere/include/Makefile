@@ -16,7 +16,7 @@ FILES=	cache.sh \
 	shared_hash.sh \
 	util.sh
 
-FILESDIR=	/usr/share/poudirere/include
+FILESDIR=	/usr/share/poudriere/include
 FILESMODE=	755
 
 .include <bsd.prog.mk>

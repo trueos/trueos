@@ -10,7 +10,7 @@ FILES=	build.html \
 	jail.html \
 	robots.txt
 
-FILESDIR=	/usr/share/poudirere/html
+FILESDIR=	/usr/share/poudriere/html
 FILESMODE=	644
 
 .include <bsd.prog.mk>

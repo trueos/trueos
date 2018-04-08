@@ -14,7 +14,7 @@ FILES=	back_disabled.png \
 	sort_desc.png \
 	sort_desc_disabled.png
 
-FILESDIR=	/usr/share/poudirere/html/assets/DataTables-1.10.0/images
+FILESDIR=	/usr/share/poudriere/html/assets/DataTables-1.10.0/images
 FILESMODE=	644
 
 .include <bsd.prog.mk>

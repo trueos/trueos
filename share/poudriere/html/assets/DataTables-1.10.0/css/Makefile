@@ -6,7 +6,7 @@ PTOP=	${SRCTOP}/contrib/poudriere/src/share
 FILES=	jquery.dataTables.min.css \
 	jquery.dataTables_themeroller.min.css
 
-FILESDIR=	/usr/share/poudirere/html/assets/DataTables-1.10.0/css
+FILESDIR=	/usr/share/poudriere/html/assets/DataTables-1.10.0/css
 FILESMODE=	644
 
 .include <bsd.prog.mk>
