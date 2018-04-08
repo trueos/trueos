@@ -142,6 +142,7 @@ _LIBRARIES=	\
 		pcap \
 		pcsclite \
 		pjdlog \
+		pkg \
 		pmc \
 		proc \
 		procstat \
@@ -325,6 +326,7 @@ _DP_stdthreads=	pthread
 _DP_tacplus=	md
 _DP_panel=	ncurses
 _DP_panelw=	ncursesw
+_DP_pkg=	sbuf crypto ssl util elf
 _DP_rpcsec_gss=	gssapi
 _DP_smb=	kiconv
 _DP_ulog=	md

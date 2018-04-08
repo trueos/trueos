@@ -39,12 +39,12 @@ start_extract_pkg()
   export ABI
 
   # Ugly hack to get distribution files on disk until pkg DTRT
-  if [ -e "${1}/packages/All/fbsd-distrib.txz" ] ; then
-    rc_nohalt "tar xvpf ${1}/packages/All/fbsd-distrib.txz -C ${FSMNT}"
+  if [ -e "${1}/../../distrib.txz" ] ; then
+    rc_nohalt "tar xvpf ${1}/../../distrib.txz -C ${FSMNT}"
   fi
 
   # Create some common mountpoints that pkgng doesn't do right now
-  for mpnt in dev compat mnt proc root var/run
+  for mpnt in dev compat mnt proc root var/run libexec/rc/init.d
   do
     if [ ! -d "${FSMNT}/${mpnt}" ] ; then
       rc_halt "mkdir -p ${FSMNT}/${mpnt}"
@@ -53,14 +53,14 @@ start_extract_pkg()
 
   # Mount the packages into the chroot
   rc_nohalt "mkdir -p ${FSMNT}/packages"
-  rc_halt "mount_nullfs ${1}/packages ${FSMNT}/packages"
+  rc_halt "mount_nullfs ${1} ${FSMNT}/packages"
 
   # Do the package installation
-  for pkg in `ls ${FSMNT}/packages/All/FreeBSD-*`
+  for pkg in `ls ${FSMNT}/packages/FreeBSD-*`
   do
     inspkg=$(basename $pkg)
-    echo_log "pkg -c ${FSMNT} add /packages/All/$inspkg"
-    env ASSUME_ALWAYS_YES=YES pkg -c ${FSMNT} add -f /packages/All/$inspkg
+    echo_log "pkg -c ${FSMNT} add /packages/$inspkg"
+    env ASSUME_ALWAYS_YES=YES pkg -c ${FSMNT} add -f /packages/$inspkg
     if [ $? -ne 0 ] ; then
       exit_err "Failed installing $inspkg!"
     fi

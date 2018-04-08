@@ -180,6 +180,8 @@
             uk_UA.KOI8-U
             ..
         ..
+        certs
+        ..
         dict
         ..
         doc

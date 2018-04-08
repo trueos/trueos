@@ -1,0 +1,9 @@
+prefix=@prefix@
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: pkg
+Descriptions: Library to manipulate packages
+Version: @VERSION@
+Libs: -L${libdir} -lpkg
+Cflags: -I${includedir}

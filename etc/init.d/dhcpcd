@@ -142,6 +142,9 @@ start()
 		if [ -z "$OPENRC_SILENT" ] ; then
 			ebegin "Starting $name"
 		fi
+		# Sleep a moment before starting dhcpcd - It tends to crash if the device
+		# has just come up right before starting
+		sleep 1.5
 		start-stop-daemon --start --exec $command -m -b -p $pidfile -- $command_args
 		stat=$?
 		if [ -z "$OPENRC_SILENT" ] ; then
@@ -172,6 +175,8 @@ stop()
 	if [ -n "$dhcpcd_device" ] ; then
 		check_dhcpcd "$dhcpcd_device"
 		if [ $? -ne 0 ] ; then return 0; fi
+		if [ ! -e "$pidfile" ] ; then return 0 ; fi
+		pgrep -q -F $pidfile || return 0
 		if [ -z "$OPENRC_SILENT" ] ; then
 			ebegin "Stopping $name"
 		fi
