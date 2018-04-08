@@ -49,6 +49,8 @@ pipeline {
     stage('Post-Clean') {
       steps {
         sh 'make clean'
+        sh 'cd release && make clean'
+        sh 'rm -rf /usr/obj${WORKSPACE}/repo'
       }
     }
   }
