@@ -1,0 +1,216 @@
+.\"
+.\" beadm - Illumos/Solaris-like utility for FreeBSD to manage
+.\" Boot Environments on ZFS filesystems
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\"
+.\"     @(#)beadm.1
+.\" $FreeBSD$
+.\"
+.Dd September 4, 2012
+.Dt BEADM 1
+.Os FreeBSD
+.Sh NAME
+.Nm beadm
+.Nd Utility to manage Boot Environments with ZFS
+.Sh SYNOPSIS
+.Nm
+activate
+.Ao Ar beName Ac
+.Nm
+create
+.Op Fl e Ar nonActiveBe | Fl e Ar beName@snapshot
+.Ao Ar beName Ac
+.Nm
+create
+.Ao Ar beName@snapshot Ac
+.Nm
+destroy
+.Op Fl F
+.Ao Ar beName | beName@snapshot Ac
+.Nm
+list
+.Op Fl a
+.Op Fl D
+.Op Fl H
+.Op Fl s
+.Nm
+mount
+.Ao Ar beName Ac
+.Op mountpoint
+.Nm
+rename
+.Ao Ar origBeName Ac
+.Ao Ar newBeName Ac
+.Nm
+{ umount | unmount }
+.Op Fl f
+.Ao Ar beName Ac
+.Sh DESCRIPTION
+The
+.Nm
+command is used to setup and interact with Boot Environments with ZFS.
+.Pp
+.Em Boot Environments
+allows the system to be upgraded, while preserving the old system environment in a separate ZFS dataset.
+.Pp
+.Sh COMMANDS
+The following commands are supported by
+.Nm :
+.Bl -tag -width indent
+.It Ic activate Ar <beName>
+.Pp
+Activate the given
+.Ar beName
+for the next boot.
+.Pp
+.It Ic create
+.Op Fl e Ar nonActiveBe | Fl e Ar beName@snapshot
+.Ao Ar beName Ac
+.Pp
+Creates a new boot environment named
+.Ar beName .
+If the -e param is specified, the new environment will be cloned from the given
+.Ar nonActiveBe | Ar beName@snapshot .
+.Pp
+.It Ic create
+.Ao Ar beName@snapshot Ac
+.Pp
+Creates a snapshot of the existing boot environment named
+.Ar beName .
+.Pp
+.It Xo
+.Ic destroy
+.Op Fl F
+.Ao Ar beName | beName@snapshot Ac
+.Xc
+.Pp
+Destroys the given
+.Ar beName
+boot environment or
+.Ar beName@snapshot
+snapshot.
+Specifying
+.Fl F
+will automatically unmount without confirmation.
+.Pp
+.It Ic list
+.Op Fl a
+.Op Fl D
+.Op Fl H
+.Op Fl s
+.Pp
+Displays all boot environments.
+The Active field indicates whether the boot environment is active now (N); active on reboot (R); or both (NR).
+.PP
+If
+.Fl a
+is used, display all datasets.
+If
+.Fl D
+is used, display the full space usage for each boot environment, assuming all other boot environments were destroyed.
+The
+.Fl H
+option is used for scripting. It does not print headers and separate fields by a single tab instead of arbitrary white space.
+If
+.Fl s
+is used, display all snapshots as well.
+.Pp
+.It Ic mount
+.Ao Ar beName Ac
+.Op mountpoint
+.Pp
+Temporarily mount the boot environment.
+Mount at the specified
+.Ar mountpoint
+if provided.
+.Pp
+.It Ic rename Ao Ar origBeName Ac Ao Ar newBeName Ac
+.Pp
+Renames the given nonactive
+.Ar origBeName
+to the given
+.Ar newBeName
+.Pp
+.It Ic umount
+.Op Fl f
+.Ao Ar beName Ac
+.Pp
+Unmount the given boot environment, if it is mounted.
+Specifying
+.Fl f
+will force the unmount if busy.
+.Pp
+.El
+.Sh EXAMPLES
+.Bl -bullet
+.It
+Perform a system upgrade in a
+.Xr jail 8
+.Pp
+Create a new boot environment called
+.Em jailed :
+.Pp
+.Dl beadm create -e default jailed
+.Pp
+Set mountpoint for new jail to
+.Pa /usr/jails/jailed :
+.Pp
+.Dl beadm mount jailed /usr/jails/jailed
+.Pp
+The currently active boot environment is now replicated into the jailed system and ready for upgrade.
+Startup the jail, login and perform the normal upgrade process.
+Once this is done, stop the jail and disable it in
+.Pa /etc/rc.conf.
+.Pp
+Now activate the boot environment for the next boot
+.Pp
+.Dl beadm activate jailed
+.Pp
+Reboot into the new environment
+.Pp
+.Dl reboot
+.El
+.Sh HOWTO
+A HOWTO guide is posted at the FreeBSD forums:
+.Bl -bullet
+.It
+.Ar http://forums.freebsd.org/showthread.php?t=31662
+.El
+.Pp
+.Sh SEE ALSO
+.Xr jail 8 ,
+.Xr zfs 8 ,
+.Xr zpool 8
+.Sh HISTORY
+.Xr beadm 1M
+originally appeared in Solaris.
+.Sh AUTHORS
+.Bl -bullet
+.It
+Slawomir Wojciech Wojtczak (vermaden)
+.Ar vermaden@interia.pl
+.Pp
+Creator and maintainer of
+.Nm .
+.It
+Bryan Drewery (bdrewery)
+.Ar bryan@shatow.net
+.Pp
+Wrote this manual page and contributed child dataset fixes.
+.It
+Mike Clarke (rawthey)
+.Ar jmc-fbsd@milibyte.co.uk
+.Pp
+Wrote fast implementation of
+.Nm Ar list .
+.Pp
+Contributed a lot of fixes and usability changes.

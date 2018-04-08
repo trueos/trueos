@@ -6,6 +6,7 @@
 # XXX MISSING:		icheck ncheck
 
 SUBDIR=adjkerntz \
+	beadm \
 	camcontrol \
 	clri \
 	comcontrol \
