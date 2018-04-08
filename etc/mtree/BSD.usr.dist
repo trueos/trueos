@@ -301,6 +301,8 @@
             ..
             pf
             ..
+            poudriere
+            ..
             ppi
             ..
             ppp
@@ -1172,6 +1174,30 @@
                 ..
             ..
             doc
+            ..
+        poudriere
+            awk
+            ..
+            html
+                assets
+                    DataTables-1.10.1
+                        css
+                        ..
+                        images
+                        ..
+                        js
+                        ..
+                    ..
+                    bootstrap-3.1.1
+                        css
+                        ..
+                        fonts
+                        ..
+                        js
+                        ..
+                ..
+            ..
+            include
             ..
         ..
         security
