@@ -7546,7 +7546,7 @@ cd /tmp
 
 . ${SCRIPTPREFIX}/include/colors.pre.sh
 [ -z "${POUDRIERE_ETC}" ] &&
-    POUDRIERE_ETC=$(realpath ${SCRIPTPREFIX}/../../etc)
+    POUDRIERE_ETC=/etc
 # If this is a relative path, add in ${PWD} as a cd / is done.
 [ "${POUDRIERE_ETC#/}" = "${POUDRIERE_ETC}" ] && \
     POUDRIERE_ETC="${SAVED_PWD}/${POUDRIERE_ETC}"
