@@ -12,7 +12,7 @@ FILES=	dependency_loop.awk \
 	processonelog2.awk \
 	siginfo_buildtime.awk
 
-FILESDIR=	/usr/share/poudirere/awk
+FILESDIR=	/usr/share/poudriere/awk
 FILESMODE=	755
 
 .include <bsd.prog.mk>
