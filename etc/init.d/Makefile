@@ -26,4 +26,8 @@ FILESMODE=	755
 ${fg}MODE?=	${BINMODE}
 .endfor
 
+.if ${MK_POUDRIERE} != "no"
+FILES+= poudriered
+.endif
+
 .include <bsd.prog.mk>
