@@ -37,7 +37,7 @@ CFLAGS+=-I${LIBPKGSRC}/external/include -I${LIBPKGSRC}/external/picosat
 CFLAGS+=-I${LIBPKGSRC}/libpkg/repo/binary -I${LIBPKGSRC}/compat
 CFLAGS+=-DHAVE_CONFIG_H
 
-LIBADD= sbuf crypto ssl util elf
+LIBADD= sbuf crypto ssl util elf archive ucl jail z bz2 lzma bsdxml
 
 WARNS?= 0
 
