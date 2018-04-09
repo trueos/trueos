@@ -148,10 +148,7 @@ SUBDIR.${MK_INETD}+=	inetd
 SUBDIR.${MK_IPFW}+=	ipfwpcap
 SUBDIR.${MK_ISCSI}+=	iscsid
 SUBDIR.${MK_JAIL}+=	jail
-SUBDIR.${MK_JAIL}+=	jbootstrap
-SUBDIR.${MK_JAIL}+=	jdestroy
 SUBDIR.${MK_JAIL}+=	jexec
-SUBDIR.${MK_JAIL}+=	jinit
 SUBDIR.${MK_JAIL}+=	jls
 # XXX MK_SYSCONS
 SUBDIR.${MK_LEGACY_CONSOLE}+=	kbdcontrol
