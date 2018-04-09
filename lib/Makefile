@@ -70,7 +70,6 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libpathconv \
 	libpcap \
 	libpjdlog \
-	libpkg \
 	${_libproc} \
 	libprocstat \
 	librc \
@@ -98,7 +97,9 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	liby \
 	libz \
 	libzstd \
-	ncurses
+	ncurses \
+	.WAIT \
+	libpkg
 
 # Inter-library dependencies.  When the makefile for a library contains LDADD
 # libraries, those libraries should be listed as build order dependencies here.
