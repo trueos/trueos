@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+#
+
+depend()
+{
+  provide poudriered
+  keyword -shutdown
+}
+
+name=poudriered
+
+: ${poudriered_pidfile:=/var/run/${name}.pid}
+: ${poudriered_socket:=/var/run/${name}.sock}
+: ${poudriered_conf:=@prefix@/etc/${name}.conf}
+
+pidfile="${poudriered_pidfile}"
+command=/libexec/poudriere/${name}

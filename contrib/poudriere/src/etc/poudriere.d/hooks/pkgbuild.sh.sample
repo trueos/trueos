@@ -1,0 +1,51 @@
+#!/bin/sh
+# /usr/local/etc/poudriere.d/hooks/pkgbuild.sh
+
+EMAIL_FROM=an@example.com
+EMAIL_TO=some@example.com
+# The failure email will snip out the middle of a build log to help
+# save BW. A URL is provided to view the full log
+# Set to how many header lines from the build to display
+HEADER_LINES=200
+# Set to how many footer lines from the build to display
+FOOTER_LINES=200
+
+status="$1"
+port="$2"
+pkgname="$3"
+
+if [ "$status" = "failed" ]; then
+	failed_phase="$4"
+	log="$5"
+	maintainer=$(awk '/maintained by:/ {print $3}' ${log})
+	ident=$(awk '/Makefile ident:/ {print $0}' ${log})
+	last_committer=$(awk '/Makefile ident:/ {print $8}' ${log})
+	mail_subject="[${MASTERNAME}] Build failed for ${pkgname} during ${failed_phase}"
+
+	log_lines=$(wc -l ${log}|awk '{print $1}')
+	if [ ${log_lines} -lt $((${FOOTER_LINES} + ${HEADER_LINES})) ]; then
+		# Log is short enough, just print it all
+		awk_script='{print $0}'
+	else
+		# Trim out the middle of the log
+		awk_script="NR < ${HEADER_LINES} || NR > $((${log_lines} - ${FOOTER_LINES})); NR == ${HEADER_LINES} { print \"<snip>\" }"
+	fi
+	
+	sendmail -f ${EMAIL_FROM} -t << EOF
+To: ${EMAIL_TO}
+Subject: ${mail_subject}
+
+Maintainer:     ${maintainer}
+Last committer: ${last_committer}@FreeBSD.org
+Ident:          ${ident#Makefile ident:      }
+Log URL:        ${LOG_URL}/${pkgname}.log
+Build URL:      ${BUILD_URL}
+Log:
+
+$(awk "${awk_script}" ${log})
+EOF
+	
+
+fi
+
+exit 0

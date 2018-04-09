@@ -57,6 +57,10 @@ SUBDIR+=	ftpd
 _comsat=	comsat
 .endif
 
+.if ${MK_POUDRIERE} != "no"
+SUBDIR+=	poudriere
+.endif
+
 .if ${MK_DMAGENT} != "no"
 _dma=		dma
 .endif

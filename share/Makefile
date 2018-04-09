@@ -70,6 +70,10 @@ _mk=		mk
 _man=		man
 .endif
 
+.if ${MK_POUDRIERE} != "no"
+_man=		poudriere
+.endif
+
 .if ${MK_SENDMAIL} != "no"
 _sendmail=	 sendmail
 .endif

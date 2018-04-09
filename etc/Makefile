@@ -172,6 +172,10 @@ BIN1+= nscd.conf
 BIN1+= portsnap.conf
 .endif
 
+.if ${MK_POUDRIERE} != "no"
+BIN1+= poudriere.conf poudriered.conf
+.endif
+
 .if ${MK_PF} != "no"
 BIN1+= pf.os
 .endif
@@ -280,6 +284,9 @@ distribution:
 	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
 .if ${MK_PKGBOOTSTRAP} != "no"
 	${_+_}cd ${.CURDIR}/pkg; ${MAKE} install
+.endif
+.if ${MK_POUDRIERE} != "no"
+	${_+_}cd ${.CURDIR}/poudriere.d; ${MAKE} install
 .endif
 	${_+_}cd ${.CURDIR}/rc.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/init.d; ${MAKE} install

@@ -72,6 +72,10 @@
         ..
         pkg
         ..
+        poudriere.d
+            hooks
+            ..
+        ..
         ppp
         ..
         rc.conf.d
@@ -111,6 +115,8 @@
     ..
     libexec
 	dhcpcd-hooks
+        ..
+        poudriere
 	..
         resolvconf
         ..
