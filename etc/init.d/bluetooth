@@ -41,18 +41,20 @@ dev=${RC_SVCNAME##*.}
 
 depend()
 {
-	need localmount
+	need localmount hcsecd
 	keyword -jail
 }
+
 
 #########################################
 #  Start/Stop individual device services
 #########################################
 
 start_dev_services(){
-  local svcdir _dev
+  local svcdir _dev _devlist
+  _devlist=$(ngctl list | grep -o "Name: .* Type: ubt" | cut -w -f 2)
   svcdir=`dirname ${RC_SERVICE}`
-  for _dev in `ls /dev | grep -e "^\(uart\|btccc\|ubt\)[0-9]"`
+  for _dev in ${_devlist}
   do
     _dev=`basename "${_dev}"`
     if [ ! -e "${RC_SERVICE}.${_dev}" ] ; then
@@ -65,15 +67,17 @@ start_dev_services(){
 }
 
 stop_dev_services(){
-  local _svc _dev
+  local _svc _dev _devlist _found
+  _devlist=$(ngctl list | grep -o "Name: .* Type: ubt" | cut -w -f 2)
   for _svc in `ls ${RC_SERVICE}.* 2>/dev/null`
   do
   	_svc=`basename ${_svc}`
 	_dev=${_svc##*.}
-  	if service_started ${_svc} && [ "${RC_CMD}" != "restart" ] || [ ! -e "/dev/${_dev}" ] ; then
+	_found=`echo "_devlist" | grep -c "${_dev}"`
+  	if service_started ${_svc} && [ "${RC_CMD}" != "restart" ] || [ "${found}" != "1" ] ; then
   		/sbin/service ${_svc} stop
   	fi
-	if [ ! -e "/dev/${_dev}" ] ; then
+	if [ "${found}" != "1" ] ; then
 	  #Device removed, remove the child service as well
 	  rm ${RC_SERVICE}.${_dev}
 	fi
