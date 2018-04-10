@@ -4,6 +4,8 @@
 
 FILEGROUPS=	FILES
 
+FILES+= bluetooth.conf
+
 .if ${MACHINE} == "powerpc"
 FILES+=	apple.conf
 .endif
