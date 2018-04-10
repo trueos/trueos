@@ -8,7 +8,7 @@ BINDIR=		/etc/init.d
 FILESGROUP=	FILES
 
 FILES=          abi accounting adjkerntz amd auditd auditdistd automount automountd autounmountd \
-		blacklistd bluetooth bootmisc bridge cleanvar cleartmp cron \
+		blacklistd bluetooth bootmisc bridge bthidd cleanvar cleartmp cron \
 		devd devfs dhcpcd dumpon earlykld encswap fsck ftpd ftp-proxy \
 		gssd hcsecd hostid hostname inetd iscsictl iscsid ipfw jail \
 		ldconfig local localmount local_unbound lockd lpd hostapd \
