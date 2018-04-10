@@ -37,8 +37,9 @@ CFLAGS+=-I${LIBPKGSRC}/external/include -I${LIBPKGSRC}/external/picosat
 CFLAGS+=-I${LIBPKGSRC}/libpkg/repo/binary -I${LIBPKGSRC}/compat
 CFLAGS+=-DHAVE_CONFIG_H -L${.OBJDIR}/lib/libarchive
 LDFLAGS+=-L${.OBJDIR:H}/libarchive -L${.OBJDIR:H}/libjail
+LDFLAGS+=-L${.OBJDIR:H}/libfetch -L${.OBJDIR:H}/libucl
 
-LIBADD+=	sbuf crypto ssl util elf archive jail z bz2 lzma bsdxml
+LIBADD+=sbuf crypto ssl util elf archive jail z bz2 lzma bsdxml fetch ucl
 
 WARNS?= 0
 
