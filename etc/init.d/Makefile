@@ -15,7 +15,7 @@ FILES=          abi accounting adjkerntz amd auditd auditdistd automount automou
 		mixer modules mountd mountlate moused motd \
 		natd netmount network newsyslog nfsclient nfsd nfsuserd nisdomain nsswitch \
 		nscd ntpd ntpdate pf pflog powerd ppp rarpd rc-enabled resolv root routing rpcbind runsvdir \
-		s6-svscan savecache savecore sendmail \
+		s6-svscan savecache savecore sdpd sendmail \
 		sshd statd staticroute swap syscons sysctl syslogd tmp tmpfiles.setup urandom \
 		var wpa_supplicant \
 		ypbind ypldap yppasswdd ypserv ypset ypupdated ypxfrd \
