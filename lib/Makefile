@@ -70,7 +70,6 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libpathconv \
 	libpcap \
 	libpjdlog \
-	libpkg \
 	${_libproc} \
 	libprocstat \
 	librc \
@@ -98,7 +97,9 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	liby \
 	libz \
 	libzstd \
-	ncurses
+	ncurses \
+	.WAIT \
+	libpkg
 
 # Inter-library dependencies.  When the makefile for a library contains LDADD
 # libraries, those libraries should be listed as build order dependencies here.
@@ -119,7 +120,7 @@ SUBDIR_DEPEND_libmagic= libz
 SUBDIR_DEPEND_libmemstat= libkvm
 SUBDIR_DEPEND_libopie= libmd
 SUBDIR_DEPEND_libpam= libcrypt libopie ${_libradius} librpcsvc libtacplus libutil ${_libypclnt} ${_libcom_err} 
-SUBDIR_DEPEND_libpkg= libarchive libfetch libucl libsbuf libcrypt libutil libjail libelf
+SUBDIR_DEPEND_libpkg= libarchive libfetch libucl libsbuf libcrypt libutil libucl libjail libelf libbz2 liblzma libz
 SUBDIR_DEPEND_libpjdlog= libutil
 SUBDIR_DEPEND_libprocstat= libkvm libutil
 SUBDIR_DEPEND_libradius= libmd

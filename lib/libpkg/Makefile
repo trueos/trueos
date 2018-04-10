@@ -35,9 +35,10 @@ CFLAGS+=-I${LIBPKGSRC}/external/libucl/include -I${LIBPKGSRC}/external/libucl/kl
 CFLAGS+=-I${LIBPKGSRC}/external/expat/lib -I${LIBPKGSRC}/external/blake2
 CFLAGS+=-I${LIBPKGSRC}/external/include -I${LIBPKGSRC}/external/picosat
 CFLAGS+=-I${LIBPKGSRC}/libpkg/repo/binary -I${LIBPKGSRC}/compat
-CFLAGS+=-DHAVE_CONFIG_H
+CFLAGS+=-DHAVE_CONFIG_H -L${.OBJDIR}/lib/libarchive
+LDFLAGS+=-L${.OBJDIR:H}/libarchive -L${.OBJDIR:H}/libjail
 
-LIBADD= sbuf crypto ssl util elf
+LIBADD+=	sbuf crypto ssl util elf archive jail z bz2 lzma bsdxml
 
 WARNS?= 0
 
