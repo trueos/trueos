@@ -41,8 +41,39 @@ dev=${RC_SVCNAME##*.}
 
 depend()
 {
-	need localmount hcsecd
+	need localmount
+	if [ ! -z ${dev} ] ; then
+		#Only startup these other services if an actual BT device is connected
+		use hcsecd sdpd bthidd
+	fi
 	keyword -jail
+}
+
+#Add support for all the device interactions (sub-devices only)
+if [ ! -z "${dev}" ] ; then
+  extra_started_commands="inquiry"
+  description_inquiry="Scan for discoverable BT devices and output address/name of each"
+fi
+
+#########################################
+#   Device Interaction Commands
+#########################################
+getDevNodes(){
+  nodes=`hccontrol Read_Node_List | grep ${dev} | cut -w -f 1`
+}
+
+inquiry(){
+  getDevNodes
+  local _addr _hrname
+  for node in "${nodes}"
+  do
+    #Output the addresses for devices
+    for _addr in `hccontrol -N -n ${node} inquiry | grep -o "BD_ADDR: .*" | cut -w -f 2`
+    do
+      _hrname=`hccontrol Remote_Name_Request ${_addr} | grep -o "Name: .*" | cut -w -f 2-`
+      echo "${_addr} [${_hrname}]"
+    done
+  done
 }
 
 
