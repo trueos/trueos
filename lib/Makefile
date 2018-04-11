@@ -55,6 +55,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libifconfig \
 	libipsec \
 	libjail \
+	libjq \
 	libkiconv \
 	libkvm \
 	liblzma \
