@@ -42,7 +42,7 @@ dev=${RC_SVCNAME##*.}
 depend()
 {
 	need localmount
-	if [ ! -z ${dev} ] ; then
+	if [ -n ${dev} ] ; then
 		#Only startup these other services if an actual BT device is connected
 		use hcsecd sdpd bthidd
 	fi
@@ -50,7 +50,7 @@ depend()
 }
 
 #Add support for all the device interactions (sub-devices only)
-if [ ! -z "${dev}" ] ; then
+if [ -n "${dev}" ] ; then
   extra_started_commands="inquiry"
   description_inquiry="Scan for discoverable BT devices and output address/name of each"
 fi
