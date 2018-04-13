@@ -12,6 +12,8 @@ command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 required_modules="ng_btsocket"
 supervisor="supervise-daemon"
+output_file="/var/log/${name}.log"
+error_file="/var/log/${name}.log"
 
 #Respect config file
 config="${hcsecd_config:-/etc/bluetooth/${name}.conf}"
@@ -21,6 +23,16 @@ required_files="${config}"
 depend(){
   before devd
   keyword -jail -shutdown
+}
+
+extra_started_commands="reload"
+description_reload="Prompt the service to reload its configuration files"
+
+reload(){
+  #Send the HUP signal to the daemon to reload the configs
+  local _pid
+  _pid=`cat ${pidfile}`
+  kill -s HUP ${_pid}
 }
 
 start_pre(){
