@@ -11,13 +11,14 @@ SRCDIR=		${SRCTOP}/contrib/jq
 
 WARNS?= 0       # some warn issues on 32 bit machines
 
+SRCS+=  main.c version.h
 SRCS+=  locfile.c bytecode.c compile.c execute.c builtin.c jv.c \
-	jv_parse.c jv_print.c jv_dtoa.c jv_unicode.c jv_aux.c jv_file.c \
-	jv_alloc.c jq_test.c util.c linker.c main.c
-SRCS+=	jq_parser.h builtin.h bytecode.h compile.h exec_stack.h \
-	libm.h jv_alloc.h jv_dtoa.h jv_unicode.h locfile.h \
-	opcode_list.h jv_utf8_tables.h lexer.l util.h linker.h \
-	version.h
+        jv_parse.c jv_print.c jv_dtoa.c jv_unicode.c jv_aux.c jv_file.c \
+        jv_alloc.c jq_test.c util.c linker.c
+SRCS+=  jq_parser.h builtin.h bytecode.h compile.h exec_stack.h \
+        libm.h jv_alloc.h jv_dtoa.h jv_unicode.h locfile.h \
+        opcode_list.h parser.c parser.h jv_utf8_tables.h lexer.c lexer.h util.h linker.h
+
 
 CFLAGS+=-I${SRCDIR}
 CFLAGS+=-DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 \
@@ -35,7 +36,7 @@ CFLAGS+=-DSTDC_HEADERS=1 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 \
 	-DHAVE_TANH=1 -DHAVE_TGAMMA=1 -DHAVE_Y0=1 -DHAVE_LIBM=1 -DHAVE_Y1=1 \
 	-DHAVE_LIBM=1 -DHAVE_POW=1 -DHAVE_ATAN2=1 -DHAVE_HYPOT=1 \
 	-DHAVE_REMAINDER=1 -DHAVE___THREAD=1 -DIEEE_8087=1
-LDFLAGS+=-lm -ljq -L${.OBJDIR}/../../lib/libjq
+LDFLAGS+=-lm #-ljq -L${.OBJDIR}/../../lib/libjq
 
 CSTD= gnu99
 
