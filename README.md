@@ -19,11 +19,15 @@ on a 6 months schedule which includes OS and Ports.
 
 * CI - Our [Jenkins build cluster](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20World%20CI/) is constantly building [new versions](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20World%20CI/job/trueos-master/) of TrueOS for testing.
 
+* [LibreSSL](https://www.libressl.org/) - Replaces OpenSSL in the base system with one far more secure.
+
 * [dhcpcd](https://github.com/rsmarples/dhcpcd) - dhcpcd has been integrated directly into base,
 allowing more advanced IPv4 and IPv6 network configuration
 
 * [OpenRC](https://github.com/openrc/openrc/) - This replaces the legacy rc.d scripts with
 OpenRC's init.d subsystem, allowing faster boots, as well as a host of other service improvements.
+
+* [JQ](https://stedolan.github.io/jq/) - Because working with JSON files using SED and AWK isn't exactly ideal... JQ allows using JSON in shell and other utilties in the base system.
 
 * Package Base - TrueOS is installed and based on using Packages for the Base OS.
 
@@ -44,6 +48,7 @@ The following instructions may be used to generate TrueOS installation
 images:
 
 ```
-make buildworld buildkernel packages
+make buildworld buildkernel
+make packages
 cd release && make release
 ```
