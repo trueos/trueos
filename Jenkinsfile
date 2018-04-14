@@ -28,6 +28,9 @@ pipeline {
       }
     }
     stage('Packages') {
+      environment {
+           PKGSIGNKEY = credentials('trueos-pkg.key')
+      }
       steps {
         sh 'make -j32 packages'
       }
