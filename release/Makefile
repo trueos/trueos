@@ -149,7 +149,7 @@ src.txz:
 	mkdir -p ${DISTDIR}/usr
 	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
 	cd ${DISTDIR} && tar cLvf - --exclude .svn --exclude .zfs \
-	    --exclude .git --exclude @ --exclude usr/src/release/dist usr/src | \
+	    --exclude .git --exclude @ --exclude usr/src/artifacts --exclude usr/src/release/dist usr/src | \
 	    ${XZ_CMD} > ${.OBJDIR}/src.txz
 
 ports.txz:
@@ -158,6 +158,7 @@ ports.txz:
 	cd ${DISTDIR} && tar cLvf - \
 	    --exclude .git --exclude .svn \
 	    --exclude usr/ports/distfiles --exclude usr/ports/packages \
+	    --exclude usr/ports/artifacts \
 	    --exclude 'usr/ports/INDEX*' --exclude work usr/ports | \
 	    ${XZ_CMD} > ${.OBJDIR}/ports.txz
 
