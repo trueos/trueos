@@ -29,7 +29,7 @@ pipeline {
     }
     stage('Packages') {
       environment {
-           PKGSIGNKEY = credentials('trueos-pkg.key')
+           PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
         sh 'make -j32 packages'
