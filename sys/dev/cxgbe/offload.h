@@ -126,6 +126,7 @@ struct t4_virt_res {                      /* virtualized HW resources */
 	struct t4_range srq;
 	struct t4_range ocq;
 	struct t4_range l2t;
+	struct t4_range key;
 };
 
 enum {
@@ -150,8 +151,12 @@ struct tom_tunables {
 	int sndbuf;
 	int ddp;
 	int rx_coalesce;
+	int tls;
+	int *tls_rx_ports;
+	int num_tls_rx_ports;
 	int tx_align;
 	int tx_zcopy;
+	int cop_managed_offloading;
 };
 /* iWARP driver tunables */
 struct iw_tunables {

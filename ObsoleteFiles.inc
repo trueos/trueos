@@ -38,12 +38,33 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20180413: remove Arcnet support
+OLD_FILES+=usr/include/net/if_arc.h
+OLD_FILES+=usr/share/man/man4/cm.4.gz
+# 20180409: remove FDDI support
+OLD_FILES+=usr/include/net/fddi.h
+OLD_FILES+=usr/share/man/man4/fpa.4.gz
+# 20180319: remove /boot/overlays, replaced by /boot/dtb/overlays
+OLD_DIRS+=boot/overlays
+# 20180311: remove sys/sys/i386/include/pcaudioio.h
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/pcaudioio.h
+.endif
+# 20180310: remove sys/sys/dataacq.h
+OLD_FILES+=usr/include/sys/dataacq.h
+# 20180306: remove DTrace scripts made obsolete by dwatch(1)
+OLD_FILES+=usr/share/dtrace/watch_execve
+OLD_FILES+=usr/share/dtrace/watch_kill
+OLD_FILES+=usr/share/dtrace/watch_vop_remove
+# 20180212: move devmatch
+OLD_FILES+=usr/sbin/devmatch
+# 20180211: remove usb.conf
+OLD_FILES+=etc/devd/usb.conf
 # 20180208: remove c_rehash(1)
 OLD_FILES+=usr/share/openssl/man/man1/c_rehash.1.gz
 # 20180206: remove gdbtui
 OLD_FILES+=usr/bin/gdbtui
 # 20180201: Obsolete forth files
-OLD_FILES+=boot/efi.4th
 OLD_FILES+=boot/pcibios.4th
 # 20180114: new clang import which bumps version from 5.0.1 to 6.0.0.
 OLD_FILES+=usr/lib/clang/5.0.1/include/sanitizer/allocator_interface.h
@@ -1052,7 +1073,6 @@ OLD_FILES+=usr/share/man/man7/mm.7.gz
 OLD_FILES+=usr/share/man/man7/mmse.7.gz
 OLD_FILES+=usr/share/man/man7/ms.7.gz
 OLD_FILES+=usr/share/man/man7/orig_me.7.gz
-OLD_FILES+=usr/share/man/man7/roff.7.gz
 OLD_FILES+=usr/share/me/acm.me
 OLD_FILES+=usr/share/me/chars.me
 OLD_FILES+=usr/share/me/deltext.me

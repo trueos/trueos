@@ -63,8 +63,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 /* TODO Move headers to mprvar */
 #include <sys/types.h>
 #include <sys/param.h>
@@ -1189,7 +1187,10 @@ mpr_user_get_adapter_data(struct mpr_softc *sc, mpr_adapter_data_t *data)
 	/*
 	 * General device info.
 	 */
-	data->AdapterType = MPRIOCTL_ADAPTER_TYPE_SAS3;
+	if (sc->mpr_flags & MPR_FLAGS_GEN35_IOC)
+		data->AdapterType = MPRIOCTL_ADAPTER_TYPE_SAS35;
+	else
+		data->AdapterType = MPRIOCTL_ADAPTER_TYPE_SAS3;
 	data->PCIDeviceHwId = pci_get_device(sc->mpr_dev);
 	data->PCIDeviceHwRev = pci_read_config(sc->mpr_dev, PCIR_REVID, 1);
 	data->SubSystemId = pci_get_subdevice(sc->mpr_dev);

@@ -71,7 +71,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_sysvipc.h"
 
 #include <sys/param.h>
@@ -200,7 +199,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, shm_allow_removed, CTLFLAG_RWTUN,
     "Enable/Disable attachment to attached segments marked for removal");
 SYSCTL_PROC(_kern_ipc, OID_AUTO, shmsegs, CTLTYPE_OPAQUE | CTLFLAG_RD |
     CTLFLAG_MPSAFE, NULL, 0, sysctl_shmsegs, "",
-    "Current number of shared memory segments allocated");
+    "Array of struct shmid_kernel for each potential shared memory segment");
 
 static struct sx sysvshmsx;
 #define	SYSVSHM_LOCK()		sx_xlock(&sysvshmsx)
@@ -1471,6 +1470,7 @@ freebsd7_freebsd32_shmctl(struct thread *td,
 		break;
 	case SHM_STAT:
 	case IPC_STAT:
+		memset(&u32.shmid_ds32, 0, sizeof(u32.shmid_ds32));
 		freebsd32_ipcperm_old_out(&u.shmid_ds.shm_perm,
 		    &u32.shmid_ds32.shm_perm);
 		if (u.shmid_ds.shm_segsz > INT32_MAX)
@@ -1634,6 +1634,7 @@ freebsd7_shmctl(struct thread *td, struct freebsd7_shmctl_args *uap)
 	/* Cases in which we need to copyout */
 	switch (uap->cmd) {
 	case IPC_STAT:
+		memset(&old, 0, sizeof(old));
 		ipcperm_new2old(&buf.shm_perm, &old.shm_perm);
 		if (buf.shm_segsz > INT_MAX)
 			old.shm_segsz = INT_MAX;

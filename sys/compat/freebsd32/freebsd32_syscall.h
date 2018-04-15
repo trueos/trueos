@@ -459,7 +459,7 @@
 #define	FREEBSD32_SYS_freebsd32_fstat	551
 #define	FREEBSD32_SYS_freebsd32_fstatat	552
 #define	FREEBSD32_SYS_freebsd32_fhstat	553
-#define	FREEBSD32_SYS_freebsd32_getdirentries	554
+#define	FREEBSD32_SYS_getdirentries	554
 #define	FREEBSD32_SYS_statfs	555
 #define	FREEBSD32_SYS_fstatfs	556
 #define	FREEBSD32_SYS_getfsstat	557
@@ -468,4 +468,5 @@
 #define	FREEBSD32_SYS_freebsd32_kevent	560
 #define	FREEBSD32_SYS_freebsd32_cpuset_getdomain	561
 #define	FREEBSD32_SYS_freebsd32_cpuset_setdomain	562
-#define	FREEBSD32_SYS_MAXSYSCALL	563
+#define	FREEBSD32_SYS_getrandom	563
+#define	FREEBSD32_SYS_MAXSYSCALL	564

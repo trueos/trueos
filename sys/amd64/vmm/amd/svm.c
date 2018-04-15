@@ -969,6 +969,7 @@ svm_save_intinfo(struct svm_softc *svm_sc, int vcpu)
 	vm_exit_intinfo(svm_sc->vm, vcpu, intinfo);
 }
 
+#ifdef INVARIANTS
 static __inline int
 vintr_intercept_enabled(struct svm_softc *sc, int vcpu)
 {
@@ -976,6 +977,7 @@ vintr_intercept_enabled(struct svm_softc *sc, int vcpu)
 	return (svm_get_intercept(sc, vcpu, VMCB_CTRL1_INTCPT,
 	    VMCB_INTCPT_VINTR));
 }
+#endif
 
 static __inline void
 enable_intr_window_exiting(struct svm_softc *sc, int vcpu)
@@ -2010,6 +2012,12 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		if (vcpu_should_yield(vm, vcpu)) {
 			enable_gintr();
 			vm_exit_astpending(vm, vcpu, state->rip);
+			break;
+		}
+
+		if (vcpu_debugged(vm, vcpu)) {
+			enable_gintr();
+			vm_exit_debug(vm, vcpu, state->rip);
 			break;
 		}
 

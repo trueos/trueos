@@ -34,8 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -96,6 +94,7 @@ struct vmmeter __exclusive_cache_line vm_cnt = {
 	.v_vforkpages = EARLY_COUNTER,
 	.v_rforkpages = EARLY_COUNTER,
 	.v_kthreadpages = EARLY_COUNTER,
+	.v_wire_count = EARLY_COUNTER,
 };
 
 static void
@@ -105,7 +104,7 @@ vmcounter_startup(void)
 
 	COUNTER_ARRAY_ALLOC(cnt, VM_METER_NCOUNTERS, M_WAITOK);
 }
-SYSINIT(counter, SI_SUB_CPU, SI_ORDER_FOURTH + 1, vmcounter_startup, NULL);
+SYSINIT(counter, SI_SUB_KMEM, SI_ORDER_FIRST, vmcounter_startup, NULL);
 
 SYSCTL_UINT(_vm, VM_V_FREE_MIN, v_free_min,
 	CTLFLAG_RW, &vm_cnt.v_free_min, 0, "Minimum low-free-pages threshold");
@@ -403,7 +402,7 @@ VM_STATS_UINT(v_free_reserved, "Pages reserved for deadlock");
 VM_STATS_UINT(v_free_target, "Pages desired free");
 VM_STATS_UINT(v_free_min, "Minimum low-free-pages threshold");
 VM_STATS_PROC(v_free_count, "Free pages", vm_free_count);
-VM_STATS_UINT(v_wire_count, "Wired pages");
+VM_STATS_PROC(v_wire_count, "Wired pages", vm_wire_count);
 VM_STATS_PROC(v_active_count, "Active pages", vm_active_count);
 VM_STATS_UINT(v_inactive_target, "Desired inactive pages");
 VM_STATS_PROC(v_inactive_count, "Inactive pages", vm_inactive_count);
@@ -472,3 +471,58 @@ vm_laundry_count(void)
 	return vm_pagequeue_count(PQ_LAUNDRY);
 }
 
+static void
+vm_domain_stats_init(struct vm_domain *vmd, struct sysctl_oid *parent)
+{
+	struct sysctl_oid *oid;
+
+	vmd->vmd_oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(parent), OID_AUTO,
+	    vmd->vmd_name, CTLFLAG_RD, NULL, "");
+	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(vmd->vmd_oid), OID_AUTO,
+	    "stats", CTLFLAG_RD, NULL, "");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "free_count", CTLFLAG_RD, &vmd->vmd_free_count, 0,
+	    "Free pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "active", CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_ACTIVE].pq_cnt, 0,
+	    "Active pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "inactive", CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_INACTIVE].pq_cnt, 0,
+	    "Inactive pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "laundry", CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_LAUNDRY].pq_cnt, 0,
+	    "laundry pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO, "unswappable",
+	    CTLFLAG_RD, &vmd->vmd_pagequeues[PQ_UNSWAPPABLE].pq_cnt, 0,
+	    "Unswappable pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "inactive_target", CTLFLAG_RD, &vmd->vmd_inactive_target, 0,
+	    "Target inactive pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "free_target", CTLFLAG_RD, &vmd->vmd_free_target, 0,
+	    "Target free pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "free_reserved", CTLFLAG_RD, &vmd->vmd_free_reserved, 0,
+	    "Reserved free pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "free_min", CTLFLAG_RD, &vmd->vmd_free_min, 0,
+	    "Minimum free pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "free_severe", CTLFLAG_RD, &vmd->vmd_free_severe, 0,
+	    "Severe free pages");
+
+}
+
+static void
+vm_stats_init(void *arg __unused)
+{
+	struct sysctl_oid *oid;
+	int i;
+
+	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_vm), OID_AUTO,
+	    "domain", CTLFLAG_RD, NULL, "");
+	for (i = 0; i < vm_ndomains; i++)
+		vm_domain_stats_init(VM_DOMAIN(i), oid);
+}
+
+SYSINIT(vmstats_init, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_stats_init, NULL);

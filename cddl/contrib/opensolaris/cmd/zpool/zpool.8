@@ -45,6 +45,10 @@
 .Op Fl f
 .Ar pool device new_device
 .Nm
+.Cm checkpoint
+.Op Fl d, -discard
+.Ar pool
+.Nm
 .Cm clear
 .Op Fl F Op Fl n
 .Ar pool
@@ -58,6 +62,7 @@
 .Ar ...
 .Op Fl m Ar mountpoint
 .Op Fl R Ar root
+.Op Fl t Ar tempname
 .Ar pool vdev ...
 .Nm
 .Cm destroy
@@ -90,6 +95,7 @@
 .Op Fl o Ar mntopts
 .Op Fl o Ar property Ns = Ns Ar value
 .Ar ...
+.Op Fl -rewind-to-checkpoint
 .Op Fl d Ar dir | Fl c Ar cachefile
 .Op Fl D
 .Op Fl f
@@ -103,12 +109,14 @@
 .Op Fl o Ar mntopts
 .Op Fl o Ar property Ns = Ns Ar value
 .Ar ...
+.Op Fl -rewind-to-checkpoint
 .Op Fl d Ar dir | Fl c Ar cachefile
 .Op Fl D
 .Op Fl f
 .Op Fl m
 .Op Fl N
 .Op Fl R Ar root
+.Op Fl t
 .Op Fl F Op Fl n
 .Ar pool | id
 .Op Ar newpool
@@ -532,6 +540,50 @@ configuration.
 .Pp
 The content of the cache devices is considered volatile, as is the case with
 other system caches.
+.Ss Pool checkpoint
+Before starting critical procedures that include destructive actions (e.g
+.Nm zfs Cm destroy
+), an administrator can checkpoint the pool's state and in the case of a
+mistake or failure, rewind the entire pool back to the checkpoint.
+Otherwise, the checkpoint can be discarded when the procedure has completed
+successfully.
+.Pp
+A pool checkpoint can be thought of as a pool-wide snapshot and should be used
+with care as it contains every part of the pool's state, from properties to vdev
+configuration.
+Thus, while a pool has a checkpoint certain operations are not allowed.
+Specifically, vdev removal/attach/detach, mirror splitting, and
+changing the pool's guid.
+Adding a new vdev is supported but in the case of a rewind it will have to be
+added again.
+Finally, users of this feature should keep in mind that scrubs in a pool that
+has a checkpoint do not repair checkpointed data.
+.Pp
+To create a checkpoint for a pool:
+.Bd -literal
+# zpool checkpoint pool
+.Ed
+.Pp
+To later rewind to its checkpointed state, you need to first export it and
+then rewind it during import:
+.Bd -literal
+# zpool export pool
+# zpool import --rewind-to-checkpoint pool
+.Ed
+.Pp
+To discard the checkpoint from a pool:
+.Bd -literal
+# zpool checkpoint -d pool
+.Ed
+.Pp
+Dataset reservations (controlled by the
+.Nm reservation
+or
+.Nm refreservation
+zfs properties) may be unenforceable while a checkpoint exists, because the
+checkpoint is allowed to consume the dataset's reservation.
+Finally, data that is part of the checkpoint but has been freed in the
+current state of the pool won't be scanned during a scrub.
 .Ss Properties
 Each pool has several properties associated with it. Some properties are
 read-only statistics while others are configurable and change the behavior of
@@ -847,6 +899,39 @@ manner.
 .El
 .It Xo
 .Nm
+.Cm checkpoint
+.Op Fl d, -discard
+.Ar pool
+.Xc
+Checkpoints the current state of
+.Ar pool
+, which can be later restored by
+.Nm zpool Cm import --rewind-to-checkpoint .
+The existence of a checkpoint in a pool prohibits the following
+.Nm zpool
+commands:
+.Cm remove ,
+.Cm attach ,
+.Cm detach ,
+.Cm split ,
+and
+.Cm reguid .
+In addition, it may break reservation boundaries if the pool lacks free
+space.
+The
+.Nm zpool Cm status
+command indicates the existence of a checkpoint or the progress of discarding a
+checkpoint from a pool.
+The
+.Nm zpool Cm list
+command reports how much space the checkpoint takes from the pool.
+.Bl -tag -width Ds
+.It Fl d, -discard
+Discards an existing checkpoint from
+.Ar pool .
+.El
+.It Xo
+.Nm
 .Cm clear
 .Op Fl F Op Fl n
 .Ar pool
@@ -878,6 +963,7 @@ do not actually discard any transactions.
 .Ar ...
 .Op Fl m Ar mountpoint
 .Op Fl R Ar root
+.Op Fl t Ar tempname
 .Ar pool vdev ...
 .Xc
 .Pp
@@ -979,6 +1065,18 @@ or
 .Qq Cm none .
 For more information on dataset mount points, see
 .Xr zfs 8 .
+.It Fl t Ar tempname
+Sets the in-core pool name to
+.Pa tempname
+while the on-disk name will be the name specified as the pool name
+.Pa pool .
+This will set the default
+.Sy cachefile
+property to
+.Sy none .
+This is intended to handle name space collisions when creating pools
+for other systems, such as virtual machines or physical machines
+whose pools live on network block devices.
 .El
 .It Xo
 .Nm
@@ -1233,6 +1331,7 @@ Searches for and imports all pools found.
 .Op Fl m
 .Op Fl N
 .Op Fl R Ar root
+.Op Fl t
 .Op Fl F Op Fl n
 .Ar pool | id
 .Op Ar newpool
@@ -1292,6 +1391,20 @@ Import the pool without mounting any file systems.
 .It Fl R Ar root
 Equivalent to
 .Qq Fl o Cm cachefile=none,altroot= Ns Pa root
+.It Fl t
+Used with
+.Ar newpool .
+Specifies that
+.Ar newpool
+is temporary.
+Temporary pool names last until export.
+Ensures that the original pool name will be used in all label updates and
+therefore is retained upon export.
+Will also set
+.Sy cachefile
+property to
+.Sy none
+when not explicitly specified.
 .It Fl F
 Recovery mode for a non-importable pool. Attempt to return the pool to an
 importable state by discarding the last few transactions. Not all damaged pools
@@ -1306,6 +1419,16 @@ importable again, but does not actually perform the pool recovery. For more
 details about pool recovery mode, see the
 .Fl F
 option, above.
+.It Fl -rewind-to-checkpoint
+Rewinds pool to the checkpointed state.
+Once the pool is imported with this flag there is no way to undo the rewind.
+All changes and data that were written after the checkpoint are lost!
+The only exception is when the
+.Sy readonly
+mounting option is enabled.
+In this case, the checkpointed state of the pool is opened and an
+administrator can see how the pool would look like if they were
+to fully rewind.
 .El
 .It Xo
 .Nm
