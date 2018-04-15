@@ -56,8 +56,6 @@ pipeline {
         sh 'make clean'
         sh 'cd release && make clean'
         sh 'rm -rf /usr/obj${WORKSPACE}'
-        sh 'chflags -R noschg /usr/obj${WORKSPACE}'
-        sh 'rm -rf /usr/obj${WORKSPACE}'
       }
     }
   }
