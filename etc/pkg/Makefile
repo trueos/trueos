@@ -2,7 +2,7 @@
 
 NO_OBJ=
 
-FILES=	FreeBSD.conf
+FILES=	TrueOS.conf
 
 FILESDIR=	/etc/pkg
 FILESMODE=	644
