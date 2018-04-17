@@ -122,6 +122,7 @@ avg [label="Andriy Gapon\navg@FreeBSD.org\n2009/02/18"]
 avos [label="Andriy Voskoboinyk\navos@FreeBSD.org\n2015/09/24"]
 badger [label="Eric Badger\nbadger@FreeBSD.org\n2016/07/01"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2011/12/23"]
+bde [label="Bruce Evans\nbde@FreeBSD.org\n1994/08/20"]
 bdrewery [label="Bryan Drewery\nbdrewery@FreeBSD.org\n2013/12/14"]
 benl [label="Ben Laurie\nbenl@FreeBSD.org\n2011/05/18"]
 benno [label="Benno Rice\nbenno@FreeBSD.org\n2000/11/02"]
@@ -187,6 +188,7 @@ gshapiro [label="Gregory Shapiro\ngshapiro@FreeBSD.org\n2000/07/12"]
 harti [label="Hartmut Brandt\nharti@FreeBSD.org\n2003/01/29"]
 hiren [label="Hiren Panchasara\nhiren@FreeBSD.org\n2013/04/12"]
 hmp [label="Hiten Pandya\nhmp@FreeBSD.org\n2004/03/23"]
+hselasky [label="Hans Petter Selasky\nhselasky@FreeBSD.org\n"]
 ian [label="Ian Lepore\nian@FreeBSD.org\n2013/01/07"]
 iedowse [label="Ian Dowse\niedowse@FreeBSD.org\n2000/12/01"]
 imp [label="Warner Losh\nimp@FreeBSD.org\n1996/09/20"]
@@ -280,6 +282,7 @@ pkelsey [label="Patrick Kelsey\pkelsey@FreeBSD.org\n2014/05/29"]
 pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2010/10/05"]
 ps [label="Paul Saab\nps@FreeBSD.org\n2000/02/23"]
 qingli [label="Qing Li\nqingli@FreeBSD.org\n2005/04/13"]
+ram [label="Ram Kishore Vegesna\nram@FreeBSD.org\n2018/04/04"]
 ray [label="Aleksandr Rybalko\nray@FreeBSD.org\n2011/05/25"]
 rdivacky [label="Roman Divacky\nrdivacky@FreeBSD.org\n2008/03/13"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2007/02/23"]
@@ -313,6 +316,7 @@ shurd [label="Stephen Hurd\nshurd@FreeBSD.org\n2017/09/02"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
 sjg [label="Simon J. Gerraty\nsjg@FreeBSD.org\n2012/10/23"]
 skra [label="Svatopluk Kraus\nskra@FreeBSD.org\n2015/10/28"]
+slavash [label="Slava Shwartsman\nslavash@FreeBSD.org\n2018/02/08"]
 slm [label="Stephen McConnell\nslm@FreeBSD.org\n2014/05/07"]
 smh [label="Steven Hartland\nsmh@FreeBSD.org\n2012/11/12"]
 sobomax [label="Maxim Sobolev\nsobomax@FreeBSD.org\n2001/07/25"]
@@ -324,6 +328,7 @@ suz [label="SUZUKI Shinsuke\nsuz@FreeBSD.org\n2002/03/26"]
 syrinx [label="Shteryana Shopova\nsyrinx@FreeBSD.org\n2006/10/07"]
 takawata [label="Takanori Watanabe\ntakawata@FreeBSD.org\n2000/07/06"]
 theraven [label="David Chisnall\ntheraven@FreeBSD.org\n2011/11/11"]
+thj [label="Tom Jones\nthj@FreeBSD.org\n2018/04/07"]
 thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
 ticso [label="Bernd Walter\nticso@FreeBSD.org\n2002/01/31"]
 tijl [label="Tijl Coosemans\ntijl@FreeBSD.org\n2010/07/16"]
@@ -399,6 +404,8 @@ bapt -> allanjude
 bapt -> araujo
 bapt -> bdrewery
 bapt -> wulf
+
+bde -> rgrimes
 
 benno -> grehan
 
@@ -524,6 +531,8 @@ grog -> edwin
 grog -> le
 grog -> peterj
 
+hselasky -> slavash
+
 imp -> akiyama
 imp -> ambrisko
 imp -> andrew
@@ -611,6 +620,8 @@ joerg -> le
 joerg -> netchild
 joerg -> schweikh
 
+jtl -> thj
+
 julian -> glebius
 julian -> davidxu
 julian -> archie
@@ -622,6 +633,7 @@ kan -> kib
 
 ken -> asomers
 ken -> chuck
+ken -> ram
 ken -> slm
 
 kib -> ae
@@ -640,6 +652,7 @@ kib -> rdivacky
 kib -> rmacklem
 kib -> rmh
 kib -> skra
+kib -> slavash
 kib -> stas
 kib -> tijl
 kib -> trociny
@@ -663,6 +676,7 @@ markm -> sheldonh
 
 mav -> ae
 mav -> eugen
+mav -> ram
 
 mdf -> gleb
 
@@ -715,6 +729,7 @@ philip -> kp
 
 phk -> jkoshy
 phk -> mux
+phk -> rgrimes
 
 pjd -> def
 pjd -> kib

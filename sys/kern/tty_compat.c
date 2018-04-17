@@ -34,8 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 /*
  * mapping routines for old line discipline (yuck)
  */
@@ -262,9 +260,11 @@ tty_ioctl_compat(struct tty *tp, u_long com, caddr_t data, int fflag,
 			fflag, td));
 	    }
 
-	case OTIOCCONS:
-		*(int *)data = 1;
-		return (tty_ioctl(tp, TIOCCONS, data, fflag, td));
+	case OTIOCCONS: {
+		int one = 1;
+
+		return (tty_ioctl(tp, TIOCCONS, (caddr_t)&one, fflag, td));
+	}
 
 	default:
 		return (ENOIOCTL);

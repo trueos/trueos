@@ -146,6 +146,7 @@ KMODOWN?=	${BINOWN}
 KMODGRP?=	${BINGRP}
 KMODMODE?=	${BINMODE}
 DTBDIR?=	/boot/dtb
+DTBODIR?=	/boot/dtb/overlays
 DTBOWN?=	root
 DTBGRP?=	wheel
 DTBMODE?=	444
@@ -228,17 +229,6 @@ XZ_THREADS?=	0
 XZ_CMD?=	xz -T ${XZ_THREADS}
 .else
 XZ_CMD?=	xz
-.endif
-
-.if !defined(SVNVERSION_CMD) && empty(SVNVERSION_CMD)
-. for _D in ${PATH:S,:, ,g}
-.  if exists(${_D}/svnversion)
-SVNVERSION_CMD?=${_D}/svnversion
-.  endif
-.  if exists(${_D}/svnliteversion)
-SVNVERSION_CMD?=${_D}/svnliteversion
-.  endif
-. endfor
 .endif
 
 PKG_CMD?=	pkg

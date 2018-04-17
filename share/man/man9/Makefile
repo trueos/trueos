@@ -118,6 +118,7 @@ MAN=	accept_filter.9 \
 	disk.9 \
 	dnv.9 \
 	domain.9 \
+	domainset.9 \
 	dpcpu.9 \
 	drbr.9 \
 	driver.9 \
@@ -126,6 +127,7 @@ MAN=	accept_filter.9 \
 	eventtimers.9 \
 	extattr.9 \
 	fail.9 \
+	fdt_pinctrl.9 \
 	fetch.9 \
 	firmware.9 \
 	fpu_kern.9 \
@@ -199,12 +201,21 @@ MAN=	accept_filter.9 \
 	mod_cc.9 \
 	module.9 \
 	MODULE_DEPEND.9 \
+	MODULE_PNP_INFO.9 \
 	MODULE_VERSION.9 \
 	mtx_pool.9 \
 	mutex.9 \
 	namei.9 \
 	netisr.9 \
 	nv.9 \
+	OF_child.9 \
+	OF_device_from_xref.9 \
+	OF_finddevice.9 \
+	OF_getprop.9 \
+	OF_node_from_xref.9 \
+	OF_package_to_path.9 \
+	ofw_bus_is_compatible.9 \
+	ofw_bus_status_okay.9 \
 	osd.9 \
 	owll.9 \
 	own.9 \
@@ -283,8 +294,10 @@ MAN=	accept_filter.9 \
 	stack.9 \
 	store.9 \
 	style.9 \
+	style.lua.9 \
 	swi.9 \
 	sx.9 \
+	syscall_helper_register.9 \
 	SYSCALL_MODULE.9 \
 	sysctl.9 \
 	sysctl_add_oid.9 \
@@ -856,6 +869,7 @@ MLINKS+=crypto.9 crypto_dispatch.9 \
 	crypto.9 crypto_unregister_all.9
 MLINKS+=DB_COMMAND.9 DB_SHOW_ALL_COMMAND.9 \
 	DB_COMMAND.9 DB_SHOW_COMMAND.9
+MLINKS+=DECLARE_MODULE.9 DECLARE_MODULE_TIED.9
 MLINKS+=dev_clone.9 drain_dev_clone_events.9
 MLINKS+=devfs_set_cdevpriv.9 devfs_clear_cdevpriv.9 \
 	devfs_set_cdevpriv.9 devfs_get_cdevpriv.9
@@ -941,6 +955,10 @@ MLINKS+=fail.9 KFAIL_POINT_CODE.9 \
 	fail.9 KFAIL_POINT_GOTO.9 \
 	fail.9 KFAIL_POINT_RETURN.9 \
 	fail.9 KFAIL_POINT_RETURN_VOID.9
+MLINKS+=fdt_pinctrl.9 fdt_pinctrl_configure.9 \
+	fdt_pinctrl.9 fdt_pinctrl_configure_by_name.9 \
+	fdt_pinctrl.9 fdt_pinctrl_configure_tree.9 \
+	fdt_pinctrl.9 fdt_pinctrl_register.9
 MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuswintr.9 \
 	fetch.9 fuword.9 \
@@ -1262,6 +1280,8 @@ MLINKS+=make_dev.9 destroy_dev.9 \
 	make_dev.9 make_dev_p.9 \
 	make_dev.9 make_dev_s.9
 MLINKS+=malloc.9 free.9 \
+	malloc.9 malloc_domain.9 \
+	malloc.9 free_domain.9 \
 	malloc.9 mallocarray.9 \
 	malloc.9 MALLOC_DECLARE.9 \
 	malloc.9 MALLOC_DEFINE.9 \
@@ -1513,6 +1533,26 @@ MLINKS+=nv.9 libnv.9 \
 	nv.9 nvlist_take_string_array.9 \
 	nv.9 nvlist_unpack.9 \
 	nv.9 nvlist_xfer.9
+MLINKS+=OF_child.9 OF_parent.9 \
+	OF_child.9 OF_peer.9
+MLINKS+=OF_device_from_xref.9 OF_device_register_xref.9 \
+	OF_device_from_xref.9 OF_xref_from_device.9
+MLINKS+=OF_getprop.9 OF_getencprop.9 \
+	OF_getprop.9 OF_getencprop_alloc.9 \
+	OF_getprop.9 OF_getprop_alloc.9 \
+	OF_getprop.9 OF_getproplen.9 \
+	OF_getprop.9 OF_hasprop.9 \
+	OF_getprop.9 OF_nextprop.9 \
+	OF_getprop.9 OF_prop_free.9 \
+	OF_getprop.9 OF_searchencprop.9 \
+	OF_getprop.9 OF_searchprop.9 \
+	OF_getprop.9 OF_setprop.9
+MLINKS+=OF_node_from_xref.9 OF_xref_from_node.9
+MLINKS+=ofw_bus_is_compatible.9 ofw_bus_is_compatible_strict.9 \
+	ofw_bus_is_compatible.9 ofw_bus_node_is_compatible.9 \
+	ofw_bus_is_compatible.9 ofw_bus_search_compatible.9
+MLINKS+= ofw_bus_status_okay.9 ofw_bus_get_status.9 \
+	ofw_bus_status_okay.9 ofw_bus_node_status_okay.9
 MLINKS+=osd.9 osd_call.9 \
 	osd.9 osd_del.9 \
 	osd.9 osd_deregister.9 \
@@ -1821,6 +1861,7 @@ MLINKS+=sleep.9 msleep.9 \
 	sleep.9 msleep_spin.9 \
 	sleep.9 msleep_spin_sbt.9 \
 	sleep.9 pause.9 \
+	sleep.9 pause_sig.9 \
 	sleep.9 pause_sbt.9 \
 	sleep.9 tsleep.9 \
 	sleep.9 tsleep_sbt.9 \
@@ -1921,6 +1962,11 @@ MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_xlock_sig.9 \
 	sx.9 sx_xlocked.9 \
 	sx.9 sx_xunlock.9
+MLINKS+=syscall_helper_register.9 syscall_helper_unregister.9 \
+	syscall_helper_register.9 SYSCALL_INIT_HELPER.9 \
+	syscall_helper_register.9 SYSCALL_INIT_HELPER_COMPAT.9 \
+	syscall_helper_register.9 SYSCALL_INIT_HELPER_COMPAT_F.9 \
+	syscall_helper_register.9 SYSCALL_INIT_HELPER_F.9
 MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_ADD_INT.9 \
 	sysctl.9 SYSCTL_ADD_LONG.9 \
@@ -2198,10 +2244,12 @@ MLINKS+=vslock.9 vsunlock.9
 MLINKS+=zone.9 uma.9 \
 	zone.9 uma_zalloc.9 \
 	zone.9 uma_zalloc_arg.9 \
+	zone.9 uma_zalloc_domain.9 \
 	zone.9 uma_zcreate.9 \
 	zone.9 uma_zdestroy.9 \
 	zone.9 uma_zfree.9 \
 	zone.9 uma_zfree_arg.9 \
+	zone.9 uma_zfree_domain.9 \
 	zone.9 uma_zone_get_cur.9 \
 	zone.9 uma_zone_get_max.9 \
 	zone.9 uma_zone_set_max.9 \

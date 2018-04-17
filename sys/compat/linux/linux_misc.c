@@ -165,7 +165,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 		    LINUX_SYSINFO_LOADS_SCALE / averunnable.fscale;
 
 	sysinfo.totalram = physmem * PAGE_SIZE;
-	sysinfo.freeram = sysinfo.totalram - vm_cnt.v_wire_count * PAGE_SIZE;
+	sysinfo.freeram = sysinfo.totalram - vm_wire_count() * PAGE_SIZE;
 
 	sysinfo.sharedram = 0;
 	mtx_lock(&vm_object_list_mtx);
@@ -1997,7 +1997,7 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	case LINUX_PR_SET_NAME:
 		/*
 		 * To be on the safe side we need to make sure to not
-		 * overflow the size a linux program expects. We already
+		 * overflow the size a Linux program expects. We already
 		 * do this here in the copyin, so that we don't need to
 		 * check on copyout.
 		 */

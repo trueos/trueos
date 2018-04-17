@@ -3183,13 +3183,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* freebsd32_getdirentries */
+	/* getdirentries */
 	case 554: {
-		struct freebsd32_getdirentries_args *p = params;
+		struct getdirentries_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->buf; /* char * */
 		uarg[2] = p->count; /* size_t */
-		uarg[3] = (intptr_t) p->basep; /* int32_t * */
+		uarg[3] = (intptr_t) p->basep; /* off_t * */
 		*n_args = 4;
 		break;
 	}
@@ -3272,6 +3272,15 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[5] = (intptr_t) p->mask; /* domainset_t * */
 		iarg[6] = p->policy; /* int */
 		*n_args = 7;
+		break;
+	}
+	/* getrandom */
+	case 563: {
+		struct getrandom_args *p = params;
+		uarg[0] = (intptr_t) p->buf; /* void * */
+		uarg[1] = p->buflen; /* size_t */
+		uarg[2] = p->flags; /* unsigned int */
+		*n_args = 3;
 		break;
 	}
 	default:
@@ -8626,7 +8635,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd32_getdirentries */
+	/* getdirentries */
 	case 554:
 		switch(ndx) {
 		case 0:
@@ -8639,7 +8648,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "size_t";
 			break;
 		case 3:
-			p = "userland int32_t *";
+			p = "userland off_t *";
 			break;
 		default:
 			break;
@@ -8795,6 +8804,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 6:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* getrandom */
+	case 563:
+		switch(ndx) {
+		case 0:
+			p = "userland void *";
+			break;
+		case 1:
+			p = "size_t";
+			break;
+		case 2:
+			p = "unsigned int";
 			break;
 		default:
 			break;
@@ -10606,7 +10631,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* freebsd32_getdirentries */
+	/* getdirentries */
 	case 554:
 		if (ndx == 0 || ndx == 1)
 			p = "ssize_t";
@@ -10648,6 +10673,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_cpuset_setdomain */
 	case 562:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* getrandom */
+	case 563:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

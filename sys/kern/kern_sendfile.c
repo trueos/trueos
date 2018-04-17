@@ -30,8 +30,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/capsicum.h>
@@ -167,10 +165,8 @@ sendfile_free_page(vm_page_t pg, bool nocache)
 					vm_page_deactivate_noreuse(pg);
 				else if (pg->queue == PQ_ACTIVE)
 					vm_page_reference(pg);
-				else if (pg->queue != PQ_INACTIVE)
-					vm_page_deactivate(pg);
 				else
-					vm_page_requeue(pg);
+					vm_page_deactivate(pg);
 			}
 		}
 	}

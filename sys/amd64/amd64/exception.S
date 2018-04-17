@@ -39,10 +39,9 @@
  */
 
 #include "opt_atpic.h"
-#include "opt_compat.h"
 #include "opt_hwpmc_hooks.h"
 
-#include "assym.s"
+#include "assym.inc"
 
 #include <machine/asmacros.h>
 #include <machine/psl.h>

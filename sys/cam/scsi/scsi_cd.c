@@ -1057,6 +1057,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 
 		cdp = &softc->params;
 		announce_buf = softc->announce_temp;
+		bzero(announce_buf, CD_ANNOUNCETMP_SZ);
 
 		rdcap = (struct scsi_read_capacity_data *)csio->data_ptr;
 		
@@ -1118,7 +1119,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 				 * supported" (0x25) error.
 				 */
 				if ((have_sense) && (asc != 0x25)
-				 && (error_code == SSD_CURRENT_ERROR)) {
+				 && (error_code == SSD_CURRENT_ERROR
+				  || error_code == SSD_DESC_CURRENT_ERROR)) {
 					const char *sense_key_desc;
 					const char *asc_desc;
 
@@ -1127,7 +1129,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 							&sense_key_desc,
 							&asc_desc);
 					snprintf(announce_buf,
-					    sizeof(announce_buf),
+					    CD_ANNOUNCETMP_SZ,
 						"Attempt to query device "
 						"size failed: %s, %s",
 						sense_key_desc,
@@ -1138,7 +1140,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
  				      && (csio->scsi_status ==
  					  SCSI_STATUS_BUSY)) {
  					snprintf(announce_buf,
- 					    sizeof(announce_buf),
+					    CD_ANNOUNCETMP_SZ,
  					    "Attempt to query device "
  					    "size failed: SCSI Status: %s",
 					    scsi_status_string(csio));

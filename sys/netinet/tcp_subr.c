@@ -34,7 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
@@ -93,20 +92,19 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #endif
 
-#ifdef TCP_RFC7413
-#include <netinet/tcp_fastopen.h>
-#endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/cc/cc.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
 #include <netinet/tcpip.h>
+#include <netinet/tcp_fastopen.h>
 #ifdef TCPPCAP
 #include <netinet/tcp_pcap.h>
 #endif
@@ -257,6 +255,7 @@ static struct tcp_function_block tcp_def_funcblk = {
 };
 
 int t_functions_inited = 0;
+static int tcp_fb_cnt = 0;
 struct tcp_funchead t_functions;
 static struct tcp_function_block *tcp_func_set_ptr = &tcp_def_funcblk;
 
@@ -428,6 +427,86 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, functions_available,
 	    "list available TCP Function sets");
 
 /*
+ * Exports one (struct tcp_function_info) for each alias/name.
+ */
+static int
+sysctl_net_inet_list_func_info(SYSCTL_HANDLER_ARGS)
+{
+	int cnt, error;
+	struct tcp_function *f;
+	struct tcp_function_info tfi;
+
+	/*
+	 * We don't allow writes.
+	 */
+	if (req->newptr != NULL)
+		return (EINVAL);
+
+	/*
+	 * Wire the old buffer so we can directly copy the functions to
+	 * user space without dropping the lock.
+	 */
+	if (req->oldptr != NULL) {
+		error = sysctl_wire_old_buffer(req, 0);
+		if (error)
+			return (error);
+	}
+
+	/*
+	 * Walk the list and copy out matching entries. If INVARIANTS
+	 * is compiled in, also walk the list to verify the length of
+	 * the list matches what we have recorded.
+	 */
+	rw_rlock(&tcp_function_lock);
+#ifdef INVARIANTS
+	cnt = 0;
+#else
+	if (req->oldptr == NULL) {
+		cnt = tcp_fb_cnt;
+		goto skip_loop;
+	}
+#endif
+	TAILQ_FOREACH(f, &t_functions, tf_next) {
+#ifdef INVARIANTS
+		cnt++;
+#endif
+		if (req->oldptr != NULL) {
+			tfi.tfi_refcnt = f->tf_fb->tfb_refcnt;
+			tfi.tfi_id = f->tf_fb->tfb_id;
+			(void)strncpy(tfi.tfi_alias, f->tf_name,
+			    TCP_FUNCTION_NAME_LEN_MAX);
+			tfi.tfi_alias[TCP_FUNCTION_NAME_LEN_MAX - 1] = '\0';
+			(void)strncpy(tfi.tfi_name,
+			    f->tf_fb->tfb_tcp_block_name,
+			    TCP_FUNCTION_NAME_LEN_MAX);
+			tfi.tfi_name[TCP_FUNCTION_NAME_LEN_MAX - 1] = '\0';
+			error = SYSCTL_OUT(req, &tfi, sizeof(tfi));
+			/*
+			 * Don't stop on error, as that is the
+			 * mechanism we use to accumulate length
+			 * information if the buffer was too short.
+			 */
+		}
+	}
+	KASSERT(cnt == tcp_fb_cnt,
+	    ("%s: cnt (%d) != tcp_fb_cnt (%d)", __func__, cnt, tcp_fb_cnt));
+#ifndef INVARIANTS
+skip_loop:
+#endif
+	rw_runlock(&tcp_function_lock);
+	if (req->oldptr == NULL)
+		error = SYSCTL_OUT(req, NULL,
+		    (cnt + 1) * sizeof(struct tcp_function_info));
+
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, function_info,
+	    CTLTYPE_OPAQUE | CTLFLAG_SKIP | CTLFLAG_RD | CTLFLAG_MPSAFE,
+	    NULL, 0, sysctl_net_inet_list_func_info, "S,tcp_function_info",
+	    "List TCP function block name-to-ID mappings");
+
+/*
  * Target size of TCP PCB hash tables. Must be a power of two.
  *
  * Note that this can be overridden by the kernel environment
@@ -506,6 +585,8 @@ maketcp_hashsize(int size)
 	return (hashsize);
 }
 
+static volatile int next_tcp_stack_id = 1;
+
 /*
  * Register a TCP function block with the name provided in the names
  * array.  (Note that this function does NOT automatically register
@@ -565,6 +646,7 @@ register_tcp_functions_as_names(struct tcp_function_block *blk, int wait,
 
 	refcount_init(&blk->tfb_refcnt, 0);
 	blk->tfb_flags = 0;
+	blk->tfb_id = atomic_fetchadd_int(&next_tcp_stack_id, 1);
 	for (i = 0; i < *num_names; i++) {
 		n = malloc(sizeof(struct tcp_function), M_TCPFUNCTIONS, wait);
 		if (n == NULL) {
@@ -587,6 +669,7 @@ register_tcp_functions_as_names(struct tcp_function_block *blk, int wait,
 		(void)strncpy(n->tf_name, names[i], TCP_FUNCTION_NAME_LEN_MAX);
 		n->tf_name[TCP_FUNCTION_NAME_LEN_MAX - 1] = '\0';
 		TAILQ_INSERT_TAIL(&t_functions, n, tf_next);
+		tcp_fb_cnt++;
 		rw_wunlock(&tcp_function_lock);
 	}
 	return(0);
@@ -603,6 +686,7 @@ cleanup:
 			if (!strncmp(n->tf_name, names[i],
 			    TCP_FUNCTION_NAME_LEN_MAX)) {
 				TAILQ_REMOVE(&t_functions, n, tf_next);
+				tcp_fb_cnt--;
 				n->tf_fb = NULL;
 				free(n, M_TCPFUNCTIONS);
 				break;
@@ -673,6 +757,7 @@ deregister_tcp_functions(struct tcp_function_block *blk)
 	while (find_tcp_fb_locked(blk, &f) != NULL) {
 		/* Found */
 		TAILQ_REMOVE(&t_functions, f, tf_next);
+		tcp_fb_cnt--;
 		f->tf_fb = NULL;
 		free(f, M_TCPFUNCTIONS);
 		error = 0;
@@ -755,9 +840,7 @@ tcp_init(void)
 	V_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
-#ifdef TCP_RFC7413
 	tcp_fastopen_init();
-#endif
 
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
@@ -783,6 +866,10 @@ tcp_init(void)
 	/* Setup the tcp function block list */
 	init_tcp_functions();
 	register_tcp_functions(&tcp_def_funcblk, M_WAITOK);
+#ifdef TCP_BLACKBOX
+	/* Initialize the TCP logging data. */
+	tcp_log_init();
+#endif
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
@@ -844,13 +931,11 @@ tcp_destroy(void *unused __unused)
 	uma_zdestroy(V_sack_hole_zone);
 	uma_zdestroy(V_tcpcb_zone);
 
-#ifdef TCP_RFC7413
 	/*
 	 * Cannot free the zone until all tcpcbs are released as we attach
 	 * the allocations to them.
 	 */
 	tcp_fastopen_destroy();
-#endif
 
 #ifdef TCP_HHOOK
 	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_IN]);
@@ -1366,6 +1451,10 @@ tcp_newtcpcb(struct inpcb *inp)
 	 */
 	tcp_pcap_tcpcb_init(tp);
 #endif
+#ifdef TCP_BLACKBOX
+	/* Initialize the per-TCPCB log data. */
+	tcp_log_tcpcbinit(tp);
+#endif
 	if (tp->t_fb->tfb_tcp_fb_init) {
 		(*tp->t_fb->tfb_tcp_fb_init)(tp);
 	}
@@ -1583,6 +1672,9 @@ tcp_discardcb(struct tcpcb *tp)
 	inp->inp_ppcb = NULL;
 	if (tp->t_timers->tt_draincnt == 0) {
 		/* We own the last reference on tcpcb, let's free it. */
+#ifdef TCP_BLACKBOX
+		tcp_log_tcpcbfini(tp);
+#endif
 		TCPSTATES_DEC(tp->t_state);
 		if (tp->t_fb->tfb_tcp_fb_fini)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
@@ -1613,6 +1705,9 @@ tcp_timer_discard(void *ptp)
 	tp->t_timers->tt_draincnt--;
 	if (tp->t_timers->tt_draincnt == 0) {
 		/* We own the last reference on this tcpcb, let's free it. */
+#ifdef TCP_BLACKBOX
+		tcp_log_tcpcbfini(tp);
+#endif
 		TCPSTATES_DEC(tp->t_state);
 		if (tp->t_fb->tfb_tcp_fb_fini)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
@@ -1647,7 +1742,6 @@ tcp_close(struct tcpcb *tp)
 	if (tp->t_state == TCPS_LISTEN)
 		tcp_offload_listen_stop(tp);
 #endif
-#ifdef TCP_RFC7413
 	/*
 	 * This releases the TFO pending counter resource for TFO listen
 	 * sockets as well as passively-created TFO sockets that transition
@@ -1657,7 +1751,6 @@ tcp_close(struct tcpcb *tp)
 		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 		tp->t_tfo_pending = NULL;
 	}
-#endif
 	in_pcbdrop(inp);
 	TCPSTAT_INC(tcps_closed);
 	if (tp->t_state != TCPS_CLOSED)
@@ -1708,6 +1801,9 @@ tcp_drain(void)
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
 				tcp_reass_flush(tcpb);
 				tcp_clean_sackreport(tcpb);
+#ifdef TCP_BLACKBOX
+				tcp_log_drain(tcpb);
+#endif
 #ifdef TCPPCAP
 				if (tcp_pcap_aggressive_free) {
 					/* Free the TCP PCAP queues. */
@@ -2407,6 +2503,9 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 	if (tp->t_state != TCPS_SYN_SENT)
 		return (inp);
 
+	if (IS_FASTOPEN(tp->t_flags))
+		tcp_fastopen_disable_path(tp);
+	
 	tp = tcp_drop(tp, errno);
 	if (tp != NULL)
 		return (inp);
@@ -2861,6 +2960,7 @@ tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 		xt->t_state = TCPS_TIME_WAIT;
 	} else {
 		xt->t_state = tp->t_state;
+		xt->t_logstate = tp->t_logstate;
 		xt->t_flags = tp->t_flags;
 		xt->t_sndzerowin = tp->t_sndzerowin;
 		xt->t_sndrexmitpack = tp->t_sndrexmitpack;
@@ -2884,6 +2984,10 @@ tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 
 		bcopy(tp->t_fb->tfb_tcp_block_name, xt->xt_stack,
 		    TCP_FUNCTION_NAME_LEN_MAX);
+		bzero(xt->xt_logid, TCP_LOG_ID_LEN);
+#ifdef TCP_BLACKBOX
+		(void)tcp_log_get_id(tp, xt->xt_logid);
+#endif
 	}
 
 	xt->xt_len = sizeof(struct xtcpcb);

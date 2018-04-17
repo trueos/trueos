@@ -56,7 +56,13 @@ LOCALBASE?=	/usr/local
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
 .if defined(CROSS_TOOLCHAIN)
+.if exists(${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk)
 .include "${LOCALBASE}/share/toolchains/${CROSS_TOOLCHAIN}.mk"
+.elif exists(${CROSS_TOOLCHAIN})
+.include "${CROSS_TOOLCHAIN}"
+.else
+.error CROSS_TOOLCHAIN ${CROSS_TOOLCHAIN} not found
+.endif
 CROSSENV+=CROSS_TOOLCHAIN="${CROSS_TOOLCHAIN}"
 .endif
 .if defined(CROSS_TOOLCHAIN_PREFIX)
@@ -338,21 +344,33 @@ BUILDENV_SHELL?=${SHELL}
 BUILDENV_SHELL?=/bin/sh
 .endif
 
-.if !defined(SVN) || empty(SVN)
+.if !defined(SVN_CMD) || empty(SVN_CMD)
 . for _P in /usr/bin /usr/local/bin
 .  for _S in svn svnlite
 .   if exists(${_P}/${_S})
-SVN=   ${_P}/${_S}
+SVN_CMD=   ${_P}/${_S}
 .   endif
 .  endfor
 . endfor
+.export SVN_CMD
 .endif
 SVNFLAGS?=	-r HEAD
-.if !defined(VCS_REVISION) && empty(VCS_REVISION)
+.if !defined(VCS_REVISION) || empty(VCS_REVISION)
+.if !defined(SVNVERSION_CMD) || empty(SVNVERSION_CMD)
+. for _D in ${PATH:S,:, ,g}
+.  if exists(${_D}/svnversion)
+SVNVERSION_CMD?=${_D}/svnversion
+.  endif
+.  if exists(${_D}/svnliteversion)
+SVNVERSION_CMD?=${_D}/svnliteversion
+.  endif
+. endfor
+.endif
 _VCS_REVISION?=	$$(eval ${SVNVERSION_CMD} ${SRCDIR})
 . if !empty(_VCS_REVISION)
 VCS_REVISION=	$$(echo r${_VCS_REVISION})
 . endif
+.export VCS_REVISION
 .endif
 
 .if !defined(OSRELDATE)
@@ -783,11 +801,14 @@ _sanity_check: .PHONY .MAKE
 # tree changes, particularly with respect to removing source files and
 # replacing generated files.  Handle these cases here in an ad-hoc fashion.
 _cleanobj_fast_depend_hack: .PHONY
-# Syscall stubs rewritten in C
+# Syscall stubs rewritten in C and obsolete MD assembly implementations
 # Date      SVN Rev  Syscalls
-# 20160829  r305012  ptrace
 # 20170624  r320278  fstat fstatat fstatfs getdirentries getfsstat statfs
-.for f in fstat fstatat fstatfs getdirentries getfsstat ptrace statfs           
+# 20180404  r332048  sigreturn
+# 20180405  r332080  shmat
+# 20180406  r332119  setlogin
+# 20170411  r332443  exect
+.for f in exect fstat fstatat fstatfs getdirentries getfsstat setlogin shmat sigreturn statfs
 .if exists(${OBJTOP}/lib/libc/.depend.${f}.o)
 	@if egrep -qw '${f}\.[sS]' \
 	    ${OBJTOP}/lib/libc/.depend.${f}.o; then \
@@ -1381,6 +1402,14 @@ INSTALLKERNEL= ${_kernel}
 .endif
 .endfor
 
+_cleankernobj_fast_depend_hack: .PHONY
+# 20180320 remove stale generated assym.s after renaming to .inc in r331254
+.if exists(${OBJTOP}/sys/${KERNCONF}/assym.s)
+	@echo Removing stale generated assym files
+	@rm -f ${OBJTOP}/sys/${KERNCONF}/assym.* \
+	    ${OBJTOP}/sys/${KERNCONF}/.depend.assym.*
+.endif
+
 ${WMAKE_TGTS:N_worldtmp:Nbuild${libcompat}} ${.ALLTARGETS:M_*:N_worldtmp}: .MAKE .PHONY
 
 #
@@ -1416,6 +1445,8 @@ buildkernel: .MAKE .PHONY
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} ${CLEANDIR}
+.else
+	${_+_}cd ${.CURDIR}; ${WMAKE} _cleankernobj_fast_depend_hack
 .endif
 .if !defined(NO_KERNELOBJ)
 	@echo
@@ -1685,6 +1716,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
 		-e "s/%PKGNAME%/kernel-${INSTALLKERNEL:tl}${flavor}/" \
+		-e "s/%KERNELDIR%/kernel/" \
 		-e "s/%COMMENT%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
 		-e "s/%DESC%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
@@ -1720,6 +1752,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 	pwd_arg=`cd ${SRCDIR}/etc ; ${MAKE} -VPWD_MKDB_ENDIAN` ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
 		-e "s/%PKGNAME%/kernel-${_kernel:tl}${flavor}/" \
+		-e "s/%KERNELDIR%/kernel.${_kernel}/" \
 		-e "s/%COMMENT%/FreeBSD ${_kernel} kernel ${flavor}/" \
 		-e "s/%DESC%/FreeBSD ${_kernel} kernel ${flavor}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/$${cap_arg}/g" \
@@ -1788,7 +1821,7 @@ update: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Updating ${.CURDIR} using Subversion"
 	@echo "--------------------------------------------------------------"
-	@(cd ${.CURDIR}; ${SVN} update ${SVNFLAGS})
+	@(cd ${.CURDIR}; ${SVN_CMD} update ${SVNFLAGS})
 .endif
 
 #

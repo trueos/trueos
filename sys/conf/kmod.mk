@@ -81,13 +81,18 @@ OBJCOPY?=	objcopy
 .include "config.mk"
 
 # Search for kernel source tree in standard places.
-.for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
+.if empty(KERNBUILDDIR)
+.if !defined(SYSDIR)
+.for _dir in ${SRCTOP:D${SRCTOP}/sys} \
+    ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
 .if !defined(SYSDIR) && exists(${_dir}/kern/)
 SYSDIR=	${_dir:tA}
 .endif
 .endfor
+.endif
 .if !defined(SYSDIR) || !exists(${SYSDIR}/kern/)
 .error "can't find kernel source tree"
+.endif
 .endif
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S .m
@@ -243,14 +248,14 @@ ${FULLPROG}: ${OBJS}
 .if ${EXPORT_SYMS} == NO
 	:> export_syms
 .elif !exists(${.CURDIR}/${EXPORT_SYMS})
-	echo ${EXPORT_SYMS} > export_syms
+	echo -n "${EXPORT_SYMS:@s@$s${.newline}@}" > export_syms
 .else
 	grep -v '^#' < ${EXPORT_SYMS} > export_syms
 .endif
 	${AWK} -f ${SYSDIR}/conf/kmod_syms.awk ${.TARGET} \
 	    export_syms | xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
-.endif
+.endif # defined(EXPORT_SYMS)
 .if defined(PREFIX_SYMS)
 	${AWK} -v prefix=${PREFIX_SYMS} -f ${SYSDIR}/conf/kmod_syms_prefix.awk \
 	    ${.TARGET} /dev/null | xargs -J% ${OBJCOPY} % ${.TARGET}
@@ -454,14 +459,14 @@ acpi_quirks.h: ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirk
 	${AWK} -f ${SYSDIR}/tools/acpi_quirks2h.awk ${SYSDIR}/dev/acpica/acpi_quirks
 .endif
 
-.if !empty(SRCS:Massym.s) || !empty(DPSRCS:Massym.s)
-CLEANFILES+=	assym.s genassym.o
+.if !empty(SRCS:Massym.inc) || !empty(DPSRCS:Massym.inc)
+CLEANFILES+=	assym.inc genassym.o
 DEPENDOBJS+=	genassym.o
-assym.s: genassym.o
+assym.inc: genassym.o
 .if defined(KERNBUILDDIR)
 genassym.o: opt_global.h
 .endif
-assym.s: ${SYSDIR}/kern/genassym.sh
+assym.inc: ${SYSDIR}/kern/genassym.sh
 	sh ${SYSDIR}/kern/genassym.sh genassym.o > ${.TARGET}
 genassym.o: ${SYSDIR}/${MACHINE}/${MACHINE}/genassym.c
 genassym.o: ${SRCS:Mopt_*.h}

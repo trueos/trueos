@@ -682,7 +682,7 @@ RetryFault:;
 				/*
 				 * Reference the page before unlocking and
 				 * sleeping so that the page daemon is less
-				 * likely to reclaim it. 
+				 * likely to reclaim it.
 				 */
 				vm_page_aflag_set(fs.m, PGA_REFERENCED);
 				if (fs.object != fs.first_object) {
@@ -710,9 +710,6 @@ RetryFault:;
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
-			vm_page_lock(fs.m);
-			vm_page_remque(fs.m);
-			vm_page_unlock(fs.m);
 
 			/*
 			 * Mark page busy for other processes, and the 
@@ -723,7 +720,7 @@ RetryFault:;
 			vm_page_xbusy(fs.m);
 			if (fs.m->valid != VM_PAGE_BITS_ALL)
 				goto readrest;
-			break;
+			break; /* break to PAGE HAS BEEN FOUND */
 		}
 		KASSERT(fs.m == NULL, ("fs.m should be NULL, not %p", fs.m));
 
@@ -787,7 +784,7 @@ RetryFault:;
 			}
 			if (fs.m == NULL) {
 				unlock_and_deallocate(&fs);
-				VM_WAITPFAULT;
+				vm_waitpfault();
 				goto RetryFault;
 			}
 		}
@@ -1105,6 +1102,7 @@ readrest:
 				 */
 			    fs.object == fs.first_object->backing_object) {
 				vm_page_lock(fs.m);
+				vm_page_remque(fs.m);
 				vm_page_remove(fs.m);
 				vm_page_unlock(fs.m);
 				vm_page_lock(fs.first_m);
@@ -1135,6 +1133,10 @@ readrest:
 				 */
 				pmap_copy_page(fs.m, fs.first_m);
 				fs.first_m->valid = VM_PAGE_BITS_ALL;
+				if ((fault_flags & VM_FAULT_WIRE) == 0) {
+					prot &= ~VM_PROT_WRITE;
+					fault_type &= ~VM_PROT_WRITE;
+				}
 				if (wired && (fault_flags &
 				    VM_FAULT_WIRE) == 0) {
 					vm_page_lock(fs.first_m);
@@ -1219,6 +1221,12 @@ readrest:
 			 * write-enabled after all.
 			 */
 			prot &= retry_prot;
+			fault_type &= retry_prot;
+			if (prot == 0) {
+				release_page(&fs);
+				unlock_and_deallocate(&fs);
+				goto RetryFault;
+			}
 		}
 	}
 
@@ -1369,7 +1377,8 @@ vm_fault_dontneed(const struct faultstate *fs, vm_offset_t vaddr, int ahead)
 				 * active queue.
 				 */
 				vm_page_lock(m);
-				vm_page_deactivate(m);
+				if (!vm_page_inactive(m))
+					vm_page_deactivate(m);
 				vm_page_unlock(m);
 			}
 		}
@@ -1515,7 +1524,18 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 		 * page was mapped at the specified virtual address or that
 		 * mapping had insufficient permissions.  Attempt to fault in
 		 * and hold these pages.
+		 *
+		 * If vm_fault_disable_pagefaults() was called,
+		 * i.e., TDP_NOFAULTING is set, we must not sleep nor
+		 * acquire MD VM locks, which means we must not call
+		 * vm_fault_hold().  Some (out of tree) callers mark
+		 * too wide a code area with vm_fault_disable_pagefaults()
+		 * already, use the VM_PROT_QUICK_NOFAULT flag to request
+		 * the proper behaviour explicitly.
 		 */
+		if ((prot & VM_PROT_QUICK_NOFAULT) != 0 &&
+		    (curthread->td_pflags & TDP_NOFAULTING) != 0)
+			goto error;
 		for (mp = ma, va = addr; va < end; mp++, va += PAGE_SIZE)
 			if (*mp == NULL && vm_fault_hold(map, va, prot,
 			    VM_FAULT_NORMAL, mp) != KERN_SUCCESS)
@@ -1675,7 +1695,7 @@ again:
 			if (dst_m == NULL) {
 				VM_OBJECT_WUNLOCK(dst_object);
 				VM_OBJECT_RUNLOCK(object);
-				VM_WAIT;
+				vm_wait(dst_object);
 				VM_OBJECT_WLOCK(dst_object);
 				goto again;
 			}

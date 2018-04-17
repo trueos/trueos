@@ -258,7 +258,7 @@ bgx_fdt_traverse_nodes(uint8_t unit, phandle_t start, char *name,
 		    BGX_NODE_NAME, sizeof(BGX_NODE_NAME) - 1) != 0)
 			continue;
 		/* Get reg */
-		err = OF_getencprop_alloc(node, "reg", sizeof(*reg),
+		err = OF_getencprop_alloc_multi(node, "reg", sizeof(*reg),
 		    (void **)&reg);
 		if (err == -1) {
 			free(reg, M_OFWPROP);
@@ -336,7 +336,7 @@ bgx_fdt_find_node(struct bgx *bgx)
 	snprintf(bgx_sel, len + 1, "/"BGX_NODE_NAME"%d", bgx->bgx_id);
 	/* First try the root node */
 	node =  OF_finddevice(bgx_sel);
-	if ((int)node > 0) {
+	if (node != -1) {
 		/* Found relevant node */
 		goto out;
 	}
@@ -396,7 +396,7 @@ bgx_fdt_init_phy(struct bgx *bgx)
 				continue;
 			}
 		} else {
-			len = OF_getprop_alloc(child, "name", 1,
+			len = OF_getprop_alloc(child, "name",
 			    (void **)&node_name);
 			if (len <= 0) {
 				continue;

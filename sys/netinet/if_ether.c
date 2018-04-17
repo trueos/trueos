@@ -504,12 +504,8 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 		}
 		bcopy(lladdr, desten, ll_len);
 
-		/* Check if we have feedback request from arptimer() */
-		if (la->r_skip_req != 0) {
-			LLE_REQ_LOCK(la);
-			la->r_skip_req = 0; /* Notify that entry was used */
-			LLE_REQ_UNLOCK(la);
-		}
+		/* Notify LLE code that the entry was used by datapath */
+		llentry_mark_used(la);
 		if (pflags != NULL)
 			*pflags = la->la_flags & (LLE_VALID|LLE_IFADDR);
 		if (plle) {
@@ -640,12 +636,8 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 		bcopy(la->r_linkdata, desten, la->r_hdrlen);
 		if (pflags != NULL)
 			*pflags = LLE_VALID | (la->r_flags & RLLE_IFADDR);
-		/* Check if we have feedback request from arptimer() */
-		if (la->r_skip_req != 0) {
-			LLE_REQ_LOCK(la);
-			la->r_skip_req = 0; /* Notify that entry was used */
-			LLE_REQ_UNLOCK(la);
-		}
+		/* Notify the LLE handling code that the entry was used. */
+		llentry_mark_used(la);
 		if (plle) {
 			LLE_ADDREF(la);
 			*plle = la;
@@ -701,14 +693,6 @@ arpintr(struct mbuf *m)
 	case ARPHRD_ETHER:
 		hlen = ETHER_ADDR_LEN; /* RFC 826 */
 		layer = "ethernet";
-		break;
-	case ARPHRD_IEEE802:
-		hlen = 6; /* RFC 1390, FDDI_ADDR_LEN */
-		layer = "fddi";
-		break;
-	case ARPHRD_ARCNET:
-		hlen = 1; /* RFC 1201, ARC_ADDR_LEN */
-		layer = "arcnet";
 		break;
 	case ARPHRD_INFINIBAND:
 		hlen = 20;	/* RFC 4391, INFINIBAND_ALEN */ 

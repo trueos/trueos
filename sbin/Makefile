@@ -13,6 +13,7 @@ SUBDIR=adjkerntz \
 	conscontrol \
 	ddb \
 	devfs \
+	devmatch \
 	dhclient \
 	dhcpcd \
 	dmesg \
