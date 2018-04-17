@@ -38,7 +38,7 @@ pipeline {
     stage('DVD Release') {
       post {
         success {
-          archiveArtifacts artifacts: 'artifacts/*', fingerprint: true
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
         }
       }
       steps {
