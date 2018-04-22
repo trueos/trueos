@@ -879,6 +879,9 @@ trap_fatal(frame, eva)
 	int code, ss, esp;
 	u_int type;
 	struct soft_segment_descriptor softseg;
+#ifdef KDB
+	bool handled;
+#endif
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
@@ -904,6 +907,8 @@ trap_fatal(frame, eva)
 			"",
 			code & PGEX_RSV ? "reserved bits in PTE" :
 			code & PGEX_P ? "protection violation" : "page not present");
+	} else {
+		printf("error code		= %#x\n", code);
 	}
 	printf("instruction pointer	= 0x%x:0x%x\n",
 	       frame->tf_cs & 0xffff, frame->tf_eip);
@@ -937,13 +942,14 @@ trap_fatal(frame, eva)
 	    curproc->p_pid, curthread->td_name);
 
 #ifdef KDB
-	if (debugger_on_panic || kdb_active) {
+	if (debugger_on_panic) {
+		kdb_why = KDB_WHY_TRAP;
 		frame->tf_err = eva;	/* smuggle fault address to ddb */
-		if (kdb_trap(type, 0, frame)) {
-			frame->tf_err = code;	/* restore error code */
+		handled = kdb_trap(type, 0, frame);
+		frame->tf_err = code;	/* restore error code */
+		kdb_why = KDB_WHY_UNSET;
+		if (handled)
 			return;
-		}
-		frame->tf_err = code;		/* restore error code */
 	}
 #endif
 	printf("trap number		= %d\n", type);

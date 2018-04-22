@@ -648,9 +648,11 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 				error = EBADF;
 				break;
 			}
-			PROC_LOCK(p->p_leader);
-			p->p_leader->p_flag |= P_ADVLOCK;
-			PROC_UNLOCK(p->p_leader);
+			if ((p->p_leader->p_flag & P_ADVLOCK) == 0) {
+				PROC_LOCK(p->p_leader);
+				p->p_leader->p_flag |= P_ADVLOCK;
+				PROC_UNLOCK(p->p_leader);
+			}
 			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK,
 			    flp, flg);
 			break;
@@ -659,9 +661,11 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 				error = EBADF;
 				break;
 			}
-			PROC_LOCK(p->p_leader);
-			p->p_leader->p_flag |= P_ADVLOCK;
-			PROC_UNLOCK(p->p_leader);
+			if ((p->p_leader->p_flag & P_ADVLOCK) == 0) {
+				PROC_LOCK(p->p_leader);
+				p->p_leader->p_flag |= P_ADVLOCK;
+				PROC_UNLOCK(p->p_leader);
+			}
 			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK,
 			    flp, flg);
 			break;
@@ -1492,16 +1496,16 @@ filecaps_init(struct filecaps *fcaps)
  * Note that if the table was not locked, the caller has to check the relevant
  * sequence counter to determine whether the operation was successful.
  */
-int
+bool
 filecaps_copy(const struct filecaps *src, struct filecaps *dst, bool locked)
 {
 	size_t size;
 
+	if (src->fc_ioctls != NULL && !locked)
+		return (false);
 	*dst = *src;
 	if (src->fc_ioctls == NULL)
-		return (0);
-	if (!locked)
-		return (1);
+		return (true);
 
 	KASSERT(src->fc_nioctls > 0,
 	    ("fc_ioctls != NULL, but fc_nioctls=%hd", src->fc_nioctls));
@@ -1509,7 +1513,7 @@ filecaps_copy(const struct filecaps *src, struct filecaps *dst, bool locked)
 	size = sizeof(src->fc_ioctls[0]) * src->fc_nioctls;
 	dst->fc_ioctls = malloc(size, M_FILECAPS, M_WAITOK);
 	bcopy(src->fc_ioctls, dst->fc_ioctls, size);
-	return (0);
+	return (true);
 }
 
 static u_long *
