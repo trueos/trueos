@@ -6,6 +6,16 @@ pipeline {
     GH_REPO = 'trueos'
   }
   stages {
+       
+    stage('Queued') {
+        agent {
+        label 'JenkinsMaster'
+      }
+      steps {
+        echo "Build queued"
+      }
+    } 
+    
     stage('Checkout') {
       steps {
         checkout scm
