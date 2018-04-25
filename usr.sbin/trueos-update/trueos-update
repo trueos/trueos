@@ -1,0 +1,86 @@
+#!/bin/sh
+# Script which performs updating services
+############################################################################
+
+# Exit with a error message
+exit_err() {
+        echo >&2 "ERROR: $*"
+        exit 1
+}
+
+# Set the program location
+PROGDIR="/var/trueos-update" ; export PROGDIR
+
+# Set the pub openssl key
+SKEY="${PROGDIR}/conf/security.key" ; export SKEY
+
+# How long before pkg times out
+FETCH_TIMEOUT="600" ; export FETCH_TIMEOUT
+
+# Start by sourcing /etc/profile
+# This grabs any HTTP_ / FTP_ PROXY variables
+. /etc/profile
+
+do_self_bootstrap() {
+  # Only do this as root
+  if [ `id -u` != "0" ] ; then return 0; fi
+
+  # Start the updaters self-update protocol
+  local fbsdmajor=$(uname -r | cut -d '-' -f 1 | cut -d '.' -f 1)
+  local fbsdupdateurl="http://www.trueos.org/updates/trueos-update-${fbsdmajor}.txz"
+  local dlfile=`mktemp /tmp/.pc-updater.XXXXXX`
+  if [ $? -ne 0 ] ; then
+    return 0
+  fi
+  echo -e "Boot-strapping updater...\c"
+
+  # Fetch the updater
+  fetch -m -o ${dlfile} ${fbsdupdateurl} >/dev/null 2>/dev/null
+  if [ $? -ne 0 ] ; then echo "FAILED Fetch" ; return 1; fi
+
+  # Fetch the signature
+  fetch -m -o ${dlfile}.sha1 ${fbsdupdateurl}.sha1 >/dev/null 2>/dev/null
+  if [ $? -ne 0 ] ; then echo "FAILED Fetch2" ; return 1; fi
+
+  # Lets verify the signature of the file
+  openssl dgst -sha1 -verify ${SKEY} \
+	-signature ${dlfile}.sha1 \
+        ${dlfile} >/dev/null 2>/dev/null
+  if [ $? -ne 0 ] ; then echo "FAILED signature" ; return 1; fi
+
+  extractdir=`mktemp -d /tmp/pc-update-XXXXXX`
+  if [ $? -ne 0 ] ; then echo "FAILED - mktemp" ; return 1; fi
+
+  tar xvpf ${dlfile} -C $extractdir >/dev/null 2>/dev/null
+  if [ $? -ne 0 ] ; then echo "FAILED - extract" ; return 1; fi
+
+  # Install it now
+  make -C $extractdir install >/dev/null 2>/dev/null
+  if [ $? -ne 0 ] ; then echo "FAILED - install" ; return 1; fi
+
+  if [ -n "$extractdir" -a "$extractdir" != "/" -a -d "$extractdir" ] ; then
+    rm -rf $extractdir
+  fi
+  echo "OK"
+
+  rm ${dlfile}.sha1 >/dev/null 2>/dev/null
+  rm ${dlfile} >/dev/null 2>/dev/null
+
+  return 0
+}
+
+# Check if we need to try a self-update
+if [ -z "$DISABLE_UPDATE_BOOTSTRAP" -a -n "${1}" -a "${1}" != "doshutdownupdate" -a "$1" != "startupdate" ] ; then
+
+  export DISABLE_UPDATE_BOOTSTRAP="YES"
+
+  do_self_bootstrap
+
+  # Run the original command now
+  if [ ! -e "/var/trueos-update/trueos-update" ] ; then
+    exit_err "Failed to boot-strap trueos-update!"
+  fi
+
+  /var/trueos-update/trueos-update ${@}
+  exit $?
+fi

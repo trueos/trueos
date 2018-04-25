@@ -90,6 +90,7 @@ SUBDIR=	adduser \
 	tcpdump \
 	traceroute \
 	trpt \
+	trueos-update \
 	tzsetup \
 	uefisign \
 	ugidfw \
