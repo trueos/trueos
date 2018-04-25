@@ -5,8 +5,8 @@ pipeline {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
   }
+  
   stages {
-       
     stage('Queued') {
         agent {
         label 'JenkinsMaster'
@@ -14,7 +14,7 @@ pipeline {
       steps {
         echo "Build queued"
       }
-    } 
+    }
     
     stage('Checkout') {
       steps {
