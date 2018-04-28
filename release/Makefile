@@ -8,6 +8,7 @@
 #  memstick: Builds memory stick image (memstick.img)
 #  mini-memstick: Builds minimal memory stick image (mini-memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
+#  poudriere: Runs poudriere build based upon TRUEOS_MANIFEST critera
 #  release: Invokes real-release, vm-release, and cloudware-release targets
 #  real-release: Build all media and FTP distribution area
 #  vm-release: Build all virtual machine image targets
@@ -112,6 +113,7 @@ IMAGES+=	mini-memstick.img
 .endif
 
 CLEANFILES=	packagesystem *.txz MANIFEST release ${IMAGES}
+CLEANFILES+=	poudriere.conf trueos-mk-bulk-list
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
 CLEANFILES+=	${I}.xz
@@ -120,7 +122,7 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-CLEANDIRS=	dist ftp disc1 bootonly dvd
+CLEANDIRS=	dist ftp disc1 bootonly dvd poudriere.d
 .if !defined(NODOC)
 CLEANDIRS+=    reldoc rdoc
 .endif
@@ -180,7 +182,7 @@ reldoc:
 	cp ${.OBJDIR}/rdoc/docbook.css \
 		reldoc/
 
-disc1: packagesystem trueos-build
+disc1: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
@@ -272,16 +274,7 @@ dvd: packagesystem
 
 release.iso: disc1.iso
 disc1.iso: disc1
-.if defined(TRUEOS_MANIFEST) && !empty(TRUEOS_MANIFEST)
-	env DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \
-		OBJDIR=${.OBJDIR} OSRELEASE=${OSRELEASE} \
-		SRCDIR=${.CURDIR}/.. \
-		sh ${.CURDIR}/release-trueos.sh iso ${.TARGET}
-	env XTRADIR=$(jq -r '."install-overlay"' $TRUEOS_MANIFEST) \
-		sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1 ${XTRADIR}
-.else
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1 ${XTRADIR}
-.endif
 
 dvd1.iso: dvd pkg-stage
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ${.TARGET} dvd ${XTRADIR}
@@ -325,7 +318,7 @@ release:	real-release vm-release cloudware-release
 release-done:
 	touch release
 
-trueos-build:
+poudriere: packagesystem
 .if defined(TRUEOS_MANIFEST) && !empty(TRUEOS_MANIFEST)
 	env DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \
 		OBJDIR=${.OBJDIR} OSRELEASE=${OSRELEASE} \
