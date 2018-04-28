@@ -34,6 +34,8 @@
 #  		with xz(1) (extremely time consuming)
 #  WITH_CLOUDWARE: if set, build cloud hosting disk images with the release
 #  TARGET/TARGET_ARCH: architecture of built release
+#  TRUEOS_MANIFEST: if set, will run poudriere and assemble ISO according
+#  		supplied JSON manifest provided
 #
 
 WORLDDIR?=	${.CURDIR}/..
@@ -102,7 +104,7 @@ RELEASE_TARGETS+= dvdrom
 IMAGES+=	dvd1.iso
 . endif
 .endif
-.if exists(${.CURDIR}/${TARGET}/make-memstick.sh)
+. if defined(WITH_USB) && !empty(WITH_USB)
 RELEASE_TARGETS+= memstick.img
 RELEASE_TARGETS+= mini-memstick.img
 IMAGES+=	memstick.img
@@ -178,7 +180,7 @@ reldoc:
 	cp ${.OBJDIR}/rdoc/docbook.css \
 		reldoc/
 
-disc1: packagesystem
+disc1: packagesystem trueos-build
 # Install system
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
@@ -270,7 +272,16 @@ dvd: packagesystem
 
 release.iso: disc1.iso
 disc1.iso: disc1
+.if defined(TRUEOS_MANIFEST) && !empty(TRUEOS_MANIFEST)
+	env DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \
+		OBJDIR=${.OBJDIR} OSRELEASE=${OSRELEASE} \
+		SRCDIR=${.CURDIR}/.. \
+		sh ${.CURDIR}/release-trueos.sh iso ${.TARGET}
+	env XTRADIR=$(jq -r '."install-overlay"' $TRUEOS_MANIFEST) \
+		sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1 ${XTRADIR}
+.else
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1 ${XTRADIR}
+.endif
 
 dvd1.iso: dvd pkg-stage
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ${.TARGET} dvd ${XTRADIR}
@@ -313,6 +324,14 @@ release:	real-release vm-release cloudware-release
 
 release-done:
 	touch release
+
+trueos-build:
+.if defined(TRUEOS_MANIFEST) && !empty(TRUEOS_MANIFEST)
+	env DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \
+		OBJDIR=${.OBJDIR} OSRELEASE=${OSRELEASE} \
+		SRCDIR=${.CURDIR}/.. \
+		sh ${.CURDIR}/release-trueos.sh poudriere
+.endif
 
 real-release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
