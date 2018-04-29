@@ -198,15 +198,19 @@ cp_iso_pkgs()
 	mkdir -p ${OBJDIR}/repo-config
 	cat >${OBJDIR}/repo-config/repo.conf <<EOF
 pkgs: {
-  url: "file://${PKG_DIR}/latest",
+  url: "file://${PKG_DIR}/${ABI_DIR}/latest",
   signature_type: "none",
   enabled: yes
 }
 EOF
+	PKG_VERSION=$(readlink ${PKG_DIR}/${ABI_DIR}/latest)
+	mkdir -p ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
+	ln -s ${PKG_VERSION} ${TARGET_DIR}/${ABI_DIR}/latest
+
 	# Copy over the base system packages
-	pkg-static -o ABI_FILE=/usr/obj/usr/src/amd64.amd64/release/disc1/bin/sh \
+	pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
 		-R ${OBJDIR}/repo-config \
-		fetch -y -o ${1} -g FreeBSD-*
+		fetch -y -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} -g FreeBSD-*
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed copying base packages to ISO..."
 	fi
@@ -217,7 +221,7 @@ env_check
 case $1 in
 	clean) clean_jails ; exit 0 ;;
 	poudriere) run_poudriere ;;
-	iso) cp_iso_pkgs "$2" ;;
+	iso) cp_iso_pkgs ;;
 	*) echo "Unknown option selected" ;;
 esac
 

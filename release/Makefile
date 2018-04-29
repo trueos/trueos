@@ -194,11 +194,11 @@ disc1: packagesystem
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
 # Copy base packages
 	mkdir -p ${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)
-	ln -s $$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI) ${.TARGET}/dist/latest
-	#cp -r $${OBJROOT}repo/* ${.TARGET}/dist
 	cp distrib.txz ${.TARGET}/dist/
-	env OBJDIR=${.OBJDIR} PKG_DIR=$${OBJROOT}/repo/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI) \
-		sh release-trueos.sh iso "${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)"
+	env OBJDIR=${.OBJDIR} PKG_DIR=$${OBJROOT}/repo \
+		TARGET_DIR=${.TARGET}/dist \
+		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI) \
+		sh ${WORLDDIR}/release/release-trueos.sh iso
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
