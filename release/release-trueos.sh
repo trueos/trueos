@@ -169,6 +169,16 @@ check_essential_pkgs()
    return $haveWarn
 }
 
+mv_packages()
+{
+	export PKG_VERSION=$(readlink ${PKG_DIR}/latest)
+	mv ${POUDRIERE_PKGDIR}/All ${PKG_DIR}/latest/
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed moving package directory..."
+	fi
+	cd ${SRCDIR} && make sign-packages
+}
+
 clean_jails()
 {
 	setup_poudriere_conf
@@ -180,11 +190,26 @@ run_poudriere()
 	clean_jails
 	setup_poudriere_jail
 	build_poudriere
+	mv_packages
 }
 
-build_iso()
+cp_iso_pkgs()
 {
-
+	mkdir -p ${OBJDIR}/repo-config
+	cat >${OBJDIR}/repo-config/repo.conf <<EOF
+pkgs: {
+  url: "file://${PKG_DIR}/latest",
+  signature_type: "none",
+  enabled: yes
+}
+EOF
+	# Copy over the base system packages
+	pkg-static -o ABI_FILE=/usr/obj/usr/src/amd64.amd64/release/disc1/bin/sh \
+		-R ${OBJDIR}/repo-config \
+		fetch -y -o ${1} -g FreeBSD-*
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed copying base packages to ISO..."
+	fi
 }
 
 env_check
@@ -192,7 +217,7 @@ env_check
 case $1 in
 	clean) clean_jails ; exit 0 ;;
 	poudriere) run_poudriere ;;
-	iso) build_iso "$2" ;;
+	iso) cp_iso_pkgs "$2" ;;
 	*) echo "Unknown option selected" ;;
 esac
 

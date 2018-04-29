@@ -42,6 +42,7 @@
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
+PKG_CMD?=	pkg-static
 RELNOTES_LANG?= en_US.ISO8859-1
 
 .if !defined(TARGET) || empty(TARGET)
@@ -192,9 +193,12 @@ disc1: packagesystem
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
 # Copy base packages
-	mkdir -p ${.TARGET}/dist
-	cp -r $${OBJROOT}repo/* ${.TARGET}/dist
+	mkdir -p ${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)
+	ln -s $$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI) ${.TARGET}/dist/latest
+	#cp -r $${OBJROOT}repo/* ${.TARGET}/dist
 	cp distrib.txz ${.TARGET}/dist/
+	env OBJDIR=${.OBJDIR} PKG_DIR=$${OBJROOT}/repo/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI) \
+		sh release-trueos.sh iso "${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)"
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
