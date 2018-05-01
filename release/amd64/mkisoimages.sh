@@ -65,7 +65,7 @@ NAME="$1"; shift
 
 publisher="TrueOS -  https://www.TrueOS.org/"
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
-makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@" "$OVERLAY_DIR"
+makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@" $OVERLAY_DIR
 rm -f "$1/etc/fstab"
 rm -f efiboot.img
 
