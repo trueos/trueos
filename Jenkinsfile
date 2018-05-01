@@ -54,7 +54,6 @@ pipeline {
         sh 'cd release && make release'
         sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
         sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.img ${WORKSPACE}/artifacts'
         sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
         sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
         sh 'cp -r /usr/obj${WORKSPACE}/repo/* ${WORKSPACE}/artifacts/repo/'
