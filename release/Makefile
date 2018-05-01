@@ -36,13 +36,15 @@
 #  WITH_CLOUDWARE: if set, build cloud hosting disk images with the release
 #  TARGET/TARGET_ARCH: architecture of built release
 #  TRUEOS_MANIFEST: if set, will run poudriere and assemble ISO according
-#  		supplied JSON manifest provided
+#  		supplied JSON manifest provided, or the trueos-manifest.json
+#		included in release/ directory by default
 #
 
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
 PKG_CMD?=	pkg-static
+TRUEOS_MANIFEST?=	${WORLDDIR}/release/trueos-manifest.json
 RELNOTES_LANG?= en_US.ISO8859-1
 
 .if !defined(TARGET) || empty(TARGET)
@@ -195,7 +197,8 @@ disc1: packagesystem
 # Copy base packages
 	mkdir -p ${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)
 	cp distrib.txz ${.TARGET}/dist/
-	env OBJDIR=${.OBJDIR} PKG_DIR=$${OBJROOT}/repo \
+	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
+		OBJDIR=${.OBJDIR} PKG_DIR=$${OBJROOT}/repo \
 		TARGET_DIR=${.TARGET}/dist \
 		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI) \
 		sh ${WORLDDIR}/release/release-trueos.sh iso
@@ -324,7 +327,8 @@ release-done:
 
 poudriere: packagesystem
 .if defined(TRUEOS_MANIFEST) && !empty(TRUEOS_MANIFEST)
-	env DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \
+	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
+		DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \
 		OBJDIR=${.OBJDIR} OSRELEASE=${OSRELEASE} \
 		SRCDIR=${.CURDIR}/.. \
 		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.OBJDIR}/../bin/sh/sh config ABI) \

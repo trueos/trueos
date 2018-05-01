@@ -1,0 +1,24 @@
+{
+  "ports-url":"https://github.com/trueos/trueos-ports",
+  "ports-branch":"trueos-master",
+  "ports-conf":[
+    "devel_git_SET=SVN"
+  ],
+  "package-all":false,
+  "packages":[
+    "devel/git"
+  ],
+  "essential-packages":[
+    "devel/git"
+  ],
+  "iso-install-packages":[
+    "devel/git"
+  ],
+  "dist-packages":[
+    "devel/git"
+  ],
+  "auto-install-packages":[
+    "devel/git"
+  ],
+  "install-overlay":""
+}

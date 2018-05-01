@@ -251,8 +251,32 @@ EOF
 
 	if [ "$(jq -r '."auto-install-packages"' ${TRUEOS_MANIFEST})" != "null" ] ; then
 		echo "Saving package list to auto-install"
-		$(jq -r '."auto-install-packages" | join(" ")' ${TRUEOS_MANIFEST}) \
-			> ${OBJDIR}/disc1/root/auto-dist-install
+		jq -r '."auto-install-packages" | join(" ")' ${TRUEOS_MANIFEST} \
+			 >${OBJDIR}/disc1/root/auto-dist-install
+	fi
+
+	# Create the local repo DB config
+	mkdir -p ${OBJDIR}/disc1/etc/pkg
+	cat >${OBJDIR}/disc1/etc/pkg/TrueOS.conf <<EOF
+pkgs: {
+  url: "file:///dist/${ABI_DIR}/latest",
+  signature_type: "none",
+  enabled: yes
+}
+EOF
+
+	# If there are any packages to install into the ISO, do it now
+	if [ "$(jq -r '."iso-install-packages"' ${TRUEOS_MANIFEST})" != "null" ] ; then
+		for i in $(jq -r '."iso-install-packages" | join(" ")' ${TRUEOS_MANIFEST})
+		do
+			pkg-static -o ABI_FILE=/bin/sh \
+				-R /etc/pkg \
+				-c ${OBJDIR}/disc1 \
+				install -y $i
+				if [ $? -ne 0 ] ; then
+					exit_err "Failed installing package $i to ISO..."
+				fi
+		done
 	fi
 }
 
