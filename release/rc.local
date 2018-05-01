@@ -52,6 +52,12 @@ else
 fi
 export TERM
 
+if [ -f /etc/trueos-custom-install ]; then
+	# A custom install script exists, lets run that instead of the default
+	$(cat /etc/trueos-custom-install)
+	exit $?
+fi
+
 if [ -f /etc/installerconfig ]; then
 	# Check if we have an auto-install directive
 	if pc-sysinstall start-autoinstall /etc/installerconfig; then

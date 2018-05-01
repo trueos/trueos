@@ -285,6 +285,22 @@ EOF
 				fi
 		done
 	fi
+
+	# Check for a custom install script
+	_jsins=$(jq -r '."install-script"' ${TRUEOS_MANIFEST})
+	if [ "$_jsins" != "null" -a -n "$_jsins" ] ; then
+		echo "Setting custom install script"
+		jq -r '."install-script"' ${TRUEOS_MANIFEST} \
+			 >${OBJDIR}/disc1/etc/trueos-custom-install
+	fi
+
+	# Check for auto-install script
+	_jsauto=$(jq -r '."auto-install-script"' ${TRUEOS_MANIFEST})
+	if [ "$_jsauto" != "null" -a -n "$_jsauto" ] ; then
+		echo "Setting auto install script"
+		cp $(jq -r '."auto-install-script"' ${TRUEOS_MANIFEST}) \
+			 ${OBJDIR}/disc1/etc/installerconfig
+	fi
 }
 
 env_check

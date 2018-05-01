@@ -20,5 +20,7 @@
   "auto-install-packages":[
     "devel/git"
   ],
-  "install-overlay":""
+  "install-overlay":"",
+  "install-script":"",
+  "auto-install-script":""
 }
