@@ -85,6 +85,13 @@ setup_poudriere_conf()
 	echo "GIT_URL=${GH_PORTS}" >> ${POUDRIERE_ETCDIR}/poudriere.conf
 	echo "USE_TMPFS=data" >> ${POUDRIERE_ETCDIR}/poudriere.conf
 	echo "BASEFS=$POUDRIERE_BASEFS" >> ${POUDRIERE_ETCDIR}/poudriere.conf
+
+	# If there is a custom poudriere.conf.release file in /etc we will also
+	# include it. This can be used to set different tmpfs or JOBS on a per system
+	# basis
+	if [ -e "/etc/poudriere.conf.release" ] ; then
+		cat /etc/poudriere.conf.release >> ${POUDRIERE_ETCDIR}/poudriere.conf
+	fi
 }
 
 setup_poudriere_jail()
