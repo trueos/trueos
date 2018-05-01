@@ -233,23 +233,27 @@ EOF
 	fi
 
 	# Check if we have dist-packages to include on the ISO
-	if [ "$(jq -r '."dist-packages"' ${TRUEOS_MANIFEST})" = "null" ] ; then
-		return 0
+	if [ "$(jq -r '."dist-packages"' ${TRUEOS_MANIFEST})" != "null" ] ; then
+		for i in $(jq -r '."dist-packages" | join(" ")' ${TRUEOS_MANIFEST})
+		do
+			pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
+				-R ${OBJDIR}/repo-config \
+				fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} $i
+				if [ $? -ne 0 ] ; then
+					exit_err "Failed copying dist-package $i to ISO..."
+				fi
+		done
 	fi
-
-	for i in $(jq -r '."dist-packages" | join(" ")' ${TRUEOS_MANIFEST})
-	do
-		pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
-			-R ${OBJDIR}/repo-config \
-			fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} $i
-			if [ $? -ne 0 ] ; then
-				exit_err "Failed copying dist-package $i to ISO..."
-			fi
-	done
 
 	# Create the repo DB
 	echo "Creating installer pkg repo"
 	pkg repo ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
+
+	if [ "$(jq -r '."auto-install-packages"' ${TRUEOS_MANIFEST})" != "null" ] ; then
+		echo "Saving package list to auto-install"
+		$(jq -r '."auto-install-packages" | join(" ")' ${TRUEOS_MANIFEST}) \
+			> ${OBJDIR}/disc1/root/auto-dist-install
+	fi
 }
 
 env_check
