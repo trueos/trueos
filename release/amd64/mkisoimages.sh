@@ -53,8 +53,10 @@ fi
 # If there is a TRUEOS_MANIFEST specified, lets include its install-overlay
 if [ -n "$TRUEOS_MANIFEST" ] ; then
 	OVERLAY_DIR="$(jq -r '."install-overlay"' $TRUEOS_MANIFEST)"
-	if [ "$OVERLAY_DIR" = "null" ] ; then
+	if [ "$OVERLAY_DIR" = "null" -o -z "$OVERLAY_DIR" ] ; then
 		unset OVERLAY_DIR
+	else
+		echo "Using OVERLAY_DIR: $OVERLAY_DIR"
 	fi
 fi
 

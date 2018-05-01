@@ -114,7 +114,7 @@ IMAGES+=	mini-memstick.img
 .endif
 
 CLEANFILES=	packagesystem *.txz MANIFEST release ${IMAGES}
-CLEANFILES+=	poudriere.conf trueos-mk-bulk-list
+CLEANFILES+=	trueos-mk-bulk-list
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
 CLEANFILES+=	${I}.xz
@@ -123,7 +123,7 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-CLEANDIRS=	dist ftp disc1 bootonly dvd poudriere.d
+CLEANDIRS=	dist ftp disc1 bootonly dvd repo-config
 .if !defined(NODOC)
 CLEANDIRS+=    reldoc rdoc
 .endif
@@ -327,6 +327,7 @@ poudriere: packagesystem
 	env DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \
 		OBJDIR=${.OBJDIR} OSRELEASE=${OSRELEASE} \
 		SRCDIR=${.CURDIR}/.. \
+		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.OBJDIR}/../bin/sh/sh config ABI) \
 		sh ${.CURDIR}/release-trueos.sh poudriere
 .endif
 

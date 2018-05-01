@@ -32,9 +32,15 @@ export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"
 POUDRIERE_BASEFS=${POUDRIERE_BASEFS:-/usr/local/poudriere}
 POUDRIERE_BASE=${POUDRIERE_BASE:-trueos-mk-base}
 POUDRIERE_PORTS=${POUDRIERE_PORTS:-trueos-mk-ports}
+PKG_CMD=${PKG_CMD:-pkg-static}
+POUDRIERE_ETCDIR=/var/db/poudriere-release-db
 
 POUDRIERE_PORTDIR="${POUDRIERE_BASEFS}/ports/${POUDRIERE_PORTS}"
 POUDRIERE_PKGDIR="${POUDRIERE_BASEFS}/data/packages/${POUDRIERE_BASE}-${POUDRIERE_PORTS}"
+
+if [ ! -d "${POUDRIERE_ETCDIR}" ] ; then
+	mkdir -p ${POUDRIERE_ETCDIR}
+fi
 
 exit_err()
 {
@@ -70,27 +76,27 @@ setup_poudriere_conf()
 		| grep -v "GIT_PORTSURL=" \
 		| grep -v "USE_TMPFS=" \
 		| grep -v "BASEFS=" \
-		> ${OBJDIR}/poudriere.conf
+		> ${POUDRIERE_ETCDIR}/poudriere.conf
 	echo "Using zpool: $ZPOOL"
-	echo "ZPOOL=$ZPOOL" >> ${OBJDIR}/poudriere.conf
+	echo "ZPOOL=$ZPOOL" >> ${POUDRIERE_ETCDIR}/poudriere.conf
 	echo "Using Dist Directory: $DIST_DIR"
-	echo "FREEBSD_HOST=file://${DIST_DIR}" >> ${OBJDIR}/poudriere.conf
+	echo "FREEBSD_HOST=file://${DIST_DIR}" >> ${POUDRIERE_ETCDIR}/poudriere.conf
 	echo "Using Ports Tree: $GH_PORTS"
-	echo "GIT_URL=${GH_PORTS}" >> ${OBJDIR}/poudriere.conf
-	echo "USE_TMPFS=data" >> ${OBJDIR}/poudriere.conf
-	echo "BASEFS=$POUDRIERE_BASEFS" >> ${OBJDIR}/poudriere.conf
+	echo "GIT_URL=${GH_PORTS}" >> ${POUDRIERE_ETCDIR}/poudriere.conf
+	echo "USE_TMPFS=data" >> ${POUDRIERE_ETCDIR}/poudriere.conf
+	echo "BASEFS=$POUDRIERE_BASEFS" >> ${POUDRIERE_ETCDIR}/poudriere.conf
 }
 
 setup_poudriere_jail()
 {
 	# Create new jail
-	poudriere -e ${OBJDIR} jail -c -j $POUDRIERE_BASE -m url=file://${DIST_DIR} -v ${OSRELEASE}
+	poudriere -e ${POUDRIERE_ETCDIR} jail -c -j $POUDRIERE_BASE -m url=file://${DIST_DIR} -v ${OSRELEASE}
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed creating poudriere jail"
 	fi
 
 	# Create the new ports tree
-	poudriere -e ${OBJDIR} ports -c -p $POUDRIERE_PORTS -m git -B $GH_PORTS_BRANCH
+	poudriere -e ${POUDRIERE_ETCDIR} ports -c -p $POUDRIERE_PORTS -m git -B $GH_PORTS_BRANCH
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed creating poudriere ports"
 	fi
@@ -101,34 +107,38 @@ setup_poudriere_jail()
 
 build_poudriere()
 {
-	sleep 60
+	# Check if we want to do a bulk build of everything
 	if [ $(jq -r '."package-all"' ${TRUEOS_MANIFEST}) = "true" ] ; then
 		# Start the build
-		poudriere -e ${OBJDIR} bulk -a -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
+		poudriere -e ${POUDRIERE_ETCDIR} bulk -a -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
 		check_essential_pkgs
-	else
+	fi
+
+	# Check if we want to do a selective build
+	# (And yes, sometimes you want to do this after a "full" build to catch things
+	# which may purposefully not be tied into the complete build process
+	if [ "$(jq -r '."packages"' ${TRUEOS_MANIFEST})" != "null" ] ; then
 		jq -r '."packages" | join("\n")' ${TRUEOS_MANIFEST} > ${OBJDIR}/trueos-mk-bulk-list
 
 		# Start the build
-		poudriere -e ${OBJDIR} bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
+		poudriere -e ${POUDRIERE_ETCDIR} bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
 		if [ $? -ne 0 ] ; then
 			exit_err "Failed poudriere build"
 		fi
-		check_essential_pkgs
 	fi
 }
 
 clean_poudriere()
 {
 	# Kill previous jail
-	poudriere -e ${OBJDIR} jail -k -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
+	poudriere -e ${POUDRIERE_ETCDIR} jail -k -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
 
 	# Delete previous jail
-	echo "poudriere -e ${OBJDIR} jail -d -j ${POUDRIERE_BASE}"
-	echo -e "y\n" | poudriere -e ${OBJDIR} jail -d -j ${POUDRIERE_BASE}
+	echo "poudriere -e ${POUDRIERE_ETCDIR} jail -d -j ${POUDRIERE_BASE}"
+	echo -e "y\n" | poudriere -e ${POUDRIERE_ETCDIR} jail -d -j ${POUDRIERE_BASE}
 
 	# Delete previous ports tree
-	echo -e "y\n" | poudriere -e ${OBJDIR} ports -d -p ${POUDRIERE_PORTS}
+	echo -e "y\n" | poudriere -e ${POUDRIERE_ETCDIR} ports -d -p ${POUDRIERE_PORTS}
 }
 
 check_essential_pkgs()
@@ -171,12 +181,19 @@ check_essential_pkgs()
 
 mv_packages()
 {
-	export PKG_VERSION=$(readlink ${PKG_DIR}/latest)
-	mv ${POUDRIERE_PKGDIR}/All ${PKG_DIR}/latest/
+	echo "Merging base repo ${PKG_VERSION} with poudriere packages"
+	export PKG_VERSION=$(readlink ${PKG_DIR}/${ABI_DIR}/latest)
+	rm -rf ${PKG_DIR}/${ABI_DIR}/latest/All
+	mkdir -p ${PKG_DIR}/${ABI_DIR}/latest/All
+	mv ${POUDRIERE_PKGDIR}/All/* ${PKG_DIR}/${ABI_DIR}/latest/All
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed moving package directory..."
 	fi
-	cd ${SRCDIR} && make sign-packages
+	echo "Signing merged package repo: $PKG_VERSION"
+	${PKG_CMD} -o ABI=${ABI_DIR} repo \
+		-o ${PKG_DIR}/${ABI_DIR}/${PKG_VERSION} \
+		${PKG_DIR}/${ABI_DIR}/${PKG_VERSION} \
+		${PKGSIGNKEY}
 }
 
 clean_jails()
@@ -214,6 +231,25 @@ EOF
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed copying base packages to ISO..."
 	fi
+
+	# Check if we have dist-packages to include on the ISO
+	if [ "$(jq -r '."dist-packages"' ${TRUEOS_MANIFEST})" = "null" ] ; then
+		return 0
+	fi
+
+	for i in $(jq -r '."dist-packages" | join(" ")' ${TRUEOS_MANIFEST})
+	do
+		pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
+			-R ${OBJDIR}/repo-config \
+			fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} $i
+			if [ $? -ne 0 ] ; then
+				exit_err "Failed copying dist-package $i to ISO..."
+			fi
+	done
+
+	# Create the repo DB
+	echo "Creating installer pkg repo"
+	pkg repo ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
 }
 
 env_check
