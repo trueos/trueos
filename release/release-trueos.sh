@@ -285,6 +285,10 @@ EOF
 				fi
 		done
 	fi
+}
+
+apply_iso_config()
+{
 
 	# Check for a custom install script
 	_jsins=$(jq -r '."install-script"' ${TRUEOS_MANIFEST})
@@ -301,6 +305,23 @@ EOF
 		cp $(jq -r '."auto-install-script"' ${TRUEOS_MANIFEST}) \
 			 ${OBJDIR}/disc1/etc/installerconfig
 	fi
+
+}
+
+save_pkg_config()
+{
+	if [ "$(jq -r '."pkg-repo"."url" | length' ${TRUEOS_MANIFEST})" = "0" ] ; then return 0 ; fi
+
+	_jspkgurl="$(jq -r '."pkg-repo"."url"' ${TRUEOS_MANIFEST})"
+	echo "Saving pkg repository URL"
+	echo "$_jspkgurl" > ${OBJDIR}/disc1/dist/trueos-pkg-url
+
+	# Check if a pubkey is specified
+	if [ "$(jq -r '."pkg-repo"."pubKey" | length' ${TRUEOS_MANIFEST})" = "0" ] ; then
+		echo "Saving pkg repository public key"
+		jq -r '."pkg-repo"."pubKey" | join("\n")' ${TRUEOS_MANIFEST} \
+			> ${OBJDIR}/disc1/dist/trueos-pkg-url.pubkey
+	fi
 }
 
 env_check
@@ -308,7 +329,10 @@ env_check
 case $1 in
 	clean) clean_jails ; exit 0 ;;
 	poudriere) run_poudriere ;;
-	iso) cp_iso_pkgs ;;
+	iso) cp_iso_pkgs
+	     apply_iso_config
+	     save_pkg_config
+	     ;;
 	*) echo "Unknown option selected" ;;
 esac
 
