@@ -310,14 +310,18 @@ apply_iso_config()
 
 save_pkg_config()
 {
-	if [ "$(jq -r '."pkg-repo"."url" | length' ${TRUEOS_MANIFEST})" = "0" ] ; then return 0 ; fi
+	if [ "$(jq -r '."pkg-repo"."url" | length' ${TRUEOS_MANIFEST})" = "0" ]
+	then
+		return 0
+	fi
 
 	_jspkgurl="$(jq -r '."pkg-repo"."url"' ${TRUEOS_MANIFEST})"
 	echo "Saving pkg repository URL"
 	echo "$_jspkgurl" > ${OBJDIR}/disc1/dist/trueos-pkg-url
 
 	# Check if a pubkey is specified
-	if [ "$(jq -r '."pkg-repo"."pubKey" | length' ${TRUEOS_MANIFEST})" = "0" ] ; then
+	if [ "$(jq -r '."pkg-repo"."pubKey" | length' ${TRUEOS_MANIFEST})" != "0" ]
+	then
 		echo "Saving pkg repository public key"
 		jq -r '."pkg-repo"."pubKey" | join("\n")' ${TRUEOS_MANIFEST} \
 			> ${OBJDIR}/disc1/dist/trueos-pkg-url.pubkey
