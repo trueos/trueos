@@ -5,7 +5,7 @@ pipeline {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
   }
-  
+
   stages {
     stage('Queued') {
         agent {
@@ -15,7 +15,7 @@ pipeline {
         echo "Build queued"
       }
     }
-    
+
     stage('Checkout') {
       steps {
         checkout scm
@@ -69,14 +69,22 @@ pipeline {
         sh 'cp -r /usr/obj${WORKSPACE}/repo/* ${WORKSPACE}/artifacts/repo/'
       }
     }
-    stage('Post-Clean') {
+
+    stage('Publish') {
       steps {
-        sh 'make clean'
-        sh 'cd release && make clean'
-        sh 'rm -rf /usr/obj${WORKSPACE}'
-        script {
-          cleanWs notFailBuild: true
+        sshagent (credentials: ['syncbot-credentials']) {
+          sh 'rsync -av --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/repo/ pkg.trueos.org:/data/pkg/unstable/'
         }
+      }
+    }
+  }
+  post {
+    always {
+      sh 'make clean'
+      sh 'cd release && make clean'
+      sh 'rm -rf /usr/obj${WORKSPACE}'
+      script {
+        cleanWs notFailBuild: true
       }
     }
   }
