@@ -8,8 +8,8 @@
 #
 
 TrueOS: {
-  url: "https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20World%20CI/job/trueos-master/lastSuccessfulBuild/artifact/artifacts/repo/${ABI}/latest",
-  signature_type: "pubkey",
-  pubkey: "/usr/share/keys/trueos-pkg.key",
+  url: "%%URL%%",
+  signature_type: "fingerprints",
+  fingerprints: "%%FINGERPRINTS%%",
   enabled: yes
 }
