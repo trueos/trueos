@@ -65,8 +65,8 @@ install_packages()
   do
     PKGNAME="${i}"
 
-    # Doing a network install, use the default pkg.conf
-    PKGADD="pkg -c ${FSMNT} install -U -y ${PKGNAME}"
+    # Doing a local install into a different root
+    PKGADD="pkg -r ${FSMNT} install -y ${PKGNAME}"
     PKGINFO="pkg info"
 
     # If the package is not already installed, install it!
