@@ -34,5 +34,6 @@
 struct vmctx;
 
 int	smbios_build(struct vmctx *ctx);
+int	smbios_parse(const char *opts);
 
 #endif /* _SMBIOSTBL_H_ */
