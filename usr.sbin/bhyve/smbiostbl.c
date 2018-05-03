@@ -836,7 +836,7 @@ smbios_parse(const char *opts)
 	char *lasts;
 	char *token;
 	char *end;
-	long type;
+	int type;
 	struct {
 		const char *key;
 		const char **targetp;
