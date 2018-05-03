@@ -49,13 +49,6 @@ install_packages()
 
   local PKGPTH
 
-  HERE=`pwd`
-  rc_halt "mkdir -p ${FSMNT}${PKGTMPDIR}"
-
-  # Determine the directory we will install packages from
-  get_package_location
-  rc_halt "cd ${PKGDLDIR}"
-
   # We dont want to be bothered with scripts asking questions
   PACKAGE_BUILDING=yes
   export PACKAGE_BUILDING
@@ -63,59 +56,27 @@ install_packages()
   # Install PKGNG into the chroot
   bootstrap_pkgng
 
-  # Update the repo database
-  echo "Updating pkgng database"
-  case "${INSTALLMEDIUM}" in
-    usb|dvd|local) run_chroot_cmd "pkg -R /mnt/repo-installer update -f" ;;
-                *) run_chroot_cmd "pkg update -f" ;;
-  esac
-
   # Lets start by cleaning up the string and getting it ready to parse
   get_value_from_cfg_with_spaces installPackages
   PACKAGES="${VAL}"
-
-  # When doing an upgrade, check if we need to also install GRUB pkgs
-  if [ -n "$FORCEPKGINSTALLGRUB" ] ; then
-    PACKAGES="$PACKAGES sysutils/grub2-pcbsd sysutils/grub2-efi"
-  fi
 
   echo_log "Packages to install: `echo $PACKAGES | wc -w | awk '{print $1}'`"
   for i in $PACKAGES
   do
     PKGNAME="${i}"
 
-    # When doing a pkg install, if on local media, use a pkg.conf from /dist/
-    if [ "${INSTALLMEDIUM}" != "ftp" ] ; then
-      # Get the package file-name
-      PKGFILENAME=""
-      PKGFILENAME=`chroot ${FSMNT} pkg -R /mnt/repo-installer rquery '%n-%v' ${PKGNAME}`
-      if [ -z "$PKGFILENAME" ] ; then
-         echo_log "Warning: No such package in repo: ${PKGNAME}"
-	 sleep 2
-         continue
-      fi
-      if [ ! -e "${FSMNT}/mnt/${PKGFILENAME}.txz" ] ; then
-         echo_log "Warning: No such package file in repo: ${PKGFILENAME}"
-	 sleep 2
-         continue
-      fi
-      PKGADD="pkg add /mnt/${PKGFILENAME}.txz"
-    else
-      # Doing a network install, use the default pkg.conf
-      PKGADD="pkg install -y ${PKGNAME}"
-    fi
-
+    # Doing a network install, use the default pkg.conf
+    PKGADD="pkg -c ${FSMNT} install -U -y ${PKGNAME}"
     PKGINFO="pkg info"
 
     # If the package is not already installed, install it!
     if ! run_chroot_cmd "${PKGINFO} -e ${PKGNAME}" >/dev/null 2>/dev/null
     then
       echo_log "Installing package: ${PKGNAME}"
-      run_chroot_cmd "$PKGADD" 2>&1 | tee -a ${LOGOUT}
+      $PKGADD
       if [ $? -ne 0 ] ; then
         exit_err "Failed installing: $PKGADD"
       fi
-      run_chroot_cmd "rm -rf /usr/local/tmp/All"
       if ! run_chroot_cmd "${PKGINFO} -e ${PKGNAME}" >/dev/null 2>/dev/null
       then
         echo_log "WARNING: PKGNG reported 0, but pkg: ${PKGNAME} does not appear to be installed!"
@@ -124,13 +85,4 @@ install_packages()
   done
 
   echo_log "Package installation complete!"
-
-  # Cleanup after ourselves
-  echo_log "Cleaning up: ${FSMNT}${PKGTMPDIR}"
-  sleep 1
-  rc_halt "cd ${HERE}"
-  if [ "${INSTALLMEDIUM}" != "ftp" ] ; then
-    rc_halt "umount ${FSMNT}/mnt" >/dev/null 2>/dev/null
-    rc_halt "rmdir ${FSMNT}${PKGTMPDIR}" >/dev/null 2>/dev/null
-  fi
 };

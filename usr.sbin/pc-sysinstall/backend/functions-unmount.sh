@@ -37,7 +37,7 @@ umount_all_dir()
   for _ud in $_umntdirs
   do
     echo_log "Unmounting: ${_ud}"
-    sleep 2
+    sleep 1
     umount -f ${_ud}
   done
 }
@@ -391,6 +391,6 @@ post_install_boot_setup()
     fi
   fi
 
-  sleep 2
+  sleep 1
   rc_halt "umount ${FSMNT}/dev"
 }

@@ -111,11 +111,10 @@ zfs_cleanup_unmount()
         mount | grep -q "${FSMNT}${ZMNT}"
 	if [ $? -eq 0 ] ; then
           echo_log "ZFS Unmount: ${ZPOOLNAME}${ZMNT}"
-          sleep 2
+          sleep 1
           rc_halt "zfs unmount ${ZPOOLNAME}${ZMNT}"
           rc_halt "zfs set mountpoint=${ZMNT} ${ZPOOLNAME}${ZMNT}"
         fi
-        sleep 2
       done
     fi
   done
