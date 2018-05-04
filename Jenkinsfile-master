@@ -40,6 +40,7 @@ pipeline {
     stage('Base Packages') {
       environment {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
+	   TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-master.json'
       }
       steps {
         sh 'make -j32 packages'
@@ -48,6 +49,7 @@ pipeline {
     stage('Ports') {
       environment {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
+	   TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-master.json'
       }
       steps {
         sh 'cd release && make poudriere'
@@ -67,6 +69,14 @@ pipeline {
         sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
         sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
         sh 'cp -r /usr/obj${WORKSPACE}/repo/* ${WORKSPACE}/artifacts/repo/'
+      }
+    }
+
+    stage('Publish') {
+      steps {
+        sshagent (credentials: ['syncbot-credentials']) {
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/repo/ syncbot@pkg.trueos.org:/data/pkg/unstable/'
+        }
       }
     }
   }
