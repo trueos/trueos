@@ -1,6 +1,10 @@
 pipeline {
   agent { label 'TrueOS-World' }
 
+  triggers {
+    cron('01 17 * * 5')
+  }
+
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
