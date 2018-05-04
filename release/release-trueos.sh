@@ -124,7 +124,7 @@ build_poudriere()
 	# Check if we want to do a selective build
 	# (And yes, sometimes you want to do this after a "full" build to catch things
 	# which may purposefully not be tied into the complete build process
-	if [ "$(jq -r '."packages"' ${TRUEOS_MANIFEST})" != "null" ] ; then
+	if [ "$(jq -r '."packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
 		jq -r '."packages" | join("\n")' ${TRUEOS_MANIFEST} > ${OBJDIR}/trueos-mk-bulk-list
 
 		# Start the build
@@ -240,7 +240,7 @@ EOF
 	fi
 
 	# Check if we have dist-packages to include on the ISO
-	if [ "$(jq -r '."dist-packages"' ${TRUEOS_MANIFEST})" != "null" ] ; then
+	if [ "$(jq -r '."dist-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
 		for i in $(jq -r '."dist-packages" | join(" ")' ${TRUEOS_MANIFEST})
 		do
 			pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
@@ -256,7 +256,7 @@ EOF
 	echo "Creating installer pkg repo"
 	pkg repo ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
 
-	if [ "$(jq -r '."auto-install-packages"' ${TRUEOS_MANIFEST})" != "null" ] ; then
+	if [ "$(jq -r '."auto-install-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
 		echo "Saving package list to auto-install"
 		jq -r '."auto-install-packages" | join(" ")' ${TRUEOS_MANIFEST} \
 			 >${OBJDIR}/disc1/root/auto-dist-install
@@ -273,7 +273,7 @@ pkgs: {
 EOF
 
 	# If there are any packages to install into the ISO, do it now
-	if [ "$(jq -r '."iso-install-packages"' ${TRUEOS_MANIFEST})" != "null" ] ; then
+	if [ "$(jq -r '."iso-install-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
 		for i in $(jq -r '."iso-install-packages" | join(" ")' ${TRUEOS_MANIFEST})
 		do
 			pkg-static -o ABI_FILE=/bin/sh \
