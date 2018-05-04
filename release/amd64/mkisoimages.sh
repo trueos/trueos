@@ -50,12 +50,22 @@ if [ $# -lt 3 ]; then
 	exit 1
 fi
 
+# If there is a TRUEOS_MANIFEST specified, lets include its install-overlay
+if [ -n "$TRUEOS_MANIFEST" ] ; then
+	OVERLAY_DIR="$(jq -r '."install-overlay"' $TRUEOS_MANIFEST)"
+	if [ "$OVERLAY_DIR" = "null" -o -z "$OVERLAY_DIR" ] ; then
+		unset OVERLAY_DIR
+	else
+		echo "Using OVERLAY_DIR: $OVERLAY_DIR"
+	fi
+fi
+
 LABEL=`echo "$1" | tr '[:lower:]' '[:upper:]'`; shift
 NAME="$1"; shift
 
 publisher="TrueOS -  https://www.TrueOS.org/"
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$1/etc/fstab"
-makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
+makefs -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@" $OVERLAY_DIR
 rm -f "$1/etc/fstab"
 rm -f efiboot.img
 

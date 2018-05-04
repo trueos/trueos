@@ -788,11 +788,7 @@ gen_pc-sysinstall_cfg()
    echo "# Auto-Generated pc-sysinstall configuration" >${CFGFILE}
    echo "installInteractive=no" >>${CFGFILE}
    echo "installMode=fresh" >>${CFGFILE}
-   if [ "$SYSTYPE" = "desktop" ] ; then
-     echo "installType=TrueOS" >>${CFGFILE}
-   else
-     echo "installType=FreeBSD" >>${CFGFILE}
-   fi
+   echo "installType=FreeBSD" >>${CFGFILE}
    echo "packageType=pkg" >> ${CFGFILE}
 
    if [ "`uname -m`" = "amd64" ] ; then
@@ -863,45 +859,23 @@ gen_pc-sysinstall_cfg()
    echo "commitDiskLabel" >> ${CFGFILE}
    echo "" >> ${CFGFILE}
 
-   # Now the packages
-   if [ "$SYSTYPE" = "desktop" ] ; then
-     EXTRAPKGS="${EXTRAPKGS} x11/lumina-i18n www/qupzilla-qt5 mail/trojita multimedia/vlc"
-     EXTRAPKGS="${EXTRAPKGS} multimedia/openh264 x11-fonts/noto-lite x11-fonts/droid-fonts-ttf"
-     EXTRAPKGS="${EXTRAPKGS} x11-themes/cursor-jimmac-theme graphics/phototonic"
-     EXTRAPKGS="${EXTRAPKGS} misc/trueos-meta-hunspell x11/qterminal print/cups-pdf"
-     EXTRAPKGS="${EXTRAPKGS} print/gutenprint-cups"
-     echo "installPackages=misc/trueos-desktop x11/lumina ${EXTRAPKGS}" >> ${CFGFILE}
-     echo "" >> ${CFGFILE}
-     # Set our markers for desktop to run the first-time boot wizards
-     echo "runCommand=touch /var/.runxsetup" >> ${CFGFILE}
-     echo "runCommand=touch /var/.trueos-firstboot" >> ${CFGFILE}
-     echo "runCommand=touch /var/.trueos-firstgui" >> ${CFGFILE}
-   else
-     # TrueOS install
-     if [ "$SYSTYPE" = "server" ] ; then
-       echo "installPackages=misc/trueos-server ${EXTRAPKGS}" >> ${CFGFILE}
-     fi
-     echo "" >> ${CFGFILE}
-     echo "" >> ${CFGFILE}
-
-     # Since on TrueOS, lets save username / passwords
-     echo "rootPass=${ROOTPW}" >> ${CFGFILE}
-     echo "" >> ${CFGFILE}
-     echo "userName=${USERNAME}" >> ${CFGFILE}
-     echo "userComment=${USERREALNAME}" >> ${CFGFILE}
-     echo "userPass=${USERPW}" >> ${CFGFILE}
-     echo "userShell=${USERSHELL}" >> ${CFGFILE}
-     echo "userHome=/home/${USERNAME}" >> ${CFGFILE}
-     echo "userGroups=wheel,operator" >> ${CFGFILE}
-     echo "commitUser" >> ${CFGFILE}
+   # Are there packages to install out of box?
+   if [ -e "/root/auto-dist-install" ] ; then
+     echo "installPackages=$(cat /root/auto-dist-install)" >> ${CFGFILE}
    fi
+   echo "" >> ${CFGFILE}
+   echo "" >> ${CFGFILE}
 
-   # Run the sys-init
-   if [ "$SYSTYPE" = "desktop" ] ; then
-     echo "runCommand=sh /usr/local/share/trueos/scripts/sys-init.sh desktop en_US" >> ${CFGFILE}
-   else
-     echo "runCommand=sh /usr/local/share/trueos/scripts/sys-init.sh server" >> ${CFGFILE}
-   fi
+   # Since on TrueOS, lets save username / passwords
+   echo "rootPass=${ROOTPW}" >> ${CFGFILE}
+   echo "" >> ${CFGFILE}
+   echo "userName=${USERNAME}" >> ${CFGFILE}
+   echo "userComment=${USERREALNAME}" >> ${CFGFILE}
+   echo "userPass=${USERPW}" >> ${CFGFILE}
+   echo "userShell=${USERSHELL}" >> ${CFGFILE}
+   echo "userHome=/home/${USERNAME}" >> ${CFGFILE}
+   echo "userGroups=wheel,operator" >> ${CFGFILE}
+   echo "commitUser" >> ${CFGFILE}
 
    # Last cleanup stuff
    echo "" >> ${CFGFILE}

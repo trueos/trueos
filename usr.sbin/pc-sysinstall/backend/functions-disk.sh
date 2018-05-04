@@ -280,14 +280,14 @@ stop_all_zfs()
 stop_all_gmirror()
 {
   local DISK="`echo ${1} | sed 's|/dev/||g'`"
-  GPROV="`gmirror list | grep ". Name: mirror/" | cut -d '/' -f 2`"
-  for gprov in $GPROV 
+  GPROV="`gmirror list 2>/dev/null | grep ". Name: mirror/" | cut -d '/' -f 2`"
+  for gprov in $GPROV
   do
     echo_log "Stopping mirror $gprov"
     rc_nohalt "gmirror stop -f $gprov"
     rc_nohalt "gmirror destroy $gprov"
 
-    dName=`gmirror list | grep -v 'mirror/' | grep "Name: " | awk '{print $3}'`
+    dName=`gmirror list 2>/dev/null | grep -v 'mirror/' | grep "Name: " | awk '{print $3}'`
     for rmDisk in $dName
     do
       rc_nohalt "gmirror remove $gprov $rmDisk"

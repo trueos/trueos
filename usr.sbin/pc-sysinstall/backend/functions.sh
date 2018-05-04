@@ -451,14 +451,14 @@ install_fresh()
 {
   # Lets start setting up the disk slices now
   setup_disk_slice
-  
+
   if [ -z "${ROOTIMAGE}" ]
   then
 
     # Disk setup complete, now lets parse WORKINGSLICES and setup the bsdlabels
     setup_disk_label
-  
-    # Now we've setup the bsdlabels, lets go ahead and run newfs / zfs 
+
+    # Now we've setup the bsdlabels, lets go ahead and run newfs / zfs
     # to setup the filesystems
     setup_filesystems
 
@@ -471,7 +471,7 @@ install_fresh()
     # We are ready to begin extraction, lets start now
     init_extraction
 
-    # Check if we have any optional modules to load 
+    # Check if we have any optional modules to load
     install_components
 
     # Run any pre-package commands
@@ -511,7 +511,7 @@ install_extractonly()
   # We are ready to begin extraction, lets start now
   init_extraction
 
-  # Check if we have any optional modules to load 
+  # Check if we have any optional modules to load
   install_components
 
   # Run any pre-package commands
@@ -531,10 +531,10 @@ install_extractonly()
 
   # Now run any commands specified
   run_commands
-  
+
   # Set a hostname on the install system
   setup_hostname
-      
+
   # Set the root_pw if it is specified
   set_root_pw
 
@@ -551,10 +551,10 @@ install_image()
 
 install_upgrade()
 {
-  # We're going to do an upgrade, skip all the disk setup 
+  # We're going to do an upgrade, skip all the disk setup
   # and start by importing an existing zpool
   mount_zpool_upgrade
-  
+
   # Run any pre-extract commands
   run_preextract_commands
 

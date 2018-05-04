@@ -8,6 +8,7 @@
 #  memstick: Builds memory stick image (memstick.img)
 #  mini-memstick: Builds minimal memory stick image (mini-memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
+#  poudriere: Runs poudriere build based upon TRUEOS_MANIFEST critera
 #  release: Invokes real-release, vm-release, and cloudware-release targets
 #  real-release: Build all media and FTP distribution area
 #  vm-release: Build all virtual machine image targets
@@ -34,11 +35,16 @@
 #  		with xz(1) (extremely time consuming)
 #  WITH_CLOUDWARE: if set, build cloud hosting disk images with the release
 #  TARGET/TARGET_ARCH: architecture of built release
+#  TRUEOS_MANIFEST: if set, will run poudriere and assemble ISO according
+#  		supplied JSON manifest provided, or the trueos-manifest.json
+#		included in release/ directory by default
 #
 
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
+PKG_CMD?=	pkg-static
+TRUEOS_MANIFEST?=	${WORLDDIR}/release/trueos-manifest.json
 RELNOTES_LANG?= en_US.ISO8859-1
 
 .if !defined(TARGET) || empty(TARGET)
@@ -102,7 +108,7 @@ RELEASE_TARGETS+= dvdrom
 IMAGES+=	dvd1.iso
 . endif
 .endif
-.if exists(${.CURDIR}/${TARGET}/make-memstick.sh)
+. if defined(WITH_USB) && !empty(WITH_USB)
 RELEASE_TARGETS+= memstick.img
 RELEASE_TARGETS+= mini-memstick.img
 IMAGES+=	memstick.img
@@ -110,6 +116,7 @@ IMAGES+=	mini-memstick.img
 .endif
 
 CLEANFILES=	packagesystem *.txz MANIFEST release ${IMAGES}
+CLEANFILES+=	trueos-mk-bulk-list
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
 CLEANFILES+=	${I}.xz
@@ -118,7 +125,7 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-CLEANDIRS=	dist ftp disc1 bootonly dvd
+CLEANDIRS=	dist ftp disc1 bootonly dvd repo-config
 .if !defined(NODOC)
 CLEANDIRS+=    reldoc rdoc
 .endif
@@ -188,9 +195,13 @@ disc1: packagesystem
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
 # Copy base packages
-	mkdir -p ${.TARGET}/dist
-	cp -r $${OBJROOT}repo/* ${.TARGET}/dist
+	mkdir -p ${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)
 	cp distrib.txz ${.TARGET}/dist/
+	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
+		OBJDIR=${.OBJDIR} PKG_DIR=$${OBJROOT}/repo \
+		TARGET_DIR=${.TARGET}/dist \
+		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI) \
+		sh ${WORLDDIR}/release/release-trueos.sh iso
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
@@ -313,6 +324,16 @@ release:	real-release vm-release cloudware-release
 
 release-done:
 	touch release
+
+poudriere: packagesystem
+.if defined(TRUEOS_MANIFEST) && !empty(TRUEOS_MANIFEST)
+	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
+		DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \
+		OBJDIR=${.OBJDIR} OSRELEASE=${OSRELEASE} \
+		SRCDIR=${.CURDIR}/.. \
+		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.OBJDIR}/../bin/sh/sh config ABI) \
+		sh ${.CURDIR}/release-trueos.sh poudriere
+.endif
 
 real-release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj

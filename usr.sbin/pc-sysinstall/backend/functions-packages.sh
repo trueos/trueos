@@ -64,19 +64,3 @@ bootstrap_pkgng()
   esac
   rc_halt "pkg -c ${FSMNT} ${PKGFLAG} ${PKGPTH}"
 }
-
-get_package_location()
-{
-  if [ ! -d "${FSMNT}/mnt" ] ; then
-    rc_halt "mkdir ${FSMNT}/mnt"
-  fi
-
-  case "${INSTALLMEDIUM}" in
-  usb|dvd) rc_halt "mount_nullfs ${CDMNT}/packages ${FSMNT}/mnt"
-           PKGDLDIR="${FSMNT}/mnt" ;;
-    local) rc_halt "mount_nullfs ${LOCALPATH} ${FSMNT}/mnt"
-           PKGDLDIR="${FSMNT}/mnt" ;;
-        *) PKGDLDIR="${FSMNT}${PKGTMPDIR}" ;;
-  esac
-  export PKGDLDIR
-}

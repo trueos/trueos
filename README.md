@@ -42,6 +42,8 @@ TrueOS has also integrated PKG directly in the base system.
 [text-based](https://github.com/trueos/trueos/tree/trueos-master/usr.sbin/pc-installdialog) front-end. This allows a wide variety of ZFS-based installation options, as well
 as scriptability.
 
+* [JSON Build Manifest](https://github.com/trueos/trueos/tree/trueos-master/release/README.md) - TrueOS supports a customizable JSON manifest for building. This allows TrueOS to run poudriere and assemble installation images for a variety of use-cases.
+
 * More as they come...
 
 Build Instructions:
@@ -52,5 +54,7 @@ images:
 ```
 make buildworld buildkernel
 make packages
-cd release && make release
+cd release
+make poudriere
+make release
 ```

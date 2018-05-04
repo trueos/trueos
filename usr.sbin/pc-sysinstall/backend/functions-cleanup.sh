@@ -111,11 +111,10 @@ zfs_cleanup_unmount()
         mount | grep -q "${FSMNT}${ZMNT}"
 	if [ $? -eq 0 ] ; then
           echo_log "ZFS Unmount: ${ZPOOLNAME}${ZMNT}"
-          sleep 2
+          sleep 1
           rc_halt "zfs unmount ${ZPOOLNAME}${ZMNT}"
           rc_halt "zfs set mountpoint=${ZMNT} ${ZPOOLNAME}${ZMNT}"
         fi
-        sleep 2
       done
     fi
   done
@@ -388,6 +387,24 @@ set_root_pw()
 
 run_final_cleanup()
 {
+  # Check if we have any package repo to enable
+  if [ -e "/dist/trueos-pkg-url" ] ; then
+    _pkgUrl="$(cat /dist/trueos-pkg-url)"
+    if [ -e "/dist/trueos-pkg-url.pubkey" ] ; then
+	cp /dist/trueos-pkg-url.pubkey ${FSMNT}/usr/share/keys/pkg/trueos.pub
+	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
+		| sed "s|%%PUBKEY%%|/usr/share/keys/pkg/trueos.pub|g" \
+		| sed "s|%%URL%%|${_pkgUrl}|g" \
+		>${FSMNT}/etc/pkg/TrueOS.conf
+    else
+	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
+		| grep -v 'pubkey:' \
+		| sed 's|pubkey|none|g' \
+		| sed "s|%%URL%%|${_pkgUrl}|g" \
+		>${FSMNT}/etc/pkg/TrueOS.conf
+    fi
+  fi
+
   # Check if we need to run any gmirror setup
   ls ${MIRRORCFGDIR}/* >/dev/null 2>/dev/null
   if [ $? -eq 0 -o -n "$ZFS_SWAP_DEVS" ]
