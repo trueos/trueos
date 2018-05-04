@@ -2,14 +2,11 @@
   "ports-url":"https://github.com/trueos/trueos-ports",
   "ports-branch":"trueos-master",
   "ports-conf":[
-    "OPTIONS_UNSET=DBUS CUPS XORG X11 UPNP LINUX GVFS HAL CONSOLEKIT",
-    "OPTIONS_SET="
   ],
   "package-all":true,
   "packages":[
   ],
   "essential-packages":[
-    "devel/git"
   ],
   "iso-install-packages":[
   ],
