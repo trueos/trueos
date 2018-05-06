@@ -2,6 +2,7 @@
   "ports-url":"https://github.com/trueos/trueos-ports",
   "ports-branch":"trueos-master",
   "ports-conf":[
+	  "MAKE_JOBS_NUMBER_LIMIT=3"
   ],
   "package-all":true,
   "packages":[
