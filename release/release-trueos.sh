@@ -188,11 +188,10 @@ check_essential_pkgs()
 
 mv_packages()
 {
-	echo "Merging base repo ${PKG_VERSION} with poudriere packages"
 	export PKG_VERSION=$(readlink ${PKG_DIR}/${ABI_DIR}/latest)
+	echo "Merging base repo ${PKG_VERSION} with poudriere packages"
 	rm -rf ${PKG_DIR}/${ABI_DIR}/latest/All
-	mkdir -p ${PKG_DIR}/${ABI_DIR}/latest/All
-	mv ${POUDRIERE_PKGDIR}/All/* ${PKG_DIR}/${ABI_DIR}/latest/All
+	mv ${POUDRIERE_PKGDIR}/All ${PKG_DIR}/${ABI_DIR}/latest/
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed moving package directory..."
 	fi
