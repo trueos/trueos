@@ -109,7 +109,7 @@ setup_poudriere_jail()
 	fi
 
 	# Save the list of build flags
-	jq -r '."ports-conf" | join("\n")' ${TRUEOS_MANIFEST} >/etc/poudriere.d/${POUDRIERE_BASE}-make.conf
+	jq -r '."ports-conf" | join("\n")' ${TRUEOS_MANIFEST} >${POUDRIERE_ETCDIR}/poudriere.d/${POUDRIERE_BASE}-make.conf
 }
 
 build_poudriere()
