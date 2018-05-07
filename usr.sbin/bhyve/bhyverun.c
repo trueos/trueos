@@ -896,7 +896,7 @@ main(int argc, char *argv[])
 	rtc_localtime = 1;
 	memflags = 0;
 
-	optstr = "abehuwxACHIPSWYp:g:c:s:m:l:U:";
+	optstr = "abehuwxACHIPSWYp:g:c:s:m:l:B:U:";
 	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
 		case 'a':
@@ -907,6 +907,12 @@ main(int argc, char *argv[])
 			break;
 		case 'b':
 			bvmcons = 1;
+			break;
+		case'B':
+			if (smbios_parse(optarg) != 0) {
+				errx(EX_USAGE, "invalid SMBIOS "
+				    "configuration '%s'", optarg);
+			}
 			break;
 		case 'p':
                         if (pincpu_parse(optarg) != 0) {
