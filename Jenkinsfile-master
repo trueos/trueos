@@ -85,7 +85,7 @@ pipeline {
     }
   }
   post {
-    always {
+    success {
       sh 'make clean'
       sh 'cd release && make clean'
       sh 'rm -rf /usr/obj${WORKSPACE}'

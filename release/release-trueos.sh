@@ -85,6 +85,9 @@ setup_poudriere_conf()
 	echo "GIT_URL=${GH_PORTS}" >> ${POUDRIERE_ETCDIR}/poudriere.conf
 	echo "USE_TMPFS=data" >> ${POUDRIERE_ETCDIR}/poudriere.conf
 	echo "BASEFS=$POUDRIERE_BASEFS" >> ${POUDRIERE_ETCDIR}/poudriere.conf
+	echo "ATOMIC_PACKAGE_REPOSITORY=no" >> ${POUDRIERE_ETCDIR}/poudriere.conf
+	echo "PKG_REPO_FROM_HOST=yes" >> ${POUDRIERE_ETCDIR}/poudriere.conf
+
 
 	# If there is a custom poudriere.conf.release file in /etc we will also
 	# include it. This can be used to set different tmpfs or JOBS on a per system
@@ -191,9 +194,9 @@ mv_packages()
 	export PKG_VERSION=$(readlink ${PKG_DIR}/${ABI_DIR}/latest)
 	echo "Merging base repo ${PKG_VERSION} with poudriere packages"
 	rm -rf ${PKG_DIR}/${ABI_DIR}/latest/All
-	mv ${POUDRIERE_PKGDIR}/All ${PKG_DIR}/${ABI_DIR}/latest/
+	cp -r ${POUDRIERE_PKGDIR}/All ${PKG_DIR}/${ABI_DIR}/latest/All
 	if [ $? -ne 0 ] ; then
-		exit_err "Failed moving package directory..."
+		exit_err "Failed copying package directory..."
 	fi
 	echo "Signing merged package repo: $PKG_VERSION"
 	${PKG_CMD} -o ABI=${ABI_DIR} repo \
