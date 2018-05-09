@@ -32,6 +32,9 @@
 
 #ifndef __T4_OFFLOAD_H__
 #define __T4_OFFLOAD_H__
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/condvar.h>
 
 #define INIT_ULPTX_WRH(w, wrlen, atomic, tid) do { \
 	(w)->wr_hi = htonl(V_FW_WR_OP(FW_ULPTX_WR) | V_FW_WR_ATOMIC(atomic)); \
@@ -66,9 +69,10 @@ struct stid_region {
 };
 
 /*
- * Max # of ATIDs.  The absolute HW max is 16K but we keep it lower.
+ * Max # of ATIDs.  The absolute HW max is 14b (enough for 16K) but we reserve
+ * the upper 3b for use as a cookie to demux the reply.
  */
-#define MAX_ATIDS 8192U
+#define MAX_ATIDS 2048U
 
 union aopen_entry {
 	void *data;
@@ -99,10 +103,16 @@ struct tid_info {
 	u_int atids_in_use;
 
 	struct mtx ftid_lock __aligned(CACHE_LINE_SIZE);
+	struct cv ftid_cv;
 	struct filter_entry *ftid_tab;
 	u_int nftids;
 	u_int ftid_base;
 	u_int ftids_in_use;
+
+	struct mtx hftid_lock __aligned(CACHE_LINE_SIZE);
+	struct cv hftid_cv;
+	void **hftid_tab;
+	/* ntids, tids_in_use */
 
 	struct mtx etid_lock __aligned(CACHE_LINE_SIZE);
 	struct etid_entry *etid_tab;

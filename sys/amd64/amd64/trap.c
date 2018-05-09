@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_clock.h"
+#include "opt_compat.h"
 #include "opt_cpu.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_isa.h"
@@ -101,6 +102,10 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
 #endif
+
+extern inthand_t IDTVEC(bpt), IDTVEC(bpt_pti), IDTVEC(dbg),
+    IDTVEC(fast_syscall), IDTVEC(fast_syscall_pti), IDTVEC(fast_syscall32),
+    IDTVEC(int0x80_syscall_pti), IDTVEC(int0x80_syscall);
 
 void __noinline trap(struct trapframe *frame);
 void trap_check(struct trapframe *frame);
@@ -461,11 +466,13 @@ trap(struct trapframe *frame)
 			 */
 			if (frame->tf_rip == (long)doreti_iret) {
 				frame->tf_rip = (long)doreti_iret_fault;
-				if (pti && frame->tf_rsp == (uintptr_t)PCPU_PTR(
-				    pti_stack) + (PC_PTI_STACK_SZ - 5) *
-				    sizeof(register_t))
+				if ((PCPU_GET(curpmap)->pm_ucr3 !=
+				    PMAP_NO_CR3) &&
+				    (frame->tf_rsp == (uintptr_t)PCPU_GET(
+				    pti_rsp0) - 5 * sizeof(register_t))) {
 					frame->tf_rsp = PCPU_GET(rsp0) - 5 *
 					    sizeof(register_t);
+				}
 				return;
 			}
 			if (frame->tf_rip == (long)ld_ds) {
@@ -533,6 +540,52 @@ trap(struct trapframe *frame)
 				load_dr6(rdr6() & ~0xf);
 				return;
 			}
+
+			/*
+			 * Malicious user code can configure a debug
+			 * register watchpoint to trap on data access
+			 * to the top of stack and then execute 'pop
+			 * %ss; int 3'.  Due to exception deferral for
+			 * 'pop %ss', the CPU will not interrupt 'int
+			 * 3' to raise the DB# exception for the debug
+			 * register but will postpone the DB# until
+			 * execution of the first instruction of the
+			 * BP# handler (in kernel mode).  Normally the
+			 * previous check would ignore DB# exceptions
+			 * for watchpoints on user addresses raised in
+			 * kernel mode.  However, some CPU errata
+			 * include cases where DB# exceptions do not
+			 * properly set bits in %dr6, e.g. Haswell
+			 * HSD23 and Skylake-X SKZ24.
+			 *
+			 * A deferred DB# can also be raised on the
+			 * first instructions of system call entry
+			 * points or single-step traps via similar use
+			 * of 'pop %ss' or 'mov xxx, %ss'.
+			 */
+			if (pti) {
+				if (frame->tf_rip ==
+				    (uintptr_t)IDTVEC(fast_syscall_pti) ||
+#ifdef COMPAT_FREEBSD32
+				    frame->tf_rip ==
+				    (uintptr_t)IDTVEC(int0x80_syscall_pti) ||
+#endif
+				    frame->tf_rip == (uintptr_t)IDTVEC(bpt_pti))
+					return;
+			} else {
+				if (frame->tf_rip ==
+				    (uintptr_t)IDTVEC(fast_syscall) ||
+#ifdef COMPAT_FREEBSD32
+				    frame->tf_rip ==
+				    (uintptr_t)IDTVEC(int0x80_syscall) ||
+#endif
+				    frame->tf_rip == (uintptr_t)IDTVEC(bpt))
+					return;
+			}
+			if (frame->tf_rip == (uintptr_t)IDTVEC(dbg) ||
+			    /* Needed for AMD. */
+			    frame->tf_rip == (uintptr_t)IDTVEC(fast_syscall32))
+				return;
 			/*
 			 * FALLTHROUGH (TRCTRAP kernel mode, kernel address)
 			 */
@@ -884,7 +937,6 @@ cpu_fetch_syscall_args(struct thread *td)
 	reg = 0;
 	regcnt = 6;
 
-	params = (caddr_t)frame->tf_rsp + sizeof(register_t);
 	sa->code = frame->tf_rax;
 
 	if (sa->code == SYS_syscall || sa->code == SYS___syscall) {
@@ -906,9 +958,9 @@ cpu_fetch_syscall_args(struct thread *td)
 	error = 0;
 	argp = &frame->tf_rdi;
 	argp += reg;
-	bcopy(argp, sa->args, sizeof(sa->args[0]) * regcnt);
+	memcpy(sa->args, argp, sizeof(sa->args[0]) * 6);
 	if (sa->narg > regcnt) {
-		KASSERT(params != NULL, ("copyin args with no params!"));
+		params = (caddr_t)frame->tf_rsp + sizeof(register_t);
 		error = copyin(params, &sa->args[regcnt],
 	    	    (sa->narg - regcnt) * sizeof(sa->args[0]));
 	}

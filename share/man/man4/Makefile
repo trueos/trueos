@@ -244,7 +244,6 @@ MAN=	aac.4 \
 	iwmfw.4 \
 	iwn.4 \
 	iwnfw.4 \
-	ixgb.4 \
 	ixgbe.4 \
 	ixl.4 \
 	ixlv.4 \
@@ -266,7 +265,6 @@ MAN=	aac.4 \
 	${_linux.4} \
 	liquidio.4 \
 	lm75.4 \
-	lmc.4 \
 	lo.4 \
 	lp.4 \
 	lpbb.4 \
@@ -321,6 +319,7 @@ MAN=	aac.4 \
 	ncv.4 \
 	${_ndis.4} \
 	net80211.4 \
+	netdump.4 \
 	netfpga10g_nf10bmac.4 \
 	netgraph.4 \
 	netintro.4 \
@@ -398,7 +397,6 @@ MAN=	aac.4 \
 	${_nvme.4} \
 	${_nvram.4} \
 	${_nvram2env.4} \
-	${_nxge.4} \
 	oce.4 \
 	ocs_fc.4\
 	ohci.4 \
@@ -444,6 +442,9 @@ MAN=	aac.4 \
 	re.4 \
 	rgephy.4 \
 	rights.4 \
+	${_rk_gpio.4} \
+	${_rk_grf.4} \
+	${_rk_pinctrl.4} \
 	rl.4 \
 	rndtest.4 \
 	route.4 \
@@ -476,6 +477,7 @@ MAN=	aac.4 \
 	sio.4 \
 	sis.4 \
 	sk.4 \
+	${_smartpqi.4} \
 	smb.4 \
 	smbus.4 \
 	smp.4 \
@@ -672,7 +674,6 @@ MLINKS+=ipw.4 if_ipw.4
 MLINKS+=iwi.4 if_iwi.4
 MLINKS+=iwm.4 if_iwm.4
 MLINKS+=iwn.4 if_iwn.4
-MLINKS+=ixgb.4 if_ixgb.4
 MLINKS+=ixgbe.4 ix.4
 MLINKS+=ixgbe.4 if_ix.4
 MLINKS+=ixgbe.4 if_ixgbe.4
@@ -684,7 +685,6 @@ MLINKS+=lagg.4 trunk.4
 MLINKS+=lagg.4 if_lagg.4
 MLINKS+=le.4 if_le.4
 MLINKS+=lge.4 if_lge.4
-MLINKS+=lmc.4 if_lmc.4
 MLINKS+=lo.4 loop.4
 MLINKS+=lp.4 plip.4
 MLINKS+=malo.4 if_malo.4
@@ -705,7 +705,6 @@ MLINKS+=netintro.4 net.4 \
 	netintro.4 networking.4
 MLINKS+=${_nfe.4} ${_if_nfe.4}
 MLINKS+=nge.4 if_nge.4
-MLINKS+=${_nxge.4} ${_if_nxge.4}
 MLINKS+=ow.4 onewire.4
 MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4 \
@@ -764,6 +763,9 @@ MLINKS+=xl.4 if_xl.4
 
 .if ${MACHINE_CPUARCH} == "aarch64"
 _armv8crypto.4=	armv8crypto.4
+_rk_gpio.4=	rk_gpio.4
+_rk_grf.4=	rk_grf.4
+_rk_pinctrl.4=	rk_pinctrl.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64"
@@ -819,7 +821,6 @@ _ichwd.4=	ichwd.4
 _if_bxe.4=	if_bxe.4
 _if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4
-_if_nxge.4=	if_nxge.4
 _if_urtw.4=	if_urtw.4
 _if_vmx.4=	if_vmx.4
 _if_vtnet.4=	if_vtnet.4
@@ -836,7 +837,6 @@ _nfsmb.4=	nfsmb.4
 _nvd.4=		nvd.4
 _nvme.4=	nvme.4
 _nvram.4=	nvram.4
-_nxge.4=	nxge.4
 _virtio.4=	virtio.4
 _virtio_balloon.4=virtio_balloon.4
 _virtio_blk.4=	virtio_blk.4
@@ -872,6 +872,7 @@ _qlxgb.4=	qlxgb.4
 _qlxgbe.4=	qlxgbe.4
 _qlnxe.4=	qlnxe.4
 _sfxge.4=	sfxge.4
+_smartpqi.4=	smartpqi.4
 
 MLINKS+=qlxge.4 if_qlxge.4
 MLINKS+=qlxgb.4 if_qlxgb.4

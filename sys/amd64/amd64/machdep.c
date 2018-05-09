@@ -669,6 +669,7 @@ struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 static char dblfault_stack[PAGE_SIZE] __aligned(16);
 static char mce0_stack[PAGE_SIZE] __aligned(16);
 static char nmi0_stack[PAGE_SIZE] __aligned(16);
+static char dbg0_stack[PAGE_SIZE] __aligned(16);
 CTASSERT(sizeof(struct nmi_pcpu) == 16);
 
 struct amd64tss common_tss[MAXCPU];
@@ -821,7 +822,7 @@ extern inthand_t
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(dblfault),
-	IDTVEC(div_pti), IDTVEC(dbg_pti), IDTVEC(bpt_pti),
+	IDTVEC(div_pti), IDTVEC(bpt_pti),
 	IDTVEC(ofl_pti), IDTVEC(bnd_pti), IDTVEC(ill_pti), IDTVEC(dna_pti),
 	IDTVEC(fpusegm_pti), IDTVEC(tss_pti), IDTVEC(missing_pti),
 	IDTVEC(stk_pti), IDTVEC(prot_pti), IDTVEC(page_pti),
@@ -1566,6 +1567,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	identify_cpu1();
 	identify_hypervisor();
 
+	/* link_elf_ireloc(kmdp); */
+
 	/* Init basic tunables, hz etc */
 	init_param1();
 
@@ -1630,8 +1633,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		    SEL_KPL, 0);
 	setidt(IDT_DE, pti ? &IDTVEC(div_pti) : &IDTVEC(div), SDT_SYSIGT,
 	    SEL_KPL, 0);
-	setidt(IDT_DB, pti ? &IDTVEC(dbg_pti) : &IDTVEC(dbg), SDT_SYSIGT,
-	    SEL_KPL, 0);
+	setidt(IDT_DB, &IDTVEC(dbg), SDT_SYSIGT, SEL_KPL, 4);
 	setidt(IDT_NMI, &IDTVEC(nmi),  SDT_SYSIGT, SEL_KPL, 2);
 	setidt(IDT_BP, pti ? &IDTVEC(bpt_pti) : &IDTVEC(bpt), SDT_SYSIGT,
 	    SEL_UPL, 0);
@@ -1713,6 +1715,13 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	np = ((struct nmi_pcpu *) &mce0_stack[sizeof(mce0_stack)]) - 1;
 	np->np_pcpu = (register_t) pc;
 	common_tss[0].tss_ist3 = (long) np;
+
+	/*
+	 * DB# stack, runs on ist4.
+	 */
+	np = ((struct nmi_pcpu *) &dbg0_stack[sizeof(dbg0_stack)]) - 1;
+	np->np_pcpu = (register_t) pc;
+	common_tss[0].tss_ist4 = (long) np;
 	
 	/* Set the IO permission bitmap (empty due to tss seg limit) */
 	common_tss[0].tss_iobase = sizeof(struct amd64tss) + IOPERM_BITMAP_SIZE;
@@ -1744,6 +1753,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		cninit();
 		amd64_kdb_init();
 	}
+	link_elf_ireloc(kmdp);
 
 	getmemsize(kmdp, physfree);
 	init_param2(physmem);
@@ -1795,9 +1805,10 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	rsp0 = (vm_offset_t)thread0.td_pcb;
 	/* Ensure the stack is aligned to 16 bytes */
 	rsp0 &= ~0xFul;
-	common_tss[0].tss_rsp0 = pti ? ((vm_offset_t)PCPU_PTR(pti_stack) +
-	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful : rsp0;
+	common_tss[0].tss_rsp0 = rsp0;
 	PCPU_SET(rsp0, rsp0);
+	PCPU_SET(pti_rsp0, ((vm_offset_t)PCPU_PTR(pti_stack) +
+	    PC_PTI_STACK_SZ * sizeof(uint64_t)) & ~0xful);
 	PCPU_SET(curpcb, thread0.td_pcb);
 
 	/* transfer to user mode */

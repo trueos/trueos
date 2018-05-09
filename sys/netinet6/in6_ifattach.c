@@ -846,36 +846,35 @@ in6_tmpaddrtimer(void *arg)
 static void
 in6_purgemaddrs(struct ifnet *ifp)
 {
-	LIST_HEAD(,in6_multi)	 purgeinms;
-	struct in6_multi	*inm, *tinm;
-	struct ifmultiaddr	*ifma;
+	struct in6_multi_head	 purgeinms;
+	struct in6_multi	*inm;
+	struct ifmultiaddr	*ifma, *next;
 
-	LIST_INIT(&purgeinms);
+	SLIST_INIT(&purgeinms);
 	IN6_MULTI_LOCK();
-
+	IN6_MULTI_LIST_LOCK();
+	IF_ADDR_WLOCK(ifp);
 	/*
 	 * Extract list of in6_multi associated with the detaching ifp
 	 * which the PF_INET6 layer is about to release.
-	 * We need to do this as IF_ADDR_LOCK() may be re-acquired
-	 * by code further down.
 	 */
-	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+ restart:
+	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next) {
 		if (ifma->ifma_addr->sa_family != AF_INET6 ||
 		    ifma->ifma_protospec == NULL)
 			continue;
 		inm = (struct in6_multi *)ifma->ifma_protospec;
-		LIST_INSERT_HEAD(&purgeinms, inm, in6m_entry);
+		in6m_rele_locked(&purgeinms, inm);
+		if (__predict_false(ifma6_restart)) {
+			ifma6_restart = false;
+			goto restart;
+		}
 	}
-	IF_ADDR_RUNLOCK(ifp);
-
-	LIST_FOREACH_SAFE(inm, &purgeinms, in6m_entry, tinm) {
-		LIST_REMOVE(inm, in6m_entry);
-		in6m_release_locked(inm);
-	}
+	IF_ADDR_WUNLOCK(ifp);
 	mld_ifdetach(ifp);
-
+	IN6_MULTI_LIST_UNLOCK();
 	IN6_MULTI_UNLOCK();
+	in6m_release_list_deferred(&purgeinms);
 }
 
 void
