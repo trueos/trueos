@@ -362,9 +362,9 @@ ppt_pci_reset(device_t dev)
 		     max(pcie_get_max_completion_timeout(dev) / 1000, 10),
 		     true))
 		return;
-	/* Secondary Bus Reset */
-	/* Link Disable / Enable */
 	/*
+	 * If FLR fails, attempt a power-management reset by cycling
+	 * the device in/out of D3 state.
 	 * PCI spec says we can only go into D3 state from D0 state.
 	 * Transition from D[12] into D0 before going to D3 state.
 	 */
@@ -374,11 +374,6 @@ ppt_pci_reset(device_t dev)
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D3)
 		pci_set_powerstate(dev, PCI_POWERSTATE_D3);
 	pci_set_powerstate(dev, ps);
-	/*
-	 * At this point we've lost any device state and need to do a config
-	 * restore before trying anything else. However, this should ultimately
-	 * be the last thing we try.
-	 */
 }
 
 int

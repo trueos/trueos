@@ -285,11 +285,12 @@ vga_pci_suspend(device_t dev)
 static int
 vga_pci_detach(device_t dev)
 {
-	int rc;
+	int error; 
 
-	if ((rc = bus_generic_detach(dev)) == 0)
-		rc = device_delete_children(dev);
-	return (rc);
+	error = bus_generic_detach(dev);
+	if (error == 0)
+		error = device_delete_children(dev);
+	return (error);
 }
 
 static int

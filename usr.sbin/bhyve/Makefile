@@ -30,6 +30,7 @@ SRCS=	\
 	dbgport.c		\
 	fwctl.c			\
 	hda_codec.c		\
+	gdb.c			\
 	inout.c			\
 	ioapic.c		\
 	mem.c			\
@@ -84,6 +85,10 @@ LIBADD+=	crypto
 CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/e1000
 CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/mii
 CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/usb/controller
+
+.ifdef GDB_LOG
+CFLAGS+=-DGDB_LOG
+.endif
 
 WARNS?=	2
 

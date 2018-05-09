@@ -79,6 +79,7 @@ CTASSERT(sizeof(wakecode) < PAGE_SIZE - 1024);
 
 extern int		acpi_resume_beep;
 extern int		acpi_reset_video;
+extern int		acpi_susp_bounce;
 
 #ifdef SMP
 extern struct susppcb	**susppcbs;
@@ -208,6 +209,10 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
 	ACPI_STATUS	status;
 	struct pcb	*pcb;
+#ifdef __amd64__
+	struct pcpu *pc;
+	int i;
+#endif
 
 	if (sc->acpi_wakeaddr == 0ul)
 		return (-1);	/* couldn't alloc wake memory */
@@ -235,6 +240,14 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		if (!CPU_EMPTY(&suspcpus) && suspend_cpus(suspcpus) == 0) {
 			device_printf(sc->acpi_dev, "Failed to suspend APs\n");
 			return (0);	/* couldn't sleep */
+		}
+#endif
+#ifdef __amd64__
+		hw_ibrs_active = 0;
+		cpu_stdext_feature3 = 0;
+		CPU_FOREACH(i) {
+			pc = pcpu_find(i);
+			pc->pc_ibpb_set = 0;
 		}
 #endif
 
@@ -275,6 +288,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			    AcpiFormatException(status));
 			return (0);	/* couldn't sleep */
 		}
+
+		if (acpi_susp_bounce)
+			resumectx(pcb);
 
 		for (;;)
 			ia32_pause();
