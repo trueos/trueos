@@ -1692,7 +1692,7 @@ create-world-package-${pkgname}: .PHONY
 	@if [ "${pkgname}" == "runtime" ]; then \
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
 		${WSTAGEDIR}/usr/sbin/etcupdate build -s ${SRCDIR} ${WSTAGEDIR}/var/db/etcupdate-current.tbz ; \
-		echo "/var/db/etcupdate-current.tbz" >> ${WSTAGEDIR}/${pkgname}.plist \
+		echo "/var/db/etcupdate-current.tbz" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 	fi
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
