@@ -22,6 +22,16 @@ scripts: {
 	pwd_mkdb %PWD_MKDB_ENDIAN% -i -p -d  ${PKG_ROOTDIR}/etc ${PKG_ROOTDIR}/etc/master.passwd
 	services_mkdb %CAP_MKDB_ENDIAN% -q -o ${PKG_ROOTDIR}/var/db/services.db ${PKG_ROOTDIR}/etc/services
 	chmod 1777 ${PKG_ROOTDIR}/tmp
+	if [ ! -e ${PKG_ROOTDIR}/etc/passwd ] ; then
+		# Boot-strap /etc for fresh install
+		echo "** Performing first-time setup of /etc **"
+		tar xpf ${PKG_ROOTDIR}/var/db/etcupdate-current.tbz -C ${PKG_ROOTDIR}
+		etcupdate extract -D ${PKG_ROOTDIR} -t ${PKG_ROOTDIR}/var/db/etcupdate-current.tbz
+	else
+		# Update existing /etc directory
+		echo "** Performing automated etcupdate of /etc **"
+		etcupdate -D ${PKG_ROOTDIR} -a -t ${PKG_ROOTDIR}/var/db/etcupdate-current.tbz
+	fi
 EOD
 }
 deps: {
