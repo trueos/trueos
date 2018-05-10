@@ -23,3 +23,11 @@ start_pre()
 		return 1
 	fi
 }
+# without a dedicated (even if empty!) start() block, ypset is reported as crashed.
+# This is most likely a bug in OpenRC, so this ugly workaround should be removed ASAP
+start()
+{
+	ebegin "starting ypset"
+	${command} ${command_args}
+	return 0
+}
