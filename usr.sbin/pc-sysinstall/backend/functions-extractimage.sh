@@ -38,19 +38,6 @@ start_extract_pkg()
   ABI="FreeBSD:`uname -r | cut -d '.' -f 1`:`uname -m`"
   export ABI
 
-  # Ugly hack to get distribution files on disk until pkg DTRT
-  if [ -e "${1}/../../distrib.txz" ] ; then
-    rc_nohalt "tar xvpf ${1}/../../distrib.txz -C ${FSMNT}"
-  fi
-
-  # Create some common mountpoints that pkgng doesn't do right now
-  for mpnt in dev compat mnt proc root var/run libexec/rc/init.d
-  do
-    if [ ! -d "${FSMNT}/${mpnt}" ] ; then
-      rc_halt "mkdir -p ${FSMNT}/${mpnt}"
-    fi
-  done
-
   # Mount the packages into the chroot
   rc_nohalt "mkdir -p ${FSMNT}/packages"
   rc_halt "mount_nullfs ${1} ${FSMNT}/packages"
