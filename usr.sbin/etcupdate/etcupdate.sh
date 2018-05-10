@@ -877,13 +877,17 @@ resolve_conflict()
 	while true; do
 		# Only display the resolved command if the file
 		# doesn't contain any conflicts.
-		echo -n "Select: (p) postpone, (df) diff-full, (e) edit,"
-		if ! has_conflicts $1; then
-			echo -n " (r) resolved,"
+		if [ -n "$automated" ] ; then
+			command=mf
+		else
+			echo -n "Select: (p) postpone, (df) diff-full, (e) edit,"
+			if ! has_conflicts $1; then
+				echo -n " (r) resolved,"
+			fi
+			echo
+			echo -n "        (h) help for more options: "
+			read command
 		fi
-		echo
-		echo -n "        (h) help for more options: "
-		read command
 		case $command in
 			df)
 				diff -u ${DESTDIR}$1 ${CONFLICTS}$1
@@ -1635,8 +1639,12 @@ dryrun=
 ignore=
 nobuild=
 preworld=
-while getopts "d:nprs:t:A:BD:FI:L:M:" option; do
+automated=
+while getopts "a:d:nprs:t:A:BD:FI:L:M:" option; do
 	case "$option" in
+		a)
+			automated=YES
+			;;
 		d)
 			WORKDIR=$OPTARG
 			;;

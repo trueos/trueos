@@ -33,7 +33,7 @@
 .Nd "manage updates to system files not updated by installworld"
 .Sh SYNOPSIS
 .Nm
-.Op Fl npBF
+.Op Fl anpBF
 .Op Fl d Ar workdir
 .Op Fl r | Fl s Ar source | Fl t Ar tarball
 .Op Fl A Ar patterns
@@ -474,6 +474,9 @@ This can be used for to set the
 or
 .Dv TARGET_ARCH
 variables for a cross-build.
+.It Fl a
+In default mode, run automated which defaults to preserving local changes to
+files if merge is not successful.
 .It Fl n
 Enable
 .Dq dry-run

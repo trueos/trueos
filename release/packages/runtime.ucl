@@ -18,6 +18,33 @@ desc = <<EOD
 EOD
 scripts: {
 	post-install = <<EOD
+	if [ -z "${PKG_ROOTDIR}" ] ; then
+		PKG_ROOTDIR=/
+	fi
+	if [ ! -e ${PKG_ROOTDIR}/etc/master.passwd ] ; then
+		# Boot-strap /etc for fresh install
+		echo "** Performing first-time setup of /etc **"
+		tar xpf ${PKG_ROOTDIR}/var/db/etcupdate-current.tbz -C ${PKG_ROOTDIR}
+		etcupdate extract -D ${PKG_ROOTDIR} -t ${PKG_ROOTDIR}/var/db/etcupdate-current.tbz
+	else
+		# Update existing /etc directory
+		echo "** Performing automated etcupdate of /etc **"
+		etcupdate -D ${PKG_ROOTDIR} -a -t ${PKG_ROOTDIR}/var/db/etcupdate-current.tbz
+	fi
+	# Update any missing dirs which need added now from mtree spec
+        mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.root.dist \
+            -p ${PKG_ROOTDIR} >/dev/null
+        mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.usr.dist \
+            -p ${PKG_ROOTDIR}/usr >/dev/null
+        mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.var.dist \
+            -p ${PKG_ROOTDIR}/var >/dev/null
+        mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.include.dist \
+            -p ${PKG_ROOTDIR}/usr/include >/dev/null
+        if [ -e ${PKG_ROOTDIR}/etc/mtree/BSD.lib32.dist ] ; then
+		mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.lib32.dist \
+		     -p ${PKG_ROOTDIR}/usr >/dev/null
+	fi
+
 	cap_mkdb %CAP_MKDB_ENDIAN% ${PKG_ROOTDIR}/etc/login.conf
 	pwd_mkdb %PWD_MKDB_ENDIAN% -i -p -d  ${PKG_ROOTDIR}/etc ${PKG_ROOTDIR}/etc/master.passwd
 	services_mkdb %CAP_MKDB_ENDIAN% -q -o ${PKG_ROOTDIR}/var/db/services.db ${PKG_ROOTDIR}/etc/services
