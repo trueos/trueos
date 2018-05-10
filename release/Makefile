@@ -196,7 +196,6 @@ disc1: packagesystem
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
 # Copy base packages
 	mkdir -p ${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)
-	cp distrib.txz ${.TARGET}/dist/
 	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 		OBJDIR=${.OBJDIR} PKG_DIR=$${OBJROOT}/repo \
 		TARGET_DIR=${.TARGET}/dist \
@@ -260,7 +259,6 @@ dvd: packagesystem
 # Copy base packages
 	mkdir -p ${.TARGET}/dist
 	cp -r $${OBJROOT}repo/* ${.TARGET}/dist
-	cp distrib.txz ${.TARGET}/dist/
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
