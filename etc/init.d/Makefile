@@ -7,7 +7,8 @@ PACKAGE=runtime
 BINDIR=		/etc/init.d
 FILESGROUP=	FILES
 
-FILES=          abi accounting adjkerntz amd auditd auditdistd automount automountd autounmountd \
+FILES=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd automount \
+		automountd autounmountd \
 		blacklistd bluetooth bootmisc bridge bthidd cleanvar cleartmp cron \
 		devd devfs dhcpcd dumpon earlykld encswap fsck ftpd ftp-proxy \
 		gssd hcsecd hostid hostname inetd iscsictl iscsid ipfw jail \
