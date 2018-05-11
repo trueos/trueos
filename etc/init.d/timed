@@ -1,0 +1,15 @@
+#!/sbin/openrc-run
+
+# PROVIDE: timed
+# REQUIRE: DAEMON
+# BEFORE:  LOGIN
+# KEYWORD: nojail shutdown
+
+name="timed"
+desc="Time server daemon"
+command="/usr/sbin/${name}"
+
+depend() {
+	before login
+	keyword -jail -shutdown
+}

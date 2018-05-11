@@ -1,0 +1,22 @@
+#!/sbin/openrc-run
+
+# PROVIDE: keyserv
+# REQUIRE: ypset
+# BEFORE: DAEMON
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="keyserv"
+command="/usr/sbin/${name}"
+
+depend() {
+	provide keyserv
+	need ypset
+	keyword -shutdown
+}
+
+star_pre()
+{
+	force_depend rpcbind || return 1
+}
