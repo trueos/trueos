@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+#
+# $FreeBSD$
+#
+
+depend()
+{
+	provide bsnmpd
+	need syslogd
+	keyword -jail -shutdown
+}
+
+name="bsnmpd"
+desc="Simple and extensible SNMP daemon"
+command="/usr/sbin/${name}"
+pidfile="${bsnmpd_pidfile:-/var/run/snmpd.pid}"
+command_args="-p ${pidfile}"
