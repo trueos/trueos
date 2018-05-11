@@ -11,8 +11,9 @@ FILES=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd 
 		automountd autounmountd \
 		bgfsck blacklistd bluetooth bootmisc bootparams bridge bsnmpd bthidd \
 		ccd cfumass cleanvar cleartmp cron ctld \
-		devd devfs dhcpcd dumpon earlykld encswap fsck ftpd ftp-proxy \
-		gssd hcsecd hostid hostname inetd iscsictl iscsid ipfw jail \
+		ddb devd devfs devmatch dhcpcd dumpon \
+		earlykld encswap fsck ftpd ftp-proxy \
+		gbde gssd hcsecd hostid hostname inetd iscsictl iscsid ipfw jail \
 		ldconfig local localmount local_unbound lockd lpd hostapd \
 		mixer modules mountd mountlate moused motd \
 		natd netmount network newsyslog nfsclient nfsd nfsuserd nisdomain nsswitch \
