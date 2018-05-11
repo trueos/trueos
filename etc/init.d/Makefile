@@ -15,7 +15,8 @@ FILES=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd 
 		earlykld encswap fsck ftpd ftp-proxy \
 		gbde geli geli2 gptboot growfs gssd \
 		hastd hcsecd hostid hostid_save hostname \
-		inetd iscsictl iscsid ipfw jail \
+		inetd iovctl ipfs ipropd_master ipropd_slave iscsictl iscsid ipfw ipfw_netflow ipsec \
+		jail \
 		ldconfig local localmount local_unbound lockd lpd hostapd \
 		mixer modules mountd mountlate moused motd \
 		natd netmount network newsyslog nfsclient nfsd nfsuserd nisdomain nsswitch \
