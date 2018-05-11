@@ -10,7 +10,7 @@ FILESGROUP=	FILES
 FILES=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd automount \
 		automountd autounmountd \
 		bgfsck blacklistd bluetooth bootmisc bootparams bridge bsnmpd bthidd \
-		cleanvar cleartmp cron \
+		ccd cfumass cleanvar cleartmp cron ctld \
 		devd devfs dhcpcd dumpon earlykld encswap fsck ftpd ftp-proxy \
 		gssd hcsecd hostid hostname inetd iscsictl iscsid ipfw jail \
 		ldconfig local localmount local_unbound lockd lpd hostapd \
