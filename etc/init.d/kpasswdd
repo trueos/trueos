@@ -1,0 +1,31 @@
+#!/sbin/openrc-run
+
+. /etc/rc.subr
+
+name=kpasswdd
+
+depend()
+{
+	provide kpasswd
+	need kdc
+	keyword -shutdown
+}
+
+
+start_pre()
+{
+
+	command_args="$command_args &"
+}
+
+start()
+{
+	set_rcvar_obsolete kpasswdd_server_enable kpasswdd_enable
+	set_rcvar_obsolete kpasswdd_server kpasswdd_program
+	set_rcvar_obsolete kerberos5_server_enable kdc_enable
+}
+
+stop()
+{
+	return 0
+}

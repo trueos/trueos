@@ -16,16 +16,16 @@ FILES=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd 
 		gbde geli geli2 gptboot growfs gssd \
 		hastd hcsecd hostid hostid_save hostname \
 		inetd iovctl ipfs ipropd_master ipropd_slave iscsictl iscsid ipfw ipfw_netflow ipsec \
-		jail \
+		jail kadmind kdc keyserv kfd kpasswd ldapd\
 		ldconfig local localmount local_unbound lockd lpd hostapd \
 		mixer modules mountd mountlate moused motd \
-		natd netmount network newsyslog nfsclient nfsd nfsuserd nisdomain nsswitch \
-		nscd ntpd ntpdate pf pflog powerd ppp rarpd rc-enabled resolv root routing rpcbind runsvdir \
+		natd netmount network newsyslog nfscbd nfsclient nfsd nfsuserd nisdomain nsswitch \
+		nscd ntpd ntpdate pf pflog powerd ppp rarpd rc-enabled resolv rwho root routing rpcbind runsvdir \
 		s6-svscan savecache savecore sdpd sendmail \
-		sshd statd staticroute swap syscons sysctl syslogd tmp tmpfiles.setup urandom \
-		var wpa_supplicant \
+		sshd statd staticroute swap syscons sysctl syslogd timed tmp tmpfiles.setup ubthidhci urandom \
+		var watchdogd wpa_supplicant \
 		ypbind ypldap yppasswdd ypserv ypset ypupdated ypxfrd \
-		zfs zvol
+		zfs zfsd zvol
 FILESMODE=	755
 
 .for fg in ${FILESGROUPS}
