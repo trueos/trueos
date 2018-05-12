@@ -81,10 +81,10 @@ pccard_ether_start()
 		done
 	fi
 
-	/etc/rc.d/netif quietstart $ifn
+	/etc/rc.devd network.${ifn} start
 
 	# Do route configuration if needed.
-	# XXX: should probably do this by calling rc.d/routing.
+	# XXX: should probably do this by calling routing.
 	if [ -n "`ifconfig_getargs $ifn`" ]; then
 		if ! dhcpif $ifn; then
 			setup_routes
@@ -102,7 +102,7 @@ pccard_ether_stop()
 		fi
 	fi
 
-	/etc/rc.d/netif quietstop $ifn
+	/etc/rc.devd network.$ifn stop
 
 	# clean ARP table
 	ifexists $ifn && arp -d -i $ifn -a
@@ -123,14 +123,14 @@ pccard_ether_startchildren()
 		if ifexists $child; then
 			continue
 		fi
-		/etc/rc.d/netif quietstart $child
+		/etc/rc.devd network.$child start
 	done
 }
 
 pccard_ether_stopchildren()
 {
 	for child in `get_if_var $ifn wlans_IF`; do
-		/etc/rc.d/netif quietstop $child
+		/etc/rc.devd network.$child stop
 	done
 }
 
@@ -141,7 +141,3 @@ if [ -z "$*" ]; then
 else
 	args=$*
 fi
-
-load_rc_config pccard_ether
-load_rc_config network
-run_rc_command $args

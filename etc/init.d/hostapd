@@ -3,16 +3,18 @@
 name="hostapd"
 description="Authenticator for IEEE 802.11 networks"
 command=/usr/sbin/hostapd
-ifn="$2"
-if [ -z "$ifn" ]; then
-	rcvar="hostapd_enable"
+
+devarg=${RC_SVCNAME##*.}
+if [ -n "$devarg" -a "$devarg" != "devmatch" ]; then
+        hostdev="$devarg"
+        name="$name ($hostdev)"
+	conf_file="/etc/hostapd-${hostdev}.conf"
+	pidfile="/var/run/hostapd-${hostdev}.pid"
+else
 	conf_file="/etc/${name}.conf"
 	pidfile="/var/run/${name}.pid"
-else
-	rcvar=
-	conf_file="/etc/${name}-${ifn}.conf"
-	pidfile="/var/run/${name}-${ifn}.pid"
 fi
+
 command_args="-P ${pidfile} -B ${conf_file}"
 required_files="${conf_file}"
 

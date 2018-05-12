@@ -192,7 +192,7 @@ BIN1+= regdomain.xml
 .endif
 
 # -rwxr-xr-x root:wheel, for the new cron root:wheel
-BIN2=	netstart pccard_ether rc.suspend rc.resume rc.devd
+BIN2=	pccard_ether rc.suspend rc.resume rc.devd
 
 .if ${MK_SENDMAIL} == "no"
 ETCMAIL=mailer.conf aliases
@@ -287,7 +287,6 @@ distribution:
 .if ${MK_POUDRIERE} != "no"
 	${_+_}cd ${.CURDIR}/poudriere.d; ${MAKE} install
 .endif
-	${_+_}cd ${.CURDIR}/rc.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/init.d; ${MAKE} install
 	if [ ! -e ${DESTDIR}/etc/init.d/functions.sh ]; then \
 		${INSTALL_SYMLINK} /libexec/rc/sh/functions.sh ${DESTDIR}/etc/init.d/functions.sh; \
