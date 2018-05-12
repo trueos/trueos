@@ -1,0 +1,84 @@
+pipeline {
+  agent { label 'TrueOS-World' }
+
+  environment {
+    GH_ORG = 'trueos'
+    GH_REPO = 'trueos'
+  }
+
+  stages {
+    stage('Queued') {
+        agent {
+        label 'JenkinsMaster'
+      }
+      steps {
+        echo "Build queued"
+      }
+    }
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Pre-Clean') {
+      steps {
+        sh 'make clean'
+      }
+    }
+    stage('World') {
+      steps {
+        sh 'make -j32 buildworld'
+      }
+    }
+    stage('Kernel') {
+      steps {
+        sh 'make -j32 buildkernel'
+      }
+    }
+    stage('Base Packages') {
+      environment {
+           PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
+	   TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-snapshots.json'
+      }
+      steps {
+        sh 'make -j32 packages'
+      }
+    }
+    stage('Release') {
+      post {
+        success {
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+        }
+      }
+      steps {
+        sh 'rm -rf ${WORKSPACE}/artifacts'
+        sh 'cd release && make release'
+        sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
+        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
+        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
+        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
+      }
+    }
+
+    stage('Publish') {
+      steps {
+        sshagent (credentials: ['syncbot-credentials']) {
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/repo/ syncbot@pkg.trueos.org:/data/pkg/snapshots/'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/snapshots/'
+        }
+      }
+    }
+  }
+  post {
+    always {
+      sh 'make clean'
+      sh 'cd release && make clean'
+      sh 'rm -rf /usr/obj${WORKSPACE}'
+      script {
+        cleanWs notFailBuild: true
+      }
+    }
+  }
+}
