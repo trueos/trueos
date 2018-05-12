@@ -237,7 +237,7 @@ setup_fstab()
     fi # End of ZFS Check
   done
 
-  # Setup some specific PC-BSD fstab options
+  # Setup some specific TrueOS fstab options
   if [ "$INSTALLTYPE" != "FreeBSD" ]
   then
     echo "procfs			/proc			procfs		rw		0	0" >> ${FSTAB}

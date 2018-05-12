@@ -34,7 +34,7 @@
 
 # Functions which perform our networking setup
 
-# Function which creates a kde4 .desktop file for the PC-BSD net tray
+# Function which creates a kde4 .desktop file for the TrueOS net tray
 create_desktop_nettray()
 {
   NIC="${1}"
