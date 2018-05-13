@@ -64,7 +64,7 @@ System Query Commands
         Test if an internet connection is available
     
     update-part-list
-        Return a list of PC-BSD & FreeBSD installs on this system for updates
+        Return a list of TrueOS & FreeBSD installs on this system for updates
 
     xkeyboard-layouts
         Return a list of keyboard layouts that xorg supports

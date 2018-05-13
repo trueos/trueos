@@ -38,33 +38,33 @@ Options:
     -B name     -- What buildname to use (must be unique, defaults to
                    YYYY-MM-DD_HH:MM:SS). Resuming a previous build will not
                    retry built/failed/skipped/ignored packages.
-    -c          -- Clean all the previously built binary packages and logs.
     -C          -- Clean only the packages listed on the command line or
                    -f file.  Implies -c for -a.
-    -i          -- Interactive mode. Enter jail for interactive testing and
-                   automatically cleanup when done.
+    -c          -- Clean all the previously built binary packages and logs.
+    -F          -- Only fetch from original master_site (skip FreeBSD mirrors)
     -I          -- Advanced Interactive mode. Leaves jail running with ports
                    installed after test.
-    -n          -- Dry-run. Show what will be done, but do not build
-                   any packages.
-    -R          -- Clean RESTRICTED packages after building
-    -t          -- Test the specified ports for leftovers. Add -r to
-                   recursively test all dependencies as well.
-    -r          -- Resursively test all dependencies as well
-    -k          -- When doing testing with -t, don't consider failures as
-                   fatal; don't skip dependent ports on findings.
-    -T          -- Try to build broken ports anyway
-    -F          -- Only fetch from original master_site (skip FreeBSD mirrors)
-    -S          -- Don't recursively rebuild packages affected by other
-                   packages requiring incremental rebuild. This can result
-                   in broken packages if the ones updated do not retain
-                   a stable ABI.
+    -i          -- Interactive mode. Enter jail for interactive testing and
+                   automatically cleanup when done.
     -J n[:p]    -- Run n jobs in parallel, and optionally run a different
                    number of jobs in parallel while preparing the build.
                    (Defaults to the number of CPUs for n and 1.25 times n for p)
     -j name     -- Run only on the given jail
+    -k          -- When doing testing with -t, don't consider failures as
+                   fatal; don't skip dependent ports on findings.
     -N          -- Do not build package repository when build completed
+    -n          -- Dry-run. Show what will be done, but do not build
+                   any packages.
     -p tree     -- Specify on which ports tree the bulk build will be done
+    -R          -- Clean RESTRICTED packages after building
+    -r          -- Resursively test all dependencies as well
+    -S          -- Don't recursively rebuild packages affected by other
+                   packages requiring incremental rebuild. This can result
+                   in broken packages if the ones updated do not retain
+                   a stable ABI.
+    -t          -- Test the specified ports for leftovers. Add -r to
+                   recursively test all dependencies as well.
+    -T          -- Try to build broken ports anyway
     -v          -- Be verbose; show more information. Use twice to enable
                    debug output
     -w          -- Save WRKDIR on failed builds
@@ -90,25 +90,13 @@ INTERACTIVE_MODE=0
 
 [ $# -eq 0 ] && usage
 
-while getopts "B:iIf:j:J:CcknNp:RFtrTSvwz:a" FLAG; do
+while getopts "aB:CcFf:iIj:J:knNp:RrSTtvwz:" FLAG; do
 	case "${FLAG}" in
+		a)
+			ALL=1
+			;;
 		B)
 			BUILDNAME="${OPTARG}"
-			;;
-		t)
-			PORTTESTING=1
-			export NO_WARNING_PKG_INSTALL_EOL=yes
-			export WARNING_WAIT=0
-			export DEV_WARNING_WAIT=0
-			;;
-		r)
-			PORTTESTING_RECURSIVE=1
-			;;
-		k)
-			PORTTESTING_FATAL=no
-			;;
-		T)
-			export TRYBROKEN=yes
 			;;
 		c)
 			CLEAN=1
@@ -116,17 +104,8 @@ while getopts "B:iIf:j:J:CcknNp:RFtrTSvwz:a" FLAG; do
 		C)
 			CLEAN_LISTED=1
 			;;
-		i)
-			INTERACTIVE_MODE=1
-			;;
-		I)
-			INTERACTIVE_MODE=2
-			;;
-		n)
-			[ "${ATOMIC_PACKAGE_REPOSITORY}" = "yes" ] ||
-			    err 1 "ATOMIC_PACKAGE_REPOSITORY required for dry-run support"
-			DRY_RUN=1
-			DRY_MODE="${COLOR_DRY_MODE}[Dry Run]${COLOR_RESET} "
+		F)
+			export MASTER_SITE_BACKUP=''
 			;;
 		f)
 			# If this is a relative path, add in ${PWD} as
@@ -135,30 +114,57 @@ while getopts "B:iIf:j:J:CcknNp:RFtrTSvwz:a" FLAG; do
 			    OPTARG="${SAVED_PWD}/${OPTARG}"
 			LISTPKGS="${LISTPKGS} ${OPTARG}"
 			;;
-		F)
-			export MASTER_SITE_BACKUP=''
+		I)
+			INTERACTIVE_MODE=2
 			;;
-		j)
-			jail_exists ${OPTARG} || err 1 "No such jail: ${OPTARG}"
-			JAILNAME=${OPTARG}
+		i)
+			INTERACTIVE_MODE=1
 			;;
 		J)
 			BUILD_PARALLEL_JOBS=${OPTARG%:*}
 			PREPARE_PARALLEL_JOBS=${OPTARG#*:}
 			;;
+		j)
+			jail_exists ${OPTARG} || err 1 "No such jail: ${OPTARG}"
+			JAILNAME=${OPTARG}
+			;;
+		k)
+			PORTTESTING_FATAL=no
+			;;
 		N)
 			BUILD_REPO=0
+			;;
+		n)
+			[ "${ATOMIC_PACKAGE_REPOSITORY}" = "yes" ] ||
+			    err 1 "ATOMIC_PACKAGE_REPOSITORY required for dry-run support"
+			DRY_RUN=1
+			DRY_MODE="${COLOR_DRY_MODE}[Dry Run]${COLOR_RESET} "
 			;;
 		p)
 			porttree_exists ${OPTARG} ||
 			    err 2 "No such ports tree ${OPTARG}"
 			PTNAME=${OPTARG}
 			;;
-		R)
-			NO_RESTRICTED=1
+		r)
+			PORTTESTING_RECURSIVE=1
 			;;
 		S)
 			SKIP_RECURSIVE_REBUILD=1
+			;;
+		T)
+			export TRYBROKEN=yes
+			;;
+		t)
+			PORTTESTING=1
+			export NO_WARNING_PKG_INSTALL_EOL=yes
+			export WARNING_WAIT=0
+			export DEV_WARNING_WAIT=0
+			;;
+		R)
+			NO_RESTRICTED=1
+			;;
+		v)
+			VERBOSE=$((${VERBOSE} + 1))
 			;;
 		w)
 			SAVE_WRKDIR=1
@@ -166,12 +172,6 @@ while getopts "B:iIf:j:J:CcknNp:RFtrTSvwz:a" FLAG; do
 		z)
 			[ -n "${OPTARG}" ] || err 1 "Empty set name"
 			SETNAME="${OPTARG}"
-			;;
-		a)
-			ALL=1
-			;;
-		v)
-			VERBOSE=$((${VERBOSE} + 1))
 			;;
 		*)
 			usage
