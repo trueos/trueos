@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-SCRIPTS=service.sh
-MAN=	service.8
+LINKS=	/sbin/rc-service ${BINDIR}/service
 
 .include <bsd.prog.mk>
 
