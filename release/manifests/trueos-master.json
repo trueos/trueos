@@ -4,6 +4,9 @@
   "ports-conf":[
 	  "MAKE_JOBS_NUMBER_LIMIT=3"
   ],
+  "poudriere-conf":[
+	  "NOHANG_TIME=14400"
+  ],
   "package-all":true,
   "packages":[
   ],

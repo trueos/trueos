@@ -88,6 +88,9 @@ setup_poudriere_conf()
 	echo "ATOMIC_PACKAGE_REPOSITORY=no" >> ${POUDRIERE_ETCDIR}/poudriere.conf
 	echo "PKG_REPO_FROM_HOST=yes" >> ${POUDRIERE_ETCDIR}/poudriere.conf
 
+	if [ "$(jq -r '."poudriere-conf" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
+		jq -r '."poudriere-conf" | join("\n")' ${TRUEOS_MANIFEST} >> ${POUDRIERE_ETCDIR}/poudriere.conf
+	fi
 
 	# If there is a custom poudriere.conf.release file in /etc we will also
 	# include it. This can be used to set different tmpfs or JOBS on a per system
