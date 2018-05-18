@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 1, 2018
+.Dd May 17, 2018
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -87,6 +87,11 @@ Enable a low-level console device supported by
 kernels compiled with
 .Cd "device bvmconsole" .
 This option will be deprecated in a future version.
+.It Fl B
+Load an
+.Cd "libucl"
+configuration file capable to modify the attributes in
+smbios table type1.
 .It Fl c Op Ar setting ...
 Number of guest virtual CPUs
 and/or the CPU topology.
