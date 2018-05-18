@@ -1,7 +1,10 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003, 2004 Silicon Graphics International Corp.
  * Copyright (c) 1997-2007 Kenneth D. Merry
  * Copyright (c) 2012 The FreeBSD Foundation
+ * Copyright (c) 2018 Marcelo Araujo <araujo@FreeBSD.org>
  * All rights reserved.
  *
  * Portions of this software were developed by Edward Tomasz Napierala
@@ -41,7 +44,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/usr.sbin/ctladm/ctladm.c 333446 2018-05-10 03:50:20Z araujo $");
 
 #include <sys/param.h>
 #include <sys/callout.h>
@@ -593,6 +596,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		}
 
 		retval = ioctl(fd, CTL_PORT_REQ, &req);
+		free(req.args);
 		if (retval == -1) {
 			warn("%s: CTL_PORT_REQ ioctl failed", __func__);
 			retval = 1;
@@ -2427,7 +2431,6 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 				retval = 1;
 				goto bailout;
 			}
-
 			free(tmpstr);
 			nvlist_add_string(option_list, name, value);
 			break;
@@ -2585,7 +2588,6 @@ cctl_rm_lun(int fd, int argc, char **argv, char *combinedopt)
 				retval = 1;
 				goto bailout;
 			}
-
 			free(tmpstr);
 			nvlist_add_string(option_list, name, value);
 			break;
@@ -2689,7 +2691,6 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 				retval = 1;
 				goto bailout;
 			}
-
 			free(tmpstr);
 			nvlist_add_string(option_list, name, value);
 			break;
@@ -3686,7 +3687,7 @@ cctl_portlist(int fd, int argc, char **argv, char *combinedopt)
 	}
 
 retry:
-	port_str = (char *)realloc(NULL, port_len);
+	port_str = (char *)realloc(port_str, port_len);
 
 	bzero(&list, sizeof(list));
 	list.alloc_len = port_len;
@@ -3859,7 +3860,7 @@ usage(int error)
 "         ctladm port        <-o <on|off> | [-w wwnn][-W wwpn]>\n"
 "                            [-p targ_port] [-t port_type]\n"
 "                            <-c> [-d driver] [-O name=value]\n"
-"                            <-d> <-p targ_port>\n"
+"                            <-r> <-p targ_port>\n"
 "         ctladm portlist    [-f frontend] [-i] [-p targ_port] [-q] [-v] [-x]\n"
 "         ctladm islist      [-v | -x]\n"
 "         ctladm islogout    <-a | -c connection-id | -i name | -p portal>\n"
@@ -3938,13 +3939,16 @@ usage(int error)
 "-c                       : continuous operation\n"
 "-d delete_id             : error id to delete\n"
 "port options:\n"
+"-c                       : create new ioctl or iscsi frontend port\n"
+"-d                       : specify ioctl or iscsi frontend type\n"
 "-l                       : list frontend ports\n"
 "-o on|off                : turn frontend ports on or off\n"
-"-O pp|vp                 : creates new ioctl frontend port using pp and/or vp\n"
+"-O pp|vp                 : create new frontend port using pp and/or vp\n"
 "-w wwnn                  : set WWNN for one frontend\n"
 "-W wwpn                  : set WWPN for one frontend\n"
 "-t port_type             : specify fc, scsi, ioctl, internal frontend type\n"
 "-p targ_port             : specify target port number\n"
+"-r                       : remove frontend port\n" 
 "-q                       : omit header in list output\n"
 "-x                       : output port list in XML format\n"
 "portlist options:\n"
@@ -3993,7 +3997,8 @@ main(int argc, char **argv)
 		usage(1);
 		retval = 1;
 		goto bailout;
-	} 
+	}
+
 	/*
 	 * Get the base option.
 	 */
