@@ -405,6 +405,24 @@ run_final_cleanup()
     fi
   fi
 
+  # Do the same for base-pkg urls
+  if [ -e "/dist/trueos-base-pkg-url" ] ; then
+    _pkgUrl="$(cat /dist/trueos-base-pkg-url)"
+    if [ -e "/dist/trueos-base-pkg-url.pubkey" ] ; then
+	cp /dist/trueos-base-pkg-url.pubkey ${FSMNT}/usr/share/keys/pkg/trueos-base.pub
+	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
+		| sed "s|%%PUBKEY%%|/usr/share/keys/pkg/trueos-base.pub|g" \
+		| sed "s|%%URL%%|${_pkgUrl}|g" \
+		>>${FSMNT}/etc/pkg/TrueOS.conf
+    else
+	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
+		| grep -v 'pubkey:' \
+		| sed 's|pubkey|none|g' \
+		| sed "s|%%URL%%|${_pkgUrl}|g" \
+		>>${FSMNT}/etc/pkg/TrueOS.conf
+    fi
+  fi
+
   # Check if we need to run any gmirror setup
   ls ${MIRRORCFGDIR}/* >/dev/null 2>/dev/null
   if [ $? -eq 0 -o -n "$ZFS_SWAP_DEVS" ]
