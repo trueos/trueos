@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include "bhyverun.h"
 #include "acpi.h"
 #include "atkbdc.h"
+#include "config.h"
 #include "inout.h"
 #include "dbgport.h"
 #include "fwctl.h"
@@ -141,12 +142,13 @@ usage(int code)
 {
 
         fprintf(stderr,
-		"Usage: %s [-abehuwxACHPSWY]\n"
+		"Usage: %s [-abehuwxABCHPSWY]\n"
 		"       %*s [-c [[cpus=]numcpus][,sockets=n][,cores=n][,threads=n]]\n"
 		"       %*s [-g <gdb port>] [-l <lpc>]\n"
 		"       %*s [-m mem] [-p vcpu:hostcpu] [-s <pci>] [-U uuid] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
 		"       -A: create ACPI tables\n"
+		"       -B: load libucl smbios configuration file\n"
 		"       -c: number of cpus and/or topology specification"
 		"       -C: include guest memory in core file\n"
 		"       -e: exit on unhandled I/O access\n"
@@ -913,7 +915,7 @@ main(int argc, char *argv[])
 	rtc_localtime = 1;
 	memflags = 0;
 
-	optstr = "abehuwxACHIPSWYp:g:G:c:s:m:l:U:";
+	optstr = "abehuwxACHIPSWYp:B:g:G:c:s:m:l:U:";
 	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
 		case 'a':
@@ -924,6 +926,9 @@ main(int argc, char *argv[])
 			break;
 		case 'b':
 			bvmcons = 1;
+			break;
+		case 'B':
+			load_smbios_config(optarg);
 			break;
 		case 'p':
                         if (pincpu_parse(optarg) != 0) {
