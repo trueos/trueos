@@ -33,14 +33,10 @@ POUDRIERE_BASEFS=${POUDRIERE_BASEFS:-/usr/local/poudriere}
 POUDRIERE_BASE=${POUDRIERE_BASE:-trueos-mk-base}
 POUDRIERE_PORTS=${POUDRIERE_PORTS:-trueos-mk-ports}
 PKG_CMD=${PKG_CMD:-pkg-static}
-POUDRIERE_ETCDIR=/var/db/poudriere-release-db
 
 POUDRIERE_PORTDIR="${POUDRIERE_BASEFS}/ports/${POUDRIERE_PORTS}"
 POUDRIERE_PKGDIR="${POUDRIERE_BASEFS}/data/packages/${POUDRIERE_BASE}-${POUDRIERE_PORTS}"
-
-if [ ! -d "${POUDRIERE_ETCDIR}" ] ; then
-	mkdir -p ${POUDRIERE_ETCDIR}
-fi
+POUDRIERED_DIR_=/etc/poudriere.d
 
 exit_err()
 {
@@ -68,6 +64,11 @@ env_check()
 setup_poudriere_conf()
 {
 	ZPOOL=$(mount | grep 'on / ' | cut -d '/' -f 1)
+	_pdconf="${POUDRIERED_DIR}/${POUDRIERE_BASE}-poudriere.conf"
+
+	if [ ! -d "${POUDRIERED_DIR}" ] ; then
+		mkdir -p ${POUDRIERED_DIR}
+	fi
 
 	# Copy the systems poudriere.conf over
 	cat ${SRCDIR}/etc/poudriere.conf \
@@ -76,46 +77,46 @@ setup_poudriere_conf()
 		| grep -v "GIT_PORTSURL=" \
 		| grep -v "USE_TMPFS=" \
 		| grep -v "BASEFS=" \
-		> ${POUDRIERE_ETCDIR}/poudriere.conf
+		> ${_pdconf}
 	echo "Using zpool: $ZPOOL"
-	echo "ZPOOL=$ZPOOL" >> ${POUDRIERE_ETCDIR}/poudriere.conf
+	echo "ZPOOL=$ZPOOL" >> ${_pdconf}
 	echo "Using Dist Directory: $DIST_DIR"
-	echo "FREEBSD_HOST=file://${DIST_DIR}" >> ${POUDRIERE_ETCDIR}/poudriere.conf
+	echo "FREEBSD_HOST=file://${DIST_DIR}" >> ${_pdconf}
 	echo "Using Ports Tree: $GH_PORTS"
-	echo "GIT_URL=${GH_PORTS}" >> ${POUDRIERE_ETCDIR}/poudriere.conf
-	echo "USE_TMPFS=data" >> ${POUDRIERE_ETCDIR}/poudriere.conf
-	echo "BASEFS=$POUDRIERE_BASEFS" >> ${POUDRIERE_ETCDIR}/poudriere.conf
-	echo "ATOMIC_PACKAGE_REPOSITORY=no" >> ${POUDRIERE_ETCDIR}/poudriere.conf
-	echo "PKG_REPO_FROM_HOST=yes" >> ${POUDRIERE_ETCDIR}/poudriere.conf
+	echo "GIT_URL=${GH_PORTS}" >> ${_pdconf}
+	echo "USE_TMPFS=data" >> ${_pdconf}
+	echo "BASEFS=$POUDRIERE_BASEFS" >> ${_pdconf}
+	echo "ATOMIC_PACKAGE_REPOSITORY=no" >> ${_pdconf}
+	echo "PKG_REPO_FROM_HOST=yes" >> ${_pdconf}
 
 	if [ "$(jq -r '."poudriere-conf" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
-		jq -r '."poudriere-conf" | join("\n")' ${TRUEOS_MANIFEST} >> ${POUDRIERE_ETCDIR}/poudriere.conf
+		jq -r '."poudriere-conf" | join("\n")' ${TRUEOS_MANIFEST} >> ${_pdconf}
 	fi
 
 	# If there is a custom poudriere.conf.release file in /etc we will also
 	# include it. This can be used to set different tmpfs or JOBS on a per system
 	# basis
 	if [ -e "/etc/poudriere.conf.release" ] ; then
-		cat /etc/poudriere.conf.release >> ${POUDRIERE_ETCDIR}/poudriere.conf
+		cat /etc/poudriere.conf.release >> ${_pdconf}
 	fi
 }
 
 setup_poudriere_jail()
 {
 	# Create new jail
-	poudriere -e ${POUDRIERE_ETCDIR} jail -c -j $POUDRIERE_BASE -m url=file://${DIST_DIR} -v ${OSRELEASE}
+	poudriere jail -c -j $POUDRIERE_BASE -m url=file://${DIST_DIR} -v ${OSRELEASE}
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed creating poudriere jail"
 	fi
 
 	# Create the new ports tree
-	poudriere -e ${POUDRIERE_ETCDIR} ports -c -p $POUDRIERE_PORTS -m git -B $GH_PORTS_BRANCH
+	poudriere ports -c -p $POUDRIERE_PORTS -m git -B $GH_PORTS_BRANCH
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed creating poudriere ports"
 	fi
 
 	# Save the list of build flags
-	jq -r '."ports-conf" | join("\n")' ${TRUEOS_MANIFEST} >${POUDRIERE_ETCDIR}/poudriere.d/${POUDRIERE_BASE}-make.conf
+	jq -r '."ports-conf" | join("\n")' ${TRUEOS_MANIFEST} >/etc/poudriere.d/${POUDRIERE_BASE}-make.conf
 }
 
 build_poudriere()
@@ -123,7 +124,7 @@ build_poudriere()
 	# Check if we want to do a bulk build of everything
 	if [ $(jq -r '."package-all"' ${TRUEOS_MANIFEST}) = "true" ] ; then
 		# Start the build
-		poudriere -e ${POUDRIERE_ETCDIR} bulk -a -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
+		poudriere bulk -a -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
 		check_essential_pkgs
 	fi
 
@@ -134,7 +135,7 @@ build_poudriere()
 		jq -r '."packages" | join("\n")' ${TRUEOS_MANIFEST} > ${OBJDIR}/trueos-mk-bulk-list
 
 		# Start the build
-		poudriere -e ${POUDRIERE_ETCDIR} bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
+		poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
 		if [ $? -ne 0 ] ; then
 			exit_err "Failed poudriere build"
 		fi
@@ -144,14 +145,14 @@ build_poudriere()
 clean_poudriere()
 {
 	# Kill previous jail
-	poudriere -e ${POUDRIERE_ETCDIR} jail -k -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
+	poudriere jail -k -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
 
 	# Delete previous jail
-	echo "poudriere -e ${POUDRIERE_ETCDIR} jail -d -j ${POUDRIERE_BASE}"
-	echo -e "y\n" | poudriere -e ${POUDRIERE_ETCDIR} jail -d -j ${POUDRIERE_BASE}
+	echo "poudriere jail -d -j ${POUDRIERE_BASE}"
+	echo -e "y\n" | poudriere jail -d -j ${POUDRIERE_BASE}
 
 	# Delete previous ports tree
-	echo -e "y\n" | poudriere -e ${POUDRIERE_ETCDIR} ports -d -p ${POUDRIERE_PORTS}
+	echo -e "y\n" | poudriere ports -d -p ${POUDRIERE_PORTS}
 }
 
 check_essential_pkgs()
