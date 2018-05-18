@@ -11,6 +11,9 @@
   "packages":[
   ],
   "essential-packages":[
+	  "www/firefox",
+	  "mail/thunderbird",
+	  "x11/kde5"
   ],
   "iso-install-packages":[
   ],
