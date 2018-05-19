@@ -6,6 +6,7 @@ SHLIBDIR?=      /lib
 .include <src.opts.mk>
 
 LIBPKGSRC=	${SRCTOP}/contrib/pkg
+INCS=	pkg.h
 
 .PATH:	${LIBPKGSRC}/libpkg
 

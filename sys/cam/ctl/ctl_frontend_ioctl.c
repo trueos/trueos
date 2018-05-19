@@ -1,7 +1,10 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2003-2009 Silicon Graphics International Corp.
  * Copyright (c) 2012 The FreeBSD Foundation
  * Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2017 Jakub Wojciech Klama <jceel@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: head/sys/cam/ctl/ctl_frontend_ioctl.c 333446 2018-05-10 03:50:20Z araujo $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

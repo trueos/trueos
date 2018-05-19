@@ -25,6 +25,7 @@ pipeline {
     stage('Pre-Clean') {
       steps {
         sh 'make clean'
+        sh 'cd release && make clean'
       }
     }
     stage('World') {

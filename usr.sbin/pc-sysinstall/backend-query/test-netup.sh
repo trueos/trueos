@@ -39,14 +39,14 @@
 
 rm ${TMPDIR}/.testftp >/dev/null 2>/dev/null
 
-ping -c 2 www.pcbsd.org >/dev/null 2>/dev/null
+ping -c 2 www.trueos.org >/dev/null 2>/dev/null
 if [ "$?" = "0" ]
 then
   echo "ftp: Up"
   exit 0
 fi
 
-ping6 -c 2 www.pcbsd.org >/dev/null 2>/dev/null
+ping6 -c 2 www.trueos.org >/dev/null 2>/dev/null
 if [ "$?" = "0" ]
 then
   echo "ftp: Up"

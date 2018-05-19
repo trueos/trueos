@@ -23,6 +23,7 @@ SRCS=	\
 	bhyverun.c		\
 	block_if.c		\
 	bootrom.c		\
+	config.c		\
 	console.c		\
 	consport.c		\
 	ctl_util.c		\
@@ -74,7 +75,7 @@ SRCS=	\
 .PATH:  ${BHYVE_SYSDIR}/sys/amd64/vmm
 SRCS+=	vmm_instruction_emul.c
 
-LIBADD=	vmmapi md pthread z util sbuf cam
+LIBADD=	vmmapi md pthread ucl z util sbuf cam
 
 .if ${MK_OPENSSL} == "no"
 CFLAGS+=-DNO_OPENSSL
@@ -85,6 +86,7 @@ LIBADD+=	crypto
 CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/e1000
 CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/mii
 CFLAGS+= -I${BHYVE_SYSDIR}/sys/dev/usb/controller
+CFLAGS+= -I${SRCTOP}/contrib/libucl/include
 
 .ifdef GDB_LOG
 CFLAGS+=-DGDB_LOG

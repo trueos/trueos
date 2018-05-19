@@ -293,25 +293,12 @@ get_zpool_name()
     # Need to generate a zpool name for this device
     NUM=`ls ${TMPDIR}/.zpools/ | wc -l | sed 's| ||g'`
 
-    # Is it used in another zpool?
-    while :
-    do
-      # If on the 0 device, drop the 0 alltogether
-      if [ "$NUM" = "0" ] ; then
-        NEWNAME="${BASENAME}"
-      else
-        NEWNAME="${BASENAME}${NUM}"
-      fi
-      zpool list | grep -qw "${NEWNAME}"
-      local chk1=$?
-      if [ $chk1 -eq 1 ] ; then
-        # Check any exported pools also
-        zpool import | grep -qw "${NEWNAME}"
-        chk1=$?
-        if [ $chk1 -eq 1 ] ; then break; fi
-      fi
-      NUM=$((NUM+1))
-    done
+    # If on the 0 device, drop the 0 alltogether
+    if [ "$NUM" = "0" ] ; then
+      NEWNAME="${BASENAME}"
+    else
+      NEWNAME="${BASENAME}${NUM}"
+    fi
 
     # Now save the new tank name
     mkdir -p ${TMPDIR}/.zpools/`dirname $DEVICE`

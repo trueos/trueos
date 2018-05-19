@@ -92,7 +92,7 @@ elif [ "$INSTALLMODE" = "upgrade" ] ; then
 else
   file_sanity_check "installMode installType installMedium packageType"
   check_value installType "FreeBSD GhostBSD DesktopBSD TrueOS"
-  check_value installMedium "dvd usb ftp rsync image local"
+  check_value installMedium "dvd usb ftp rsync image local livecd"
   check_value packageType "uzip tar rsync split dist zfs livecd pkg"
   if_check_value_exists mirrorbal "load prefer round-robin split"
 fi

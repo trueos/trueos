@@ -384,7 +384,7 @@ commands before doing package installation, and dist extraction respectively:
 
 
 ########################################################################
-# PC-BSD SPECIFIC OPTIONS
+# TrueOS SPECIFIC OPTIONS
 ########################################################################
 
 Options for time-zones and NTP on the installed system
@@ -400,10 +400,10 @@ set enableNTP to yes or no to enable or disable the NTP service on the system
 
 
 ########################################################################
-# PC-BSD SPECIFC OPTIONS
+# TrueOS SPECIFC OPTIONS
 ########################################################################
 
-Options specific to installing PC-BSD, such as localization, and KDE settings
+Options specific to installing TrueOS, such as localization, and KDE settings
 
 # localizeLang=en
 

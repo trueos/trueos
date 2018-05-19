@@ -21,6 +21,7 @@ SUBDIR=	certs \
 	${_monetdef} \
 	${_msgdef} \
 	${_numericdef} \
+	${_poudriere} \
 	${_sendmail} \
 	skel \
 	${_snmp} \
@@ -71,7 +72,7 @@ _man=		man
 .endif
 
 .if ${MK_POUDRIERE} != "no"
-_man=		poudriere
+_poudriere=		poudriere
 .endif
 
 .if ${MK_SENDMAIL} != "no"

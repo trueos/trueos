@@ -237,7 +237,7 @@ setup_fstab()
     fi # End of ZFS Check
   done
 
-  # Setup some specific PC-BSD fstab options
+  # Setup some specific TrueOS fstab options
   if [ "$INSTALLTYPE" != "FreeBSD" ]
   then
     echo "procfs			/proc			procfs		rw		0	0" >> ${FSTAB}
@@ -402,6 +402,24 @@ run_final_cleanup()
 		| sed 's|pubkey|none|g' \
 		| sed "s|%%URL%%|${_pkgUrl}|g" \
 		>${FSMNT}/etc/pkg/TrueOS.conf
+    fi
+  fi
+
+  # Do the same for base-pkg urls
+  if [ -e "/dist/trueos-base-pkg-url" ] ; then
+    _pkgUrl="$(cat /dist/trueos-base-pkg-url)"
+    if [ -e "/dist/trueos-base-pkg-url.pubkey" ] ; then
+	cp /dist/trueos-base-pkg-url.pubkey ${FSMNT}/usr/share/keys/pkg/trueos-base.pub
+	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
+		| sed "s|%%PUBKEY%%|/usr/share/keys/pkg/trueos-base.pub|g" \
+		| sed "s|%%URL%%|${_pkgUrl}|g" \
+		>>${FSMNT}/etc/pkg/TrueOS.conf
+    else
+	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
+		| grep -v 'pubkey:' \
+		| sed 's|pubkey|none|g' \
+		| sed "s|%%URL%%|${_pkgUrl}|g" \
+		>>${FSMNT}/etc/pkg/TrueOS.conf
     fi
   fi
 

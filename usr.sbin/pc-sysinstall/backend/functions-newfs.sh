@@ -86,6 +86,18 @@ setup_zfs_filesystem()
     sysctl vfs.zfs.min_auto_ashift=12
   fi
 
+  # Verify this pool isn't already in use
+  zpool list | grep -qw "${ZPOOLNAME}"
+  if [ $? -eq 0 ] ; then
+    exit_err "The poolname: $ZPOOLNAME is already in use locally!"
+  fi
+
+  # Verify this pool isn't lingering on another disk
+  zpool import | grep -qw "${ZPOOLNAME}"
+  if [ $? -eq 0 ] ; then
+    exit_err "The poolname: $ZPOOLNAME is already in use on another disk!"
+  fi
+
   if [ -n "${ZPOOLOPTS}" ] ; then
     echo_log "Creating storage pool ${ZPOOLNAME} with $ZPOOLOPTS"
     rc_halt "zpool create -m none -f ${ZPOOLNAME} ${ZPOOLOPTS}"

@@ -4752,6 +4752,11 @@ ensure_pkg_installed() {
 		cp -f /usr/local/sbin/pkg-static "${mnt}/.p/pkg-static"
 		return 0
 	fi
+	# Using pkg from base?
+	if [ -f /usr/sbin/pkg-static ]; then
+		cp -f /usr/sbin/pkg-static "${mnt}/.p/pkg-static"
+		return 0
+	fi
 	[ -e ${MASTERMNT}/packages/Latest/pkg.txz ] || return 1 #pkg missing
 	injail tar xf /packages/Latest/pkg.txz -C / \
 		-s ",/.*/,.p/,g" "*/pkg-static"

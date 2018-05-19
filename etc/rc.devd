@@ -14,6 +14,10 @@ IN_BACKGROUND=yes
 IN_HOTPLUG=yes
 export IN_BACKGROUND IN_HOTPLUG
 
+# If we have additional args coming from devd, capture them here
+devd_args="${3-0}"
+export devd_args
+
 getmedia() {
 	ifconfig "$1" | while read line; do
 		case "${line}" in
