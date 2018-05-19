@@ -73,8 +73,9 @@ pipeline {
   }
   post {
     always {
-      sh 'make clean'
-      sh 'cd release && make clean'
+      echo "*** Cleaning up ***"
+      sh 'make clean >/dev/null 2>/dev/null'
+      sh 'cd release && make clean >/dev/null 2>/dev/null '
       sh 'rm -rf /usr/obj${WORKSPACE}'
       script {
         cleanWs notFailBuild: true
