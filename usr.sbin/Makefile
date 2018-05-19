@@ -76,7 +76,6 @@ SUBDIR=	adduser \
 	rpc.umntall \
 	rtprio \
 	rwhod \
-	service \
 	services_mkdb \
 	sesutil \
 	setfib \

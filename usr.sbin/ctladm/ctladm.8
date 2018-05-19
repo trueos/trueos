@@ -34,9 +34,9 @@
 .\" Author: Ken Merry <ken@FreeBSD.org>
 .\"
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
-.\" $FreeBSD$
+.\" $FreeBSD: head/usr.sbin/ctladm/ctladm.8 333446 2018-05-10 03:50:20Z araujo $
 .\"
-.Dd Apr 13, 2018
+.Dd May 10, 2018
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -598,20 +598,20 @@ The WWNN and WWPN may both be specified at the same time, but cannot be
 combined with enabling/disabling or listing ports.
 .Bl -tag -width 12n
 .It Fl c
-Creates new ioctl frontend port using free pp and vp=0.
+Create new frontend port using free pp and vp=0.
 .It Fl o Ar on|off
 Turn the specified CTL frontend ports on or off.
 If no port number or port type is specified, all ports are turned on or
 off.
 .It Fl O Ar pp|vp
-Creates new ioctl frontend port using pp and/or vp with a specified number.
+Specify generic options on the ioctl frontend port.
+At present, only pp and vp port numbers can be set.
 .It Fl p Ar targ_port
 Specify the frontend port number.
 The port numbers can be found in the frontend port list.
 .It Fl r
-Removes port, if combined with
+Remove port specified with
 .Pq Fl p Ar targ_port .
-
 .It Fl t Ar fe_type
 Specify the frontend type.
 Currently defined port types are
@@ -1025,11 +1025,12 @@ and device ID
 .Pp
 .Dl ctladm create -b block -o file=src/usr.sbin/ctladm/ctladm.8 -S MYSERIAL321 -d MYDEVID123
 .Pp
-Creates new ioctl frontend port with using an expecified pp and vp.
+Use to specify generic options on ioctl frontend port, now it is
+only possible to set pp and/or vp port number.
 .Pp
 .Dl ctladm port -c -O pp=11 -O vp=12
 .Pp
-Removes an expecified targ_port.
+Remove specified targ_port.
 .Pp
 .Dl ctladm port -r -p 4
 .Pp
