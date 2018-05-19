@@ -45,7 +45,7 @@ get_zpool_menu()
 
     diskTot=`${PCSYS} disk-list | wc -l | awk '{print $1}'`
     if [ $diskTot -gt 1 ] ; then
-      dOpts="$dOpts mirror \"Convert to mirror\" raidz1 \"Convert to raidz1\""
+      dOpts="$dOpts stripe \"Convert to stripe\" mirror \"Convert to mirror\" raidz1 \"Convert to raidz1\""
     fi
     if [ $diskTot -gt 2 ] ; then
       dOpts="$dOpts raidz2 \"Convert to raidz2\""
@@ -64,6 +64,7 @@ get_zpool_menu()
              ZPOOL_TYPE="single"
              ;;
      mirror) get_zpool_disks "mirror" "1" ;;
+     stripe) get_zpool_disks "stripe" "1" ;;
      raidz1) get_zpool_disks "raidz1" "1" ;;
      raidz2) get_zpool_disks "raidz2" "2" ;;
      raidz3) get_zpool_disks "raidz3" "3" ;;

@@ -36,7 +36,7 @@ PKG_CMD=${PKG_CMD:-pkg-static}
 
 POUDRIERE_PORTDIR="${POUDRIERE_BASEFS}/ports/${POUDRIERE_PORTS}"
 POUDRIERE_PKGDIR="${POUDRIERE_BASEFS}/data/packages/${POUDRIERE_BASE}-${POUDRIERE_PORTS}"
-POUDRIERED_DIR_=/etc/poudriere.d
+POUDRIERED_DIR=/etc/poudriere.d
 
 exit_err()
 {
@@ -65,6 +65,7 @@ setup_poudriere_conf()
 {
 	ZPOOL=$(mount | grep 'on / ' | cut -d '/' -f 1)
 	_pdconf="${POUDRIERED_DIR}/${POUDRIERE_BASE}-poudriere.conf"
+	_pdconf2="${POUDRIERED_DIR}/${POUDRIERE_PORTS}-poudriere.conf"
 
 	if [ ! -d "${POUDRIERED_DIR}" ] ; then
 		mkdir -p ${POUDRIERED_DIR}
@@ -101,6 +102,9 @@ setup_poudriere_conf()
 	if [ -e "/etc/poudriere.conf.release" ] ; then
 		cat /etc/poudriere.conf.release >> ${_pdconf}
 	fi
+
+	# Need config for the ports tree also
+	cp ${_pdconf} ${_pdconf2}
 }
 
 setup_poudriere_jail()
