@@ -68,10 +68,10 @@ zfs_cleanup_unmount()
    
     sleep 2
     # Copy over any ZFS cache data
-    cp /boot/zfs/* ${FSMNT}/boot/zfs/
+    cp /boot/zfs/* ${FSMNT}/boot/zfs/ >/dev/null 2>/dev/null
 
     # Copy the hostid so that our zfs cache works
-    cp /etc/hostid ${FSMNT}/etc/hostid
+    cp /etc/hostid ${FSMNT}/etc/hostid >/dev/null 2>/dev/null
   fi
 
   # Loop through our FS and see if we have any ZFS partitions to cleanup
