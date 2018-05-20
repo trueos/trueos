@@ -65,12 +65,7 @@ zfs_cleanup_unmount()
     then
       echo 'zfs_load="YES"' >>${FSMNT}/boot/loader.conf
     fi
-    cat ${FSMNT}/etc/rc.conf 2>/dev/null | grep -q 'zfs_enable="YES"' 2>/dev/null
-    if [ $? -ne 0 ]
-    then
-      echo 'zfs_enable="YES"' >>${FSMNT}/etc/rc.conf
-    fi
-
+   
     sleep 2
     # Copy over any ZFS cache data
     cp /boot/zfs/* ${FSMNT}/boot/zfs/
