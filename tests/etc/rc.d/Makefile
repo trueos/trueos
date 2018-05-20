@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-TESTSDIR=	${TESTSBASE}/etc/rc.d
+#TESTSDIR=	${TESTSBASE}/etc/rc.d
 
-ATF_TESTS_SH+=	routing_test
+#ATF_TESTS_SH+=	routing_test
 
 .include <bsd.test.mk>
