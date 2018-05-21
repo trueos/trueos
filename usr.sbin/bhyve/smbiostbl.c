@@ -344,7 +344,7 @@ static int smbios_type1_initializer(struct smbios_structure *template_entry,
     const char **template_strings, char *curaddr, char **endaddr,
     uint16_t *n, uint16_t *size);
 
-char const *smbios_type1_strings[] = {
+const char *smbios_type1_strings[] = {
 	" ",		/* manufacturer string */
 	"BHYVE",	/* product name string */
 	"1.0",		/* version string */

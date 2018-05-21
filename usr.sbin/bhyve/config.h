@@ -28,7 +28,7 @@
 
 #include <ucl.h>
 
-extern char const *smbios_type1_strings[];
+extern const char *smbios_type1_strings[];
 
 int check_config_file(const char *smbios_file);
 void load_smbios_config(const char *smbios_file);
