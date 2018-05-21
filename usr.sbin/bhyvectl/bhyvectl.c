@@ -1630,7 +1630,7 @@ list_vm(char *vmname)
 	DIR *path_vmm;
 	struct dirent *dir;
 	struct vmctx *ctx;
-	int error, vcpus = 0;
+	int vcpus = 0;
 	cpuset_t cpus;
 	char numbuf[8];
 	vm_paddr_t gpa;
@@ -1650,17 +1650,17 @@ list_vm(char *vmname)
 					errx(EPERM, "You have no permission to list vms.\n");
 				}
 
-				error = vm_mmap_getnext(ctx, &gpa, &segid, &segoff, &maplen,
+				errno = vm_mmap_getnext(ctx, &gpa, &segid, &segoff, &maplen,
 					&prot, &flags);
-				if (error) {
+				if (errno) {
 					errx(EPERM, "Error to get memory segment information.\n");
 				}
 
 				humanize_number(numbuf, sizeof(numbuf), maplen, "B",
 					HN_AUTOSCALE, HN_NOSPACE);
 
-				error = vm_active_cpus(ctx, &cpus);
-				if (!error)
+				errno = vm_active_cpus(ctx, &cpus);
+				if (!errno)
 					vcpus = count_vcpus(&cpus);
 				else {
 					errx(EPERM, "Error to get the number of vcpus.\n");
