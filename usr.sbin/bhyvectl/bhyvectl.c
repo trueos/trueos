@@ -38,6 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/cpuset.h>
 
+#include <dirent.h>
+#include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -78,6 +81,7 @@ usage(bool cpu_intel)
 	"       [--cpu=<vcpu_number>]\n"
 	"       [--create]\n"
 	"       [--destroy]\n"
+	"	[--list]\n"
 	"       [--get-all]\n"
 	"       [--get-stats]\n"
 	"       [--set-desc-ds]\n"
@@ -253,7 +257,7 @@ static int get_stats, getcap, setcap, capval, get_gpa_pmap;
 static int inject_nmi, assert_lapic_lvt;
 static int force_reset, force_poweroff;
 static const char *capname;
-static int create, destroy, get_memmap, get_memseg;
+static int create, destroy, list, get_memmap, get_memseg;
 static int get_intinfo;
 static int get_active_cpus, get_suspended_cpus;
 static uint64_t memsize;
@@ -610,6 +614,25 @@ print_cpus(const char *banner, const cpuset_t *cpus)
 	} else
 		printf(" (none)");
 	printf("\n");
+}
+
+/*
+ * Parse the number of CPU specified to a VM and
+ * return the total number of it.
+ */
+static int
+count_vcpus(const cpuset_t *cpus)
+{
+	int i, count = 0;
+
+	if (!CPU_EMPTY(cpus)) {
+		for (i = 0; i < CPU_SETSIZE; i++) {
+			if (CPU_ISSET(count, cpus))
+				count++;
+		}
+	}
+
+	return count;
 }
 
 static void
@@ -1452,6 +1475,7 @@ setup_options(bool cpu_intel)
 		{ "run",		NO_ARG,	&run,			1 },
 		{ "create",		NO_ARG,	&create,		1 },
 		{ "destroy",		NO_ARG,	&destroy,		1 },
+		{ "list",		NO_ARG, &list,			1},
 		{ "inject-nmi",		NO_ARG,	&inject_nmi,		1 },
 		{ "force-reset",	NO_ARG,	&force_reset,		1 },
 		{ "force-poweroff", 	NO_ARG,	&force_poweroff, 	1 },
@@ -1599,6 +1623,61 @@ mon_str(int idx)
 	else
 		return ("UNK");
 }
+
+static void
+list_vm(char *vmname)
+{
+	DIR *path_vmm;
+	struct dirent *dir;
+	struct vmctx *ctx;
+	int error, vcpus = 0;
+	cpuset_t cpus;
+	char numbuf[8];
+	vm_paddr_t gpa;
+	vm_ooffset_t segoff;
+	int segid, flags, prot;
+	size_t maplen;
+
+	printf("NAME\t\t MEM\t\t\t VCPU\n");
+
+	path_vmm = opendir("/dev/vmm");
+	if (path_vmm) {
+		while ((dir = readdir(path_vmm)) != NULL) {
+			gpa = 0;
+			if (dir->d_type != DT_DIR) {
+				ctx = vm_open(dir->d_name);
+				if (ctx == NULL) {
+					errx(EPERM, "You have no permission to list vms.\n");
+				}
+
+				error = vm_mmap_getnext(ctx, &gpa, &segid, &segoff, &maplen,
+					&prot, &flags);
+				if (error) {
+					errx(EPERM, "Error to get memory segment information.\n");
+				}
+
+				humanize_number(numbuf, sizeof(numbuf), maplen, "B",
+					HN_AUTOSCALE, HN_NOSPACE);
+
+				error = vm_active_cpus(ctx, &cpus);
+				if (!error)
+					vcpus = count_vcpus(&cpus);
+				else {
+					errx(EPERM, "Error to get memory segment information.\n");
+				}
+
+				if (vmname && strcmp(vmname, dir->d_name) == 0) {
+					printf("%s\t\t %s\t\t\t %d\n", dir->d_name,
+						numbuf, vcpus);
+					break;
+				} else if (!vmname)
+					printf("%s\t\t %s\t\t\t %d\n", dir->d_name,
+						numbuf, vcpus);
+			}
+		}
+	}
+}
+
 
 static int
 show_memmap(struct vmctx *ctx)
@@ -1864,6 +1943,15 @@ main(int argc, char *argv[])
 	}
 	argc -= optind;
 	argv += optind;
+
+	if (list) {
+		if (vmname)
+			list_vm(vmname);
+		else
+			list_vm(NULL);
+
+		exit (0);
+	}
 
 	if (vmname == NULL)
 		usage(cpu_intel);
