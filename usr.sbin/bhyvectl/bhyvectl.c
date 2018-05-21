@@ -1663,7 +1663,7 @@ list_vm(char *vmname)
 				if (!error)
 					vcpus = count_vcpus(&cpus);
 				else {
-					errx(EPERM, "Error to get memory segment information.\n");
+					errx(EPERM, "Error to get the number of vcpus.\n");
 				}
 
 				if (vmname && strcmp(vmname, dir->d_name) == 0) {
