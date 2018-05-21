@@ -1646,15 +1646,13 @@ list_vm(char *vmname)
 			gpa = 0;
 			if (dir->d_type != DT_DIR) {
 				ctx = vm_open(dir->d_name);
-				if (ctx == NULL) {
+				if (ctx == NULL)
 					errx(EPERM, "You have no permission to list vms.\n");
-				}
 
 				errno = vm_mmap_getnext(ctx, &gpa, &segid, &segoff, &maplen,
 					&prot, &flags);
-				if (errno) {
+				if (errno)
 					errx(EPERM, "Error to get memory segment information.\n");
-				}
 
 				humanize_number(numbuf, sizeof(numbuf), maplen, "B",
 					HN_AUTOSCALE, HN_NOSPACE);
@@ -1662,9 +1660,8 @@ list_vm(char *vmname)
 				errno = vm_active_cpus(ctx, &cpus);
 				if (!errno)
 					vcpus = count_vcpus(&cpus);
-				else {
+				else
 					errx(EPERM, "Error to get the number of vcpus.\n");
-				}
 
 				if (vmname && strcmp(vmname, dir->d_name) == 0) {
 					printf("%s\t\t %s\t\t\t %d\n", dir->d_name,
