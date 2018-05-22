@@ -16,6 +16,7 @@ FILES+=	beastie.4th
 FILES+=	brand.4th
 FILES+=	brand-fbsd.4th
 FILES+=	brand-freenas.4th
+FILES+=	brand-trident.4th
 FILES+=	brand-truenas.4th
 FILES+=	brand-trueos.4th
 FILES+=	check-password.4th
