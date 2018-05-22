@@ -80,9 +80,9 @@ pipeline {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
           sh 'ssh syncbot@pkg.trueos.org mkdir -p /data/pkg/unstable/ports/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/repo/ syncbot@pkg.trueos.org:/data/pkg/unstable/ports/'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports/ syncbot@pkg.trueos.org:/data/pkg/unstable/ports/'
           sh 'ssh syncbot@pkg.trueos.org mkdir -p /data/pkg/unstable/base/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports/ syncbot@pkg.trueos.org:/data/pkg/unstable/base/'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/repo/ syncbot@pkg.trueos.org:/data/pkg/unstable/base/'
           sh 'ssh syncbot@pkg.trueos.org mkdir -p /data/iso/unstable/ || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/unstable/'
         }
