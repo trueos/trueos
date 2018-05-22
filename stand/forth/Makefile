@@ -28,6 +28,7 @@ FILES+=	loader.4th
 FILES+=	logo-beastie.4th
 FILES+=	logo-beastiebw.4th
 FILES+=	logo-fbsdbw.4th
+FILES+=	logo-trident.4th
 FILES+=	logo-trueos.4th
 FILES+=	logo-orb.4th
 FILES+=	logo-orbbw.4th
