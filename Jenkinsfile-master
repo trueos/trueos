@@ -48,6 +48,7 @@ pipeline {
 	   TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-master.json'
       }
       steps {
+        sh 'rm -rf /usr/obj${WORKSPACE}/amd64.amd64/repo'
         sh 'make -j32 packages'
       }
     }
