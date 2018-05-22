@@ -1,3 +1,4 @@
+\ Copyright (c) 2018 Ken Moore <moorekou@gmail.com>
 \ Copyright (c) 2015 Kris Moore <kmoore@FreeBSD.org>
 \ Copyright (c) 2006-2015 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
