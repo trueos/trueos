@@ -212,7 +212,6 @@ disc1: packagesystem
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
-	cp ${.CURDIR}/rc ${.TARGET}/etc
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	rm ${.TARGET}/etc/runlevels/boot/*
 .for i in abi localmount
@@ -244,7 +243,6 @@ bootonly: packagesystem
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
-	cp ${.CURDIR}/rc ${.TARGET}/etc
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	rm ${.TARGET}/etc/runlevels/boot/*
 .for i in abi localmount
@@ -272,7 +270,6 @@ dvd: packagesystem
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
-	cp ${.CURDIR}/rc ${.TARGET}/etc
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	rm ${.TARGET}/etc/runlevels/boot/*
 .for i in abi localmount
