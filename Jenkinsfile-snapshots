@@ -1,5 +1,5 @@
 pipeline {
-  agent { label 'TrueOS-World' }
+  agent { label 'TrueOS-Snapshot' }
 
   environment {
     GH_ORG = 'trueos'
@@ -41,10 +41,21 @@ pipeline {
     stage('Base Packages') {
       environment {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
-	   TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-snapshots.json'
+	   TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-snapshot.json'
       }
       steps {
+        sh 'rm -rf /usr/obj${WORKSPACE}/amd64.amd64/repo'
         sh 'make -j32 packages'
+      }
+    }
+    stage('Ports') {
+      environment {
+           PKG_REPO_SIGNING_KEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
+	   TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-snapshot.json'
+      }
+      steps {
+        sh 'cd release && make poudriere'
+        sh 'cd /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports && pkg-static repo . ${PKG_REPO_SIGNING_KEY}'
       }
     }
     stage('Release') {
@@ -66,14 +77,18 @@ pipeline {
     stage('Publish') {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/repo/ syncbot@pkg.trueos.org:/data/pkg/snapshots/'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/snapshots/'
+          sh 'env ABI_DIR=$(pkg-static -o ABI_FILE=/bin/sh config ABI) ssh syncbot@pkg.trueos.org mkdir -p /data/pkg/snapshot/ports/${ABI_DIR}/latest || true'
+          sh 'env ABI_DIR=$(pkg-static -o ABI_FILE=/bin/sh config ABI) rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports/ syncbot@pkg.trueos.org:/data/pkg/snapshot/ports/${ABI_DIR}/latest/'
+          sh 'ssh syncbot@pkg.trueos.org mkdir -p /data/pkg/snapshot/base/ || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/repo/ syncbot@pkg.trueos.org:/data/pkg/snapshot/base/'
+          sh 'ssh syncbot@pkg.trueos.org mkdir -p /data/iso/snapshot/ || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/snapshot/'
         }
       }
     }
   }
   post {
-    always {
+    success {
       sh 'make clean'
       sh 'cd release && make clean'
       sh 'rm -rf /usr/obj${WORKSPACE}'

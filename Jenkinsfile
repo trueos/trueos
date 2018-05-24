@@ -1,5 +1,5 @@
 pipeline {
-  agent { label 'TrueOS-World' }
+  agent { label 'TrueOS-PR' }
 
   environment {
     GH_ORG = 'trueos'

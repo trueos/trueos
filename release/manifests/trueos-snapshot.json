@@ -6,8 +6,18 @@
   ],
   "package-all":false,
   "packages":[
+	  "devel/git",
+	  "lang/python",
+	  "lang/python2",
+	  "lang/python3",
+	  "editors/vim"
   ],
   "essential-packages":[
+	  "devel/git",
+	  "lang/python",
+	  "lang/python2",
+	  "lang/python3",
+	  "editors/vim"
   ],
   "iso-install-packages":[
   ],
@@ -19,7 +29,7 @@
   "install-script":"",
   "auto-install-script":"",
   "pkg-repo": {
-	  "url":"https://pkg.trueos.org/pkg/unstable/ports/${ABI}/latest",
+	  "url":"https://pkg.trueos.org/pkg/snapshot/ports/${ABI}/latest",
 	  "pubKey": [
 		"-----BEGIN PUBLIC KEY-----",
 		"MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx4YxSavJkE7HjopkMtgK",
@@ -38,7 +48,7 @@
 	  ]
   },
   "base-pkg-repo": {
-	  "url":"https://pkg.trueos.org/pkg/unstable/base/${ABI}/latest",
+	  "url":"https://pkg.trueos.org/pkg/snapshot/base/${ABI}/latest",
 	  "pubKey": [
 		"-----BEGIN PUBLIC KEY-----",
 		"MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx4YxSavJkE7HjopkMtgK",
