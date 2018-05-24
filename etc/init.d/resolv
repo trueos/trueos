@@ -27,10 +27,6 @@
 # $FreeBSD$
 #
 
-# PROVIDE: resolv
-# REQUIRE: netif FILESYSTEMS
-# KEYWORD: nojail
-
 name="resolv"
 desc="Create /etc/resolv.conf from kenv"
 

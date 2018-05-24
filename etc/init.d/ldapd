@@ -1,7 +1,4 @@
 #!/sbin/openrc-run
-# PROVIDE: ldapd
-# REQUIRE: DAEMON FILESYSTEMS devfs
-# KEYWORD: nojail shutdown
 
 name="ldapd"
 rcvar="ldapd_enable"

@@ -1,10 +1,5 @@
 #!/sbin/openrc-run
 
-# PROVIDE: keyserv
-# REQUIRE: ypset
-# BEFORE: DAEMON
-# KEYWORD: shutdown
-
 . /etc/rc.subr
 
 name="keyserv"

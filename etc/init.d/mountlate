@@ -1,12 +1,11 @@
 #!/sbin/openrc-run
 #
-# $FreeBSD$
-#
 
-# PROVIDE: mountlate
-# REQUIRE: DAEMON
-# BEFORE: LOGIN
-# KEYWORD: nojail
+depend()
+{
+	provide mountlate
+	keyword -jail
+}
 
 name="mountlate"
 desc="Mount filesystems with \"late\" option from /etc/fstab"
@@ -31,9 +30,9 @@ start()
 		;;
 	esac
 
- 	# If we booted a special kernel remove the record
- 	# so we will boot the default kernel next time.
- 	if [ -x /sbin/nextboot ]; then
+	# If we booted a special kernel remove the record
+	# so we will boot the default kernel next time.
+	if [ -x /sbin/nextboot ]; then
 		/sbin/nextboot -D
- 	fi
+	fi
 }

@@ -1,11 +1,5 @@
 #!/sbin/openrc-run
 #
-# $FreeBSD$
-#
-
-# PROVIDE: nfscbd
-# REQUIRE: NETWORKING nfsuserd
-# KEYWORD: nojail shutdown
 
 name="nfscbd"
 command="/usr/sbin/${name}"

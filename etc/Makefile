@@ -18,6 +18,7 @@ OPENRC_BOOT_LINK=	abi \
 			bridge \
 			cron \
 			devd \
+			dmesg \
 			dumpon \
 			fsck \
 			hostid \
