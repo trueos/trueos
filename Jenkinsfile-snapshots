@@ -77,8 +77,8 @@ pipeline {
     stage('Publish') {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
-          sh 'env ABI_DIR=$(pkg-static -o ABI_FILE=/bin/sh config ABI) ssh syncbot@pkg.trueos.org mkdir -p /data/pkg/snapshot/ports/${ABI_DIR}/latest || true'
-          sh 'env ABI_DIR=$(pkg-static -o ABI_FILE=/bin/sh config ABI) rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports/ syncbot@pkg.trueos.org:/data/pkg/snapshot/ports/${ABI_DIR}/latest/'
+          sh 'ssh syncbot@pkg.trueos.org mkdir -p /data/pkg/snapshot/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports/ syncbot@pkg.trueos.org:/data/pkg/snapshot/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest/'
           sh 'ssh syncbot@pkg.trueos.org mkdir -p /data/pkg/snapshot/base/ || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/repo/ syncbot@pkg.trueos.org:/data/pkg/snapshot/base/'
           sh 'ssh syncbot@pkg.trueos.org mkdir -p /data/iso/snapshot/ || true'
