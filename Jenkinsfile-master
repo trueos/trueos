@@ -59,7 +59,7 @@ pipeline {
       }
       steps {
         sh 'cd release && make poudriere'
-        sh 'cd /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports && pkg-static repo sign . ${PKG_REPO_SIGNING_KEY}'
+        sh 'cd /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports && pkg-static repo . ${PKG_REPO_SIGNING_KEY}'
       }
     }
     stage('Release') {
