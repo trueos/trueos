@@ -223,7 +223,7 @@ ifconfig_up()
 		/etc/rc.devd wpa_supplicant.${1} start
 		_cfg=0		# XXX: not sure this should count
 	elif hostapif $1; then
-		/etc/rc.d/hostapd start $1
+		/etc/rc.devd hostapd.${1} start
 		_cfg=0
 	elif [ ${_cfg} -eq 0 ]; then
 		${IFCONFIG_CMD} $1 up
@@ -255,7 +255,7 @@ ifconfig_down()
 		/etc/rc.devd wpa_supplicant.${1} stop
 		_cfg=0
 	elif hostapif $1; then
-		/etc/rc.d/hostapd stop $1
+		/etc/rc.devd/hostapd.${1} stop
 		_cfg=0
 	fi
 

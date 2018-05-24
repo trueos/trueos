@@ -20,7 +20,7 @@ FILES=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd 
 		ldconfig local localmount local_unbound lockd lpd hostapd \
 		mixer modules mountd mountlate moused motd \
 		natd netmount network newsyslog nfscbd nfsclient nfsd nfsuserd nisdomain nsswitch \
-		nscd ntpd ntpdate pf pflog powerd ppp rarpd rc-enabled resolv rwho root routing rpcbind runsvdir \
+		nscd ntpd ntpdate pf pflog powerd ppp rarpd resolv rwho root routing rpcbind runsvdir \
 		s6-svscan savecache savecore sdpd sendmail \
 		sshd statd staticroute swap syscons sysctl syslogd timed tmp tmpfiles.setup ubthidhci urandom \
 		var watchdogd wpa_supplicant \

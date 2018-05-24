@@ -10,7 +10,7 @@
 # This file may not be copied, modified, propagated, or distributed
 # except according to the terms contained in the LICENSE file.
 #
-# This script was inspired by the equivalent rc.d network from NetBSD.
+# This script was inspired by the equivalent network from NetBSD.
 #
 # 2016-12-11 - Kris Moore - Improved to support per-interface sub-services
 #
@@ -67,10 +67,6 @@ start()
 	# Configure the interface(s).
 	netif_common ifn_start $cmdifn
 
-	#if [ -f /etc/rc.d/ipfilter ] ; then
-		# Resync ipfilter
-	#	/etc/rc.d/ipfilter quietresync
-	#fi
 	if [ -n "$cmdifn" ] ; then
 		export BRIDGE_IFLIST="${cmdifn}"
 		service bridge static
@@ -261,8 +257,3 @@ netif_common()
 		ewarn "The following interfaces were not configured: $_fail"
 	fi
 }
-
-# Load the old "network" config file also for compatibility.
-# This is needed for mfsBSD at least.
-#load_rc_config network
-#load_rc_config $name

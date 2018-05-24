@@ -32,8 +32,6 @@
 name="tmp"
 desc="Configure tmpfs"
 
-load_rc_config $name
-
 depend()
 {
 	provide tmp

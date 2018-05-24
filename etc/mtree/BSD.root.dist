@@ -82,8 +82,6 @@
         ..
         rc.conf.d
         ..
-        rc.d
-        ..
 	runlevels
 	    boot
 	    ..
