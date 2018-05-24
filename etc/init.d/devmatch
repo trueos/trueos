@@ -29,7 +29,6 @@
 depend()
 {
 	provide devmatch
-	need kldxref
 	keyword -jail
 }
 

@@ -4,7 +4,6 @@
 depend()
 {
 	provide ipfs
-	need ipnat
 	keyword -jail -shutdown
 }
 
