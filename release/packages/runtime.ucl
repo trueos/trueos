@@ -33,16 +33,16 @@ scripts: {
 	fi
 	# Update any missing dirs which need added now from mtree spec
         mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.root.dist \
-            -p ${PKG_ROOTDIR} >/dev/null
+            -p ${PKG_ROOTDIR}
         mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.usr.dist \
-            -p ${PKG_ROOTDIR}/usr >/dev/null
+            -p ${PKG_ROOTDIR}/usr
         mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.var.dist \
-            -p ${PKG_ROOTDIR}/var >/dev/null
+            -p ${PKG_ROOTDIR}/var
         mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.include.dist \
-            -p ${PKG_ROOTDIR}/usr/include >/dev/null
+            -p ${PKG_ROOTDIR}/usr/include
         if [ -e ${PKG_ROOTDIR}/etc/mtree/BSD.lib32.dist ] ; then
 		mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.lib32.dist \
-		     -p ${PKG_ROOTDIR}/usr >/dev/null
+		     -p ${PKG_ROOTDIR}/usr
 	fi
 
 	cap_mkdb %CAP_MKDB_ENDIAN% ${PKG_ROOTDIR}/etc/login.conf
