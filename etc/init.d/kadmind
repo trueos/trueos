@@ -1,0 +1,27 @@
+#!/sbin/openrc-run
+
+. /etc/rc.subr
+
+name=kadmind
+
+depend() {
+	provide kadmind
+	need kdc
+	keyword -shutdown
+}
+
+
+start_pre() {
+
+	command_args="$command_args &"
+}
+
+start() {
+	set_rcvar_obsolete kadmind5_server_enable kadmind_enable
+	set_rcvar_obsolete kadmind5_server kadmind_program
+	set_rcvar_obsolete kerberos5_server_enable kdc_enable
+}
+
+stop() {
+	return 0
+}
