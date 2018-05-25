@@ -1,7 +1,5 @@
 #!/sbin/openrc-run
 
-. /etc/rc.subr
-
 name=kfd
 
 depend()
@@ -13,8 +11,7 @@ depend()
 
 start()
 {
-
-	command_args="$command_args -i &"
+	return 0
 }
 
 stop()

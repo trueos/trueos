@@ -1,7 +1,5 @@
 #!/sbin/openrc-run
 
-. /etc/rc.subr
-
 name=kpasswdd
 
 depend()
@@ -20,9 +18,7 @@ start_pre()
 
 start()
 {
-	set_rcvar_obsolete kpasswdd_server_enable kpasswdd_enable
-	set_rcvar_obsolete kpasswdd_server kpasswdd_program
-	set_rcvar_obsolete kerberos5_server_enable kdc_enable
+	return 0
 }
 
 stop()

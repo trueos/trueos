@@ -1,17 +1,10 @@
 #!/sbin/openrc-run
 
-. /etc/rc.subr
-
 name="keyserv"
 command="/usr/sbin/${name}"
 
 depend() {
 	provide keyserv
-	need ypset
+	need ypset rpcbind
 	keyword -shutdown
-}
-
-star_pre()
-{
-	force_depend rpcbind || return 1
 }

@@ -1,7 +1,5 @@
 #!/sbin/openrc-run
 
-. /etc/rc.subr
-
 name=kdc
 
 depend() {
@@ -17,9 +15,7 @@ start_pre()
 }
 
 start() {
-	set_rcvar_obsolete kerberos5_server_enable kdc_enable
-	set_rcvar_obsolete kerberos5_server kdc_program
-	set_rcvar_obsolete kerberos5_server_flags kdc_flags
+	return 0
 }
 
 stop() {
