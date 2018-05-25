@@ -13,7 +13,7 @@ FILES=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd 
 		ccd cfumass cleanvar cleartmp cron ctld \
 		ddb devd devfs devmatch dhcpcd dmesg dumpon \
 		earlykld encswap fsck ftpd ftp-proxy \
-		gbde geli geli2 gptboot growfs gssd \
+		gbde gptboot growfs gssd \
 		hastd hcsecd hostid hostid_save hostname \
 		inetd iovctl ipfs ipropd_master ipropd_slave iscsictl iscsid ipfw ipfw_netflow ipsec \
 		jail ldapd \

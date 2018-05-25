@@ -3,8 +3,7 @@
 
 provide()
 {
-	provide hostid_save
-	require hostid
+	need hostid
 	keyword -jail
 }
 
