@@ -63,7 +63,7 @@
 usage()
 {
 	cat <<EOF
-usage: etcupdate [-npBF] [-d workdir] [-r | -s source | -t tarball]
+usage: etcupdate [-anpBF] [-d workdir] [-r | -s source | -t tarball]
                  [-A patterns] [-D destdir] [-I patterns] [-L logfile]
                  [-M options]
        etcupdate build [-B] [-d workdir] [-s source] [-L logfile] [-M options]
@@ -1640,7 +1640,7 @@ ignore=
 nobuild=
 preworld=
 automated=
-while getopts "a:d:nprs:t:A:BD:FI:L:M:" option; do
+while getopts "d:anprs:t:A:BD:FI:L:M:" option; do
 	case "$option" in
 		a)
 			automated=YES
