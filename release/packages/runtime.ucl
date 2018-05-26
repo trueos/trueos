@@ -56,6 +56,14 @@ deps: {
         origin: "base"
         version: "%VERSION%"
     }
+    "FreeBSD-libmd": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libarchive": {
+        origin: "base"
+        version: "%VERSION%"
+    }
 }
 directories {
     /dev = "y";
