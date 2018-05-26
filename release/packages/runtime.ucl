@@ -64,6 +64,38 @@ deps: {
         origin: "base"
         version: "%VERSION%"
     }
+    "FreeBSD-libbz2": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-liblzma": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libbsdxml": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libutil": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-librc": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libpkg": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libfetch": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libelf": {
+        origin: "base"
+        version: "%VERSION%"
+    }
 }
 directories {
     /dev = "y";
