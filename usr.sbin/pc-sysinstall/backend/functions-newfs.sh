@@ -95,7 +95,9 @@ setup_zfs_filesystem()
   # Verify this pool isn't lingering on another disk
   zpool import | grep -qw "${ZPOOLNAME}"
   if [ $? -eq 0 ] ; then
-    exit_err "The poolname: $ZPOOLNAME is already in use on another disk!"
+    # Need to clear out this pool name so we can re-create
+    rc_halt "zpool import -f -N ${ZPOOLNAME}"
+    rc_halt "zpool destroy -f ${ZPOOLNAME}"
   fi
 
   if [ -n "${ZPOOLOPTS}" ] ; then
