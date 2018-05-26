@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include <libgen.h>
 #include <libutil.h>
@@ -1647,12 +1648,12 @@ list_vm(char *vmname)
 			if (dir->d_type != DT_DIR) {
 				ctx = vm_open(dir->d_name);
 				if (ctx == NULL)
-					errx(EPERM, "You have no permission to list vms.\n");
+					errx(EX_NOPERM, "You have no permission to list vms.\n");
 
 				errno = vm_mmap_getnext(ctx, &gpa, &segid, &segoff, &maplen,
 					&prot, &flags);
 				if (errno)
-					errx(EPERM, "Error to get memory segment information.\n");
+					errx(EX_NOPERM, "Error to get memory segment information.\n");
 
 				humanize_number(numbuf, sizeof(numbuf), maplen, "B",
 					HN_AUTOSCALE, HN_NOSPACE);
@@ -1661,7 +1662,7 @@ list_vm(char *vmname)
 				if (!errno)
 					vcpus = count_vcpus(&cpus);
 				else
-					errx(EPERM, "Error to get the number of vcpus.\n");
+					errx(EX_NOPERM, "Error to get the number of vcpus.\n");
 
 				if (vmname && strcmp(vmname, dir->d_name) == 0) {
 					printf("%s\t\t %s\t\t\t %d\n", dir->d_name,
