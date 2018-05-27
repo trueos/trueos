@@ -2,7 +2,8 @@
   "ports-url":"https://github.com/trueos/trueos-ports",
   "ports-branch":"trueos-master",
   "ports-conf":[
-	  "MAKE_JOBS_NUMBER_LIMIT=3"
+	  "MAKE_JOBS_NUMBER_LIMIT=3",
+	  "editors_vim_UNSET=GTK2"
   ],
   "package-all":false,
   "packages":[

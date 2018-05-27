@@ -96,6 +96,62 @@ deps: {
         origin: "base"
         version: "%VERSION%"
     }
+    "FreeBSD-libz": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-jail": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-lib": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-lib80211": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libbsm": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libeinfo": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libgeom": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libkvm": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libopie": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libsbuf": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libucl": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libwrap": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libxo": {
+        origin: "base"
+        version: "%VERSION%"
+    }
+    "FreeBSD-libypclnt": {
+        origin: "base"
+        version: "%VERSION%"
+    }
 }
 directories {
     /dev = "y";
