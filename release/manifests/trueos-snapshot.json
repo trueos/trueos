@@ -3,7 +3,8 @@
   "ports-branch":"trueos-master",
   "ports-conf":[
 	  "MAKE_JOBS_NUMBER_LIMIT=3",
-	  "editors_vim_UNSET=GTK2"
+	  "editors_vim_UNSET=GTK2",
+	  "editors_vim_SET=CONSOLE"
   ],
   "package-all":false,
   "packages":[
