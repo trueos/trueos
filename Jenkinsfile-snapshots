@@ -4,8 +4,8 @@ pipeline {
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
-    POUDRIERE_BASE = trueos-snap-base
-    POUDRIERE_PORTS = trueos-snap-ports
+    POUDRIERE_BASE = 'trueos-snap-base'
+    POUDRIERE_PORTS = 'trueos-snap-ports'
   }
 
   stages {
