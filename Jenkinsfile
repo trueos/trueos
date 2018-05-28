@@ -1,3 +1,10 @@
+/*
+
+This is the default Jenkins Pipeline config used to test pull-requests
+on GitHub trueos/trueos repo.
+
+*/
+
 pipeline {
   agent { label 'TrueOS-PR' }
 

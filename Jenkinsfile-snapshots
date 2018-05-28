@@ -1,3 +1,10 @@
+/*
+
+Our default Jenkins pipeline we use to create our on-commit
+snapshot builds of trueos-master branch.
+
+*/
+
 pipeline {
   agent { label 'TrueOS-Snapshot' }
 

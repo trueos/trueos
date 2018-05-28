@@ -1,3 +1,10 @@
+/*
+
+This is the default Jenkins Pipeline file used to create our
+full weekly build images.
+
+*/
+
 pipeline {
   agent { label 'TrueOS-World' }
 
@@ -8,6 +15,8 @@ pipeline {
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
+
+    // Set the MANIFEST we want to use for this build
     TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-master.json'
   }
 
@@ -45,6 +54,7 @@ pipeline {
     }
     stage('Base Packages') {
       environment {
+	   // Get our credentials from Jenkins
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
@@ -54,10 +64,12 @@ pipeline {
     }
     stage('Ports') {
       environment {
+	   // Get our credentials from Jenkins
            PKG_REPO_SIGNING_KEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
         sh 'cd release && make poudriere'
+        // Sign the repo with our repo signing key
         sh 'cd /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports && pkg-static repo . ${PKG_REPO_SIGNING_KEY}'
       }
     }
