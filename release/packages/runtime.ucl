@@ -100,10 +100,6 @@ deps: {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-jail": {
-        origin: "base"
-        version: "%VERSION%"
-    }
     "FreeBSD-lib": {
         origin: "base"
         version: "%VERSION%"
