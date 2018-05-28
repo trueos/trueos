@@ -388,12 +388,14 @@ run_final_cleanup()
     if [ -e "/dist/trueos-pkg-url.pubkey" ] ; then
 	cp /dist/trueos-pkg-url.pubkey ${FSMNT}/usr/share/keys/pkg/trueos.pub
 	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
+		| sed "s|%%REPONAME%%|TrueOS-ports|g" \
 		| sed "s|%%PUBKEY%%|/usr/share/keys/pkg/trueos.pub|g" \
 		| sed "s|%%URL%%|${_pkgUrl}|g" \
 		>${FSMNT}/etc/pkg/TrueOS.conf
     else
 	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
 		| grep -v 'pubkey:' \
+		| sed "s|%%REPONAME%%|TrueOS-base|g" \
 		| sed 's|pubkey|none|g' \
 		| sed "s|%%URL%%|${_pkgUrl}|g" \
 		>${FSMNT}/etc/pkg/TrueOS.conf
@@ -406,12 +408,14 @@ run_final_cleanup()
     if [ -e "/dist/trueos-base-pkg-url.pubkey" ] ; then
 	cp /dist/trueos-base-pkg-url.pubkey ${FSMNT}/usr/share/keys/pkg/trueos-base.pub
 	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
+		| sed "s|%%REPONAME%%|TrueOS-base|g" \
 		| sed "s|%%PUBKEY%%|/usr/share/keys/pkg/trueos-base.pub|g" \
 		| sed "s|%%URL%%|${_pkgUrl}|g" \
 		>>${FSMNT}/etc/pkg/TrueOS.conf
     else
 	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
 		| grep -v 'pubkey:' \
+		| sed "s|%%REPONAME%%|TrueOS-base|g" \
 		| sed 's|pubkey|none|g' \
 		| sed "s|%%URL%%|${_pkgUrl}|g" \
 		>>${FSMNT}/etc/pkg/TrueOS.conf

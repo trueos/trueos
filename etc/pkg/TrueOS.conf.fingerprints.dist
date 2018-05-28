@@ -1,13 +1,4 @@
-# $FreeBSD$
-#
-# To disable this repository, instead of modifying or removing this file,
-# create a /usr/local/etc/pkg/repos/TrueOS.conf file:
-#
-#   mkdir -p /usr/local/etc/pkg/repos
-#   echo "TrueOS: { enabled: no }" > /usr/local/etc/pkg/repos/TrueOS.conf
-#
-
-TrueOS: {
+%%REPONAME%%: {
   url: "%%URL%%",
   signature_type: "fingerprints",
   fingerprints: "%%FINGERPRINTS%%",
