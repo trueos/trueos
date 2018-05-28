@@ -52,6 +52,12 @@ else
 fi
 export TERM
 
+# The random init messages are cluttering up the screen
+# Lets get some random number and then sleep a moment
+dd if=/dev/random of=/dev/null bs=1k count=1 >/dev/null 2>/dev/null
+sleep 1
+clear
+
 if [ -f /etc/trueos-custom-install ]; then
 	# A custom install script exists, lets run that instead of the default
 	$(cat /etc/trueos-custom-install)
@@ -66,7 +72,7 @@ if [ -f /etc/installerconfig ]; then
 	else
 		dialog --backtitle "TrueOS Installer" --title "Error" --textbox /tmp/pc-sysinstall.log
 	fi
-	exit 
+	exit
 fi
 
 dialog --backtitle "TrueOS Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live CD" --yesno "Welcome to TrueOS! Would you like to begin an installation or use the live CD?" 0 0
