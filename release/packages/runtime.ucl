@@ -31,6 +31,12 @@ scripts: {
 		echo "** Performing automated etcupdate of /etc **"
 		etcupdate -D ${PKG_ROOTDIR} -a -t ${PKG_ROOTDIR}/var/db/etcupdate-current.tbz
 	fi
+
+	cap_mkdb %CAP_MKDB_ENDIAN% ${PKG_ROOTDIR}/etc/login.conf
+	pwd_mkdb %PWD_MKDB_ENDIAN% -i -p -d  ${PKG_ROOTDIR}/etc ${PKG_ROOTDIR}/etc/master.passwd
+	services_mkdb %CAP_MKDB_ENDIAN% -q -o ${PKG_ROOTDIR}/var/db/services.db ${PKG_ROOTDIR}/etc/services
+	chmod 1777 ${PKG_ROOTDIR}/tmp
+
 	# Update any missing dirs which need added now from mtree spec
         mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.root.dist \
             -p ${PKG_ROOTDIR}
@@ -45,10 +51,6 @@ scripts: {
 		     -p ${PKG_ROOTDIR}/usr
 	fi
 
-	cap_mkdb %CAP_MKDB_ENDIAN% ${PKG_ROOTDIR}/etc/login.conf
-	pwd_mkdb %PWD_MKDB_ENDIAN% -i -p -d  ${PKG_ROOTDIR}/etc ${PKG_ROOTDIR}/etc/master.passwd
-	services_mkdb %CAP_MKDB_ENDIAN% -q -o ${PKG_ROOTDIR}/var/db/services.db ${PKG_ROOTDIR}/etc/services
-	chmod 1777 ${PKG_ROOTDIR}/tmp
 EOD
 }
 deps: {
