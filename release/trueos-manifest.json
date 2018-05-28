@@ -43,7 +43,7 @@
 	  ]
   },
   "base-pkg-repo": {
-	  "url":"https://pkg.trueos.org/pkg/unstable/base/${ABI}latest",
+	  "url":"https://pkg.trueos.org/pkg/unstable/base/${ABI}/latest",
 	  "pubKey": [
 		"-----BEGIN PUBLIC KEY-----",
 		"MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx4YxSavJkE7HjopkMtgK",

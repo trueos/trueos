@@ -6,6 +6,7 @@ pipeline {
     GH_REPO = 'trueos'
     POUDRIERE_BASE = 'trueos-snap-base'
     POUDRIERE_PORTS = 'trueos-snap-ports'
+    TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-snapshot.json'
   }
 
   stages {
@@ -43,7 +44,6 @@ pipeline {
     stage('Base Packages') {
       environment {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
-	   TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-snapshot.json'
       }
       steps {
         sh 'rm -rf /usr/obj${WORKSPACE}/amd64.amd64/repo'
@@ -53,7 +53,6 @@ pipeline {
     stage('Ports') {
       environment {
            PKG_REPO_SIGNING_KEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
-	   TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-snapshot.json'
       }
       steps {
         sh 'cd release && make poudriere'

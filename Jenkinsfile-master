@@ -8,6 +8,7 @@ pipeline {
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
+    TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-master.json'
   }
 
   stages {
@@ -45,7 +46,6 @@ pipeline {
     stage('Base Packages') {
       environment {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
-	   TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-master.json'
       }
       steps {
         sh 'rm -rf /usr/obj${WORKSPACE}/amd64.amd64/repo'
@@ -55,7 +55,6 @@ pipeline {
     stage('Ports') {
       environment {
            PKG_REPO_SIGNING_KEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
-	   TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-master.json'
       }
       steps {
         sh 'cd release && make poudriere'
