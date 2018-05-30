@@ -150,6 +150,10 @@ deps: {
         origin: "base"
         version: "%VERSION%"
     }
+    "FreeBSD-libcrypt": {
+        origin: "base"
+        version: "%VERSION%"
+    }
 }
 directories {
     /dev = "y";
