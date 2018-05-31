@@ -69,18 +69,18 @@ do_self_bootstrap() {
   return 0
 }
 
-# Check if we need to try a self-update
-if [ -z "$DISABLE_UPDATE_BOOTSTRAP" -a -n "${1}" -a "${1}" != "doshutdownupdate" -a "$1" != "startupdate" ] ; then
-
-  export DISABLE_UPDATE_BOOTSTRAP="YES"
-
-  do_self_bootstrap
-
-  # Run the original command now
-  if [ ! -e "/var/trueos-update/trueos-update" ] ; then
-    exit_err "Failed to boot-strap trueos-update!"
-  fi
-
-  /var/trueos-update/trueos-update ${@}
-  exit $?
+if [ ! -e "/var/trueos-update/trueos-update" ] ; then
+	do_self_bootstrap
+elif [ -n "$DISABLE_UPDATE_BOOTSTRAP" ] ; then
+	echo "Skipping boot-strap process"
+else
+	do_self_bootstrap
 fi
+
+# Run the original command now
+if [ ! -e "/var/trueos-update/trueos-update" ] ; then
+  exit_err "Failed to boot-strap trueos-update!"
+fi
+
+/var/trueos-update/trueos-update ${@}
+exit $?
