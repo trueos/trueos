@@ -234,9 +234,11 @@ kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 kp [label="Kristof Provost\nkp@FreeBSD.org\n2015/03/22"]
 landonf [label="Landon Fuller\nlandonf@FreeBSD.org\n2016/05/31"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
+leitao [label="Breno Leitao\nleitao@FreeBSD.org\n2018/05/22"]
 lidl [label="Kurt Lidl\nlidl@FreeBSD.org\n2015/10/21"]
 loos [label="Luiz Otavio O Souza\nloos@FreeBSD.org\n2013/07/03"]
 lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
+luporl [label="Leandro Lupori\nluporl@FreeBSD.org\n2018/05/21"]
 manu [label="Emmanuel Vadot\nmanu@FreeBSD.org\n2016/04/24"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
 marius [label="Marius Strobl\nmarius@FreeBSD.org\n2004/04/17"]
@@ -589,6 +591,9 @@ jhb -> rnoland
 jhb -> rpokala
 jhb -> arichardson
 
+jhibbits -> leitao
+jhibbits -> luporl
+
 jimharris -> carl
 
 jkh -> dfr
@@ -709,6 +714,8 @@ njl -> sepotvin
 
 nwhitehorn -> andreast
 nwhitehorn -> jhibbits
+nwhitehorn -> leitao
+nwhitehorn -> luporl
 
 obrien -> benno
 obrien -> groudier

@@ -215,14 +215,6 @@
 #define	  FSL_E300C3		  0x8085
 #define	  FSL_E300C4		  0x8086
 
-#define	SPR_LPCR		0x13e	/* Logical Partitioning Control */
-#define	  LPCR_LPES		0x008	/* Bit 60 */
-#define   LPCR_PECE_DRBL        (1ULL << 16)    /* Directed Privileged Doorbell */
-#define   LPCR_PECE_HDRBL       (1ULL << 15)    /* Directed Hypervisor Doorbell */
-#define   LPCR_PECE_EXT         (1ULL << 14)    /* External exceptions */
-#define   LPCR_PECE_DECR        (1ULL << 13)    /* Decrementer exceptions */
-#define   LPCR_PECE_ME          (1ULL << 12)    /* Machine Check and Hypervisor */
-                                                /* Maintenance exceptions */
 #define   LPCR_PECE_WAKESET     (LPCR_PECE_EXT | LPCR_PECE_DECR | LPCR_PECE_ME)
  
 #define	SPR_EPCR		0x133
@@ -239,8 +231,17 @@
 #define	  EPCR_PMGS		  0x00200000
 #define	SPR_SPEFSCR		0x200	/* ..8 Signal Processing Engine FSCR. */
 
+#define	SPR_HSRR0		0x13a
+#define	SPR_HSRR1		0x13b
 #define	SPR_LPCR		0x13e	/* Logical Partitioning Control */
-#define	  LPCR_LPES		0x008	/* Bit 60 */
+#define	  LPCR_LPES		  0x008	/* Bit 60 */
+#define	  LPCR_HVICE		  0x002	/* Hypervisor Virtualization Interrupt (Arch 3.0) */
+#define	  LPCR_PECE_DRBL          (1ULL << 16) /* Directed Privileged Doorbell */
+#define	  LPCR_PECE_HDRBL         (1ULL << 15) /* Directed Hypervisor Doorbell */
+#define	  LPCR_PECE_EXT           (1ULL << 14) /* External exceptions */
+#define	  LPCR_PECE_DECR          (1ULL << 13) /* Decrementer exceptions */
+#define	  LPCR_PECE_ME            (1ULL << 12) /* Machine Check and Hypervisor */
+                                               /* Maintenance exceptions */
 #define	SPR_LPID		0x13f	/* Logical Partitioning Control */
 
 #define	SPR_PTCR		0x1d0	/* Partition Table Control Register */
@@ -382,6 +383,7 @@
 #define	SPR_MD_CAM		0x338	/* ..8 IMMU CAM entry read */
 #define	SPR_MD_RAM0		0x339	/* ..8 IMMU RAM entry read reg 0 */
 #define	SPR_MD_RAM1		0x33a	/* ..8 IMMU RAM entry read reg 1 */
+#define	SPR_PSSCR		0x357	/* Processor Stop Status and Control Register (ISA 3.0) */
 #define	SPR_UMMCR2		0x3a0	/* .6. User Monitor Mode Control Register 2 */
 #define	SPR_UMMCR0		0x3a8	/* .6. User Monitor Mode Control Register 0 */
 #define	SPR_USIA		0x3ab	/* .6. User Sampled Instruction Address */

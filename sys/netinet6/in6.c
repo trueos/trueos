@@ -112,6 +112,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 
+
 /*
  * struct in6_ifreq and struct ifreq must be type punnable for common members
  * of ifr_ifru to allow accessors to be shared.
@@ -1118,13 +1119,13 @@ in6_alloc_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra, int flags)
 	ia->ia_ifp = ifp;
 	ifa_ref(&ia->ia_ifa);			/* if_addrhead */
 	IF_ADDR_WLOCK(ifp);
-	TAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
+	CK_STAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 	IF_ADDR_WUNLOCK(ifp);
 
 	ifa_ref(&ia->ia_ifa);			/* in6_ifaddrhead */
 	IN6_IFADDR_WLOCK();
-	TAILQ_INSERT_TAIL(&V_in6_ifaddrhead, ia, ia_link);
-	LIST_INSERT_HEAD(IN6ADDR_HASH(&ia->ia_addr.sin6_addr), ia, ia6_hash);
+	CK_STAILQ_INSERT_TAIL(&V_in6_ifaddrhead, ia, ia_link);
+	CK_LIST_INSERT_HEAD(IN6ADDR_HASH(&ia->ia_addr.sin6_addr), ia, ia6_hash);
 	IN6_IFADDR_WUNLOCK();
 
 	return (ia);
@@ -1322,7 +1323,7 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	int remove_lle;
 
 	IF_ADDR_WLOCK(ifp);
-	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
+	CK_STAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifaddr, ifa_link);
 	IF_ADDR_WUNLOCK(ifp);
 	ifa_free(&ia->ia_ifa);			/* if_addrhead */
 
@@ -1332,8 +1333,8 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	 * cleanup.
 	 */
 	IN6_IFADDR_WLOCK();
-	TAILQ_REMOVE(&V_in6_ifaddrhead, ia, ia_link);
-	LIST_REMOVE(ia, ia6_hash);
+	CK_STAILQ_REMOVE(&V_in6_ifaddrhead, ia, in6_ifaddr, ia_link);
+	CK_LIST_REMOVE(ia, ia6_hash);
 	IN6_IFADDR_WUNLOCK();
 
 	/*
@@ -1387,7 +1388,7 @@ in6_notify_ifa(struct ifnet *ifp, struct in6_ifaddr *ia,
 	 */
 	if (hostIsNew != 0) {
 		IF_ADDR_RLOCK(ifp);
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
 			ifacount++;
@@ -1470,7 +1471,7 @@ in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 	struct ifaddr *ifa;
 
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (IN6_IS_ADDR_LINKLOCAL(IFA_IN6(ifa))) {
@@ -1498,7 +1499,7 @@ in6ifa_ifwithaddr(const struct in6_addr *addr, uint32_t zoneid)
 	struct in6_ifaddr *ia;
 
 	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
-	LIST_FOREACH(ia, IN6ADDR_HASH(addr), ia6_hash) {
+	CK_LIST_FOREACH(ia, IN6ADDR_HASH(addr), ia6_hash) {
 		if (IN6_ARE_ADDR_EQUAL(IA6_IN6(ia), addr)) {
 			if (zoneid != 0 &&
 			    zoneid != ia->ia_addr.sin6_scope_id)
@@ -1521,7 +1522,7 @@ in6ifa_ifpwithaddr(struct ifnet *ifp, const struct in6_addr *addr)
 	struct ifaddr *ifa;
 
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (IN6_ARE_ADDR_EQUAL(addr, IFA_IN6(ifa))) {
@@ -1546,7 +1547,7 @@ in6ifa_llaonifp(struct ifnet *ifp)
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)
 		return (NULL);
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
@@ -1652,7 +1653,7 @@ in6_localaddr(struct in6_addr *in6)
 		return 1;
 
 	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
-	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+	CK_STAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 		if (IN6_ARE_MASKED_ADDR_EQUAL(in6, &ia->ia_addr.sin6_addr,
 		    &ia->ia_prefixmask.sin6_addr)) {
 			IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
@@ -1675,7 +1676,7 @@ in6_localip(struct in6_addr *in6)
 	struct in6_ifaddr *ia;
 
 	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
-	LIST_FOREACH(ia, IN6ADDR_HASH(in6), ia6_hash) {
+	CK_LIST_FOREACH(ia, IN6ADDR_HASH(in6), ia6_hash) {
 		if (IN6_ARE_ADDR_EQUAL(in6, &ia->ia_addr.sin6_addr)) {
 			IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
 			return (1);
@@ -1701,7 +1702,7 @@ in6_ifhasaddr(struct ifnet *ifp, struct in6_addr *addr)
 	in6_setscope(&in6, ifp, NULL);
 
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ia6 = (struct in6_ifaddr *)ifa;
@@ -1722,7 +1723,7 @@ in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 	struct in6_ifaddr *ia;
 
 	IN6_IFADDR_RLOCK(&in6_ifa_tracker);
-	LIST_FOREACH(ia, IN6ADDR_HASH(&sa6->sin6_addr), ia6_hash) {
+	CK_LIST_FOREACH(ia, IN6ADDR_HASH(&sa6->sin6_addr), ia6_hash) {
 		if (IN6_ARE_ADDR_EQUAL(IA6_IN6(ia), &sa6->sin6_addr)) {
 			if (ia->ia6_flags & IN6_IFF_DEPRECATED) {
 				IN6_IFADDR_RUNLOCK(&in6_ifa_tracker);
@@ -1828,7 +1829,7 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 	 * If none, return one of global addresses assigned other ifs.
 	 */
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_ANYCAST)
@@ -1865,7 +1866,7 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 		return (besta);
 	}
 
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_ANYCAST)
@@ -1912,7 +1913,7 @@ in6_if_up(struct ifnet *ifp)
 	struct in6_ifaddr *ia;
 
 	IF_ADDR_RLOCK(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ia = (struct in6_ifaddr *)ifa;
@@ -1972,7 +1973,7 @@ in6_setmaxmtu(void)
 	struct ifnet *ifp;
 
 	IFNET_RLOCK_NOSLEEP();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		/* this function can be called during ifnet initialization */
 		if (!ifp->if_afdata[AF_INET6])
 			continue;
@@ -2044,9 +2045,11 @@ struct in6_llentry {
  * Do actual deallocation of @lle.
  */
 static void
-in6_lltable_destroy_lle_unlocked(struct llentry *lle)
+in6_lltable_destroy_lle_unlocked(epoch_context_t ctx)
 {
+	struct llentry *lle;
 
+	lle = __containerof(ctx, struct llentry, lle_epoch_ctx);
 	LLE_LOCK_DESTROY(lle);
 	LLE_REQ_DESTROY(lle);
 	free(lle, M_LLTABLE);
@@ -2061,7 +2064,7 @@ in6_lltable_destroy_lle(struct llentry *lle)
 {
 
 	LLE_WUNLOCK(lle);
-	in6_lltable_destroy_lle_unlocked(lle);
+	epoch_call(net_epoch_preempt,  &lle->lle_epoch_ctx, in6_lltable_destroy_lle_unlocked);
 }
 
 static struct llentry *
@@ -2164,11 +2167,13 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 		 * Create an ND6 cache for an IPv6 neighbor
 		 * that is not covered by our own prefix.
 		 */
+		NET_EPOCH_ENTER();
 		ifa = ifaof_ifpforaddr(l3addr, ifp);
 		if (ifa != NULL) {
-			ifa_free(ifa);
+			NET_EPOCH_EXIT();
 			return 0;
 		}
+		NET_EPOCH_EXIT();
 		log(LOG_INFO, "IPv6 address: \"%s\" is not on the network\n",
 		    ip6_sprintf(ip6buf, &sin6->sin6_addr));
 		return EINVAL;
@@ -2230,7 +2235,7 @@ in6_lltable_find_dst(struct lltable *llt, const struct in6_addr *dst)
 
 	hashidx = in6_lltable_hash_dst(dst, llt->llt_hsize);
 	lleh = &llt->lle_head[hashidx];
-	LIST_FOREACH(lle, lleh, lle_next) {
+	CK_LIST_FOREACH(lle, lleh, lle_next) {
 		if (lle->la_flags & LLE_DELETED)
 			continue;
 		if (IN6_ARE_ADDR_EQUAL(&lle->r_l3addr.addr6, dst))
@@ -2285,7 +2290,7 @@ in6_lltable_alloc(struct lltable *llt, u_int flags,
 		linkhdrsize = LLE_MAX_LINKHDR;
 		if (lltable_calc_llheader(ifp, AF_INET6, IF_LLADDR(ifp),
 		    linkhdr, &linkhdrsize, &lladdr_off) != 0) {
-			in6_lltable_destroy_lle_unlocked(lle);
+			epoch_call(net_epoch_preempt,  &lle->lle_epoch_ctx, in6_lltable_destroy_lle_unlocked);
 			return (NULL);
 		}
 		lltable_set_entry_addr(ifp, lle, linkhdr, linkhdrsize,
@@ -2350,62 +2355,58 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	int error;
 
 	bzero(&ndpc, sizeof(ndpc));
-			/* skip deleted entries */
-			if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
-				return (0);
-			/* Skip if jailed and not a valid IP of the prison. */
-			lltable_fill_sa_entry(lle,
-			    (struct sockaddr *)&ndpc.sin6);
-			if (prison_if(wr->td->td_ucred,
-			    (struct sockaddr *)&ndpc.sin6) != 0)
-				return (0);
-			/*
-			 * produce a msg made of:
-			 *  struct rt_msghdr;
-			 *  struct sockaddr_in6 (IPv6)
-			 *  struct sockaddr_dl;
-			 */
-			ndpc.rtm.rtm_msglen = sizeof(ndpc);
-			ndpc.rtm.rtm_version = RTM_VERSION;
-			ndpc.rtm.rtm_type = RTM_GET;
-			ndpc.rtm.rtm_flags = RTF_UP;
-			ndpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
-			if (V_deembed_scopeid)
-				sa6_recoverscope(&ndpc.sin6);
+	/* skip deleted entries */
+	if ((lle->la_flags & LLE_DELETED) == LLE_DELETED)
+		return (0);
+	/* Skip if jailed and not a valid IP of the prison. */
+	lltable_fill_sa_entry(lle, (struct sockaddr *)&ndpc.sin6);
+	if (prison_if(wr->td->td_ucred, (struct sockaddr *)&ndpc.sin6) != 0)
+		return (0);
+	/*
+	 * produce a msg made of:
+	 *  struct rt_msghdr;
+	 *  struct sockaddr_in6 (IPv6)
+	 *  struct sockaddr_dl;
+	 */
+	ndpc.rtm.rtm_msglen = sizeof(ndpc);
+	ndpc.rtm.rtm_version = RTM_VERSION;
+	ndpc.rtm.rtm_type = RTM_GET;
+	ndpc.rtm.rtm_flags = RTF_UP;
+	ndpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
+	if (V_deembed_scopeid)
+		sa6_recoverscope(&ndpc.sin6);
 
-			/* publish */
-			if (lle->la_flags & LLE_PUB)
-				ndpc.rtm.rtm_flags |= RTF_ANNOUNCE;
+	/* publish */
+	if (lle->la_flags & LLE_PUB)
+		ndpc.rtm.rtm_flags |= RTF_ANNOUNCE;
 
-			sdl = &ndpc.sdl;
-			sdl->sdl_family = AF_LINK;
-			sdl->sdl_len = sizeof(*sdl);
-			sdl->sdl_index = ifp->if_index;
-			sdl->sdl_type = ifp->if_type;
-			if ((lle->la_flags & LLE_VALID) == LLE_VALID) {
-				sdl->sdl_alen = ifp->if_addrlen;
-				bcopy(lle->ll_addr, LLADDR(sdl),
-				    ifp->if_addrlen);
-			} else {
-				sdl->sdl_alen = 0;
-				bzero(LLADDR(sdl), ifp->if_addrlen);
-			}
-			if (lle->la_expire != 0)
-				ndpc.rtm.rtm_rmx.rmx_expire = lle->la_expire +
-				    lle->lle_remtime / hz +
-				    time_second - time_uptime;
-			ndpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
-			if (lle->la_flags & LLE_STATIC)
-				ndpc.rtm.rtm_flags |= RTF_STATIC;
-			if (lle->la_flags & LLE_IFADDR)
-				ndpc.rtm.rtm_flags |= RTF_PINNED;
-			if (lle->ln_router != 0)
-				ndpc.rtm.rtm_flags |= RTF_GATEWAY;
-			ndpc.rtm.rtm_rmx.rmx_pksent = lle->la_asked;
-			/* Store state in rmx_weight value */
-			ndpc.rtm.rtm_rmx.rmx_state = lle->ln_state;
-			ndpc.rtm.rtm_index = ifp->if_index;
-			error = SYSCTL_OUT(wr, &ndpc, sizeof(ndpc));
+	sdl = &ndpc.sdl;
+	sdl->sdl_family = AF_LINK;
+	sdl->sdl_len = sizeof(*sdl);
+	sdl->sdl_index = ifp->if_index;
+	sdl->sdl_type = ifp->if_type;
+	if ((lle->la_flags & LLE_VALID) == LLE_VALID) {
+		sdl->sdl_alen = ifp->if_addrlen;
+		bcopy(lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
+	} else {
+		sdl->sdl_alen = 0;
+		bzero(LLADDR(sdl), ifp->if_addrlen);
+	}
+	if (lle->la_expire != 0)
+		ndpc.rtm.rtm_rmx.rmx_expire = lle->la_expire +
+		    lle->lle_remtime / hz + time_second - time_uptime;
+	ndpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
+	if (lle->la_flags & LLE_STATIC)
+		ndpc.rtm.rtm_flags |= RTF_STATIC;
+	if (lle->la_flags & LLE_IFADDR)
+		ndpc.rtm.rtm_flags |= RTF_PINNED;
+	if (lle->ln_router != 0)
+		ndpc.rtm.rtm_flags |= RTF_GATEWAY;
+	ndpc.rtm.rtm_rmx.rmx_pksent = lle->la_asked;
+	/* Store state in rmx_weight value */
+	ndpc.rtm.rtm_rmx.rmx_state = lle->ln_state;
+	ndpc.rtm.rtm_index = ifp->if_index;
+	error = SYSCTL_OUT(wr, &ndpc, sizeof(ndpc));
 
 	return (error);
 }

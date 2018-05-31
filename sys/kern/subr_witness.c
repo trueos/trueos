@@ -499,12 +499,12 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "pipe mutex", &lock_class_mtx_sleep },
 	{ "sigio lock", &lock_class_mtx_sleep },
 	{ "process group", &lock_class_mtx_sleep },
-	{ "process lock", &lock_class_mtx_sleep },
-	{ "session", &lock_class_mtx_sleep },
-	{ "uidinfo hash", &lock_class_rw },
 #ifdef	HWPMC_HOOKS
 	{ "pmc-sleep", &lock_class_mtx_sleep },
 #endif
+	{ "process lock", &lock_class_mtx_sleep },
+	{ "session", &lock_class_mtx_sleep },
+	{ "uidinfo hash", &lock_class_rw },
 	{ "time lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
@@ -537,7 +537,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "in_multi_list_mtx", &lock_class_mtx_sleep },
 	{ "igmp_mtx", &lock_class_mtx_sleep },
 	{ "ifnet_rw", &lock_class_rw },
-	{ "if_addr_lock", &lock_class_rw },
+	{ "if_addr_lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * IPv6 multicast:
@@ -548,7 +548,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "in6_multi_list_mtx", &lock_class_mtx_sleep },
 	{ "mld_mtx", &lock_class_mtx_sleep },
 	{ "ifnet_rw", &lock_class_rw },
-	{ "if_addr_lock", &lock_class_rw },
+	{ "if_addr_lock", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
 	 * UNIX Domain Sockets
@@ -671,9 +671,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "uart_hwmtx", &lock_class_mtx_spin },
 	{ "fast_taskqueue", &lock_class_mtx_spin },
 	{ "intr table", &lock_class_mtx_spin },
-#ifdef	HWPMC_HOOKS
-	{ "pmc-per-proc", &lock_class_mtx_spin },
-#endif
 	{ "process slock", &lock_class_mtx_spin },
 	{ "syscons video lock", &lock_class_mtx_spin },
 	{ "sleepq chain", &lock_class_mtx_spin },
@@ -690,6 +687,12 @@ static struct witness_order_list_entry order_lists[] = {
 #ifdef __powerpc__
 	{ "tlb0", &lock_class_mtx_spin },
 #endif
+	{ NULL, NULL },
+	{ "sched lock", &lock_class_mtx_spin },
+#ifdef	HWPMC_HOOKS
+	{ "pmc-per-proc", &lock_class_mtx_spin },
+#endif
+	{ NULL, NULL },
 	/*
 	 * leaf locks
 	 */

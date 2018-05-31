@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include <machine/pmc_mdep.h>
 
@@ -135,7 +136,7 @@ pmclog_get_record(struct pmclog_parse_state *ps, char **data, ssize_t *len)
 		return (ps->ps_state = PL_STATE_ERROR);
 
 	src = *data;
-	h = used = 0;
+	used = 0;
 
 	if (ps->ps_state == PL_STATE_NEW_RECORD)
 		ps->ps_svcount = 0;
@@ -278,7 +279,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
     struct pmclog_ev *ev)
 {
 	int evlen, pathlen;
-	uint32_t h, *le, npc;
+	uint32_t h, *le, npc, noop;
 	enum pmclog_parser_state e;
 	struct pmclog_parse_state *ps;
 
@@ -288,6 +289,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 
 	if ((e = pmclog_get_record(ps,data,len)) == PL_STATE_ERROR) {
 		ev->pl_state = PMCLOG_ERROR;
+		printf("state error\n");
 		return -1;
 	}
 
@@ -301,6 +303,7 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 	PMCLOG_READ32(le,h);
 
 	if (!PMCLOG_HEADER_CHECK_MAGIC(h)) {
+		printf("bad magic\n");
 		ps->ps_state = PL_STATE_ERROR;
 		ev->pl_state = PMCLOG_ERROR;
 		return -1;
@@ -326,8 +329,10 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 	switch (ev->pl_type = PMCLOG_HEADER_TO_TYPE(h)) {
 	case PMCLOG_TYPE_CALLCHAIN:
 		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_pid);
+		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_tid);
 		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_pmcid);
 		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_cpuflags);
+		PMCLOG_READ32(le,ev->pl_u.pl_cc.pl_cpuflags2);
 		PMCLOG_GET_CALLCHAIN_SIZE(ev->pl_u.pl_cc.pl_npc,evlen);
 		for (npc = 0; npc < ev->pl_u.pl_cc.pl_npc; npc++)
 			PMCLOG_READADDR(le,ev->pl_u.pl_cc.pl_pc[npc]);
@@ -358,20 +363,20 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READADDR(le,ev->pl_u.pl_mo.pl_start);
 		PMCLOG_READADDR(le,ev->pl_u.pl_mo.pl_end);
 		break;
-	case PMCLOG_TYPE_PCSAMPLE:
-		PMCLOG_READ32(le,ev->pl_u.pl_s.pl_pid);
-		PMCLOG_READADDR(le,ev->pl_u.pl_s.pl_pc);
-		PMCLOG_READ32(le,ev->pl_u.pl_s.pl_pmcid);
-		PMCLOG_READ32(le,ev->pl_u.pl_s.pl_usermode);
-		break;
 	case PMCLOG_TYPE_PMCALLOCATE:
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_pmcid);
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_event);
 		PMCLOG_READ32(le,ev->pl_u.pl_a.pl_flags);
-		if ((ev->pl_u.pl_a.pl_evname =
+		PMCLOG_READ32(le,noop);
+		ev->pl_u.pl_a.pl_evname = pmc_pmu_event_get_by_idx(ev->pl_u.pl_a.pl_event);
+		if (ev->pl_u.pl_a.pl_evname != NULL)
+			break;
+		else if ((ev->pl_u.pl_a.pl_evname =
 		    _pmc_name_of_event(ev->pl_u.pl_a.pl_event, ps->ps_arch))
-		    == NULL)
+		    == NULL) {
+			printf("unknown event\n");
 			goto error;
+		}
 		break;
 	case PMCLOG_TYPE_PMCALLOCATEDYN:
 		PMCLOG_READ32(le,ev->pl_u.pl_ad.pl_pmcid);
@@ -393,18 +398,21 @@ pmclog_get_event(void *cookie, char **data, ssize_t *len,
 		PMCLOG_READ32(le,ev->pl_u.pl_c.pl_pmcid);
 		PMCLOG_READ64(le,ev->pl_u.pl_c.pl_value);
 		PMCLOG_READ32(le,ev->pl_u.pl_c.pl_pid);
+		PMCLOG_READ32(le,ev->pl_u.pl_c.pl_tid);
 		break;
 	case PMCLOG_TYPE_PROCEXEC:
 		PMCLOG_GET_PATHLEN(pathlen,evlen,pmclog_procexec);
 		PMCLOG_READ32(le,ev->pl_u.pl_x.pl_pid);
-		PMCLOG_READADDR(le,ev->pl_u.pl_x.pl_entryaddr);
 		PMCLOG_READ32(le,ev->pl_u.pl_x.pl_pmcid);
+		PMCLOG_READ32(le,noop);
+		PMCLOG_READADDR(le,ev->pl_u.pl_x.pl_entryaddr);
 		PMCLOG_READSTRING(le,ev->pl_u.pl_x.pl_pathname,pathlen);
 		break;
 	case PMCLOG_TYPE_PROCEXIT:
 		PMCLOG_READ32(le,ev->pl_u.pl_e.pl_pmcid);
-		PMCLOG_READ64(le,ev->pl_u.pl_e.pl_value);
 		PMCLOG_READ32(le,ev->pl_u.pl_e.pl_pid);
+		PMCLOG_READ32(le,noop);
+		PMCLOG_READ64(le,ev->pl_u.pl_e.pl_value);
 		break;
 	case PMCLOG_TYPE_PROCFORK:
 		PMCLOG_READ32(le,ev->pl_u.pl_f.pl_oldpid);
@@ -485,8 +493,9 @@ pmclog_read(void *cookie, struct pmclog_ev *ev)
 
 			ps->ps_len = nread;
 			ps->ps_data = ps->ps_buffer;
-		} else
+		} else {
 			return -1;
+		}
 	}
 
 	assert(ps->ps_len > 0);
@@ -494,7 +503,6 @@ pmclog_read(void *cookie, struct pmclog_ev *ev)
 
 	 /* Retrieve one event from the byte stream. */
 	retval = pmclog_get_event(ps, &ps->ps_data, &ps->ps_len, ev);
-
 	/*
 	 * If we need more data and we have a configured fd, try read
 	 * from it.

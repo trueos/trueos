@@ -310,6 +310,8 @@ IDTVEC(dbg)
 	jz	calltrap
 dbg_user:
 	NMOVE_STACKS
+	movl	$handle_ibrs_entry,%eax
+	call	*%eax
 	pushl	%esp
 	movl	$trap,%eax
 	call	*%eax
@@ -337,6 +339,8 @@ nmi_mchk_common:
 	 * Do not switch to the thread kernel stack, otherwise we might
 	 * obliterate the previous context partially copied from the
 	 * trampoline stack.
+	 * Do not re-enable IBRS, there is no good place to store
+	 * previous state if we come from the kernel.
 	 */
 	movl	%cr3, %eax
 	movl	%eax, TF_ERR(%esp)
@@ -364,6 +368,8 @@ IDTVEC(int0x80_syscall)
 	SET_KERNEL_SREGS
 	cld
 	MOVE_STACKS
+	movl	$handle_ibrs_entry,%eax
+	call	*%eax
 	sti
 	FAKE_MCOUNT(TF_EIP(%esp))
 	pushl	%esp
@@ -502,11 +508,17 @@ doreti_exit:
 	je	doreti_iret_nmi
 	cmpl	$T_TRCTRAP, TF_TRAPNO(%esp)
 	je	doreti_iret_nmi
-	testl	$SEL_RPL_MASK, TF_CS(%esp)
+	movl	$TF_SZ, %ecx
+	testl	$PSL_VM,TF_EFLAGS(%esp)
+	jz	1f			/* PCB_VM86CALL is not set */
+	addl	$VM86_STACK_SPACE, %ecx
+	jmp	2f
+1:	testl	$SEL_RPL_MASK, TF_CS(%esp)
 	jz	doreti_popl_fs
+2:	movl	$handle_ibrs_exit,%eax
+	call	*%eax
 	movl	%esp, %esi
 	movl	PCPU(TRAMPSTK), %edx
-	movl	$TF_SZ, %ecx
 	subl	%ecx, %edx
 	movl	%edx, %edi
 	rep; movsb

@@ -156,6 +156,9 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 	vm_prot_t ftype;
 	vm_offset_t va;
 	int error, sig, ucode;
+#ifdef KDB
+	bool handled;
+#endif
 
 	/*
 	 * According to the ARMv8-A rev. A.g, B2.10.5 "Load-Exclusive
@@ -186,9 +189,33 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 		}
 	}
 
+	/*
+	 * The call to pmap_fault can be dangerous when coming from the
+	 * kernel as it may be not be able to lock the pmap to check if
+	 * the address is now valid. Because of this we filter the cases
+	 * when we are not going to see superpage activity.
+	 */
+	if (!lower) {
+		/*
+		 * We may fault in a DMAP region due to a superpage being
+		 * unmapped when the access took place.
+		 */
+		if (map == kernel_map && !VIRT_IN_DMAP(far))
+			goto no_pmap_fault;
+		/*
+		 * We can also fault in the userspace handling functions,
+		 * e.g. copyin. In these cases we will have set a fault
+		 * handler so we can check if this is set before calling
+		 * pmap_fault.
+		 */
+		if (map != kernel_map && pcb->pcb_onfault == 0)
+			goto no_pmap_fault;
+	}
+
 	if (pmap_fault(map->pmap, esr, far) == KERN_SUCCESS)
 		return;
 
+no_pmap_fault:
 	KASSERT(td->td_md.md_spinlock_count == 0,
 	    ("data abort with spinlock held"));
 	if (td->td_critnest != 0 || WITNESS_CHECK(WARN_SLEEPOK |
@@ -226,9 +253,14 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 			printf(" esr:         %.8lx\n", esr);
 
 #ifdef KDB
-			if (debugger_on_panic || kdb_active)
-				if (kdb_trap(ESR_ELx_EXCEPTION(esr), 0, frame))
+			if (debugger_on_panic) {
+				kdb_why = KDB_WHY_TRAP;
+				handled = kdb_trap(ESR_ELx_EXCEPTION(esr), 0,
+				    frame);
+				kdb_why = KDB_WHY_UNSET;
+				if (handled)
 					return;
+			}
 #endif
 			panic("vm_fault failed: %lx", frame->tf_elr);
 		}

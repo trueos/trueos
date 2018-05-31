@@ -656,7 +656,7 @@ select_ntuple(struct vi_info *vi, struct l2t_entry *e)
 	if (tp->protocol_shift >= 0)
 		ntuple |= (uint64_t)IPPROTO_TCP << tp->protocol_shift;
 
-	if (tp->vnic_shift >= 0) {
+	if (tp->vnic_shift >= 0 && tp->ingress_config & F_VNIC) {
 		uint32_t vf = G_FW_VIID_VIN(viid);
 		uint32_t pf = G_FW_VIID_PFN(viid);
 		uint32_t vld = G_FW_VIID_VIVLD(viid);
@@ -965,7 +965,7 @@ update_clip_table(struct adapter *sc, struct tom_data *td)
 
 		/* XXX: races with if_vmove */
 		CURVNET_SET(vi->ifp->if_vnet);
-		TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
+		CK_STAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
 			lip = &ia->ia_addr.sin6_addr;
 
 			KASSERT(!IN6_IS_ADDR_MULTICAST(lip),
