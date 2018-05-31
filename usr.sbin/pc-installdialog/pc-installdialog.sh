@@ -23,7 +23,11 @@ PCSYS="/usr/sbin/pc-sysinstall"
 # The current ZPOOL type should default to single
 ZPOOL_TYPE="single"
 
+# Set the default boot-manager
 SYSBOOTMANAGER="BSD"
+
+# Set the default ashift / ZFS blocksize
+ASHIFTSIZE="12"
 
 rtn()
 {
@@ -69,6 +73,30 @@ get_zpool_menu()
      raidz2) get_zpool_disks "raidz2" "2" ;;
      raidz3) get_zpool_disks "raidz3" "3" ;;
           *) ;;
+    esac
+  done
+}
+
+change_zpool_cfg()
+{
+  get_zpool_cfg_menu
+  gen_pc-sysinstall_cfg
+}
+
+get_zpool_cfg_menu()
+{
+  while :
+  do
+    dOpts="done \"Exit pool config menu\" 9 \"512b Blocks\""
+    dOpts="$dOpts 12 \"4K Blocks\" 13 \"8K Blocks\" 14 \"16K Blocks\""
+
+    get_dlg_ans "--menu \"Select the zpool blocksize (Current: $ASHIFTSIZE)\" 20 50 10 ${dOpts}"
+    if [ -z "$ANS" ] ; then
+       exit_err "Invalid option selected!"
+    fi
+    case $ANS in
+       done) break ;;
+          *) ASHIFTSIZE="$ANS" ;;
     esac
   done
 }
@@ -823,6 +851,10 @@ gen_pc-sysinstall_cfg()
       fi
    fi
 
+   # Set the ashift size
+   echo "" >> ${CFGFILE}
+   echo "# Set the ZFS blocksize (ashift)" >> ${CFGFILE}
+   echo "ashift=${ASHIFTSIZE}"
 
    # Now do the disk block
    echo "" >> ${CFGFILE}
@@ -927,7 +959,7 @@ start_edit_menu_loop()
 
   while :
   do
-    dialog --title "TrueOS Text Install - Edit Menu" --menu "Please select from the following options:" 18 70 10 disk "Change disk ($SYSDISK)" pool "ZFS storage pool settings" datasets "ZFS datasets" network "Change networking" view "View install script" edit "Edit install script" back "Back to main menu" 2>/tmp/answer
+    dialog --title "TrueOS Text Install - Edit Menu" --menu "Please select from the following options:" 18 70 10 disk "Change disk ($SYSDISK)" pool "ZFS pool layout" datasets "ZFS datasets" zpoolcfg "ZFS Pool Config" network "Change networking" view "View install script" edit "Edit install script" back "Back to main menu" 2>/tmp/answer
     if [ $? -ne 0 ] ; then break ; fi
 
     ANS="`cat /tmp/answer`"
@@ -938,6 +970,8 @@ start_edit_menu_loop()
        pool) change_zpool
 	     ;;
    datasets) change_zfs
+	     ;;
+   zpoolcfg) change_zpool_cfg
 	     ;;
     network) change_networking 
 	     ;;

@@ -81,9 +81,9 @@ setup_zfs_filesystem()
   # Get the default zpool flags
   get_zpool_flags
 
-  if [ -n "${ZFSFORCE4K}" ] ; then
-    # Set minimum ashift to 4K mode
-    sysctl vfs.zfs.min_auto_ashift=12
+  if [ -n "${ZFSASHIFT}" ] ; then
+    # Set specifed ashift size
+    sysctl vfs.zfs.min_auto_ashift=${ZFSASHIFT}
   fi
 
   # Verify this pool isn't already in use
