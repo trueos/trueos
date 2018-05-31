@@ -12,7 +12,7 @@ exit_err() {
 PROGDIR="/var/trueos-update" ; export PROGDIR
 
 # Set the pub openssl key
-SKEY="${PROGDIR}/conf/security.key" ; export SKEY
+SKEY="/usr/share/keys/trueos-update.pub" ; export SKEY
 
 # How long before pkg times out
 FETCH_TIMEOUT="600" ; export FETCH_TIMEOUT
