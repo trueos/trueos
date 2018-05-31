@@ -145,38 +145,8 @@ ENTRY(fillw)
 	ret
 END(fillw)
 
-ENTRY(bcopyb)
-	pushl	%esi
-	pushl	%edi
-	movl	12(%esp),%esi
-	movl	16(%esp),%edi
-	movl	20(%esp),%ecx
-	movl	%edi,%eax
-	subl	%esi,%eax
-	cmpl	%ecx,%eax			/* overlapping && src < dst? */
-	jb	1f
-	rep
-	movsb
-	popl	%edi
-	popl	%esi
-	ret
-
-	ALIGN_TEXT
-1:
-	addl	%ecx,%edi			/* copy backwards. */
-	addl	%ecx,%esi
-	decl	%edi
-	decl	%esi
-	std
-	rep
-	movsb
-	popl	%edi
-	popl	%esi
-	cld
-	ret
-END(bcopyb)
-
 /*
+ * memmove(dst, src, cnt) (return dst)
  * bcopy(src, dst, cnt)
  *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
@@ -187,6 +157,15 @@ ENTRY(bcopy)
 	pushl	%edi
 	movl	8(%ebp),%esi
 	movl	12(%ebp),%edi
+	jmp	1f
+ALTENTRY(memmove)
+	pushl	%ebp
+	movl	%esp,%ebp
+	pushl	%esi
+	pushl	%edi
+	movl	8(%ebp),%edi
+	movl	12(%ebp),%esi
+1:
 	movl	16(%ebp),%ecx
 
 	movl	%edi,%eax
@@ -203,6 +182,7 @@ ENTRY(bcopy)
 	movsb
 	popl	%edi
 	popl	%esi
+	movl	8(%ebp),%eax			/* return dst for memmove */
 	popl	%ebp
 	ret
 
@@ -225,6 +205,7 @@ ENTRY(bcopy)
 	popl	%edi
 	popl	%esi
 	cld
+	movl	8(%ebp),%eax			/* return dst for memmove */
 	popl	%ebp
 	ret
 END(bcopy)
@@ -464,9 +445,31 @@ msr_onfault:
 	ret
 
 ENTRY(handle_ibrs_entry)
-	ret
+	cmpb	$0,hw_ibrs_active
+	je	1f
+	movl	$MSR_IA32_SPEC_CTRL,%ecx
+	rdmsr
+	orl	$(IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP),%eax
+	orl	$(IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP)>>32,%edx
+	wrmsr
+	movb	$1,PCPU(IBPB_SET)
+	/*
+	 * i386 does not implement SMEP, but the 4/4 split makes this not
+	 * that important.
+	 */
+1:	ret
 END(handle_ibrs_entry)
 
 ENTRY(handle_ibrs_exit)
-	ret
+	cmpb	$0,PCPU(IBPB_SET)
+	je	1f
+	pushl	%ecx
+	movl	$MSR_IA32_SPEC_CTRL,%ecx
+	rdmsr
+	andl	$~(IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP),%eax
+	andl	$~((IA32_SPEC_CTRL_IBRS|IA32_SPEC_CTRL_STIBP)>>32),%edx
+	wrmsr
+	popl	%ecx
+	movb	$0,PCPU(IBPB_SET)
+1:	ret
 END(handle_ibrs_exit)

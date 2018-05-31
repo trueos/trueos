@@ -12004,7 +12004,7 @@ bxe_init_mcast_macs_list(struct bxe_softc                 *sc,
     struct ifmultiaddr *ifma;
     struct ecore_mcast_list_elem *mc_mac;
 
-    TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+    CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
         if (ifma->ifma_addr->sa_family != AF_LINK) {
             continue;
         }
@@ -12027,7 +12027,7 @@ bxe_init_mcast_macs_list(struct bxe_softc                 *sc,
     }
     bzero(mc_mac, (sizeof(*mc_mac) * mc_count));
 
-    TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+    CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
         if (ifma->ifma_addr->sa_family != AF_LINK) {
             continue;
         }
@@ -12130,7 +12130,7 @@ bxe_set_uc_list(struct bxe_softc *sc)
     ifa = if_getifaddr(ifp); /* XXX Is this structure */
     while (ifa) {
         if (ifa->ifa_addr->sa_family != AF_LINK) {
-            ifa = TAILQ_NEXT(ifa, ifa_link);
+            ifa = CK_STAILQ_NEXT(ifa, ifa_link);
             continue;
         }
 
@@ -12150,7 +12150,7 @@ bxe_set_uc_list(struct bxe_softc *sc)
             return (rc);
         }
 
-        ifa = TAILQ_NEXT(ifa, ifa_link);
+        ifa = CK_STAILQ_NEXT(ifa, ifa_link);
     }
 
 #if __FreeBSD_version < 800000
@@ -19240,7 +19240,7 @@ bxe_netdump_poll(struct ifnet *ifp, int count)
 		return (ENOENT);
 
 	for (i = 0; i < sc->num_queues; i++)
-		(void)bxe_rxeof(sc, &sc->fp[0]);
+		(void)bxe_rxeof(sc, &sc->fp[i]);
 	(void)bxe_txeof(sc, &sc->fp[0]);
 	return (0);
 }

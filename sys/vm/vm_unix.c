@@ -65,14 +65,10 @@ struct obreak_args {
 	char *nsize;
 };
 #endif
-
-/*
- * MPSAFE
- */
-/* ARGSUSED */
 int
 sys_obreak(struct thread *td, struct obreak_args *uap)
 {
+#if !defined(__aarch64__) && !defined(__riscv__)
 	struct vmspace *vm = td->td_proc->p_vmspace;
 	vm_map_t map = &vm->vm_map;
 	vm_offset_t new, old, base;
@@ -230,22 +226,16 @@ done:
 		    VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 
 	return (error);
+#else /* defined(__aarch64__) || defined(__riscv__) */
+	return (ENOSYS);
+#endif /* defined(__aarch64__) || defined(__riscv__) */
 }
 
-#ifndef _SYS_SYSPROTO_H_
-struct ovadvise_args {
-	int anom;
-};
-#endif
-
-/*
- * MPSAFE
- */
-/* ARGSUSED */
+#ifdef COMPAT_FREEBSD11
 int
-sys_ovadvise(struct thread *td, struct ovadvise_args *uap)
+freebsd11_vadvise(struct thread *td, struct freebsd11_vadvise_args *uap)
 {
-	/* START_GIANT_OPTIONAL */
-	/* END_GIANT_OPTIONAL */
+
 	return (EINVAL);
 }
+#endif

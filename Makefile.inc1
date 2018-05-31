@@ -807,8 +807,9 @@ _cleanobj_fast_depend_hack: .PHONY
 # 20180404  r332048  sigreturn
 # 20180405  r332080  shmat
 # 20180406  r332119  setlogin
-# 20170411  r332443  exect
-.for f in exect fstat fstatat fstatfs getdirentries getfsstat setlogin shmat sigreturn statfs
+# 20180411  r332443  exect
+# 20180525  r334224  vadvise
+.for f in exect fstat fstatat fstatfs getdirentries getfsstat setlogin shmat sigreturn statfs vadvise
 .if exists(${OBJTOP}/lib/libc/.depend.${f}.o)
 	@if egrep -qw '${f}\.[sS]' \
 	    ${OBJTOP}/lib/libc/.depend.${f}.o; then \
@@ -2030,6 +2031,10 @@ _tcsh=bin/csh
 _libmagic=lib/libmagic
 .endif
 
+.if ${TARGET_ARCH} == "amd64"
+_jevents=lib/libpmc/pmu-events
+.endif
+
 # kernel-toolchain skips _cleanobj, so handle cleaning up previous
 # build-tools directories if needed.
 .if !defined(NO_CLEAN) && make(kernel-toolchain)
@@ -2040,6 +2045,7 @@ _bt_clean=	${CLEANDIR}
     ${_tcsh} \
     bin/sh \
     ${LOCAL_TOOL_DIRS} \
+    ${_jevents} \
     lib/ncurses/ncurses \
     lib/ncurses/ncursesw \
     ${_rescue} \

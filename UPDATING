@@ -32,24 +32,32 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 
-****************************** SPECIAL WARNING: ******************************
+20180530:
+	The kernel / userland interface for devinfo changed, so you'll
+	need a new kernel and userland as a pair for it to work (rebuilding
+	lib/libdevinfo is all that's required). devinfo and devmatch will
+	not work, but everything else will when there's a mismatch.
 
-	Due to a bug in some versions of clang that's very hard to workaround in
-	the upgrade process, to upgrade to -current you must first upgrade
-	either stable/9 after r286035 or stable/10 after r286033 (including
-	10.3-RELEASE) or current after r286007 (including stable/11 and
-	11.0-RELEASE). These revisions post-date the 10.2 and 9.3 releases, so
-	you'll need to take the unusual step of upgrading to the tip of the
-	stable branch before moving to 11 or -current via a source upgrade.
-	stable/11 and 11.0-RELEASE have working newer compiler. This differs
-	from the historical situation where one could upgrade from anywhere on
-	the last couple of stable branches, so be careful.
+20180523:
+	The on-disk format for hwpmc callchain records has changed to include
+	threadid corresponding to a given record. This changes the field offsets
+	and thus requires that libpmcstat be rebuilt before using a kernel
+	later than r334108.
 
-	If you're running a hybrid system on 9.x or 10.x with an updated clang
-	compiler or are using an supported external toolchain, the build system
-	will allow the upgrade. Otherwise it will print a reminder.
+20180517:
+	The vxge(4) driver has been removed.  This driver was introduced into
+	HEAD one week before the Exar left the Ethernet market and is not
+	known to be used.  If you have device vxge in your kernel config file
+	it must be removed.
 
-****************************** SPECIAL WARNING: ******************************
+20180510:
+	The amd64 kernel now requires a ld that supports ifunc to produce a
+	working kernel, either lld or a newer binutils. lld is built by default
+	on amd64, and the 'buildkernel' target uses it automatically. However,
+	it is not the default linker, so building the kernel the traditional
+	way requires LD=ld.lld on the command line (or LD=/usr/local/bin/ld for
+	binutils port/package). lld will soon be default, and this requirement
+	will go away.
 
 20180508:
 	The nxge(4) driver has been removed.  This driver was for PCI-X 10g

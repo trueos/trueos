@@ -2191,9 +2191,7 @@ vm_page_alloc_freelist_domain(int domain, int freelist, int req)
 	vm_page_t m;
 	u_int flags;
 
-	/*
-	 * Do not allocate reserved pages unless the req has asked for it.
-	 */
+	m = NULL;
 	vmd = VM_DOMAIN(domain);
 again:
 	if (vm_domain_allocate(vmd, req, 1)) {
@@ -3088,10 +3086,11 @@ vm_page_pagequeue(vm_page_t m)
 static struct mtx *
 vm_page_pagequeue_lockptr(vm_page_t m)
 {
+	uint8_t queue;
 
-	if (m->queue == PQ_NONE)
+	if ((queue = m->queue) == PQ_NONE)
 		return (NULL);
-	return (&vm_page_pagequeue(m)->pq_mutex);
+	return (&vm_pagequeue_domain(m)->vmd_pagequeues[queue].pq_mutex);
 }
 
 static inline void

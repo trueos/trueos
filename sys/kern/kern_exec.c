@@ -374,7 +374,6 @@ do_execve(struct thread *td, struct image_args *args, struct mac *mac_p)
 	struct ucred *tracecred = NULL;
 #endif
 	struct vnode *oldtextvp = NULL, *newtextvp;
-	cap_rights_t rights;
 	int credential_changing;
 	int textset;
 #ifdef MAC
@@ -455,8 +454,7 @@ interpret:
 		/*
 		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
 		 */
-		error = fgetvp_exec(td, args->fd,
-		    cap_rights_init(&rights, CAP_FEXECVE), &newtextvp);
+		error = fgetvp_exec(td, args->fd, &cap_fexecve_rights, &newtextvp);
 		if (error)
 			goto exec_fail;
 		vn_lock(newtextvp, LK_EXCLUSIVE | LK_RETRY);
@@ -693,9 +691,12 @@ interpret:
 	 * Else stuff argument count as first item on stack
 	 */
 	if (p->p_sysent->sv_fixup != NULL)
-		(*p->p_sysent->sv_fixup)(&stack_base, imgp);
+		error = (*p->p_sysent->sv_fixup)(&stack_base, imgp);
 	else
-		suword(--stack_base, imgp->args->argc);
+		error = suword(--stack_base, imgp->args->argc) == 0 ?
+		    0 : EFAULT;
+	if (error != 0)
+		goto exec_fail_dealloc;
 
 	if (args->fdp != NULL) {
 		/* Install a brand new file descriptor table. */

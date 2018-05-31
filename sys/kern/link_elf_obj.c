@@ -194,7 +194,7 @@ link_elf_init(void *arg)
 	linker_add_class(&link_elf_class);
 }
 
-SYSINIT(link_elf_obj, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, 0);
+SYSINIT(link_elf_obj, SI_SUB_KLD, SI_ORDER_SECOND, link_elf_init, NULL);
 
 static int
 link_elf_link_preload(linker_class_t cls, const char *filename,
@@ -656,7 +656,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	}
 	if (nsym != 1) {
 		/* Only allow one symbol table for now */
-		link_elf_error(filename, "file has no valid symbol table");
+		link_elf_error(filename,
+		    "file must have exactly one symbol table");
 		error = ENOEXEC;
 		goto out;
 	}

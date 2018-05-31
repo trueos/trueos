@@ -127,7 +127,7 @@ struct	in6_ifaddr {
 	struct	sockaddr_in6 ia_dstaddr; /* space for destination addr */
 	struct	sockaddr_in6 ia_prefixmask; /* prefix mask */
 	u_int32_t ia_plen;		/* prefix length */
-	TAILQ_ENTRY(in6_ifaddr)	ia_link;	/* list of IPv6 addresses */
+	CK_STAILQ_ENTRY(in6_ifaddr)	ia_link;	/* list of IPv6 addresses */
 	int	ia6_flags;
 
 	struct in6_addrlifetime ia6_lifetime;
@@ -142,12 +142,12 @@ struct	in6_ifaddr {
 	/* multicast addresses joined from the kernel */
 	LIST_HEAD(, in6_multi_mship) ia6_memberships;
 	/* entry in bucket of inet6 addresses */
-	LIST_ENTRY(in6_ifaddr) ia6_hash;
+	CK_LIST_ENTRY(in6_ifaddr) ia6_hash;
 };
 
 /* List of in6_ifaddr's. */
-TAILQ_HEAD(in6_ifaddrhead, in6_ifaddr);
-LIST_HEAD(in6_ifaddrlisthead, in6_ifaddr);
+CK_STAILQ_HEAD(in6_ifaddrhead, in6_ifaddr);
+CK_LIST_HEAD(in6_ifaddrlisthead, in6_ifaddr);
 #endif	/* _KERNEL */
 
 /* control structure to manage address selection policy */
@@ -727,10 +727,8 @@ in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
 	struct ifmultiaddr *ifma;
 	struct in6_multi *inm;
 
-	IF_ADDR_LOCK_ASSERT(ifp);
-
 	inm = NULL;
-	TAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) {
+	CK_STAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) {
 		if (ifma->ifma_addr->sa_family == AF_INET6) {
 			inm = (struct in6_multi *)ifma->ifma_protospec;
 			if (inm == NULL)
@@ -812,7 +810,7 @@ void	in6m_print(const struct in6_multi *);
 int	in6m_record_source(struct in6_multi *, const struct in6_addr *);
 void	in6m_release_deferred(struct in6_multi *);
 void	in6m_release_list_deferred(struct in6_multi_head *);
-void	ip6_freemoptions(struct ip6_moptions *, struct inpcbinfo *);
+void	ip6_freemoptions(struct ip6_moptions *);
 int	ip6_getmoptions(struct inpcb *, struct sockopt *);
 int	ip6_setmoptions(struct inpcb *, struct sockopt *);
 

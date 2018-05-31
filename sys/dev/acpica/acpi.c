@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 
 #if defined(__i386__) || defined(__amd64__)
+#include <machine/clock.h>
 #include <machine/pci_cfgreg.h>
 #endif
 #include <machine/resource.h>
@@ -2958,6 +2959,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
     if (sc->acpi_sleep_delay > 0)
 	DELAY(sc->acpi_sleep_delay * 1000000);
 
+    suspendclock();
     intr = intr_disable();
     if (state != ACPI_STATE_S1) {
 	sleep_result = acpi_sleep_machdep(sc, state);
@@ -3028,6 +3030,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
      * process.  This handles both the error and success cases.
      */
 backout:
+    if (slp_state >= ACPI_SS_SLP_PREP)
+	resumeclock();
     if (slp_state >= ACPI_SS_GPE_SET) {
 	acpi_wake_prep_walk(state);
 	sc->acpi_sstate = ACPI_STATE_S0;
@@ -3037,6 +3041,10 @@ backout:
     if (slp_state >= ACPI_SS_SLP_PREP)
 	AcpiLeaveSleepState(state);
     if (slp_state >= ACPI_SS_SLEPT) {
+#if defined(__i386__) || defined(__amd64__)
+	/* NB: we are still using ACPI timecounter at this point. */
+	resume_TSC();
+#endif
 	acpi_resync_clock(sc);
 	acpi_enable_fixed_events(sc);
     }
@@ -4179,4 +4187,4 @@ acpi_pm_register(void *arg)
     power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, NULL);
 }
 
-SYSINIT(power, SI_SUB_KLD, SI_ORDER_ANY, acpi_pm_register, 0);
+SYSINIT(power, SI_SUB_KLD, SI_ORDER_ANY, acpi_pm_register, NULL);
