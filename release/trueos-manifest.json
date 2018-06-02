@@ -7,7 +7,7 @@
   "package-all":false,
   "packages":[
     "devel/git",
-    "sysutiles/tmux"
+    "sysutils/tmux"
   ],
   "essential-packages":[
     "devel/git",
