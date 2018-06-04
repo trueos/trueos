@@ -6,19 +6,24 @@
   ],
   "package-all":false,
   "packages":[
-    "devel/git"
+    "devel/git",
+    "sysutils/tmux"
   ],
   "essential-packages":[
-    "devel/git"
+    "devel/git",
+    "sysutils/tmux"
   ],
   "iso-install-packages":[
-    "devel/git"
+    "devel/git",
+    "sysutils/tmux"
   ],
   "dist-packages":[
-    "devel/git"
+    "devel/git",
+    "sysutils/tmux"
   ],
   "auto-install-packages":[
-    "devel/git"
+    "devel/git",
+    "sysutils/tmux"
   ],
   "install-overlay":"",
   "install-script":"",
