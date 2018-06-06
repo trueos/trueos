@@ -308,7 +308,7 @@ pci_vtscsi_reset(void *vsc)
 	sc->vss_config = (struct pci_vtscsi_config){
 		.num_queues = VTSCSI_REQUESTQ,
 		.seg_max = VTSCSI_MAXSEG,
-		.max_sectors = 1,
+		.max_sectors = 2,
 		.cmd_per_lun = 1,
 		.event_info_size = sizeof(struct pci_vtscsi_event),
 		.sense_size = 96,
