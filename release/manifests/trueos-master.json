@@ -13,11 +13,11 @@
   "essential-packages":[
 	  "www/firefox",
 	  "mail/thunderbird",
-	  "x11/kde5"
+	  "x11/kde5",
 	  "sysutiles/tmux"
   ],
   "iso-install-packages":[
-  	"sysutiles/tmux"
+	"sysutiles/tmux"
   ],
   "dist-packages":[
 	"sysutiles/tmux"
