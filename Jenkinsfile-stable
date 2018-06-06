@@ -1,0 +1,111 @@
+/*
+
+This is the Jenkins Pipeline file used to create our
+stable images
+
+*/
+
+pipeline {
+  agent { label 'TrueOS-World' }
+
+  environment {
+    GH_ORG = 'trueos'
+    GH_REPO = 'trueos'
+
+    // Set the MANIFEST we want to use for this build
+    TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-stable.json'
+  }
+
+  stages {
+    stage('Queued') {
+        agent {
+        label 'JenkinsMaster'
+      }
+      steps {
+        echo "Build queued"
+      }
+    }
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Pre-Clean') {
+      steps {
+        sh 'make clean'
+        sh 'cd release && make clean'
+      }
+    }
+    stage('World') {
+      steps {
+        sh 'make -j32 buildworld'
+      }
+    }
+    stage('Kernel') {
+      steps {
+        sh 'make -j32 buildkernel'
+      }
+    }
+    stage('Base Packages') {
+      environment {
+	   // Get our credentials from Jenkins
+           PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
+      }
+      steps {
+        sh 'rm -rf /usr/obj${WORKSPACE}/amd64.amd64/repo'
+        sh 'make -j32 packages'
+      }
+    }
+    stage('Ports') {
+      environment {
+	   // Get our credentials from Jenkins
+           PKG_REPO_SIGNING_KEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
+      }
+      steps {
+        sh 'cd release && make poudriere'
+        // Sign the repo with our repo signing key
+        sh 'cd /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports && pkg-static repo . ${PKG_REPO_SIGNING_KEY}'
+      }
+    }
+    stage('Release') {
+      post {
+        success {
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+        }
+      }
+      steps {
+        sh 'rm -rf ${WORKSPACE}/artifacts'
+        sh 'cd release && make release'
+        sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
+        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
+        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
+        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
+      }
+    }
+
+    stage('Publish') {
+      steps {
+        sshagent (credentials: ['syncbot-credentials']) {
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/stable/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports/ syncbot@pkg.trueos.org:/data/pkg/stable/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest/'
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/stable/base/ || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/repo/ syncbot@pkg.trueos.org:/data/pkg/stable/base/'
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/stable/ || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/stable/'
+        }
+      }
+    }
+  }
+  post {
+    success {
+      sh 'make clean'
+      sh 'cd release && make clean'
+      sh 'rm -rf /usr/obj${WORKSPACE}'
+      script {
+        cleanWs notFailBuild: true
+      }
+    }
+  }
+}
