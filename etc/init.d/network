@@ -1,4 +1,5 @@
 #!/sbin/openrc-run
+# Copyright (c) 2018 - Ken Moore <ken@ixsystems.com>
 # Copyright (c) 2016 - Kris Moore <kris@ixsystems.com>
 # Copyright (c) 2009-2015 The OpenRC Authors.
 # See the Authors file at the top-level directory of this distribution and
@@ -13,10 +14,12 @@
 # This script was inspired by the equivalent rc.d network from NetBSD.
 #
 # 2016-12-11 - Kris Moore - Improved to support per-interface sub-services
+# 2018-06-07 - Ken Moore - Multiplex the device stacks and have it start sub-services
+#		on a per-device basis rather than waiting for devd events which might/not arrive during boot
 #
-
+name="network"
 netif=${RC_SVCNAME##*.}
-if [ -n "$netif" -a "$netif" != "network" ]; then
+if [ -n "$netif" -a "$netif" != "${name}" ]; then
 	ifconfig $netif >/dev/null 2>/dev/null
 	if [ $? -ne 0 ] ; then exit 0; fi
 	network_device="$netif"
@@ -24,12 +27,23 @@ fi
 
 # Until we can determine why devd is throwing some bogus
 # $cdev = '' variables
-if [ "${RC_SVCNAME}" = "network." ] ; then
+if [ "${RC_SVCNAME}" = "${name}." ] ; then
 	exit 1
 fi
-name="network"
 [ -n "$network_device" ] && name="$name ($network_device)"
 
+if [ -n "${network_device}" ] ; then
+  _conf=`sysrc -n ifconfig_${network_device}`
+  echo "${_conf}" | grep -q "WPA"
+  if [ $? -eq 0 ] ; then
+    req_svc="wpa_supplicant.${network_device}"
+  fi
+  echo ${_conf} | grep -q "DHCP"
+  if [ $? -eq 0 ] ; then
+    req_svc="${req_svc} dhcpcd.${network_device}"
+  fi
+  #einfo "Got required services: ${network_device} : ${req_svc} : ${_conf}"
+fi
 
 description="Configures network interfaces."
 __nl="
@@ -45,15 +59,82 @@ depend()
         provide net
         need localmount
         after bootmisc modules
+	before devd
 	keyword -jail -prefix -vserver -stop
+}
+
+
+multiplex_start(){
+  #Create/start sub-services for individual devices
+  # Find the available devices which need services
+  devs=`ifconfig -l`
+  #Now manage each subservice as needed
+  for _dev in ${devs}
+  do
+    #Skip loopback devices - no extra setup needed
+    echo "${_dev}" | grep -q -E "^lo[0-9]"
+    if [ 0 -eq $? ] ; then continue; fi
+    #Create the sub-service link as needed
+    if [ ! -e "${RC_SERVICE}.${_dev}" ] ; then
+      ln "${RC_SERVICE}" "${RC_SERVICE}.${_dev}"
+    fi
+    #Start the sub-service as needed
+    service -N "${name}.${_dev}" start
+  done
+  return 0
+}
+
+multiplex_stop(){
+  #Stop/destroy sub-services for individual devices
+  local _svc
+  for _svc in `ls ${RC_SERVICE}.*`
+  do
+    if [ ! -e "${_svc}" ] ; then continue; fi
+    _svcname=`basename "${_svc}"`
+    #Stop the service if it is running
+    if service_started ${_svcname} ; then
+      service ${_svcname} stop
+    fi
+    #Delete the sub-service link
+    rm "${_svc}"
+  done
+  return 0
+}
+
+extra_services_start(){
+  for _svc in ${req_svc}
+  do
+    rc-service -e ${_svc}
+    if [ 0 -ne $? ] ; then
+      base_svc=`basename ${_svc} .${network_device}`
+      #Need to make the sub-service link
+      if [ -e "/etc/init.d/${base_svc}" ] ; then
+        ln /etc/init.d/${base_svc} /etc/init.d/${_svc}
+      elif [ -e "/etc/init.d/${base_svc}" ] ; then
+        ln /usr/local/etc/init.d/${base_svc} /usr/local/etc/init.d/${_svc}
+      fi
+    fi
+    einfo "Starting sub-service: ${_svc}"
+    service -Nq ${_svc} start
+  done
+  service_set_value "svc_started" "${req_svc}"
+}
+
+extra_services_stop(){
+  for _svc in `service_get_value svc_started`
+  do
+    if service_started ${_svc} ; then
+      einfo "Stopping sub-service: ${_svc}"
+      service -q ${_svc} stop
+    fi
+  done
 }
 
 start()
 {
+    cmdifn=$network_device
+    if [ -z "${network_device}" ] ; then
 	local _if
-
-	# Set the list of interfaces to work on.
-	cmdifn=$network_device
 
 	# Create IEEE802.11 interface
 	wlan_up $cmdifn
@@ -64,6 +145,10 @@ start()
 	# Rename interfaces.
 	ifnet_rename $cmdifn
 
+	# Now start all the multi-plexed sub-services
+	multiplex_start
+
+    else
 	# Configure the interface(s).
 	netif_common ifn_start $cmdifn
 
@@ -71,26 +156,34 @@ start()
 		# Resync ipfilter
 	#	/etc/rc.d/ipfilter quietresync
 	#fi
-	if [ -n "$cmdifn" ] ; then
-		export BRIDGE_IFLIST="${cmdifn}"
-		service bridge static
-	fi
-	if [ -n "$cmdifn" ] ; then
-		for _if in $cmdifn; do
-			export ROUTE_AF="any"
-			export ROUTE_IF="$_if"
-			service routing static
-		done
-	fi
+	#Setup briding
+	export BRIDGE_IFLIST="${cmdifn}"
+	service -q bridge static
+	#Setup routing
+	for _if in $cmdifn; do
+		export ROUTE_AF="any"
+		export ROUTE_IF="$_if"
+		service -q routing static
+	done
+    fi
+}
+
+start_post(){
+  extra_services_start
 }
 
 stop()
 {
-	netif_stop0 $*
+	if [ -z "${network_device}" ] ; then
+	  multiplex_stop
+	else
+	  netif_stop0 $*
+	fi
 }
 
 stop_pre()
 {
+  extra_services_stop
 	if [ "$RC_CMD" = "restart" ]; then
 		_clone_down=
 		_wlan_down=
