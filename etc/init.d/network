@@ -184,7 +184,7 @@ stop()
 stop_pre()
 {
   extra_services_stop
-	if [ "$RC_CMD" = "restart" ]; then
+	if [ "$RC_CMD" = "restart" ] || [ -n "${network_device}" ] ; then
 		_clone_down=
 		_wlan_down=
 	else
