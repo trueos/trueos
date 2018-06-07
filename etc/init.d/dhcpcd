@@ -23,6 +23,13 @@ name="DHCP Client Daemon"
 depend()
 {
 	keyword -stop -shutdown
+	if [ -n "${dhcpcd_device}" ] ; then
+		echo "${dhcpcd_device}" | grep -q -E "^wlan[0-9]*"
+		if [ 0 -eq $? ] ; then
+			after wpa_supplicant.${dhcpcd_device}
+		fi
+		need network.${dhcpcd_device}
+	fi
 }
 
 uniqify()
