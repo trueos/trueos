@@ -169,7 +169,10 @@ start()
 }
 
 start_post(){
-  extra_services_start
+	if [ $? -eq 0 ] && [ -n "${network_device}" ] ; then
+		mark_service_started  "${RC_SVCNAME}"
+		extra_services_start
+	fi
 }
 
 stop()
