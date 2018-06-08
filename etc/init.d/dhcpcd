@@ -28,7 +28,7 @@ depend()
 		if [ 0 -eq $? ] ; then
 			after wpa_supplicant.${dhcpcd_device}
 		fi
-		need network.${dhcpcd_device}
+		after network network.${dhcpcd_device}
 	fi
 }
 
