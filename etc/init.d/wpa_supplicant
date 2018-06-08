@@ -28,7 +28,7 @@ depend()
 {
 	keyword -shutdown -stop -jail
 	if [ -n "${wpa_device}" ] ; then
-		need network.${wpa_device}
+		need network network.${wpa_device}
 	fi
 }
 
