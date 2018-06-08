@@ -32,19 +32,6 @@ if [ "${RC_SVCNAME}" = "${name}." ] ; then
 fi
 [ -n "$network_device" ] && name="$name ($network_device)"
 
-if [ -n "${network_device}" ] ; then
-  _conf=`sysrc -n ifconfig_${network_device}`
-  echo "${_conf}" | grep -q "WPA"
-  if [ $? -eq 0 ] ; then
-    req_svc="wpa_supplicant.${network_device}"
-  fi
-  echo ${_conf} | grep -q "DHCP"
-  if [ $? -eq 0 ] ; then
-    req_svc="${req_svc} dhcpcd.${network_device}"
-  fi
-  #einfo "Got required services: ${network_device} : ${req_svc} : ${_conf}"
-fi
-
 description="Configures network interfaces."
 __nl="
 "
@@ -65,6 +52,7 @@ depend()
 
 
 multiplex_start(){
+  create_only=$1
   #Create/start sub-services for individual devices
   # Find the available devices which need services
   devs=`ifconfig -l`
@@ -78,8 +66,17 @@ multiplex_start(){
     if [ ! -e "${RC_SERVICE}.${_dev}" ] ; then
       ln "${RC_SERVICE}" "${RC_SERVICE}.${_dev}"
     fi
+    if [ -n "${create_only}" ] ; then continue; fi
     #Start the sub-service as needed
-    service -N "${name}.${_dev}" start
+    ifconfig ${_dev} | grep -q "no carrier"
+    if [ $? -eq 0 ]  ; then
+      echo "${_dev}" | grep -q "wlan"
+      if [ $? -eq 1 ] ; then
+        #einfo "No Carrier on device: ${_dev}"
+        continue
+      fi
+    fi
+    (service -N "network.${_dev}" start) &
   done
   return 0
 }
@@ -102,6 +99,7 @@ multiplex_stop(){
 }
 
 extra_services_start(){
+  return 0
   for _svc in ${req_svc}
   do
     rc-service -e ${_svc}
@@ -121,13 +119,20 @@ extra_services_start(){
 }
 
 extra_services_stop(){
-  for _svc in `service_get_value svc_started`
+  if [ -z "${network_device}" ] ; then return 0; fi
+
+  for _svc in dhcpcd.${network_device} wpa_supplicant.${network_device} 
   do
     if service_started ${_svc} ; then
       einfo "Stopping sub-service: ${_svc}"
       service -q ${_svc} stop
     fi
   done
+  return 0
+}
+
+start_pre(){
+  multiplex_start "create_only"
 }
 
 start()
@@ -168,13 +173,6 @@ start()
     fi
 }
 
-start_post(){
-	if [ $? -eq 0 ] && [ -n "${network_device}" ] ; then
-		mark_service_started  "${RC_SVCNAME}"
-		extra_services_start
-	fi
-}
-
 stop()
 {
 	if [ -z "${network_device}" ] ; then
@@ -186,7 +184,7 @@ stop()
 
 stop_pre()
 {
-  extra_services_stop
+	extra_services_stop
 	if [ "$RC_CMD" = "restart" ] || [ -n "${network_device}" ] ; then
 		_clone_down=
 		_wlan_down=
