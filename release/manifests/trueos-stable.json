@@ -14,16 +14,16 @@
 	  "www/firefox",
 	  "mail/thunderbird",
 	  "x11/kde5",
-	  "sysutiles/tmux"
+	  "sysutils/tmux"
   ],
   "iso-install-packages":[
-	"sysutiles/tmux"
+	"sysutils/tmux"
   ],
   "dist-packages":[
-	"sysutiles/tmux"
+	"sysutils/tmux"
   ],
   "auto-install-packages":[
-	"sysutiles/tmux"
+	"sysutils/tmux"
   ],
   "install-overlay":"",
   "install-script":"",
