@@ -1,5 +1,7 @@
 /*-
  * Copyright (c) 2017 Marcelo Araujo <araujo@FreeBSD.org>.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2015 Nahanni Systems, Inc.
  * All rights reserved.
  *
