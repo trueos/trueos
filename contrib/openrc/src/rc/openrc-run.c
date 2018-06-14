@@ -1363,7 +1363,7 @@ int main(int argc, char **argv)
 			printf ("\n");
 			rc_stringlist_free(services);
 			services = NULL;
-		} else if (strcmp (optarg, "status") == 0) {
+		} else if (strcmp (optarg, "status") == 0 || strcmp(optarg, "onestatus") == 0) {
 			save = prefix;
 			eprefix(NULL);
 			prefix = NULL;
