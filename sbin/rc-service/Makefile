@@ -9,7 +9,8 @@ ORSRC=    ${SRCTOP}/contrib/openrc/src
 
 .PATH:  ${ORSRC}/rc
 
-LINKS=	${BINDIR}/rc-service ${BINDIR}/service
+LINKS=	${BINDIR}/rc-service /usr/sbin/service
+LINKS+=	${BINDIR}/rc-service ${BINDIR}/service
 SRCS=	rc-service.c \
 	rc-misc.c \
 	_usage.c
