@@ -3,7 +3,8 @@
 .include <bsd.init.mk>
 
 FILESDIR=	/boot/lua
-FILES=	cli.lua \
+FILES=	brand-trident.lua \
+	cli.lua \
 	color.lua \
 	config.lua \
 	core.lua \
@@ -15,6 +16,7 @@ FILES=	cli.lua \
 	logo-fbsdbw.lua \
 	logo-orb.lua \
 	logo-orbbw.lua \
+	logo-trident.lua \
 	menu.lua \
 	password.lua \
 	screen.lua
