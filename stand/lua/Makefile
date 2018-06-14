@@ -3,7 +3,8 @@
 .include <bsd.init.mk>
 
 FILESDIR=	/boot/lua
-FILES=	cli.lua \
+FILES=	brand-trueos.lua \
+	cli.lua \
 	color.lua \
 	config.lua \
 	core.lua \
