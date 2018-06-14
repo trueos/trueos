@@ -23,6 +23,7 @@ OPENRC_BOOT_LINK=	abi \
 			fsck \
 			hostid \
 			hostname \
+			kldxref \
 			localmount \
 			modules \
 			motd \
