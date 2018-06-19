@@ -64,6 +64,19 @@ if [ -f /etc/trueos-custom-install ]; then
 	exit $?
 fi
 
+if glabel status | grep -q "^msdosfs/TRUEOSCONF"; then
+	mkdir /tmp/TRUESOSCONF
+        mount_msdosfs /dev/msdosfs/TRUEOSCONF /tmp/TRUEOSCONF
+	# Check if we have an auto-install directive
+	if pc-sysinstall start-autoinstall /tmp/TRUEOSCONF/installerconfig; then
+		dialog --backtitle "TrueOS Installer" --title "Complete" --no-cancel --ok-label "Reboot" --pause "Installation of TrueOS complete! Rebooting in 10 seconds" 10 30 10
+		reboot
+	else
+		dialog --backtitle "TrueOS Installer" --title "Error" --textbox /tmp/pc-sysinstall.log
+	fi
+fi
+        	
+
 if [ -f /etc/installerconfig ]; then
 	# Check if we have an auto-install directive
 	if pc-sysinstall start-autoinstall /etc/installerconfig; then

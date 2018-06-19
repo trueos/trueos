@@ -48,7 +48,18 @@ INSTALL_CFG="/tmp/pc-sysinstall.cfg"
 # Check if the config file is on disk as well
 PCCFG=`grep "pc_config:" ${CONF} | grep -v "^#" | sed "s|pc_config: ||g" | sed "s|pc_config:||g"`
 SHUTDOWN_CMD=`grep "shutdown_cmd:" ${CONF} | grep -v "^#" | sed "s|shutdown_cmd: ||g" | sed "s|shutdown_cmd:||g"`
-CONFIRM_INS=`grep "confirm_install:" ${CONF} | grep -v "^#" | sed "s|confirm_install: ||g" | sed "s|confirm_install:||g"`
+CONFIRM_INS=`grep "confirm_install:" ${CONF} | grep -v "^#" | sed "s|confirm_install: ||g" | sed "s|confirm_install:||g" | tr -d "[:space:]" | tr "a-z" "A-Z"`
+SENTINEL_FILE=`grep "sentinel_file:" ${CONF} | grep -v "^#" | sed "s|sentinel_file: ||g" | sed "s|sentinel_file:||g"`
+
+if [ -n "${SENTINEL_FILE}" ]
+then
+  if [ ! -e ${SENTINEL_FILE} ]
+  then
+    echo "Error: Sentinel file \"${SENTINEL_FILE}\"  is missing! Exiting in 10 seconds..."
+    sleep 10
+    exit 150
+  fi
+fi
 
 # Check that this isn't a http / ftp file we need to fetch later
 echo "${PCCFG}" | grep -q -e "^http" -e "^ftp" 2>/dev/null
@@ -105,8 +116,7 @@ fi
 # If we end up with a valid config, lets proccede
 if [ -e "${INSTALL_CFG}" ]
 then
-  
-  if [ "${CONFIRM_INS}" != "no" -a "${CONFIRM_INS}" != "NO" ]
+  if [ "${CONFIRM_INS}" != "NO" ]
   then
     echo "Type in 'install' to begin automated installation. Warning: Data on target disks may be destroyed!"
     read tmp
