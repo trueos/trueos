@@ -149,6 +149,7 @@ setup_filesystems()
     then
       echo_log "Creating geli provider for ${PARTDEV}"
 
+      rc_halt "kldstat -v |grep -q g_eli || kldload geom_eli"
       if [ -e "${PARTDIR}-enc/${PART}-encpass" ] ; then
 	# Using a passphrase
         rc_halt "geli init -g -b -J ${PARTDIR}-enc/${PART}-encpass ${PARTDEV}"
@@ -281,6 +282,7 @@ setup_filesystems()
 # Takes a list of args to setup as a swapmirror
 setup_gmirror_swap()
 {
+  rc_halt "kldstat -v |grep -q g_mirror || kldload geom_mirror"
   rc_nohalt "gmirror destroy swapmirror"
   rc_halt "gmirror label swapmirror ${@}"
 }

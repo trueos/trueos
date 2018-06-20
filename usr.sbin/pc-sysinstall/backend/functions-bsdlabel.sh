@@ -156,11 +156,14 @@ setup_zfs_mirror_parts()
       if [ "$_tBL" != "GRUB" -a "$BOOTMODE" != "UEFI" ] ; then
         rc_halt "gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 ${_zvars}"
       fi
+      # Clean up zpool labels as we go so we don't confuse zpool import
       # If GELI is enabled
       if [ "$ENC" = "ON" ] ; then
         _nZFS="$_nZFS ${_zvars}p2.eli"
+        rc_nohalt "zpool label clear ${_zvars}p2.eli"
       else
         _nZFS="$_nZFS ${_zvars}p2"
+        rc_nohalt "zpool label clear ${_zvars}p2"
       fi
     else
       _nZFS="$_nZFS ${_zvars}"
