@@ -97,10 +97,37 @@ unattended installation when used.
   "install-script":"/usr/local/etc/autoinstall.cfg"
 ```
 
-Aditional Configuration:
+Poudriere Configuration (building ports):
 --------------
+As part of the `make poudriere` build stage, a poudriere instance is created and run to build all of the requested packages from the specified ports tree. The configuration of poudriere is automatically performed to ensure an optimal result for most build systems, but it is possible to further customize these settings as needed. Common customizations are allowing systems to override specific settings such as TMPFS, or MAKE_JOBS that are more suitable for the individual build system.
 
-* /etc/poudriere.conf.release - If this file exists, it will be included with the poudriere build process, allowing systems to override specific settings such as TMPFS, or MAKE_JOBS that are more suitable for that builder.
+An example of the automatically-generated config file is included below for reference:
+```
+# Base Poudriere setup for build environment
+ZPOOL=${ZPOOL}
+FREEBSD_HOST=file://${DIST_DIR}
+GIT_URL=${GH_PORTS}
+BASEFS=${POUDRIERE_BASEFS}
+# Change a couple poudriere defaults to integrate with an automated build
+USE_TMPFS=data
+ATOMIC_PACKAGE_REPOSITORY=no
+PKG_REPO_FROM_HOST=yes
+# Optimize the building of known "large" ports (if selected for build)
+ALLOW_MAKE_JOBS_PACKAGES="chomium* iridium* gcc* webkit* llvm* clang* firefox* ruby* cmake* rust*"
+PRIORITY_BOOST="pypy* openoffice* iridium* chromium*"
+```
+
+* poudriere-conf - JSON String Array, Additional configuration lines to be placed into the auto-generated poudriere.conf for the build.
+```
+ "poudriere-conf" : [
+   "MAKE_JOBS=60",
+   "USE_TMPFS=all"
+   "NOLINUX=yes"
+ ]
+```
+
+* */etc/poudriere.conf.release* - If this file exists, it will be appended as a whole to the auto-generated config.
+
 
 Build Instructions:
 --------------
