@@ -107,6 +107,7 @@ pipeline {
       sh 'make clean'
       sh 'cd release && make clean'
       sh 'rm -rf /usr/obj${WORKSPACE}'
+      sh 'rm -rf /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports'
       script {
         cleanWs notFailBuild: true
       }
