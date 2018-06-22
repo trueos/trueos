@@ -161,6 +161,30 @@ clean_poudriere()
 	echo -e "y\n" | poudriere ports -d -p ${POUDRIERE_PORTS}
 }
 
+super_clean_poudriere()
+{
+	#Look for any leftover mountpoints/directories and remove them too
+	for i in `ls ${POUDRIERED_DIR}/*-make.conf`
+	do
+		name=`basename "${i}" | sed 's|-make.conf||g'`
+		if [ ! -d "${POUDRIERED_DIR}/jails/${name}" ]  && [ -d "${POUDRIERE_BASEFS}/jails/${name}" ] ; then
+			#Jail configs missing, but jail mountpoint still exists
+			#Need to completely destroy the old jail dataset/dir
+			_stale_dataset=$(mount | grep 'on ${POUDRIERE_BASEFS}/jails/${name} ' | cut -w -f 1)
+			if [ -n "${_stale_dataset}" ] ; then
+				#Found a stale mountpoint/dataset
+				umount ${POUDRIERE_BASEFS}/jails/${name}
+				rmdir ${POUDRIERE_BASEFS}/jails/${name}
+				#Verify that it is a valid ZFS dataset
+				zfs list "${_stale_dataset}"
+				if [ 0 -eq $? ] ; then
+					zfs destroy -r ${_stale_dataset}
+				fi
+			fi
+		fi
+	done
+}
+
 check_essential_pkgs()
 {
 	if [ "$(jq -r '."essential-packages"' ${TRUEOS_MANIFEST})" = "null" ] ; then
@@ -203,6 +227,7 @@ clean_jails()
 {
 	setup_poudriere_conf
 	clean_poudriere
+	super_clean_poudriere
 }
 
 run_poudriere()
