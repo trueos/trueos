@@ -146,6 +146,9 @@ build_poudriere()
 			exit_err "Failed poudriere build"
 		fi
 	fi
+
+	# Save the FreeBSD ABI Version
+	awk '/^\#define[[:blank:]]__FreeBSD_version/ {print $3}' < ${SRCDIR}/sys/sys/param.h > ${POUDRIERE_PKGDIR}/.FreeBSD_Version
 }
 
 clean_poudriere()
@@ -159,6 +162,13 @@ clean_poudriere()
 
 	# Delete previous ports tree
 	echo -e "y\n" | poudriere ports -d -p ${POUDRIERE_PORTS}
+
+	# If the ABI has changed, we need to rebuild all
+	ABIVER=$(awk '/^\#define[[:blank:]]__FreeBSD_version/ {print $3}' < ${SRCDIR}/sys/sys/param.h)
+	if [ $(cat ${POUDRIERE_PKGDIR}/.FreeBSD_Version) != "$ABIVER" ] ; then
+		echo "New ABI detected! Removing stale packages..."
+		rm -rf ${POUDRIERE_PKGDIR}
+	fi
 }
 
 super_clean_poudriere()
