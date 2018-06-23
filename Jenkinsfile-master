@@ -15,6 +15,7 @@ pipeline {
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
+    POUDRIERE_BASE = 'trueos-unstable-base'
 
     // Set the MANIFEST we want to use for this build
     TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-master.json'
@@ -70,7 +71,7 @@ pipeline {
       steps {
         sh 'cd release && make poudriere'
         // Sign the repo with our repo signing key
-        sh 'cd /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports && pkg-static repo . ${PKG_REPO_SIGNING_KEY}'
+        sh 'cd /usr/local/poudriere/data/packages/trueos-unstable-base-trueos-mk-ports && pkg-static repo . ${PKG_REPO_SIGNING_KEY}'
       }
     }
     stage('Release') {
@@ -93,7 +94,7 @@ pipeline {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/unstable/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports/ syncbot@pkg.trueos.org:/data/pkg/unstable/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest/'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/local/poudriere/data/packages/trueos-unstable-base-trueos-mk-ports/ syncbot@pkg.trueos.org:/data/pkg/unstable/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest/'
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/unstable/base/ || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/repo/ syncbot@pkg.trueos.org:/data/pkg/unstable/base/'
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/unstable/ || true'
@@ -107,7 +108,6 @@ pipeline {
       sh 'make clean'
       sh 'cd release && make clean'
       sh 'rm -rf /usr/obj${WORKSPACE}'
-      sh 'rm -rf /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports'
       script {
         cleanWs notFailBuild: true
       }
