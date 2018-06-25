@@ -336,6 +336,9 @@ main(int argc, char **argv)
 				  continue;
 			}
 			if (gsp->sequence0 != gsp->sequence1) {
+				/* it is ok to skip entire line silently
+				 * for CSV output
+				 */
 				if (!flag_C)
 					PRINTMSG("*\n");
 				continue;
