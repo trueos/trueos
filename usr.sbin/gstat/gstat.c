@@ -390,19 +390,7 @@ main(int argc, char **argv)
 	
 			if (flag_C) {
 				PRINTMSG("%s", ts); /* timestamp */
-				/* print name */
-				if (gid == NULL) {
-					PRINTMSG(",??");
-				} else if (gid->lg_what == ISPROVIDER) {
-					pp = gid->lg_ptr;
-					PRINTMSG(",%s", pp->lg_name);
-				} else if (gid->lg_what == ISCONSUMER) {
-					cp = gid->lg_ptr;
-					PRINTMSG(",%s/%s/%s",
-					    cp->lg_geom->lg_class->lg_name,
-					    cp->lg_geom->lg_name,
-					    cp->lg_provider->lg_name);
-				}
+				PRINTMSG(",%s", g_name); /* print name */
 				PRINTMSG(",%ju", (uintmax_t)u64);
 				PRINTMSG(",%.0f", (double)ld[0]);
 				PRINTMSG(",%.0f", (double)ld[1]);
@@ -495,18 +483,7 @@ main(int argc, char **argv)
 					PRINTMSG("|");
 				} else
 					PRINTMSG(" ");
-				if (gid == NULL) {
-					PRINTMSG(" ??");
-				} else if (gid->lg_what == ISPROVIDER) {
-					pp = gid->lg_ptr;
-					PRINTMSG(" %s", pp->lg_name);
-				} else if (gid->lg_what == ISCONSUMER) {
-					cp = gid->lg_ptr;
-					PRINTMSG(" %s/%s/%s",
-					    cp->lg_geom->lg_class->lg_name,
-					    cp->lg_geom->lg_name,
-					    cp->lg_provider->lg_name);
-				}
+				PRINTMSG(" %s", g_name);
 				if (!flag_b)
 					clrtoeol();
 			}
@@ -600,7 +577,7 @@ main(int argc, char **argv)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: gstat [-abBcdps] [-f filter] [-I interval]\n");
+	fprintf(stderr, "usage: gstat [-abBcCdps] [-f filter] [-I interval]\n");
 	exit(EX_USAGE);
         /* NOTREACHED */
 }
