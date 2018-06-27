@@ -89,7 +89,7 @@ setup_poudriere_conf()
 	echo "BASEFS=$POUDRIERE_BASEFS" >> ${_pdconf}
 	echo "ATOMIC_PACKAGE_REPOSITORY=no" >> ${_pdconf}
 	echo "PKG_REPO_FROM_HOST=yes" >> ${_pdconf}
-	echo "ALLOW_MAKE_JOBS_PACKAGES=\"chromium* iridium* gcc* webkit* llvm* clang* firefox* ruby* cmake* rust* qt5-web* phantomjs* swift* python2* python3* perl5*\"" >> ${_pdconf}
+	echo "ALLOW_MAKE_JOBS_PACKAGES=\"chromium* iridium* gcc* webkit* llvm* clang* firefox* ruby* cmake* rust* qt5-web* phantomjs* swift* python2* python3* perl5* pypy*\"" >> ${_pdconf}
 	echo "PRIORITY_BOOST=\"pypy* openoffice* iridium* chromium*\"" >> ${_pdconf}
 
 	if [ "$(jq -r '."poudriere-conf" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
