@@ -99,7 +99,9 @@ unattended installation when used.
 
 Poudriere Configuration (building ports):
 --------------
-As part of the `make poudriere` build stage, a poudriere instance is created and run to build all of the requested packages from the specified ports tree. The configuration of poudriere is automatically performed to ensure an optimal result for most build systems, but it is possible to further customize these settings as needed. Common customizations are allowing systems to override specific settings such as TMPFS, or MAKE_JOBS that are more suitable for the individual build system.
+As part of the `make poudriere` build stage, a poudriere instance is created and run to build all of the requested packages from the specified ports tree. The configuration of poudriere is automatically performed to ensure an optimal result for most build systems, but it is possible to further customize these settings as needed. Common customizations are allowing systems to override specific settings such as USE_TMPFS, or PARALLEL_JOBS that are more suitable for the individual build system.
+
+* **NOTE:** When using Jenkins to manage the build process, it is often required to set the "PARALLEL_JOBS" value to a number a bit lower than the maximum number of CPU's on the system due to the administrative overhead of Jenkins. Typically MAX-2 is a good value for systems with many CPUs.
 
 An example of the automatically-generated config file is included below for reference:
 ```
@@ -120,9 +122,9 @@ PRIORITY_BOOST="pypy* openoffice* iridium* chromium*"
 * poudriere-conf - JSON String Array, Additional configuration lines to be placed into the auto-generated poudriere.conf for the build.
 ```
  "poudriere-conf" : [
-   "MAKE_JOBS=60",
-   "USE_TMPFS=all"
-   "NOLINUX=yes"
+   "USE_TMPFS=all",
+   "NOLINUX=yes",
+   "PARALLEL_JOBS=30"
  ]
 ```
 
