@@ -7,22 +7,32 @@
   "package-all":false,
   "packages":[
     "devel/git",
+    "sysutils/ipmitool",
+    "sysutils/dmidecode",
     "sysutils/tmux"
   ],
   "essential-packages":[
     "devel/git",
+    "sysutils/ipmitool",
+    "sysutils/dmidecode",
     "sysutils/tmux"
   ],
   "iso-install-packages":[
     "devel/git",
+    "sysutils/ipmitool",
+    "sysutils/dmidecode",
     "sysutils/tmux"
   ],
   "dist-packages":[
     "devel/git",
+    "sysutils/ipmitool",
+    "sysutils/dmidecode",
     "sysutils/tmux"
   ],
   "auto-install-packages":[
     "devel/git",
+    "sysutils/ipmitool",
+    "sysutils/dmidecode",
     "sysutils/tmux"
   ],
   "install-overlay":"",

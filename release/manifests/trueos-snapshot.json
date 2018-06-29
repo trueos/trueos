@@ -12,6 +12,8 @@
 	  "lang/python",
 	  "lang/python2",
 	  "lang/python3",
+	  "sysutils/ipmitool",
+	  "sysutils/dmidecode",
 	  "editors/vim"
   ],
   "essential-packages":[
@@ -19,13 +21,21 @@
 	  "lang/python",
 	  "lang/python2",
 	  "lang/python3",
+	  "sysutils/ipmitool",
+	  "sysutils/dmidecode",
 	  "editors/vim"
   ],
   "iso-install-packages":[
+	  "sysutils/ipmitool",
+	  "sysutils/dmidecode"
   ],
   "dist-packages":[
+	  "sysutils/ipmitool",
+	  "sysutils/dmidecode"
   ],
   "auto-install-packages":[
+	  "sysutils/ipmitool",
+	  "sysutils/dmidecode"
   ],
   "install-overlay":"",
   "install-script":"",
