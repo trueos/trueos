@@ -2,9 +2,7 @@
   "ports-url":"https://github.com/trueos/trueos-ports",
   "ports-branch":"trueos-master",
   "ports-conf":[
-	  "MAKE_JOBS_NUMBER_LIMIT=3",
-	  "editors_vim_UNSET=GTK2",
-	  "editors_vim_SET=CONSOLE"
+	  "MAKE_JOBS_NUMBER_LIMIT=3"
   ],
   "package-all":false,
   "packages":[
@@ -12,10 +10,10 @@
 	  "lang/python",
 	  "lang/python2",
 	  "lang/python3",
-	  "sysutils/ipmitool",
+	  "ssysutils/ipmitool",
 	  "sysutils/dmidecode",
 	  "www/nginx",
-	  "editors/vim"
+	  "editors/vim-console"
   ],
   "essential-packages":[
 	  "devel/git",
@@ -25,7 +23,7 @@
 	  "sysutils/ipmitool",
 	  "sysutils/dmidecode",
 	  "www/nginx",
-	  "editors/vim"
+    "editors/vim-console"
   ],
   "iso-install-packages":[
 	  "sysutils/ipmitool",

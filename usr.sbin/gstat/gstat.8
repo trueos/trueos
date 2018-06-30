@@ -61,6 +61,12 @@ consumers too.
 The default is to show statistics only for
 .Xr geom 4
 producers.
+.It Fl C
+CSV output mode.
+Implies endless batch mode, but output is in the form of comma-separated
+values, with ISO 8601-like timestamps.
+Note that using -C with an interval of less than 1s will work, but 
+printed timestamp granularity is only 1s.
 .It Fl d
 Enable display of statistics for delete
 .Pq Dv BIO_DELETE
