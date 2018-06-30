@@ -14,15 +14,23 @@
 	  "www/firefox",
 	  "mail/thunderbird",
 	  "x11/kde5",
+	  "sysutils/ipmitool",
+	  "sysutils/dmidecode",
 	  "sysutils/tmux"
   ],
   "iso-install-packages":[
+	"sysutils/ipmitool",
+	"sysutils/dmidecode",
 	"sysutils/tmux"
   ],
   "dist-packages":[
+	"sysutils/ipmitool",
+	"sysutils/dmidecode",
 	"sysutils/tmux"
   ],
   "auto-install-packages":[
+	"sysutils/ipmitool",
+	"sysutils/dmidecode",
 	"sysutils/tmux"
   ],
   "install-overlay":"",

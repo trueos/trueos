@@ -10,6 +10,9 @@
 	  "lang/python",
 	  "lang/python2",
 	  "lang/python3",
+	  "ssysutils/ipmitool",
+	  "sysutils/dmidecode",
+	  "www/nginx",
 	  "editors/vim-console"
   ],
   "essential-packages":[
@@ -17,13 +20,24 @@
 	  "lang/python",
 	  "lang/python2",
 	  "lang/python3",
-	  "editors/vim-console"
+	  "sysutils/ipmitool",
+	  "sysutils/dmidecode",
+	  "www/nginx",
+    "editors/vim-console"
   ],
   "iso-install-packages":[
+	  "sysutils/ipmitool",
+	  "sysutils/dmidecode"
   ],
   "dist-packages":[
+	  "sysutils/ipmitool",
+	  "sysutils/dmidecode",
+	  "www/nginx"
   ],
   "auto-install-packages":[
+	  "sysutils/ipmitool",
+	  "sysutils/dmidecode",
+	  "www/nginx"
   ],
   "install-overlay":"",
   "install-script":"",
