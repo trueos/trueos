@@ -9,7 +9,7 @@ pipeline {
   agent { label 'TrueOS-World' }
 
   triggers {
-    cron('01 17 * * 5')
+    cron('01 17 * * 1')
   }
 
   environment {
