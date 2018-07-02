@@ -276,8 +276,8 @@ EOF
 	fi
 
 	# Check if we have dist-packages to include on the ISO
-	if [ "$(jq -r '."dist-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
-		for i in $(jq -r '."dist-packages" | join(" ")' ${TRUEOS_MANIFEST})
+	if [ "$(jq -r '."dist-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] || [ "$(jq -r '."auto-install-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
+		for i in $(jq -r '."dist-packages" | join(" ")' ${TRUEOS_MANIFEST}) $(jq -r '."auto-install-packages" | join(" ")' ${TRUEOS_MANIFEST})
 		do
 			pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
 				-R ${OBJDIR}/repo-config \
