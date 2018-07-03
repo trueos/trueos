@@ -3,7 +3,6 @@
  *
  * Copyright (c) 2017 Shunsuke Mie
  * Copyright (c) 2018 Leon Dang
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,7 +35,7 @@
  *  accepted devpath:
  *    /dev/blockdev
  *    /path/to/image
- *    ram=size_in_MB
+ *    ram=size_in_MiB
  *
  *  maxq    = max number of queues
  *  qsz     = max elements in each queue
@@ -379,12 +378,17 @@ pci_nvme_reset(struct pci_nvme_softc *sc)
 		sc->num_cqueues = sc->num_squeues = sc->max_queues;
 
 		for (int i = 0; i <= sc->max_queues; i++) {
+			/*
+			 * The Admin Submission Queue is at index 0.
+			 * It must not be changed at reset otherwise the
+			 * emulation will be out of sync with the guest.
+			 */
 			if (i != 0) {
 				sc->submit_queues[i].qbase = NULL;
 				sc->submit_queues[i].size = 0;
 				sc->submit_queues[i].cqid = 0;
 
-				sc->submit_queues[i].qbase = NULL;
+				sc->compl_queues[i].qbase = NULL;
 				sc->compl_queues[i].size = 0;
 			}
 			sc->submit_queues[i].tail = 0;
