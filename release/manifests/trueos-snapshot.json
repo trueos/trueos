@@ -10,7 +10,7 @@
 	  "lang/python",
 	  "lang/python2",
 	  "lang/python3",
-	  "ssysutils/ipmitool",
+	  "sysutils/ipmitool",
 	  "sysutils/dmidecode",
 	  "www/nginx",
 	  "editors/vim-console"
