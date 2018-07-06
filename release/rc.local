@@ -64,7 +64,7 @@ if [ -f /etc/trueos-custom-install ]; then
 	exit $?
 fi
 
-if glabel status | grep -q "^msdosfs/TRUEOSCONF"; then
+if glabel status | grep -q "msdosfs/TRUEOSCONF"; then
 	mkdir /tmp/TRUEOSCONF
         mount_msdosfs /dev/msdosfs/TRUEOSCONF /tmp/TRUEOSCONF
 	# Check if we have an auto-install directive
