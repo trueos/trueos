@@ -399,6 +399,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	struct sockaddr_in udp_in[2];
 	struct mbuf *m;
 	struct m_tag *fwd_tag;
+	struct epoch_tracker et;
 	int cscov_partial, iphlen;
 
 	m = *mp;
@@ -529,10 +530,10 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 		struct inpcbhead *pcblist;
 		struct ip_moptions *imo;
 
-		INP_INFO_RLOCK(pcbinfo);
+		INP_INFO_RLOCK_ET(pcbinfo, et);
 		pcblist = udp_get_pcblist(proto);
 		last = NULL;
-		LIST_FOREACH(inp, pcblist, inp_list) {
+		CK_LIST_FOREACH(inp, pcblist, inp_list) {
 			if (inp->inp_lport != uh->uh_dport)
 				continue;
 #ifdef INET6
@@ -612,7 +613,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			 * will never clear these options after setting them.
 			 */
 			if ((last->inp_socket->so_options &
-			    (SO_REUSEPORT|SO_REUSEADDR)) == 0)
+			    (SO_REUSEPORT|SO_REUSEPORT_LB|SO_REUSEADDR)) == 0)
 				break;
 		}
 
@@ -625,14 +626,14 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			UDPSTAT_INC(udps_noportbcast);
 			if (inp)
 				INP_RUNLOCK(inp);
-			INP_INFO_RUNLOCK(pcbinfo);
+			INP_INFO_RUNLOCK_ET(pcbinfo, et);
 			goto badunlocked;
 		}
 		UDP_PROBE(receive, NULL, last, ip, last, uh);
 		if (udp_append(last, ip, m, iphlen, udp_in) == 0) 
 			INP_RUNLOCK(last);
 	inp_lost:
-		INP_INFO_RUNLOCK(pcbinfo);
+		INP_INFO_RUNLOCK_ET(pcbinfo, et);
 		return (IPPROTO_DONE);
 	}
 
@@ -802,14 +803,15 @@ udp_common_ctlinput(int cmd, struct sockaddr *sa, void *vip,
 					   INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB, NULL);
 			if (inp != NULL) {
 				struct udpcb *up;
+				void *ctx;
+				udp_tun_icmp_t func;
 
 				up = intoudpcb(inp);
-				if (up->u_icmp_func != NULL) {
-					INP_RUNLOCK(inp);
-					(*up->u_icmp_func)(cmd, sa, vip, up->u_tun_ctx);
-				} else {
-					INP_RUNLOCK(inp);
-				}
+				ctx = up->u_tun_ctx;
+				func = up->u_icmp_func;
+				INP_RUNLOCK(inp);
+				if (func != NULL)
+					(*func)(cmd, sa, vip, ctx);
 			}
 		}
 	} else
@@ -836,9 +838,9 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, n;
 	struct inpcb *inp, **inp_list;
-	struct in_pcblist *il;
 	inp_gen_t gencnt;
 	struct xinpgen xig;
+	struct epoch_tracker et;
 
 	/*
 	 * The process of preparing the PCB list is too time-consuming and
@@ -857,10 +859,10 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	/*
 	 * OK, now we're committed to doing something.
 	 */
-	INP_INFO_RLOCK(&V_udbinfo);
+	INP_INFO_RLOCK_ET(&V_udbinfo, et);
 	gencnt = V_udbinfo.ipi_gencnt;
 	n = V_udbinfo.ipi_count;
-	INP_INFO_RUNLOCK(&V_udbinfo);
+	INP_INFO_RUNLOCK_ET(&V_udbinfo, et);
 
 	error = sysctl_wire_old_buffer(req, 2 * (sizeof xig)
 		+ n * sizeof(struct xinpcb));
@@ -874,12 +876,14 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, &xig, sizeof xig);
 	if (error)
 		return (error);
-	il = malloc(sizeof(struct in_pcblist) + n * sizeof(struct inpcb *), M_TEMP, M_WAITOK|M_ZERO_INVARIANTS);
-	inp_list = il->il_inp_list;
 
-	INP_INFO_RLOCK(&V_udbinfo);
-	for (inp = LIST_FIRST(V_udbinfo.ipi_listhead), i = 0; inp && i < n;
-	     inp = LIST_NEXT(inp, inp_list)) {
+	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
+	if (inp_list == NULL)
+		return (ENOMEM);
+
+	INP_INFO_RLOCK_ET(&V_udbinfo, et);
+	for (inp = CK_LIST_FIRST(V_udbinfo.ipi_listhead), i = 0; inp && i < n;
+	     inp = CK_LIST_NEXT(inp, inp_list)) {
 		INP_WLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
 		    cr_canseeinpcb(req->td->td_ucred, inp) == 0) {
@@ -888,7 +892,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		}
 		INP_WUNLOCK(inp);
 	}
-	INP_INFO_RUNLOCK(&V_udbinfo);
+	INP_INFO_RUNLOCK_ET(&V_udbinfo, et);
 	n = i;
 
 	error = 0;
@@ -904,9 +908,14 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		} else
 			INP_RUNLOCK(inp);
 	}
-	il->il_count = n;
-	il->il_pcbinfo = &V_udbinfo;
-	epoch_call(net_epoch_preempt, &il->il_epoch_ctx, in_pcblist_rele_rlocked);
+	INP_INFO_WLOCK(&V_udbinfo);
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		INP_RLOCK(inp);
+		if (!in_pcbrele_rlocked(inp))
+			INP_RUNLOCK(inp);
+	}
+	INP_INFO_WUNLOCK(&V_udbinfo);
 
 	if (!error) {
 		/*
@@ -915,13 +924,14 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 		 * that something happened while we were processing this
 		 * request, and it might be necessary to retry.
 		 */
-		INP_INFO_RLOCK(&V_udbinfo);
+		INP_INFO_RLOCK_ET(&V_udbinfo, et);
 		xig.xig_gen = V_udbinfo.ipi_gencnt;
 		xig.xig_sogen = so_gencnt;
 		xig.xig_count = V_udbinfo.ipi_count;
-		INP_INFO_RUNLOCK(&V_udbinfo);
+		INP_INFO_RUNLOCK_ET(&V_udbinfo, et);
 		error = SYSCTL_OUT(req, &xig, sizeof xig);
 	}
+	free(inp_list, M_TEMP);
 	return (error);
 }
 
@@ -1100,6 +1110,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	struct cmsghdr *cm;
 	struct inpcbinfo *pcbinfo;
 	struct sockaddr_in *sin, src;
+	struct epoch_tracker et;
 	int cscov_partial = 0;
 	int error = 0;
 	int ipflags;
@@ -1256,7 +1267,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	    (inp->inp_laddr.s_addr == INADDR_ANY) ||
 	    (inp->inp_lport == 0))) ||
 	    (src.sin_family == AF_INET)) {
-		INP_HASH_RLOCK(pcbinfo);
+		INP_HASH_RLOCK_ET(pcbinfo, et);
 		unlock_udbinfo = UH_RLOCKED;
 	} else
 		unlock_udbinfo = UH_UNLOCKED;
@@ -1512,7 +1523,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	if (unlock_udbinfo == UH_WLOCKED)
 		INP_HASH_WUNLOCK(pcbinfo);
 	else if (unlock_udbinfo == UH_RLOCKED)
-		INP_HASH_RUNLOCK(pcbinfo);
+		INP_HASH_RUNLOCK_ET(pcbinfo, et);
 	UDP_PROBE(send, NULL, inp, &ui->ui_i, inp, &ui->ui_u);
 	error = ip_output(m, inp->inp_options,
 	    (unlock_inp == UH_WLOCKED ? &inp->inp_route : NULL), ipflags,
@@ -1532,7 +1543,7 @@ release:
 	} else if (unlock_udbinfo == UH_RLOCKED) {
 		KASSERT(unlock_inp == UH_RLOCKED,
 		    ("%s: shared udbinfo lock, excl inp lock", __func__));
-		INP_HASH_RUNLOCK(pcbinfo);
+		INP_HASH_RUNLOCK_ET(pcbinfo, et);
 		INP_RUNLOCK(inp);
 	} else if (unlock_inp == UH_WLOCKED)
 		INP_WUNLOCK(inp);
@@ -1713,7 +1724,6 @@ udp_detach(struct socket *so)
 	INP_WLOCK(inp);
 	up = intoudpcb(inp);
 	KASSERT(up != NULL, ("%s: up == NULL", __func__));
-	/* XXX defer to epoch_call */
 	inp->inp_ppcb = NULL;
 	in_pcbdetach(inp);
 	in_pcbfree(inp);

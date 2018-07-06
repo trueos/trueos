@@ -2275,7 +2275,7 @@ iflib_init_locked(if_ctx_t ctx)
 			}
 		}
 	}
-	done:
+done:
 	if_setdrvflagbits(ctx->ifc_ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 	IFDI_INTR_ENABLE(ctx);
 	txq = ctx->ifc_txqs;
@@ -2822,7 +2822,9 @@ print_pkt(if_pkt_info_t pi)
 #endif
 
 #define IS_TSO4(pi) ((pi)->ipi_csum_flags & CSUM_IP_TSO)
+#define IS_TX_OFFLOAD4(pi) ((pi)->ipi_csum_flags & (CSUM_IP_TCP | CSUM_IP_TSO))
 #define IS_TSO6(pi) ((pi)->ipi_csum_flags & CSUM_IP6_TSO)
+#define IS_TX_OFFLOAD6(pi) ((pi)->ipi_csum_flags & (CSUM_IP6_TCP | CSUM_IP6_TSO))
 
 static int
 iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
@@ -2908,8 +2910,9 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		if ((sctx->isc_flags & IFLIB_NEED_ZERO_CSUM) && (pi->ipi_csum_flags & CSUM_IP))
                        ip->ip_sum = 0;
 
-		if (IS_TSO4(pi)) {
-			if (pi->ipi_ipproto == IPPROTO_TCP) {
+		/* TCP checksum offload may require TCP header length */
+		if (IS_TX_OFFLOAD4(pi)) {
+			if (__predict_true(pi->ipi_ipproto == IPPROTO_TCP)) {
 				if (__predict_false(th == NULL)) {
 					txq->ift_pullups++;
 					if (__predict_false((m = m_pullup(m, (ip->ip_hl << 2) + sizeof(*th))) == NULL))
@@ -2920,14 +2923,16 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 				pi->ipi_tcp_hlen = th->th_off << 2;
 				pi->ipi_tcp_seq = th->th_seq;
 			}
-			if (__predict_false(ip->ip_p != IPPROTO_TCP))
-				return (ENXIO);
-			th->th_sum = in_pseudo(ip->ip_src.s_addr,
-					       ip->ip_dst.s_addr, htons(IPPROTO_TCP));
-			pi->ipi_tso_segsz = m->m_pkthdr.tso_segsz;
-			if (sctx->isc_flags & IFLIB_TSO_INIT_IP) {
-				ip->ip_sum = 0;
-				ip->ip_len = htons(pi->ipi_ip_hlen + pi->ipi_tcp_hlen + pi->ipi_tso_segsz);
+			if (IS_TSO4(pi)) {
+				if (__predict_false(ip->ip_p != IPPROTO_TCP))
+					return (ENXIO);
+				th->th_sum = in_pseudo(ip->ip_src.s_addr,
+						       ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+				pi->ipi_tso_segsz = m->m_pkthdr.tso_segsz;
+				if (sctx->isc_flags & IFLIB_TSO_INIT_IP) {
+					ip->ip_sum = 0;
+					ip->ip_len = htons(pi->ipi_ip_hlen + pi->ipi_tcp_hlen + pi->ipi_tso_segsz);
+				}
 			}
 		}
 		break;
@@ -2950,26 +2955,30 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		pi->ipi_ipproto = ip6->ip6_nxt;
 		pi->ipi_flags |= IPI_TX_IPV6;
 
-		if (IS_TSO6(pi)) {
+		/* TCP checksum offload may require TCP header length */
+		if (IS_TX_OFFLOAD6(pi)) {
 			if (pi->ipi_ipproto == IPPROTO_TCP) {
 				if (__predict_false(m->m_len < pi->ipi_ehdrlen + sizeof(struct ip6_hdr) + sizeof(struct tcphdr))) {
+					txq->ift_pullups++;
 					if (__predict_false((m = m_pullup(m, pi->ipi_ehdrlen + sizeof(struct ip6_hdr) + sizeof(struct tcphdr))) == NULL))
 						return (ENOMEM);
 				}
 				pi->ipi_tcp_hflags = th->th_flags;
 				pi->ipi_tcp_hlen = th->th_off << 2;
+				pi->ipi_tcp_seq = th->th_seq;
 			}
-
-			if (__predict_false(ip6->ip6_nxt != IPPROTO_TCP))
-				return (ENXIO);
-			/*
-			 * The corresponding flag is set by the stack in the IPv4
-			 * TSO case, but not in IPv6 (at least in FreeBSD 10.2).
-			 * So, set it here because the rest of the flow requires it.
-			 */
-			pi->ipi_csum_flags |= CSUM_TCP_IPV6;
-			th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
-			pi->ipi_tso_segsz = m->m_pkthdr.tso_segsz;
+			if (IS_TSO6(pi)) {
+				if (__predict_false(ip6->ip6_nxt != IPPROTO_TCP))
+					return (ENXIO);
+				/*
+				 * The corresponding flag is set by the stack in the IPv4
+				 * TSO case, but not in IPv6 (at least in FreeBSD 10.2).
+				 * So, set it here because the rest of the flow requires it.
+				 */
+				pi->ipi_csum_flags |= CSUM_IP6_TCP;
+				th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
+				pi->ipi_tso_segsz = m->m_pkthdr.tso_segsz;
+			}
 		}
 		break;
 	}
@@ -3719,16 +3728,6 @@ _task_fn_tx(void *context)
 		 */
 		if (ctx->isc_txd_credits_update(ctx->ifc_softc, txq->ift_id, false))
 			netmap_tx_irq(ifp, txq->ift_id);
-		else {
-#ifdef DEV_NETMAP			
-			if (!(ctx->ifc_flags & IFC_NETMAP_TX_IRQ)) {
-				struct netmap_kring *kring = NA(ctx->ifc_ifp)->tx_rings[txq->ift_id];
-
-				if (kring->nr_hwtail != nm_prev(kring->rhead, kring->nkr_num_slots - 1))
-					GROUPTASK_ENQUEUE(&txq->ift_task);
-			}
-#endif			
-		}
 		IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
 		return;
 	}
@@ -4015,7 +4014,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		*/
 		if (avoid_reset) {
 			if_setflagbits(ifp, IFF_UP,0);
-			if (!(if_getdrvflags(ifp)& IFF_DRV_RUNNING))
+			if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
 				reinit = 1;
 #ifdef INET
 			if (!(if_getflags(ifp) & IFF_NOARP))
@@ -4116,7 +4115,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 #endif
 		setmask |= (mask & IFCAP_FLAGS);
 
-		if (setmask  & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
+		if (setmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
 			setmask |= (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
 		if ((mask & IFCAP_WOL) &&
 		    (if_getcapabilities(ifp) & IFCAP_WOL) != 0)
@@ -4141,7 +4140,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 			CTX_UNLOCK(ctx);
 		}
 		break;
-	    }
+	}
 	case SIOCGPRIVATE_0:
 	case SIOCSDRVSPEC:
 	case SIOCGDRVSPEC:
@@ -5098,7 +5097,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 	KASSERT(ntxqs > 0, ("number of queues per qset must be at least 1"));
 	KASSERT(nrxqs > 0, ("number of queues per qset must be at least 1"));
 
-/* Allocate the TX ring struct memory */
+	/* Allocate the TX ring struct memory */
 	if (!(ctx->ifc_txqs =
 	    (iflib_txq_t) malloc(sizeof(struct iflib_txq) *
 	    ntxqsets, M_IFLIB, M_NOWAIT | M_ZERO))) {
@@ -5880,47 +5879,9 @@ iflib_msix_init(if_ctx_t ctx)
 
 	bar = ctx->ifc_softc_ctx.isc_msix_bar;
 	admincnt = sctx->isc_admin_intrcnt;
-	/* Override by global tuneable */
-	{
-		int i;
-		size_t len = sizeof(i);
-		err = kernel_sysctlbyname(curthread, "hw.pci.enable_msix", &i, &len, NULL, 0, NULL, 0);
-		if (err == 0) {
-			if (i == 0)
-				goto msi;
-		}
-		else {
-			device_printf(dev, "unable to read hw.pci.enable_msix.");
-		}
-	}
 	/* Override by tuneable */
 	if (scctx->isc_disable_msix)
 		goto msi;
-
-	/*
-	** When used in a virtualized environment
-	** PCI BUSMASTER capability may not be set
-	** so explicity set it here and rewrite
-	** the ENABLE in the MSIX control register
-	** at this point to cause the host to
-	** successfully initialize us.
-	*/
-	{
-		int msix_ctrl, rid;
-
- 		pci_enable_busmaster(dev);
-		rid = 0;
-		if (pci_find_cap(dev, PCIY_MSIX, &rid) == 0 && rid != 0) {
-			rid += PCIR_MSIX_CTRL;
-			msix_ctrl = pci_read_config(dev, rid, 2);
-			msix_ctrl |= PCIM_MSIXCTRL_MSIX_ENABLE;
-			pci_write_config(dev, rid, msix_ctrl, 2);
-		} else {
-			device_printf(dev, "PCIY_MSIX capability not found; "
-			                   "or rid %d == 0.\n", rid);
-			goto msi;
-		}
-	}
 
 	/*
 	 * bar == -1 => "trust me I know what I'm doing"
@@ -6008,6 +5969,9 @@ iflib_msix_init(if_ctx_t ctx)
 		return (vectors);
 	} else {
 		device_printf(dev, "failed to allocate %d msix vectors, err: %d - using MSI\n", vectors, err);
+		bus_release_resource(dev, SYS_RES_MEMORY, bar,
+		    ctx->ifc_msix_mem);
+		ctx->ifc_msix_mem = NULL;
 	}
 msi:
 	vectors = pci_msi_count(dev);
@@ -6018,6 +5982,7 @@ msi:
 		device_printf(dev,"Using an MSI interrupt\n");
 		scctx->isc_intr = IFLIB_INTR_MSI;
 	} else {
+		scctx->isc_vectors = 1;
 		device_printf(dev,"Using a Legacy interrupt\n");
 		scctx->isc_intr = IFLIB_INTR_LEGACY;
 	}
@@ -6025,7 +5990,7 @@ msi:
 	return (vectors);
 }
 
-char * ring_states[] = { "IDLE", "BUSY", "STALLED", "ABDICATED" };
+static const char *ring_states[] = { "IDLE", "BUSY", "STALLED", "ABDICATED" };
 
 static int
 mp_ring_state_handler(SYSCTL_HANDLER_ARGS)
@@ -6033,7 +5998,7 @@ mp_ring_state_handler(SYSCTL_HANDLER_ARGS)
 	int rc;
 	uint16_t *state = ((uint16_t *)oidp->oid_arg1);
 	struct sbuf *sb;
-	char *ring_state = "UNKNOWN";
+	const char *ring_state = "UNKNOWN";
 
 	/* XXX needed ? */
 	rc = sysctl_wire_old_buffer(req, 0);

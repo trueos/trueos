@@ -134,7 +134,7 @@ extern int	vmem_startup_count(void);
 
 struct vm_domain vm_dom[MAXMEMDOM];
 
-static DPCPU_DEFINE(struct vm_batchqueue, pqbatch[MAXMEMDOM][PQ_COUNT]);
+DPCPU_DEFINE_STATIC(struct vm_batchqueue, pqbatch[MAXMEMDOM][PQ_COUNT]);
 
 struct mtx_padalign __exclusive_cache_line pa_lock[PA_LOCK_COUNT];
 
@@ -551,6 +551,9 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t biggestsize, last_pa, pa;
 	u_long pagecount;
 	int biggestone, i, segind;
+#if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
+	long ii;
+#endif
 
 	biggestsize = 0;
 	biggestone = 0;
@@ -789,6 +792,13 @@ vm_page_startup(vm_offset_t vaddr)
 	 * Initialize the page structures and add every available page to the
 	 * physical memory allocator's free lists.
 	 */
+#if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
+	for (ii = 0; ii < vm_page_array_size; ii++) {
+		m = &vm_page_array[ii];
+		vm_page_init_page(m, (first_page + ii) << PAGE_SHIFT, 0);
+		m->flags = PG_FICTITIOUS;
+	}
+#endif
 	vm_cnt.v_page_count = 0;
 	for (segind = 0; segind < vm_phys_nsegs; segind++) {
 		seg = &vm_phys_segs[segind];
@@ -2235,24 +2245,16 @@ static int
 vm_page_import(void *arg, void **store, int cnt, int domain, int flags)
 {
 	struct vm_domain *vmd;
-	vm_page_t m;
-	int i, j, n;
+	int i;
 
 	vmd = arg;
 	/* Only import if we can bring in a full bucket. */
 	if (cnt == 1 || !vm_domain_allocate(vmd, VM_ALLOC_NORMAL, cnt))
 		return (0);
 	domain = vmd->vmd_domain;
-	n = 64;	/* Starting stride, arbitrary. */
 	vm_domain_free_lock(vmd);
-	for (i = 0; i < cnt; i+=n) {
-		n = vm_phys_alloc_npages(domain, VM_FREELIST_DEFAULT, &m,
-		    MIN(n, cnt-i));
-		if (n == 0)
-			break;
-		for (j = 0; j < n; j++)
-			store[i+j] = m++;
-	}
+	i = vm_phys_alloc_npages(domain, VM_FREEPOOL_DEFAULT, cnt,
+	    (vm_page_t *)store);
 	vm_domain_free_unlock(vmd);
 	if (cnt != i)
 		vm_domain_freecnt_inc(vmd, cnt - i);
@@ -2845,7 +2847,7 @@ vm_domain_set(struct vm_domain *vmd)
 	}
 	if (!vmd->vmd_severeset && vm_paging_severe(vmd)) {
 		vmd->vmd_severeset = 1;
-		DOMAINSET_CLR(vmd->vmd_domain, &vm_severe_domains);
+		DOMAINSET_SET(vmd->vmd_domain, &vm_severe_domains);
 	}
 	mtx_unlock(&vm_domainset_lock);
 }

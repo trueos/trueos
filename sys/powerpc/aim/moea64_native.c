@@ -192,7 +192,6 @@ TLBIE(uint64_t vpn) {
 /*
  * PTEG data.
  */
-static volatile struct pate *moea64_part_table;
 static volatile struct lpte *moea64_pteg_table;
 static struct rwlock moea64_eviction_lock;
 
@@ -385,12 +384,6 @@ moea64_cpu_bootstrap_native(mmu_t mmup, int ap)
 
 	mtmsr(mfmsr() & ~PSL_DR & ~PSL_IR);
 
-	switch (mfpvr() >> 16) {
-	case IBMPOWER9:
-		mtspr(SPR_HID0, mfspr(SPR_HID0) & ~HID0_RADIX);
-		break;
-	}
-
 	/*
 	 * Install kernel SLB entries
 	 */
@@ -416,15 +409,9 @@ moea64_cpu_bootstrap_native(mmu_t mmup, int ap)
 	 * Install page table
 	 */
 
-	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00) {
-		mtspr(SPR_PTCR,
-		    ((uintptr_t)moea64_part_table & ~DMAP_BASE_ADDRESS) |
-		     flsl((PART_SIZE >> 12) - 1));
-	} else {
-		__asm __volatile ("ptesync; mtsdr1 %0; isync"
-		    :: "r"(((uintptr_t)moea64_pteg_table & ~DMAP_BASE_ADDRESS)
-			     | (uintptr_t)(flsl(moea64_pteg_mask >> 11))));
-	}
+	__asm __volatile ("ptesync; mtsdr1 %0; isync"
+	    :: "r"(((uintptr_t)moea64_pteg_table & ~DMAP_BASE_ADDRESS)
+		     | (uintptr_t)(flsl(moea64_pteg_mask >> 11))));
 	tlbia();
 }
 
@@ -453,7 +440,7 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	 */
 
 	size = moea64_pteg_count * sizeof(struct lpteg);
-	CTR2(KTR_PMAP, "moea64_bootstrap: %d PTEGs, %d bytes", 
+	CTR2(KTR_PMAP, "moea64_bootstrap: %lu PTEGs, %lu bytes", 
 	    moea64_pteg_count, size);
 	rw_init(&moea64_eviction_lock, "pte eviction");
 
@@ -463,14 +450,6 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 	 * allocate. We don't have BAT. So drop to data real mode for a minute
 	 * as a measure of last resort. We do this a couple times.
 	 */
-
-	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00) {
-		moea64_part_table =
-		    (struct pate *)moea64_bootstrap_alloc(PART_SIZE, PART_SIZE);
-		if (hw_direct_map)
-			moea64_part_table = (struct pate *)PHYS_TO_DMAP(
-			    (vm_offset_t)moea64_part_table);
-	}
 	/*
 	 * PTEG table must be aligned on a 256k boundary, but can be placed
 	 * anywhere with that alignment on POWER ISA 3+ systems. On earlier
@@ -485,12 +464,6 @@ moea64_bootstrap_native(mmu_t mmup, vm_offset_t kernelstart,
 		moea64_pteg_table =
 		    (struct lpte *)PHYS_TO_DMAP((vm_offset_t)moea64_pteg_table);
 	DISABLE_TRANS(msr);
-	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00) {
-		bzero(__DEVOLATILE(void *, moea64_part_table), PART_SIZE);
-		moea64_part_table[0].pagetab =
-		    ((uintptr_t)moea64_pteg_table & ~DMAP_BASE_ADDRESS) |
-		    (uintptr_t)(flsl((moea64_pteg_count - 1) >> 11));
-	}
 	bzero(__DEVOLATILE(void *, moea64_pteg_table), moea64_pteg_count *
 	    sizeof(struct lpteg));
 	ENABLE_TRANS(msr);

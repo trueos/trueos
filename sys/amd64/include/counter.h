@@ -45,7 +45,7 @@ static inline uint64_t
 counter_u64_read_one(uint64_t *p, int cpu)
 {
 
-	return (*(uint64_t *)((char *)p + sizeof(struct pcpu) * cpu));
+	return (*(uint64_t *)((char *)p + UMA_PCPU_ALLOC_SIZE * cpu));
 }
 
 static inline uint64_t
@@ -65,7 +65,7 @@ static void
 counter_u64_zero_one_cpu(void *arg)
 {
 
-	*((uint64_t *)((char *)arg + sizeof(struct pcpu) *
+	*((uint64_t *)((char *)arg + UMA_PCPU_ALLOC_SIZE *
 	    PCPU_GET(cpuid))) = 0;
 }
 
@@ -83,11 +83,18 @@ counter_u64_zero_inline(counter_u64_t c)
 static inline void
 counter_u64_add(counter_u64_t c, int64_t inc)
 {
-
+	int64_t *p;
+#ifdef notyet
 	__asm __volatile("addq\t%1,%%gs:(%0)"
 	    :
 	    : "r" ((char *)c - (char *)&__pcpu[0]), "ri" (inc)
 	    : "memory", "cc");
+#endif
+	/* temporary */
+	critical_enter();
+	p = zpcpu_get(c);
+	*p += inc;
+	critical_exit();
 }
 
 #endif	/* ! __MACHINE_COUNTER_H__ */

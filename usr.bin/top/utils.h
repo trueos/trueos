@@ -10,15 +10,17 @@
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
  */
 
-int atoiwi(char *);
-char *itoa(int);
+#include <unistd.h>
+
+int atoiwi(const char *);
+char *itoa(unsigned int);
 char *itoa7(int);
 int digits(int);
-char *strecpy(char *, char *);
-char **argparse(char *, int *);
+const char * const *argparse(char *, int *);
 long percentages(int, int *, long *, long *, long *);
-char *format_time(long);
-char *format_k(int);
-char *format_k2(unsigned long long);
-int string_index(char *string, char **array);
+const char *format_time(long);
+char *format_k(int64_t);
+int string_index(const char *string, const char * const *array);
+int find_pid(pid_t pid);
+int utf8strvisx(char *, const char *, size_t);
 

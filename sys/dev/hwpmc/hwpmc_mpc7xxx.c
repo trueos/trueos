@@ -660,13 +660,14 @@ mpc7xxx_release_pmc(int cpu, int ri, struct pmc *pmc)
 }
 
 static int
-mpc7xxx_intr(int cpu, struct trapframe *tf)
+mpc7xxx_intr(struct trapframe *tf)
 {
-	int i, error, retval;
+	int i, error, retval, cpu;
 	uint32_t config;
 	struct pmc *pm;
 	struct powerpc_cpu *pac;
 
+	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] out of range CPU %d", __LINE__, cpu));
 
@@ -702,8 +703,7 @@ mpc7xxx_intr(int cpu, struct trapframe *tf)
 			continue;
 
 		/* Stop the counter if logging fails. */
-		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
-		    TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(PMC_HR, pm, tf);
 		if (error != 0)
 			mpc7xxx_stop_pmc(cpu, i);
 

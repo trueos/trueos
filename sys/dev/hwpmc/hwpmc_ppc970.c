@@ -479,13 +479,14 @@ ppc970_write_pmc(int cpu, int ri, pmc_value_t v)
 }
 
 static int
-ppc970_intr(int cpu, struct trapframe *tf)
+ppc970_intr(struct trapframe *tf)
 {
 	struct pmc *pm;
 	struct powerpc_cpu *pac;
 	uint32_t config;
-	int i, error, retval;
+	int i, error, retval, cpu;
 
+	cpu = curcpu;
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] out of range CPU %d", __LINE__, cpu));
 
@@ -519,8 +520,7 @@ ppc970_intr(int cpu, struct trapframe *tf)
 		if (pm->pm_state != PMC_STATE_RUNNING)
 			continue;
 
-		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
-		    TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(PMC_HR, pm, tf);
 		if (error != 0)
 			ppc970_stop_pmc(cpu, i);
 

@@ -62,9 +62,15 @@
 #define	PMC_FN_SOFT_SAMPLING		11
 #define	PMC_FN_THR_CREATE		12
 #define	PMC_FN_THR_EXIT			13
+#define	PMC_FN_THR_USERRET		14
+#define	PMC_FN_THR_CREATE_LOG		15
+#define	PMC_FN_THR_EXIT_LOG		16
+#define	PMC_FN_PROC_CREATE_LOG		17
 
 #define	PMC_HR	0	/* Hardware ring buffer */
 #define	PMC_SR	1	/* Software ring buffer */
+#define	PMC_UR	2	/* userret ring buffer */
+#define PMC_NUM_SR (PMC_UR+1)
 
 struct pmckern_procexec {
 	int		pm_credentialschanged;
@@ -170,7 +176,7 @@ struct pmc_domain_buffer_header {
 
 /* hook */
 extern int (*pmc_hook)(struct thread *_td, int _function, void *_arg);
-extern int (*pmc_intr)(int _cpu, struct trapframe *_frame);
+extern int (*pmc_intr)(struct trapframe *_frame);
 
 /* SX lock protecting the hook */
 extern struct sx pmc_sx;
@@ -195,11 +201,12 @@ extern struct pmc_domain_buffer_header *pmc_dom_hdrs[MAXMEMDOM];
 
 /* Hook invocation; for use within the kernel */
 #define	PMC_CALL_HOOK(t, cmd, arg)		\
-do {						\
-	epoch_enter_preempt(global_epoch_preempt);		\
+do {								\
+    struct epoch_tracker et;						\
+	epoch_enter_preempt(global_epoch_preempt, &et);		\
 	if (pmc_hook != NULL)			\
 		(pmc_hook)((t), (cmd), (arg));	\
-	epoch_exit_preempt(global_epoch_preempt);			\
+	epoch_exit_preempt(global_epoch_preempt, &et);	\
 } while (0)
 
 /* Hook invocation that needs an exclusive lock */
@@ -217,7 +224,6 @@ do {						\
  */
 #define	PMC_CALL_HOOK_UNLOCKED(t, cmd, arg)	\
 do {						\
-	MPASS(!in_epoch());					\
 	if (pmc_hook != NULL)				\
 		(pmc_hook)((t), (cmd), (arg));	\
 } while (0)
@@ -227,6 +233,9 @@ do {						\
 /* Check if a process is using HWPMCs.*/
 #define PMC_PROC_IS_USING_PMCS(p)				\
 	(__predict_false(p->p_flag & P_HWPMC))
+
+#define PMC_THREAD_HAS_SAMPLES(td)				\
+	(__predict_false((td)->td_pmcpend))
 
 /* Check if a thread have pending user capture. */
 #define PMC_IS_PENDING_CALLCHAIN(p)				\

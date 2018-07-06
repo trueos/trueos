@@ -171,7 +171,7 @@ static void sdda_start_init_task(void *context, int pending);
 static void sdda_process_mmc_partitions(struct cam_periph *periph, union ccb *start_ccb);
 static uint32_t sdda_get_host_caps(struct cam_periph *periph, union ccb *ccb);
 static void sdda_init_switch_part(struct cam_periph *periph, union ccb *start_ccb, u_int part);
-
+static int mmc_select_card(struct cam_periph *periph, union ccb *ccb, uint32_t rca);
 static inline uint32_t mmc_get_sector_size(struct cam_periph *periph) {return MMC_SECTOR_SIZE;}
 
 /* TODO: actually issue GET_TRAN_SETTINGS to get R/O status */
@@ -818,6 +818,7 @@ mmc_app_get_scr(struct cam_periph *periph, union ccb *ccb, uint32_t *rawscr) {
 	struct mmc_data d;
 
 	memset(&cmd, 0, sizeof(cmd));
+	memset(&d, 0, sizeof(d));
 
 	memset(rawscr, 0, 8);
 	cmd.opcode = ACMD_SEND_SCR;
@@ -901,6 +902,38 @@ mmc_switch_fill_mmcio(union ccb *ccb,
 }
 
 static int
+mmc_select_card(struct cam_periph *periph, union ccb *ccb, uint32_t rca)
+{
+	int flags;
+
+	flags = (rca ? MMC_RSP_R1B : MMC_RSP_NONE) | MMC_CMD_AC;
+	cam_fill_mmcio(&ccb->mmcio,
+		       /*retries*/ 0,
+		       /*cbfcnp*/ NULL,
+		       /*flags*/ CAM_DIR_IN,
+		       /*mmc_opcode*/ MMC_SELECT_CARD,
+		       /*mmc_arg*/ rca << 16,
+		       /*mmc_flags*/ flags,
+		       /*mmc_data*/ NULL,
+		       /*timeout*/ 0);
+
+	cam_periph_runccb(ccb, sddaerror, CAM_FLAG_NONE, /*sense_flags*/0, NULL);
+
+	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)) {
+		if (ccb->mmcio.cmd.error != 0) {
+			CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_PERIPH,
+				  ("%s: MMC_SELECT command failed", __func__));
+			return EIO;
+		}
+		return 0; /* Normal return */
+	} else {
+		CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_PERIPH,
+			  ("%s: CAM request failed\n", __func__));
+		return EIO;
+	}
+}
+
+static int
 mmc_switch(struct cam_periph *periph, union ccb *ccb,
     uint8_t set, uint8_t index, uint8_t value, u_int timeout)
 {
@@ -953,18 +986,24 @@ mmc_sd_switch(struct cam_periph *periph, union ccb *ccb,
 	      uint8_t *res) {
 
 	struct mmc_data mmc_d;
+	uint32_t arg;
 
 	memset(res, 0, 64);
 	mmc_d.len = 64;
 	mmc_d.data = res;
 	mmc_d.flags = MMC_DATA_READ;
 
+	arg = mode << 31;			/* 0 - check, 1 - set */
+	arg |= 0x00FFFFFF;
+	arg &= ~(0xF << (grp * 4));
+	arg |= value << (grp * 4);
+
 	cam_fill_mmcio(&ccb->mmcio,
 		       /*retries*/ 0,
 		       /*cbfcnp*/ NULL,
 		       /*flags*/ CAM_DIR_IN,
 		       /*mmc_opcode*/ SD_SWITCH_FUNC,
-		       /*mmc_arg*/ mode << 31,
+		       /*mmc_arg*/ arg,
 		       /*mmc_flags*/ MMC_RSP_R1 | MMC_CMD_ADTC,
 		       /*mmc_data*/ &mmc_d,
 		       /*timeout*/ 0);
@@ -1258,13 +1297,13 @@ sdda_start_init(void *context, union ccb *start_ccb)
 		/* Find out if the card supports High speed timing */
 		if (mmcp->card_features & CARD_FEATURE_SD20) {
 			/* Get and decode SCR */
-			uint32_t rawscr;
+			uint32_t rawscr[2];
 			uint8_t res[64];
-			if (mmc_app_get_scr(periph, start_ccb, &rawscr)) {
+			if (mmc_app_get_scr(periph, start_ccb, rawscr)) {
 				CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH, ("Cannot get SCR\n"));
 				goto finish_hs_tests;
 			}
-			mmc_app_decode_scr(&rawscr, &softc->scr);
+			mmc_app_decode_scr(rawscr, &softc->scr);
 
 			if ((softc->scr.sda_vsn >= 1) && (softc->csd.ccc & (1<<10))) {
 				mmc_sd_switch(periph, start_ccb, SD_SWITCH_MODE_CHECK,
@@ -1273,6 +1312,19 @@ sdda_start_init(void *context, union ccb *start_ccb)
 					CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH, ("Card supports HS\n"));
 					softc->card_f_max = SD_HS_MAX;
 				}
+
+				/*
+				 * We deselect then reselect the card here.  Some cards
+				 * become unselected and timeout with the above two
+				 * commands, although the state tables / diagrams in the
+				 * standard suggest they go back to the transfer state.
+				 * Other cards don't become deselected, and if we
+				 * attempt to blindly re-select them, we get timeout
+				 * errors from some controllers.  So we deselect then
+				 * reselect to handle all situations.
+				 */
+				mmc_select_card(periph, start_ccb, 0);
+				mmc_select_card(periph, start_ccb, get_rca(periph));
 			} else {
 				CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH, ("Not trying the switch\n"));
 				goto finish_hs_tests;
@@ -1293,6 +1345,15 @@ finish_hs_tests:
 	f_max = min(host_f_max, softc->card_f_max);
 	CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH, ("Set SD freq to %d MHz (min out of host f=%d MHz and card f=%d MHz)\n", f_max  / 1000000, host_f_max / 1000000, softc->card_f_max / 1000000));
 
+	/* Enable high-speed timing on the card */
+	if (f_max > 25000000) {
+		err = mmc_set_timing(periph, start_ccb, bus_timing_hs);
+		if (err != MMC_ERR_NONE) {
+			CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("Cannot switch card to high-speed mode"));
+			f_max = 25000000;
+		}
+	}
+	/* Set frequency on the controller */
 	start_ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 	start_ccb->ccb_h.flags = CAM_DIR_NONE;
 	start_ccb->ccb_h.retry_count = 0;
@@ -1326,12 +1387,6 @@ finish_hs_tests:
 		   bus_width_str(max_host_bus_width),
 		   bus_width_str(max_card_bus_width)));
 	sdda_set_bus_width(periph, start_ccb, desired_bus_width);
-
-	if (f_max > 25000000) {
-		err = mmc_set_timing(periph, start_ccb, bus_timing_hs);
-		if (err != MMC_ERR_NONE)
-			CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("Cannot switch card to high-speed mode"));
-	}
 
 	softc->state = SDDA_STATE_NORMAL;
 
@@ -1724,6 +1779,7 @@ sddastart(struct cam_periph *periph, union ccb *start_ccb)
 		mmcio->cmd.data->flags = (bp->bio_cmd == BIO_READ ? MMC_DATA_READ : MMC_DATA_WRITE);
 		/* Direct h/w to issue CMD12 upon completion */
 		if (count > 1) {
+			mmcio->cmd.data->flags |= MMC_DATA_MULTI;
 			mmcio->stop.opcode = MMC_STOP_TRANSMISSION;
 			mmcio->stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
 			mmcio->stop.arg = 0;

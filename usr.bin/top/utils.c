@@ -2,6 +2,8 @@
  *  This program may be freely redistributed,
  *  but this entire comment MUST remain intact.
  *
+ *  Copyright (c) 2018, Daichi Goto
+ *  Copyright (c) 2018, Eitan Adler
  *  Copyright (c) 1984, 1989, William LeFebvre, Rice University
  *  Copyright (c) 1989, 1990, 1992, William LeFebvre, Northwestern University
  *
@@ -15,14 +17,22 @@
 #include "top.h"
 #include "utils.h"
 
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
+
+#include <libutil.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <kvm.h>
 
 int
-atoiwi(char *str)
+atoiwi(const char *str)
 {
-    int len;
+    size_t len;
 
     len = strlen(str);
     if (len != 0)
@@ -39,7 +49,7 @@ atoiwi(char *str)
 	}
 	else
 	{
-	    return(atoi(str));
+		return((int)strtol(str, NULL, 10));
 	}
     }
     return(0);
@@ -59,29 +69,16 @@ atoiwi(char *str)
 				 */
 _Static_assert(sizeof(int) <= 4, "buffer too small for this sized int");
 
-char *itoa(val)
-
-int val;
-
+char *
+itoa(unsigned int val)
 {
-    char *ptr;
     static char buffer[16];	/* result is built here */
     				/* 16 is sufficient since the largest number
 				   we will ever convert will be 2^32-1,
 				   which is 10 digits. */
 
-    ptr = buffer + sizeof(buffer);
-    *--ptr = '\0';
-    if (val == 0)
-    {
-	*--ptr = '0';
-    }
-    else while (val != 0)
-    {
-	*--ptr = (val % 10) + '0';
-	val /= 10;
-    }
-    return(ptr);
+	sprintf(buffer, "%u", val);
+    return (buffer);
 }
 
 /*
@@ -90,78 +87,46 @@ int val;
  *	a front end to a more general routine for efficiency.
  */
 
-char *itoa7(val)
-
-int val;
-
+char *
+itoa7(int val)
 {
-    char *ptr;
     static char buffer[16];	/* result is built here */
     				/* 16 is sufficient since the largest number
 				   we will ever convert will be 2^32-1,
 				   which is 10 digits. */
 
-    ptr = buffer + sizeof(buffer);
-    *--ptr = '\0';
-    if (val == 0)
-    {
-	*--ptr = '0';
-    }
-    else while (val != 0)
-    {
-	*--ptr = (val % 10) + '0';
-	val /= 10;
-    }
-    while (ptr > buffer + sizeof(buffer) - 7)
-    {
-	*--ptr = ' ';
-    }
-    return(ptr);
+	sprintf(buffer, "%6u", val);
+    return (buffer);
 }
 
 /*
  *  digits(val) - return number of decimal digits in val.  Only works for
- *	positive numbers.  If val <= 0 then digits(val) == 0.
+ *	non-negative numbers.
  */
 
-int digits(val)
-
-int val;
-
+int __pure2
+digits(int val)
 {
     int cnt = 0;
+	if (val == 0) {
+		return 1;
+	}
 
-    while (val > 0)
-    {
-	cnt++;
-	val /= 10;
+    while (val > 0) {
+		cnt++;
+		val /= 10;
     }
     return(cnt);
-}
-
-/*
- *  strecpy(to, from) - copy string "from" into "to" and return a pointer
- *	to the END of the string "to".
- */
-
-char *
-strecpy(char *to, char *from)
-{
-    while ((*to++ = *from++) != '\0');
-    return(--to);
 }
 
 /*
  * string_index(string, array) - find string in array and return index
  */
 
-int string_index(string, array)
-
-char *string;
-char **array;
-
+int
+string_index(const char *string, const char * const *array)
 {
-    int i = 0;
+    size_t i = 0;
 
     while (*array != NULL)
     {
@@ -182,80 +147,24 @@ char **array;
  *	squat about quotes.
  */
 
-char **argparse(line, cntp)
-
-char *line;
-int *cntp;
-
+const char * const *
+argparse(char *line, int *cntp)
 {
-    char *from;
-    char *to;
-    int cnt;
-    int ch;
-    int length;
-    int lastch;
-    char **argv;
-    char **argarray;
-    char *args;
+    const char **ap;
+    static const char *argv[1024] = {0};
 
-    /* unfortunately, the only real way to do this is to go thru the
-       input string twice. */
-
-    /* step thru the string counting the white space sections */
-    from = line;
-    lastch = cnt = length = 0;
-    while ((ch = *from++) != '\0')
-    {
-	length++;
-	if (ch == ' ' && lastch != ' ')
-	{
-	    cnt++;
-	}
-	lastch = ch;
+    *cntp = 1;
+    ap = &argv[1];
+    while ((*ap = strsep(&line, " ")) != NULL) {
+        if (**ap != '\0') {
+            (*cntp)++;
+            if (*cntp >= (int)nitems(argv)) {
+                break;
+            }
+	    ap++;
+        }
     }
-
-    /* add three to the count:  one for the initial "dummy" argument,
-       one for the last argument and one for NULL */
-    cnt += 3;
-
-    /* allocate a char * array to hold the pointers */
-    argarray = (char **)malloc(cnt * sizeof(char *));
-
-    /* allocate another array to hold the strings themselves */
-    args = (char *)malloc(length+2);
-
-    /* initialization for main loop */
-    from = line;
-    to = args;
-    argv = argarray;
-    lastch = '\0';
-
-    /* create a dummy argument to keep getopt happy */
-    *argv++ = to;
-    *to++ = '\0';
-    cnt = 2;
-
-    /* now build argv while copying characters */
-    *argv++ = to;
-    while ((ch = *from++) != '\0')
-    {
-	if (ch != ' ')
-	{
-	    if (lastch == ' ')
-	    {
-		*to++ = '\0';
-		*argv++ = to;
-		cnt++;
-	    }
-	    *to++ = ch;
-	}
-	lastch = ch;
-    }
-    *to++ = '\0';
-
-    /* set cntp and return the allocated array */
-    *cntp = cnt;
-    return(argarray);
+    return (argv);
 }
 
 /*
@@ -264,17 +173,11 @@ int *cntp;
  *	"cnt" is size of each array and "diffs" is used for scratch space.
  *	The array "old" is updated on each call.
  *	The routine assumes modulo arithmetic.  This function is especially
- *	useful on BSD mchines for calculating cpu state percentages.
+ *	useful on for calculating cpu state percentages.
  */
 
-long percentages(cnt, out, new, old, diffs)
-
-int cnt;
-int *out;
-long *new;
-long *old;
-long *diffs;
-
+long
+percentages(int cnt, int *out, long *new, long *old, long *diffs)
 {
     int i;
     long change;
@@ -308,13 +211,10 @@ long *diffs;
     /* calculate percentages based on overall change, rounding up */
     half_total = total_change / 2l;
 
-    /* Do not divide by 0. Causes Floating point exception */
-    if(total_change) {
-        for (i = 0; i < cnt; i++)
-        {
-          *out++ = (int)((*diffs++ * 1000 + half_total) / total_change);
-        }
-    }
+	for (i = 0; i < cnt; i++)
+	{
+		*out++ = (int)((*diffs++ * 1000 + half_total) / total_change);
+	}
 
     /* return the total in case the caller wants to use it */
     return(total_change);
@@ -336,46 +236,41 @@ long *diffs;
    exceed 9999.9, we use "???".
  */
 
-char *format_time(seconds)
-
-long seconds;
-
+const char *
+format_time(long seconds)
 {
-    static char result[10];
+	static char result[10];
 
-    /* sanity protection */
-    if (seconds < 0 || seconds > (99999l * 360l))
-    {
-	strcpy(result, "   ???");
-    }
-    else if (seconds >= (1000l * 60l))
-    {
-	/* alternate (slow) method displaying hours and tenths */
-	sprintf(result, "%5.1fH", (double)seconds / (double)(60l * 60l));
+	/* sanity protection */
+	if (seconds < 0 || seconds > (99999l * 360l))
+	{
+		strcpy(result, "   ???");
+	}
+	else if (seconds >= (1000l * 60l))
+	{
+		/* alternate (slow) method displaying hours and tenths */
+		sprintf(result, "%5.1fH", (double)seconds / (double)(60l * 60l));
 
-	/* It is possible that the sprintf took more than 6 characters.
-	   If so, then the "H" appears as result[6].  If not, then there
-	   is a \0 in result[6].  Either way, it is safe to step on.
-	 */
-	result[6] = '\0';
-    }
-    else
-    {
-	/* standard method produces MMM:SS */
-	/* we avoid printf as must as possible to make this quick */
-	sprintf(result, "%3ld:%02ld",
-	    (long)(seconds / 60), (long)(seconds % 60));
-    }
-    return(result);
+		/* It is possible that the sprintf took more than 6 characters.
+		   If so, then the "H" appears as result[6].  If not, then there
+		   is a \0 in result[6].  Either way, it is safe to step on.
+		   */
+		result[6] = '\0';
+	}
+	else
+	{
+		/* standard method produces MMM:SS */
+		sprintf(result, "%3ld:%02ld",
+				seconds / 60l, seconds % 60l);
+	}
+	return(result);
 }
 
 /*
  * format_k(amt) - format a kilobyte memory value, returning a string
  *		suitable for display.  Returns a pointer to a static
- *		area that changes each call.  "amt" is converted to a
- *		string with a trailing "K".  If "amt" is 10000 or greater,
- *		then it is formatted as megabytes (rounded) with a
- *		trailing "M".
+ *		area that changes each call.  "amt" is converted to a fixed
+ *		size humanize_number call
  */
 
 /*
@@ -394,61 +289,101 @@ long seconds;
 
 #define NUM_STRINGS 8
 
-char *format_k(int amt)
+char *
+format_k(int64_t amt)
 {
     static char retarray[NUM_STRINGS][16];
     static int index = 0;
-    char *p;
     char *ret;
-    char tag = 'K';
 
-    p = ret = retarray[index];
-    index = (index + 1) % NUM_STRINGS;
-
-    if (amt >= 10000)
-    {
-	amt = (amt + 512) / 1024;
-	tag = 'M';
-	if (amt >= 10000)
-	{
-	    amt = (amt + 512) / 1024;
-	    tag = 'G';
-	}
-    }
-
-    p = strecpy(p, itoa(amt));
-    *p++ = tag;
-    *p = '\0';
-
-    return(ret);
+    ret = retarray[index];
+	index = (index + 1) % NUM_STRINGS;
+	humanize_number(ret, 5, amt * 1024, "", HN_AUTOSCALE, HN_NOSPACE);
+	return (ret);
 }
 
-char *
-format_k2(unsigned long long amt)
+int
+find_pid(pid_t pid)
 {
-    static char retarray[NUM_STRINGS][16];
-    static int index = 0;
-    char *p;
-    char *ret;
-    char tag = 'K';
+	kvm_t *kd = NULL;
+	struct kinfo_proc *pbase = NULL;
+	int nproc;
+	int ret = 0;
 
-    p = ret = retarray[index];
-    index = (index + 1) % NUM_STRINGS;
-
-    if (amt >= 100000)
-    {
-	amt = (amt + 512) / 1024;
-	tag = 'M';
-	if (amt >= 100000)
-	{
-	    amt = (amt + 512) / 1024;
-	    tag = 'G';
+	kd = kvm_open(NULL, _PATH_DEVNULL, NULL, O_RDONLY, NULL);
+	if (kd == NULL) {
+		fprintf(stderr, "top: kvm_open() failed.\n");
+		quit(TOP_EX_SYS_ERROR);
 	}
-    }
 
-    p = strecpy(p, itoa((int)amt));
-    *p++ = tag;
-    *p = '\0';
+	pbase = kvm_getprocs(kd, KERN_PROC_PID, pid, &nproc);
+	if (pbase == NULL) {
+		goto done;
+	}
 
-    return(ret);
+	if ((nproc == 1) && (pbase->ki_pid == pid)) {
+		ret = 1;
+	}
+
+done:
+	kvm_close(kd);
+	return ret;
+}
+
+/*
+ * utf8strvisx(dst,src,src_len) 
+ *	strvisx(dst,src,src_len,VIS_NL|VIS_CSTYLE) coresponding to UTF-8.
+ */
+static const char *vis_encodes[] = {
+	"\\0", "\\^A", "\\^B", "\\^C", "\\^D", "\\^E", "\\^F", "\\a",
+	"\\b", "\t", "\\n", "\\v", "\\f", "\\r", "\\^N", "\\^O", "\\^P",
+	"\\^Q", "\\^R", "\\^S", "\\^T", "\\^U", "\\^V", "\\^W", "\\^X",
+	"\\^Y", "\\^Z", "\\^[", "\\^\\", "\\^]", "\\^^", "\\^_"
+};
+
+int
+utf8strvisx(char *dst, const char *src, size_t src_len)
+{
+	const signed char *src_p;
+	char *dst_p;
+	int i, j, olen, len;
+
+	src_p = src;
+	dst_p = dst;
+	i = olen = 0;
+	len = (int)src_len;
+	while (i < len) {
+		if (0x00 == (0x80 & *src_p)) {
+			if (0 <= *src_p && *src_p <= 31) {
+				j = strlen(vis_encodes[(int)*src_p]);
+				strcpy(dst_p, vis_encodes[(int)*src_p]);
+				dst_p += j;
+				olen += j;
+			} else if (127 == *src_p) {
+				strcpy(dst_p, "\\^?");
+				olen += 3;
+			} else {
+				*dst_p++ = *src_p;
+				++olen;
+			}
+			++i;
+			++src_p;
+		} else if (0xC0 == (0xE0 & *src_p)) {
+			*dst_p++ = *src_p++; ++i; ++olen;
+			if (i < len) { *dst_p++ = *src_p++; ++i; ++olen; }
+		} else if (0xE0 == (0xF0 & *src_p)) {
+			*dst_p++ = *src_p++; ++i; ++olen;
+			if (i < len) { *dst_p++ = *src_p++; ++i; ++olen; }
+			if (i < len) { *dst_p++ = *src_p++; ++i; ++olen; }
+		} else if (0xF0 == (0xF8 & *src_p)) {
+			*dst_p++ = *src_p++; ++i; ++olen;
+			if (i < len) { *dst_p++ = *src_p++; ++i; ++olen; }
+			if (i < len) { *dst_p++ = *src_p++; ++i; ++olen; }
+			if (i < len) { *dst_p++ = *src_p++; ++i; ++olen; }
+		} else {
+			*dst_p++ = '?'; ++i; ++olen;
+		}
+	}
+
+	return olen;
 }

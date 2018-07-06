@@ -55,11 +55,23 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/regulator/regulator.h>
 
+#include "opt_mmccam.h"
+
+#ifdef MMCCAM
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_debug.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_xpt_sim.h>
+#endif
+
 #define	AW_MMC_MEMRES		0
 #define	AW_MMC_IRQRES		1
 #define	AW_MMC_RESSZ		2
-#define	AW_MMC_DMA_SEGS		((MAXPHYS / PAGE_SIZE) + 1)
+#define	AW_MMC_DMA_SEGS		(PAGE_SIZE / sizeof(struct aw_mmc_dma_desc))
+#define	AW_MMC_DMA_DESC_SIZE	(sizeof(struct aw_mmc_dma_desc) * AW_MMC_DMA_SEGS)
 #define	AW_MMC_DMA_FTRGLEVEL	0x20070008
+
 #define	AW_MMC_RESET_RETRY	1000
 
 #define	CARD_ID_FREQUENCY	400000
@@ -110,15 +122,20 @@ struct aw_mmc_softc {
 	int			aw_timeout;
 	struct callout		aw_timeoutc;
 	struct mmc_host		aw_host;
+#ifdef MMCCAM
+	union ccb *		ccb;
+	struct cam_devq *	devq;
+	struct cam_sim * 	sim;
+	struct mtx		sim_mtx;
+#else
 	struct mmc_request *	aw_req;
+#endif
 	struct mtx		aw_mtx;
 	struct resource *	aw_res[AW_MMC_RESSZ];
 	struct aw_mmc_conf *	aw_mmc_conf;
 	uint32_t		aw_intr;
 	uint32_t		aw_intr_wait;
 	void *			aw_intrhand;
-	int32_t			aw_vdd;
-	int32_t			aw_vccq;
 	regulator_t		aw_reg_vmmc;
 	regulator_t		aw_reg_vqmmc;
 	unsigned int		aw_clock;
@@ -148,11 +165,19 @@ static int aw_mmc_init(struct aw_mmc_softc *);
 static void aw_mmc_intr(void *);
 static int aw_mmc_update_clock(struct aw_mmc_softc *, uint32_t);
 
+static void aw_mmc_print_error(uint32_t);
 static int aw_mmc_update_ios(device_t, device_t);
 static int aw_mmc_request(device_t, device_t, struct mmc_request *);
 static int aw_mmc_get_ro(device_t, device_t);
 static int aw_mmc_acquire_host(device_t, device_t);
 static int aw_mmc_release_host(device_t, device_t);
+#ifdef MMCCAM
+static void aw_mmc_cam_action(struct cam_sim *, union ccb *);
+static void aw_mmc_cam_poll(struct cam_sim *);
+static int aw_mmc_cam_settran_settings(struct aw_mmc_softc *, union ccb *);
+static int aw_mmc_cam_request(struct aw_mmc_softc *, union ccb *);
+static void aw_mmc_cam_handle_mmcio(struct cam_sim *, union ccb *);
+#endif
 
 #define	AW_MMC_LOCK(_sc)	mtx_lock(&(_sc)->aw_mtx)
 #define	AW_MMC_UNLOCK(_sc)	mtx_unlock(&(_sc)->aw_mtx)
@@ -160,6 +185,200 @@ static int aw_mmc_release_host(device_t, device_t);
 	bus_read_4((_sc)->aw_res[AW_MMC_MEMRES], _reg)
 #define	AW_MMC_WRITE_4(_sc, _reg, _value)				\
 	bus_write_4((_sc)->aw_res[AW_MMC_MEMRES], _reg, _value)
+
+#ifdef MMCCAM
+static void
+aw_mmc_cam_handle_mmcio(struct cam_sim *sim, union ccb *ccb)
+{
+	struct aw_mmc_softc *sc;
+
+	sc = cam_sim_softc(sim);
+
+	aw_mmc_cam_request(sc, ccb);
+}
+
+static void
+aw_mmc_cam_action(struct cam_sim *sim, union ccb *ccb)
+{
+	struct aw_mmc_softc *sc;
+
+	sc = cam_sim_softc(sim);
+	if (sc == NULL) {
+		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+		xpt_done(ccb);
+		return;
+	}
+
+	mtx_assert(&sc->sim_mtx, MA_OWNED);
+
+	switch (ccb->ccb_h.func_code) {
+	case XPT_PATH_INQ:
+	{
+		struct ccb_pathinq *cpi;
+
+		cpi = &ccb->cpi;
+		cpi->version_num = 1;
+		cpi->hba_inquiry = 0;
+		cpi->target_sprt = 0;
+		cpi->hba_misc = PIM_NOBUSRESET | PIM_SEQSCAN;
+		cpi->hba_eng_cnt = 0;
+		cpi->max_target = 0;
+		cpi->max_lun = 0;
+		cpi->initiator_id = 1;
+		cpi->maxio = (sc->aw_mmc_conf->dma_xferlen *
+			      AW_MMC_DMA_SEGS) / MMC_SECTOR_SIZE;
+		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strncpy(cpi->hba_vid, "Deglitch Networks", HBA_IDLEN);
+		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
+		cpi->unit_number = cam_sim_unit(sim);
+		cpi->bus_id = cam_sim_bus(sim);
+		cpi->protocol = PROTO_MMCSD;
+		cpi->protocol_version = SCSI_REV_0;
+		cpi->transport = XPORT_MMCSD;
+		cpi->transport_version = 1;
+
+		cpi->ccb_h.status = CAM_REQ_CMP;
+		break;
+	}
+	case XPT_GET_TRAN_SETTINGS:
+	{
+		struct ccb_trans_settings *cts = &ccb->cts;
+
+		if (bootverbose)
+			device_printf(sc->aw_dev, "Got XPT_GET_TRAN_SETTINGS\n");
+
+		cts->protocol = PROTO_MMCSD;
+		cts->protocol_version = 1;
+		cts->transport = XPORT_MMCSD;
+		cts->transport_version = 1;
+		cts->xport_specific.valid = 0;
+		cts->proto_specific.mmc.host_ocr = sc->aw_host.host_ocr;
+		cts->proto_specific.mmc.host_f_min = sc->aw_host.f_min;
+		cts->proto_specific.mmc.host_f_max = sc->aw_host.f_max;
+		cts->proto_specific.mmc.host_caps = sc->aw_host.caps;
+		memcpy(&cts->proto_specific.mmc.ios, &sc->aw_host.ios, sizeof(struct mmc_ios));
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		break;
+	}
+	case XPT_SET_TRAN_SETTINGS:
+	{
+		if (bootverbose)
+			device_printf(sc->aw_dev, "Got XPT_SET_TRAN_SETTINGS\n");
+		aw_mmc_cam_settran_settings(sc, ccb);
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		break;
+	}
+	case XPT_RESET_BUS:
+		if (bootverbose)
+			device_printf(sc->aw_dev, "Got XPT_RESET_BUS, ACK it...\n");
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		break;
+	case XPT_MMC_IO:
+		/*
+		 * Here is the HW-dependent part of
+		 * sending the command to the underlying h/w
+		 * At some point in the future an interrupt comes.
+		 * Then the request will be marked as completed.
+		 */
+		ccb->ccb_h.status = CAM_REQ_INPROG;
+
+		aw_mmc_cam_handle_mmcio(sim, ccb);
+		return;
+		/* NOTREACHED */
+		break;
+	default:
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		break;
+	}
+	xpt_done(ccb);
+	return;
+}
+
+static void
+aw_mmc_cam_poll(struct cam_sim *sim)
+{
+	return;
+}
+
+static int
+aw_mmc_cam_settran_settings(struct aw_mmc_softc *sc, union ccb *ccb)
+{
+	struct mmc_ios *ios;
+	struct mmc_ios *new_ios;
+	struct ccb_trans_settings_mmc *cts;
+
+	ios = &sc->aw_host.ios;
+
+	cts = &ccb->cts.proto_specific.mmc;
+	new_ios = &cts->ios;
+
+	/* Update only requested fields */
+	if (cts->ios_valid & MMC_CLK) {
+		ios->clock = new_ios->clock;
+		device_printf(sc->aw_dev, "Clock => %d\n", ios->clock);
+	}
+	if (cts->ios_valid & MMC_VDD) {
+		ios->vdd = new_ios->vdd;
+		device_printf(sc->aw_dev, "VDD => %d\n", ios->vdd);
+	}
+	if (cts->ios_valid & MMC_CS) {
+		ios->chip_select = new_ios->chip_select;
+		device_printf(sc->aw_dev, "CS => %d\n", ios->chip_select);
+	}
+	if (cts->ios_valid & MMC_BW) {
+		ios->bus_width = new_ios->bus_width;
+		device_printf(sc->aw_dev, "Bus width => %d\n", ios->bus_width);
+	}
+	if (cts->ios_valid & MMC_PM) {
+		ios->power_mode = new_ios->power_mode;
+		device_printf(sc->aw_dev, "Power mode => %d\n", ios->power_mode);
+	}
+	if (cts->ios_valid & MMC_BT) {
+		ios->timing = new_ios->timing;
+		device_printf(sc->aw_dev, "Timing => %d\n", ios->timing);
+	}
+	if (cts->ios_valid & MMC_BM) {
+		ios->bus_mode = new_ios->bus_mode;
+		device_printf(sc->aw_dev, "Bus mode => %d\n", ios->bus_mode);
+	}
+
+	return (aw_mmc_update_ios(sc->aw_dev, NULL));
+}
+
+static int
+aw_mmc_cam_request(struct aw_mmc_softc *sc, union ccb *ccb)
+{
+	struct ccb_mmcio *mmcio;
+
+	mmcio = &ccb->mmcio;
+
+	AW_MMC_LOCK(sc);
+
+#ifdef DEBUG
+	if (__predict_false(bootverbose)) {
+		device_printf(sc->aw_dev, "CMD%u arg %#x flags %#x dlen %u dflags %#x\n",
+			    mmcio->cmd.opcode, mmcio->cmd.arg, mmcio->cmd.flags,
+			    mmcio->cmd.data != NULL ? (unsigned int) mmcio->cmd.data->len : 0,
+			    mmcio->cmd.data != NULL ? mmcio->cmd.data->flags: 0);
+	}
+#endif
+	if (mmcio->cmd.data != NULL) {
+		if (mmcio->cmd.data->len == 0 || mmcio->cmd.data->flags == 0)
+			panic("data->len = %d, data->flags = %d -- something is b0rked",
+			      (int)mmcio->cmd.data->len, mmcio->cmd.data->flags);
+	}
+	if (sc->ccb != NULL) {
+		device_printf(sc->aw_dev, "Controller still has an active command\n");
+		return (EBUSY);
+	}
+	sc->ccb = ccb;
+	/* aw_mmc_request locks again */
+	AW_MMC_UNLOCK(sc);
+	aw_mmc_request(sc->aw_dev, NULL, NULL);
+
+	return (0);
+}
+#endif /* MMCCAM */
 
 static int
 aw_mmc_probe(device_t dev)
@@ -182,7 +401,7 @@ aw_mmc_attach(device_t dev)
 	struct aw_mmc_softc *sc;
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *tree;
-	uint32_t bus_width;
+	uint32_t bus_width, max_freq;
 	phandle_t node;
 	int error;
 
@@ -192,7 +411,9 @@ aw_mmc_attach(device_t dev)
 
 	sc->aw_mmc_conf = (struct aw_mmc_conf *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
 
+#ifndef MMCCAM
 	sc->aw_req = NULL;
+#endif
 	if (bus_alloc_resources(dev, aw_mmc_res_spec, sc->aw_res) != 0) {
 		device_printf(dev, "cannot allocate device resources\n");
 		return (ENXIO);
@@ -277,7 +498,12 @@ aw_mmc_attach(device_t dev)
 	}
 
 	sc->aw_host.f_min = 400000;
-	sc->aw_host.f_max = 52000000;
+
+	if (OF_getencprop(node, "max-frequency", &max_freq,
+	    sizeof(uint32_t)) <= 0)
+		max_freq = 52000000;
+	sc->aw_host.f_max = max_freq;
+
 	sc->aw_host.host_ocr = MMC_OCR_320_330 | MMC_OCR_330_340;
 	sc->aw_host.caps = MMC_CAP_HSPEED | MMC_CAP_UHS_SDR12 |
 			   MMC_CAP_UHS_SDR25 | MMC_CAP_UHS_SDR50 |
@@ -290,6 +516,35 @@ aw_mmc_attach(device_t dev)
 	if (bus_width >= 8)
 		sc->aw_host.caps |= MMC_CAP_8_BIT_DATA;
 
+#ifdef MMCCAM
+	child = NULL; /* Not used by MMCCAM, need to silence compiler warnings */
+	sc->ccb = NULL;
+	if ((sc->devq = cam_simq_alloc(1)) == NULL) {
+		goto fail;
+	}
+
+	mtx_init(&sc->sim_mtx, "awmmcsim", NULL, MTX_DEF);
+	sc->sim = cam_sim_alloc(aw_mmc_cam_action, aw_mmc_cam_poll,
+	    "aw_mmc_sim", sc, device_get_unit(dev),
+	    &sc->sim_mtx, 1, 1, sc->devq);
+
+	if (sc->sim == NULL) {
+		cam_simq_free(sc->devq);
+		device_printf(dev, "cannot allocate CAM SIM\n");
+		goto fail;
+	}
+
+	mtx_lock(&sc->sim_mtx);
+	if (xpt_bus_register(sc->sim, sc->aw_dev, 0) != 0) {
+		device_printf(dev, "cannot register SCSI pass-through bus\n");
+		cam_sim_free(sc->sim, FALSE);
+		cam_simq_free(sc->devq);
+		mtx_unlock(&sc->sim_mtx);
+		goto fail;
+	}
+
+	mtx_unlock(&sc->sim_mtx);
+#else /* !MMCCAM */
 	child = device_add_child(dev, "mmc", -1);
 	if (child == NULL) {
 		device_printf(dev, "attaching MMC bus failed!\n");
@@ -300,7 +555,7 @@ aw_mmc_attach(device_t dev)
 		device_delete_child(dev, child);
 		goto fail;
 	}
-
+#endif /* MMCCAM */
 	return (0);
 
 fail:
@@ -309,6 +564,17 @@ fail:
 	bus_teardown_intr(dev, sc->aw_res[AW_MMC_IRQRES], sc->aw_intrhand);
 	bus_release_resources(dev, aw_mmc_res_spec, sc->aw_res);
 
+#ifdef MMCCAM
+	if (sc->sim != NULL) {
+		mtx_lock(&sc->sim_mtx);
+		xpt_bus_deregister(cam_sim_path(sc->sim));
+		cam_sim_free(sc->sim, FALSE);
+		mtx_unlock(&sc->sim_mtx);
+	}
+
+	if (sc->devq != NULL)
+		cam_simq_free(sc->devq);
+#endif
 	return (ENXIO);
 }
 
@@ -335,34 +601,50 @@ aw_dma_desc_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 static int
 aw_mmc_setup_dma(struct aw_mmc_softc *sc)
 {
-	int dma_desc_size, error;
+	int error;
 
 	/* Allocate the DMA descriptor memory. */
-	dma_desc_size = sizeof(struct aw_mmc_dma_desc) * AW_MMC_DMA_SEGS;
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->aw_dev),
-	    AW_MMC_DMA_ALIGN, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    dma_desc_size, 1, dma_desc_size, 0, NULL, NULL, &sc->aw_dma_tag);
-	if (error)
-		return (error);
-	error = bus_dmamem_alloc(sc->aw_dma_tag, &sc->aw_dma_desc,
-	    BUS_DMA_WAITOK | BUS_DMA_ZERO, &sc->aw_dma_map);
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->aw_dev),	/* parent */
+	    AW_MMC_DMA_ALIGN, 0,		/* align, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg*/
+	    AW_MMC_DMA_DESC_SIZE, 1,		/* maxsize, nsegment */
+	    AW_MMC_DMA_DESC_SIZE,		/* maxsegsize */
+	    0,					/* flags */
+	    NULL, NULL,				/* lock, lockarg*/
+	    &sc->aw_dma_tag);
 	if (error)
 		return (error);
 
-	error = bus_dmamap_load(sc->aw_dma_tag, sc->aw_dma_map,
-	    sc->aw_dma_desc, dma_desc_size, aw_dma_desc_cb, sc, 0);
+	error = bus_dmamem_alloc(sc->aw_dma_tag, &sc->aw_dma_desc,
+	    BUS_DMA_COHERENT | BUS_DMA_WAITOK | BUS_DMA_ZERO,
+	    &sc->aw_dma_map);
+	if (error)
+		return (error);
+
+	error = bus_dmamap_load(sc->aw_dma_tag,
+	    sc->aw_dma_map,
+	    sc->aw_dma_desc, AW_MMC_DMA_DESC_SIZE,
+	    aw_dma_desc_cb, sc, 0);
 	if (error)
 		return (error);
 	if (sc->aw_dma_map_err)
 		return (sc->aw_dma_map_err);
 
 	/* Create the DMA map for data transfers. */
-	error = bus_dma_tag_create(bus_get_dma_tag(sc->aw_dev),
-	    AW_MMC_DMA_ALIGN, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    sc->aw_mmc_conf->dma_xferlen * AW_MMC_DMA_SEGS, AW_MMC_DMA_SEGS,
-	    sc->aw_mmc_conf->dma_xferlen, BUS_DMA_ALLOCNOW, NULL, NULL,
+	error = bus_dma_tag_create(
+	    bus_get_dma_tag(sc->aw_dev),	/* parent */
+	    AW_MMC_DMA_ALIGN, 0,		/* align, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg*/
+	    sc->aw_mmc_conf->dma_xferlen *
+	    AW_MMC_DMA_SEGS, AW_MMC_DMA_SEGS,	/* maxsize, nsegments */
+	    sc->aw_mmc_conf->dma_xferlen,	/* maxsegsize */
+	    BUS_DMA_ALLOCNOW,			/* flags */
+	    NULL, NULL,				/* lock, lockarg*/
 	    &sc->aw_dma_buf_tag);
 	if (error)
 		return (error);
@@ -389,22 +671,23 @@ aw_dma_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 
 	dma_desc = sc->aw_dma_desc;
 	for (i = 0; i < nsegs; i++) {
-		dma_desc[i].buf_size = segs[i].ds_len;
+		if (segs[i].ds_len == sc->aw_mmc_conf->dma_xferlen)
+			dma_desc[i].buf_size = 0;		/* Size of 0 indicate max len */
+		else
+			dma_desc[i].buf_size = segs[i].ds_len;
 		dma_desc[i].buf_addr = segs[i].ds_addr;
 		dma_desc[i].config = AW_MMC_DMA_CONFIG_CH |
-		    AW_MMC_DMA_CONFIG_OWN;
-		if (i == 0)
-			dma_desc[i].config |= AW_MMC_DMA_CONFIG_FD;
-		if (i < (nsegs - 1)) {
-			dma_desc[i].config |= AW_MMC_DMA_CONFIG_DIC;
-			dma_desc[i].next = sc->aw_dma_desc_phys +
-			    ((i + 1) * sizeof(struct aw_mmc_dma_desc));
-		} else {
-			dma_desc[i].config |= AW_MMC_DMA_CONFIG_LD |
-			    AW_MMC_DMA_CONFIG_ER;
-			dma_desc[i].next = 0;
-		}
+			AW_MMC_DMA_CONFIG_OWN | AW_MMC_DMA_CONFIG_DIC;
+
+		dma_desc[i].next = sc->aw_dma_desc_phys +
+			((i + 1) * sizeof(struct aw_mmc_dma_desc));
 	}
+
+	dma_desc[0].config |= AW_MMC_DMA_CONFIG_FD;
+	dma_desc[nsegs - 1].config |= AW_MMC_DMA_CONFIG_LD |
+		AW_MMC_DMA_CONFIG_ER;
+	dma_desc[nsegs - 1].config &= ~AW_MMC_DMA_CONFIG_DIC;
+	dma_desc[nsegs - 1].next = 0;
 }
 
 static int
@@ -415,7 +698,11 @@ aw_mmc_prepare_dma(struct aw_mmc_softc *sc)
 	struct mmc_command *cmd;
 	uint32_t val;
 
+#ifdef MMCCAM
+	cmd = &sc->ccb->mmcio.cmd;
+#else
 	cmd = sc->aw_req->cmd;
+#endif
 	if (cmd->data->len > (sc->aw_mmc_conf->dma_xferlen * AW_MMC_DMA_SEGS))
 		return (EFBIG);
 	error = bus_dmamap_load(sc->aw_dma_buf_tag, sc->aw_dma_buf_map,
@@ -472,7 +759,7 @@ aw_mmc_reset(struct aw_mmc_softc *sc)
 	reg = AW_MMC_READ_4(sc, AW_MMC_GCTL);
 	reg |= AW_MMC_GCTL_RESET;
 	AW_MMC_WRITE_4(sc, AW_MMC_GCTL, reg);
-	timeout = 1000;
+	timeout = AW_MMC_RESET_RETRY;
 	while (--timeout > 0) {
 		if ((AW_MMC_READ_4(sc, AW_MMC_GCTL) & AW_MMC_GCTL_RESET) == 0)
 			break;
@@ -527,11 +814,25 @@ static void
 aw_mmc_req_done(struct aw_mmc_softc *sc)
 {
 	struct mmc_command *cmd;
+#ifdef MMCCAM
+	union ccb *ccb;
+#else
 	struct mmc_request *req;
+#endif
 	uint32_t val, mask;
 	int retry;
 
+#ifdef MMCCAM
+	ccb = sc->ccb;
+	cmd = &ccb->mmcio.cmd;
+#else
 	cmd = sc->aw_req->cmd;
+#endif
+#ifdef DEBUG
+	if (bootverbose) {
+		device_printf(sc->aw_dev, "%s: cmd %d err %d\n", __func__, cmd->opcode, cmd->error);
+	}
+#endif
 	if (cmd->error != MMC_ERR_NONE) {
 		/* Reset the FIFO and DMA engines. */
 		mask = AW_MMC_GCTL_FIFO_RST | AW_MMC_GCTL_DMA_RST;
@@ -540,10 +841,10 @@ aw_mmc_req_done(struct aw_mmc_softc *sc)
 
 		retry = AW_MMC_RESET_RETRY;
 		while (--retry > 0) {
-			val = AW_MMC_READ_4(sc, AW_MMC_GCTL);
-			if ((val & mask) == 0)
+			if ((AW_MMC_READ_4(sc, AW_MMC_GCTL) &
+			    AW_MMC_GCTL_RESET) == 0)
 				break;
-			DELAY(10);
+			DELAY(100);
 		}
 		if (retry == 0)
 			device_printf(sc->aw_dev,
@@ -551,14 +852,21 @@ aw_mmc_req_done(struct aw_mmc_softc *sc)
 		aw_mmc_update_clock(sc, 1);
 	}
 
-	req = sc->aw_req;
 	callout_stop(&sc->aw_timeoutc);
-	sc->aw_req = NULL;
 	sc->aw_intr = 0;
 	sc->aw_resid = 0;
 	sc->aw_dma_map_err = 0;
 	sc->aw_intr_wait = 0;
+#ifdef MMCCAM
+	sc->ccb = NULL;
+	ccb->ccb_h.status =
+		(ccb->mmcio.cmd.error == 0 ? CAM_REQ_CMP : CAM_REQ_CMP_ERR);
+	xpt_done(ccb);
+#else
+	req = sc->aw_req;
+	sc->aw_req = NULL;
 	req->done(req);
+#endif
 }
 
 static void
@@ -575,7 +883,11 @@ aw_mmc_req_ok(struct aw_mmc_softc *sc)
 			break;
 		DELAY(1000);
 	}
+#ifdef MMCCAM
+	cmd = &sc->ccb->mmcio.cmd;
+#else
 	cmd = sc->aw_req->cmd;
+#endif
 	if (timeout == 0) {
 		cmd->error = MMC_ERR_FAILED;
 		aw_mmc_req_done(sc);
@@ -596,19 +908,56 @@ aw_mmc_req_ok(struct aw_mmc_softc *sc)
 	aw_mmc_req_done(sc);
 }
 
+
+static inline void
+set_mmc_error(struct aw_mmc_softc *sc, int error_code)
+{
+#ifdef MMCCAM
+	sc->ccb->mmcio.cmd.error = error_code;
+#else
+	sc->aw_req->cmd->error = error_code;
+#endif
+}
+
 static void
 aw_mmc_timeout(void *arg)
 {
 	struct aw_mmc_softc *sc;
 
 	sc = (struct aw_mmc_softc *)arg;
+#ifdef MMCCAM
+	if (sc->ccb != NULL) {
+#else
 	if (sc->aw_req != NULL) {
+#endif
 		device_printf(sc->aw_dev, "controller timeout\n");
-		sc->aw_req->cmd->error = MMC_ERR_TIMEOUT;
+		set_mmc_error(sc, MMC_ERR_TIMEOUT);
 		aw_mmc_req_done(sc);
 	} else
 		device_printf(sc->aw_dev,
 		    "Spurious timeout - no active request\n");
+}
+
+static void
+aw_mmc_print_error(uint32_t err)
+{
+	if(err & AW_MMC_INT_RESP_ERR)
+		printf("AW_MMC_INT_RESP_ERR ");
+	if (err & AW_MMC_INT_RESP_CRC_ERR)
+		printf("AW_MMC_INT_RESP_CRC_ERR ");
+	if (err & AW_MMC_INT_DATA_CRC_ERR)
+		printf("AW_MMC_INT_DATA_CRC_ERR ");
+	if (err & AW_MMC_INT_RESP_TIMEOUT)
+		printf("AW_MMC_INT_RESP_TIMEOUT ");
+	if (err & AW_MMC_INT_FIFO_RUN_ERR)
+		printf("AW_MMC_INT_FIFO_RUN_ERR ");
+	if (err & AW_MMC_INT_CMD_BUSY)
+		printf("AW_MMC_INT_CMD_BUSY ");
+	if (err & AW_MMC_INT_DATA_START_ERR)
+		printf("AW_MMC_INT_DATA_START_ERR ");
+	if (err & AW_MMC_INT_DATA_END_BIT_ERR)
+		printf("AW_MMC_INT_DATA_END_BIT_ERR");
+	printf("\n");
 }
 
 static void
@@ -632,31 +981,41 @@ aw_mmc_intr(void *arg)
 	device_printf(sc->aw_dev, "idst: %#x, imask: %#x, rint: %#x\n",
 	    idst, imask, rint);
 #endif
+#ifdef MMCCAM
+	if (sc->ccb == NULL) {
+#else
 	if (sc->aw_req == NULL) {
+#endif
 		device_printf(sc->aw_dev,
 		    "Spurious interrupt - no active request, rint: 0x%08X\n",
 		    rint);
+		aw_mmc_print_error(rint);
 		goto end;
 	}
 	if (rint & AW_MMC_INT_ERR_BIT) {
 		if (bootverbose)
 			device_printf(sc->aw_dev, "error rint: 0x%08X\n", rint);
+		aw_mmc_print_error(rint);
 		if (rint & AW_MMC_INT_RESP_TIMEOUT)
-			sc->aw_req->cmd->error = MMC_ERR_TIMEOUT;
+			set_mmc_error(sc, MMC_ERR_TIMEOUT);
 		else
-			sc->aw_req->cmd->error = MMC_ERR_FAILED;
+			set_mmc_error(sc, MMC_ERR_FAILED);
 		aw_mmc_req_done(sc);
 		goto end;
 	}
 	if (idst & AW_MMC_IDST_ERROR) {
 		device_printf(sc->aw_dev, "error idst: 0x%08x\n", idst);
-		sc->aw_req->cmd->error = MMC_ERR_FAILED;
+		set_mmc_error(sc, MMC_ERR_FAILED);
 		aw_mmc_req_done(sc);
 		goto end;
 	}
 
 	sc->aw_intr |= rint;
+#ifdef MMCCAM
+	data = sc->ccb->mmcio.cmd.data;
+#else
 	data = sc->aw_req->cmd->data;
+#endif
 	if (data != NULL && (idst & AW_MMC_IDST_COMPLETE) != 0) {
 		if (data->flags & MMC_DATA_WRITE)
 			sync_op = BUS_DMASYNC_POSTWRITE;
@@ -688,14 +1047,31 @@ aw_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 	int err;
 
 	sc = device_get_softc(bus);
+
 	AW_MMC_LOCK(sc);
+#ifdef MMCCAM
+	KASSERT(req == NULL, ("req should be NULL in MMCCAM case!"));
+	/*
+	 * For MMCCAM, sc->ccb has been NULL-checked and populated
+	 * by aw_mmc_cam_request() already.
+	 */
+	cmd = &sc->ccb->mmcio.cmd;
+#else
 	if (sc->aw_req) {
 		AW_MMC_UNLOCK(sc);
 		return (EBUSY);
 	}
-
 	sc->aw_req = req;
 	cmd = req->cmd;
+
+#ifdef DEBUG
+	if (bootverbose)
+		device_printf(sc->aw_dev, "CMD%u arg %#x flags %#x dlen %u dflags %#x\n",
+			      cmd->opcode, cmd->arg, cmd->flags,
+			      cmd->data != NULL ? (unsigned int)cmd->data->len : 0,
+			      cmd->data != NULL ? cmd->data->flags: 0);
+#endif
+#endif
 	cmdreg = AW_MMC_CMDR_LOAD;
 	imask = AW_MMC_INT_ERR_BIT;
 	sc->aw_intr_wait = 0;
@@ -819,7 +1195,8 @@ aw_mmc_read_ivar(device_t bus, device_t child, int which,
 		*(int *)result = sc->aw_host.ios.timing;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
-		*(int *)result = 65535;
+		*(int *)result = (sc->aw_mmc_conf->dma_xferlen *
+		    AW_MMC_DMA_SEGS) / MMC_SECTOR_SIZE;
 		break;
 	}
 
@@ -885,13 +1262,13 @@ aw_mmc_update_clock(struct aw_mmc_softc *sc, uint32_t clkon)
 	int retry;
 
 	reg = AW_MMC_READ_4(sc, AW_MMC_CKCR);
-	reg &= ~(AW_MMC_CKCR_CCLK_ENB | AW_MMC_CKCR_CCLK_CTRL |
-	    AW_MMC_CKCR_CCLK_MASK_DATA0);
+	reg &= ~(AW_MMC_CKCR_ENB | AW_MMC_CKCR_LOW_POWER |
+	    AW_MMC_CKCR_MASK_DATA0);
 
 	if (clkon)
-		reg |= AW_MMC_CKCR_CCLK_ENB;
+		reg |= AW_MMC_CKCR_ENB;
 	if (sc->aw_mmc_conf->mask_data0)
-		reg |= AW_MMC_CKCR_CCLK_MASK_DATA0;
+		reg |= AW_MMC_CKCR_MASK_DATA0;
 
 	AW_MMC_WRITE_4(sc, AW_MMC_CKCR, reg);
 
@@ -913,22 +1290,25 @@ aw_mmc_update_clock(struct aw_mmc_softc *sc, uint32_t clkon)
 
 	if (sc->aw_mmc_conf->mask_data0) {
 		reg = AW_MMC_READ_4(sc, AW_MMC_CKCR);
-		reg &= ~AW_MMC_CKCR_CCLK_MASK_DATA0;
+		reg &= ~AW_MMC_CKCR_MASK_DATA0;
 		AW_MMC_WRITE_4(sc, AW_MMC_CKCR, reg);
 	}
 
 	return (0);
 }
 
-static void
-aw_mmc_set_vccq(struct aw_mmc_softc *sc, int32_t vccq)
+static int
+aw_mmc_switch_vccq(device_t bus, device_t child)
 {
-	int uvolt;
+	struct aw_mmc_softc *sc;
+	int uvolt, err;
+
+	sc = device_get_softc(bus);
 
 	if (sc->aw_reg_vqmmc == NULL)
-		return;
+		return EOPNOTSUPP;
 
-	switch (vccq) {
+	switch (sc->aw_host.ios.vccq) {
 	case vccq_180:
 		uvolt = 1800000;
 		break;
@@ -936,15 +1316,19 @@ aw_mmc_set_vccq(struct aw_mmc_softc *sc, int32_t vccq)
 		uvolt = 3300000;
 		break;
 	default:
-		return;
+		return EINVAL;
 	}
 
-	if (regulator_set_voltage(sc->aw_reg_vqmmc,
-	    uvolt, uvolt) != 0)
+	err = regulator_set_voltage(sc->aw_reg_vqmmc, uvolt, uvolt);
+	if (err != 0) {
 		device_printf(sc->aw_dev,
 		    "Cannot set vqmmc to %d<->%d\n",
 		    uvolt,
 		    uvolt);
+		return (err);
+	}
+
+	return (0);
 }
 
 static int
@@ -999,11 +1383,6 @@ aw_mmc_update_ios(device_t bus, device_t child)
 		break;
 	};
 
-	if (ios->vccq != sc->aw_vccq) {
-		aw_mmc_set_vccq(sc, ios->vccq);
-		sc->aw_vccq = ios->vccq;
-	}
-
 	/* Enable ddr mode if needed */
 	reg = AW_MMC_READ_4(sc, AW_MMC_GCTL);
 	if (ios->timing == bus_timing_uhs_ddr50 ||
@@ -1030,7 +1409,7 @@ aw_mmc_update_ios(device_t bus, device_t child)
 
 		/* Reset the divider. */
 		reg = AW_MMC_READ_4(sc, AW_MMC_CKCR);
-		reg &= ~AW_MMC_CKCR_CCLK_DIV;
+		reg &= ~AW_MMC_CKCR_DIV;
 		reg |= div - 1;
 		AW_MMC_WRITE_4(sc, AW_MMC_CKCR, reg);
 
@@ -1120,6 +1499,7 @@ static device_method_t aw_mmc_methods[] = {
 	DEVMETHOD(mmcbr_update_ios,	aw_mmc_update_ios),
 	DEVMETHOD(mmcbr_request,	aw_mmc_request),
 	DEVMETHOD(mmcbr_get_ro,		aw_mmc_get_ro),
+	DEVMETHOD(mmcbr_switch_vccq,	aw_mmc_switch_vccq),
 	DEVMETHOD(mmcbr_acquire_host,	aw_mmc_acquire_host),
 	DEVMETHOD(mmcbr_release_host,	aw_mmc_release_host),
 
@@ -1136,4 +1516,6 @@ static driver_t aw_mmc_driver = {
 
 DRIVER_MODULE(aw_mmc, simplebus, aw_mmc_driver, aw_mmc_devclass, NULL,
     NULL);
+#ifndef MMCCAM
 MMC_DECLARE_BRIDGE(aw_mmc);
+#endif
