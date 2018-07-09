@@ -667,7 +667,7 @@ acpi_attach(device_t dev)
     sc->acpi_sleep_disabled = TRUE;
 
     /* Create the control device */
-    sc->acpi_dev_t = make_dev(&acpi_cdevsw, 0, UID_ROOT, GID_WHEEL, 0644,
+    sc->acpi_dev_t = make_dev(&acpi_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0664,
 			      "acpi");
     sc->acpi_dev_t->si_drv1 = sc;
 
@@ -1090,6 +1090,7 @@ static int
 acpi_parse_pxm(device_t dev)
 {
 #ifdef NUMA
+#if defined(__i386__) || defined(__amd64__)
 	ACPI_HANDLE handle;
 	ACPI_STATUS status;
 	int pxm;
@@ -1102,6 +1103,7 @@ acpi_parse_pxm(device_t dev)
 		return (acpi_map_pxm_to_vm_domainid(pxm));
 	if (status == AE_NOT_FOUND)
 		return (-2);
+#endif
 #endif
 	return (-1);
 }
@@ -2977,8 +2979,6 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	if (sleep_result == 1 && state != ACPI_STATE_S4)
 	    AcpiWriteBitRegister(ACPI_BITREG_SCI_ENABLE, ACPI_ENABLE_EVENT);
 
-	AcpiLeaveSleepStatePrep(state);
-
 	if (sleep_result == 1 && state == ACPI_STATE_S3) {
 	    /*
 	     * Prevent mis-interpretation of the wakeup by power button
@@ -3007,6 +3007,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	/* call acpi_wakeup_machdep() again with interrupt enabled */
 	acpi_wakeup_machdep(sc, state, sleep_result, 1);
 
+	AcpiLeaveSleepStatePrep(state);
+
 	if (sleep_result == -1)
 		goto backout;
 
@@ -3015,8 +3017,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	    AcpiEnable();
     } else {
 	status = AcpiEnterSleepState(state);
-	AcpiLeaveSleepStatePrep(state);
 	intr_restore(intr);
+	AcpiLeaveSleepStatePrep(state);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n",
 			  AcpiFormatException(status));

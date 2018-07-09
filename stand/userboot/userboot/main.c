@@ -52,7 +52,6 @@ static int userboot_zfs_found;
 struct loader_callbacks *callbacks;
 void *callbacks_arg;
 
-extern char bootprog_info[];
 static jmp_buf jb;
 
 struct arch_switch archsw;	/* MI/MD interface boundary */
@@ -159,7 +158,6 @@ extract_currdev(void)
 #if defined(USERBOOT_ZFS_SUPPORT)
 	struct zfs_devdesc zdev;
 
-	CTASSERT(sizeof(struct disk_devdesc) >= sizeof(struct zfs_devdesc));
 	if (userboot_zfs_found) {
 	
 		/* Leave the pool/root guid's unassigned */

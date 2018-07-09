@@ -606,31 +606,33 @@ static int
 parse_val_mask(const char *param, const char *args[], uint32_t *val,
     uint32_t *mask, int hashfilter)
 {
+	long l;
 	char *p;
 
 	if (strcmp(param, args[0]) != 0)
 		return (EINVAL);
 
-	*val = strtoul(args[1], &p, 0);
-	if (p > args[1]) {
-		if (p[0] == 0) {
-			*mask = ~0;
-			return (0);
-		}
-
-		if (p[0] == ':' && p[1] != 0) {
-			if (hashfilter) {
-				warnx("param %s: mask not allowed for "
-				    "hashfilter or nat params", param);
-				return (EINVAL);
-			}
-			*mask = strtoul(p+1, &p, 0);
-			if (p[0] == 0)
+	p = str_to_number(args[1], &l, NULL);
+	if (l >= 0 && l <= UINT32_MAX) {
+		*val = (uint32_t)l;
+		if (p > args[1]) {
+			if (p[0] == 0) {
+				*mask = ~0;
 				return (0);
-		} else {
-			warnx("param %s: mask not allowed for hashfilter",
-			    param);
-			return (EINVAL);
+			}
+
+			if (p[0] == ':' && p[1] != 0) {
+				if (hashfilter) {
+					warnx("param %s: mask not allowed for "
+					    "hashfilter or nat params", param);
+					return (EINVAL);
+				}
+				p = str_to_number(p + 1, &l, NULL);
+				if (l >= 0 && l <= UINT32_MAX && p[0] == 0) {
+					*mask = (uint32_t)l;
+					return (0);
+				}
+			}
 		}
 	}
 
@@ -767,16 +769,19 @@ static int
 parse_val(const char *param, const char *args[], uint32_t *val)
 {
 	char *p;
+	long l;
 
 	if (strcmp(param, args[0]) != 0)
 		return (EINVAL);
 
-	*val = strtoul(args[1], &p, 0);
-	if (p > args[1] && p[0] == 0)
-		return (0);
+	p = str_to_number(args[1], &l, NULL);
+	if (*p || l < 0 || l > UINT32_MAX) {
+		warnx("parameter \"%s\" has bad \"value\" %s", args[0], args[1]);
+		return (EINVAL);
+	}
 
-	warnx("parameter \"%s\" has bad \"value\" %s", args[0], args[1]);
-	return (EINVAL);
+	*val = (uint32_t)l;
+	return (0);
 }
 
 static void
@@ -1097,6 +1102,8 @@ del_filter(uint32_t idx, int hashfilter)
 	return doit(CHELSIO_T4_DEL_FILTER, &t);
 }
 
+#define MAX_VLANID (4095)
+
 static int
 set_filter(uint32_t idx, int argc, const char *argv[], int hash)
 {
@@ -1303,7 +1310,8 @@ set_filter(uint32_t idx, int argc, const char *argv[], int hash)
 			    t.fs.newvlan == VLAN_INSERT) {
 				t.fs.vlan = strtoul(argv[start_arg + 1] + 1,
 				    &p, 0);
-				if (p == argv[start_arg + 1] + 1 || p[0] != 0) {
+				if (p == argv[start_arg + 1] + 1 || p[0] != 0 ||
+				    t.fs.vlan > MAX_VLANID) {
 					warnx("invalid vlan \"%s\"",
 					     argv[start_arg + 1]);
 					return (EINVAL);

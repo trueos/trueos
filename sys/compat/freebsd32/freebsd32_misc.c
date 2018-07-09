@@ -1972,6 +1972,7 @@ static void
 copy_ostat(struct stat *in, struct ostat32 *out)
 {
 
+	bzero(out, sizeof(*out));
 	CP(*in, *out, st_dev);
 	CP(*in, *out, st_ino);
 	CP(*in, *out, st_mode);
@@ -1979,7 +1980,7 @@ copy_ostat(struct stat *in, struct ostat32 *out)
 	CP(*in, *out, st_uid);
 	CP(*in, *out, st_gid);
 	CP(*in, *out, st_rdev);
-	CP(*in, *out, st_size);
+	out->st_size = MIN(in->st_size, INT32_MAX);
 	TS_CP(*in, *out, st_atim);
 	TS_CP(*in, *out, st_mtim);
 	TS_CP(*in, *out, st_ctim);
@@ -2126,11 +2127,27 @@ freebsd11_cvtstat32(struct stat *in, struct freebsd11_stat32 *out)
 			break;
 		}
 	}
-	CP(*in, *out, st_dev);
+	out->st_dev = in->st_dev;
+	if (out->st_dev != in->st_dev) {
+		switch (ino64_trunc_error) {
+		default:
+			break;
+		case 1:
+			return (EOVERFLOW);
+		}
+	}
 	CP(*in, *out, st_mode);
 	CP(*in, *out, st_uid);
 	CP(*in, *out, st_gid);
-	CP(*in, *out, st_rdev);
+	out->st_rdev = in->st_rdev;
+	if (out->st_rdev != in->st_rdev) {
+		switch (ino64_trunc_error) {
+		default:
+			break;
+		case 1:
+			return (EOVERFLOW);
+		}
+	}
 	TS_CP(*in, *out, st_atim);
 	TS_CP(*in, *out, st_mtim);
 	TS_CP(*in, *out, st_ctim);

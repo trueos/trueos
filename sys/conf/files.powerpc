@@ -102,6 +102,7 @@ libkern/qdivrem.c		optional	powerpc | powerpcspe
 libkern/ucmpdi2.c		optional	powerpc | powerpcspe
 libkern/udivdi3.c		optional	powerpc | powerpcspe
 libkern/umoddi3.c		optional	powerpc | powerpcspe
+powerpc/aim/isa3_hashtb.c	optional	aim powerpc64
 powerpc/aim/locore.S		optional	aim no-obj
 powerpc/aim/aim_machdep.c	optional	aim
 powerpc/aim/mmu_oea.c		optional	aim powerpc
@@ -120,6 +121,7 @@ powerpc/booke/spe.c		optional	powerpcspe
 powerpc/cpufreq/dfs.c		optional	cpufreq
 powerpc/cpufreq/mpc85xx_jog.c	optional	cpufreq mpc85xx
 powerpc/cpufreq/pcr.c		optional	cpufreq aim
+powerpc/cpufreq/pmcr.c		optional	cpufreq aim powerpc64
 powerpc/cpufreq/pmufreq.c	optional	cpufreq aim pmu
 powerpc/fpu/fpu_add.c		optional	fpu_emu
 powerpc/fpu/fpu_compare.c	optional	fpu_emu

@@ -249,9 +249,10 @@ linux_fixup_elf(register_t **stack_base, struct image_params *imgp)
 
 	free(imgp->auxargs, M_TEMP);
 	imgp->auxargs = NULL;
-	KASSERT(pos - argarray <= AT_COUNT, ("Too many auxargs"));
+	KASSERT(pos - argarray <= LINUX_AT_COUNT, ("Too many auxargs"));
 
-	error = copyout(&argarray[0], auxbase, sizeof(*argarray) * AT_COUNT);
+	error = copyout(&argarray[0], auxbase,
+	    sizeof(*argarray) * LINUX_AT_COUNT);
 	free(argarray, M_TEMP);
 	if (error != 0)
 		return (error);
@@ -992,10 +993,11 @@ linux32_trans_osrel(const Elf_Note *note, int32_t *osrel)
 		return (false);
 
 	/*
-	 * For Linux we encode osrel as follows (see linux_mib.c):
-	 * VVVMMMIII (version, major, minor), see linux_mib.c.
+	 * For Linux we encode osrel using the Linux convention of
+	 * 	(version << 16) | (major << 8) | (minor)
+	 * See macro in linux_mib.h
 	 */
-	*osrel = desc[1] * 1000000 + desc[2] * 1000 + desc[3];
+	*osrel = LINUX_KERNVER(desc[1], desc[2], desc[3]);
 
 	return (true);
 }

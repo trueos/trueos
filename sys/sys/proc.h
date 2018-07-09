@@ -74,19 +74,6 @@
 #include <machine/cpu.h>
 #endif
 
-
-/*
- * A section object may be passed to every begin-end pair to allow for
- * forward progress guarantees with-in prolonged active sections.
- *
- * We can't include ck_epoch.h so we define our own variant here and
- * then CTASSERT that it's the same size in subr_epoch.c
- */
-struct epoch_section {
-	unsigned int bucket;
-};
-typedef struct epoch_section epoch_section_t;
-
 /*
  * One structure allocated per session.
  *
@@ -373,8 +360,7 @@ struct thread {
 	int		td_lastcpu;	/* (t) Last cpu we were on. */
 	int		td_oncpu;	/* (t) Which cpu we are on. */
 	void		*td_lkpi_task;	/* LinuxKPI task struct pointer */
-	TAILQ_ENTRY(thread) td_epochq;	/* (t) Epoch queue. */
-	epoch_section_t td_epoch_section; /* (t) epoch section object */
+	int		td_pmcpend;
 };
 
 struct thread0_storage {
@@ -632,7 +618,7 @@ struct proc {
 	u_int		p_stype;	/* (c) Stop event type. */
 	char		p_step;		/* (c) Process is stopped. */
 	u_char		p_pfsflags;	/* (c) Procfs flags. */
-	u_int		p_ptevents;	/* (c) ptrace() event mask. */
+	u_int		p_ptevents;	/* (c + e) ptrace() event mask. */
 	struct nlminfo	*p_nlminfo;	/* (?) Only used by/for lockd. */
 	struct kaioinfo	*p_aioinfo;	/* (y) ASYNC I/O info. */
 	struct thread	*p_singlethread;/* (c + j) If single threading this is it */
@@ -684,8 +670,6 @@ struct proc {
 	LIST_HEAD(, mqueue_notifier)	p_mqnotifier; /* (c) mqueue notifiers.*/
 	struct kdtrace_proc	*p_dtrace; /* (*) DTrace-specific data. */
 	struct cv	p_pwait;	/* (*) wait cv for exit/exec. */
-	struct cv	p_dbgwait;	/* (*) wait cv for debugger attach
-					   after fork. */
 	uint64_t	p_prev_runtime;	/* (c) Resource usage accounting. */
 	struct racct	*p_racct;	/* (b) Resource accounting. */
 	int		p_throttled;	/* (c) Flag for racct pcpu throttling */

@@ -284,7 +284,7 @@ typedef enum
  * DescriptorType is used to differentiate between internal descriptors.
  *
  * The node is optimized for both 32-bit and 64-bit platforms:
- * 28 bytes for the 32-bit case, 48 bytes for the 64-bit case.
+ * 20 bytes for the 32-bit case, 32 bytes for the 64-bit case.
  *
  * Note: The DescriptorType and Type fields must appear in the identical
  * position in both the ACPI_NAMESPACE_NODE and ACPI_OPERAND_OBJECT
@@ -301,12 +301,10 @@ typedef struct acpi_namespace_node
     struct acpi_namespace_node      *Parent;        /* Parent node */
     struct acpi_namespace_node      *Child;         /* First child */
     struct acpi_namespace_node      *Peer;          /* First peer */
-    struct acpi_namespace_node      *OwnerList;     /* All nodes owned by a table or method */
 
-/*
- * The following fields are appended to the namespace node and
- * are used by the ASL compiler and AML disassembler only
- */
+    /*
+     * The following fields are used by the ASL compiler and disassembler only
+     */
 #ifdef ACPI_LARGE_NAMESPACE_NODE
     union acpi_parse_object         *Op;
     void                            *MethodLocals;
@@ -314,6 +312,7 @@ typedef struct acpi_namespace_node
     UINT32                          Value;
     UINT32                          Length;
     UINT8                           ArgCount;
+
 #endif
 
 } ACPI_NAMESPACE_NODE;
@@ -329,7 +328,6 @@ typedef struct acpi_namespace_node
 #define ANOBJ_EVALUATED                 0x20    /* Set on first evaluation of node */
 #define ANOBJ_ALLOCATED_BUFFER          0x40    /* Method AML buffer is dynamic (InstallMethod) */
 
-#define IMPLICIT_EXTERNAL               0x02    /* iASL only: This object created implicitly via External */
 #define ANOBJ_IS_EXTERNAL               0x08    /* iASL only: This object created via External() */
 #define ANOBJ_METHOD_NO_RETVAL          0x10    /* iASL only: Method has no return value */
 #define ANOBJ_METHOD_SOME_NO_RETVAL     0x20    /* iASL only: Method has at least one return value */

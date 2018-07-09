@@ -86,6 +86,7 @@ getstathz(void)
 }
 
 #define STAT_MODE_NPMCS 6
+#define FIXED_MODE_NPMCS 2
 static struct timespec before_ts;
 #define CYCLES		0
 #define INST		1
@@ -105,7 +106,7 @@ static const char *pmc_stat_mode_names[] = {
 
 static int pmcstat_sockpair[NSOCKPAIRFD];
 
-static void
+static void __dead2
 usage(void)
 {
 	errx(EX_USAGE,
@@ -126,8 +127,10 @@ showtime(FILE *out, struct timespec *before, struct timespec *after,
 
 	after->tv_sec -= before->tv_sec;
 	after->tv_nsec -= before->tv_nsec;
-	if (after->tv_nsec < 0)
-		after->tv_sec--, after->tv_nsec += 1000000000;
+	if (after->tv_nsec < 0) {
+		after->tv_sec--;
+		after->tv_nsec += 1000000000;
+	}
 
 	real = (after->tv_sec * 1000000000 + after->tv_nsec) / 1000;
 	user = ru->ru_utime.tv_sec * 1000000 + ru->ru_utime.tv_usec;
@@ -179,7 +182,7 @@ pmc_stat_setup_stat(int system_mode, const char *arg)
 			if (pmc_pmu_sample_rate_get(counter) == DEFAULT_SAMPLE_COUNT)
 				errx(EX_USAGE, "ERROR: %s not recognized on host", counter);
 		}
-		start = IAP_START + STAT_MODE_NPMCS - newcnt;
+		start = IAP_START + STAT_MODE_NPMCS - FIXED_MODE_NPMCS - newcnt;
 		for (i = 0; i < newcnt; i++) {
 			stat_mode_cntrs[start + i] = new_cntrs[i];
 			stat_mode_names[start + i] = new_cntrs[i];
@@ -243,11 +246,26 @@ pmc_stat_print_stat(struct rusage *ru)
 	uint64_t ticks, value;
 	int hz, i;
 
-	hz = getstathz();
-	ticks = hz * (ru->ru_utime.tv_sec + ru->ru_stime.tv_sec) +
-	    hz * (ru->ru_utime.tv_usec + ru->ru_stime.tv_usec) / 1000000;
-	if (clock_gettime(CLOCK_MONOTONIC, &after))
-		err(1, "clock_gettime");
+	if (ru) {
+		hz = getstathz();
+		ticks = hz * (ru->ru_utime.tv_sec + ru->ru_stime.tv_sec) +
+			hz * (ru->ru_utime.tv_usec + ru->ru_stime.tv_usec) / 1000000;
+		if (clock_gettime(CLOCK_MONOTONIC, &after))
+			err(1, "clock_gettime");
+		/*
+		 * If our round-off on the tick calculation still puts us at 0,
+		 * then always assume at least one tick.
+		 */
+		if (ticks == 0)
+			ticks = 1;
+		fprintf(pmc_args.pa_printfile, "%16ld  %s\t\t#\t%02.03f M/sec\n",
+			ru->ru_minflt, "page faults", ((double)ru->ru_minflt / (double)ticks) / hz);
+		fprintf(pmc_args.pa_printfile, "%16ld  %s\t\t#\t%02.03f M/sec\n",
+			ru->ru_nvcsw, "voluntary csw", ((double)ru->ru_nvcsw / (double)ticks) / hz);
+		fprintf(pmc_args.pa_printfile, "%16ld  %s\t#\t%02.03f M/sec\n",
+			ru->ru_nivcsw, "involuntary csw", ((double)ru->ru_nivcsw / (double)ticks) / hz);
+	}
+
 	bzero(&cvals, sizeof(cvals));
 	STAILQ_FOREACH(ev, &pmc_args.pa_events, ev_next) {
 		if (pmc_read(ev->ev_pmcid, &value) < 0)
@@ -257,19 +275,6 @@ pmc_stat_print_stat(struct rusage *ru)
 			if (strcmp(ev->ev_name, stat_mode_cntrs[i]) == 0)
 				cvals[i] += value;
 	}
-
-	/*
-	 * If our round-off on the tick calculation still puts us at 0,
-	 * then always assume at least one tick.
-	 */
-	if (ticks == 0)
-		ticks = 1;
-	fprintf(pmc_args.pa_printfile, "%16ld  %s\t\t#\t%02.03f M/sec\n",
-	    ru->ru_minflt, "page faults", ((double)ru->ru_minflt / (double)ticks) / hz);
-	fprintf(pmc_args.pa_printfile, "%16ld  %s\t\t#\t%02.03f M/sec\n",
-	    ru->ru_nvcsw, "voluntary csw", ((double)ru->ru_nvcsw / (double)ticks) / hz);
-	fprintf(pmc_args.pa_printfile, "%16ld  %s\t#\t%02.03f M/sec\n",
-	    ru->ru_nivcsw, "involuntary csw", ((double)ru->ru_nivcsw / (double)ticks) / hz);
 
 	fprintf(pmc_args.pa_printfile, "%16jd  %s\n", (uintmax_t)cvals[CYCLES], stat_mode_names[CYCLES]);
 	fprintf(pmc_args.pa_printfile, "%16jd  %s\t\t#\t%01.03f inst/cycle\n", (uintmax_t)cvals[INST], stat_mode_names[INST],
@@ -293,8 +298,8 @@ pmc_stat_print_stat(struct rusage *ru)
 		fprintf(pmc_args.pa_printfile, "\t\t#\t%.03f%%\n",
 		    100 * ((double)cvals[CACHE_MISS] / cvals[CACHE]));
 
-
-	showtime(pmc_args.pa_printfile, &before_ts, &after, ru);
+	if (ru)
+		showtime(pmc_args.pa_printfile, &before_ts, &after, ru);
 }
 
 static struct option longopts[] = {
@@ -312,14 +317,17 @@ pmc_stat_internal(int argc, char **argv, int system_mode)
 	struct winsize ws;
 	struct pmcstat_ev *ev;
 	int c, option, runstate;
-	int waitstatus, ru_valid;
+	int waitstatus, ru_valid, do_debug;
 
-	ru_valid = 0;
+	do_debug = ru_valid = 0;
 	r = event = NULL;
-	while ((option = getopt_long(argc, argv, "j:", longopts, NULL)) != -1) {
+	while ((option = getopt_long(argc, argv, "dj:", longopts, NULL)) != -1) {
 		switch (option) {
 		case 'j':
 			r = event = strdup(optarg);
+			break;
+		case 'd':
+			do_debug = 1;
 			break;
 		case '?':
 		default:
@@ -341,10 +349,14 @@ pmc_stat_internal(int argc, char **argv, int system_mode)
 	EV_SET(&kev, SIGIO, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
 	if (kevent(pmc_kq, &kev, 1, NULL, 0, NULL) < 0)
 		err(EX_OSERR, "ERROR: Cannot register kevent for SIGIO");
+	EV_SET(&kev, 0, EVFILT_TIMER, EV_ADD, 0, 1000, NULL);
+	if (kevent(pmc_kq, &kev, 1, NULL, 0, NULL) < 0)
+		err(EX_OSERR,
+			"ERROR: Cannot register kevent for timer");
 
 	STAILQ_FOREACH(ev, &pmc_args.pa_events, ev_next) {
 		if (pmc_allocate(ev->ev_spec, ev->ev_mode,
-		    ev->ev_flags, ev->ev_cpu, &ev->ev_pmcid) < 0)
+		    ev->ev_flags, ev->ev_cpu, &ev->ev_pmcid, ev->ev_count) < 0)
 			err(EX_OSERR,
 			    "ERROR: Cannot allocate %s-mode pmc with specification \"%s\"",
 			    PMC_IS_SYSTEM_MODE(ev->ev_mode) ?
@@ -414,7 +426,10 @@ pmc_stat_internal(int argc, char **argv, int system_mode)
 
 		case EVFILT_READ:	/* log file data is present */
 			break;
-
+		case EVFILT_TIMER:
+			if (do_debug)
+				pmc_stat_print_stat(NULL);
+			break;
 		case EVFILT_SIGNAL:
 			if (kev.ident == SIGCHLD) {
 				/*

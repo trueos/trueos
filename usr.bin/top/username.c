@@ -30,9 +30,9 @@
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
 
 #include <pwd.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,9 +48,6 @@ struct hash_el {
 #define    is_empty_hash(x)	(hash_table[x].name[0] == 0)
 
 /* simple minded hashing function */
-/* Uid "nobody" is -2 results in hashit(-2) = -2 which is out of bounds for
-   the hash_table.  Applied abs() function to fix. 2/16/96 tpugh
-*/
 #define    hashit(i)	(abs(i) % Table_size)
 
 /* K&R requires that statically declared tables be initialized to zero. */
@@ -58,10 +55,8 @@ struct hash_el {
 static struct hash_el hash_table[Table_size];
 
 
-char *username(uid)
-
-int uid;
-
+char *
+username(int uid)
 {
     int hashindex;
 
@@ -74,10 +69,8 @@ int uid;
     return(hash_table[hashindex].name);
 }
 
-int userid(username)
-
-char *username;
-
+int
+userid(char username[])
 {
     struct passwd *pwd;
 
@@ -97,12 +90,9 @@ char *username;
     return(pwd->pw_uid);
 }
 
-int enter_user(uid, name, wecare)
-
-int  uid;
-char *name;
-int wecare;		/* 1 = enter it always, 0 = nice to have */
-
+/* wecare 1 = enter it always, 0 = nice to have */
+int
+enter_user(int uid, char name[], bool wecare)
 {
     int hashindex;
 
@@ -115,7 +105,7 @@ int wecare;		/* 1 = enter it always, 0 = nice to have */
     if (!is_empty_hash(hashindex))
     {
 	if (!wecare)
-	    return 0;		/* Don't clobber a slot for trash */
+	    return (0);		/* Don't clobber a slot for trash */
 	if (hash_table[hashindex].uid == uid)
 	    return(hashindex);	/* Fortuitous find */
     }
@@ -128,8 +118,6 @@ int wecare;		/* 1 = enter it always, 0 = nice to have */
 
 /*
  * Get a userid->name mapping from the system.
- * If the passwd database is hashed (#define RANDOM_PW), we
- * just handle this uid.
  */
 
 int
@@ -140,7 +128,7 @@ get_user(int uid)
     /* no performance penalty for using getpwuid makes it easy */
     if ((pwd = getpwuid(uid)) != NULL)
     {
-	return(enter_user(pwd->pw_uid, pwd->pw_name, 1));
+		return(enter_user(pwd->pw_uid, pwd->pw_name, 1));
     }
 
     /* if we can't find the name at all, then use the uid as the name */

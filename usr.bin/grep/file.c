@@ -95,7 +95,7 @@ grep_lnbufgrow(size_t newlen)
 }
 
 char *
-grep_fgetln(struct file *f, size_t *lenp)
+grep_fgetln(struct file *f, struct parsec *pc)
 {
 	unsigned char *p;
 	char *ret;
@@ -109,7 +109,7 @@ grep_fgetln(struct file *f, size_t *lenp)
 
 	if (bufrem == 0) {
 		/* Return zero length to indicate EOF */
-		*lenp = 0;
+		pc->ln.len= 0;
 		return (bufpos);
 	}
 
@@ -120,7 +120,7 @@ grep_fgetln(struct file *f, size_t *lenp)
 		len = p - bufpos;
 		bufrem -= len;
 		bufpos = p;
-		*lenp = len;
+		pc->ln.len = len;
 		return (ret);
 	}
 
@@ -155,11 +155,11 @@ grep_fgetln(struct file *f, size_t *lenp)
 		bufpos = p;
 		break;
 	}
-	*lenp = len;
+	pc->ln.len = len;
 	return (lnbuf);
 
 error:
-	*lenp = 0;
+	pc->ln.len = 0;
 	return (NULL);
 }
 

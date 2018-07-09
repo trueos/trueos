@@ -41,6 +41,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
 #include "opt_atpic.h"
 #include "opt_cpu.h"
 #include "opt_ddb.h"
@@ -97,6 +98,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 
 #include <isa/isareg.h>
+
+#include <contrib/dev/acpica/include/acpi.h>
 
 #define	STATE_RUNNING	0x0
 #define	STATE_MWAIT	0x1
@@ -723,7 +726,7 @@ SYSINIT(cpu_idle_tun, SI_SUB_CPU, SI_ORDER_MIDDLE, cpu_idle_tun, NULL);
 static int panic_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RWTUN,
     &panic_on_nmi, 0,
-    "Panic on NMI");
+    "Panic on NMI raised by hardware failure");
 int nmi_is_broadcast = 1;
 SYSCTL_INT(_machdep, OID_AUTO, nmi_is_broadcast, CTLFLAG_RWTUN,
     &nmi_is_broadcast, 0,
@@ -732,36 +735,37 @@ SYSCTL_INT(_machdep, OID_AUTO, nmi_is_broadcast, CTLFLAG_RWTUN,
 int kdb_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RWTUN,
     &kdb_on_nmi, 0,
-    "Go to KDB on NMI");
+    "Go to KDB on NMI with unknown source");
 #endif
 
-#ifdef DEV_ISA
 void
 nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame)
 {
+	bool claimed = false;
 
+#ifdef DEV_ISA
 	/* machine/parity/power fail/"kitchen sink" faults */
-	if (isa_nmi(frame->tf_err) == 0) {
+	if (isa_nmi(frame->tf_err)) {
+		claimed = true;
+		if (panic_on_nmi)
+			panic("NMI indicates hardware failure");
+	}
+#endif /* DEV_ISA */
 #ifdef KDB
+	if (!claimed && kdb_on_nmi) {
 		/*
 		 * NMI can be hooked up to a pushbutton for debugging.
 		 */
-		if (kdb_on_nmi) {
-			printf("NMI/cpu%d ... going to debugger\n", cpu);
-			kdb_trap(type, 0, frame);
-		}
-#endif /* KDB */
-	} else if (panic_on_nmi) {
-		panic("NMI indicates hardware failure");
+		printf("NMI/cpu%d ... going to debugger\n", cpu);
+		kdb_trap(type, 0, frame);
 	}
+#endif /* KDB */
 }
-#endif
 
 void
 nmi_handle_intr(u_int type, struct trapframe *frame)
 {
 
-#ifdef DEV_ISA
 #ifdef SMP
 	if (nmi_is_broadcast) {
 		nmi_call_kdb_smp(type, frame);
@@ -769,7 +773,6 @@ nmi_handle_intr(u_int type, struct trapframe *frame)
 	}
 #endif
 	nmi_call_kdb(PCPU_GET(cpuid), type, frame);
-#endif
 }
 
 int hw_ibrs_active;
@@ -930,3 +933,23 @@ restore_wp(bool old_wp)
 		load_cr0(rcr0() | CR0_WP);
 }
 
+bool
+acpi_get_fadt_bootflags(uint16_t *flagsp)
+{
+#ifdef DEV_ACPI
+	ACPI_TABLE_FADT *fadt;
+	vm_paddr_t physaddr;
+
+	physaddr = acpi_find_table(ACPI_SIG_FADT);
+	if (physaddr == 0)
+		return (false);
+	fadt = acpi_map_table(physaddr, ACPI_SIG_FADT);
+	if (fadt == NULL)
+		return (false);
+	*flagsp = fadt->BootFlags;
+	acpi_unmap_table(fadt);
+	return (true);
+#else
+	return (false);
+#endif
+}

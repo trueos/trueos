@@ -3,8 +3,8 @@
 #
 
 .include <src.opts.mk>
-CFLAGS+=-I${.CURDIR}/../../sys
-.PATH:  ${.CURDIR}/../../sys/cam/ctl
+CFLAGS+=-I${SRCTOP}/sys
+.PATH:  ${SRCTOP}/sys/cam/ctl
 
 PROG=	bhyve
 PACKAGE=	bhyve

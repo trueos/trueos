@@ -3,8 +3,6 @@
 
 .include <src.opts.mk>
 
-# XXX MISSING:		icheck ncheck
-
 SUBDIR=adjkerntz \
 	beadm \
 	camcontrol \
@@ -90,6 +88,7 @@ SUBDIR.${MK_IPFW}+=	natd
 SUBDIR.${MK_ISCSI}+=	iscontrol
 SUBDIR.${MK_NAND}+=	nandfs
 SUBDIR.${MK_NAND}+=	newfs_nandfs
+SUBDIR.${MK_NVME}+=	nvmecontrol
 SUBDIR.${MK_OPENSSL}+=	decryptcore
 SUBDIR.${MK_PF}+=	pfctl
 SUBDIR.${MK_PF}+=	pflogd

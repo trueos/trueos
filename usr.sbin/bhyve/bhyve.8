@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jun 27, 2018
+.Dd Jul 05, 2018
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -222,7 +222,7 @@ Virtio network interface.
 .It Li virtio-blk
 Virtio block storage interface.
 .It Li virtio-scsi
-Virtio block scsi interface.
+Virtio SCSI interface.
 .It Li virtio-rnd
 Virtio RNG interface.
 .It Li virtio-console
@@ -457,7 +457,7 @@ Accepted device paths are:
 or
 .Ar /path/to/image
 or
-.Ar ram=size_in_MB .
+.Ar ram=size_in_MiB .
 .It Li maxq
 Max number of queues.
 .It Li qsz
