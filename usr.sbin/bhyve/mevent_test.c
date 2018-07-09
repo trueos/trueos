@@ -42,8 +42,10 @@
 #include <netinet/in.h>
 #include <machine/cpufunc.h>
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sysexits.h>
 #include <pthread.h>
 #include <unistd.h>
 
@@ -142,8 +144,7 @@ echoer(void *param)
 
 	mev = mevent_add(fd, EVF_READ, echoer_callback, &sync);
 	if (mev == NULL) {
-		printf("Could not allocate echoer event\n");
-		exit(1);
+		errx(EX_OSERR, "Could not allocate echoer event");
 	}
 
 	while (!pthread_cond_wait(&sync.e_cond, &sync.e_mt)) {
@@ -200,8 +201,7 @@ acceptor(void *param)
 	static int first;
 
 	if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		perror("socket");
-		exit(1);
+		err(errno, "socket");
 	}
 
 	sin.sin_len = sizeof(sin);
@@ -210,13 +210,11 @@ acceptor(void *param)
 	sin.sin_port = htons(TEST_PORT);
 
 	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		perror("bind");
-		exit(1);
+		err(errno, "bind");
 	}
 
 	if (listen(s, 1) < 0) {
-		perror("listen");
-		exit(1);
+		err(errno, "listen");
 	}
 
 	(void) mevent_add(s, EVF_READ, acceptor_callback, NULL);

@@ -139,8 +139,7 @@ init_dbgport(int sport)
 	conn_fd = -1;
 
 	if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		perror("socket");
-		exit(1);
+		err(errno, "cannot create a socket");
 	}
 
 	sin.sin_len = sizeof(sin);
@@ -151,18 +150,15 @@ init_dbgport(int sport)
 	reuse = 1;
 	if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &reuse,
 	    sizeof(reuse)) < 0) {
-		perror("setsockopt");
-		exit(1);
+		err(errno, "cannot set socket options");
 	}
 
 	if (bind(listen_fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		perror("bind");
-		exit(1);
+		err(errno, "cannot bind to the socket");
 	}
 
 	if (listen(listen_fd, 1) < 0) {
-		perror("listen");
-		exit(1);
+		err(errno, "cannot listen socket");
 	}
 
 #ifndef WITHOUT_CAPSICUM

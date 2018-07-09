@@ -41,9 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <assert.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 
 #include "bhyverun.h"
 #include "inout.h"
@@ -374,8 +376,7 @@ fwctl_request(uint32_t value)
 	case 0:
 		/* Verify size */
 		if (value < 12) {
-			printf("msg size error");
-			exit(1);
+			errx(EX_SOFTWARE, "msg size error");
 		}
 		rinfo.req_size = value;
 		rinfo.req_count = 1;

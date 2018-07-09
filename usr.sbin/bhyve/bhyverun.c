@@ -398,8 +398,7 @@ fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
 {
 
 	if (!CPU_ISSET(vcpu, &cpumask)) {
-		fprintf(stderr, "Attempting to delete unknown cpu %d\n", vcpu);
-		exit(1);
+		errx(EX_OSERR, "Attempting to delete unknown cpu %d", vcpu);
 	}
 
 	CPU_CLR_ATOMIC(vcpu, &cpumask);
@@ -685,8 +684,7 @@ vmexit_suspend(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	case VM_SUSPEND_TRIPLEFAULT:
 		exit(3);
 	default:
-		fprintf(stderr, "vmexit_suspend: invalid reason %d\n", how);
-		exit(100);
+		errx(EX_OSERR, "vmexit_suspend: invalid reason %d", how);
 	}
 	return (0);	/* NOTREACHED */
 }
@@ -742,9 +740,8 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 
 		exitcode = vmexit[vcpu].exitcode;
 		if (exitcode >= VM_EXITCODE_MAX || handler[exitcode] == NULL) {
-			fprintf(stderr, "vm_loop: unexpected exitcode 0x%x\n",
+			errx(EX_SOFTWARE, "vm_loop: unexpected exitcode 0x%x",
 			    exitcode);
-			exit(1);
 		}
 
 		rc = (*handler[exitcode])(ctx, &vmexit[vcpu], &vcpu);
@@ -755,7 +752,7 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 		case VMEXIT_ABORT:
 			abort();
 		default:
-			exit(1);
+			exit(EX_UNAVAILABLE);
 		}
 	}
 	fprintf(stderr, "vm_run error %d, errno %d\n", error, errno);
@@ -786,8 +783,7 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 	if (fbsdrun_vmexit_on_hlt()) {
 		err = vm_get_capability(ctx, cpu, VM_CAP_HALT_EXIT, &tmp);
 		if (err < 0) {
-			fprintf(stderr, "VM exit on HLT not supported\n");
-			exit(1);
+			errx(EX_SOFTWARE, "VM exit on HLT not support");
 		}
 		vm_set_capability(ctx, cpu, VM_CAP_HALT_EXIT, 1);
 		if (cpu == BSP)
@@ -800,9 +796,7 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 		 */
 		err = vm_get_capability(ctx, cpu, VM_CAP_PAUSE_EXIT, &tmp);
 		if (err < 0) {
-			fprintf(stderr,
-			    "SMP mux requested, no pause support\n");
-			exit(1);
+			errx(EX_NOPERM, "SMP mux requested, no pause support");
 		}
 		vm_set_capability(ctx, cpu, VM_CAP_PAUSE_EXIT, 1);
 		if (cpu == BSP)
@@ -815,8 +809,7 @@ fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
 		err = vm_set_x2apic_state(ctx, cpu, X2APIC_DISABLED);
 
 	if (err) {
-		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
-		exit(1);
+		errx(EX_SOFTWARE, "Unable to set x2apic state (%d)", err);
 	}
 
 	vm_set_capability(ctx, cpu, VM_CAP_ENABLE_INVPCID, 1);
@@ -851,8 +844,7 @@ do_open(const char *vmname)
 				 */
 			}
 		} else {
-			perror("vm_create");
-			exit(1);
+			err(errno, "vm_create");
 		}
 	} else {
 		if (!romboot) {
@@ -860,15 +852,13 @@ do_open(const char *vmname)
 			 * If the virtual machine was just created then a
 			 * bootrom must be configured to boot it.
 			 */
-			fprintf(stderr, "virtual machine cannot be booted\n");
-			exit(1);
+			errx(EX_USAGE, "virtual machine cannot be booted");
 		}
 	}
 
 	ctx = vm_open(vmname);
 	if (ctx == NULL) {
-		perror("vm_open");
-		exit(1);
+		err(errno, "vm_open");
 	}
 
 #ifndef WITHOUT_CAPSICUM
@@ -889,8 +879,7 @@ do_open(const char *vmname)
 	if (reinit) {
 		error = vm_reinit(ctx);
 		if (error) {
-			perror("vm_reinit");
-			exit(1);
+			err(errno, "vm_reinit");
 		}
 	}
 	error = vm_set_topology(ctx, sockets, cores, threads, maxcpus);
@@ -972,7 +961,7 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			if (pci_parse_slot(optarg) != 0)
-				exit(1);
+				errx(EX_USAGE, "invalid pci slot");
 			else
 				break;
 		case 'S':
@@ -1036,9 +1025,8 @@ main(int argc, char *argv[])
 
 	max_vcpus = num_vcpus_allowed(ctx);
 	if (guest_ncpus > max_vcpus) {
-		fprintf(stderr, "%d vCPUs requested but only %d available\n",
-			guest_ncpus, max_vcpus);
-		exit(1);
+		errx(EX_SOFTWARE, "%d vCPUs requested but only %d available",
+		    guest_ncpus, max_vcpus);
 	}
 
 	fbsdrun_set_capabilities(ctx, BSP);
@@ -1046,14 +1034,12 @@ main(int argc, char *argv[])
 	vm_set_memflags(ctx, memflags);
 	err = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
 	if (err) {
-		fprintf(stderr, "Unable to setup memory (%d)\n", errno);
-		exit(1);
+		errx(EX_NOPERM, "Unable to setup memory (%d)", errno);
 	}
 
 	error = init_msr();
 	if (error) {
-		fprintf(stderr, "init_msr error %d", error);
-		exit(1);
+		errx(EX_SOFTWARE, "init_msr error %d", error);
 	}
 
 	init_mem();
@@ -1069,7 +1055,8 @@ main(int argc, char *argv[])
 	 * Exit if a device emulation finds an error in its initilization
 	 */
 	if (init_pci(ctx) != 0)
-		exit(1);
+		errx(EX_UNAVAILABLE,
+		    "device emulation initialization error");
 
 	if (dbg_port != 0)
 		init_dbgport(dbg_port);
@@ -1082,9 +1069,8 @@ main(int argc, char *argv[])
 
 	if (lpc_bootrom()) {
 		if (vm_set_capability(ctx, BSP, VM_CAP_UNRESTRICTED_GUEST, 1)) {
-			fprintf(stderr, "ROM boot failed: unrestricted guest "
-			    "capability not available\n");
-			exit(1);
+			errx(EX_UNAVAILABLE, "ROM boot failed: unrestricted "
+			    "guest capability not available");
 		}
 		error = vcpu_reset(ctx, BSP);
 		assert(error == 0);
@@ -1099,7 +1085,7 @@ main(int argc, char *argv[])
 	if (mptgen) {
 		error = mptable_build(ctx, guest_ncpus);
 		if (error)
-			exit(1);
+			errx(EX_SOFTWARE, "build the guest tables");
 	}
 
 	error = smbios_build(ctx);
@@ -1138,5 +1124,5 @@ main(int argc, char *argv[])
 	 */
 	mevent_dispatch();
 
-	exit(1);
+	errx(EX_SOFTWARE, "internal software error");
 }
