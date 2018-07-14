@@ -298,15 +298,17 @@ EOF
 			 >${OBJDIR}/disc1/root/auto-dist-install
 	fi
 
-	# Create the local repo DB config
+	# Create the install repo DB config
 	mkdir -p ${OBJDIR}/disc1/etc/pkg
 	cat >${OBJDIR}/disc1/etc/pkg/TrueOS.conf <<EOF
 install-repo: {
-  url: "file:///dist/${ABI_DIR}/latest",
+  url: "file:///install-pkg",
   signature_type: "none",
   enabled: yes
 }
 EOF
+	mkdir -p ${OBJDIR}/disc1/install-pkg
+	mount_nullfs ${POUDRIERE_PKGDIR} ${OBJDIR}/disc1/install-pkg
 
 	# If there are any packages to install into the ISO, do it now
 	if [ "$(jq -r '."iso-install-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
@@ -321,6 +323,21 @@ EOF
 				fi
 		done
 	fi
+
+	# Cleanup the ISO install packages
+	umount -f ${OBJDIR}/disc1/install-pkg
+	rmdir ${OBJDIR}/disc1/install-pkg
+	rm ${OBJDIR}/disc1/etc/pkg/TrueOS.conf
+
+	# Create the local repo DB config
+	cat >${OBJDIR}/disc1/etc/pkg/TrueOS.conf <<EOF
+install-repo: {
+  url: "file:///dist/${ABI_DIR}/latest",
+  signature_type: "none",
+  enabled: yes
+}
+EOF
+
 }
 
 apply_iso_config()
