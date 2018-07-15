@@ -132,6 +132,9 @@ build_poudriere()
 		# Start the build
 		poudriere bulk -a -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
 		check_essential_pkgs
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed building all essential packages.."
+		fi
 	fi
 
 	# Check if we want to do a selective build
