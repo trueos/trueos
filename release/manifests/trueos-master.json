@@ -2,7 +2,9 @@
   "ports-url":"https://github.com/trueos/trueos-ports",
   "ports-branch":"trueos-master",
   "ports-conf":[
-	  "MAKE_JOBS_NUMBER_LIMIT=3"
+	  "MAKE_JOBS_NUMBER_LIMIT=3",
+	  "audio_openal-soft_SET=PULSEAUDIO",
+	  "audio_openal-soft_UNSET=OSS"
   ],
   "poudriere-conf":[
 	  "NOHANG_TIME=14400"
@@ -13,10 +15,11 @@
   "essential-packages":[
 	  "www/firefox",
 	  "mail/thunderbird",
-	  "x11/kde5",
 	  "sysutils/ipmitool",
 	  "sysutils/dmidecode",
-	  "sysutils/tmux"
+	  "sysutils/tmux",
+	  "x11/kde5",
+	  "x11/sddm"
   ],
   "iso-install-packages":[
 	"sysutils/ipmitool",
