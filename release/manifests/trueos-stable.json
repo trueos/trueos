@@ -2,7 +2,9 @@
   "ports-url":"https://github.com/trueos/trueos-ports",
   "ports-branch":"v2018.06.28",
   "ports-conf":[
-	  "MAKE_JOBS_NUMBER_LIMIT=3"
+	  "MAKE_JOBS_NUMBER_LIMIT=3",
+	  "audio_openal-soft_SET=PULSEAUDIO",
+	  "audio_openal-soft_UNSET=OSS"
   ],
   "poudriere-conf":[
 	  "NOHANG_TIME=14400"
