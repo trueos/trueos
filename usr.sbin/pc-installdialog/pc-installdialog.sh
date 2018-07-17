@@ -29,10 +29,20 @@ SYSBOOTMANAGER="BSD"
 # Set the default ashift / ZFS blocksize
 ASHIFTSIZE="12"
 
+
+# Displays the exit message and return to start menu
+exit_to_menu()
+{
+  # Echo the exit message for the users benefit
+  echo "Exit Message: $1"
+  start_menu_loop
+}
+
+
 rtn()
 {
-   echo "Press ENTER to continue"
-   read tmp
+  echo "Press ENTER to continue"
+  read tmp
 }
 
 change_zpool()
@@ -60,7 +70,7 @@ get_zpool_menu()
 
     get_dlg_ans "--menu \"Current storage pool: $ZPOOL_TYPE - $SYSDISK $ZPOOL_DISKS\" 20 50 10 ${dOpts}"
     if [ -z "$ANS" ] ; then
-       exit_err "Invalid option selected!"
+       exit_to_menu "Invalid option selected!"
     fi
     case $ANS in
        done) break ;;
@@ -92,7 +102,7 @@ get_zpool_cfg_menu()
 
     get_dlg_ans "--menu \"Select the zpool blocksize (Current: $ASHIFTSIZE)\" 20 50 10 ${dOpts}"
     if [ -z "$ANS" ] ; then
-       exit_err "Invalid option selected!"
+       exit_to_menu "Invalid option selected!"
     fi
     case $ANS in
        done) break ;;
@@ -168,7 +178,7 @@ get_zfs_layout()
     done
     get_dlg_ans "--menu \"Select dataset to edit\" 22 78 15 ${dOpts}"
     if [ -z "$ANS" ] ; then
-       exit_err "Invalid dataset selected!"
+       exit_to_menu "Invalid dataset selected!"
     fi
     case $ANS in
        done) break ;;
@@ -202,7 +212,7 @@ get_zfs_dset_opt()
   # Ask what to do on this dataset
   get_dlg_ans "--menu \"Set option for $changeOpt on $2\" 22 50 15 unset 'Unset this option' cancel 'Cancel' ${dOpts}"
   if [ -z "$ANS" ] ; then
-     exit_err "Invalid option selected!"
+     exit_to_menu "Invalid option selected!"
   fi
 
   if [ "$ANS" = "unset" ] ; then ANS="" ; fi
@@ -240,7 +250,7 @@ edit_dataset()
   # Ask what to do on this dataset
   get_dlg_ans "--menu \"Editing dataset: ${1}\" 22 50 15 delete 'Remove the dataset' cancel 'Cancel' ${dOpts}"
   if [ -z "$ANS" ] ; then
-     exit_err "Invalid dataset selected!"
+     exit_to_menu "Invalid dataset selected!"
   fi
   case $ANS in
     cancel) return ;;
@@ -257,7 +267,7 @@ edit_dataset()
             done
 	    ZFSLAYOUT="$NEWLAYOUT"
             ;;
-         *) cOpt=$ANS 
+         *) cOpt=$ANS
 	    get_zfs_dset_opt "$cOpt" "$1"
 	    newOpt="$VAL"
 	    if [ "$newOpt" = "CANCELED" ] ; then return ; fi
@@ -266,7 +276,7 @@ edit_dataset()
             for z in `echo $ZFSLAYOUT | sed 's|,| |g'`
             do
                d=`echo $z | cut -d '(' -f 1`
-               if [ "$d" != "$1" ] ; then 
+               if [ "$d" != "$1" ] ; then
                  if [ -z "$NEWLAYOUT" ] ; then
                    NEWLAYOUT="${z}"
                  else
@@ -327,11 +337,11 @@ add_dataset()
 {
     get_dlg_ans "--inputbox 'Enter dataset mountpoint' 8 40"
     if [ -z "$ANS" ] ; then
-       exit_err "Invalid dataset entered!"
+       exit_to_menu "Invalid dataset entered!"
     fi
 
     # Make sure it starts with a /
-    echo $ANS | grep -q "^/" 
+    echo $ANS | grep -q "^/"
     if [ $? -ne 0 ] ; then
        return
     fi
@@ -382,7 +392,7 @@ get_dlg_ans()
     sh ${TANS}.dlg 2>${TANS}
     if [ $? -ne 0 ] ; then
       dialog --title "$TITLE" --yesno 'Exit the installer?' 8 30
-      if [ $? -eq 0 ] ; then exit_err "User canceled install" ; fi
+      if [ $? -eq 0 ] ; then exit_to_menu "User canceled install" ; fi
       continue
     fi
 
@@ -414,13 +424,13 @@ get_target_disk()
      d=`echo $i | cut -d ':' -f 1`
      desc=`echo $i | cut -d ':' -f 2`
      size="`${PCSYS} disk-info $d | grep size | cut -d '=' -f 2`MB"
-     dOpts="$dOpts $d \"$desc ($size)\" $fOpt" 
+     dOpts="$dOpts $d \"$desc ($size)\" $fOpt"
      if [ -z "$fOpt" ] ; then fOpt="off"; fi
   done < /tmp/.dList.$$
   rm /tmp/.dList.$$
   get_dlg_ans "--radiolist \"Select target disk\" 12 50 5 ${dOpts}"
   if [ -z "$ANS" ] ; then
-     exit_err "Invalid disk selected!"
+     exit_to_menu "Invalid disk selected!"
   fi
   SYSDISK="$ANS"
 }
@@ -508,7 +518,7 @@ get_target_part()
   rm /tmp/.dList.$$
   get_dlg_ans "--radiolist \"Select target partition\" 12 80 5 ${dOpts}"
   if [ -z "$ANS" ] ; then
-     exit_err "Invalid disk selected!"
+     exit_to_menu "Invalid disk selected!"
   fi
   DISKPART="$ANS"
 
@@ -526,7 +536,7 @@ get_target_part()
     done
     if [ "1." = "$ANS" ] ; then
       DISKFORMAT="GPT"
-    else 
+    else
       DISKFORMAT="MBR"
     fi
   fi
@@ -558,7 +568,7 @@ get_root_pw()
     if [ "$ROOTPWCONFIRM" = "$ROOTPW" ] ; then break; fi
     dialog --title "$TITLE" --yesno 'Password Mismatch, try again?' 8 40
     if [ $? -eq 0 ] ; then continue ; fi
-    exit_err "Failed setting root password!"
+    exit_to_menu "Failed setting root password!"
   done
 }
 
@@ -587,9 +597,9 @@ get_user_pw()
     if [ "$USERPWCONFIRM" = "$USERPW" ] ; then break; fi
     dialog --title "$TITLE" --yesno 'Password Mismatch, try again?' 8 30
     if [ $? -eq 0 ] ; then continue ; fi
-    exit_err "Failed setting password!"
+    exit_to_menu "Failed setting password!"
   done
-  
+
 }
 
 get_user_name()
@@ -636,11 +646,11 @@ get_user_realname()
        echo "Name contains invalid characters!" >> /tmp/.vartemp.$$
        dialog --tailbox /tmp/.vartemp.$$ 8 35
        rm /tmp/.vartemp.$$
-       continue  
-    else 
+       continue
+    else
        break
     fi
-  done  
+  done
   USERREALNAME="$ANS"
 }
 
@@ -713,7 +723,7 @@ get_netconfig()
   rm /tmp/.dList.$$
   get_dlg_ans "--radiolist \"Select network card to configure\" 12 50 5 ${dOpts}"
   if [ -z "$ANS" ] ; then
-     exit_err "Invalid NIC selected!"
+     exit_to_menu "Invalid NIC selected!"
   fi
   SYSNIC="$ANS"
   if [ "$SYSNIC" = "auto" ] ; then
@@ -736,8 +746,8 @@ get_netconfig()
       echo "IP contains invalid characters!" >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 38
       rm /tmp/.vartemp.$$
-      continue  
-    else 
+      continue
+    else
       break
     fi
   done
@@ -758,11 +768,11 @@ get_netconfig()
       echo "Netmask contains invalid characters!" >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 45
       rm /tmp/.vartemp.$$
-      continue  
-    else 
+      continue
+    else
       break
     fi
-  done   
+  done
   SYSNICMASK="$ANS"
 
   #Set DNS and check for invalid characters
@@ -780,8 +790,8 @@ get_netconfig()
       echo "DNS contains invalid characters!" >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 45
       rm /tmp/.vartemp.$$
-      continue  
-    else 
+      continue
+    else
       break
     fi
   done
@@ -802,8 +812,8 @@ get_netconfig()
       echo "Gateway contains invalid characters!" >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 45
       rm /tmp/.vartemp.$$
-      continue  
-    else 
+      continue
+    else
       break
     fi
   done
@@ -973,7 +983,7 @@ start_edit_menu_loop()
 	     ;;
    zpoolcfg) change_zpool_cfg
 	     ;;
-    network) change_networking 
+    network) change_networking
 	     ;;
        view) more ${CFGFILE}
              rtn
@@ -1015,7 +1025,8 @@ start_menu_loop()
           *) ;;
     esac
   done
-
+  # added "exit 0" here because installer seems to loopback to wizard
+  exit 0
 }
 
 
