@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ldapd.conf.5,v 1.19 2014/06/11 18:00:40 jmc Exp $
+.\"	$OpenBSD: ldapd.conf.5,v 1.25 2018/05/18 12:36:30 reyk Exp $
 .\"
 .\" Copyright (c) 2009, 2010 Martin Hedenfalk <martin@bzero.se>
 .\" Copyright (c) 2008 Janne Johansson <jj@openbsd.org>
@@ -17,7 +17,7 @@
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
 .\"
-.Dd $Mdocdate: June 11 2014 $
+.Dd $Mdocdate: May 18 2018 $
 .Dt LDAPD.CONF 5
 .Os
 .Sh NAME
@@ -108,7 +108,7 @@ the interface name with a .crt extension, e.g.\&
 .Pa /etc/ldap/certs/fxp0.crt .
 .Pp
 If the certificate name is an absolute path, a .crt and .key extension
-is appended to form the certificate path and key path respectively.
+are appended to form the certificate path and key path respectively.
 .Pp
 Only secured connections accept plain text password authentication.
 Connections using TLS or unix domain sockets are always considered secured.
@@ -125,7 +125,7 @@ This option can be given multiple times, in which case the URLs are
 considered equal.
 Clients may choose to follow any of the referral URLs.
 .Pp
-The URL format has the following format:
+The URL has the following format:
 .Bd -literal -offset indent
 ldap://ldap.example.com
 ldaps://ldap.example.com:3890
@@ -148,7 +148,7 @@ below.
 .Sh NAMESPACES
 A namespace is a subtree of the global X.500 DIT (Directory Information Tree),
 also known as a naming context.
-All entries' distinguished names (DN) has the same suffix, which is used to
+All entries' distinguished names (DN) have the same suffix, which is used to
 identify the namespace.
 The suffix should consist of the domain components, in reverse order, of your
 domain name, as recommended by RFC 2247.
@@ -248,6 +248,12 @@ This is the default if no scope is specified.
 The filter rule applies to the root DSE.
 .El
 .Pp
+The scope can be restricted to an optional attribute:
+.Bl -tag -width Ds
+.It attribute Ar name
+The filter rule applies to the specified attribute.
+.El
+.Pp
 Finally, the filter rule can match a bind DN:
 .Bl -tag -width Ds
 .It by any
@@ -328,6 +334,8 @@ Default
 configuration file.
 .It Pa /etc/ldap/*.schema
 Default schema definition files.
+.It Pa /etc/ldap/certs/
+Default directory for TLS certificates.
 .El
 .Sh SEE ALSO
 .Xr ldapctl 8 ,

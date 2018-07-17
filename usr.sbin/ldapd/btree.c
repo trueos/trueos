@@ -1,4 +1,4 @@
-/*	$OpenBSD: btree.c,v 1.36 2016/03/20 00:01:22 krw Exp $ */
+/*	$OpenBSD: btree.c,v 1.38 2017/05/26 21:23:14 sthen Exp $ */
 
 /*
  * Copyright (c) 2009, 2010 Martin Hedenfalk <martin@bzero.se>
@@ -26,7 +26,6 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -37,7 +36,6 @@
 
 #include "btree.h"
 
-#define DEBUG
 /* #define DEBUG */
 
 #ifdef DEBUG
@@ -57,6 +55,7 @@
 #define P_INVALID	 0xFFFFFFFF
 
 #define F_ISSET(w, f)	 (((w) & (f)) == (f))
+#define MINIMUM(a,b)	 ((a) < (b) ? (a) : (b))
 
 typedef uint32_t	 pgno_t;
 typedef uint16_t	 indx_t;
@@ -768,7 +767,7 @@ btree_txn_commit(struct btree_txn *txn)
 	if (F_ISSET(bt->flags, BT_FIXPADDING)) {
 		size = lseek(bt->fd, 0, SEEK_END);
 		size += bt->head.psize - (size % bt->head.psize);
-		DPRINTF("extending to multiple of page size: %lu", size);
+		DPRINTF("extending to multiple of page size: %llu", size);
 		if (ftruncate(bt->fd, size) != 0) {
 			DPRINTF("ftruncate: %s", strerror(errno));
 			btree_txn_abort(txn);
@@ -846,12 +845,12 @@ btree_write_header(struct btree *bt, int fd)
 	DPRINTF("writing header page");
 	assert(bt != NULL);
 
-	/* Ask stat for 'optimal blocksize for I/O'.
+	/*
+	 * Ask stat for 'optimal blocksize for I/O', but cap to fit in indx_t.
 	 */
-	if (fstat(fd, &sb) == 0) {
-		if ((psize = sb.st_blksize) >= USHRT_MAX)
-			psize = PAGESIZE;
-	} else
+	if (fstat(fd, &sb) == 0)
+		psize = MINIMUM(32*1024, sb.st_blksize);
+	else
 		psize = PAGESIZE;
 
 	if ((p = calloc(1, psize)) == NULL)
@@ -1011,7 +1010,7 @@ btree_read_meta(struct btree *bt, pgno_t *p_next)
 	if ((size = lseek(bt->fd, 0, SEEK_END)) == -1)
 		goto fail;
 
-	DPRINTF("btree_read_meta: size = %lu", size);
+	DPRINTF("btree_read_meta: size = %llu", size);
 
 	if (size < bt->size) {
 		DPRINTF("file has shrunk!");
@@ -1121,7 +1120,7 @@ btree_open_fd(int fd, unsigned int flags)
 	    bt->head.version, bt->head.psize);
 	DPRINTF("timestamp: %s", ctime(&bt->meta.created_at));
 	DPRINTF("depth: %u", bt->meta.depth);
-	DPRINTF("entries: %lu", bt->meta.entries);
+	DPRINTF("entries: %llu", bt->meta.entries);
 	DPRINTF("revisions: %u", bt->meta.revisions);
 	DPRINTF("branch pages: %u", bt->meta.branch_pages);
 	DPRINTF("leaf pages: %u", bt->meta.leaf_pages);
@@ -1179,6 +1178,8 @@ btree_close(struct btree *bt)
 		DPRINTF("ref is zero, closing btree %p", bt);
 		close(bt->fd);
 		mpage_flush(bt);
+		free(bt->lru_queue);
+		free(bt->path);
 		free(bt->page_cache);
 		free(bt);
 	} else
@@ -2948,8 +2949,6 @@ btree_txn_put(struct btree *bt, struct btree_txn *txn,
 			rc = BT_FAIL;
 			goto done;
 		}
-DPRINTF("111: mp->page->lower = %u", mp->page->lower);
-DPRINTF("111: mp->page->upper = %u", mp->page->upper);
 		txn->root = mp->pgno;
 		bt->meta.depth++;
 		ki = 0;

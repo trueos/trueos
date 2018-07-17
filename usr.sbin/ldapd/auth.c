@@ -1,4 +1,4 @@
-/*	$OpenBSD: auth.c,v 1.11 2015/12/24 17:47:57 mmcc Exp $ */
+/*	$OpenBSD: auth.c,v 1.13 2018/05/14 07:53:47 reyk Exp $ */
 
 /*
  * Copyright (c) 2009, 2010 Martin Hedenfalk <martin@bzero.se>
@@ -29,10 +29,11 @@
 #include <unistd.h>
 
 #include "ldapd.h"
+#include "log.h"
 
 static int
 aci_matches(struct aci *aci, struct conn *conn, struct namespace *ns,
-    char *dn, int rights, enum scope scope)
+    char *dn, int rights, char *attr, enum scope scope)
 {
 	struct btval	 key;
 
@@ -97,6 +98,13 @@ aci_matches(struct aci *aci, struct conn *conn, struct namespace *ns,
 			return 0;
 	}
 
+	if (aci->attribute != NULL) {
+		if (attr == NULL)
+			return 0;
+		if (strcasecmp(aci->attribute, attr) != 0)
+			return 0;
+	}
+
 	return 1;
 }
 
@@ -104,7 +112,7 @@ aci_matches(struct aci *aci, struct conn *conn, struct namespace *ns,
  */
 int
 authorized(struct conn *conn, struct namespace *ns, int rights, char *dn,
-    int scope)
+    char *attr, int scope)
 {
 	struct aci	*aci;
 	int		 type = ACI_ALLOW;
@@ -123,33 +131,41 @@ authorized(struct conn *conn, struct namespace *ns, int rights, char *dn,
 	if ((rights & (ACI_WRITE | ACI_CREATE)) != 0)
 		type = ACI_DENY;
 
-	log_debug("requesting %02X access to %s by %s, in namespace %s",
+	log_debug("requesting %02X access to %s%s%s by %s, in namespace %s",
 	    rights,
 	    dn ? dn : "any",
+	    attr ? " attribute " : "",
+	    attr ? attr : "",
 	    conn->binddn ? conn->binddn : "any",
 	    ns ? ns->suffix : "global");
 
 	STAILQ_FOREACH(aci, &conf->acl, entry) {
-		if (aci_matches(aci, conn, ns, dn, rights, scope)) {
+		if (aci_matches(aci, conn, ns, dn, rights,
+		    attr, scope)) {
 			type = aci->type;
-			log_debug("%s by: %s %02X access to %s by %s",
+			log_debug("%s by: %s %02X access to %s%s%s by %s",
 			    type == ACI_ALLOW ? "allowed" : "denied",
 			    aci->type == ACI_ALLOW ? "allow" : "deny",
 			    aci->rights,
 			    aci->target ? aci->target : "any",
+			    aci->attribute ? " attribute " : "",
+			    aci->attribute ? aci->attribute : "",
 			    aci->subject ? aci->subject : "any");
 		}
 	}
 
 	if (ns != NULL) {
 		STAILQ_FOREACH(aci, &ns->acl, entry) {
-			if (aci_matches(aci, conn, ns, dn, rights, scope)) {
+			if (aci_matches(aci, conn, ns, dn, rights,
+			    attr, scope)) {
 				type = aci->type;
-				log_debug("%s by: %s %02X access to %s by %s",
+				log_debug("%s by: %s %02X access to %s%s%s by %s",
 				    type == ACI_ALLOW ? "allowed" : "denied",
 				    aci->type == ACI_ALLOW ? "allow" : "deny",
 				    aci->rights,
 				    aci->target ? aci->target : "any",
+				    aci->attribute ? " attribute " : "",
+				    aci->attribute ? aci->attribute : "",
 				    aci->subject ? aci->subject : "any");
 			}
 		}
@@ -294,13 +310,10 @@ ldap_auth_simple(struct request *req, char *binddn, struct ber_element *auth)
 		return LDAP_SUCCESS;
 	}
 
-	log_info("req->conn->s_flags = %08x\n", req->conn->s_flags);
-	/*
 	if ((req->conn->s_flags & F_SECURE) == 0) {
 		log_info("refusing non-anonymous bind on insecure connection");
 		return LDAP_CONFIDENTIALITY_REQUIRED;
 	}
-	*/
 
 	if (ber_scanf_elements(auth, "s", &password) != 0)
 		return LDAP_PROTOCOL_ERROR;
@@ -321,7 +334,7 @@ ldap_auth_simple(struct request *req, char *binddn, struct ber_element *auth)
 		return LDAP_INVALID_CREDENTIALS;
 	} else {
 		if (!authorized(req->conn, ns, ACI_BIND, binddn,
-		    LDAP_SCOPE_BASE))
+		    NULL, LDAP_SCOPE_BASE))
 			return LDAP_INSUFFICIENT_ACCESS;
 
 		elm = namespace_get(ns, binddn);

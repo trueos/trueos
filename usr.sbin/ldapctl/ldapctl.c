@@ -1,4 +1,4 @@
-/*	$OpenBSD: ldapctl.c,v 1.9 2016/02/02 18:18:04 jca Exp $	*/
+/*	$OpenBSD: ldapctl.c,v 1.11 2018/05/15 11:19:21 reyk Exp $	*/
 
 /*
  * Copyright (c) 2009, 2010 Martin Hedenfalk <martin@bzero.se>
@@ -21,7 +21,6 @@
  */
 
 #include <sys/types.h>
-#include <sys/capsicum.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/queue.h>
@@ -43,6 +42,7 @@
 #include <event.h>
 
 #include "ldapd.h"
+#include "log.h"
 
 enum action {
 	NONE,
@@ -53,7 +53,7 @@ enum action {
 	INDEX_DB
 };
 
-void	 usage(void);
+__dead void	 usage(void);
 void		 show_stats(struct imsg *imsg);
 void		 show_dbstats(const char *prefix, struct btree_stat *st);
 void		 show_nsstats(struct imsg *imsg);
@@ -62,8 +62,9 @@ int		 compact_namespace(struct namespace *ns, const char *datadir);
 int		 compact_namespaces(const char *datadir);
 int		 index_namespace(struct namespace *ns, const char *datadir);
 int		 index_namespaces(const char *datadir);
+int		 ssl_load_certfile(struct ldapd_config *, const char *, u_int8_t);
 
-void
+__dead void
 usage(void)
 {
 	extern char *__progname;
@@ -232,13 +233,11 @@ index_namespaces(const char *datadir)
 	return 0;
 }
 
-#if 0
 int
 ssl_load_certfile(struct ldapd_config *env, const char *name, u_int8_t flags)
 {
 	return 0;
 }
-#endif
 
 int
 main(int argc, char *argv[])
@@ -255,9 +254,8 @@ main(int argc, char *argv[])
 	struct sockaddr_un	 sun;
 	struct imsg		 imsg;
 	struct imsgbuf		 ibuf;
-	cap_rights_t		 rights;
 
-	log_init(1);
+	log_init(1, 0);
 
 	while ((ch = getopt(argc, argv, "f:r:s:v")) != -1) {
 		switch (ch) {
@@ -289,7 +287,7 @@ main(int argc, char *argv[])
 	if (!S_ISDIR(sb.st_mode))
 		errx(1, "%s is not a directory", datadir);
 
-	log_verbose(verbose);
+	ldap_loginit(NULL, 1, verbose);
 
 	if (strcmp(argv[0], "stats") == 0)
 		action = SHOW_STATS;
@@ -313,9 +311,10 @@ main(int argc, char *argv[])
 		if (parse_config(conffile) != 0)
 			exit(2);
 
-		/* pledge("stdio rpath wpath cpath flock", NULL) */
-		if (cap_enter() < 0 && errno != ENOSYS)
-			err(EXIT_FAILURE, "unable to enter capability mode");
+#ifdef __OpenBSD__
+		if (pledge("stdio rpath wpath cpath flock", NULL) == -1)
+			err(1, "pledge");
+#endif
 
 		if (action == COMPACT_DB)
 			return compact_namespaces(datadir);
@@ -336,18 +335,10 @@ main(int argc, char *argv[])
 	imsg_init(&ibuf, ctl_sock);
 	done = 0;
 
-	/* pledge("stdio", NULL) */
-	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_IOCTL, CAP_READ);
-	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "cap_rights_limit");
-
-	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_IOCTL, CAP_WRITE);
-	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "cap_rights_limit");
-
-	cap_rights_init(&rights, CAP_FCNTL, CAP_FSTAT, CAP_IOCTL, CAP_WRITE);
-	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
-		err(EXIT_FAILURE, "cap_rights_limit");
+#ifdef __OpenBSD__
+	if (pledge("stdio", NULL) == -1)
+		err(1, "pledge");
+#endif
 
 	/* process user request */
 	switch (action) {

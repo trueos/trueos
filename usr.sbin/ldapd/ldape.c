@@ -1,4 +1,4 @@
-/*	$OpenBSD: ldape.c,v 1.24 2016/05/01 00:32:37 jmatthew Exp $ */
+/*	$OpenBSD: ldape.c,v 1.28 2018/07/04 10:05:56 rob Exp $ */
 
 /*
  * Copyright (c) 2009, 2010 Martin Hedenfalk <martin@bzero.se>
@@ -32,6 +32,7 @@
 #include <unistd.h>
 
 #include "ldapd.h"
+#include "log.h"
 
 void			 ldape_sig_handler(int fd, short why, void *data);
 static void		 ldape_auth_result(struct imsg *imsg);
@@ -76,7 +77,7 @@ send_ldap_extended_response(struct conn *conn, int msgid, unsigned long type,
 	struct ber_element	*root, *elm;
 	void			*buf;
 
-	log_debug("sending response %u with result %lld", type, result_code);
+	log_debug("sending response %lu with result %lld", type, result_code);
 
 	if ((root = ber_add_sequence(NULL)) == NULL)
 		goto fail;
@@ -133,7 +134,7 @@ ldap_refer(struct request *req, const char *basedn, struct search *search,
 			scope_str = "sub";
 	}
 
-	log_debug("sending referral in response %u on msgid %lld",
+	log_debug("sending referral in response %lu on msgid %lld",
 	    type, req->msgid);
 
 	if ((root = ber_add_sequence(NULL)) == NULL)
@@ -229,7 +230,8 @@ ldap_abandon(struct request *req)
 int
 ldap_unbind(struct request *req)
 {
-	log_debug("current bind dn = %s", req->conn->binddn);
+	log_debug("current bind dn = %s",
+	    req->conn->binddn == NULL ? "" : req->conn->binddn);
 	conn_disconnect(req->conn);
 	request_free(req);
 	return -1;		/* don't send any response */
@@ -330,11 +332,10 @@ done:
 	return 0;
 }
 
-pid_t
-ldape(struct passwd *pw, char *csockpath, int pipe_parent2ldap[2])
+void
+ldape(int debug, int verbose, char *csockpath)
 {
 	int			 on = 1;
-	pid_t			 pid;
 	struct namespace	*ns;
 	struct listener		*l;
 	struct sockaddr_un	*sun = NULL;
@@ -343,17 +344,13 @@ ldape(struct passwd *pw, char *csockpath, int pipe_parent2ldap[2])
 	struct event		 ev_sigchld;
 	struct event		 ev_sighup;
 	struct ssl		 key;
+	struct passwd		*pw;
 	char			 host[128];
 	mode_t			old_umask = 0;
-
+	
 	TAILQ_INIT(&conn_list);
 
-	pid = fork();
-	if (pid < 0)
-		fatal("ldape: fork");
-	if (pid > 0)
-		return pid;
-
+	ldap_loginit("ldap server", debug, verbose);
 	setproctitle("ldap server");
 	event_init();
 
@@ -367,12 +364,10 @@ ldape(struct passwd *pw, char *csockpath, int pipe_parent2ldap[2])
 	signal_add(&ev_sighup, NULL);
 	signal(SIGPIPE, SIG_IGN);
 
-	close(pipe_parent2ldap[0]);
-
 	/* Initialize parent imsg events. */
 	if ((iev_ldapd = calloc(1, sizeof(struct imsgev))) == NULL)
 		fatal("calloc");
-	imsgev_init(iev_ldapd, pipe_parent2ldap[1], NULL, ldape_imsgev,
+	imsgev_init(iev_ldapd, PROC_PARENT_SOCK_FILENO, NULL, ldape_imsgev,
 	    ldape_needfd);
 
 	/* Initialize control socket. */
@@ -448,8 +443,11 @@ ldape(struct passwd *pw, char *csockpath, int pipe_parent2ldap[2])
 
 	TAILQ_FOREACH(ns, &conf->namespaces, next) {
 		if (!namespace_has_referrals(ns) && namespace_open(ns) != 0)
-			fatal(ns->suffix);
+			fatal("%s", ns->suffix);
 	}
+
+	if ((pw = getpwnam(LDAPD_USER)) == NULL)
+		fatal("getpwnam");
 
 	if (pw != NULL) {
 		if (chroot(pw->pw_dir) == -1)
@@ -463,10 +461,10 @@ ldape(struct passwd *pw, char *csockpath, int pipe_parent2ldap[2])
 			fatal("cannot drop privileges");
 	}
 
-/*
+#ifdef __OpenBSD__
 	if (pledge("stdio flock inet unix recvfd", NULL) == -1)
 		fatal("pledge");
-*/
+#endif
 
 	log_debug("ldape: entering event loop");
 	event_dispatch();
@@ -477,7 +475,7 @@ ldape(struct passwd *pw, char *csockpath, int pipe_parent2ldap[2])
 	control_cleanup(&csock);
 
 	log_info("ldape: exiting");
-	_exit(0);
+	exit(0);
 }
 
 static void

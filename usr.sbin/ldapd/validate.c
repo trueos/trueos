@@ -1,4 +1,4 @@
-/*	$OpenBSD: validate.c,v 1.9 2010/09/03 09:53:24 martinh Exp $ */
+/*	$OpenBSD: validate.c,v 1.11 2018/05/15 11:19:21 reyk Exp $ */
 
 /*
  * Copyright (c) 2010 Martin Hedenfalk <martin@bzero.se>
@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "ldapd.h"
+#include "log.h"
 
 static int
 validate_required_attributes(struct ber_element *entry, struct object *obj)
@@ -79,7 +80,7 @@ validate_attribute(struct attr_type *at, struct ber_element *vals)
 		    !at->syntax->is_valid(conf->schema, val, elm->be_len)) {
 			log_debug("%s: invalid syntax", ATTR_NAME(at));
 			log_debug("syntax = %s", at->syntax->desc);
-			log_debug("value: [%.*s]", elm->be_len, val);
+			log_debug("value: [%.*s]", (int)elm->be_len, val);
 			return LDAP_INVALID_SYNTAX;
 		}
 	}
