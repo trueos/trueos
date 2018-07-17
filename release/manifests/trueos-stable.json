@@ -1,6 +1,6 @@
 {
   "ports-url":"https://github.com/trueos/trueos-ports",
-  "ports-branch":"trueos-master",
+  "ports-branch":"v2018.07.17",
   "ports-conf":[
 	  "MAKE_JOBS_NUMBER_LIMIT=3"
   ],
