@@ -69,6 +69,7 @@ SUBDIR=	alias \
 	ktrdump \
 	lam \
 	lastcomm \
+	ldap \
 	ldd \
 	leave \
 	less \
