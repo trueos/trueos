@@ -18,6 +18,7 @@
     "sysutils/dmidecode",
     "sysutils/tmux"
   ],
+  "iso-file-name":"TrueOS-x64-%%GITHASH%%-%%DATE%%.iso",
   "iso-install-packages":[
     "archivers/cabextract",
     "devel/git",
