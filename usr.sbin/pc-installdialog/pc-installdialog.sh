@@ -29,6 +29,19 @@ SYSBOOTMANAGER="BSD"
 # Set the default ashift / ZFS blocksize
 ASHIFTSIZE="12"
 
+# Set location of post-install json commands
+PIJSON="/root/post-install-commands.json"
+
+
+# Displays the exit message and return to start menu
+exit_to_menu()
+{
+  # Echo the exit message for the users benefit
+  echo "Exit Message: $1"
+  start_menu_loop
+}
+
+
 rtn()
 {
    echo "Press ENTER to continue"
@@ -912,13 +925,33 @@ gen_pc-sysinstall_cfg()
 
    # Last cleanup stuff
    echo "" >> ${CFGFILE}
-   echo "runExtCommand=/root/save-config.sh" >> ${CFGFILE}
    echo "runCommand=newaliases" >> ${CFGFILE}
+
 
    # Are we enabling SSHD?
    if [ "$SYSSSHD" = "YES" ] ; then
      echo "runCommand=rc-update add sshd default" >> ${CFGFILE}
    fi
+
+   # Check for any post-install commands
+   if [ -e "${PIJSON}" ]; then
+     CMDLEN=$(jq -r '."post-install-commands" | length' ${PIJSON})
+     if [ $CMDLEN -gt 0 ] ; then
+       i=0
+       while [ $i -lt $CMDLEN ]
+       do
+         internal=$(cat ${PIJSON} | jq -r ".[${i}]" | jq -r '."chroot"')
+         cmd=$(cat ${PIJSON} | jq -r ".[${i}]" | jq -r '."command"')
+	 if [ "$internal" = "true" ] ; then
+	   echo "runCommand=${cmd}" >> ${CFGFILE}
+	 else
+	   echo "runExtCommand=${cmd}" >> ${CFGFILE}
+	 fi
+         i=$(expr $i + 1)
+       done
+     fi
+   fi
+
 }
 
 change_disk_selection() {
