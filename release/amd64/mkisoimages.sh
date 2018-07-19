@@ -51,7 +51,7 @@ if [ "$1" = "-b" ]; then
 	rmdir efi
 	mdconfig -d -u $device
 	bootable="$bootable -o bootimage=i386;efiboot.img -o no-emul-boot -o platformid=efi"
-	
+
 	shift
 else
 	bootable=""
@@ -105,4 +105,11 @@ if [ "$bootable" != "" ]; then
 	# Drop the PMBR, GPT, and boot code into the System Area of the ISO.
 	dd if=hybrid.img of=$NAME bs=32k count=1 conv=notrunc
 	rm -f hybrid.img
+fi
+
+FILE_RENAME="$(jq -r '."iso-file-name"' $TRUEOS_MANIFEST)"
+if [ -n "$FILE_RENAME" -a "$FILE_RENAME" = "null" ] ; then
+  DATE="$(date +%Y%m%d)"
+  FILE_RENAME=$(echo $FILE_RENAME | sed "s|%%GITHASH%%|$GITHASH|g" | sed "s|%%DATE%%|$DATE|g")
+  mv ${NAME}.iso ${FILE_RENAME}.iso
 fi
