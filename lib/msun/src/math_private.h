@@ -48,6 +48,47 @@
 #define	IEEE_WORD_ORDER	BYTE_ORDER
 #endif
 
+/* A union which permits us to convert between a long double and
+   four 32 bit ints.  */
+
+#if IEEE_WORD_ORDER == BIG_ENDIAN
+
+typedef union
+{
+  long double value;
+  struct {
+    u_int32_t mswhi;
+    u_int32_t mswlo;
+    u_int32_t lswhi;
+    u_int32_t lswlo;
+  } parts32;
+  struct {
+    u_int64_t msw;
+    u_int64_t lsw;
+  } parts64;
+} ieee_quad_shape_type;
+
+#endif
+
+#if IEEE_WORD_ORDER == LITTLE_ENDIAN
+
+typedef union
+{
+  long double value;
+  struct {
+    u_int32_t lswlo;
+    u_int32_t lswhi;
+    u_int32_t mswlo;
+    u_int32_t mswhi;
+  } parts32;
+  struct {
+    u_int64_t lsw;
+    u_int64_t msw;
+  } parts64;
+} ieee_quad_shape_type;
+
+#endif
+
 #if IEEE_WORD_ORDER == BIG_ENDIAN
 
 typedef union
@@ -437,6 +478,24 @@ do {								\
  */
 void _scan_nan(uint32_t *__words, int __num_words, const char *__s);
 
+/*
+ * Mix 1 or 2 NaNs.  First add 0 to each arg.  This normally just turns
+ * signaling NaNs into quiet NaNs by setting a quiet bit.  We do this
+ * because we want to never return a signaling NaN, and also because we
+ * don't want the quiet bit to affect the result.  Then mix the converted
+ * args using addition.  The result is typically the arg whose mantissa
+ * bits (considered as in integer) are largest.
+ *
+ * Technical complications: the result in bits might depend on the precision
+ * and/or on compiler optimizations, especially when different register sets
+ * are used for different precisions.  Try to make the result not depend on
+ * at least the precision by always doing the main mixing step in long double
+ * precision.  Try to reduce dependencies on optimizations by adding the
+ * the 0's in different precisions (unless everything is in long double
+ * precision).
+ */
+#define	nan_mix(x, y)	(((x) + 0.0L) + ((y) + 0))
+
 #ifdef _COMPLEX_H
 
 /*
@@ -786,5 +845,8 @@ float complex __ldexp_cexpf(float complex,int);
 long double __kernel_sinl(long double, long double, int);
 long double __kernel_cosl(long double, long double);
 long double __kernel_tanl(long double, long double, int);
+
+long double __p1evll(long double, void *, int);
+long double __polevll(long double, void *, int);
 
 #endif /* !_MATH_PRIVATE_H_ */

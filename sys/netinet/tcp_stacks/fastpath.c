@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcpip.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/cc/cc.h>
+#include <netinet/tcp_fastopen.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
@@ -1761,6 +1762,22 @@ tcp_do_segment_fastslow(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if ((tp->t_flags & TF_SACK_PERMIT) &&
 		    (to.to_flags & TOF_SACKPERM) == 0)
 			tp->t_flags &= ~TF_SACK_PERMIT;
+		if (IS_FASTOPEN(tp->t_flags)) {
+			if (to.to_flags & TOF_FASTOPEN) {
+				uint16_t mss;
+
+				if (to.to_flags & TOF_MSS)
+					mss = to.to_mss;
+				else
+					if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0)
+						mss = TCP6_MSS;
+					else
+						mss = TCP_MSS;
+				tcp_fastopen_update_cache(tp, mss,
+				    to.to_tfo_len, to.to_tfo_cookie);
+			} else
+				tcp_fastopen_disable_path(tp);
+		}
 	}
 
 	/*
@@ -2211,6 +2228,22 @@ tcp_do_segment_fastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if ((tp->t_flags & TF_SACK_PERMIT) &&
 		    (to.to_flags & TOF_SACKPERM) == 0)
 			tp->t_flags &= ~TF_SACK_PERMIT;
+		if (IS_FASTOPEN(tp->t_flags)) {
+			if (to.to_flags & TOF_FASTOPEN) {
+				uint16_t mss;
+
+				if (to.to_flags & TOF_MSS)
+					mss = to.to_mss;
+				else
+					if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0)
+						mss = TCP6_MSS;
+					else
+						mss = TCP_MSS;
+				tcp_fastopen_update_cache(tp, mss,
+				    to.to_tfo_len, to.to_tfo_cookie);
+			} else
+				tcp_fastopen_disable_path(tp);
+		}
 	}
 
 	/*

@@ -1627,7 +1627,6 @@ rack_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tc
 static void
 rack_challenge_ack(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp, int32_t * ret_val)
 {
-
 	INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 
 	TCPSTAT_INC(tcps_badsyn);
@@ -6103,7 +6102,6 @@ rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		return (ret_val);
 	}
 	if (ourfinisacked) {
-
 		INP_INFO_RLOCK_ASSERT(&V_tcbinfo);
 		tp = tcp_close(tp);
 		rack_do_drop(m, tp);
@@ -6656,6 +6654,22 @@ rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if ((tp->t_flags & TF_SACK_PERMIT) &&
 			    (to.to_flags & TOF_SACKPERM) == 0)
 				tp->t_flags &= ~TF_SACK_PERMIT;
+			if (IS_FASTOPEN(tp->t_flags)) {
+				if (to.to_flags & TOF_FASTOPEN) {
+					uint16_t mss;
+
+					if (to.to_flags & TOF_MSS)
+						mss = to.to_mss;
+					else
+						if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0)
+							mss = TCP6_MSS;
+						else
+							mss = TCP_MSS;
+					tcp_fastopen_update_cache(tp, mss,
+					    to.to_tfo_len, to.to_tfo_cookie);
+				} else
+					tcp_fastopen_disable_path(tp);
+			}
 		}
 		/*
 		 * At this point we are at the initial call. Here we decide

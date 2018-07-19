@@ -1186,13 +1186,12 @@ pcpu_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	struct pcpu *pc;
 #endif
 
-	TAILQ_INIT(&alloctail);
-	MPASS(bytes == (mp_maxid+1)*PAGE_SIZE);
-	*pflag = UMA_SLAB_KERNEL;
+	MPASS(bytes == (mp_maxid + 1) * PAGE_SIZE);
 
+	TAILQ_INIT(&alloctail);
 	flags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ |
-		((wait & M_WAITOK) != 0 ? VM_ALLOC_WAITOK :
-		 VM_ALLOC_NOWAIT);
+	    malloc2vm_flags(wait);
+	*pflag = UMA_SLAB_KERNEL;
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (CPU_ABSENT(cpu)) {
 			p = vm_page_alloc(NULL, 0, flags);
@@ -2328,10 +2327,10 @@ uma_zalloc_pcpu_arg(uma_zone_t zone, void *udata, int flags)
 
 	MPASS(zone->uz_flags & UMA_ZONE_PCPU);
 #endif
-	item = uma_zalloc_arg(zone, udata, flags &~ M_ZERO);
+	item = uma_zalloc_arg(zone, udata, flags & ~M_ZERO);
 	if (item != NULL && (flags & M_ZERO)) {
 #ifdef SMP
-		CPU_FOREACH(i)
+		for (i = 0; i <= mp_maxid; i++)
 			bzero(zpcpu_get_cpu(item, i), zone->uz_size);
 #else
 		bzero(item, zone->uz_size);
@@ -2860,7 +2859,9 @@ zone_import(uma_zone_t zone, void **bucket, int max, int domain, int flags)
 {
 	uma_slab_t slab;
 	uma_keg_t keg;
+#ifdef NUMA
 	int stripe;
+#endif
 	int i;
 
 	slab = NULL;
@@ -2870,7 +2871,9 @@ zone_import(uma_zone_t zone, void **bucket, int max, int domain, int flags)
 		if ((slab = zone->uz_slab(zone, keg, domain, flags)) == NULL)
 			break;
 		keg = slab->us_keg;
+#ifdef NUMA
 		stripe = howmany(max, vm_ndomains);
+#endif
 		while (slab->us_freecount && i < max) { 
 			bucket[i++] = slab_alloc_item(keg, slab);
 			if (keg->uk_free <= keg->uk_reserve)
@@ -3131,14 +3134,6 @@ zfree_start:
 	critical_enter();
 	cpu = curcpu;
 	cache = &zone->uz_cpu[cpu];
-
-	/*
-	 * Since we have locked the zone we may as well send back our stats.
-	 */
-	atomic_add_long(&zone->uz_allocs, cache->uc_allocs);
-	atomic_add_long(&zone->uz_frees, cache->uc_frees);
-	cache->uc_allocs = 0;
-	cache->uc_frees = 0;
 
 	bucket = cache->uc_freebucket;
 	if (bucket != NULL && bucket->ub_cnt < bucket->ub_entries) {

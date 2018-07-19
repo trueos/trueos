@@ -1827,11 +1827,11 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_spare, CTLFLAG_RD, &pv_entry_spare, 0,
 static vm_page_t
 reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 {
-	struct pch new_tail;
-	struct pv_chunk *pc;
+	struct pv_chunk *pc, *pc_marker, *pc_marker_end;
+	struct pv_chunk_header pc_marker_b, pc_marker_end_b;
 	struct md_page *pvh;
 	pd_entry_t *pde;
-	pmap_t pmap;
+	pmap_t next_pmap, pmap;
 	pt_entry_t *pte, tpte;
 	pv_entry_t pv;
 	vm_offset_t va;
@@ -1839,31 +1839,65 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 	struct spglist free;
 	uint64_t inuse;
 	int bit, field, freed, lvl;
+	static int active_reclaims = 0;
 
 	PMAP_LOCK_ASSERT(locked_pmap, MA_OWNED);
 	KASSERT(lockp != NULL, ("reclaim_pv_chunk: lockp is NULL"));
+
 	pmap = NULL;
 	m_pc = NULL;
 	SLIST_INIT(&free);
-	TAILQ_INIT(&new_tail);
+	bzero(&pc_marker_b, sizeof(pc_marker_b));
+	bzero(&pc_marker_end_b, sizeof(pc_marker_end_b));
+	pc_marker = (struct pv_chunk *)&pc_marker_b;
+	pc_marker_end = (struct pv_chunk *)&pc_marker_end_b;
+
 	mtx_lock(&pv_chunks_mutex);
-	while ((pc = TAILQ_FIRST(&pv_chunks)) != NULL && SLIST_EMPTY(&free)) {
-		TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
+	active_reclaims++;
+	TAILQ_INSERT_HEAD(&pv_chunks, pc_marker, pc_lru);
+	TAILQ_INSERT_TAIL(&pv_chunks, pc_marker_end, pc_lru);
+	while ((pc = TAILQ_NEXT(pc_marker, pc_lru)) != pc_marker_end &&
+	    SLIST_EMPTY(&free)) {
+		next_pmap = pc->pc_pmap;
+		if (next_pmap == NULL) {
+			/*
+			 * The next chunk is a marker.  However, it is
+			 * not our marker, so active_reclaims must be
+			 * > 1.  Consequently, the next_chunk code
+			 * will not rotate the pv_chunks list.
+			 */
+			goto next_chunk;
+		}
 		mtx_unlock(&pv_chunks_mutex);
-		if (pmap != pc->pc_pmap) {
+
+		/*
+		 * A pv_chunk can only be removed from the pc_lru list
+		 * when both pv_chunks_mutex is owned and the
+		 * corresponding pmap is locked.
+		 */
+		if (pmap != next_pmap) {
 			if (pmap != NULL && pmap != locked_pmap)
 				PMAP_UNLOCK(pmap);
-			pmap = pc->pc_pmap;
+			pmap = next_pmap;
 			/* Avoid deadlock and lock recursion. */
 			if (pmap > locked_pmap) {
 				RELEASE_PV_LIST_LOCK(lockp);
 				PMAP_LOCK(pmap);
-			} else if (pmap != locked_pmap &&
-			    !PMAP_TRYLOCK(pmap)) {
-				pmap = NULL;
-				TAILQ_INSERT_TAIL(&new_tail, pc, pc_lru);
 				mtx_lock(&pv_chunks_mutex);
 				continue;
+			} else if (pmap != locked_pmap) {
+				if (PMAP_TRYLOCK(pmap)) {
+					mtx_lock(&pv_chunks_mutex);
+					continue;
+				} else {
+					pmap = NULL; /* pmap is not locked */
+					mtx_lock(&pv_chunks_mutex);
+					pc = TAILQ_NEXT(pc_marker, pc_lru);
+					if (pc == NULL ||
+					    pc->pc_pmap != next_pmap)
+						continue;
+					goto next_chunk;
+				}
 			}
 		}
 
@@ -1908,9 +1942,8 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 			}
 		}
 		if (freed == 0) {
-			TAILQ_INSERT_TAIL(&new_tail, pc, pc_lru);
 			mtx_lock(&pv_chunks_mutex);
-			continue;
+			goto next_chunk;
 		}
 		/* Every freed mapping is for a 4 KB page. */
 		pmap_resident_count_dec(pmap, freed);
@@ -1927,16 +1960,36 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 			m_pc = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
 			dump_drop_page(m_pc->phys_addr);
 			mtx_lock(&pv_chunks_mutex);
+			TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 			break;
 		}
 		TAILQ_INSERT_HEAD(&pmap->pm_pvchunk, pc, pc_list);
-		TAILQ_INSERT_TAIL(&new_tail, pc, pc_lru);
 		mtx_lock(&pv_chunks_mutex);
 		/* One freed pv entry in locked_pmap is sufficient. */
 		if (pmap == locked_pmap)
 			break;
+
+next_chunk:
+		TAILQ_REMOVE(&pv_chunks, pc_marker, pc_lru);
+		TAILQ_INSERT_AFTER(&pv_chunks, pc, pc_marker, pc_lru);
+		if (active_reclaims == 1 && pmap != NULL) {
+			/*
+			 * Rotate the pv chunks list so that we do not
+			 * scan the same pv chunks that could not be
+			 * freed (because they contained a wired
+			 * and/or superpage mapping) on every
+			 * invocation of reclaim_pv_chunk().
+			 */
+			while ((pc = TAILQ_FIRST(&pv_chunks)) != pc_marker) {
+				MPASS(pc->pc_pmap != NULL);
+				TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
+				TAILQ_INSERT_TAIL(&pv_chunks, pc, pc_lru);
+			}
+		}
 	}
-	TAILQ_CONCAT(&pv_chunks, &new_tail, pc_lru);
+	TAILQ_REMOVE(&pv_chunks, pc_marker, pc_lru);
+	TAILQ_REMOVE(&pv_chunks, pc_marker_end, pc_lru);
+	active_reclaims--;
 	mtx_unlock(&pv_chunks_mutex);
 	if (pmap != NULL && pmap != locked_pmap)
 		PMAP_UNLOCK(pmap);
@@ -2875,6 +2928,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		new_l3 |= ATTR_SW_WIRED;
 	if (va < VM_MAXUSER_ADDRESS)
 		new_l3 |= ATTR_AP(ATTR_AP_USER) | ATTR_PXN;
+	if ((m->oflags & VPO_UNMANAGED) == 0)
+		new_l3 |= ATTR_SW_MANAGED;
 
 	CTR2(KTR_PMAP, "pmap_enter: %.16lx -> %.16lx", va, pa);
 
@@ -2920,7 +2975,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * otherwise we will need to create the intermediate tables
 		 */
 		if (lvl < 2) {
-			switch(lvl) {
+			switch (lvl) {
 			default:
 			case -1:
 				/* Get the l0 pde to update */
@@ -2974,11 +3029,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		}
 	}
 	l3 = pmap_l2_to_l3(pde, va);
-havel3:
 
-	om = NULL;
+havel3:
 	orig_l3 = pmap_load(l3);
 	opa = orig_l3 & ~ATTR_MASK;
+	pv = NULL;
 
 	/*
 	 * Is the specified virtual address already mapped?
@@ -3015,7 +3070,6 @@ havel3:
 			 * No, might be a protection or wiring change.
 			 */
 			if ((orig_l3 & ATTR_SW_MANAGED) != 0) {
-				new_l3 |= ATTR_SW_MANAGED;
 				if ((new_l3 & ATTR_AP(ATTR_AP_RW)) ==
 				    ATTR_AP(ATTR_AP_RW)) {
 					vm_page_aflag_set(m, PGA_WRITEABLE);
@@ -3023,6 +3077,37 @@ havel3:
 			}
 			goto validate;
 		}
+
+		/*
+		 * The physical page has changed.
+		 */
+		(void)pmap_load_clear(l3);
+		KASSERT((orig_l3 & ~ATTR_MASK) == opa,
+		    ("pmap_enter: unexpected pa update for %#lx", va));
+		if ((orig_l3 & ATTR_SW_MANAGED) != 0) {
+			om = PHYS_TO_VM_PAGE(opa);
+
+			/*
+			 * The pmap lock is sufficient to synchronize with
+			 * concurrent calls to pmap_page_test_mappings() and
+			 * pmap_ts_referenced().
+			 */
+			if (pmap_page_dirty(orig_l3))
+				vm_page_dirty(om);
+			if ((orig_l3 & ATTR_AF) != 0)
+				vm_page_aflag_set(om, PGA_REFERENCED);
+			CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
+			pv = pmap_pvh_remove(&om->md, pmap, va);
+			if ((m->oflags & VPO_UNMANAGED) != 0)
+				free_pv_entry(pmap, pv);
+			if ((om->aflags & PGA_WRITEABLE) != 0 &&
+			    TAILQ_EMPTY(&om->md.pv_list) &&
+			    ((om->flags & PG_FICTITIOUS) != 0 ||
+			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
+				vm_page_aflag_clear(om, PGA_WRITEABLE);
+		}
+		pmap_invalidate_page(pmap, va);
+		orig_l3 = 0;
 	} else {
 		/*
 		 * Increment the counters.
@@ -3035,9 +3120,10 @@ havel3:
 	 * Enter on the PV list if part of our managed memory.
 	 */
 	if ((m->oflags & VPO_UNMANAGED) == 0) {
-		new_l3 |= ATTR_SW_MANAGED;
-		pv = get_pv_entry(pmap, &lock);
-		pv->pv_va = va;
+		if (pv == NULL) {
+			pv = get_pv_entry(pmap, &lock);
+			pv->pv_va = va;
+		}
 		CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, pa);
 		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		m->md.pv_gen++;
@@ -3066,24 +3152,8 @@ validate:
 	 * Update the L3 entry
 	 */
 	if (pmap_l3_valid(orig_l3)) {
-		if (opa != pa) {
-			/* different PA  */
-			pmap_update_entry(pmap, l3, new_l3, va, PAGE_SIZE);
-			if ((orig_l3 & ATTR_SW_MANAGED) != 0) {
-				om = PHYS_TO_VM_PAGE(opa);
-				if (pmap_page_dirty(orig_l3))
-					vm_page_dirty(om);
-				if ((orig_l3 & ATTR_AF) != 0)
-					vm_page_aflag_set(om, PGA_REFERENCED);
-				CHANGE_PV_LIST_LOCK_TO_PHYS(&lock, opa);
-				pmap_pvh_free(&om->md, pmap, va);
-				if ((om->aflags & PGA_WRITEABLE) != 0 &&
-				    TAILQ_EMPTY(&om->md.pv_list) &&
-				    ((om->flags & PG_FICTITIOUS) != 0 ||
-				    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
-					vm_page_aflag_clear(om, PGA_WRITEABLE);
-			}
-		} else if ((orig_l3 & ~ATTR_AF) != (new_l3 & ~ATTR_AF)) {
+		KASSERT(opa == pa, ("pmap_enter: invalid update"));
+		if ((orig_l3 & ~ATTR_AF) != (new_l3 & ~ATTR_AF)) {
 			/* same PA, different attributes */
 			pmap_load_store(l3, new_l3);
 			pmap_invalidate_page(pmap, va);
