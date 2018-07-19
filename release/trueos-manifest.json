@@ -40,6 +40,24 @@
   "install-overlay":"",
   "install-script":"",
   "auto-install-script":"",
+  "post-install-commands": [
+	  {
+		"chroot":true,
+		"command":"touch /root/inside-chroot"
+	  },
+	  {
+		"chroot":false,
+		"command":"true /root/outside-chroot"
+	  },
+	  {
+		"chroot":false,
+		"command":"rm /root/outside-chroot"
+	  },
+	  {
+		"chroot":true,
+		"command":"rm /root/inside-chroot"
+	  }
+  ],
   "pkg-repo": {
 	  "url":"https://pkg.trueos.org/pkg/unstable/ports/${ABI}/latest",
 	  "pubKey": [

@@ -301,6 +301,13 @@ EOF
 			 >${OBJDIR}/disc1/root/auto-dist-install
 	fi
 
+	# Check if we have any post install commands to run
+	if [ "$(jq -r '."post-install-commands" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
+		echo "Saving post-install commands"
+		jq -r '."post-install-commands"' ${TRUEOS_MANIFEST} \
+			 >${OBJDIR}/disc1/root/post-install-commands.json
+	fi
+
 	# Create the install repo DB config
 	mkdir -p ${OBJDIR}/disc1/etc/pkg
 	cat >${OBJDIR}/disc1/etc/pkg/TrueOS.conf <<EOF
