@@ -60,6 +60,7 @@ NFSSTATESPINLOCK;
 extern struct nfsdontlisthead nfsrv_dontlisthead;
 extern volatile int nfsrv_devidcnt;
 extern struct nfslayouthead nfsrv_recalllisthead;
+extern char *nfsrv_zeropnfsdat;
 
 SYSCTL_DECL(_vfs_nfsd);
 int	nfsrv_statehashsize = NFSSTATEHASHSIZE;
@@ -3096,7 +3097,13 @@ tryagain:
 		    /*
 		     * This is where we can choose to issue a delegation.
 		     */
-		    if (delegate == 0 || writedeleg == 0 ||
+		    if ((new_stp->ls_flags & NFSLCK_WANTNODELEG) != 0)
+			*rflagsp |= NFSV4OPEN_WDNOTWANTED;
+		    else if (nfsrv_issuedelegs == 0)
+			*rflagsp |= NFSV4OPEN_WDSUPPFTYPE;
+		    else if (NFSRV_V4DELEGLIMIT(nfsrv_delegatecnt))
+			*rflagsp |= NFSV4OPEN_WDRESOURCE;
+		    else if (delegate == 0 || writedeleg == 0 ||
 			NFSVNO_EXRDONLY(exp) || (readonly != 0 &&
 			nfsrv_writedelegifpos == 0) ||
 			!NFSVNO_DELEGOK(vp) ||
@@ -3104,11 +3111,6 @@ tryagain:
 			(clp->lc_flags & (LCL_CALLBACKSON | LCL_CBDOWN)) !=
 			 LCL_CALLBACKSON)
 			*rflagsp |= NFSV4OPEN_WDCONTENTION;
-		    else if (nfsrv_issuedelegs == 0 ||
-			NFSRV_V4DELEGLIMIT(nfsrv_delegatecnt))
-			*rflagsp |= NFSV4OPEN_WDRESOURCE;
-		    else if ((new_stp->ls_flags & NFSLCK_WANTNODELEG) != 0)
-			*rflagsp |= NFSV4OPEN_WDNOTWANTED;
 		    else {
 			new_deleg->ls_stateid.seqid = delegstateidp->seqid = 1;
 			new_deleg->ls_stateid.other[0] = delegstateidp->other[0]
@@ -3159,16 +3161,17 @@ tryagain:
 		    /*
 		     * This is where we can choose to issue a delegation.
 		     */
-		    if (delegate == 0 || (writedeleg == 0 && readonly == 0) ||
-			!NFSVNO_DELEGOK(vp) ||
+		    if ((new_stp->ls_flags & NFSLCK_WANTNODELEG) != 0)
+			*rflagsp |= NFSV4OPEN_WDNOTWANTED;
+		    else if (nfsrv_issuedelegs == 0)
+			*rflagsp |= NFSV4OPEN_WDSUPPFTYPE;
+		    else if (NFSRV_V4DELEGLIMIT(nfsrv_delegatecnt))
+			*rflagsp |= NFSV4OPEN_WDRESOURCE;
+		    else if (delegate == 0 || (writedeleg == 0 &&
+			readonly == 0) || !NFSVNO_DELEGOK(vp) ||
 			(clp->lc_flags & (LCL_CALLBACKSON | LCL_CBDOWN)) !=
 			 LCL_CALLBACKSON)
 			*rflagsp |= NFSV4OPEN_WDCONTENTION;
-		    else if (nfsrv_issuedelegs == 0 ||
-			NFSRV_V4DELEGLIMIT(nfsrv_delegatecnt))
-			*rflagsp |= NFSV4OPEN_WDRESOURCE;
-		    else if ((new_stp->ls_flags & NFSLCK_WANTNODELEG) != 0)
-			*rflagsp |= NFSV4OPEN_WDNOTWANTED;
 		    else {
 			new_deleg->ls_stateid.seqid = delegstateidp->seqid = 1;
 			new_deleg->ls_stateid.other[0] = delegstateidp->other[0]
@@ -6750,9 +6753,10 @@ nfsrv_flexlayouterr(struct nfsrv_descript *nd, uint32_t *layp, int maxcnt,
 			NFSD_DEBUG(4, "flexlayouterr op=%d stat=%d\n", opnum,
 			    stat);
 			/*
-			 * Except for NFSERR_ACCES errors, disable the mirror.
+			 * Except for NFSERR_ACCES and NFSERR_STALE errors,
+			 * disable the mirror.
 			 */
-			if (stat != NFSERR_ACCES)
+			if (stat != NFSERR_ACCES && stat != NFSERR_STALE)
 				nfsrv_delds(devid, p);
 		}
 	}
@@ -7480,7 +7484,7 @@ out:
  * Look up the mount path for the DS server and delete it.
  */
 int
-nfsrv_deldsserver(char *dspathp, NFSPROC_T *p)
+nfsrv_deldsserver(int op, char *dspathp, NFSPROC_T *p)
 {
 	struct mount *mp;
 	struct nfsmount *nmp;
@@ -7522,7 +7526,7 @@ nfsrv_deldsserver(char *dspathp, NFSPROC_T *p)
 	mtx_unlock(&mountlist_mtx);
 
 	if (nmp != NULL) {
-		ds = nfsrv_deldsnmp(nmp, p);
+		ds = nfsrv_deldsnmp(op, nmp, p);
 		NFSD_DEBUG(4, "deldsnmp=%p\n", ds);
 		if (ds != NULL) {
 			nfsrv_killrpcs(nmp);
@@ -7542,20 +7546,26 @@ nfsrv_deldsserver(char *dspathp, NFSPROC_T *p)
  * Search for and remove a DS entry which matches the "nmp" argument.
  * The nfsdevice structure pointer is returned so that the caller can
  * free it via nfsrv_freeonedevid().
+ * For the forced case, do not try to do LayoutRecalls, since the server
+ * must be shut down now anyhow.
  */
 struct nfsdevice *
-nfsrv_deldsnmp(struct nfsmount *nmp, NFSPROC_T *p)
+nfsrv_deldsnmp(int op, struct nfsmount *nmp, NFSPROC_T *p)
 {
 	struct nfsdevice *fndds;
 
 	NFSD_DEBUG(4, "deldsdvp\n");
 	NFSDDSLOCK();
-	fndds = nfsrv_findmirroredds(nmp);
+	if (op == PNFSDOP_FORCEDELDS)
+		fndds = nfsv4_findmirror(nmp);
+	else
+		fndds = nfsrv_findmirroredds(nmp);
 	if (fndds != NULL)
 		nfsrv_deleteds(fndds);
 	NFSDDSUNLOCK();
 	if (fndds != NULL) {
-		nfsrv_flexmirrordel(fndds->nfsdev_deviceid, p);
+		if (op != PNFSDOP_FORCEDELDS)
+			nfsrv_flexmirrordel(fndds->nfsdev_deviceid, p);
 		printf("pNFS server: mirror %s failed\n", fndds->nfsdev_host);
 	}
 	return (fndds);
@@ -8123,9 +8133,15 @@ tryagain2:
 		if (retacl != 0 && retacl != ENOATTR)
 			NFSD_DEBUG(1, "nfsrv_copymr: vop_getacl=%d\n", retacl);
 		dat = malloc(PNFSDS_COPYSIZ, M_TEMP, M_WAITOK);
+		/* Malloc a block of 0s used to check for holes. */
+		if (nfsrv_zeropnfsdat == NULL)
+			nfsrv_zeropnfsdat = malloc(PNFSDS_COPYSIZ, M_TEMP,
+			    M_WAITOK | M_ZERO);
 		rdpos = wrpos = 0;
 		mp = NULL;
 		ret = vn_start_write(tvp, &mp, V_WAIT | PCATCH);
+		if (ret == 0)
+			ret = VOP_GETATTR(fvp, &va, cred);
 		aresid = 0;
 		while (ret == 0 && aresid == 0) {
 			ret = vn_rdwr(UIO_READ, fvp, dat, PNFSDS_COPYSIZ,
@@ -8134,9 +8150,16 @@ tryagain2:
 			xfer = PNFSDS_COPYSIZ - aresid;
 			if (ret == 0 && xfer > 0) {
 				rdpos += xfer;
-				ret = vn_rdwr(UIO_WRITE, tvp, dat, xfer,
-				    wrpos, UIO_SYSSPACE, IO_NODELOCKED,
-				    cred, NULL, NULL, p);
+				/*
+				 * Skip the write for holes, except for the
+				 * last block.
+				 */
+				if (xfer < PNFSDS_COPYSIZ || rdpos ==
+				    va.va_size || NFSBCMP(dat,
+				    nfsrv_zeropnfsdat, PNFSDS_COPYSIZ) != 0)
+					ret = vn_rdwr(UIO_WRITE, tvp, dat, xfer,
+					    wrpos, UIO_SYSSPACE, IO_NODELOCKED,
+					    cred, NULL, NULL, p);
 				if (ret == 0)
 					wrpos += xfer;
 			}

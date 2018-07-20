@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20180711:
+	The static environment setup in kernel configs is no longer mutually
+	exclusive with the loader(8) environment by default.  In order to
+	restore the previous default behavior of disabling the loader(8)
+	environment if a static environment is present, you must specify
+	loader_env.disabled=1 in the static environment.
+
 20180705:
 	The ABI of syscalls used by management tools like sockstat and
 	netstat has been broken to allow 32-bit binaries to work on
@@ -57,6 +64,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	6.0.1.  Please see the 20141231 entry below for information about
 	prerequisites and upgrading, if you are not already using clang 3.5.0
 	or higher.
+
+20180628:
+	r335753 introduced a new quoting method. However, etc/devd/devmatch.conf
+	needed to be changed to work with it. This change was made with r335763
+	and requires a mergemaster / etcupdate / etc to update the installed file.
 
 20180628:
 	r335753 introduced a new quoting method. However, etc/devd/devmatch.conf
@@ -641,6 +653,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 20160818:
 	Remove the openbsd_poll system call.
 	__FreeBSD_version has been bumped because of this.
+
+20160708:
+	The stable/11 branch has been created from head@r302406.
 
 20160622:
 	The libc stub for the pipe(2) system call has been replaced with

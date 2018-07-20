@@ -39,7 +39,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
@@ -81,7 +80,7 @@ struct mtx	kenv_lock;
 /*
  * No need to protect this with a mutex since SYSINITS are single threaded.
  */
-int	dynamic_kenv = 0;
+bool	dynamic_kenv;
 
 #define KENV_CHECK	if (!dynamic_kenv) \
 			    panic("%s: called before SI_SUB_KMEM", __func__)
@@ -100,7 +99,7 @@ sys_kenv(td, uap)
 	size_t len, done, needed, buflen;
 	int error, i;
 
-	KASSERT(dynamic_kenv, ("kenv: dynamic_kenv = 0"));
+	KASSERT(dynamic_kenv, ("kenv: dynamic_kenv = false"));
 
 	error = 0;
 	if (uap->what == KENV_DUMP) {
@@ -250,11 +249,10 @@ init_static_kenv(char *buf, size_t len)
 {
 	char *eval;
 
-	md_envp = buf;
-	md_env_len = len;
-	md_env_pos = 0;
-
 	/*
+	 * Give the static environment a chance to disable the loader(8)
+	 * environment first.  This is done with loader_env.disabled=1.
+	 *
 	 * static_env and static_hints may both be disabled, but in slightly
 	 * different ways.  For static_env, we just don't setup kern_envp and
 	 * it's as if a static env wasn't even provided.  For static_hints,
@@ -264,10 +262,21 @@ init_static_kenv(char *buf, size_t len)
 	 * We're intentionally setting this up so that static_hints.disabled may
 	 * be specified in either the MD env or the static env. This keeps us
 	 * consistent in our new world view.
+	 *
+	 * As a warning, the static environment may not be disabled in any way
+	 * if the static environment has disabled the loader environment.
 	 */
-	eval = kern_getenv("static_env.disabled");
-	if (eval == NULL || strcmp(eval, "1") != 0)
-		kern_envp = static_env;
+	kern_envp = static_env;
+	eval = kern_getenv("loader_env.disabled");
+	if (eval == NULL || strcmp(eval, "1") != 0) {
+		md_envp = buf;
+		md_env_len = len;
+		md_env_pos = 0;
+
+		eval = kern_getenv("static_env.disabled");
+		if (eval != NULL && strcmp(eval, "1") == 0)
+			*kern_envp = '\0';
+	}
 	eval = kern_getenv("static_hints.disabled");
 	if (eval != NULL && strcmp(eval, "1") == 0)
 		*static_hints = '\0';
@@ -344,7 +353,7 @@ init_dynamic_kenv(void *data __unused)
 	kenvp[dynamic_envpos] = NULL;
 
 	mtx_init(&kenv_lock, "kernel environment", NULL, MTX_DEF);
-	dynamic_kenv = 1;
+	dynamic_kenv = true;
 }
 SYSINIT(kenv, SI_SUB_KMEM + 1, SI_ORDER_FIRST, init_dynamic_kenv, NULL);
 
@@ -498,7 +507,7 @@ kern_setenv(const char *name, const char *value)
 	char *buf, *cp, *oldenv;
 	int namelen, vallen, i;
 
-	if (dynamic_kenv == 0 && md_env_len > 0)
+	if (!dynamic_kenv && md_env_len > 0)
 		return (setenv_static(name, value));
 
 	KENV_CHECK;

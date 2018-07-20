@@ -201,8 +201,8 @@ struct pmap kernel_pmap_store;
 
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
-int pgeflag = 0;		/* PG_G or-in */
-int pseflag = 0;		/* PG_PS or-in */
+static int pgeflag = 0;		/* PG_G or-in */
+static int pseflag = 0;		/* PG_PS or-in */
 
 static int nkpt = NKPT;
 vm_offset_t kernel_vm_end = /* 0 + */ NKPT * NBPDR;
@@ -285,11 +285,18 @@ static struct mtx PMAP2mutex;
 
 int pti;
 
+/*
+ * Internal flags for pmap_enter()'s helper functions.
+ */
+#define	PMAP_ENTER_NORECLAIM	0x1000000	/* Don't reclaim PV entries. */
+#define	PMAP_ENTER_NOREPLACE	0x2000000	/* Don't replace mappings. */
+
 static void	free_pv_chunk(struct pv_chunk *pc);
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t pmap, boolean_t try);
 static void	pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
-static boolean_t pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
+static bool	pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, pd_entry_t pde,
+		    u_int flags);
 #if VM_NRESERVLEVEL > 0
 static void	pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa);
 #endif
@@ -299,8 +306,10 @@ static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 static int	pmap_pvh_wired_mappings(struct md_page *pvh, int count);
 
 static boolean_t pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
-static boolean_t pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m,
-    vm_prot_t prot);
+static bool	pmap_enter_4mpage(pmap_t pmap, vm_offset_t va, vm_page_t m,
+		    vm_prot_t prot);
+static int	pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde,
+		    u_int flags, vm_page_t m);
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static void pmap_flush_page(vm_page_t m);
@@ -326,6 +335,8 @@ static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t sva,
 static vm_page_t pmap_remove_pt_page(pmap_t pmap, vm_offset_t va);
 static void pmap_remove_page(struct pmap *pmap, vm_offset_t va,
     struct spglist *free);
+static bool	pmap_remove_ptes(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+		    struct spglist *free);
 static void pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 					vm_offset_t va);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
@@ -507,6 +518,7 @@ pmap_cold(void)
 	ncr4 = 0;
 	if ((cpu_feature & CPUID_PSE) != 0) {
 		ncr4 |= CR4_PSE;
+		pseflag = PG_PS;
 		/*
 		 * Superpage mapping of the kernel text.  Existing 4k
 		 * page table pages are wasted.
@@ -1066,6 +1078,13 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 	if (pat_idx & 0x1)
 		cache_bits |= PG_NC_PWT;
 	return (cache_bits);
+}
+
+bool
+pmap_ps_enabled(pmap_t pmap)
+{
+
+	return (pg_ps_enabled);
 }
 
 /*
@@ -1773,7 +1792,7 @@ pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 	sva = va;
 	while (start < end) {
 		if ((start & PDRMASK) == 0 && end - start >= NBPDR &&
-		    pseflag) {
+		    pseflag != 0) {
 			KASSERT((va & PDRMASK) == 0,
 			    ("pmap_map: misaligned va %#x", va));
 			newpde = start | PG_PS | PG_RW | PG_V;
@@ -2702,21 +2721,22 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 /*
  * Create the pv entries for each of the pages within a superpage.
  */
-static boolean_t
-pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
+static bool
+pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, pd_entry_t pde, u_int flags)
 {
 	struct md_page *pvh;
 	pv_entry_t pv;
+	bool noreclaim;
 
 	rw_assert(&pvh_global_lock, RA_WLOCKED);
-	if (pv_entry_count < pv_entry_high_water && 
-	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
-		pv->pv_va = va;
-		pvh = pa_to_pvh(pa);
-		TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
-		return (TRUE);
-	} else
-		return (FALSE);
+	noreclaim = (flags & PMAP_ENTER_NORECLAIM) != 0;
+	if ((noreclaim && pv_entry_count >= pv_entry_high_water) ||
+	    (pv = get_pv_entry(pmap, noreclaim)) == NULL)
+		return (false);
+	pv->pv_va = va;
+	pvh = pa_to_pvh(pde & PG_PS_FRAME);
+	TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
+	return (true);
 }
 
 /*
@@ -3026,6 +3046,38 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va, struct spglist *free)
 }
 
 /*
+ * Removes the specified range of addresses from the page table page.
+ */
+static bool
+pmap_remove_ptes(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+    struct spglist *free)
+{
+	pt_entry_t *pte;
+	bool anyvalid;
+
+	rw_assert(&pvh_global_lock, RA_WLOCKED);
+	KASSERT(curthread->td_pinned > 0, ("curthread not pinned"));
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	anyvalid = false;
+	for (pte = pmap_pte_quick(pmap, sva); sva != eva; pte++,
+	    sva += PAGE_SIZE) {
+		if (*pte == 0)
+			continue;
+
+		/*
+		 * The TLB entry for a PG_G mapping is invalidated by
+		 * pmap_remove_pte().
+		 */
+		if ((*pte & PG_G) == 0)
+			anyvalid = true;
+
+		if (pmap_remove_pte(pmap, pte, sva, free))
+			break;
+	}
+	return (anyvalid);
+}
+
+/*
  *	Remove the given range of addresses from the specified map.
  *
  *	It is assumed that the start and end are properly
@@ -3036,7 +3088,6 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	vm_offset_t pdnxt;
 	pd_entry_t ptpaddr;
-	pt_entry_t *pte;
 	struct spglist free;
 	int anyvalid;
 
@@ -3119,20 +3170,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (pdnxt > eva)
 			pdnxt = eva;
 
-		for (pte = pmap_pte_quick(pmap, sva); sva != pdnxt; pte++,
-		    sva += PAGE_SIZE) {
-			if (*pte == 0)
-				continue;
-
-			/*
-			 * The TLB entry for a PG_G mapping is invalidated
-			 * by pmap_remove_pte().
-			 */
-			if ((*pte & PG_G) == 0)
-				anyvalid = 1;
-			if (pmap_remove_pte(pmap, pte, sva, &free))
-				break;
-		}
+		if (pmap_remove_ptes(pmap, sva, pdnxt, &free))
+			anyvalid = 1;
 	}
 out:
 	sched_unpin();
@@ -3575,24 +3614,52 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	pv_entry_t pv;
 	vm_paddr_t opa, pa;
 	vm_page_t mpte, om;
-	boolean_t invlva, wired;
+	int rv;
 
 	va = trunc_page(va);
-	mpte = NULL;
-	wired = (flags & PMAP_ENTER_WIRED) != 0;
-
 	KASSERT((pmap == kernel_pmap && va < VM_MAX_KERNEL_ADDRESS) ||
 	    (pmap != kernel_pmap && va < VM_MAXUSER_ADDRESS),
 	    ("pmap_enter: toobig k%d %#x", pmap == kernel_pmap, va));
 	KASSERT(va < PMAP_TRM_MIN_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter into trampoline (va: 0x%x)",
 	    va));
+	KASSERT(pmap != kernel_pmap || (m->oflags & VPO_UNMANAGED) != 0 ||
+	    va < kmi.clean_sva || va >= kmi.clean_eva,
+	    ("pmap_enter: managed mapping within the clean submap"));
 	if ((m->oflags & VPO_UNMANAGED) == 0 && !vm_page_xbusied(m))
 		VM_OBJECT_ASSERT_LOCKED(m->object);
+	KASSERT((flags & PMAP_ENTER_RESERVED) == 0,
+	    ("pmap_enter: flags %u has reserved bits set", flags));
+	pa = VM_PAGE_TO_PHYS(m);
+	newpte = (pt_entry_t)(pa | PG_A | PG_V);
+	if ((flags & VM_PROT_WRITE) != 0)
+		newpte |= PG_M;
+	if ((prot & VM_PROT_WRITE) != 0)
+		newpte |= PG_RW;
+	KASSERT((newpte & (PG_M | PG_RW)) != PG_M,
+	    ("pmap_enter: flags includes VM_PROT_WRITE but prot doesn't"));
+#if defined(PAE) || defined(PAE_TABLES)
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		newpte |= pg_nx;
+#endif
+	if ((flags & PMAP_ENTER_WIRED) != 0)
+		newpte |= PG_W;
+	if (pmap != kernel_pmap)
+		newpte |= PG_U;
+	newpte |= pmap_cache_bits(m->md.pat_mode, psind > 0);
+	if ((m->oflags & VPO_UNMANAGED) == 0)
+		newpte |= PG_MANAGED;
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	sched_pin();
+	if (psind == 1) {
+		/* Assert the required virtual and physical alignment. */ 
+		KASSERT((va & PDRMASK) == 0, ("pmap_enter: va unaligned"));
+		KASSERT(m->psind > 0, ("pmap_enter: m->psind < psind"));
+		rv = pmap_enter_pde(pmap, va, newpte | PG_PS, flags, m);
+		goto out;
+	}
 
 	pde = pmap_pde(pmap, va);
 	if (pmap != kernel_pmap) {
@@ -3606,10 +3673,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (mpte == NULL) {
 			KASSERT((flags & PMAP_ENTER_NOSLEEP) != 0,
 			    ("pmap_allocpte failed with sleep allowed"));
-			sched_unpin();
-			rw_wunlock(&pvh_global_lock);
-			PMAP_UNLOCK(pmap);
-			return (KERN_RESOURCE_SHORTAGE);
+			rv = KERN_RESOURCE_SHORTAGE;
+			goto out;
 		}
 	} else {
 		/*
@@ -3617,6 +3682,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * to install a page table page.  PG_V is also
 		 * asserted by pmap_demote_pde().
 		 */
+		mpte = NULL;
 		KASSERT(pde != NULL && (*pde & PG_V) != 0,
 		    ("KVA %#x invalid pde pdir %#jx", va,
 		    (uintmax_t)pmap->pm_pdir[PTDPTDI]));
@@ -3635,139 +3701,142 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		    (uintmax_t)pmap->pm_pdir[PTDPTDI], va);
 	}
 
-	pa = VM_PAGE_TO_PHYS(m);
-	om = NULL;
 	origpte = *pte;
-	opa = origpte & PG_FRAME;
+	pv = NULL;
 
 	/*
-	 * Mapping has not changed, must be protection or wiring change.
+	 * Is the specified virtual address already mapped?
 	 */
-	if (origpte && (opa == pa)) {
+	if ((origpte & PG_V) != 0) {
 		/*
 		 * Wiring change, just update stats. We don't worry about
 		 * wiring PT pages as they remain resident as long as there
 		 * are valid mappings in them. Hence, if a user page is wired,
 		 * the PT page will be also.
 		 */
-		if (wired && ((origpte & PG_W) == 0))
+		if ((newpte & PG_W) != 0 && (origpte & PG_W) == 0)
 			pmap->pm_stats.wired_count++;
-		else if (!wired && (origpte & PG_W))
+		else if ((newpte & PG_W) == 0 && (origpte & PG_W) != 0)
 			pmap->pm_stats.wired_count--;
 
 		/*
-		 * Remove extra pte reference
+		 * Remove the extra PT page reference.
 		 */
-		if (mpte)
-			mpte->wire_count--;
-
-		if (origpte & PG_MANAGED) {
-			om = m;
-			pa |= PG_MANAGED;
-		}
-		goto validate;
-	} 
-
-	pv = NULL;
-
-	/*
-	 * Mapping has changed, invalidate old range and fall through to
-	 * handle validating new mapping.
-	 */
-	if (opa) {
-		if (origpte & PG_W)
-			pmap->pm_stats.wired_count--;
-		if (origpte & PG_MANAGED) {
-			om = PHYS_TO_VM_PAGE(opa);
-			pv = pmap_pvh_remove(&om->md, pmap, va);
-		}
 		if (mpte != NULL) {
 			mpte->wire_count--;
 			KASSERT(mpte->wire_count > 0,
 			    ("pmap_enter: missing reference to page table page,"
 			     " va: 0x%x", va));
 		}
-	} else
-		pmap->pm_stats.resident_count++;
 
-	/*
-	 * Enter on the PV list if part of our managed memory.
-	 */
-	if ((m->oflags & VPO_UNMANAGED) == 0) {
-		KASSERT(pmap != kernel_pmap || va < kmi.clean_sva ||
-		    va >= kmi.clean_eva,
-		    ("pmap_enter: managed mapping within the clean submap"));
-		if (pv == NULL)
-			pv = get_pv_entry(pmap, FALSE);
-		pv->pv_va = va;
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
-		pa |= PG_MANAGED;
-	} else if (pv != NULL)
-		free_pv_entry(pmap, pv);
-
-	/*
-	 * Increment counters
-	 */
-	if (wired)
-		pmap->pm_stats.wired_count++;
-
-validate:
-	/*
-	 * Now validate mapping with desired protection/wiring.
-	 */
-	newpte = (pt_entry_t)(pa | pmap_cache_bits(m->md.pat_mode, 0) | PG_V);
-	if ((prot & VM_PROT_WRITE) != 0) {
-		newpte |= PG_RW;
-		if ((newpte & PG_MANAGED) != 0)
-			vm_page_aflag_set(m, PGA_WRITEABLE);
-	}
-#if defined(PAE) || defined(PAE_TABLES)
-	if ((prot & VM_PROT_EXECUTE) == 0)
-		newpte |= pg_nx;
-#endif
-	if (wired)
-		newpte |= PG_W;
-	if (pmap != kernel_pmap)
-		newpte |= PG_U;
-
-	/*
-	 * if the mapping or permission bits are different, we need
-	 * to update the pte.
-	 */
-	if ((origpte & ~(PG_M|PG_A)) != newpte) {
-		newpte |= PG_A;
-		if ((flags & VM_PROT_WRITE) != 0)
-			newpte |= PG_M;
-		if (origpte & PG_V) {
-			invlva = FALSE;
-			origpte = pte_load_store(pte, newpte);
-			if (origpte & PG_A) {
-				if (origpte & PG_MANAGED)
-					vm_page_aflag_set(om, PGA_REFERENCED);
-				if (opa != VM_PAGE_TO_PHYS(m))
-					invlva = TRUE;
-#if defined(PAE) || defined(PAE_TABLES)
-				if ((origpte & PG_NX) == 0 &&
-				    (newpte & PG_NX) != 0)
-					invlva = TRUE;
-#endif
-			}
-			if ((origpte & (PG_M | PG_RW)) == (PG_M | PG_RW)) {
-				if ((origpte & PG_MANAGED) != 0)
-					vm_page_dirty(om);
-				if ((prot & VM_PROT_WRITE) == 0)
-					invlva = TRUE;
-			}
+		/*
+		 * Has the physical page changed?
+		 */
+		opa = origpte & PG_FRAME;
+		if (opa == pa) {
+			/*
+			 * No, might be a protection or wiring change.
+			 */
 			if ((origpte & PG_MANAGED) != 0 &&
+			    (newpte & PG_RW) != 0)
+				vm_page_aflag_set(m, PGA_WRITEABLE);
+			if (((origpte ^ newpte) & ~(PG_M | PG_A)) == 0)
+				goto unchanged;
+			goto validate;
+		}
+
+		/*
+		 * The physical page has changed.  Temporarily invalidate
+		 * the mapping.  This ensures that all threads sharing the
+		 * pmap keep a consistent view of the mapping, which is
+		 * necessary for the correct handling of COW faults.  It
+		 * also permits reuse of the old mapping's PV entry,
+		 * avoiding an allocation.
+		 *
+		 * For consistency, handle unmanaged mappings the same way.
+		 */
+		origpte = pte_load_clear(pte);
+		KASSERT((origpte & PG_FRAME) == opa,
+		    ("pmap_enter: unexpected pa update for %#x", va));
+		if ((origpte & PG_MANAGED) != 0) {
+			om = PHYS_TO_VM_PAGE(opa);
+
+			/*
+			 * The pmap lock is sufficient to synchronize with
+			 * concurrent calls to pmap_page_test_mappings() and
+			 * pmap_ts_referenced().
+			 */
+			if ((origpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
+				vm_page_dirty(om);
+			if ((origpte & PG_A) != 0)
+				vm_page_aflag_set(om, PGA_REFERENCED);
+			pv = pmap_pvh_remove(&om->md, pmap, va);
+			if ((newpte & PG_MANAGED) == 0)
+				free_pv_entry(pmap, pv);
+			if ((om->aflags & PGA_WRITEABLE) != 0 &&
 			    TAILQ_EMPTY(&om->md.pv_list) &&
 			    ((om->flags & PG_FICTITIOUS) != 0 ||
 			    TAILQ_EMPTY(&pa_to_pvh(opa)->pv_list)))
 				vm_page_aflag_clear(om, PGA_WRITEABLE);
-			if (invlva)
-				pmap_invalidate_page(pmap, va);
-		} else
-			pte_store(pte, newpte);
+		}
+		if ((origpte & PG_A) != 0)
+			pmap_invalidate_page(pmap, va);
+		origpte = 0;
+	} else {
+		/*
+		 * Increment the counters.
+		 */
+		if ((newpte & PG_W) != 0)
+			pmap->pm_stats.wired_count++;
+		pmap->pm_stats.resident_count++;
 	}
+
+	/*
+	 * Enter on the PV list if part of our managed memory.
+	 */
+	if ((newpte & PG_MANAGED) != 0) {
+		if (pv == NULL) {
+			pv = get_pv_entry(pmap, FALSE);
+			pv->pv_va = va;
+		}
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
+		if ((newpte & PG_RW) != 0)
+			vm_page_aflag_set(m, PGA_WRITEABLE);
+	}
+
+	/*
+	 * Update the PTE.
+	 */
+	if ((origpte & PG_V) != 0) {
+validate:
+		origpte = pte_load_store(pte, newpte);
+		KASSERT((origpte & PG_FRAME) == pa,
+		    ("pmap_enter: unexpected pa update for %#x", va));
+		if ((newpte & PG_M) == 0 && (origpte & (PG_M | PG_RW)) ==
+		    (PG_M | PG_RW)) {
+			if ((origpte & PG_MANAGED) != 0)
+				vm_page_dirty(m);
+
+			/*
+			 * Although the PTE may still have PG_RW set, TLB
+			 * invalidation may nonetheless be required because
+			 * the PTE no longer has PG_M set.
+			 */
+		}
+#if defined(PAE) || defined(PAE_TABLES)
+		else if ((origpte & PG_NX) != 0 || (newpte & PG_NX) == 0) {
+			/*
+			 * This PTE change does not require TLB invalidation.
+			 */
+			goto unchanged;
+		}
+#endif
+		if ((origpte & PG_A) != 0)
+			pmap_invalidate_page(pmap, va);
+	} else
+		pte_store(pte, newpte);
+
+unchanged:
 
 #if VM_NRESERVLEVEL > 0
 	/*
@@ -3780,55 +3849,120 @@ validate:
 		pmap_promote_pde(pmap, pde, va);
 #endif
 
+	rv = KERN_SUCCESS;
+out:
 	sched_unpin();
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
-	return (KERN_SUCCESS);
+	return (rv);
 }
 
 /*
- * Tries to create a 2- or 4MB page mapping.  Returns TRUE if successful and
- * FALSE otherwise.  Fails if (1) a page table page cannot be allocated without
- * blocking, (2) a mapping already exists at the specified virtual address, or
- * (3) a pv entry cannot be allocated without reclaiming another pv entry. 
+ * Tries to create a read- and/or execute-only 2 or 4 MB page mapping.  Returns
+ * true if successful.  Returns false if (1) a mapping already exists at the
+ * specified virtual address or (2) a PV entry cannot be allocated without
+ * reclaiming another PV entry.
  */
-static boolean_t
-pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
+static bool
+pmap_enter_4mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
-	pd_entry_t *pde, newpde;
+	pd_entry_t newpde;
 
-	rw_assert(&pvh_global_lock, RA_WLOCKED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	pde = pmap_pde(pmap, va);
-	if (*pde != 0) {
-		CTR2(KTR_PMAP, "pmap_enter_pde: failure for va %#lx"
-		    " in pmap %p", va, pmap);
-		return (FALSE);
-	}
 	newpde = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(m->md.pat_mode, 1) |
 	    PG_PS | PG_V;
-	if ((m->oflags & VPO_UNMANAGED) == 0) {
+	if ((m->oflags & VPO_UNMANAGED) == 0)
 		newpde |= PG_MANAGED;
-
-		/*
-		 * Abort this mapping if its PV entry could not be created.
-		 */
-		if (!pmap_pv_insert_pde(pmap, va, VM_PAGE_TO_PHYS(m))) {
-			CTR2(KTR_PMAP, "pmap_enter_pde: failure for va %#lx"
-			    " in pmap %p", va, pmap);
-			return (FALSE);
-		}
-	}
 #if defined(PAE) || defined(PAE_TABLES)
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		newpde |= pg_nx;
 #endif
-	if (va < VM_MAXUSER_ADDRESS)
+	if (pmap != kernel_pmap)
 		newpde |= PG_U;
+	return (pmap_enter_pde(pmap, va, newpde, PMAP_ENTER_NOSLEEP |
+	    PMAP_ENTER_NOREPLACE | PMAP_ENTER_NORECLAIM, NULL) ==
+	    KERN_SUCCESS);
+}
+
+/*
+ * Tries to create the specified 2 or 4 MB page mapping.  Returns KERN_SUCCESS
+ * if the mapping was created, and either KERN_FAILURE or
+ * KERN_RESOURCE_SHORTAGE otherwise.  Returns KERN_FAILURE if
+ * PMAP_ENTER_NOREPLACE was specified and a mapping already exists at the
+ * specified virtual address.  Returns KERN_RESOURCE_SHORTAGE if
+ * PMAP_ENTER_NORECLAIM was specified and a PV entry allocation failed.
+ *
+ * The parameter "m" is only used when creating a managed, writeable mapping.
+ */
+static int
+pmap_enter_pde(pmap_t pmap, vm_offset_t va, pd_entry_t newpde, u_int flags,
+    vm_page_t m)
+{
+	struct spglist free;
+	pd_entry_t oldpde, *pde;
+	vm_page_t mt;
+
+	rw_assert(&pvh_global_lock, RA_WLOCKED);
+	KASSERT((newpde & (PG_M | PG_RW)) != PG_RW,
+	    ("pmap_enter_pde: newpde is missing PG_M"));
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	pde = pmap_pde(pmap, va);
+	oldpde = *pde;
+	if ((oldpde & PG_V) != 0) {
+		if ((flags & PMAP_ENTER_NOREPLACE) != 0) {
+			CTR2(KTR_PMAP, "pmap_enter_pde: failure for va %#lx"
+			    " in pmap %p", va, pmap);
+			return (KERN_FAILURE);
+		}
+		/* Break the existing mapping(s). */
+		SLIST_INIT(&free);
+		if ((oldpde & PG_PS) != 0) {
+			/*
+			 * If the PDE resulted from a promotion, then a
+			 * reserved PT page could be freed.
+			 */
+			(void)pmap_remove_pde(pmap, pde, va, &free);
+			if ((oldpde & PG_G) == 0)
+				pmap_invalidate_pde_page(pmap, va, oldpde);
+		} else {
+			if (pmap_remove_ptes(pmap, va, va + NBPDR, &free))
+		               pmap_invalidate_all(pmap);
+		}
+		vm_page_free_pages_toq(&free, true);
+		if (pmap == kernel_pmap) {
+			mt = PHYS_TO_VM_PAGE(*pde & PG_FRAME);
+			if (pmap_insert_pt_page(pmap, mt)) {
+				/*
+				 * XXX Currently, this can't happen because
+				 * we do not perform pmap_enter(psind == 1)
+				 * on the kernel pmap.
+				 */
+				panic("pmap_enter_pde: trie insert failed");
+			}
+		} else
+			KASSERT(*pde == 0, ("pmap_enter_pde: non-zero pde %p",
+			    pde));
+	}
+	if ((newpde & PG_MANAGED) != 0) {
+		/*
+		 * Abort this mapping if its PV entry could not be created.
+		 */
+		if (!pmap_pv_insert_pde(pmap, va, newpde, flags)) {
+			CTR2(KTR_PMAP, "pmap_enter_pde: failure for va %#lx"
+			    " in pmap %p", va, pmap);
+			return (KERN_RESOURCE_SHORTAGE);
+		}
+		if ((newpde & PG_RW) != 0) {
+			for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
+				vm_page_aflag_set(mt, PGA_WRITEABLE);
+		}
+	}
 
 	/*
 	 * Increment counters.
 	 */
+	if ((newpde & PG_W) != 0)
+		pmap->pm_stats.wired_count += NBPDR / PAGE_SIZE;
 	pmap->pm_stats.resident_count += NBPDR / PAGE_SIZE;
 
 	/*
@@ -3840,7 +3974,7 @@ pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	pmap_pde_mappings++;
 	CTR2(KTR_PMAP, "pmap_enter_pde: success for va %#lx"
 	    " in pmap %p", va, pmap);
-	return (TRUE);
+	return (KERN_SUCCESS);
 }
 
 /*
@@ -3874,7 +4008,7 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 		va = start + ptoa(diff);
 		if ((va & PDRMASK) == 0 && va + NBPDR <= end &&
 		    m->psind == 1 && pg_ps_enabled &&
-		    pmap_enter_pde(pmap, va, m, prot))
+		    pmap_enter_4mpage(pmap, va, m, prot))
 			m = &m[NBPDR / PAGE_SIZE - 1];
 		else
 			mpte = pmap_enter_quick_locked(pmap, va, m, prot,
@@ -4042,7 +4176,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
-	if (pseflag && 
+	if (pg_ps_enabled &&
 	    (addr & (NBPDR - 1)) == 0 && (size & (NBPDR - 1)) == 0) {
 		if (!vm_object_populate(object, pindex, pindex + atop(size)))
 			return;
@@ -4248,8 +4382,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				continue;
 			if (dst_pmap->pm_pdir[ptepindex] == 0 &&
 			    ((srcptepaddr & PG_MANAGED) == 0 ||
-			    pmap_pv_insert_pde(dst_pmap, addr, srcptepaddr &
-			    PG_PS_FRAME))) {
+			    pmap_pv_insert_pde(dst_pmap, addr, srcptepaddr,
+			    PMAP_ENTER_NORECLAIM))) {
 				dst_pmap->pm_pdir[ptepindex] = srcptepaddr &
 				    ~PG_W;
 				dst_pmap->pm_stats.resident_count +=

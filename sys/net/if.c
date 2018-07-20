@@ -2969,8 +2969,8 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 #ifdef COMPAT_FREEBSD32
 	caddr_t saved_data = NULL;
 	struct ifmediareq ifmr;
-#endif
 	struct ifmediareq *ifmrp;
+#endif
 	struct ifnet *ifp;
 	struct ifreq *ifr;
 	int error;
@@ -3016,8 +3016,8 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 #endif
 	}
 
-	ifmrp = NULL;
 #ifdef COMPAT_FREEBSD32
+	ifmrp = NULL;
 	switch (cmd) {
 	case SIOCGIFMEDIA32:
 	case SIOCGIFXMEDIA32:
@@ -3899,6 +3899,44 @@ if_requestencap_default(struct ifnet *ifp, struct if_encap_req *req)
 	req->bufsize = req->lladdr_len;
 	req->lladdr_off = 0;
 
+	return (0);
+}
+
+/*
+ * Tunnel interfaces can nest, also they may cause infinite recursion
+ * calls when misconfigured. We'll prevent this by detecting loops.
+ * High nesting level may cause stack exhaustion. We'll prevent this
+ * by introducing upper limit.
+ *
+ * Return 0, if tunnel nesting count is equal or less than limit.
+ */
+int
+if_tunnel_check_nesting(struct ifnet *ifp, struct mbuf *m, uint32_t cookie,
+    int limit)
+{
+	struct m_tag *mtag;
+	int count;
+
+	count = 1;
+	mtag = NULL;
+	while ((mtag = m_tag_locate(m, cookie, 0, mtag)) != NULL) {
+		if (*(struct ifnet **)(mtag + 1) == ifp) {
+			log(LOG_NOTICE, "%s: loop detected\n", if_name(ifp));
+			return (EIO);
+		}
+		count++;
+	}
+	if (count > limit) {
+		log(LOG_NOTICE,
+		    "%s: if_output recursively called too many times(%d)\n",
+		    if_name(ifp), count);
+		return (EIO);
+	}
+	mtag = m_tag_alloc(cookie, 0, sizeof(struct ifnet *), M_NOWAIT);
+	if (mtag == NULL)
+		return (ENOMEM);
+	*(struct ifnet **)(mtag + 1) = ifp;
+	m_tag_prepend(m, mtag);
 	return (0);
 }
 

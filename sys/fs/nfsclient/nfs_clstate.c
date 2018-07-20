@@ -4971,14 +4971,16 @@ nfscl_retoncloselayout(vnode_t vp, struct nfsclclient *clp, uint8_t *fhp,
 
 /*
  * Mark the layout to be recalled and with an error.
+ * Also, disable the dsp from further use.
  */
 void
 nfscl_dserr(uint32_t op, uint32_t stat, struct nfscldevinfo *dp,
-    struct nfscllayout *lyp, __unused struct nfsclds *dsp)
+    struct nfscllayout *lyp, struct nfsclds *dsp)
 {
 	struct nfsclrecalllayout *recallp;
 	uint32_t iomode;
 
+	printf("DS being disabled, error=%d\n", stat);
 	/* Set up the return of the layout. */
 	recallp = malloc(sizeof(*recallp), M_NFSLAYRECALL, M_WAITOK);
 	iomode = 0;
@@ -4997,6 +4999,40 @@ nfscl_dserr(uint32_t op, uint32_t stat, struct nfscldevinfo *dp,
 		NFSUNLOCKCLSTATE();
 		free(recallp, M_NFSLAYRECALL);
 	}
+
+	/* And shut the TCP connection down. */
+	nfscl_cancelreqs(dsp);
+}
+
+/*
+ * Cancel all RPCs for this "dsp" by closing the connection.
+ * Also, mark the session as defunct.
+ * If NFSCLDS_SAMECONN is set, the connection is shared with other DSs and
+ * cannot be shut down.
+ */
+APPLESTATIC void
+nfscl_cancelreqs(struct nfsclds *dsp)
+{
+	struct __rpc_client *cl;
+	static int non_event;
+
+	NFSLOCKDS(dsp);
+	if ((dsp->nfsclds_flags & (NFSCLDS_CLOSED | NFSCLDS_SAMECONN)) == 0 &&
+	    dsp->nfsclds_sockp != NULL &&
+	    dsp->nfsclds_sockp->nr_client != NULL) {
+		dsp->nfsclds_flags |= NFSCLDS_CLOSED;
+		cl = dsp->nfsclds_sockp->nr_client;
+		dsp->nfsclds_sess.nfsess_defunct = 1;
+		NFSUNLOCKDS(dsp);
+		CLNT_CLOSE(cl);
+		/*
+		 * This 1sec sleep is done to reduce the number of reconnect
+		 * attempts made on the DS while it has failed.
+		 */
+		tsleep(&non_event, PVFS, "ndscls", hz);
+		return;
+	}
+	NFSUNLOCKDS(dsp);
 }
 
 /*
@@ -5116,7 +5152,7 @@ nfscl_mergeflayouts(struct nfsclflayouthead *fhlp,
  * This function consumes the structure pointed at by dip, if not NULL.
  */
 APPLESTATIC int
-nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip,
+nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip, int ind,
     struct nfsclflayout *flp)
 {
 	struct nfsclclient *clp;
@@ -5134,11 +5170,14 @@ nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip,
 	if ((flp->nfsfl_flags & NFSFL_FILE) != 0)
 		dev = flp->nfsfl_dev;
 	else
-		dev = flp->nfsfl_ffm[0].dev;
+		dev = flp->nfsfl_ffm[ind].dev;
 	tdip = nfscl_finddevinfo(clp, dev);
 	if (tdip != NULL) {
 		tdip->nfsdi_layoutrefs++;
-		flp->nfsfl_devp = tdip;
+		if ((flp->nfsfl_flags & NFSFL_FILE) != 0)
+			flp->nfsfl_devp = tdip;
+		else
+			flp->nfsfl_ffm[ind].devp = tdip;
 		nfscl_reldevinfo_locked(tdip);
 		NFSUNLOCKCLSTATE();
 		if (dip != NULL)
@@ -5148,7 +5187,10 @@ nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip,
 	if (dip != NULL) {
 		LIST_INSERT_HEAD(&clp->nfsc_devinfo, dip, nfsdi_list);
 		dip->nfsdi_layoutrefs = 1;
-		flp->nfsfl_devp = dip;
+		if ((flp->nfsfl_flags & NFSFL_FILE) != 0)
+			flp->nfsfl_devp = dip;
+		else
+			flp->nfsfl_ffm[ind].devp = dip;
 	}
 	NFSUNLOCKCLSTATE();
 	if (dip == NULL)
@@ -5189,15 +5231,19 @@ nfscl_freeflayout(struct nfsclflayout *flp)
 {
 	int i, j;
 
-	if ((flp->nfsfl_flags & NFSFL_FILE) != 0)
+	if ((flp->nfsfl_flags & NFSFL_FILE) != 0) {
 		for (i = 0; i < flp->nfsfl_fhcnt; i++)
 			free(flp->nfsfl_fh[i], M_NFSFH);
+		if (flp->nfsfl_devp != NULL)
+			flp->nfsfl_devp->nfsdi_layoutrefs--;
+	}
 	if ((flp->nfsfl_flags & NFSFL_FLEXFILE) != 0)
-		for (i = 0; i < flp->nfsfl_mirrorcnt; i++)
+		for (i = 0; i < flp->nfsfl_mirrorcnt; i++) {
 			for (j = 0; j < flp->nfsfl_ffm[i].fhcnt; j++)
 				free(flp->nfsfl_ffm[i].fh[j], M_NFSFH);
-	if (flp->nfsfl_devp != NULL)
-		flp->nfsfl_devp->nfsdi_layoutrefs--;
+			if (flp->nfsfl_ffm[i].devp != NULL)	
+				flp->nfsfl_ffm[i].devp->nfsdi_layoutrefs--;	
+		}
 	free(flp, M_NFSFLAYOUT);
 }
 
