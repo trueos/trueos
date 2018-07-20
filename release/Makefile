@@ -279,7 +279,7 @@ dvd: packagesystem
 
 release.iso: disc1.iso
 disc1.iso: disc1
-	env GITHASH=$(git log -1 --pretty=format:%h 2>/dev/null) \
+	env GITHASH=$$(git log -1 --pretty=format:%h 2>/dev/null) \
 	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1 ${XTRADIR}
 
