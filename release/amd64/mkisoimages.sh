@@ -70,6 +70,8 @@ if [ -n "$TRUEOS_MANIFEST" ] ; then
 	else
 		echo "Using OVERLAY_DIR: $OVERLAY_DIR"
 	fi
+else
+	echo "WARNING: TRUEOS_MANIFEST not set"
 fi
 
 LABEL=`echo "$1" | tr '[:lower:]' '[:upper:]'`; shift
