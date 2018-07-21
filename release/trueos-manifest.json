@@ -13,7 +13,7 @@
     "devel/git",
     "sysutils/tmux"
   ],
-  "iso-file-name":"TrueOS-x64-%%GITHASH%%-%%DATE%%.iso",
+  "iso-file-name":"TrueOS-x64-%%GITHASH%%-%%DATE%%",
   "iso-install-packages":[
     "devel/git",
     "sysutils/tmux"
