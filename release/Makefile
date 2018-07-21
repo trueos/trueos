@@ -46,6 +46,7 @@ DOCDIR?=	/usr/doc
 PKG_CMD?=	pkg-static
 TRUEOS_MANIFEST?=	${WORLDDIR}/release/trueos-manifest.json
 RELNOTES_LANG?= en_US.ISO8859-1
+GITHASH=	$$(cd ${WORLDIR}/.. ; git log -1 --pretty=format:%h 2>/dev/null)
 
 .if !defined(TARGET) || empty(TARGET)
 TARGET=		${MACHINE}
@@ -279,7 +280,7 @@ dvd: packagesystem
 
 release.iso: disc1.iso
 disc1.iso: disc1
-	env GITHASH=$$(git log -1 --pretty=format:%h 2>/dev/null) \
+	env GITHASH=${GITHASH} \
 	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1 ${XTRADIR}
 
