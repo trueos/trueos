@@ -1,11 +1,12 @@
 {
-  "ports-url":"https://github.com/trueos/trueos-ports",
-  "ports-branch":"trueos-master",
-  "ports-conf":[
-	  "MAKE_JOBS_NUMBER_LIMIT=3",
-	  "editors_vim_UNSET=GTK2",
-	  "editors_vim_SET=CONSOLE"
-  ],
+  "ports":{
+        "type":"git",
+        "url":"https://github.com/trueos/trueos-ports",
+        "branch":"trueos-master",
+        "make.conf":[
+          "MAKE_JOBS_NUMBER_LIMIT=3"
+        ]
+  },
   "package-all":false,
   "packages":[
 	  "devel/git",

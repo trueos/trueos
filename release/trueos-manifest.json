@@ -1,9 +1,12 @@
 {
-  "ports-url":"https://github.com/trueos/trueos-ports",
-  "ports-branch":"trueos-master",
-  "ports-conf":[
-    "devel_git_SET=SVN"
-  ],
+  "ports":{
+	"type":"git",
+	"url":"https://github.com/trueos/trueos-ports",
+	"branch":"trueos-master",
+	"make.conf":[
+		"devel_git_SET=SVN"
+	]
+  },
   "package-all":false,
   "packages":[
     "devel/git",

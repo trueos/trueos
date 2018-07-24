@@ -1,7 +1,9 @@
 {
-  "ports-url":"https://github.com/trueos/trueos-ports",
-  "ports-branch":"trueos-master",
-  "ports-conf":[
+  "ports":{
+	"type":"git",
+	"url":"https://github.com/trueos/trueos-ports",
+	"branch":"trueos-master",
+	"make.conf":[
 	  "MAKE_JOBS_NUMBER_LIMIT=3",
   ],
   "poudriere-conf":[
