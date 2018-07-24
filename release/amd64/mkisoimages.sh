@@ -111,6 +111,7 @@ if [ "$bootable" != "" ]; then
 	rm -f hybrid.img
 fi
 
+GITHASH=$(git -C ${SRCDIR} log -1 --pretty=format:%h)
 FILE_RENAME="$(jq -r '."iso-file-name"' $TRUEOS_MANIFEST)"
 if [ -n "$FILE_RENAME" -a "$FILE_RENAME" != "null" -a "$NAME" = "disc1.iso" ] ; then
   DATE="$(date +%Y%m%d)"

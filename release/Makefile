@@ -46,7 +46,6 @@ DOCDIR?=	/usr/doc
 PKG_CMD?=	pkg-static
 TRUEOS_MANIFEST?=	${WORLDDIR}/release/trueos-manifest.json
 RELNOTES_LANG?= en_US.ISO8859-1
-GITHASH=	$(git log -1 --pretty=format:%h -C ${WORLDDIR})
 
 .if !defined(TARGET) || empty(TARGET)
 TARGET=		${MACHINE}
@@ -103,7 +102,7 @@ RELEASE_TARGETS= ftp
 IMAGES=
 .if exists(${.CURDIR}/${TARGET}/mkisoimages.sh)
 RELEASE_TARGETS+= cdrom
-IMAGES+=	disc1.iso bootonly.iso
+IMAGES+=	disc1.iso
 . if defined(WITH_DVD) && !empty(WITH_DVD)
 RELEASE_TARGETS+= dvdrom
 IMAGES+=	dvd1.iso
@@ -280,7 +279,7 @@ dvd: packagesystem
 
 release.iso: disc1.iso
 disc1.iso: disc1
-	env GITHASH=${GITHASH} \
+	env SRCDIR=${.CURDIR}/.. \
 	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1 ${XTRADIR}
 
