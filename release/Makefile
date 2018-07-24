@@ -46,7 +46,7 @@ DOCDIR?=	/usr/doc
 PKG_CMD?=	pkg-static
 TRUEOS_MANIFEST?=	${WORLDDIR}/release/trueos-manifest.json
 RELNOTES_LANG?= en_US.ISO8859-1
-GITHASH=	$$(cd ${WORLDIR}/.. ; git log -1 --pretty=format:%h 2>/dev/null)
+GITHASH=	$(git log -1 --pretty=format:%h -C ${WORLDDIR})
 
 .if !defined(TARGET) || empty(TARGET)
 TARGET=		${MACHINE}
