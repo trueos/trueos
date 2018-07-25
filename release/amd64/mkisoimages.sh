@@ -52,7 +52,7 @@ if [ "$1" = "-b" ]; then
 	rmdir efi
 	mdconfig -d -u $device
 	bootable="$bootable -o bootimage=i386;efiboot.img -o no-emul-boot -o platformid=efi"
-	
+
 	shift
 else
 	BASEBITSDIR="$3"
@@ -72,6 +72,8 @@ if [ -n "$TRUEOS_MANIFEST" ] ; then
 	else
 		echo "Using OVERLAY_DIR: $OVERLAY_DIR"
 	fi
+else
+	echo "WARNING: TRUEOS_MANIFEST not set"
 fi
 
 LABEL=`echo "$1" | tr '[:lower:]' '[:upper:]'`; shift
@@ -107,4 +109,13 @@ if [ "$bootable" != "" ]; then
 	# Drop the PMBR, GPT, and boot code into the System Area of the ISO.
 	dd if=hybrid.img of="$NAME" bs=32k count=1 conv=notrunc
 	rm -f hybrid.img
+fi
+
+GITHASH=$(git -C ${SRCDIR} log -1 --pretty=format:%h)
+FILE_RENAME="$(jq -r '."iso-file-name"' $TRUEOS_MANIFEST)"
+if [ -n "$FILE_RENAME" -a "$FILE_RENAME" != "null" -a "$NAME" = "disc1.iso" ] ; then
+  DATE="$(date +%Y%m%d)"
+  FILE_RENAME=$(echo $FILE_RENAME | sed "s|%%GITHASH%%|$GITHASH|g" | sed "s|%%DATE%%|$DATE|g")
+  echo "Renaming ${NAME}.iso -> ${FILE_RENAME}.iso"
+  mv ${NAME} ${FILE_RENAME}.iso
 fi
