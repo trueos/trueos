@@ -53,8 +53,22 @@ env_check()
 	if [ -z "$TRUEOS_MANIFEST" ] ; then
 		exit_err "Unset TRUEOS_MANIFEST"
 	fi
-	GH_PORTS=$(jq -r '."ports-url"' $TRUEOS_MANIFEST)
-	GH_PORTS_BRANCH=$(jq -r '."ports-branch"' $TRUEOS_MANIFEST)
+	PORTS_TYPE=$(jq -r '."ports"."type"' $TRUEOS_MANIFEST)
+	PORTS_URL=$(jq -r '."ports"."url"' $TRUEOS_MANIFEST)
+	PORTS_BRANCH=$(jq -r '."ports"."branch"' $TRUEOS_MANIFEST)
+
+	case $PORTS_TYPE in
+		git) if [ -z "$PORTS_BRANCH" ] ; then
+			exit_err "Empty ports.branch!"
+		     fi ;;
+              local) ;;
+		tar) ;;
+		*) exit_err "Unknown or unspecified ports.type!" ;;
+	esac
+
+	if [ -z "$PORTS_URL" ] ; then
+		exit_err "Empty ports.url!"
+	fi
 
 	if [ ! -d '/usr/ports/distfiles' ] ; then
 		mkdir /usr/ports/distfiles
@@ -83,8 +97,10 @@ setup_poudriere_conf()
 	echo "ZPOOL=$ZPOOL" >> ${_pdconf}
 	echo "Using Dist Directory: $DIST_DIR"
 	echo "FREEBSD_HOST=file://${DIST_DIR}" >> ${_pdconf}
-	echo "Using Ports Tree: $GH_PORTS"
-	echo "GIT_URL=${GH_PORTS}" >> ${_pdconf}
+	echo "Using Ports Tree: $PORTS_URL"
+	if [ "$PORTS_TYPE" = "git" ] ; then
+		echo "GIT_URL=${PORTS_URL}" >> ${_pdconf}
+	fi
 	echo "USE_TMPFS=data" >> ${_pdconf}
 	echo "BASEFS=$POUDRIERE_BASEFS" >> ${_pdconf}
 	echo "ATOMIC_PACKAGE_REPOSITORY=no" >> ${_pdconf}
@@ -116,13 +132,41 @@ setup_poudriere_jail()
 	fi
 
 	# Create the new ports tree
-	poudriere ports -c -p $POUDRIERE_PORTS -m git -B $GH_PORTS_BRANCH
-	if [ $? -ne 0 ] ; then
-		exit_err "Failed creating poudriere ports"
+	if [ "$PORTS_TYPE" = "git" ] ; then
+		poudriere ports -c -p $POUDRIERE_PORTS -m git -B $PORTS_BRANCH
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed creating poudriere ports"
+		fi
+	elif [ "$PORTS_TYPE" = "tar" ] ; then
+		echo "Fetching ports tarball"
+		fetch -o ${OBJDIR}/ports.tar ${PORTS_URL}
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed fetching poudriere ports"
+		fi
+
+		rm -rf ${OBJDIR}/ports-tree
+		mkdir -p ${OBJDIR}/ports-tree
+
+		echo "Extracting ports tarball"
+		tar xvf ${OBJDIR}/ports.tar -C ${OBJDIR}/ports-tree 2>/dev/null
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed extracting poudriere ports"
+		fi
+
+		poudriere ports -c -p $POUDRIERE_PORTS -m null -M ${OBJDIR}/ports-tree
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed creating poudriere ports"
+		fi
+	else
+		# Doing a nullfs mount of existing directory
+		poudriere ports -c -p $POUDRIERE_PORTS -m null -M ${PORTS_URL}
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed creating poudriere ports"
+		fi
 	fi
 
 	# Save the list of build flags
-	jq -r '."ports-conf" | join("\n")' ${TRUEOS_MANIFEST} >/etc/poudriere.d/${POUDRIERE_BASE}-make.conf
+	jq -r '."ports"."make.conf" | join("\n")' ${TRUEOS_MANIFEST} >/etc/poudriere.d/${POUDRIERE_BASE}-make.conf
 }
 
 build_poudriere()
