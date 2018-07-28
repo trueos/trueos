@@ -41,7 +41,11 @@
     "sysutils/dmidecode",
     "sysutils/tmux"
   ],
-  "install-overlay":"",
+  "iso-overlay":{
+	"type":"git",
+	"url":"https://github.com/trueos/iso-overlay",
+	"branch":"master"
+  },
   "install-script":"",
   "auto-install-script":"",
   "post-install-commands": [
