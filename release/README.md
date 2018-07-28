@@ -15,23 +15,17 @@ The Manifest File:
 TrueOS includes an example 'trueos-manifest.json' file in this directory
 which can be customized with the following JSON settings:
 
-* ports-url - JSON String - Set to Git URL used to clone your ports tree.
+* ports - JSON Array - Set array elements to location and other settings of ports repo
 
 ```
-  "ports-url":"https://github.com/trueos/trueos-ports"
-```
-
-* ports-branch - JSON String, set to the Git branch used to clone your ports tree.
-
-```
-  "ports-branch":"trueos-master"
-```
-
-* ports-conf - JSON Object Array, list per-line settings you want added to make.conf for build.
-```
-  "ports-conf":[
-    "devel_git_SET=SVN"
-  ]
+  "ports":{
+    "type":"git",
+    "url":"https://github.com/trueos/trueos-ports",
+    "branch":"trueos-master",
+    "make.conf":[
+      "devel_git_SET=SVN"
+    ]
+  }
 ```
 
 * package-all - JSON Boolean, set to true/false if you want to do complete pkg build (AKA 'bulk -a').
@@ -80,10 +74,14 @@ This is useful when doing a package-all build and don't want it to pass if somet
     "devel/git"
   ]
 ```
-* install-overlay - JSON String, directory to overlay on top of the installation media.
+* iso-overlay - JSON Array, Used to list locations overlay directory to install ISO
 
 ```
-  "install-overlay":""
+  "iso-overlay":{
+    "type":"git",
+    "url":"https://github.com/trueos/iso-overlay",
+    "branch":"https://github.com/trueos/iso-overlay"
+  }
 ```
 
 * install-script - JSON String, Command to run on boot of install media, allows custom script to be run instead of default TrueOS text installer.
