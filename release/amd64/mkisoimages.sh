@@ -23,6 +23,36 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
+parse_overlay()
+{
+	OVERLAY="$(jq -r '."iso-overlay"' $TRUEOS_MANIFEST)"
+	if [ "$OVERLAY" = "null" ] ; then
+		return
+	fi
+	OVERLAY_TYPE="$(jq -r '."iso-overlay"."type"' $TRUEOS_MANIFEST)"
+	OVERLAY_URL="$(jq -r '."iso-overlay"."url"' $TRUEOS_MANIFEST)"
+	OVERLAY_BRANCH="$(jq -r '."iso-overlay"."branch"' $TRUEOS_MANIFEST)"
+	export OVERLAY_DIR="${OBJDIR}/iso-overlay"
+
+	if [ -d "${OVERLAY_DIR}" ] ; then
+		rm -rf ${OBJDIR}/iso-overlay
+	fi
+	mkdir -p ${OVERLAY_DIR}
+	if [ $? -ne 0 ] ; then exit 1; fi
+
+	if [ "$OVERLAY_TYPE" = "git" ] ; then
+		git clone --depth=1 -b ${OVERLAY_BRANCH} ${OVERLAY_URL} ${OVERLAY_DIR}
+		if [ $? -ne 0 ] ; then exit 1; fi
+	elif [ "$OVERLAY_TYPE" = "tar" ] ; then
+		fetch -o ${OBJDIR}/iso-overlay.tar ${OVERLAY_URL}
+		if [ $? -ne 0 ] ; then exit 1; fi
+		tar xvpf ${OBJDIR}/iso-overlay.tar -C ${OVERLAY_DIR}
+		if [ $? -ne 0 ] ; then exit 1; fi
+	elif [ "$OVERLAY_TYPE" = "local" ] ; then
+		export OVERLAY_DIR="${OVERLAY_URL}"
+	fi
+}
+
 if [ -z $ETDUMP ]; then
 	ETDUMP=etdump
 fi
@@ -66,12 +96,7 @@ fi
 
 # If there is a TRUEOS_MANIFEST specified, lets include its install-overlay
 if [ -n "$TRUEOS_MANIFEST" ] ; then
-	OVERLAY_DIR="$(jq -r '."install-overlay"' $TRUEOS_MANIFEST)"
-	if [ "$OVERLAY_DIR" = "null" -o -z "$OVERLAY_DIR" ] ; then
-		unset OVERLAY_DIR
-	else
-		echo "Using OVERLAY_DIR: $OVERLAY_DIR"
-	fi
+	parse_overlay
 else
 	echo "WARNING: TRUEOS_MANIFEST not set"
 fi
