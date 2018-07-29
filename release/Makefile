@@ -285,9 +285,15 @@ disc1.iso: disc1
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1 ${XTRADIR}
 
 dvd1.iso: dvd pkg-stage
+	env SRCDIR=${.CURDIR}/.. \
+	OBJDIR=${.OBJDIR} \
+	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ${.TARGET} dvd ${XTRADIR}
 
 bootonly.iso: bootonly
+	env SRCDIR=${.CURDIR}/.. \
+	OBJDIR=${.OBJDIR} \
+	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ${.TARGET} bootonly ${XTRADIR}
 
 memstick: memstick.img
@@ -312,7 +318,7 @@ pkg-stage:
 .endif
 	touch ${.TARGET}
 
-cdrom: disc1.iso bootonly.iso
+cdrom: disc1.iso
 dvdrom: dvd1.iso
 ftp: packagesystem
 	rm -rf ftp
