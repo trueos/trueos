@@ -50,6 +50,7 @@ OPENRC_NONET_LINK=	local
 
 BIN1=	crontab \
 	devd.conf \
+	devd-openrc.conf \
 	devfs.conf \
 	ddb.conf \
 	dhclient.conf \
@@ -274,6 +275,7 @@ distribution:
 	${_+_}cd ${.CURDIR}/cron.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
 	${_+_}cd ${.CURDIR}/devd; ${MAKE} install
+	${_+_}cd ${.CURDIR}/devd-openrc; ${MAKE} install
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/local.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
