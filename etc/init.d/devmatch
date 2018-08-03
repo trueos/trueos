@@ -26,20 +26,21 @@
 # $FreeBSD$
 #
 
-depend()
-{
-	provide devmatch
-	keyword -jail
-}
-
 name="devmatch"
 desc="Use devmatch(8) to load kernel modules"
+rcvar="${name}_enable"
+
+one_nomatch="$devd_args"
 
 start()
 {
 	local x
 
-	x=$(devmatch)
+	if [ -n "$one_nomatch" ]; then
+		x=$(devmatch -p "${one_nomatch}")
+	else
+		x=$(devmatch)
+	fi
 
 	[ -n "$x" ] || return
 
@@ -50,9 +51,10 @@ start()
 	# or drivers that have symbolic links that
 	# confuse devmatch by running it -n.
 	for m in ${x}; do
-		echo "Autoloading module: ${m}"
+		einfo "Autoloading module: ${m}"
 		kldload -n ${m}
 	done
+	return 0
 }
 
 stop()
