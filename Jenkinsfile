@@ -11,6 +11,7 @@ pipeline {
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
+    SRCROOT = '/usr/trueos-src'
   }
 
   stages {
@@ -29,20 +30,25 @@ pipeline {
       }
     }
 
+    stage('Nullfs') {
+      sh 'mkdir -p ${SRCROOT} || true'
+      sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
+    }
+
     stage('Pre-Clean') {
       steps {
-        sh 'make clean'
-        sh 'cd release && make clean'
+        sh 'cd ${SRCROOT} && make clean'
+        sh 'cd ${SRCROOT}/release && make clean'
       }
     }
     stage('World') {
       steps {
-        sh 'make -j32 buildworld'
+        sh 'cd ${SRCROOT} && make -j32 buildworld'
       }
     }
     stage('Kernel') {
       steps {
-        sh 'make -j32 buildkernel'
+        sh 'cd ${SRCROOT} && make -j32 buildkernel'
       }
     }
     stage('Base Packages') {
@@ -50,7 +56,7 @@ pipeline {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
-        sh 'make -j32 packages'
+        sh 'cd ${SRCROOT} && make -j32 packages'
       }
     }
     stage('Ports') {
@@ -58,7 +64,7 @@ pipeline {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
-        sh 'cd release && make poudriere'
+        sh 'cd ${SRCROOT}/release && make poudriere'
       }
     }
     stage('Release') {
@@ -81,9 +87,10 @@ pipeline {
   post {
     always {
       echo "*** Cleaning up ***"
-      sh 'make clean >/dev/null 2>/dev/null'
-      sh 'cd release && make clean >/dev/null 2>/dev/null '
-      sh 'rm -rf /usr/obj${WORKSPACE}'
+      sh 'cd ${SRCROOT} && make clean >/dev/null 2>/dev/null'
+      sh 'cd ${SRCROOT}/release && make clean >/dev/null 2>/dev/null '
+      sh 'rm -rf /usr/obj${SRCROOT}'
+      sh 'umount -f ${SRCROOT}'
       script {
         cleanWs notFailBuild: true
       }

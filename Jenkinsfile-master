@@ -15,6 +15,7 @@ pipeline {
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
+    SRCROOT = '/usr/trueos-src'
     POUDRIERE_BASE = 'trueos-unstable-base'
 
     // Set the MANIFEST we want to use for this build
@@ -37,20 +38,25 @@ pipeline {
       }
     }
 
+    stage('Nullfs') {
+      sh 'mkdir -p ${SRCROOT} || true'
+      sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
+    }
+
     stage('Pre-Clean') {
       steps {
-        sh 'make clean'
-        sh 'cd release && make clean'
+        sh 'cd ${SRCROOT} && make clean'
+        sh 'cd ${SRCROOT}/release && make clean'
       }
     }
     stage('World') {
       steps {
-        sh 'make -j32 buildworld'
+        sh 'cd ${SRCROOT} && make -j32 buildworld'
       }
     }
     stage('Kernel') {
       steps {
-        sh 'make -j32 buildkernel'
+        sh 'cd ${SRCROOT} && make -j32 buildkernel'
       }
     }
     stage('Base Packages') {
@@ -59,7 +65,7 @@ pipeline {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
-        sh 'rm -rf /usr/obj${WORKSPACE}/amd64.amd64/repo'
+        sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
         sh 'make -j32 packages'
       }
     }
@@ -69,7 +75,7 @@ pipeline {
            PKG_REPO_SIGNING_KEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
-        sh 'cd release && make poudriere'
+        sh 'cd ${SRCROOT}/release && make poudriere'
         // Sign the repo with our repo signing key
         sh 'cd /usr/local/poudriere/data/packages/trueos-unstable-base-trueos-mk-ports && pkg-static repo . ${PKG_REPO_SIGNING_KEY}'
       }
@@ -105,9 +111,10 @@ pipeline {
   }
   post {
     success {
-      sh 'make clean'
-      sh 'cd release && make clean'
-      sh 'rm -rf /usr/obj${WORKSPACE}'
+      sh 'cd ${SRCROOT} && make clean'
+      sh 'cd ${SRCROOT}/release && make clean'
+      sh 'rm -rf /usr/obj${SRCROOT}'
+      sh 'umount -f ${SRCROOT}'
       script {
         cleanWs notFailBuild: true
       }
