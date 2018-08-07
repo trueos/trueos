@@ -31,8 +31,10 @@ pipeline {
     }
 
     stage('Nullfs') {
-      sh 'mkdir -p ${SRCROOT} || true'
-      sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
+      steps {
+        sh 'mkdir -p ${SRCROOT} || true'
+        sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
+      }
     }
 
     stage('Pre-Clean') {
