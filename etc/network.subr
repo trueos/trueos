@@ -235,6 +235,8 @@ ifconfig_up()
 		fi
 		if syncdhcpif $1; then
 			/etc/rc.devd dhcpcd.${1} start
+		else
+			(/etc/rc.devd dhcpcd.${1} start) &
 		fi
 		_cfg=0
 	fi
