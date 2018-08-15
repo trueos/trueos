@@ -1117,6 +1117,11 @@ main(int argc, char *argv[])
 	if (lpc_bootrom())
 		fwctl_init();
 
+	/*
+	 * Change the proc title to include the VM name.
+	 */
+	setproctitle("%s", vmname);
+
 #ifndef WITHOUT_CAPSICUM
 	caph_cache_catpages();
 
@@ -1127,11 +1132,6 @@ main(int argc, char *argv[])
 		errx(EX_OSERR, "cap_enter() failed");
 #endif
 
-	/*
-	 * Change the proc title to include the VM name.
-	 */
-	setproctitle("%s", vmname); 
-	
 	/*
 	 * Add CPU 0
 	 */

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+HAVE_ZFS=		${MK_ZFS}
+
 LOADER_NET_SUPPORT?=	yes
 LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	yes
@@ -12,7 +14,7 @@ LOADER_BZIP2_SUPPORT?=	yes
 
 .include <bsd.init.mk>
 
-LOADER?=	loader
+LOADER?=	loader_${LOADER_INTERP}
 PROG=		${LOADER}.sym
 INTERNALPROG=
 NEWVERSWHAT?=	"bootstrap loader" x86
@@ -62,8 +64,13 @@ ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 ${LOADER}.bin: ${LOADER}.sym
 	strip -R .comment -R .note -o ${.TARGET} ${.ALLSRC}
 
+.if ${MK_ZFS} == "yes" && ${LOADER_INTERP} == ${LOADER_DEFAULT_INTERP}
+LINKS+=		${BINDIR}/${LOADER} ${BINDIR}/zfsloader
+.endif
+.if ${LOADER_INTERP} == ${LOADER_DEFAULT_INTERP}
+LINKS+=		${BINDIR}/${LOADER} ${BINDIR}/loader
+.endif
 FILES+=	${LOADER}
-# XXX INSTALLFLAGS_loader= -b
 FILESMODE_${LOADER}= ${BINMODE} -b
 
 # XXX crt0.o needs to be first for pxeboot(8) to work

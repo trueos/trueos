@@ -103,7 +103,7 @@ CFLAGS+=	-ffreestanding ${CFLAGS_NO_SIMD}
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-mgeneral-regs-only -fPIC
 .elif ${MACHINE_CPUARCH} == "riscv"
-CFLAGS+=	-march=rv64imac -mabi=lp64
+CFLAGS+=	-march=rv64ima -mabi=lp64
 .else
 CFLAGS+=	-msoft-float
 .endif
@@ -145,6 +145,18 @@ CFLAGS+=	-G0 -fno-pic -mno-abicalls
 CFLAGS+=	-mlittle-endian
 .endif
 .endif
+
+#
+# Have a sensible default
+#
+.if ${MK_FORTH} == "yes"
+LOADER_DEFAULT_INTERP?=4th
+.elif ${MK_LOADER_LUA} == "yes"
+LOADER_DEFAULT_INTERP?=lua
+.else
+LOADER_DEFAULT_INTERP?=simp
+.endif
+LOADER_INTERP?=${LOADER_DEFAULT_INTERP}
 
 # Make sure we use the machine link we're about to create
 CFLAGS+=-I.

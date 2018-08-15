@@ -26,7 +26,7 @@ makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
 
 options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
-#options 	VIMAGE			# Subsystem virtualization, e.g. VNET
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	IPSEC			# IP (v4/v6) security
@@ -159,6 +159,7 @@ device		pass		# Passthrough device (direct ATA/SCSI access)
 
 # MMC/SD/SDIO Card slot support
 device		sdhci
+device		sdhci_xenon		# Marvell Xenon SD/MMC controller
 device		aw_mmc			# Allwinner SD/MMC controller
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
@@ -233,6 +234,8 @@ device		bcm2835_spi	# Broadcom BCM283x SPI bus
 device		vt
 device		kbdmux
 
+device		vt_efifb
+
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
@@ -249,6 +252,7 @@ options 	EXT_RESOURCES
 device		clk
 device		phy
 device		hwreset
+device		nvmem
 device		regulator
 device		syscon
 
