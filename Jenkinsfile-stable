@@ -87,9 +87,9 @@ pipeline {
         sh 'rm -rf ${WORKSPACE}/artifacts'
         sh 'cd ${SRCROOT}/release && make release'
         sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
-        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
+        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
+        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
+        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
       }
     }
 
@@ -99,7 +99,7 @@ pipeline {
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/stable/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/local/poudriere/data/packages/trueos-mk-base-trueos-mk-ports/ syncbot@pkg.trueos.org:/data/pkg/stable/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest/'
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/stable/base/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/repo/ syncbot@pkg.trueos.org:/data/pkg/stable/base/'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/repo/ syncbot@pkg.trueos.org:/data/pkg/stable/base/'
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/stable/ || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/stable/'
         }
