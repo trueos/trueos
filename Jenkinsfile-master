@@ -68,7 +68,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
-        sh 'make -j32 packages'
+        sh 'make -j32 packages -DDB_FROM_SRC'
       }
     }
     stage('Ports') {
@@ -95,6 +95,8 @@ pipeline {
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
+	sh 'sha256 -q ${WORKSPACE}/artifacts/disc1.iso > ${WORKSPACE}/artifacts/disc1.iso.sha256'
+	sh 'md5 -q ${WORKSPACE}/artifacts/disc1.iso > ${WORKSPACE}/artifacts/disc1.iso.md5'
       }
     }
 
