@@ -193,7 +193,7 @@ disc1: packagesystem
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
-	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
+	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no -DDB_FROM_SRC
 # Copy base packages
 	mkdir -p ${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)
 	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
@@ -228,7 +228,7 @@ bootonly: packagesystem
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
-	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
+	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no -DDB_FROM_SRC
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	cp MANIFEST ${.TARGET}/usr/freebsd-dist
@@ -255,7 +255,7 @@ dvd: packagesystem
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
-		MK_TESTS=no MK_DEBUG_FILES=no
+		MK_TESTS=no MK_DEBUG_FILES=no -DDB_FROM_SRC
 # Copy base packages
 	mkdir -p ${.TARGET}/dist
 	cp -r $${OBJROOT}repo/* ${.TARGET}/dist
