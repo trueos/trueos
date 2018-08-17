@@ -22,18 +22,21 @@ if [ ${dlv:=0} -ne 0 -o -f /etc/diskless ]; then
   sh /etc/rc.initdiskless
 fi
 
-# This is for install media which is R/O. We need /etc/init.d to be
-# R/W for services like networking, mouse and other to start
+# This is for install media which is R/O. We need /etc and
+# /usr/local/etc to be R/W for services like networking
+# mouse and other to start on live/install media
 /sbin/mount -t tmpfs tmpfs /tmp
 /sbin/mount -t tmpfs tmpfs /var/tmp
-/bin/mkdir -p /tmp/init.d-etc
-/bin/mkdir -p /tmp/init.d-localetc
-/bin/cp -r /etc/init.d/* /tmp/init.d-etc/
-/bin/cp -r /usr/local/etc/init.d/* /tmp/init.d-localetc/
-/sbin/mount -t tmpfs tmpfs /etc/init.d
-/sbin/mount -t tmpfs tmpfs /usr/local/etc/init.d
-/bin/mv /tmp/init.d-etc/* /etc/init.d/
-/bin/mv /tmp/init.d-localetc/* /usr/local/etc/init.d/
+/bin/mkdir -p /tmp/etc
+/bin/mkdir -p /tmp/localetc
+/bin/cp -r /etc/* /tmp/etc/
+/bin/cp -r /usr/local/etc/* /tmp/localetc/
+/sbin/mount -t tmpfs tmpfs /etc/
+/sbin/mount -t tmpfs tmpfs /usr/local/etc/
+/bin/mv /tmp/etc/* /etc/
+/bin/mv /tmp/localetc/* /usr/local/etc/
+rmdir /tmp/etc/
+rmdir /tmp/localetc/
 
 # Start OpenRC Now
 /sbin/openrc sysinit || exit 1
