@@ -11,6 +11,7 @@ pipeline {
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
+    SRCROOT = '/usr/trueos-src'
     POUDRIERE_BASE = 'trueos-snap-base'
     POUDRIERE_PORTS = 'trueos-snap-ports'
     TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-snapshot.json'
@@ -32,20 +33,27 @@ pipeline {
       }
     }
 
+    stage('Nullfs') {
+      steps {
+        sh 'mkdir -p ${SRCROOT} || true'
+        sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
+      }
+    }
+
     stage('Pre-Clean') {
       steps {
-        sh 'make clean'
-        sh 'cd release && make clean'
+        sh 'cd ${SRCROOT} && make clean'
+        sh 'cd ${SRCROOT}/release && make clean'
       }
     }
     stage('World') {
       steps {
-        sh 'make -j32 buildworld'
+        sh 'cd ${SRCROOT} && make -j32 buildworld'
       }
     }
     stage('Kernel') {
       steps {
-        sh 'make -j32 buildkernel'
+        sh 'cd ${SRCROOT} && make -j32 buildkernel'
       }
     }
     stage('Base Packages') {
@@ -53,8 +61,8 @@ pipeline {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
-        sh 'rm -rf /usr/obj${WORKSPACE}/amd64.amd64/repo'
-        sh 'make -j32 packages'
+        sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
+        sh 'cd ${SRCROOT} && make -j32 packages'
       }
     }
     stage('Ports') {
@@ -62,7 +70,7 @@ pipeline {
            PKG_REPO_SIGNING_KEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
-        sh 'cd release && make poudriere'
+        sh 'cd ${SRCROOT}/release && make poudriere'
         sh 'cd /usr/local/poudriere/data/packages/${POUDRIERE_BASE}-${POUDRIERE_PORTS} && pkg-static repo . ${PKG_REPO_SIGNING_KEY}'
       }
     }
@@ -74,11 +82,11 @@ pipeline {
       }
       steps {
         sh 'rm -rf ${WORKSPACE}/artifacts'
-        sh 'cd release && make release'
+        sh 'cd ${SRCROOT}/release && make release'
         sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
-        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
+        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
+        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
+        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
         sh 'sha256 -q ${WORKSPACE}/artifacts/disc1.iso > ${WORKSPACE}/artifacts/disc1.iso.sha256'
         sh 'md5 -q ${WORKSPACE}/artifacts/disc1.iso > ${WORKSPACE}/artifacts/disc1.iso.md5'
       }
@@ -90,7 +98,7 @@ pipeline {
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/snapshot/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/local/poudriere/data/packages/${POUDRIERE_BASE}-${POUDRIERE_PORTS}/ syncbot@pkg.trueos.org:/data/pkg/snapshot/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest/'
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/snapshot/base/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/repo/ syncbot@pkg.trueos.org:/data/pkg/snapshot/base/'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/repo/ syncbot@pkg.trueos.org:/data/pkg/snapshot/base/'
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/snapshot/ || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/snapshot/'
         }
@@ -99,9 +107,10 @@ pipeline {
   }
   post {
     success {
-      sh 'make clean'
-      sh 'cd release && make clean'
-      sh 'rm -rf /usr/obj${WORKSPACE}'
+      sh 'cd ${SRCROOT} && make clean'
+      sh 'cd ${SRCROOT}/release && make clean'
+      sh 'rm -rf /usr/obj${SRCROOT}'
+      sh 'umount -f ${SRCROOT}'
       script {
         cleanWs notFailBuild: true
       }
