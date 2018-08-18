@@ -308,6 +308,7 @@ device		wi			# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 device		wpi			# Intel 3945ABG wireless NICs.
 
 # Pseudo devices.
+device		crypto			# core crypto support
 device		loop			# Network loopback
 device		random			# Entropy device
 device		padlock_rng		# VIA Padlock RNG
@@ -371,9 +372,6 @@ device		vmx			# VMware VMXNET3 Ethernet
 # Netmap provides direct access to TX/RX rings on supported NICs
 device		netmap			# netmap(4) support
 
-# The crypto framework is required by IPSEC
-device		crypto			# Required by IPSEC
-
 # Enable ALTQ
 options ALTQ
 options ALTQ_CBQ	# Class Based Queuing (CBQ)
@@ -382,6 +380,3 @@ options ALTQ_RIO	# RED In/Out
 options ALTQ_HFSC	# Hierarchical Packet Scheduler (HFSC)
 options ALTQ_PRIQ	# Priority Queuing (PRIQ)
 options ALTQ_NOPCC	# Required for SMP build
-
-# Enable VIMAGE
-options VIMAGE

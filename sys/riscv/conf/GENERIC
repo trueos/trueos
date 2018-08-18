@@ -120,6 +120,7 @@ options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options		ZSTDIO			# zstd-compressed kernel and user dumps
 
 # Pseudo devices.
+device		crypto		# core crypto support
 device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support

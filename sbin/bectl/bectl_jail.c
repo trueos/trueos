@@ -57,7 +57,7 @@ static int bectl_locate_jail(const char *ident);
 static struct jailparam *jp;
 static int jpcnt;
 static int jpused;
-static char mnt_loc[BE_MAXPATHLEN + 1];
+static char mnt_loc[BE_MAXPATHLEN];
 
 static void
 jailparam_grow(void)
@@ -147,13 +147,13 @@ jailparam_addarg(char *arg)
 
 	*val++ = '\0';
 	if (strcmp(name, "path") == 0) {
-		if (strlen(val) > BE_MAXPATHLEN) {
+		if (strlen(val) >= BE_MAXPATHLEN) {
 			fprintf(stderr,
 			    "bectl jail: skipping too long path assignment '%s' (max length = %d)\n",
 			    val, BE_MAXPATHLEN);
 			return (false);
 		}
-		strcpy(mnt_loc, val);
+		strlcpy(mnt_loc, val, sizeof(mnt_loc));
 	}
 	jailparam_add(name, val);
 	return (true);
@@ -179,10 +179,10 @@ int
 bectl_cmd_jail(int argc, char *argv[])
 {
 	char *bootenv, *mountpoint;
-	int jid, opt, ret;
-	bool default_hostname, default_name;
+	int jflags, jid, opt, ret;
+	bool default_hostname, default_name, interactive;
 
-	default_hostname = default_name = true;
+	default_hostname = default_name = interactive = true;
 	jpcnt = INIT_PARAMCOUNT;
 	jp = malloc(jpcnt * sizeof(*jp));
 	if (jp == NULL)
@@ -193,8 +193,11 @@ bectl_cmd_jail(int argc, char *argv[])
 	jailparam_add("allow.mount.devfs", "true");
 	jailparam_add("enforce_statfs", "1");
 
-	while ((opt = getopt(argc, argv, "o:u:")) != -1) {
+	while ((opt = getopt(argc, argv, "bo:u:")) != -1) {
 		switch (opt) {
+		case 'b':
+			interactive = false;
+			break;
 		case 'o':
 			if (jailparam_addarg(optarg)) {
 				/*
@@ -235,10 +238,6 @@ bectl_cmd_jail(int argc, char *argv[])
 		fprintf(stderr, "bectl jail: missing boot environment name\n");
 		return (usage(false));
 	}
-	if (argc > 2) {
-		fprintf(stderr, "bectl jail: too many arguments\n");
-		return (usage(false));
-	}
 
 	bootenv = argv[0];
 
@@ -259,13 +258,17 @@ bectl_cmd_jail(int argc, char *argv[])
 		jailparam_add("name", bootenv);
 	if (default_hostname)
 		jailparam_add("host.hostname", bootenv);
+
+	jflags = JAIL_CREATE;
+	if (interactive)
+		jflags |= JAIL_ATTACH;
 	/*
 	 * This is our indicator that path was not set by the user, so we'll use
 	 * the path that libbe generated for us.
 	 */
 	if (mountpoint == NULL)
 		jailparam_add("path", mnt_loc);
-	jid = jailparam_set(jp, jpused, JAIL_CREATE | JAIL_ATTACH);
+	jid = jailparam_set(jp, jpused, jflags);
 	if (jid == -1) {
 		fprintf(stderr, "unable to create jail.  error: %d\n", errno);
 		return (1);
@@ -274,16 +277,23 @@ bectl_cmd_jail(int argc, char *argv[])
 	jailparam_free(jp, jpused);
 	free(jp);
 
-	/* We're attached within the jail... good bye! */
-	chdir("/");
-	execl("/bin/sh", "/bin/sh", NULL);
+	if (interactive) {
+		/* We're attached within the jail... good bye! */
+		chdir("/");
+		if (argc > 1)
+			execve(argv[1], &argv[1], NULL);
+		else
+			execl("/bin/sh", "/bin/sh", NULL);
+		return (1);
+	}
+
 	return (0);
 }
 
 static int
 bectl_search_jail_paths(const char *mnt)
 {
-	char jailpath[MAXPATHLEN + 1];
+	char jailpath[MAXPATHLEN];
 	int jid;
 
 	jid = 0;
@@ -337,7 +347,7 @@ bectl_locate_jail(const char *ident)
 int
 bectl_cmd_unjail(int argc, char *argv[])
 {
-	char path[MAXPATHLEN + 1];
+	char path[MAXPATHLEN];
 	char *cmd, *name, *target;
 	int jid;
 
@@ -358,7 +368,7 @@ bectl_cmd_unjail(int argc, char *argv[])
 		return (1);
 	}
 
-	bzero(&path, MAXPATHLEN + 1);
+	bzero(&path, MAXPATHLEN);
 	name = jail_getname(jid);
 	if (jail_getv(0, "name", name, "path", path, NULL) != jid) {
 		free(name);
