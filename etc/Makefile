@@ -202,7 +202,6 @@ distribution:
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/local.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
-	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
 .if ${MK_PKGBOOTSTRAP} != "no"
 	${_+_}cd ${.CURDIR}/pkg; ${MAKE} install
 .endif
