@@ -208,8 +208,6 @@ distribution:
 .if ${MK_POUDRIERE} != "no"
 	${_+_}cd ${.CURDIR}/poudriere.d; ${MAKE} install
 .endif
-	${_+_}cd ${.CURDIR}/rc.d; ${MAKE} install
-	${_+_}cd ${.CURDIR}/init.d; ${MAKE} install
 	if [ ! -e ${DESTDIR}/etc/init.d/functions.sh ]; then \
 		${INSTALL_SYMLINK} /libexec/rc/sh/functions.sh ${DESTDIR}/etc/init.d/functions.sh; \
 	fi
