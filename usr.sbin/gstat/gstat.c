@@ -53,10 +53,12 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-static int flag_a, flag_b, flag_B, flag_c, flag_C, flag_d, flag_o, flag_p, \
+static int flag_a, flag_b, flag_B, flag_c, flag_C, flag_d, flag_o, flag_p,
 	   flag_s;
 static int flag_I = 1000000;
 
+#define HIGH_PCT_BUSY_THRESH 80
+#define MEDIUM_PCT_BUSY_THRESH 50
 #define PRINTMSG(...) do {						\
 		if ((flag_b && !loop) || (flag_B))			\
 			printf(__VA_ARGS__);				\
@@ -223,15 +225,20 @@ main(int argc, char **argv)
 		dt = tp.tv_sec - tq.tv_sec;
 		dt += (tp.tv_nsec - tq.tv_nsec) * 1e-9;
 		tq = tp;
-		if (flag_C) /* set timestamp string */
-			(void)strftime(ts,sizeof(ts),"%F %T",localtime(&tq.tv_sec));
+		if (flag_C) { /* set timestamp string */
+			(void)strftime(ts,sizeof(ts),
+					"%F %T",localtime(&tq.tv_sec));
+			(void)snprintf(ts,sizeof(ts),
+					"%s.%.9ld",ts,tq.tv_nsec);
+		}
 	
 		geom_stats_snapshot_reset(sp);
 		geom_stats_snapshot_reset(sq);
 		if (!flag_b)
 			move(0,0);
 		if (!flag_C)
-			PRINTMSG("dT: %5.3fs  w: %.3fs", dt, (float)flag_I / 1000000);
+			PRINTMSG("dT: %5.3fs  w: %.3fs", dt,
+					(float)flag_I / 1000000);
 		if (!flag_C && f_s[0] != '\0') {
 			PRINTMSG("  filter: ");
 			if (!flag_b) {
@@ -266,8 +273,7 @@ main(int argc, char **argv)
 				if (flag_s) {
 					PRINTMSG(" d/s     kB   kBps");
 					PRINTMSG("   ms/d   ");
-				}
-				else
+				} else
 					PRINTMSG(" d/s   kBps   ms/d   ");
 			}
 			if (flag_o)
@@ -280,8 +286,7 @@ main(int argc, char **argv)
 				PRINTMSG(",read-KiB/s,ms/read");
 				PRINTMSG(",write/s,write_sz-KiB");
 				PRINTMSG(",write-KiB/s,ms/write");
-			}
-			else {
+			} else {
 				PRINTMSG(",read/s,read-KiB/s,ms/read");
 				PRINTMSG(",write/s,write-KiB/s,ms/write");
 			}
@@ -289,8 +294,7 @@ main(int argc, char **argv)
 				if (flag_s) {
 					PRINTMSG(",delete/s,delete-sz-KiB");
 					PRINTMSG(",delete-KiB/s,ms/delete");
-				}
-				else {
+				} else {
 					PRINTMSG(",delete/s,delete-KiB/s");
 					PRINTMSG(",ms/delete");
 				}
@@ -320,7 +324,8 @@ main(int argc, char **argv)
 			if (gid->lg_what == ISCONSUMER && !flag_c)
 				continue;
 			if (flag_p && gid->lg_what == ISPROVIDER &&
-			   ((struct gprovider *)(gid->lg_ptr))->lg_geom->lg_rank != 1)
+			   ((struct gprovider *)
+			    (gid->lg_ptr))->lg_geom->lg_rank != 1)
 				continue;
 			/* Do not print past end of window */
 			if (!flag_b) {
@@ -336,7 +341,8 @@ main(int argc, char **argv)
 				  continue;
 			}
 			if (gsp->sequence0 != gsp->sequence1) {
-				/* it is ok to skip entire line silently
+				/* 
+				 * it is ok to skip entire line silently
 				 * for CSV output
 				 */
 				if (!flag_C)
@@ -416,24 +422,28 @@ main(int argc, char **argv)
 				if (flag_d) {
 					PRINTMSG(",%.0f", (double)ld[8]);
 					if (flag_s)
-						PRINTMSG(",%.0f", (double)ld[15]);
+						PRINTMSG(",%.0f",
+								(double)ld[15]);
 					PRINTMSG(",%.0f", (double)ld[9] * 1024);
 					if (ld[10] > 1e3) 
-						PRINTMSG(",%.0f", (double)ld[10]);
+						PRINTMSG(",%.0f",
+								(double)ld[10]);
 					else
-						PRINTMSG(",%.1f", (double)ld[10]);
+						PRINTMSG(",%.1f",
+								(double)ld[10]);
 				}
 
 				if (flag_o) {
 					PRINTMSG(",%.0f", (double)ld[11]);
 					if (ld[12] > 1e3) 
-						PRINTMSG(",%.0f", (double)ld[12]);
+						PRINTMSG(",%.0f",
+								(double)ld[12]);
 					else
-						PRINTMSG(",%.1f", (double)ld[12]);
+						PRINTMSG(",%.1f", 
+								(double)ld[12]);
 				}
 				PRINTMSG(",%.1lf", (double)ld[7]);
-			}
-			else {
+			} else {
 				PRINTMSG(" %4ju", (uintmax_t)u64);
 				PRINTMSG(" %6.0f", (double)ld[0]);
 				PRINTMSG(" %6.0f", (double)ld[1]);
@@ -456,25 +466,31 @@ main(int argc, char **argv)
 				if (flag_d) {
 					PRINTMSG(" %6.0f", (double)ld[8]);
 					if (flag_s)
-						PRINTMSG(" %6.0f", (double)ld[15]);
-					PRINTMSG(" %6.0f", (double)ld[9] * 1024);
+						PRINTMSG(" %6.0f", 
+								(double)ld[15]);
+					PRINTMSG(" %6.0f", 
+							(double)ld[9] * 1024);
 					if (ld[10] > 1e3) 
-						PRINTMSG(" %6.0f", (double)ld[10]);
+						PRINTMSG(" %6.0f",
+								(double)ld[10]);
 					else
-						PRINTMSG(" %6.1f", (double)ld[10]);
+						PRINTMSG(" %6.1f",
+								(double)ld[10]);
 				}
 
 				if (flag_o) {
 					PRINTMSG(" %6.0f", (double)ld[11]);
 					if (ld[12] > 1e3) 
-						PRINTMSG(" %6.0f", (double)ld[12]);
+						PRINTMSG(" %6.0f",
+								(double)ld[12]);
 					else
-						PRINTMSG(" %6.1f", (double)ld[12]);
+						PRINTMSG(" %6.1f", 
+								(double)ld[12]);
 				}
 
-				if (ld[7] > 80)
+				if (ld[7] > HIGH_PCT_BUSY_THRESH)
 					i = 3;
-				else if (ld[7] > 50)
+				else if (ld[7] > MEDIUM_PCT_BUSY_THRESH)
 					i = 2;
 				else 
 					i = 1;
