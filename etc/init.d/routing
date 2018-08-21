@@ -7,7 +7,7 @@ ROUTE_CMD="/sbin/route"
 depend()
 {
 	need localmount
-	use net
+	need net
 	keyword -jail -shutdown -stop
 }
 
