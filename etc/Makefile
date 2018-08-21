@@ -249,12 +249,6 @@ distribution:
 	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
 	${_+_}cd ${.CURDIR}/pam.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/ldap; ${MAKE} install
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0444 \
-	    ${BSM_ETC_OPEN_FILES} ${BSM_ETC_DIR}
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0600 \
-	    ${BSM_ETC_RESTRICTED_FILES} ${BSM_ETC_DIR}
-	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0500 \
-	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
 .if ${MK_UNBOUND} != "no"
 	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
 		${INSTALL_SYMLINK} ../var/unbound ${DESTDIR}/etc/unbound; \
