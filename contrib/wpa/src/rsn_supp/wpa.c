@@ -510,7 +510,6 @@ static void wpa_supplicant_process_1_of_4(struct wpa_sm *sm,
 		os_memset(buf, 0, sizeof(buf));
 	}
 	sm->tptk_set = 1;
-	sm->tk_to_set = 1;
 
 	kde = sm->assoc_wpa_ie;
 	kde_len = sm->assoc_wpa_ie_len;
@@ -861,7 +860,7 @@ static int wpa_supplicant_pairwise_gtk(struct wpa_sm *sm,
 	    (wpa_supplicant_check_group_cipher(sm, sm->group_cipher,
 					       gtk_len, gtk_len,
 					       &gd.key_rsc_len, &gd.alg) ||
-	     wpa_supplicant_install_gtk(sm, &gd, key->key_rsc, 0))) {
+	     wpa_supplicant_install_gtk(sm, &gd, key_rsc, 0))) {
 		wpa_dbg(sm->ctx->msg_ctx, MSG_DEBUG,
 			"RSN: Failed to install GTK");
 		os_memset(&gd, 0, sizeof(gd));
@@ -1593,13 +1592,13 @@ static void wpa_supplicant_process_1_of_2(struct wpa_sm *sm,
 	if (wpa_supplicant_rsc_relaxation(sm, key->key_rsc))
 		key_rsc = null_rsc;
 
-	if (wpa_supplicant_install_gtk(sm, &gd, key->key_rsc, 0) ||
-	    wpa_supplicant_send_2_of_2(sm, key, ver, key_info))
+	if (wpa_supplicant_install_gtk(sm, &gd, key_rsc, 0) ||
+	    wpa_supplicant_send_2_of_2(sm, key, ver, key_info) < 0)
 		goto failed;
 	os_memset(&gd, 0, sizeof(gd));
 
 	if (rekey) {
-		wpa_msg(sm->ctx->msg_ctx, MSG_DEBUG, "WPA: Group rekeying "
+		wpa_msg(sm->ctx->msg_ctx, MSG_INFO, "WPA: Group rekeying "
 			"completed with " MACSTR " [GTK=%s]",
 			MAC2STR(sm->bssid), wpa_cipher_txt(sm->group_cipher));
 		wpa_sm_cancel_auth_timeout(sm);
@@ -2073,6 +2072,17 @@ int wpa_sm_rx_eapol(struct wpa_sm *sm, const u8 *src_addr,
 
 	if ((sm->proto == WPA_PROTO_RSN || sm->proto == WPA_PROTO_OSEN) &&
 	    (key_info & WPA_KEY_INFO_ENCR_KEY_DATA)) {
+		/*
+		 * Only decrypt the Key Data field if the frame's authenticity
+		 * was verified. When using AES-SIV (FILS), the MIC flag is not
+		 * set, so this check should only be performed if mic_len != 0
+		 * which is the case in this code branch.
+		 */
+		if (!(key_info & WPA_KEY_INFO_MIC)) {
+			wpa_msg(sm->ctx->msg_ctx, MSG_WARNING,
+				"WPA: Ignore EAPOL-Key with encrypted but unauthenticated data");
+			goto out;
+		}
 		if (wpa_supplicant_decrypt_key_data(sm, key, ver, key_data,
 						    &key_data_len))
 			goto out;

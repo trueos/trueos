@@ -241,7 +241,6 @@ MAN=	aac.4 \
 	ixl.4 \
 	ixlv.4 \
 	jedec_dimm.4 \
-	jedec_ts.4 \
 	jme.4 \
 	joy.4 \
 	kbdmux.4 \
@@ -868,9 +867,18 @@ _nvd.4= 	nvd.4
 _nvme.4=	nvme.4
 .endif
 
-.if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
-SUBDIR=	man4.${MACHINE_CPUARCH}
+.if empty(MAN_ARCH)
+__arches=	${MACHINE} ${MACHINE_ARCH} ${MACHINE_CPUARCH}
+.elif ${MAN_ARCH} == "all"
+__arches=	${:!/bin/sh -c "/bin/ls -d ${.CURDIR}/man4.*"!:E}
+.else
+__arches=	${MAN_ARCH}
 .endif
+.for __arch in ${__arches:O:u}
+.if exists(${.CURDIR}/man4.${__arch})
+SUBDIR+=	man4.${__arch}
+.endif
+.endfor
 
 .if ${MK_BLUETOOTH} != "no"
 MAN+=		ng_bluetooth.4
@@ -888,7 +896,14 @@ _dtrace_provs=	dtrace_io.4 \
 		dtrace_sched.4 \
 		dtrace_sctp.4 \
 		dtrace_tcp.4 \
-		dtrace_udp.4
+		dtrace_udp.4 \
+		dtrace_udplite.4
+.endif
+
+.if ${MK_EFI} != "no"
+MAN+=		efidev.4
+
+MLINKS+=	efidev.4 efirtc.4
 .endif
 
 .if ${MK_ISCSI} != "no"

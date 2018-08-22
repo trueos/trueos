@@ -57,19 +57,20 @@ SRCS+=	isapnp.c
 SRCS+=	pnp.c
 .endif
 
-# Forth interpreter
-.if ${MK_LOADER_LUA} != "no"
+.if ${LOADER_INTERP} == "lua"
 SRCS+=	interp_lua.c
 .include "${BOOTSRC}/lua.mk"
 LDR_INTERP=	${LIBLUA}
 LDR_INTERP32=	${LIBLUA32}
-.elif ${MK_FORTH} != "no"
+.elif ${LOADER_INTERP} == "4th"
 SRCS+=	interp_forth.c
 .include "${BOOTSRC}/ficl.mk"
 LDR_INTERP=	${LIBFICL}
 LDR_INTERP32=	${LIBFICL32}
-.else
+.elif ${LOADER_INTERP} == "simp"
 SRCS+=	interp_simple.c
+.else
+.error Unknown interpreter ${LOADER_INTERP}
 .endif
 
 .if defined(BOOT_PROMPT_123)
@@ -124,7 +125,7 @@ CFLAGS+= -DLOADER_GPT_SUPPORT
 CFLAGS+= -DLOADER_MBR_SUPPORT
 .endif
 
-.if defined(HAVE_ZFS)
+.if ${HAVE_ZFS:Uno} == "yes"
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
 CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs

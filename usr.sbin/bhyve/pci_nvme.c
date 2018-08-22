@@ -254,6 +254,14 @@ static void pci_nvme_io_partial(struct blockif_req *br, int err);
 	 (NVME_STATUS_SC_MASK << NVME_STATUS_SC_SHIFT))
 
 static __inline void
+cpywithpad(char *dst, int dst_size, const char *src, char pad)
+{
+	int len = strnlen(src, dst_size);
+	memcpy(dst, src, len);
+	memset(dst + len, pad, dst_size - len);
+}
+
+static __inline void
 pci_nvme_status_tc(uint16_t *status, uint16_t type, uint16_t code)
 {
 
@@ -287,20 +295,8 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 	cd->vid = 0xFB5D;
 	cd->ssvid = 0x0000;
 
-	cd->mn[0] = 'b';
-	cd->mn[1] = 'h';
-	cd->mn[2] = 'y';
-	cd->mn[3] = 'v';
-	cd->mn[4] = 'e';
-	cd->mn[5] = '-';
-	cd->mn[6] = 'N';
-	cd->mn[7] = 'V';
-	cd->mn[8] = 'M';
-	cd->mn[9] = 'e';
-
-	cd->fr[0] = '1';
-	cd->fr[1] = '.';
-	cd->fr[2] = '0';
+	cpywithpad((char *)cd->mn, sizeof(cd->mn), "bhyve-NVMe", ' ');
+	cpywithpad((char *)cd->fr, sizeof(cd->fr), "1.0", ' ');
 
 	/* Num of submission commands that we can handle at a time (2^rab) */
 	cd->rab   = 4;
@@ -358,7 +354,7 @@ pci_nvme_init_nsdata(struct pci_nvme_softc *sc)
 }
 
 static void
-pci_nvme_reset(struct pci_nvme_softc *sc)
+pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 {
 	DPRINTF(("%s\r\n", __func__));
 
@@ -373,10 +369,8 @@ pci_nvme_reset(struct pci_nvme_softc *sc)
 	sc->regs.cc = 0;
 	sc->regs.csts = 0;
 
+	sc->num_cqueues = sc->num_squeues = sc->max_queues;
 	if (sc->submit_queues != NULL) {
-		pthread_mutex_lock(&sc->mtx);
-		sc->num_cqueues = sc->num_squeues = sc->max_queues;
-
 		for (int i = 0; i <= sc->max_queues; i++) {
 			/*
 			 * The Admin Submission Queue is at index 0.
@@ -398,8 +392,6 @@ pci_nvme_reset(struct pci_nvme_softc *sc)
 			sc->compl_queues[i].tail = 0;
 			sc->compl_queues[i].head = 0;
 		}
-
-		pthread_mutex_unlock(&sc->mtx);
 	} else
 		sc->submit_queues = calloc(sc->max_queues + 1,
 		                        sizeof(struct nvme_submission_queue));
@@ -411,6 +403,14 @@ pci_nvme_reset(struct pci_nvme_softc *sc)
 		for (int i = 0; i <= sc->num_cqueues; i++)
 			pthread_mutex_init(&sc->compl_queues[i].mtx, NULL);
 	}
+}
+
+static void
+pci_nvme_reset(struct pci_nvme_softc *sc)
+{
+	pthread_mutex_lock(&sc->mtx);
+	pci_nvme_reset_locked(sc);
+	pthread_mutex_unlock(&sc->mtx);
 }
 
 static void
@@ -653,7 +653,7 @@ static int
 nvme_opc_set_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
-	int feature = command->cdw10 & 0x0F;
+	int feature = command->cdw10 & 0xFF;
 	uint32_t iv;
 
 	DPRINTF(("%s feature 0x%x\r\n", __func__, feature));
@@ -748,7 +748,7 @@ static int
 nvme_opc_get_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
-	int feature = command->cdw10 & 0x0F;
+	int feature = command->cdw10 & 0xFF;
 
 	DPRINTF(("%s feature 0x%x\r\n", __func__, feature));
 
@@ -1159,11 +1159,6 @@ pci_nvme_io_done(struct blockif_req *br, int err)
 	DPRINTF(("%s error %d %s\r\n", __func__, err, strerror(err)));
 	
 	/* TODO return correct error */
-	if (err)
-		code = NVME_SC_DATA_TRANSFER_ERROR;
-	else
-		code = NVME_SC_SUCCESS;
-
 	code = err ? NVME_SC_DATA_TRANSFER_ERROR : NVME_SC_SUCCESS;
 	pci_nvme_status_genc(&status, code);
 
@@ -1542,7 +1537,7 @@ pci_nvme_write_bar_0(struct vmctx *ctx, struct pci_nvme_softc* sc,
 		if (NVME_CC_GET_EN(ccreg) != NVME_CC_GET_EN(sc->regs.cc)) {
 			if (NVME_CC_GET_EN(ccreg) == 0)
 				/* transition 1-> causes controller reset */
-				pci_nvme_reset(sc);
+				pci_nvme_reset_locked(sc);
 			else
 				pci_nvme_init_controller(ctx, sc);
 		}
@@ -1714,9 +1709,13 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 		} else if (!strcmp("sectsz", xopts)) {
 			sectsz = atoi(config);
 		} else if (!strcmp("ser", xopts)) {
-			memset(sc->ctrldata.sn, 0, sizeof(sc->ctrldata.sn));
-			strncpy(sc->ctrldata.sn, config,
-			        sizeof(sc->ctrldata.sn));
+			/*
+			 * This field indicates the Product Serial Number in
+			 * 7-bit ASCII, unused bytes should be space characters.
+			 * Ref: NVMe v1.3c.
+			 */
+			cpywithpad((char *)sc->ctrldata.sn,
+			           sizeof(sc->ctrldata.sn), config, ' ');
 		} else if (!strcmp("ram", xopts)) {
 			uint64_t sz = strtoull(&xopts[4], NULL, 10);
 
@@ -1746,6 +1745,8 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 
 		optidx++;
 	}
+	free(uopt);
+
 	if (sc->nvstore.ctx == NULL || sc->nvstore.size == 0) {
 		fprintf(stderr, "backing store not specified\n");
 		return (-1);
@@ -1756,14 +1757,11 @@ pci_nvme_parse_opts(struct pci_nvme_softc *sc, char *opts)
 		sc->nvstore.sectsz = blockif_sectsz(sc->nvstore.ctx);
 	for (sc->nvstore.sectsz_bits = 9;
 	     (1 << sc->nvstore.sectsz_bits) < sc->nvstore.sectsz;
-	     sc->nvstore.sectsz_bits++)
-		;
+	     sc->nvstore.sectsz_bits++);
 
+	if (sc->max_queues <= 0 || sc->max_queues > NVME_QUEUES)
+		sc->max_queues = NVME_QUEUES;
 
-	if (sc->max_queues == 0) {
-		fprintf(stderr, "Invalid maxq option\n");
-		return (-1);
-	}
 	if (sc->max_qentries <= 0) {
 		fprintf(stderr, "Invalid qsz option\n");
 		return (-1);
