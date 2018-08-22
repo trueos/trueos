@@ -12,7 +12,7 @@ DEVDDIR=	/etc/devd
 DEVDOPENRCDIR=	/etc/devd-openrc
 .if ${MK_ACPI} != "no"
 DEVD+=	asus.conf
-DEVDOPENRCDIR+=	asus.conf
+DEVDOPENRC+=	asus.conf
 .endif
 
 .if ${MK_HYPERV} != "no"
