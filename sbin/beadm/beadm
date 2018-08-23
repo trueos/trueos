@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-# Copyright (c) 2012-2015 Slawomir Wojciech Wojtczak (vermaden)
+# Copyright (c) 2012-2018 Slawomir Wojciech Wojtczak (vermaden)
 # Copyright (c) 2012-2013 Bryan Drewery (bdrewery)
 # Copyright (c) 2012-2013 Mike Clarke (rawthey)
 # Copyright (c) 2013      Dancho Penev (dpslavov)
@@ -35,9 +35,9 @@ then
   exit 1
 fi
 
-if [ "${1}" = "--version" -o "${1}" = "version" ]
+if [ "${1}" = "--version" -o "${1}" = "-version" -o "${1}" = "version" ]
 then
-  echo "beadm 1.2.7 2017/01/14"
+  echo "beadm 1.2.9 2018/07/08"
   exit 0
 fi
 
@@ -52,6 +52,7 @@ __usage() {
   echo "  ${NAME} rename <origBeName> <newBeName>"
   echo "  ${NAME} mount <beName> [mountpoint]"
   echo "  ${NAME} { umount | unmount } [-f] <beName>"
+  echo "  ${NAME} version"
   exit 1
 }
 
@@ -212,20 +213,17 @@ __be_new() { # 1=SOURCE 2=TARGET
         local OPTS=""
         while read NAME PROPERTY VALUE
         do
-          if [ "${PROPERTY}" = "sharenfs" ]
+          if [ "${VALUE}" != "" ]
           then
             local OPTS="-o ${PROPERTY}=\"${VALUE}\" ${OPTS}"
           else
-            local OPTS="-o ${PROPERTY}=${VALUE} ${OPTS}"
+            local OPTS=""
+            break
           fi
         done << EOF
 $( zfs get -o name,property,value -s local,received -H all ${FS} | awk '!/[\t ]canmount[\t ]/' )
 EOF
         DATASET=$( echo ${FS} | awk '{print $1}' | sed -E s/"^${POOL}\/${BEDS}\/${SOURCE##*/}"/"${POOL}\/${BEDS}\/${2##*/}"/g )
-        if [ "${OPTS}" = "-o = " ]
-        then
-          local OPTS=""
-        fi
         if __be_snapshot ${1}
         then
           eval "zfs clone -o canmount=off ${OPTS} ${FS}@${1##*@} ${DATASET}"
@@ -766,17 +764,12 @@ EOF
       __usage
     fi
     __be_exist ${POOL}/${BEDS}/${2}
-    if [ "${BOOTFS}" = "${POOL}/${BEDS}/${2}" ]
-    then
-      echo "ERROR: Renaming active boot environment is not supported"
-      exit 1
-    fi
     if zfs list -H -o name ${POOL}/${BEDS}/${3} 2> /dev/null
     then
       echo "ERROR: Boot environment '${3}' already exists"
       exit 1
     fi
-    zfs rename ${POOL}/${BEDS}/${2} ${POOL}/${BEDS}/${3}
+    zfs rename -u ${POOL}/${BEDS}/${2} ${POOL}/${BEDS}/${3}
     # check if we need to update grub
     if [ "${GRUB}" = YES ]
     then
