@@ -194,13 +194,13 @@ static const char *lacp_format_portid(const struct lacp_portid *, char *,
 static void	lacp_dprintf(const struct lacp_port *, const char *, ...)
 		    __attribute__((__format__(__printf__, 2, 3)));
 
-static VNET_DEFINE(int, lacp_debug);
+VNET_DEFINE_STATIC(int, lacp_debug);
 #define	V_lacp_debug	VNET(lacp_debug)
 SYSCTL_NODE(_net_link_lagg, OID_AUTO, lacp, CTLFLAG_RD, 0, "ieee802.3ad");
 SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, debug, CTLFLAG_RWTUN | CTLFLAG_VNET,
     &VNET_NAME(lacp_debug), 0, "Enable LACP debug logging (1=debug, 2=trace)");
 
-static VNET_DEFINE(int, lacp_default_strict_mode) = 1;
+VNET_DEFINE_STATIC(int, lacp_default_strict_mode) = 1;
 SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, default_strict_mode,
     CTLFLAG_RWTUN | CTLFLAG_VNET, &VNET_NAME(lacp_default_strict_mode), 0,
     "LACP strict protocol compliance default");
@@ -711,6 +711,8 @@ lacp_disable_distributing(struct lacp_port *lp)
 	}
 
 	lp->lp_state &= ~LACP_STATE_DISTRIBUTING;
+	if_link_state_change(sc->sc_ifp,
+	    sc->sc_active ? LINK_STATE_UP : LINK_STATE_DOWN);
 }
 
 static void
@@ -745,6 +747,9 @@ lacp_enable_distributing(struct lacp_port *lp)
 	} else
 		/* try to become the active aggregator */
 		lacp_select_active_aggregator(lsc);
+
+	if_link_state_change(sc->sc_ifp,
+	    sc->sc_active ? LINK_STATE_UP : LINK_STATE_DOWN);
 }
 
 static void

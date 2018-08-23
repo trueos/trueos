@@ -32,6 +32,7 @@ SUBDIR=	adduser \
 	getfmac \
 	getpmac \
 	gstat \
+	hwmanifest \
 	i2c \
 	ifmcstat \
 	iostat \

@@ -198,7 +198,7 @@ local pattern_table = {
 	},
 	--  env_var=num
 	{
-		str = "^%s*([%w%p]+)%s*=%s*(%d+)%s*(.*)",
+		str = "^%s*([%w%p]+)%s*=%s*(-?%d+)%s*(.*)",
 		process = function(k, v)
 			if setEnv(k, processEnvVar(v)) ~= 0 then
 				print(MSG_FAILSETENV:format(k, tostring(v)))
@@ -317,7 +317,7 @@ local function readFile(name, silent)
 end
 
 local function checkNextboot()
-	local nextboot_file = loader.getenv("nextboot_file")
+	local nextboot_file = loader.getenv("nextboot_conf")
 	if nextboot_file == nil then
 		return
 	end

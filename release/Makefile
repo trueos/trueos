@@ -193,7 +193,8 @@ disc1: packagesystem
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
-	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
+	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
+	    -DDB_FROM_SRC
 # Copy base packages
 	mkdir -p ${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)
 	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
@@ -201,6 +202,11 @@ disc1: packagesystem
 		TARGET_DIR=${.TARGET}/dist \
 		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI) \
 		sh ${WORLDDIR}/release/release-trueos.sh iso
+# Copy distfiles
+	mkdir -p ${.TARGET}/usr/freebsd-dist
+	for dist in MANIFEST $$(ls *.txz | grep -vE -- '(base|lib32)-dbg'); \
+	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
+	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
@@ -212,6 +218,7 @@ disc1: packagesystem
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
+	cp ${.CURDIR}/rc ${.TARGET}/etc
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	rm ${.TARGET}/etc/runlevels/boot/*
 .for i in abi localmount
@@ -228,7 +235,8 @@ bootonly: packagesystem
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
-	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
+	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
+	    -DDB_FROM_SRC
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	cp MANIFEST ${.TARGET}/usr/freebsd-dist
@@ -243,6 +251,7 @@ bootonly: packagesystem
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
+	cp ${.CURDIR}/rc ${.TARGET}/etc
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	rm ${.TARGET}/etc/runlevels/boot/*
 .for i in abi localmount
@@ -255,10 +264,16 @@ dvd: packagesystem
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
-		MK_TESTS=no MK_DEBUG_FILES=no
+		MK_TESTS=no MK_DEBUG_FILES=no \
+		-DDB_FROM_SRC
 # Copy base packages
 	mkdir -p ${.TARGET}/dist
 	cp -r $${OBJROOT}repo/* ${.TARGET}/dist
+# Copy distfiles
+	mkdir -p ${.TARGET}/usr/freebsd-dist
+	for dist in MANIFEST $$(ls *.txz | grep -v -- '(base|lib32)-dbg'); \
+	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
+	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
@@ -270,6 +285,7 @@ dvd: packagesystem
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
+	cp ${.CURDIR}/rc ${.TARGET}/etc
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	rm ${.TARGET}/etc/runlevels/boot/*
 .for i in abi localmount
@@ -280,13 +296,20 @@ dvd: packagesystem
 release.iso: disc1.iso
 disc1.iso: disc1
 	env SRCDIR=${.CURDIR}/.. \
+	OBJDIR=${.OBJDIR} \
 	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1 ${XTRADIR}
 
 dvd1.iso: dvd pkg-stage
+	env SRCDIR=${.CURDIR}/.. \
+	OBJDIR=${.OBJDIR} \
+	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ${.TARGET} dvd ${XTRADIR}
 
 bootonly.iso: bootonly
+	env SRCDIR=${.CURDIR}/.. \
+	OBJDIR=${.OBJDIR} \
+	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ${.TARGET} bootonly ${XTRADIR}
 
 memstick: memstick.img
@@ -311,7 +334,7 @@ pkg-stage:
 .endif
 	touch ${.TARGET}
 
-cdrom: disc1.iso bootonly.iso
+cdrom: disc1.iso
 dvdrom: dvd1.iso
 ftp: packagesystem
 	rm -rf ftp
