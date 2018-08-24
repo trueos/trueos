@@ -400,7 +400,7 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	struct ifnet *ifp;
 	struct sockaddr *sa;
 	uint8_t *lladdr;
-	uint16_t vid, pcp;
+	uint16_t vtag;
 	int family;
 	struct sockaddr_in6 sin6;
 
@@ -425,8 +425,7 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	sa = (struct sockaddr *)&sin6;
 	lltable_fill_sa_entry(lle, sa);
 
-	vid = 0xfff;
-	pcp = 0;
+	vtag = 0xfff;
 	if (evt != LLENTRY_RESOLVED) {
 
 		/*
@@ -441,11 +440,12 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 		    ("%s: %p resolved but not valid?", __func__, lle));
 
 		lladdr = (uint8_t *)lle->ll_addr;
-		VLAN_TAG(ifp, &vid);
-		VLAN_PCP(ifp, &pcp);
+#ifdef VLAN_TAG
+		VLAN_TAG(ifp, &vtag);
+#endif
 	}
 
-	tod->tod_l2_update(tod, ifp, sa, lladdr, EVL_MAKETAG(vid, pcp, 0));
+	tod->tod_l2_update(tod, ifp, sa, lladdr, vtag);
 }
 
 /*
@@ -458,7 +458,6 @@ toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
     uint8_t *lladdr, uint16_t *vtag)
 {
 	int rc;
-	uint16_t vid, pcp;
 
 	switch (sa->sa_family) {
 #ifdef INET
@@ -476,16 +475,10 @@ toe_l2_resolve(struct toedev *tod, struct ifnet *ifp, struct sockaddr *sa,
 	}
 
 	if (rc == 0) {
-		vid = 0xfff;
-		pcp = 0;
-		if (ifp->if_type == IFT_L2VLAN) {
-			VLAN_TAG(ifp, &vid);
-			VLAN_PCP(ifp, &pcp);
-		} else if (ifp->if_pcp != IFNET_PCP_NONE) {
-			vid = 0;
-			pcp = ifp->if_pcp;
-		}
-		*vtag = EVL_MAKETAG(vid, pcp, 0);
+#ifdef VLAN_TAG
+		if (VLAN_TAG(ifp, vtag) != 0)
+#endif
+			*vtag = 0xfff;
 	}
 
 	return (rc);
