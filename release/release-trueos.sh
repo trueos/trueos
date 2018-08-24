@@ -53,8 +53,22 @@ env_check()
 	if [ -z "$TRUEOS_MANIFEST" ] ; then
 		exit_err "Unset TRUEOS_MANIFEST"
 	fi
-	GH_PORTS=$(jq -r '."ports-url"' $TRUEOS_MANIFEST)
-	GH_PORTS_BRANCH=$(jq -r '."ports-branch"' $TRUEOS_MANIFEST)
+	PORTS_TYPE=$(jq -r '."ports"."type"' $TRUEOS_MANIFEST)
+	PORTS_URL=$(jq -r '."ports"."url"' $TRUEOS_MANIFEST)
+	PORTS_BRANCH=$(jq -r '."ports"."branch"' $TRUEOS_MANIFEST)
+
+	case $PORTS_TYPE in
+		git) if [ -z "$PORTS_BRANCH" ] ; then
+			exit_err "Empty ports.branch!"
+		     fi ;;
+              local) ;;
+		tar) ;;
+		*) exit_err "Unknown or unspecified ports.type!" ;;
+	esac
+
+	if [ -z "$PORTS_URL" ] ; then
+		exit_err "Empty ports.url!"
+	fi
 
 	if [ ! -d '/usr/ports/distfiles' ] ; then
 		mkdir /usr/ports/distfiles
@@ -83,13 +97,15 @@ setup_poudriere_conf()
 	echo "ZPOOL=$ZPOOL" >> ${_pdconf}
 	echo "Using Dist Directory: $DIST_DIR"
 	echo "FREEBSD_HOST=file://${DIST_DIR}" >> ${_pdconf}
-	echo "Using Ports Tree: $GH_PORTS"
-	echo "GIT_URL=${GH_PORTS}" >> ${_pdconf}
+	echo "Using Ports Tree: $PORTS_URL"
+	if [ "$PORTS_TYPE" = "git" ] ; then
+		echo "GIT_URL=${PORTS_URL}" >> ${_pdconf}
+	fi
 	echo "USE_TMPFS=data" >> ${_pdconf}
 	echo "BASEFS=$POUDRIERE_BASEFS" >> ${_pdconf}
 	echo "ATOMIC_PACKAGE_REPOSITORY=no" >> ${_pdconf}
 	echo "PKG_REPO_FROM_HOST=yes" >> ${_pdconf}
-	echo "ALLOW_MAKE_JOBS_PACKAGES=\"chromium* iridium* gcc* webkit* llvm* clang* firefox* ruby* cmake* rust*\"" >> ${_pdconf}
+	echo "ALLOW_MAKE_JOBS_PACKAGES=\"chromium* iridium* gcc* webkit* llvm* clang* firefox* ruby* cmake* rust* qt5-web* phantomjs* swift* python2* python3* perl5* pypy*\"" >> ${_pdconf}
 	echo "PRIORITY_BOOST=\"pypy* openoffice* iridium* chromium*\"" >> ${_pdconf}
 
 	if [ "$(jq -r '."poudriere-conf" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
@@ -116,13 +132,41 @@ setup_poudriere_jail()
 	fi
 
 	# Create the new ports tree
-	poudriere ports -c -p $POUDRIERE_PORTS -m git -B $GH_PORTS_BRANCH
-	if [ $? -ne 0 ] ; then
-		exit_err "Failed creating poudriere ports"
+	if [ "$PORTS_TYPE" = "git" ] ; then
+		poudriere ports -c -p $POUDRIERE_PORTS -m git -B $PORTS_BRANCH
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed creating poudriere ports"
+		fi
+	elif [ "$PORTS_TYPE" = "tar" ] ; then
+		echo "Fetching ports tarball"
+		fetch -o ${OBJDIR}/ports.tar ${PORTS_URL}
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed fetching poudriere ports"
+		fi
+
+		rm -rf ${OBJDIR}/ports-tree
+		mkdir -p ${OBJDIR}/ports-tree
+
+		echo "Extracting ports tarball"
+		tar xvf ${OBJDIR}/ports.tar -C ${OBJDIR}/ports-tree 2>/dev/null
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed extracting poudriere ports"
+		fi
+
+		poudriere ports -c -p $POUDRIERE_PORTS -m null -M ${OBJDIR}/ports-tree
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed creating poudriere ports"
+		fi
+	else
+		# Doing a nullfs mount of existing directory
+		poudriere ports -c -p $POUDRIERE_PORTS -m null -M ${PORTS_URL}
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed creating poudriere ports"
+		fi
 	fi
 
 	# Save the list of build flags
-	jq -r '."ports-conf" | join("\n")' ${TRUEOS_MANIFEST} >/etc/poudriere.d/${POUDRIERE_BASE}-make.conf
+	jq -r '."ports"."make.conf" | join("\n")' ${TRUEOS_MANIFEST} >/etc/poudriere.d/${POUDRIERE_BASE}-make.conf
 }
 
 build_poudriere()
@@ -132,6 +176,9 @@ build_poudriere()
 		# Start the build
 		poudriere bulk -a -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
 		check_essential_pkgs
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed building all essential packages.."
+		fi
 	fi
 
 	# Check if we want to do a selective build
@@ -146,6 +193,9 @@ build_poudriere()
 			exit_err "Failed poudriere build"
 		fi
 	fi
+
+	# Save the FreeBSD ABI Version
+	awk '/^\#define[[:blank:]]__FreeBSD_version/ {print $3}' < ${SRCDIR}/sys/sys/param.h > ${POUDRIERE_PKGDIR}/.FreeBSD_Version
 }
 
 clean_poudriere()
@@ -159,6 +209,13 @@ clean_poudriere()
 
 	# Delete previous ports tree
 	echo -e "y\n" | poudriere ports -d -p ${POUDRIERE_PORTS}
+
+	# If the ABI has changed, we need to rebuild all
+	ABIVER=$(awk '/^\#define[[:blank:]]__FreeBSD_version/ {print $3}' < ${SRCDIR}/sys/sys/param.h)
+	if [ $(cat ${POUDRIERE_PKGDIR}/.FreeBSD_Version) != "$ABIVER" ] ; then
+		echo "New ABI detected! Removing stale packages..."
+		rm -rf ${POUDRIERE_PKGDIR}
+	fi
 }
 
 super_clean_poudriere()
@@ -266,8 +323,8 @@ EOF
 	fi
 
 	# Check if we have dist-packages to include on the ISO
-	if [ "$(jq -r '."dist-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
-		for i in $(jq -r '."dist-packages" | join(" ")' ${TRUEOS_MANIFEST})
+	if [ "$(jq -r '."dist-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] || [ "$(jq -r '."auto-install-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
+		for i in $(jq -r '."dist-packages" | join(" ")' ${TRUEOS_MANIFEST}) $(jq -r '."auto-install-packages" | join(" ")' ${TRUEOS_MANIFEST})
 		do
 			pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
 				-R ${OBJDIR}/repo-config \
@@ -288,15 +345,24 @@ EOF
 			 >${OBJDIR}/disc1/root/auto-dist-install
 	fi
 
-	# Create the local repo DB config
+	# Check if we have any post install commands to run
+	if [ "$(jq -r '."post-install-commands" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
+		echo "Saving post-install commands"
+		jq -r '."post-install-commands"' ${TRUEOS_MANIFEST} \
+			 >${OBJDIR}/disc1/root/post-install-commands.json
+	fi
+
+	# Create the install repo DB config
 	mkdir -p ${OBJDIR}/disc1/etc/pkg
 	cat >${OBJDIR}/disc1/etc/pkg/TrueOS.conf <<EOF
 install-repo: {
-  url: "file:///dist/${ABI_DIR}/latest",
+  url: "file:///install-pkg",
   signature_type: "none",
   enabled: yes
 }
 EOF
+	mkdir -p ${OBJDIR}/disc1/install-pkg
+	mount_nullfs ${POUDRIERE_PKGDIR} ${OBJDIR}/disc1/install-pkg
 
 	# If there are any packages to install into the ISO, do it now
 	if [ "$(jq -r '."iso-install-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
@@ -311,6 +377,21 @@ EOF
 				fi
 		done
 	fi
+
+	# Cleanup the ISO install packages
+	umount -f ${OBJDIR}/disc1/install-pkg
+	rmdir ${OBJDIR}/disc1/install-pkg
+	rm ${OBJDIR}/disc1/etc/pkg/TrueOS.conf
+
+	# Create the local repo DB config
+	cat >${OBJDIR}/disc1/etc/pkg/TrueOS.conf <<EOF
+install-repo: {
+  url: "file:///dist/${ABI_DIR}/latest",
+  signature_type: "none",
+  enabled: yes
+}
+EOF
+
 }
 
 apply_iso_config()

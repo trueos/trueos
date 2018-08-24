@@ -23,6 +23,36 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
+parse_overlay()
+{
+	OVERLAY="$(jq -r '."iso-overlay"' $TRUEOS_MANIFEST)"
+	if [ "$OVERLAY" = "null" ] ; then
+		return
+	fi
+	OVERLAY_TYPE="$(jq -r '."iso-overlay"."type"' $TRUEOS_MANIFEST)"
+	OVERLAY_URL="$(jq -r '."iso-overlay"."url"' $TRUEOS_MANIFEST)"
+	OVERLAY_BRANCH="$(jq -r '."iso-overlay"."branch"' $TRUEOS_MANIFEST)"
+	export OVERLAY_DIR="${OBJDIR}/iso-overlay"
+
+	if [ -d "${OVERLAY_DIR}" ] ; then
+		rm -rf ${OBJDIR}/iso-overlay
+	fi
+	mkdir -p ${OVERLAY_DIR}
+	if [ $? -ne 0 ] ; then exit 1; fi
+
+	if [ "$OVERLAY_TYPE" = "git" ] ; then
+		git clone --depth=1 -b ${OVERLAY_BRANCH} ${OVERLAY_URL} ${OVERLAY_DIR}
+		if [ $? -ne 0 ] ; then exit 1; fi
+	elif [ "$OVERLAY_TYPE" = "tar" ] ; then
+		fetch -o ${OBJDIR}/iso-overlay.tar ${OVERLAY_URL}
+		if [ $? -ne 0 ] ; then exit 1; fi
+		tar xvpf ${OBJDIR}/iso-overlay.tar -C ${OVERLAY_DIR}
+		if [ $? -ne 0 ] ; then exit 1; fi
+	elif [ "$OVERLAY_TYPE" = "local" ] ; then
+		export OVERLAY_DIR="${OVERLAY_URL}"
+	fi
+}
+
 if [ -z $ETDUMP ]; then
 	ETDUMP=etdump
 fi
@@ -51,7 +81,7 @@ if [ "$1" = "-b" ]; then
 	rmdir efi
 	mdconfig -d -u $device
 	bootable="$bootable -o bootimage=i386;efiboot.img -o no-emul-boot -o platformid=efi"
-	
+
 	shift
 else
 	bootable=""
@@ -64,12 +94,9 @@ fi
 
 # If there is a TRUEOS_MANIFEST specified, lets include its install-overlay
 if [ -n "$TRUEOS_MANIFEST" ] ; then
-	OVERLAY_DIR="$(jq -r '."install-overlay"' $TRUEOS_MANIFEST)"
-	if [ "$OVERLAY_DIR" = "null" -o -z "$OVERLAY_DIR" ] ; then
-		unset OVERLAY_DIR
-	else
-		echo "Using OVERLAY_DIR: $OVERLAY_DIR"
-	fi
+	parse_overlay
+else
+	echo "WARNING: TRUEOS_MANIFEST not set"
 fi
 
 LABEL=`echo "$1" | tr '[:lower:]' '[:upper:]'`; shift
@@ -105,4 +132,13 @@ if [ "$bootable" != "" ]; then
 	# Drop the PMBR, GPT, and boot code into the System Area of the ISO.
 	dd if=hybrid.img of=$NAME bs=32k count=1 conv=notrunc
 	rm -f hybrid.img
+fi
+
+GITHASH=$(git -C ${SRCDIR} log -1 --pretty=format:%h)
+FILE_RENAME="$(jq -r '."iso-file-name"' $TRUEOS_MANIFEST)"
+if [ -n "$FILE_RENAME" -a "$FILE_RENAME" != "null" -a "$NAME" = "disc1.iso" ] ; then
+  DATE="$(date +%Y%m%d)"
+  FILE_RENAME=$(echo $FILE_RENAME | sed "s|%%GITHASH%%|$GITHASH|g" | sed "s|%%DATE%%|$DATE|g")
+  echo "Renaming ${NAME}.iso -> ${FILE_RENAME}.iso"
+  mv ${NAME} ${FILE_RENAME}.iso
 fi

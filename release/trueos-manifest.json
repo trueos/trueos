@@ -1,9 +1,12 @@
 {
-  "ports-url":"https://github.com/trueos/trueos-ports",
-  "ports-branch":"trueos-master",
-  "ports-conf":[
-    "devel_git_SET=SVN"
-  ],
+  "ports":{
+	"type":"git",
+	"url":"https://github.com/trueos/trueos-ports",
+	"branch":"trueos-master",
+	"make.conf":[
+		"devel_git_SET=SVN"
+	]
+  },
   "package-all":false,
   "packages":[
     "devel/git",
@@ -13,6 +16,7 @@
     "devel/git",
     "sysutils/tmux"
   ],
+  "iso-file-name":"TrueOS-x64-%%GITHASH%%-%%DATE%%",
   "iso-install-packages":[
     "devel/git",
     "sysutils/tmux"
@@ -25,9 +29,31 @@
     "devel/git",
     "sysutils/tmux"
   ],
-  "install-overlay":"",
+  "iso-overlay":{
+	"type":"git",
+	"url":"https://github.com/trueos/iso-overlay",
+	"branch":"master"
+  },
   "install-script":"",
   "auto-install-script":"",
+  "post-install-commands": [
+	  {
+		"chroot":true,
+		"command":"touch /root/inside-chroot"
+	  },
+	  {
+		"chroot":false,
+		"command":"true /root/outside-chroot"
+	  },
+	  {
+		"chroot":false,
+		"command":"rm /root/outside-chroot"
+	  },
+	  {
+		"chroot":true,
+		"command":"rm /root/inside-chroot"
+	  }
+  ],
   "pkg-repo": {
 	  "url":"https://pkg.trueos.org/pkg/unstable/ports/${ABI}/latest",
 	  "pubKey": [

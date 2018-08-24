@@ -15,23 +15,17 @@ The Manifest File:
 TrueOS includes an example 'trueos-manifest.json' file in this directory
 which can be customized with the following JSON settings:
 
-* ports-url - JSON String - Set to Git URL used to clone your ports tree.
+* ports - JSON Array - Set array elements to location and other settings of ports repo
 
 ```
-  "ports-url":"https://github.com/trueos/trueos-ports"
-```
-
-* ports-branch - JSON String, set to the Git branch used to clone your ports tree.
-
-```
-  "ports-branch":"trueos-master"
-```
-
-* ports-conf - JSON Object Array, list per-line settings you want added to make.conf for build.
-```
-  "ports-conf":[
-    "devel_git_SET=SVN"
-  ]
+  "ports":{
+    "type":"git",
+    "url":"https://github.com/trueos/trueos-ports",
+    "branch":"trueos-master",
+    "make.conf":[
+      "devel_git_SET=SVN"
+    ]
+  }
 ```
 
 * package-all - JSON Boolean, set to true/false if you want to do complete pkg build (AKA 'bulk -a').
@@ -80,10 +74,14 @@ This is useful when doing a package-all build and don't want it to pass if somet
     "devel/git"
   ]
 ```
-* install-overlay - JSON String, directory to overlay on top of the installation media.
+* iso-overlay - JSON Array, Used to list locations overlay directory to install ISO
 
 ```
-  "install-overlay":""
+  "iso-overlay":{
+    "type":"git",
+    "url":"https://github.com/trueos/iso-overlay",
+    "branch":"https://github.com/trueos/iso-overlay"
+  }
 ```
 
 * install-script - JSON String, Command to run on boot of install media, allows custom script to be run instead of default TrueOS text installer.
@@ -99,7 +97,9 @@ unattended installation when used.
 
 Poudriere Configuration (building ports):
 --------------
-As part of the `make poudriere` build stage, a poudriere instance is created and run to build all of the requested packages from the specified ports tree. The configuration of poudriere is automatically performed to ensure an optimal result for most build systems, but it is possible to further customize these settings as needed. Common customizations are allowing systems to override specific settings such as TMPFS, or MAKE_JOBS that are more suitable for the individual build system.
+As part of the `make poudriere` build stage, a poudriere instance is created and run to build all of the requested packages from the specified ports tree. The configuration of poudriere is automatically performed to ensure an optimal result for most build systems, but it is possible to further customize these settings as needed. Common customizations are allowing systems to override specific settings such as USE_TMPFS, or PARALLEL_JOBS that are more suitable for the individual build system.
+
+* **NOTE:** When using Jenkins to manage the build process, it is often required to set the "PARALLEL_JOBS" value to a number a bit lower than the maximum number of CPU's on the system due to the administrative overhead of Jenkins. Typically MAX-2 is a good value for systems with many CPUs.
 
 An example of the automatically-generated config file is included below for reference:
 ```
@@ -120,9 +120,9 @@ PRIORITY_BOOST="pypy* openoffice* iridium* chromium*"
 * poudriere-conf - JSON String Array, Additional configuration lines to be placed into the auto-generated poudriere.conf for the build.
 ```
  "poudriere-conf" : [
-   "MAKE_JOBS=60",
-   "USE_TMPFS=all"
-   "NOLINUX=yes"
+   "USE_TMPFS=all",
+   "NOLINUX=yes",
+   "PARALLEL_JOBS=30"
  ]
 ```
 

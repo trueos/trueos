@@ -102,7 +102,7 @@ RELEASE_TARGETS= ftp
 IMAGES=
 .if exists(${.CURDIR}/${TARGET}/mkisoimages.sh)
 RELEASE_TARGETS+= cdrom
-IMAGES+=	disc1.iso bootonly.iso
+IMAGES+=	disc1.iso
 . if defined(WITH_DVD) && !empty(WITH_DVD)
 RELEASE_TARGETS+= dvdrom
 IMAGES+=	dvd1.iso
@@ -212,6 +212,7 @@ disc1: packagesystem
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
+	cp ${.CURDIR}/rc ${.TARGET}/etc
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	rm ${.TARGET}/etc/runlevels/boot/*
 .for i in abi localmount
@@ -243,6 +244,7 @@ bootonly: packagesystem
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
+	cp ${.CURDIR}/rc ${.TARGET}/etc
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	rm ${.TARGET}/etc/runlevels/boot/*
 .for i in abi localmount
@@ -270,6 +272,7 @@ dvd: packagesystem
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
+	cp ${.CURDIR}/rc ${.TARGET}/etc
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	rm ${.TARGET}/etc/runlevels/boot/*
 .for i in abi localmount
@@ -279,12 +282,21 @@ dvd: packagesystem
 
 release.iso: disc1.iso
 disc1.iso: disc1
+	env SRCDIR=${.CURDIR}/.. \
+	OBJDIR=${.OBJDIR} \
+	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1 ${XTRADIR}
 
 dvd1.iso: dvd pkg-stage
+	env SRCDIR=${.CURDIR}/.. \
+	OBJDIR=${.OBJDIR} \
+	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ${.TARGET} dvd ${XTRADIR}
 
 bootonly.iso: bootonly
+	env SRCDIR=${.CURDIR}/.. \
+	OBJDIR=${.OBJDIR} \
+	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ${.TARGET} bootonly ${XTRADIR}
 
 memstick: memstick.img
@@ -309,7 +321,7 @@ pkg-stage:
 .endif
 	touch ${.TARGET}
 
-cdrom: disc1.iso bootonly.iso
+cdrom: disc1.iso
 dvdrom: dvd1.iso
 ftp: packagesystem
 	rm -rf ftp
