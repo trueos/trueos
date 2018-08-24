@@ -236,7 +236,7 @@ resolve_entry(struct adapter *sc, struct l2t_entry *e)
 	struct sockaddr_in6 sin6 = {0};
 	struct sockaddr *sa;
 	uint8_t dmac[ETHER_HDR_LEN];
-	uint16_t vtag;
+	uint16_t vtag = VLAN_NONE;
 	int rc;
 
 	if (e->ipv6 == 0) {
@@ -251,7 +251,6 @@ resolve_entry(struct adapter *sc, struct l2t_entry *e)
 		sa = (void *)&sin6;
 	}
 
-	vtag = EVL_MAKETAG(VLAN_NONE, 0, 0);
 	rc = toe_l2_resolve(tod, e->ifp, sa, dmac, &vtag);
 	if (rc == EWOULDBLOCK)
 		return (rc);
@@ -356,27 +355,20 @@ t4_l2t_get(struct port_info *pi, struct ifnet *ifp, struct sockaddr *sa)
 	struct adapter *sc = pi->adapter;
 	struct l2t_data *d = sc->l2t;
 	u_int hash, smt_idx = pi->port_id;
-	uint16_t vid, pcp, vtag;
 
 	KASSERT(sa->sa_family == AF_INET || sa->sa_family == AF_INET6,
 	    ("%s: sa %p has unexpected sa_family %d", __func__, sa,
 	    sa->sa_family));
 
-	vid = VLAN_NONE;
-	pcp = 0;
-	if (ifp->if_type == IFT_L2VLAN) {
-		VLAN_TAG(ifp, &vid);
-		VLAN_PCP(ifp, &pcp);
-	} else if (ifp->if_pcp != IFNET_PCP_NONE) {
-		vid = 0;
-		pcp = ifp->if_pcp;
-	}
-	vtag = EVL_MAKETAG(vid, pcp, 0);
+#ifndef VLAN_TAG
+	if (ifp->if_type == IFT_L2VLAN)
+		return (NULL);
+#endif
 
 	hash = l2_hash(d, sa, ifp->if_index);
 	rw_wlock(&d->lock);
 	for (e = d->l2tab[hash].first; e; e = e->next) {
-		if (l2_cmp(sa, e) == 0 && e->ifp == ifp && e->vlan == vtag &&
+		if (l2_cmp(sa, e) == 0 && e->ifp == ifp &&
 		    e->smt_idx == smt_idx) {
 			l2t_hold(d, e);
 			goto done;
@@ -399,7 +391,12 @@ t4_l2t_get(struct port_info *pi, struct ifnet *ifp, struct sockaddr *sa)
 		e->wrq = &sc->sge.ctrlq[pi->port_id];
 		e->iqid = sc->sge.ofld_rxq[pi->vi[0].first_ofld_rxq].iq.abs_id;
 		atomic_store_rel_int(&e->refcnt, 1);
-		e->vlan = vtag;
+#ifdef VLAN_TAG
+		if (ifp->if_type == IFT_L2VLAN)
+			VLAN_TAG(ifp, &e->vlan);
+		else
+			e->vlan = VLAN_NONE;
+#endif
 		mtx_unlock(&e->lock);
 	}
 done:
