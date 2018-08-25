@@ -18,6 +18,7 @@ desc = <<EOD
 EOD
 scripts: {
 	post-install = <<EOD
+	TM=/var/db/trueos-manifest.json
 	if [ -z "${PKG_ROOTDIR}" ] ; then
 		PKG_ROOTDIR=/
 	fi
@@ -30,6 +31,44 @@ scripts: {
 		# Update existing /etc directory
 		echo "** Performing automated etcupdate of /etc **"
 		etcupdate -D ${PKG_ROOTDIR} -a -t ${PKG_ROOTDIR}/var/db/etcupdate-current.tbz
+	fi
+
+	# Do the first-time setup of package repo
+	if [ ! -e "${PKG_ROOTDIR}/etc/pkg/TrueOS.conf" ] ; then
+
+		# Do Setup for ports repo
+		TM_PUBKEY="none"
+		if [ "$(jq -r '."pkg-repo"."pubKey" | length' ${TM})" != "0" ]; then
+			echo "Saving pkg ports repository public key"
+			jq -r '."pkg-repo"."pubKey" | join("\n")' ${TM} \
+			> ${PKG_ROOTDIR}/usr/share/keys/pkg/trueos.pub
+			TM_PUBKEY="/usr/share/keys/pkg/trueos.pub"
+		fi
+		if [ "$(jq -r '."pkg-repo"."url" | length' ${TM})" != "0" ]; then
+			TM_PKGURL="$(jq -r '."pkg-repo"."url"' ${TM})"
+			cat ${PKG_ROOTDIR}/etc/pkg/TrueOS.conf.pubkey.dist \
+			| sed "s|%%REPONAME%%|TrueOS-ports|g" \
+			| sed "s|%%PUBKEY%%|${TM_PUBKEY}|g" \
+			| sed "s|%%URL%%|${TM_PKGURL}|g" \
+			>${PKG_ROOTDIR}/etc/pkg/TrueOS.conf
+		fi
+
+		# Do Setup for base repo
+		TM_PUBKEY="none"
+		if [ "$(jq -r '."base-pkg-repo"."pubKey" | length' ${TM})" != "0" ]; then
+			echo "Saving pkg base repository public key"
+			jq -r '."base-pkg-repo"."pubKey" | join("\n")' ${TM} \
+			>${PKG_ROOTDIR}/usr/share/keys/pkg/trueos-base.pub
+			TM_PUBKEY="/usr/share/keys/pkg/trueos-base.pub"
+		fi
+		if [ "$(jq -r '."base-pkg-repo"."url" | length' ${TM})" != "0" ]; then
+			TM_PKGURL="$(jq -r '."base-pkg-repo"."url"' ${TM})"
+			cat ${PKG_ROOTDIR}/etc/pkg/TrueOS.conf.pubkey.dist \
+			| sed "s|%%REPONAME%%|TrueOS-base|g" \
+			| sed "s|%%PUBKEY%%|${TM_PUBKEY}|g" \
+			| sed "s|%%URL%%|${TM_PKGURL}|g" \
+			>>${PKG_ROOTDIR}/etc/pkg/TrueOS.conf
+		fi
 	fi
 
 	cap_mkdb %CAP_MKDB_ENDIAN% ${PKG_ROOTDIR}/etc/login.conf
