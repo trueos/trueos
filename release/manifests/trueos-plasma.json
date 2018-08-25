@@ -5,8 +5,23 @@
         "branch":"trueos-master",
         "make.conf":[
           "MAKE_JOBS_NUMBER_LIMIT=3",
-          "audio_openal-soft_SET=PULSEAUDIO",
-          "audio_openal-soft_UNSET=OSS"
+	  "OPTIONS_SET=OPTIMIZED_CFLAGS THREADS RASTER ZSH AESNI OPUS WEBP NONFREE SSE MONO GECKO PORT_LLVM WAYLAND PULSEAUDIO",
+	  "audio_dream_UNSET=PORTAUDIO",
+	  "audio_dream_UNSET=PORTAUDIO",
+	  "audio_espeak_UNSET=PORTAUDIO",
+	  "audio_harp_UNSET=OSS",
+	  "audio_openal-soft_UNSET=OSS",
+	  "comms_morse_UNSET=OSS",
+	  "deskutils_spice-gtk_UNSET=GSTREAMER",
+	  "mail_thunderbird_UNSET=JACK",
+	  "multimedia_qmmp-qt5_UNSET=OSS4 JACK",
+	  "multimedia_qt5-multimedia_UNSET=ALSA",
+	  "print_cups-base_SET=XPDF",
+	  "print_cups-base_UNSET=GHOSTSCRIPT",
+	  "www_firefox_UNSET=JACK",
+	  "www_firefox-esr_UNSET=JACK",
+	  "www_qt5-webengine_UNSET=ALSA",
+	  "www_seamonkey_UNSET=JACK"
         ]
   },
   "poudriere-conf":[
@@ -45,7 +60,11 @@
 	"x11/sddm",
 	"x11/xorg"
   ],
-  "install-overlay":"",
+  "iso-overlay":{
+        "type":"git",
+        "url":"https://github.com/trueos/trueos-plasma-overlay",
+        "branch":"master"
+  },
   "install-script":"",
   "auto-install-script":"",
   "post-install-commands": [
@@ -56,6 +75,10 @@
 	{
 		"chroot":true,
 		"command":"rc-update add sddm"
+	},
+	{
+		"chroot":false,
+		"command":"/root/trueos-video-init.sh"
 	}
   ],
   "pkg-repo": {
