@@ -78,7 +78,7 @@
 	},
 	{
 		"chroot":false,
-		"command":"/root/trueos-video-init.sh"
+		"command":"/root/plasma-init.sh"
 	}
   ],
   "pkg-repo": {
