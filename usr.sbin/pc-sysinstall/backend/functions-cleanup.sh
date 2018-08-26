@@ -382,45 +382,6 @@ set_root_pw()
 
 run_final_cleanup()
 {
-  # Check if we have any package repo to enable
-  if [ -e "/dist/trueos-pkg-url" ] ; then
-    _pkgUrl="$(cat /dist/trueos-pkg-url)"
-    if [ -e "/dist/trueos-pkg-url.pubkey" ] ; then
-	cp /dist/trueos-pkg-url.pubkey ${FSMNT}/usr/share/keys/pkg/trueos.pub
-	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
-		| sed "s|%%REPONAME%%|TrueOS-ports|g" \
-		| sed "s|%%PUBKEY%%|/usr/share/keys/pkg/trueos.pub|g" \
-		| sed "s|%%URL%%|${_pkgUrl}|g" \
-		>${FSMNT}/etc/pkg/TrueOS.conf
-    else
-	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
-		| grep -v 'pubkey:' \
-		| sed "s|%%REPONAME%%|TrueOS-base|g" \
-		| sed 's|pubkey|none|g' \
-		| sed "s|%%URL%%|${_pkgUrl}|g" \
-		>${FSMNT}/etc/pkg/TrueOS.conf
-    fi
-  fi
-
-  # Do the same for base-pkg urls
-  if [ -e "/dist/trueos-base-pkg-url" ] ; then
-    _pkgUrl="$(cat /dist/trueos-base-pkg-url)"
-    if [ -e "/dist/trueos-base-pkg-url.pubkey" ] ; then
-	cp /dist/trueos-base-pkg-url.pubkey ${FSMNT}/usr/share/keys/pkg/trueos-base.pub
-	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
-		| sed "s|%%REPONAME%%|TrueOS-base|g" \
-		| sed "s|%%PUBKEY%%|/usr/share/keys/pkg/trueos-base.pub|g" \
-		| sed "s|%%URL%%|${_pkgUrl}|g" \
-		>>${FSMNT}/etc/pkg/TrueOS.conf
-    else
-	cat ${FSMNT}/etc/pkg/TrueOS.conf.pubkey.dist \
-		| grep -v 'pubkey:' \
-		| sed "s|%%REPONAME%%|TrueOS-base|g" \
-		| sed 's|pubkey|none|g' \
-		| sed "s|%%URL%%|${_pkgUrl}|g" \
-		>>${FSMNT}/etc/pkg/TrueOS.conf
-    fi
-  fi
 
   # Check if we need to run any gmirror setup
   ls ${MIRRORCFGDIR}/* >/dev/null 2>/dev/null

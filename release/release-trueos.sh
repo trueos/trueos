@@ -415,42 +415,6 @@ apply_iso_config()
 
 }
 
-save_pkg_config()
-{
-	if [ "$(jq -r '."pkg-repo"."url" | length' ${TRUEOS_MANIFEST})" = "0" ]; then
-		return 0
-	fi
-
-	_jspkgurl="$(jq -r '."pkg-repo"."url"' ${TRUEOS_MANIFEST})"
-	echo "Saving pkg repository URL"
-	echo "$_jspkgurl" > ${OBJDIR}/disc1/dist/trueos-pkg-url
-
-	# Check if a pubkey is specified
-	if [ "$(jq -r '."pkg-repo"."pubKey" | length' ${TRUEOS_MANIFEST})" != "0" ]; then
-		echo "Saving pkg repository public key"
-		jq -r '."pkg-repo"."pubKey" | join("\n")' ${TRUEOS_MANIFEST} \
-			> ${OBJDIR}/disc1/dist/trueos-pkg-url.pubkey
-	fi
-}
-
-save_base_pkg_config()
-{
-	if [ "$(jq -r '."base-pkg-repo"."url" | length' ${TRUEOS_MANIFEST})" = "0" ]; then
-		return 0
-	fi
-
-	_jspkgurl="$(jq -r '."base-pkg-repo"."url"' ${TRUEOS_MANIFEST})"
-	echo "Saving base pkg repository URL"
-	echo "$_jspkgurl" > ${OBJDIR}/disc1/dist/trueos-base-pkg-url
-
-	# Check if a pubkey is specified
-	if [ "$(jq -r '."base-pkg-repo"."pubKey" | length' ${TRUEOS_MANIFEST})" != "0" ]; then
-		echo "Saving pkg repository public key"
-		jq -r '."base-pkg-repo"."pubKey" | join("\n")' ${TRUEOS_MANIFEST} \
-			> ${OBJDIR}/disc1/dist/trueos-base-pkg-url.pubkey
-	fi
-}
-
 env_check
 
 case $1 in
@@ -458,8 +422,6 @@ case $1 in
 	poudriere) run_poudriere ;;
 	iso) cp_iso_pkgs
 	     apply_iso_config
-	     save_pkg_config
-	     save_base_pkg_config
 	     ;;
 	*) echo "Unknown option selected" ;;
 esac
