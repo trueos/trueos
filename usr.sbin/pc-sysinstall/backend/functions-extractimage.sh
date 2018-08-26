@@ -46,6 +46,11 @@ start_extract_pkg()
   for pkg in `ls ${FSMNT}/packages/FreeBSD-*`
   do
     inspkg=$(basename $pkg)
+
+    # Skip any {debug|development} packages
+    echo "$inspkg" | grep -q -e '-debug-' -e '-development-'
+    if [ $? -eq 0 ] ; then continue ; fi
+
     echo_log "pkg -c ${FSMNT} add /packages/$inspkg"
     env ASSUME_ALWAYS_YES=YES pkg -c ${FSMNT} add -f /packages/$inspkg
     if [ $? -ne 0 ] ; then
