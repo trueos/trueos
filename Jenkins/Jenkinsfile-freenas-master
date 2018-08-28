@@ -72,7 +72,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
-        sh 'make -j32 packages -DDB_FROM_SRC'
+        sh 'cd ${SRCROOT} && make -j32 packages -DDB_FROM_SRC'
       }
     }
     stage('Ports') {
