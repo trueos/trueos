@@ -11,20 +11,53 @@
   "poudriere-conf":[
 	"NOHANG_TIME=14400"
   ],
-  "package-all":true,
+  "package-all":false,
   "packages":[
   ],
   "essential-packages":[
 	"freenas/freenas-docs",
-	"freenas/py-middlewared"
+	"freenas/freenas-files",
+	"freenas/freenas-installer",
+	"freenas/freenas-migrate93",
+	"freenas/freenas-ui",
+	"freenas/mDNSResponder",
+	"freenas/mDNSResponder_nss",
+	"freenas/netatalk3",
+	"freenas/pipewatcher",
+	"freenas/py-bonjour",
+	"freenas/py-bsd",
+	"freenas/py-dnspython2",
+	"freenas/py-licenselib",
+	"freenas/samba48",
+	"freenas/sssd",
+	"freenas/sudo",
+	"freenas/py-middlewared",
+	"freenas/swagger-ui"
   ],
   "iso-install-packages":[
+	"freenas/freenas-installer"
   ],
   "dist-packages":[
   ],
   "auto-install-packages":[
 	"freenas/freenas-docs",
-	"freenas/py-middlewared"
+	"freenas/freenas-files",
+	"freenas/freenas-installer",
+	"freenas/freenas-migrate93",
+	"freenas/freenas-ui",
+	"freenas/mDNSResponder",
+	"freenas/mDNSResponder_nss",
+	"freenas/netatalk3",
+	"freenas/pipewatcher",
+	"freenas/py-bonjour",
+	"freenas/py-bsd",
+	"freenas/py-dnspython2",
+	"freenas/py-licenselib",
+	"freenas/samba48",
+	"freenas/sssd",
+	"freenas/sudo",
+	"freenas/py-middlewared",
+	"freenas/swagger-ui"
   ],
   "install-overlay":"",
   "install-script":"",
