@@ -51,7 +51,7 @@ pipeline {
       steps {
         sh 'umount -f /usr/freenas-ports || true'
         sh 'rm -rf /usr/freenas-ports || true'
-        sh 'git clone --recurse-submodules -j8 https://github.com/trueos/trueos-ports /usr/freenas-ports'
+        sh 'git clone --depth=1 --recurse-submodules -j8 https://github.com/trueos/trueos-ports /usr/freenas-ports'
         sh 'cd /usr/freenas-ports/freenas && ./update-to-branch.sh all master'
       }
     }
