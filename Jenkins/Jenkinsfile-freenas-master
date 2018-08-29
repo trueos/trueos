@@ -20,38 +20,25 @@ pipeline {
   }
 
   stages {
-    stage('Queued') {
-        agent {
-        label 'JenkinsMaster'
-      }
-      steps {
-        echo "Build queued"
-      }
-    }
-
     stage('Checkout') {
-      agent { label 'TrueOS-World' }
       steps {
         checkout scm
       }
     }
 
     stage('Nullfs') {
-      agent { label 'TrueOS-World' }
       steps {
         sh 'mkdir -p ${SRCROOT} || true'
         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
       }
     }
     stage('Pre-Clean') {
-      agent { label 'TrueOS-World' }
       steps {
         sh 'cd ${SRCROOT} && make clean'
         sh 'cd ${SRCROOT}/release && make clean'
       }
     }
     stage('Prep-Ports') {
-      agent { label 'TrueOS-World' }
       steps {
         sh 'umount -f /usr/freenas-ports || true'
         sh 'rm -rf /usr/freenas-ports || true'
@@ -60,19 +47,16 @@ pipeline {
       }
     }
     stage('World') {
-      agent { label 'TrueOS-World' }
       steps {
         sh 'cd ${SRCROOT} && make -j32 buildworld'
       }
     }
     stage('Kernel') {
-      agent { label 'TrueOS-World' }
       steps {
         sh 'cd ${SRCROOT} && make -j32 buildkernel'
       }
     }
     stage('Base Packages') {
-      agent { label 'TrueOS-World' }
       environment {
 	   // Get our credentials from Jenkins
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
@@ -83,7 +67,6 @@ pipeline {
       }
     }
     stage('Ports') {
-      agent { label 'TrueOS-World' }
       environment {
 	   // Get our credentials from Jenkins
            PKG_REPO_SIGNING_KEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
@@ -95,7 +78,6 @@ pipeline {
       }
     }
     stage('Release') {
-      agent { label 'TrueOS-World' }
       post {
         success {
           archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
@@ -114,7 +96,6 @@ pipeline {
     }
 
     stage('Publish') {
-      agent { label 'TrueOS-World' }
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/unstable/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest || true'
