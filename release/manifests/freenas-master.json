@@ -1,6 +1,6 @@
 {
   "ports":{
-        "type":"nullfs",
+        "type":"local",
         "url":"/usr/freenas-ports",
         "branch":"trueos-master",
         "make.conf":[
