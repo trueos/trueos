@@ -18,7 +18,7 @@ pipeline {
     POUDRIERE_BASE = 'plasma-unstable-base'
 
     // Set the MANIFEST we want to use for this build
-    TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-plasma-unstable.json'
+    TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-plasma.json'
   }
 
   stages {
