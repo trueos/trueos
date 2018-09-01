@@ -26,7 +26,8 @@ fi
 # /usr/local/etc to be R/W for services like networking
 # mouse and other to start on live/install media
 /sbin/mount -t tmpfs tmpfs /tmp
-/sbin/mount -t tmpfs tmpfs /var/tmp
+/sbin/mount -t tmpfs tmpfs /var
+/bin/mkdir -p /var/tmp
 /bin/mkdir -p /tmp/etc
 /bin/mkdir -p /tmp/localetc
 /bin/cp -r /etc/* /tmp/etc/
