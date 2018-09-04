@@ -26,18 +26,28 @@ fi
 # /usr/local/etc to be R/W for services like networking
 # mouse and other to start on live/install media
 /sbin/mount -t tmpfs tmpfs /tmp
-/sbin/mount -t tmpfs tmpfs /var
-/bin/mkdir -p /var/tmp
+#Make temporary staging areas in /tmp
+/bin/mkdir -p /tmp/var
 /bin/mkdir -p /tmp/etc
 /bin/mkdir -p /tmp/localetc
+#Copy any existing files to the staging area
+/bin/cp -r /var/* /tmp/var/
 /bin/cp -r /etc/* /tmp/etc/
 /bin/cp -r /usr/local/etc/* /tmp/localetc/
+#Create the read-write tmpfs mountpoints
+/sbin/mount -t tmpfs tmpfs /var/
 /sbin/mount -t tmpfs tmpfs /etc/
 /sbin/mount -t tmpfs tmpfs /usr/local/etc/
+#Move staged files into read/write mountpoints
+/bin/mv /tmp/var/* /var/
 /bin/mv /tmp/etc/* /etc/
 /bin/mv /tmp/localetc/* /usr/local/etc/
-rmdir /tmp/etc/
-rmdir /tmp/localetc/
+#Cleanup staging areas
+/bin/rmdir /tmp/var/
+/bin/rmdir /tmp/etc/
+/bin/rmdir /tmp/localetc/
+#Create any empty subdirs as needed
+/bin/mkdir -p /var/tmp
 
 # Start OpenRC Now
 /sbin/openrc sysinit || exit 1
