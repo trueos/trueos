@@ -43,7 +43,7 @@
 	"x11/sddm",
 	"x11/xorg"
   ],
-  "iso-file-name":"TrueOS-Plasma-Unstable-x64-%%GITHASH%%-%%DATE%%.iso",
+  "iso-file-name":"TrueOS-Plasma-Unstable-x64-%%GITHASH%%-%%DATE%%",
   "iso-install-packages":[
 	"sysutils/tmux"
   ],
