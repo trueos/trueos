@@ -126,12 +126,6 @@ setup_poudriere_conf()
 
 setup_poudriere_jail()
 {
-	# Building FreeBSD Dist Files
-	cd ${SRCDIR}/release && make ftp
-	if [ $? -ne 0 ] ; then
-		exit_err "Failed building dist files"
-	fi
-
 	echo "Setting up poudriere jail"
 	# Create new jail
 	poudriere jail -c -j $POUDRIERE_BASE -m url=file://${DIST_DIR} -v ${OSRELEASE}
