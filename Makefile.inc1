@@ -68,6 +68,22 @@ TRUEOS_MANIFEST=	${SRCDIR}/release/trueos-manifest.json
 .error "Missing file TRUEOS_MANIFEST: ${TRUEOS_MANIFEST}"
 .endif
 
+# Define OSRELEASE by using newvars.sh
+.if !defined(OSRELEASE) || empty(OSRELEASE)
+.for _V in TYPE BRANCH REVISION
+${_V}!= eval $$(awk '/^${_V}=/{print}' ${SRCDIR}/sys/conf/newvers.sh); echo $$${_V}
+.endfor
+.for _V in ${TARGET_ARCH}
+.if !empty(TARGET:M${_V})
+OSRELEASE=      ${TYPE}-${REVISION}-${BRANCH}-${TARGET}
+VOLUME_LABEL=   ${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET}
+.else
+OSRELEASE=      ${TYPE}-${REVISION}-${BRANCH}-${TARGET}-${TARGET_ARCH}
+VOLUME_LABEL=   ${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
+.endif
+.endfor
+.endif
+
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
 .if defined(CROSS_TOOLCHAIN)
@@ -1883,7 +1899,7 @@ sign-packages:	_pkgbootstrap .PHONY
 	@env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 		DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \
 		OBJDIR=${.OBJDIR} OSRELEASE=${OSRELEASE} SRCDIR=${SRCDIR} \
-		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.OBJDIR}/../bin/sh/sh config ABI) \
+		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI) \
 		sh ${SRCDIR}/release/release-trueos.sh poudriere
 	@${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
 		-o ${OBJDIR}/pkgset \

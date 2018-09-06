@@ -77,6 +77,7 @@ env_check()
 
 setup_poudriere_conf()
 {
+	echo "Setting up poudriere configuration"
 	ZPOOL=$(mount | grep 'on / ' | cut -d '/' -f 1)
 	_pdconf="${POUDRIERED_DIR}/${POUDRIERE_BASE}-poudriere.conf"
 	_pdconf2="${POUDRIERED_DIR}/${POUDRIERE_PORTS}-poudriere.conf"
@@ -125,6 +126,7 @@ setup_poudriere_conf()
 
 setup_poudriere_jail()
 {
+	echo "Setting up poudriere jail"
 	# Create new jail
 	poudriere jail -c -j $POUDRIERE_BASE -m url=file://${DIST_DIR} -v ${OSRELEASE}
 	if [ $? -ne 0 ] ; then
@@ -132,6 +134,7 @@ setup_poudriere_jail()
 	fi
 
 	# Create the new ports tree
+	echo "Setting up poudriere ports"
 	if [ "$PORTS_TYPE" = "git" ] ; then
 		poudriere ports -c -p $POUDRIERE_PORTS -m git -B $PORTS_BRANCH
 		if [ $? -ne 0 ] ; then
