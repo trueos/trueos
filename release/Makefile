@@ -198,7 +198,7 @@ disc1: packagesystem
 # Copy base packages
 	mkdir -p ${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)
 	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
-		OBJDIR=${.OBJDIR} PKG_DIR=$${OBJROOT}/repo \
+		OBJDIR=${.OBJDIR} PKG_DIR=$${OBJROOT}/pkgset \
 		TARGET_DIR=${.TARGET}/dist \
 		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI) \
 		sh ${WORLDDIR}/release/release-trueos.sh iso
@@ -354,7 +354,6 @@ poudriere: packagesystem
 		DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \
 		OBJDIR=${.OBJDIR} OSRELEASE=${OSRELEASE} \
 		SRCDIR=${.CURDIR}/.. \
-		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.OBJDIR}/../bin/sh/sh config ABI) \
 		sh ${.CURDIR}/release-trueos.sh poudriere
 .endif
 

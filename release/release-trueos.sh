@@ -340,15 +340,27 @@ run_poudriere()
 
 merge_pkg_sets()
 {
+	PDIR="${OBJROOT}/../pkgset"
+
 	# Prep our pkgset directory
-	rm -rf ${OBJDIR}/pkgset 2>/dev/null
-	mkdir -p ${OBJDIR}/pkgset/base
-	mkdir -p ${OBJDIR}/pkgset/ports
+	rm -rf ${PDIR} 2>/dev/null
+	mkdir -p ${PDIR}/base
+	mkdir -p ${PDIR}/ports
+
+	RELMAJ=$(echo $OSRELEASE | cut -d '.' -f 1)
+	ABI_DIR=$(FreeBSD:$RELMAJ:`uname -m`)
 
 	# Move the base packages
-	mv ${PKG_DIR}/${ABI_DIR}/latest/* ${OBJDIR}/pkgset/base/
+	mv ${PKG_DIR}/${ABI_DIR}/latest/* ${PDIR}/base/
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed staging base packages..."
+	fi
+
 	# Move the port packages
-	mv ${POUDRIERE_PKGDIR}/* ${OBJDIR}/pkgset/ports/
+	mv ${POUDRIERE_PKGDIR}/* ${PDIR}/ports/
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed staging ports packages..."
+	fi
 }
 
 cp_iso_pkgs()
@@ -356,12 +368,12 @@ cp_iso_pkgs()
 	mkdir -p ${OBJDIR}/repo-config
 	cat >${OBJDIR}/repo-config/repo.conf <<EOF
 base: {
-  url: "file://${OBJDIR}/pkgset",
+  url: "file://${PKG_DIR}",
   signature_type: "none",
   enabled: yes
 }
 EOF
-	PKG_VERSION=$(readlink ${PKG_DIR}/${ABI_DIR}/latest)
+	PKG_VERSION=$(readlink ${PKG_DIR}/../repo/${ABI_DIR}/latest)
 	mkdir -p ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
 	ln -s ${PKG_VERSION} ${TARGET_DIR}/${ABI_DIR}/latest
 
