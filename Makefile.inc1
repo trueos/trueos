@@ -1880,7 +1880,7 @@ sign-packages:	_pkgbootstrap .PHONY
 		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest ; \
 	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI); \
 	ln -s ${PKG_VERSION} latest
-	@cd ${SRCDIR}/release && make poudriere
+	${_+_}${MAKE} -C ${.CURDIR}/release poudriere
 	@${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
 		-o ${OBJDIR}/pkgset \
 		${OBJDIR}/pkgset \
