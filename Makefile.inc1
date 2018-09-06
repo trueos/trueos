@@ -1878,12 +1878,17 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 sign-packages:	_pkgbootstrap .PHONY
 	@[ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest" ] && \
 		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest ; \
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
-		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
-		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
-		${PKGSIGNKEY} ; \
 	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI); \
 	ln -s ${PKG_VERSION} latest
+	@env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
+		DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \
+		OBJDIR=${.OBJDIR} OSRELEASE=${OSRELEASE} SRCDIR=${SRCDIR} \
+		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.OBJDIR}/../bin/sh/sh config ABI) \
+		sh ${SRCDIR}/release/release-trueos.sh poudriere
+	@${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
+		-o ${OBJDIR}/pkgset \
+		${OBJDIR}/pkgset \
+		${PKGSIGNKEY} ;
 
 #
 #

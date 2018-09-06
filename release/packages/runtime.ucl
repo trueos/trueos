@@ -193,6 +193,10 @@ deps: {
         origin: "base"
         version: "%VERSION%"
     }
+    "pkg": {
+        origin: "ports-mgmt/pkg"
+        version: ">0"
+    }
     "jq": {
         origin: "textproc/jq"
         version: ">0"

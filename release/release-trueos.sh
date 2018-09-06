@@ -224,6 +224,7 @@ build_poudriere()
 
 	# Save the FreeBSD ABI Version
 	awk '/^\#define[[:blank:]]__FreeBSD_version/ {print $3}' < ${SRCDIR}/sys/sys/param.h > ${POUDRIERE_PKGDIR}/.FreeBSD_Version
+
 }
 
 clean_poudriere()
@@ -237,6 +238,17 @@ clean_poudriere()
 
 	# Delete previous ports tree
 	echo -e "y\n" | poudriere ports -d -p ${POUDRIERE_PORTS}
+
+	# Make sure the pkgdir exists
+	if [ ! -d "${POUDRIERE_PKGDIR}" ] ; then
+		mkdir -p "${POUDRIERE_PKGDIR}"
+	fi
+
+	# Move over previously built pkgs
+	if [ -d "${OBJDIR}/pkgset/ports" ] ; then
+		mv ${OBJDIR}/pkgset/ports/* ${POUDRIERE_PKGDIR}/
+		rmdir ${OBJDIR}/pkgset
+	fi
 
 	# If the ABI has changed, we need to rebuild all
 	ABIVER=$(awk '/^\#define[[:blank:]]__FreeBSD_version/ {print $3}' < ${SRCDIR}/sys/sys/param.h)
@@ -320,6 +332,20 @@ run_poudriere()
 	clean_jails
 	setup_poudriere_jail
 	build_poudriere
+	merge_pkg_sets
+}
+
+merge_pkg_sets()
+{
+	# Prep our pkgset directory
+	rm -rf ${OBJDIR}/pkgset 2>/dev/null
+	mkdir -p ${OBJDIR}/pkgset/base
+	mkdir -p ${OBJDIR}/pkgset/ports
+
+	# Move the base packages
+	mv ${PKG_DIR}/${ABI_DIR}/latest/* ${OBJDIR}/pkgset/base/
+	# Move the port packages
+	mv ${POUDRIERE_PKGDIR}/* ${OBJDIR}/pkgset/ports/
 }
 
 cp_iso_pkgs()
@@ -327,16 +353,10 @@ cp_iso_pkgs()
 	mkdir -p ${OBJDIR}/repo-config
 	cat >${OBJDIR}/repo-config/repo.conf <<EOF
 base: {
-  url: "file://${PKG_DIR}/${ABI_DIR}/latest",
+  url: "file://${OBJDIR}/pkgset",
   signature_type: "none",
   enabled: yes
 }
-ports: {
-  url: "file://${POUDRIERE_PKGDIR}",
-  signature_type: "none",
-  enabled: yes
-}
-
 EOF
 	PKG_VERSION=$(readlink ${PKG_DIR}/${ABI_DIR}/latest)
 	mkdir -p ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
@@ -365,7 +385,7 @@ EOF
 
 	# Create the repo DB
 	echo "Creating installer pkg repo"
-	pkg repo ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
+	pkg-static repo ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
 
 	if [ "$(jq -r '."auto-install-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
 		echo "Saving package list to auto-install"
