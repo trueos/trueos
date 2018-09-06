@@ -16,9 +16,13 @@ desc = <<EOD
 %DESC%
 EOD
 deps: {
-    FreeBSD-%PKGDEPS%: {
+    "FreeBSD-%PKGDEPS%": {
         origin: "base",
         version: "%VERSION%"
+    }
+    "llvm60": {
+        origin: "devel/llvm60",
+        version: ">0"
     }
 }
 

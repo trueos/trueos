@@ -169,6 +169,28 @@ setup_poudriere_jail()
 	jq -r '."ports"."make.conf" | join("\n")' ${TRUEOS_MANIFEST} >/etc/poudriere.d/${POUDRIERE_BASE}-make.conf
 }
 
+get_explicit_pkg_deps()
+{
+	retdeps=""
+	for ucl in `ls ${SRCDIR}/release/packages/*.ucl`
+	do
+		grep -q "deps" ${ucl}
+		if [ $? -ne 0 ] ; then
+			continue
+		fi
+		pdeps=$(uclcmd get --file ${ucl} -j deps 2>/dev/null | jq -r '.[]."origin"' 2>/dev/null | grep -v '^base$' | tr -s '\n' ' ')
+		if [ -n "$pdeps" ] ; then
+			retdeps="$pdeps $retdeps"
+		fi
+	done
+	if [ -n "$retdeps" ] ; then
+		echo $retdeps
+		return 0
+	else
+		return 1
+	fi
+}
+
 build_poudriere()
 {
 	# Check if we want to do a bulk build of everything
@@ -185,7 +207,13 @@ build_poudriere()
 	# (And yes, sometimes you want to do this after a "full" build to catch things
 	# which may purposefully not be tied into the complete build process
 	if [ "$(jq -r '."packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
+
+		# Build our list of selective build packages
 		jq -r '."packages" | join("\n")' ${TRUEOS_MANIFEST} > ${OBJDIR}/trueos-mk-bulk-list
+		jq -r '."essential-packages" | join("\n")' ${TRUEOS_MANIFEST} >> ${OBJDIR}/trueos-mk-bulk-list
+		get_explicit_pkg_deps | tr -s ' ' '\n' >> ${OBJDIR}/trueos-mk-bulk-list
+		cat ${OBJDIR}/trueos-mk-bulk-list | sort -r | uniq > ${OBJDIR}/trueos-mk-bulk-list.new
+		mv ${OBJDIR}/trueos-mk-bulk-list.new ${OBJDIR}/trueos-mk-bulk-list
 
 		# Start the build
 		poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
@@ -252,7 +280,7 @@ check_essential_pkgs()
 	echo "Checking essential-packages..."
 	local haveWarn=0
 
-	for i in $(jq -r '."essential-packages" | join(" ")' ${TRUEOS_MANIFEST})
+	for i in $(jq -r '."essential-packages" | join(" ")' ${TRUEOS_MANIFEST}) $(get_explicit_pkg_deps)
 	do
 
 		if [ ! -d "${POUDRIERE_PORTDIR}/${i}" ] ; then
