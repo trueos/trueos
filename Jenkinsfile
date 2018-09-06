@@ -25,9 +25,6 @@ pipeline {
     }
 
     stage('Checkout') {
-      agent {
-        label 'TrueOS-PR'
-      }
       steps {
         checkout scm
       }
