@@ -81,10 +81,10 @@ pipeline {
   post {
     always {
       echo "*** Cleaning up ***"
-      sh 'cd ${SRCROOT} && make clean >/dev/null 2>/dev/null'
-      sh 'cd ${SRCROOT}/release && make clean >/dev/null 2>/dev/null '
-      sh 'rm -rf /usr/obj${SRCROOT}'
-      sh 'umount -f ${SRCROOT}'
+      sh 'cd ${SRCROOT} && make clean >/dev/null 2>/dev/null || true'
+      sh 'cd ${SRCROOT}/release && make clean >/dev/null 2>/dev/null || true '
+      sh 'rm -rf /usr/obj${SRCROOT} || true'
+      sh 'umount -f ${SRCROOT} || true'
       script {
         cleanWs notFailBuild: true
       }
