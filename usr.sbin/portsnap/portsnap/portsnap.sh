@@ -51,6 +51,7 @@ Commands:
                   files and directories which have changed.
   auto         -- Fetch updates, and either extract a new ports tree or
                   update an existing tree.
+  fetch        -- Fetch updates - Dummy shim for compat reasons
 EOF
 	exit 0
 }
@@ -271,6 +272,10 @@ cmd_auto() {
 	else
 		cmd_extract
 	fi
+}
+
+cmd_fetch() {
+	return 0
 }
 
 #### Entry point
