@@ -340,18 +340,18 @@ run_poudriere()
 
 merge_pkg_sets()
 {
-	PDIR="${OBJROOT}/../pkgset"
+	PDIR="${OBJROOT}pkgset"
 
 	# Prep our pkgset directory
 	rm -rf ${PDIR} 2>/dev/null
 	mkdir -p ${PDIR}/base
 	mkdir -p ${PDIR}/ports
 
-	RELMAJ=$(echo $OSRELEASE | cut -d '.' -f 1)
+	RELMAJ=$(echo $OSRELEASE | cut -d '.' -f 1 | cut -d '-' -f 2)
 	ABI_DIR="FreeBSD:$RELMAJ:`uname -m`"
 
 	# Move the base packages
-	mv ${PKG_DIR}/${ABI_DIR}/latest/* ${PDIR}/base/
+	mv ${OBJROOT}repo/${ABI_DIR}/latest/* ${PDIR}/base/
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed staging base packages..."
 	fi
