@@ -348,7 +348,7 @@ merge_pkg_sets()
 	mkdir -p ${PDIR}/ports
 
 	RELMAJ=$(echo $OSRELEASE | cut -d '.' -f 1)
-	ABI_DIR=$(FreeBSD:$RELMAJ:`uname -m`)
+	ABI_DIR="FreeBSD:$RELMAJ:`uname -m`"
 
 	# Move the base packages
 	mv ${PKG_DIR}/${ABI_DIR}/latest/* ${PDIR}/base/
