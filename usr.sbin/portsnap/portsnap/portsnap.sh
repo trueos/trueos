@@ -86,6 +86,10 @@ parse_cmdline() {
 		-h | --help | help)
 			usage
 			;;
+		-d)
+			if [ $# -eq 1 ]; then usage; fi
+			shift; DATADIR="$1"
+			;;
 		-p)
 			if [ $# -eq 1 ]; then usage; fi
 			if [ ! -z "${PORTSDIR}" ]; then usage; fi
