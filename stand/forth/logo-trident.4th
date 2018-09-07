@@ -26,18 +26,19 @@
 \ 
 \ $FreeBSD$
 
-52 logoX ! 9 logoY ! \ Initialize logo placement defaults
+80 logoX ! 4 logoY ! \ Initialize logo placement defaults
 
 : logo+ ( x y c-addr/u -- x y' )
 	2swap 2dup at-xy 2swap \ position the cursor
+	[char] @ escc! \ replace @ with Esc
 	type \ print to the screen
 	1+ \ increase y for next time we're called
 ;
 
-: logo ( x y -- ) \ TODO  in B/W (13 rows x 22 columns)
+: logo ( x y -- ) \ color Trident (13 rows x 22 columns)
 
 
-	s"                      "  logo+
+	s"    @[34m                  "  logo+
  	s"            *         "  logo+
  	s"           ***        "  logo+
  	s"           ***        "  logo+
@@ -46,7 +47,7 @@
  	s"        *   *   *     "  logo+
  	s"       **  ***  **    "  logo+
  	s"      ***  ***  ***   "  logo+
- 	s"       *   ***  *     "  logo+
+ 	s"       *   ***   *    "  logo+
  	s"      **   ***   **   "  logo+
  	s"     **   *****   **  "  logo+
  	s"     **  *******  **  "  logo+
@@ -55,7 +56,7 @@
  	s"           ***        "  logo+
  	s"           ***        "  logo+
  	s"           ***        "  logo+
- 	s"           ***        "  logo+
+ 	s"           ***@[m        "  logo+
 
 	2drop
 ;
