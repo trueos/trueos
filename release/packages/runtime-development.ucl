@@ -22,7 +22,7 @@ deps: {
     }
     "llvm60": {
         origin: "devel/llvm60",
-        version: ">0"
+        version: "6.0.1_2"
     }
 }
 
