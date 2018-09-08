@@ -233,7 +233,8 @@ VNET_DEFINE(uma_zone_t, sack_hole_zone);
 VNET_DEFINE(struct hhook_head *, tcp_hhh[HHOOK_TCP_LAST+1]);
 #endif
 
-VNET_DEFINE_STATIC(u_char, ts_offset_secret[32]);
+#define TS_OFFSET_SECRET_LENGTH 32
+VNET_DEFINE_STATIC(u_char, ts_offset_secret[TS_OFFSET_SECRET_LENGTH]);
 #define	V_ts_offset_secret	VNET(ts_offset_secret)
 
 static int	tcp_default_fb_init(struct tcpcb *tp);
@@ -1095,7 +1096,7 @@ tcp_init(void)
 	/* Initialize the TCP logging data. */
 	tcp_log_init();
 #endif
-	read_random(&V_ts_offset_secret, sizeof(V_ts_offset_secret));
+	arc4rand(&V_ts_offset_secret, sizeof(V_ts_offset_secret), 0);
 
 	if (tcp_soreceive_stream) {
 #ifdef INET
@@ -2608,7 +2609,7 @@ out:
 #endif /* INET6 */
 
 static uint32_t
-tcp_keyed_hash(struct in_conninfo *inc, u_char *key)
+tcp_keyed_hash(struct in_conninfo *inc, u_char *key, u_int len)
 {
 	MD5_CTX ctx;
 	uint32_t hash[4];
@@ -2630,7 +2631,7 @@ tcp_keyed_hash(struct in_conninfo *inc, u_char *key)
 		break;
 #endif
 	}
-	MD5Update(&ctx, key, 32);
+	MD5Update(&ctx, key, len);
 	MD5Final((unsigned char *)hash, &ctx);
 
 	return (hash[0]);
@@ -2639,7 +2640,8 @@ tcp_keyed_hash(struct in_conninfo *inc, u_char *key)
 uint32_t
 tcp_new_ts_offset(struct in_conninfo *inc)
 {
-	return (tcp_keyed_hash(inc, V_ts_offset_secret));
+	return (tcp_keyed_hash(inc, V_ts_offset_secret,
+	    sizeof(V_ts_offset_secret)));
 }
 
 /*
@@ -2689,8 +2691,9 @@ tcp_new_ts_offset(struct in_conninfo *inc)
 #define ISN_BYTES_PER_SECOND 1048576
 #define ISN_STATIC_INCREMENT 4096
 #define ISN_RANDOM_INCREMENT (4096 - 1)
+#define ISN_SECRET_LENGTH    32
 
-VNET_DEFINE_STATIC(u_char, isn_secret[32]);
+VNET_DEFINE_STATIC(u_char, isn_secret[ISN_SECRET_LENGTH]);
 VNET_DEFINE_STATIC(int, isn_last);
 VNET_DEFINE_STATIC(int, isn_last_reseed);
 VNET_DEFINE_STATIC(u_int32_t, isn_offset);
@@ -2713,12 +2716,13 @@ tcp_new_isn(struct in_conninfo *inc)
 	if ((V_isn_last_reseed == 0) || ((V_tcp_isn_reseed_interval > 0) &&
 	     (((u_int)V_isn_last_reseed + (u_int)V_tcp_isn_reseed_interval*hz)
 		< (u_int)ticks))) {
-		read_random(&V_isn_secret, sizeof(V_isn_secret));
+		arc4rand(&V_isn_secret, sizeof(V_isn_secret), 0);
 		V_isn_last_reseed = ticks;
 	}
 
 	/* Compute the md5 hash and return the ISN. */
-	new_isn = (tcp_seq)tcp_keyed_hash(inc, V_isn_secret);
+	new_isn = (tcp_seq)tcp_keyed_hash(inc, V_isn_secret,
+	    sizeof(V_isn_secret));
 	V_isn_offset += ISN_STATIC_INCREMENT +
 		(arc4random() & ISN_RANDOM_INCREMENT);
 	if (ticks != V_isn_last) {
