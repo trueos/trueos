@@ -380,7 +380,7 @@ EOF
 	# Copy over the base system packages
 	pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
 		-R ${OBJDIR}/repo-config \
-		fetch -y -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} -g FreeBSD-*
+		fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} -g FreeBSD-*
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed copying base packages to ISO..."
 	fi
