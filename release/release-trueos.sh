@@ -425,7 +425,7 @@ install-repo: {
 }
 EOF
 	mkdir -p ${OBJDIR}/disc1/install-pkg
-	mount_nullfs ${POUDRIERE_PKGDIR} ${OBJDIR}/disc1/install-pkg
+	mount_nullfs ${PKG_DIR} ${OBJDIR}/disc1/install-pkg
 
 	# If there are any packages to install into the ISO, do it now
 	if [ "$(jq -r '."iso-install-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
