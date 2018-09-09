@@ -24,5 +24,9 @@ deps: {
         origin: "devel/llvm60",
         version: "6.0.1_2"
     }
+    "go": {
+        origin: "lang/go",
+        version: ">0"
+    }
 }
 
