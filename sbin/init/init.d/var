@@ -36,7 +36,6 @@ desc="Populate /var directory"
 
 depend()
 {
-	provide var
         need localmount
         before logger
         after clock root sysctl

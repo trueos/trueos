@@ -5,7 +5,6 @@ desc="Dummy service for boot services"
 
 depend()
 {
-	provide bootmisc
 	need cleartmp cleanvar localmount ldconfig
 	before logger
 	after clock root sysctl

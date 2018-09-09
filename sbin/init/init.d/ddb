@@ -3,7 +3,6 @@
 
 depend()
 {
-	provide ddb
 	need dumpon
 	keyword -jail
 }

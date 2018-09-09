@@ -6,7 +6,6 @@
 
 depend()
 {
-	provide gbde
 	keyword -jail
 }
 

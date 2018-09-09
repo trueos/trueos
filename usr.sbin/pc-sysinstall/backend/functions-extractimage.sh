@@ -46,6 +46,10 @@ start_extract_pkg()
   for pkg in `ls ${FSMNT}/packages/base/FreeBSD-*`
   do
     inspkg=$(basename $pkg)
+
+    # Skip any {debug|development} packages
+    echo "$inspkg" | grep -q -e '-debug-' -e '-development-'
+    if [ $? -eq 0 ] ; then continue ; fi
     echo_log "pkg -c ${FSMNT} add /packages/base/$inspkg"
     env ASSUME_ALWAYS_YES=YES pkg -c ${FSMNT} add -f /packages/base/$inspkg
     if [ $? -ne 0 ] ; then
@@ -187,13 +191,13 @@ start_extract_uzip_tar()
 
       # Start by mounting the uzip image
       MDDEVICE=`mdconfig -a -t vnode -o readonly -f ${INSFILE}`
-      mkdir -p ${FSMNT}.uzip
-      mount -r /dev/${MDDEVICE}.uzip ${FSMNT}.uzip
+      mkdir -p /tmp/.uzip
+      mount -r /dev/${MDDEVICE}.uzip /tmp/.uzip
       if [ $? -ne 0 ]
       then
         exit_err "ERROR: Failed mounting the ${INSFILE}"
       fi
-      cd ${FSMNT}.uzip
+      cd /tmp/.uzip
 
       # Copy over all the files now!
       tar cvf - . 2>/dev/null | tar -xp -C ${FSMNT} -f - 2>&1 | tee -a ${FSMNT}/.tar-extract.log
@@ -202,14 +206,14 @@ start_extract_uzip_tar()
         cd /
         echo "TAR failure occurred:" >>${LOGOUT}
         cat ${FSMNT}/.tar-extract.log | grep "tar:" >>${LOGOUT}
-        umount ${FSMNT}.uzip
+        umount /tmp/.uzip
         mdconfig -d -u ${MDDEVICE}
         exit_err "ERROR: Failed extracting the tar image"
       fi
 
       # All finished, now lets umount and cleanup
       cd /
-      umount ${FSMNT}.uzip
+      umount /tmp/.uzip
       mdconfig -d -u ${MDDEVICE}
       ;;
   esac

@@ -51,6 +51,7 @@ Commands:
                   files and directories which have changed.
   auto         -- Fetch updates, and either extract a new ports tree or
                   update an existing tree.
+  fetch        -- Fetch updates - Dummy shim for compat reasons
 EOF
 	exit 0
 }
@@ -84,6 +85,10 @@ parse_cmdline() {
 			;;
 		-h | --help | help)
 			usage
+			;;
+		-d)
+			if [ $# -eq 1 ]; then usage; fi
+			shift; DATADIR="$1"
 			;;
 		-p)
 			if [ $# -eq 1 ]; then usage; fi
@@ -271,6 +276,10 @@ cmd_auto() {
 	else
 		cmd_extract
 	fi
+}
+
+cmd_fetch() {
+	return 0
 }
 
 #### Entry point

@@ -10,7 +10,6 @@ desc="Purge /var directory"
 
 depend()
 {
-	provide cleanvar
         need localmount var
         before logger
         after clock root sysctl

@@ -7,7 +7,6 @@ SYSCTL_N="sysctl -n"
 
 depend()
 {
-	provide archdep
 	keyword -jail
 }
 

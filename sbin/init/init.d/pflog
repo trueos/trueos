@@ -21,7 +21,6 @@ extra_started_commands="reload resync"
 
 depend()
 {
-    provide pflog
     need localmount network
     before pf
     keyword -jail

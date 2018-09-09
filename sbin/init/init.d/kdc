@@ -3,7 +3,6 @@
 name=kdc
 
 depend() {
-	provide kdc
 	after network
 	before login
 	keyword -shutdown

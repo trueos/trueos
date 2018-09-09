@@ -3,7 +3,6 @@
 
 depend()
 {
-	provide ipropd_master
 	need kdc
 	keyword -shutdown
 }

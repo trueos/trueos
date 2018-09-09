@@ -5,7 +5,6 @@
 
 depend()
 {
-	provide iovctl
 	need sysctl
 }
 

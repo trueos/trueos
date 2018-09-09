@@ -27,7 +27,6 @@
 
 depend()
 {
-	provide growfs
 	before sysctl
 }
 
