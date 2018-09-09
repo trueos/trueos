@@ -1796,8 +1796,11 @@ create-world-package-${pkgname}: .PHONY
 		' ${WSTAGEDIR}/${pkgname}.ucl
 	@if [ "${pkgname}" == "runtime" ]; then \
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
+		echo "Building etcupdate image" ; \
+		(mkdir -p ${WSTAGEDIR}/var/db || true) ; \
 		${WSTAGEDIR}/usr/sbin/etcupdate build -s ${SRCDIR} ${WSTAGEDIR}/var/db/etcupdate-current.tbz ; \
 		echo "/var/db/etcupdate-current.tbz" >> ${WSTAGEDIR}/${pkgname}.plist ; \
+		echo "Saving TrueOS Manifest" ; \
 		cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
 		echo "/var/db/trueos-manifest.json" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 	fi
