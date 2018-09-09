@@ -1,7 +1,7 @@
 #!/sbin/openrc-run
 
 name="devfs"
-devfs_rulesets="/etc/devfs.rules"
+devfs_rulesets="/etc/defaults/devfs.rules /etc/devfs.rules"
 
 depend() {
         need localmount
