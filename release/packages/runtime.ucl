@@ -195,11 +195,11 @@ deps: {
     }
     "jq": {
         origin: "textproc/jq"
-        version: "1.5_3"
+        version: ">0"
     }
     "uclcmd": {
         origin: "devel/uclcmd"
-        version: "0.1_2"
+        version: ">0"
     }
 }
 directories {
