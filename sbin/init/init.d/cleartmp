@@ -10,7 +10,6 @@ desc="Purge /tmp directory"
 
 depend()
 {
-	provide cleartmp
         need localmount tmp
         before logger
         after clock root sysctl

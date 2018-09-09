@@ -17,7 +17,6 @@ depend()
 	use modules mtab
 	after modules
 	keyword -jail -prefix
-	provide localmount
 }
 
 start()

@@ -7,7 +7,6 @@ required_modules="iscsi"
 
 depend()
 {
-	provide iscsictl
         use net
         need iscsid
 }

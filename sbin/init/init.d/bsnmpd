@@ -5,7 +5,6 @@
 
 depend()
 {
-	provide bsnmpd
 	need syslogd
 	keyword -jail -shutdown
 }

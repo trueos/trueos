@@ -17,7 +17,6 @@ command_background="true"
 depend()
 {
         need nfsclient localmount
-	provide automountd
         use net logger dns
         before inetd xinetd
 }

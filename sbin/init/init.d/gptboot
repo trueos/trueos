@@ -27,7 +27,6 @@
 
 depend()
 {
-	provide gptboot
 	keyword -jail
 }
 

@@ -3,7 +3,6 @@
 
 depend()
 {
-	provide ipfs
 	keyword -jail -shutdown
 }
 

@@ -4,7 +4,6 @@ name="keyserv"
 command="/usr/sbin/${name}"
 
 depend() {
-	provide keyserv
 	need ypset rpcbind
 	keyword -shutdown
 }

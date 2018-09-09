@@ -3,7 +3,6 @@
 
 depend()
 {
-	provide hastd
 	need syslogd
 	keyword -jail -shutdown
 }

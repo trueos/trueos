@@ -3,7 +3,6 @@
 name=kadmind
 
 depend() {
-	provide kadmind
 	need kdc
 	keyword -shutdown
 }

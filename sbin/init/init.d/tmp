@@ -36,7 +36,6 @@ load_rc_config $name
 
 depend()
 {
-	provide tmp
         need localmount
         before logger
         after clock root sysctl

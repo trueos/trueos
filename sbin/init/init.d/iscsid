@@ -2,7 +2,6 @@
 
 depend()
 {
-        provide iscsid
         use net
 }
 

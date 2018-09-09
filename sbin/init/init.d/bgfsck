@@ -5,7 +5,6 @@
 
 depend()
 {
-	provide bgfsck
 	need devfs cron syslogd
 	keyword -jail
 }
