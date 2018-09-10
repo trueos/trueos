@@ -244,13 +244,13 @@ clean_poudriere()
 
 	# Make sure the pkgdir exists
 	if [ ! -d "${POUDRIERE_PKGDIR}" ] ; then
-		mkdir -p "${POUDRIERE_PKGDIR}"
+		mkdir -p "${POUDRIERE_PKGDIR}/All"
 	fi
 
 	# Move over previously built pkgs
-	if [ -d "${OBJDIR}/pkgset/ports" ] ; then
-		mv ${OBJDIR}/pkgset/ports/* ${POUDRIERE_PKGDIR}/
-		rmdir ${OBJDIR}/pkgset
+	if [ -d "${OBJDIR}/pkgset/All" ] ; then
+		mv ${OBJDIR}/pkgset/All/* ${POUDRIERE_PKGDIR}/All
+		rm -rf ${OBJDIR}/pkgset
 	fi
 
 	# If the ABI has changed, we need to rebuild all
@@ -344,20 +344,19 @@ merge_pkg_sets()
 
 	# Prep our pkgset directory
 	rm -rf ${PDIR} 2>/dev/null
-	mkdir -p ${PDIR}/base
-	mkdir -p ${PDIR}/ports
+	mkdir -p ${PDIR}/All
 
 	RELMAJ=$(echo $OSRELEASE | cut -d '.' -f 1 | cut -d '-' -f 2)
 	ABI_DIR="FreeBSD:$RELMAJ:`uname -m`"
 
 	# Move the base packages
-	mv ${OBJROOT}repo/${ABI_DIR}/latest/* ${PDIR}/base/
+	mv ${OBJROOT}repo/${ABI_DIR}/latest/* ${PDIR}/All/
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed staging base packages..."
 	fi
 
 	# Move the port packages
-	mv ${POUDRIERE_PKGDIR}/* ${PDIR}/ports/
+	mv ${POUDRIERE_PKGDIR}/All/* ${PDIR}/All/
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed staging ports packages..."
 	fi

@@ -43,15 +43,15 @@ start_extract_pkg()
   rc_halt "mount_nullfs ${1} ${FSMNT}/packages"
 
   # Do the package installation
-  for pkg in `ls ${FSMNT}/packages/base/FreeBSD-*`
+  for pkg in `ls ${FSMNT}/packages/All/FreeBSD-*`
   do
     inspkg=$(basename $pkg)
 
     # Skip any {debug|development} packages
     echo "$inspkg" | grep -q -e '-debug-' -e '-development-'
     if [ $? -eq 0 ] ; then continue ; fi
-    echo_log "pkg -c ${FSMNT} add /packages/base/$inspkg"
-    env ASSUME_ALWAYS_YES=YES pkg -c ${FSMNT} add -f /packages/base/$inspkg
+    echo_log "pkg -c ${FSMNT} add /packages/All/$inspkg"
+    env ASSUME_ALWAYS_YES=YES pkg -c ${FSMNT} add -f /packages/All/$inspkg
     if [ $? -ne 0 ] ; then
       exit_err "Failed installing $inspkg!"
     fi
