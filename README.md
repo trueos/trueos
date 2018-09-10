@@ -6,7 +6,7 @@ TrueOS Source:
 This is the top level TrueOS source directory. It is more or less a fork
 of [FreeBSD](https://github.com/freebsd/freebsd).
 
-The last sync of freebsd was [r336483](https://svnweb.freebsd.org/base?view=revision&revision=336483) on July 19th 2018, in the commit [dcab161f632030ac0c45c6acfc0a14aae962ef33](https://github.com/trueos/trueos/commit/dcab161f632030ac0c45c6acfc0a14aae962ef33).
+The last sync of freebsd was [r338535](https://svnweb.freebsd.org/base?view=revision&revision=338535) on Sept 8th 2018, in the commit [e5ee207835f2d9ec37c31e1637a5903265503cd5](https://github.com/trueos/trueos/commit/e5ee207835f2d9ec37c31e1637a5903265503cd5).
 
 TrueOS Differences:
 --------------

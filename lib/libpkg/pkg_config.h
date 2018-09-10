@@ -8,7 +8,7 @@
 #define HAVE_ARC4RANDOM 1
 
 /* Define 1 if you have 'arc4random_stir' function. */
-#define HAVE_ARC4RANDOM_STIR 1
+/* #undef HAVE_ARC4RANDOM_STIR */
 
 /* Has gcc/MSVC atomic intrinsics */
 #define HAVE_ATOMIC_BUILTINS 1
