@@ -1344,7 +1344,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    METALOG=${METALOG} ${IMAKE_INSTALL} ${IMAKE_MTREE} \
 	    DISTBASE=/base DESTDIR=${DESTDIR}/${DISTDIR}/base \
 	    LOCAL_MTREE=${LOCAL_MTREE:Q} distrib-dirs
-	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
+	${INSTALL_SYMLINK} ${INSTALLFLAGS} usr/src/sys ${INSTALL_DDIR}/base/sys
 .endif
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
@@ -1796,8 +1796,11 @@ create-world-package-${pkgname}: .PHONY
 		' ${WSTAGEDIR}/${pkgname}.ucl
 	@if [ "${pkgname}" == "runtime" ]; then \
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
+		echo "Building etcupdate image" ; \
+		(mkdir -p ${WSTAGEDIR}/var/db || true) ; \
 		${WSTAGEDIR}/usr/sbin/etcupdate build -s ${SRCDIR} ${WSTAGEDIR}/var/db/etcupdate-current.tbz ; \
 		echo "/var/db/etcupdate-current.tbz" >> ${WSTAGEDIR}/${pkgname}.plist ; \
+		echo "Saving TrueOS Manifest" ; \
 		cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
 		echo "/var/db/trueos-manifest.json" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 	fi
@@ -1947,7 +1950,8 @@ update: .PHONY
 # r296685 fix cross-endian objcopy
 # r310724 fixed PR 215350, a crash in libdwarf with objects built by GCC 6.2.
 # r334881 added libdwarf constants used by ctfconvert.
-.if ${BOOTSTRAPPING} < 1200067
+# r338478 fixed a crash in objcopy for mips64el objects
+.if ${BOOTSTRAPPING} < 1200084
 _elftoolchain_libs= lib/libelf lib/libdwarf
 .endif
 
@@ -2045,6 +2049,10 @@ ${_bt}-usr.bin/yacc: ${_bt}-lib/liby
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
+.if ${MK_LOCALES} != "no"
+_localedef=	usr.bin/localedef
+.endif
+
 # We need to build tblgen when we're building clang or lld, either as
 # bootstrap tools, or as the part of the normal build.
 .if ${MK_CLANG_BOOTSTRAP} != "no" || ${MK_CLANG} != "no" || \
@@ -2106,7 +2114,7 @@ bootstrap-tools: .PHONY
     ${_crunchgen} \
     ${_nmtree} \
     ${_vtfontcvt} \
-    usr.bin/localedef
+    ${_localedef}
 ${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \

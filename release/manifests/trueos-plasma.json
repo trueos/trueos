@@ -18,6 +18,8 @@
 	  "multimedia_qt5-multimedia_UNSET=ALSA",
 	  "print_cups-base_SET=XPDF",
 	  "print_cups-base_UNSET=GHOSTSCRIPT",
+	  "www_chromium_UNSET=ALSA",
+	  "www_chromium_SET=PULSEAUDIO",
 	  "www_firefox_UNSET=JACK",
 	  "www_firefox-esr_UNSET=JACK",
 	  "www_qt5-webengine_UNSET=ALSA",
