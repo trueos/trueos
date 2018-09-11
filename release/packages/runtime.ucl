@@ -18,10 +18,10 @@ desc = <<EOD
 EOD
 scripts: {
 	post-install = <<EOD
-	TM=/var/db/trueos-manifest.json
 	if [ -z "${PKG_ROOTDIR}" ] ; then
 		PKG_ROOTDIR=/
 	fi
+	TM=${PKG_ROOTDIR}/var/db/trueos-manifest.json
 	if [ ! -e ${PKG_ROOTDIR}/etc/master.passwd ] ; then
 		# Boot-strap /etc for fresh install
 		echo "** Performing first-time setup of /etc **"
