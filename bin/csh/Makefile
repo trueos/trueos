@@ -154,11 +154,10 @@ tc.const.h: tc.const.c sh.char.h config.h config_f.h sh.types.h sh.err.h ${BUILD
 	    sort >> ${.TARGET}
 	@echo '#endif /* _h_tc_const */' >> ${.TARGET}
 
-# Disabled for the moment - Breaks runtime package build
-#beforeinstallconfig:
-#	rm -f ${DESTDIR}/.cshrc
-#
-#afterinstallconfig:
-#	${INSTALL_LINK} ${TAG_ARGS} ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc
+beforeinstallconfig:
+	rm -f ${DESTDIR}/.cshrc
+
+afterinstallconfig:
+	${INSTALL_LINK} ${TAG_ARGS} ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc
 
 .include <bsd.prog.mk>
