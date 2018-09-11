@@ -37,35 +37,30 @@ start_extract_pkg()
   # Set the default ABI
   ABI="FreeBSD:`uname -r | cut -d '.' -f 1`:`uname -m`"
   export ABI
+  export IGNORE_OSVERSION="YES"
 
-  # Mount the packages into the chroot
-  rc_nohalt "mkdir -p ${FSMNT}/packages"
-  rc_halt "mount_nullfs ${1} ${FSMNT}/packages"
+  # Figure out the base packgae name, if its FreeBSD or $OTHER
+  BASENAME=$(pkg rquery '%o %n-%v' | grep ^base | grep -e '-runtime-' | head -n 1 | awk '{print $2}' | cut -d '-' -f 1)
 
   # Do the package installation
-  for pkg in `ls ${FSMNT}/packages/All/FreeBSD-*`
+  for inspkg in `pkg rquery '%o %n-%v' | grep "^base" | awk '{print $2}' | tr -s '\n' ' '`
   do
-    inspkg=$(basename $pkg)
-
     # Skip any {debug|development} packages
     echo "$inspkg" | grep -q -e '-debug-' -e '-development-'
     if [ $? -eq 0 ] ; then continue ; fi
-    echo_log "pkg -c ${FSMNT} add /packages/All/$inspkg"
-    env ASSUME_ALWAYS_YES=YES pkg -c ${FSMNT} add -f /packages/All/$inspkg
+    echo_log "pkg -r ${FSMNT} install -yf $inspkg"
+    env ASSUME_ALWAYS_YES=YES pkg -r ${FSMNT} install -yf $inspkg
     if [ $? -ne 0 ] ; then
       exit_err "Failed installing $inspkg!"
     fi
   done
 
   # Don't allow any of the FreeBSD packages to be auto-removed
-  pkg -c ${FSMNT} set -y -A 00 -g FreeBSD-\*
+  pkg -c ${FSMNT} set -y -A 00 -g $BASENAME-\*
 
   # Workaround to issue in FreeBSD pkg base
   rc_nohalt "chroot ${FSMNT} chown root:operator /sbin/shutdown"
   rc_nohalt "chroot ${FSMNT} chmod 4554 /sbin/shutdown"
-
-  # Unmount packages
-  rc_halt "umount -f ${FSMNT}/packages"
 
 }
 
