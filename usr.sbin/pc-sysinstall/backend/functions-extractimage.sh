@@ -39,6 +39,10 @@ start_extract_pkg()
   export ABI
   export IGNORE_OSVERSION="YES"
 
+  # Make sure the pkg db dir is ready to install
+  rc_nohalt "mkdir -p ${FSMNT}/var/db/pkg"
+  export PKG_DBDIR="${FSMNT}/var/db/pkg"
+
   # Figure out the base packgae name, if its FreeBSD or $OTHER
   BASENAME=$(pkg rquery '%o %n-%v' | grep ^base | grep -e '-runtime-' | head -n 1 | awk '{print $2}' | cut -d '-' -f 1)
 
