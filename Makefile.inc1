@@ -1790,8 +1790,6 @@ create-world-packages-jobs: create-world-package-${pkgname}
 create-world-package-${pkgname}: .PHONY
 	@sh ${SRCDIR}/release/packages/generate-ucl.sh -o ${pkgname} \
 		-s ${SRCDIR} -u ${WSTAGEDIR}/${pkgname}.ucl
-	@sh ${SRCDIR}/release/packages/transform-ucl.sh ${pkgname} \
-		${SRCDIR} ${WSTAGEDIR}/${pkgname}.ucl ${TRUEOS_MANIFEST}
 	@awk -F\" ' \
 		/^name/ { printf("===> Creating %s-", $$2); next } \
 		/^version/ { print $$2; next } \
@@ -1806,6 +1804,8 @@ create-world-package-${pkgname}: .PHONY
 		cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
 		echo "/var/db/trueos-manifest.json" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 	fi
+	@sh ${SRCDIR}/release/packages/transform-ucl.sh ${pkgname} \
+		${SRCDIR} ${WSTAGEDIR}/${pkgname}.ucl ${TRUEOS_MANIFEST}
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \

@@ -15,6 +15,8 @@ if [ "$(jq -r '."base-packages"."depends"."'$LPKG'"' $MANIFEST)" = "null" ] ; th
 	return 0
 fi
 
+echo "====> Injecting depends into \"$LPKG\" via $UCL"
+
 # Add the new depends to the UCL file
 for pkg in $(jq -r '."base-packages"."depends"."'$LPKG'" | keys[]' $MANIFEST)
 do
@@ -22,10 +24,15 @@ do
 	origin=$(jq -r '."base-packages"."depends"."'$LPKG'"."'$pkg'"."origin"' $MANIFEST)
 	version=$(jq -r '."base-packages"."depends"."'$LPKG'"."'$pkg'"."version"' $MANIFEST)
 
+        echo "=====> Injecting \"$origin\" into \"$LPKG\""
+
 	# Transform the UCL file and insert the new depend
-	uclcmd get --file $UCL -j '.' | jq -r '."deps" |= .+ { "'$pkg'":{"origin":"'$origin'","version":"'$version'"} }' > ${UCL}.new
+	uclcmd get --file ${UCL} -j '.' | jq -r '."deps" |= .+ { "'$pkg'":{"origin":"'$origin'","version":"'$version'"} }' > ${UCL}.new
+	if [ $? -ne 0 ] ; then return 1; fi
 
 	# Convert back to UCL
 	uclcmd get --file ${UCL}.new -u '.' > ${UCL}
+	if [ $? -ne 0 ] ; then return 1; fi
 	rm ${UCL}.new
+	if [ $? -ne 0 ] ; then return 1; fi
 done
