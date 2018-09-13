@@ -10,6 +10,12 @@ if [ ! -e "$MANIFEST" ] ; then
 	exit 1
 fi
 
+which -s uclcmd
+if [ $? -ne 0 ] ; then
+  echo "Please install missing \"uclcmd\""
+  exit 1
+fi
+
 # Verify we have depends in our MANIFEST
 if [ "$(jq -r '."base-packages"."depends"."'$LPKG'"' $MANIFEST)" = "null" ] ; then
 	return 0
@@ -27,11 +33,11 @@ do
         echo "=====> Injecting \"$origin\" into \"$LPKG\""
 
 	# Transform the UCL file and insert the new depend
-	uclcmd get --file ${UCL} -j '.' | jq -r '."deps" |= .+ { "'$pkg'":{"origin":"'$origin'","version":"'$version'"} }' > ${UCL}.new
+	/usr/local/bin/uclcmd get --file ${UCL} -j '.' | jq -r '."deps" |= .+ { "'$pkg'":{"origin":"'$origin'","version":"'$version'"} }' > ${UCL}.new
 	if [ $? -ne 0 ] ; then return 1; fi
 
 	# Convert back to UCL
-	uclcmd get --file ${UCL}.new -u '.' > ${UCL}
+	/usr/local/bin/uclcmd get --file ${UCL}.new -u '.' > ${UCL}
 	if [ $? -ne 0 ] ; then return 1; fi
 	rm ${UCL}.new
 	if [ $? -ne 0 ] ; then return 1; fi
