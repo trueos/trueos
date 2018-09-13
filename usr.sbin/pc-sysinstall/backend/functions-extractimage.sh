@@ -43,6 +43,9 @@ start_extract_pkg()
   rc_nohalt "mkdir -p ${FSMNT}/var/db/pkg"
   export PKG_DBDIR="${FSMNT}/var/db/pkg"
 
+  # Update the local pkg DB
+  rc_nohalt "pkg update"
+
   # Figure out the base packgae name, if its FreeBSD or $OTHER
   BASENAME=$(pkg rquery '%o %n-%v' | grep ^base | grep -e '-runtime-' | head -n 1 | awk '{print $2}' | cut -d '-' -f 1)
 
