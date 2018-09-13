@@ -20,13 +20,5 @@ deps: {
         origin: "base",
         version: "%VERSION%"
     }
-    "llvm60": {
-        origin: "devel/llvm60",
-        version: ">0"
-    }
-    "go": {
-        origin: "lang/go",
-        version: ">0"
-    }
 }
 

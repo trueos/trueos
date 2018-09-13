@@ -193,14 +193,6 @@ deps: {
         origin: "base"
         version: "%VERSION%"
     }
-    "jq": {
-        origin: "textproc/jq"
-        version: ">0"
-    }
-    "uclcmd": {
-        origin: "devel/uclcmd"
-        version: ">0"
-    }
 }
 directories {
     /dev = "y";
