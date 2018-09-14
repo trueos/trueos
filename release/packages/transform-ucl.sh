@@ -10,8 +10,7 @@ if [ ! -e "$MANIFEST" ] ; then
 	exit 1
 fi
 
-which -s uclcmd
-if [ $? -ne 0 ] ; then
+if [ ! -e "/usr/local/bin/uclcmd" ] ; then
   echo "Please install missing \"uclcmd\""
   exit 1
 fi
