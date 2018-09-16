@@ -175,7 +175,11 @@ setup_poudriere_jail()
 get_explicit_pkg_deps()
 {
 	retdeps=""
-	for ucl in `ls ${SRCDIR}/release/packages/*.ucl`
+	ls ${OBJDIR}/worldstage/*.ucl >/dev/null 2>/dev/null
+	if [ $? -ne 0 ] ; then
+		exit_err "Missing UCL files in: ${OBJDIR}/worldstage/"
+	fi
+	for ucl in `ls ${OBJDIR}/worldstage/*.ucl`
 	do
 		grep -q "deps" ${ucl}
 		if [ $? -ne 0 ] ; then
