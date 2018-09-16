@@ -42,7 +42,7 @@ start()
 		for dev in /dev/psm[0-9]* /dev/ums[0-9]*; do
 			[ -c "$dev" ] || continue
 			[ -e /var/run/moused-"${dev##*/}".pid ] && continue
-			/etc/rc.devd moused.${dev##*/} start
+			sh /etc/rc.devd moused.${dev##*/} start
 		done
 		if [ $founddev ] ; then
 			return 0
@@ -91,7 +91,7 @@ stop()
 		for dev in /dev/psm[0-9]* /dev/ums[0-9]*; do
 			[ -c "$dev" ] || continue
 			[ -e /var/run/moused-"${dev##*/}".pid ] || continue
-			/etc/rc.devd moused.${dev##*/} stop
+			sh /etc/rc.devd moused.${dev##*/} stop
 		done
 		return 0
 	fi
