@@ -46,7 +46,7 @@ start_extract_pkg()
   # Update the local pkg DB
   rc_nohalt "pkg update"
 
-  # Figure out the base packgae name, if its FreeBSD or $OTHER
+  # Figure out the base package name, if its FreeBSD or $OTHER
   BASENAME=$(pkg rquery '%o %n-%v' | grep ^base | grep -e '-runtime-' | head -n 1 | awk '{print $2}' | cut -d '-' -f 1)
 
   # Do the package installation

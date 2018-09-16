@@ -60,6 +60,12 @@ install_packages()
   get_value_from_cfg_with_spaces installPackages
   PACKAGES="${VAL}"
 
+  # Make sure the pkg db dir is ready to install
+  export PKG_DBDIR="${FSMNT}/var/db/pkg"
+
+  # Update the local pkg DB
+  rc_nohalt "pkg update"
+
   echo_log "Packages to install: `echo $PACKAGES | wc -w | awk '{print $1}'`"
   for i in $PACKAGES
   do
@@ -67,7 +73,7 @@ install_packages()
 
     # Doing a local install into a different root
     PKGADD="pkg -r ${FSMNT} install -y ${PKGNAME}"
-    PKGINFO="pkg info"
+    PKGINFO="pkg -r ${FSMNT} info"
 
     # If the package is not already installed, install it!
     if ! run_chroot_cmd "${PKGINFO} -e ${PKGNAME}" >/dev/null 2>/dev/null
