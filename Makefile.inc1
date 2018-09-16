@@ -68,6 +68,10 @@ TRUEOS_MANIFEST=	${SRCDIR}/release/trueos-manifest.json
 .error "Missing file TRUEOS_MANIFEST: ${TRUEOS_MANIFEST}"
 .endif
 
+# Get the base package name
+PKG_BASENAME!=		jq -r '."base-packages"."name-prefix"' \
+				${TRUEOS_MANIFEST}
+
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
 .if defined(CROSS_TOOLCHAIN)
@@ -1789,7 +1793,7 @@ create-world-packages-jobs: .PHONY
 create-world-packages-jobs: create-world-package-${pkgname}
 create-world-package-${pkgname}: .PHONY
 	@sh ${SRCDIR}/release/packages/generate-ucl.sh -o ${pkgname} \
-		-s ${SRCDIR} -u ${WSTAGEDIR}/${pkgname}.ucl
+		-s ${SRCDIR} -u ${WSTAGEDIR}/${pkgname}.ucl -b ${PKG_BASENAME}
 	@awk -F\" ' \
 		/^name/ { printf("===> Creating %s-", $$2); next } \
 		/^version/ { print $$2; next } \
@@ -1827,6 +1831,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${INSTALLKERNEL} ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%BASENAME%/${PKG_BASENAME}/" \
 		-e "s/%PKGNAME%/kernel-${INSTALLKERNEL:tl}${flavor}/" \
 		-e "s/%KERNELDIR%/kernel/" \
 		-e "s/%COMMENT%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
@@ -1859,6 +1864,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${_kernel} ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%BASENAME%/${PKG_BASENAME}/" \
 		-e "s/%PKGNAME%/kernel-${_kernel:tl}${flavor}/" \
 		-e "s/%KERNELDIR%/kernel.${_kernel}/" \
 		-e "s/%COMMENT%/FreeBSD ${_kernel} kernel ${flavor}/" \

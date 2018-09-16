@@ -8,7 +8,7 @@ main() {
 	comment=
 	debug=
 	uclsource=
-	while getopts "do:s:u:" arg; do
+	while getopts "do:s:u:b:" arg; do
 		case ${arg} in
 		d)
 			debug=1
@@ -23,11 +23,19 @@ main() {
 		u)
 			uclfile="${OPTARG}"
 			;;
+		b)
+			BASENAME="${OPTARG}"
+			;;
 		*)
 			echo "Unknown argument"
 			;;
 		esac
 	done
+
+	# Set the default BASENAME if not specified
+	if [ -z "$BASENAME" -o "$BASENAME" = "null" ] ; then
+		BASENAME="FreeBSD"
+	fi
 
 	shift $(( ${OPTIND} - 1 ))
 
@@ -133,6 +141,7 @@ main() {
 	cp "${uclsource}" "${uclfile}"
 	cap_arg="$( make -f ${srctree}/share/mk/bsd.endian.mk -VCAP_MKDB_ENDIAN )"
 	sed -i '' -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%BASENAME%/${BASENAME}/" \
 		-e "s/%PKGNAME%/${origname}/" \
 		-e "s/%COMMENT%/${comment}/" \
 		-e "s/%DESC%/${desc}/" \
