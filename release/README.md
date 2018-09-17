@@ -95,6 +95,8 @@ unattended installation when used.
   "install-script":"/usr/local/etc/autoinstall.cfg"
 ```
 
+* And More! Take a look at [default manifest](trueos-manifest.json) for details.
+
 Poudriere Configuration (building ports):
 --------------
 As part of the `make poudriere` build stage, a poudriere instance is created and run to build all of the requested packages from the specified ports tree. The configuration of poudriere is automatically performed to ensure an optimal result for most build systems, but it is possible to further customize these settings as needed. Common customizations are allowing systems to override specific settings such as USE_TMPFS, or PARALLEL_JOBS that are more suitable for the individual build system.
@@ -137,5 +139,5 @@ images:
 ```
 make buildworld buildkernel
 make packages
-cd release && make poudriere && make release
+cd release && make release
 ```
