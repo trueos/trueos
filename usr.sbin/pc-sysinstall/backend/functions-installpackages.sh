@@ -83,10 +83,6 @@ install_packages()
       if [ $? -ne 0 ] ; then
         exit_err "Failed installing: $PKGADD"
       fi
-      if ! run_chroot_cmd "${PKGINFO} -e ${PKGNAME}" >/dev/null 2>/dev/null
-      then
-        echo_log "WARNING: PKGNG reported 0, but pkg: ${PKGNAME} does not appear to be installed!"
-      fi
     fi
   done
 

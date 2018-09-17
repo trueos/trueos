@@ -109,7 +109,7 @@ mount_partition()
 
 		# Save this dataset to create
 		mkParents="$chkDir $mkParents"
-		
+
 		# Get the next dir to check
 		chkDir=`dirname $chkDir`
 	done
@@ -120,9 +120,9 @@ mount_partition()
 		do
 			# Since the user didn't explictly specify this dataset
 			# we assume they don't really want it mounted
-        		echo_log "zfs create -o canmount=off -p ${ZPOOLNAME}${p}"
-        		rc_halt "zfs create -o canmount=off -p ${ZPOOLNAME}${p}"
-        		rc_halt "zfs set mountpoint=none ${ZPOOLNAME}${p}"
+			echo_log "zfs create -o canmount=off -p ${ZPOOLNAME}${p}"
+			rc_halt "zfs create -o canmount=off -p ${ZPOOLNAME}${p}"
+			rc_halt "zfs set mountpoint=none ${ZPOOLNAME}${p}"
 		done
 	fi
 
@@ -130,7 +130,6 @@ mount_partition()
         echo_log "zfs create $zcopt -p ${ZPOOLNAME}${ZNAME}"
         rc_halt "zfs create $zcopt -p ${ZPOOLNAME}${ZNAME}"
       fi
-      sleep 2
       if [ -z "$zcopt" ] ; then
         rc_halt "zfs set mountpoint=${FSMNT}${ZMKMNT} ${ZPOOLNAME}${ZNAME}"
       fi

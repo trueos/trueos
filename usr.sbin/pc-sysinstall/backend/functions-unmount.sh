@@ -37,7 +37,7 @@ umount_all_dir()
   for _ud in $_umntdirs
   do
     echo_log "Unmounting: ${_ud}"
-    sleep 1
+    sleep 0.5
     umount -f ${_ud}
   done
 }
