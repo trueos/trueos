@@ -63,18 +63,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
-        sh 'cd ${SRCROOT} && make -j32 packages -DDB_FROM_SRC'
-      }
-    }
-    stage('Ports') {
-      environment {
-	   // Get our credentials from Jenkins
-           PKG_REPO_SIGNING_KEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
-      }
-      steps {
-        sh 'cd ${SRCROOT}/release && make poudriere'
-        // Sign the repo with our repo signing key
-        sh 'cd /usr/local/poudriere/data/packages/fn-master-base-fn-master-ports && pkg-static repo . ${PKG_REPO_SIGNING_KEY}'
+        sh 'cd ${SRCROOT} && make packages -DDB_FROM_SRC'
       }
     }
     stage('Release') {
@@ -98,10 +87,8 @@ pipeline {
     stage('Publish') {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
-          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/unstable/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/local/poudriere/data/packages/fn-master-base-fn-master-ports/ syncbot@pkg.trueos.org:/data/pkg/unstable/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest/'
-          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/unstable/base/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/repo/ syncbot@pkg.trueos.org:/data/pkg/unstable/base/'
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/unstable/ || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/unstable/'
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/unstable/ || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/unstable/'
         }

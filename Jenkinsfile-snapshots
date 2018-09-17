@@ -54,16 +54,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
-        sh 'cd ${SRCROOT} && make -j32 packages'
-      }
-    }
-    stage('Ports') {
-      environment {
-           PKG_REPO_SIGNING_KEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
-      }
-      steps {
-        sh 'cd ${SRCROOT}/release && make poudriere'
-        sh 'cd /usr/local/poudriere/data/packages/${POUDRIERE_BASE}-${POUDRIERE_PORTS} && pkg-static repo . ${PKG_REPO_SIGNING_KEY}'
+        sh 'cd ${SRCROOT} && make packages'
       }
     }
     stage('Release') {
@@ -87,10 +78,8 @@ pipeline {
     stage('Publish') {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
-          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/snapshot/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/local/poudriere/data/packages/${POUDRIERE_BASE}-${POUDRIERE_PORTS}/ syncbot@pkg.trueos.org:/data/pkg/snapshot/ports/$(pkg-static -o ABI_FILE=/bin/sh config ABI)/latest/'
-          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/snapshot/base/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/repo/ syncbot@pkg.trueos.org:/data/pkg/snapshot/base/'
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/snapshot/ || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/snapshot/'
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/snapshot/ || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/snapshot/'
         }
