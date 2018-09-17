@@ -381,10 +381,16 @@ EOF
 	mkdir -p ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
 	ln -s ${PKG_VERSION} ${TARGET_DIR}/${ABI_DIR}/latest
 
+	# Figure out the BASE PREFIX for base packages
+	BASENAME=$(jq -r '."base-packages"."name-prefix"' ${TRUEOS_MANIFEST})
+	if [ "$BASENAME" = "null" ] ; then
+		BASENAME="FreeBSD"
+	fi
+
 	# Copy over the base system packages
 	pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
 		-R ${OBJDIR}/repo-config \
-		fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} -g FreeBSD-*
+		fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} -g ${BASENAME}-*
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed copying base packages to ISO..."
 	fi
