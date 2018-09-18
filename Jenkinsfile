@@ -61,14 +61,6 @@ pipeline {
         sh 'cd ${SRCROOT} && make packages'
       }
     }
-    stage('Ports') {
-      environment {
-           PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
-      }
-      steps {
-        sh 'cd ${SRCROOT}/release && make poudriere'
-      }
-    }
     stage('Release') {
       post {
         success {

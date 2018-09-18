@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-name = "FreeBSD-%PKGNAME%"
+name = "%BASENAME%-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "%COMMENT%"

@@ -164,7 +164,7 @@ start()
 
 		# We have a device that needs dhcpcd
 		export OPENRC_SILENT=TRUE
-		/etc/rc.devd dhcpcd.$int start
+		sh /etc/rc.devd dhcpcd.$int start
 	done
 	return 0
 }
@@ -195,7 +195,7 @@ stop()
 
 		# We have a device that needs dhcpcd
 		export OPENRC_SILENT=TRUE
-		/etc/rc.devd dhcpcd.$int stop
+		sh /etc/rc.devd dhcpcd.$int stop
 	done
 	return 0
 }

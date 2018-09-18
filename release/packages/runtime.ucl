@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-name = "FreeBSD-%PKGNAME%"
+name = "%BASENAME%-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "%COMMENT% %VCS_REVISION%"
@@ -18,10 +18,10 @@ desc = <<EOD
 EOD
 scripts: {
 	post-install = <<EOD
-	TM=/var/db/trueos-manifest.json
 	if [ -z "${PKG_ROOTDIR}" ] ; then
 		PKG_ROOTDIR=/
 	fi
+	TM=${PKG_ROOTDIR}/var/db/trueos-manifest.json
 	if [ ! -e ${PKG_ROOTDIR}/etc/master.passwd ] ; then
 		# Boot-strap /etc for fresh install
 		echo "** Performing first-time setup of /etc **"
@@ -93,103 +93,103 @@ scripts: {
 EOD
 }
 deps: {
-    "FreeBSD-clibs": {
+    "%BASENAME%-clibs": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libmd": {
+    "%BASENAME%-libmd": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libarchive": {
+    "%BASENAME%-libarchive": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libbz2": {
+    "%BASENAME%-libbz2": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-liblzma": {
+    "%BASENAME%-liblzma": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libbsdxml": {
+    "%BASENAME%-libbsdxml": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libutil": {
+    "%BASENAME%-libutil": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-librc": {
+    "%BASENAME%-librc": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libpkg": {
+    "%BASENAME%-libpkg": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libfetch": {
+    "%BASENAME%-libfetch": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libelf": {
+    "%BASENAME%-libelf": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libz": {
+    "%BASENAME%-libz": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-lib": {
+    "%BASENAME%-lib": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-lib80211": {
+    "%BASENAME%-lib80211": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libbsm": {
+    "%BASENAME%-libbsm": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libeinfo": {
+    "%BASENAME%-libeinfo": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libgeom": {
+    "%BASENAME%-libgeom": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libkvm": {
+    "%BASENAME%-libkvm": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libopie": {
+    "%BASENAME%-libopie": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libsbuf": {
+    "%BASENAME%-libsbuf": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libucl": {
+    "%BASENAME%-libucl": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libwrap": {
+    "%BASENAME%-libwrap": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libxo": {
+    "%BASENAME%-libxo": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libypclnt": {
+    "%BASENAME%-libypclnt": {
         origin: "base"
         version: "%VERSION%"
     }
-    "FreeBSD-libcrypt": {
+    "%BASENAME%-libcrypt": {
         origin: "base"
         version: "%VERSION%"
     }

@@ -68,6 +68,10 @@ TRUEOS_MANIFEST=	${SRCDIR}/release/trueos-manifest.json
 .error "Missing file TRUEOS_MANIFEST: ${TRUEOS_MANIFEST}"
 .endif
 
+# Get the base package name
+PKG_BASENAME!=		jq -r '."base-packages"."name-prefix"' \
+				${TRUEOS_MANIFEST}
+
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
 .if defined(CROSS_TOOLCHAIN)
@@ -1789,7 +1793,7 @@ create-world-packages-jobs: .PHONY
 create-world-packages-jobs: create-world-package-${pkgname}
 create-world-package-${pkgname}: .PHONY
 	@sh ${SRCDIR}/release/packages/generate-ucl.sh -o ${pkgname} \
-		-s ${SRCDIR} -u ${WSTAGEDIR}/${pkgname}.ucl
+		-s ${SRCDIR} -u ${WSTAGEDIR}/${pkgname}.ucl -b ${PKG_BASENAME}
 	@awk -F\" ' \
 		/^name/ { printf("===> Creating %s-", $$2); next } \
 		/^version/ { print $$2; next } \
@@ -1804,6 +1808,8 @@ create-world-package-${pkgname}: .PHONY
 		cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
 		echo "/var/db/trueos-manifest.json" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 	fi
+	@sh ${SRCDIR}/release/packages/transform-ucl.sh ${pkgname} \
+		${SRCDIR} ${WSTAGEDIR}/${pkgname}.ucl ${TRUEOS_MANIFEST}
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
@@ -1825,6 +1831,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${INSTALLKERNEL} ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%BASENAME%/${PKG_BASENAME}/" \
 		-e "s/%PKGNAME%/kernel-${INSTALLKERNEL:tl}${flavor}/" \
 		-e "s/%KERNELDIR%/kernel/" \
 		-e "s/%COMMENT%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
@@ -1857,6 +1864,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${_kernel} ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
+		-e "s/%BASENAME%/${PKG_BASENAME}/" \
 		-e "s/%PKGNAME%/kernel-${_kernel:tl}${flavor}/" \
 		-e "s/%KERNELDIR%/kernel.${_kernel}/" \
 		-e "s/%COMMENT%/FreeBSD ${_kernel} kernel ${flavor}/" \
@@ -1881,12 +1889,13 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 sign-packages:	_pkgbootstrap .PHONY
 	@[ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest" ] && \
 		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest ; \
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
-		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
-		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
-		${PKGSIGNKEY} ; \
 	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI); \
 	ln -s ${PKG_VERSION} latest
+	@env -i make -C ${SRCDIR}/release poudriere
+	@${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
+		-o ${OBJROOT}pkgset \
+		${OBJROOT}pkgset \
+		${PKGSIGNKEY} ;
 
 #
 #

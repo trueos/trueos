@@ -75,7 +75,7 @@ start()
 	for i in $(find_wireless)
 	do
 		export OPENRC_SILENT=TRUE
-		/etc/rc.devd wpa_supplicant.$i start
+		sh /etc/rc.devd wpa_supplicant.$i start
 	done
 	return 0
 }
@@ -105,7 +105,7 @@ stop()
 	for i in $(find_wireless)
 	do
 		export OPENRC_SILENT=TRUE
-		/etc/rc.devd wpa_supplicant.$i stop
+		sh /etc/rc.devd wpa_supplicant.$i stop
 	done
 	return 0
 }

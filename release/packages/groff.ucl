@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-name = "FreeBSD-%PKGNAME%"
+name = "%BASENAME%-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "%COMMENT%"
@@ -16,7 +16,7 @@ desc = <<EOD
 %DESC%
 EOD
 deps: {
-    FreeBSD-%PKGDEPS%: {
+    %BASENAME%-%PKGDEPS%: {
         origin: "base",
         version: "%VERSION%"
     }
