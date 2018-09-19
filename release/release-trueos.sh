@@ -209,6 +209,7 @@ build_poudriere()
 		if [ $? -ne 0 ] ; then
 			exit_err "Failed building all essential packages.."
 		fi
+		return 0
 	fi
 
 	# Check if we want to do a selective build
@@ -292,7 +293,7 @@ super_clean_poudriere()
 
 check_essential_pkgs()
 {
-	if [ "$(jq -r '."essential-packages"' ${TRUEOS_MANIFEST})" = "null" ] ; then
+	if [ "$(jq -r '."essential-packages"' ${TRUEOS_MANIFEST})" = "null" -a -z "$(get_explicit_pkg_deps)" ] ; then
 		echo "No essential-packages defined. Skipping..."
 		return 0
 	fi
