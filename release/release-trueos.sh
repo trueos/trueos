@@ -53,6 +53,7 @@ env_check()
 	if [ -z "$TRUEOS_MANIFEST" ] ; then
 		exit_err "Unset TRUEOS_MANIFEST"
 	fi
+	echo "Using TRUEOS_MANIFEST: $TRUEOS_MANIFEST"
 	PORTS_TYPE=$(jq -r '."ports"."type"' $TRUEOS_MANIFEST)
 	PORTS_URL=$(jq -r '."ports"."url"' $TRUEOS_MANIFEST)
 	PORTS_BRANCH=$(jq -r '."ports"."branch"' $TRUEOS_MANIFEST)
@@ -204,31 +205,32 @@ build_poudriere()
 	# Check if we want to do a bulk build of everything
 	if [ $(jq -r '."package-all"' ${TRUEOS_MANIFEST}) = "true" ] ; then
 		# Start the build
+		echo "Starting poudriere FULL build"
 		poudriere bulk -a -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
 		check_essential_pkgs
 		if [ $? -ne 0 ] ; then
 			exit_err "Failed building all essential packages.."
 		fi
-		return 0
-	fi
+	else
+		# Check if we want to do a selective build
+		if [ "$(jq -r '."packages" | length' ${TRUEOS_MANIFEST})" != "0" -o -n "$(get_explicit_pkg_deps)" ] ; then
 
-	# Check if we want to do a selective build
-	# (And yes, sometimes you want to do this after a "full" build to catch things
-	# which may purposefully not be tied into the complete build process
-	if [ "$(jq -r '."packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
+			echo "Starting poudriere SELECTIVE build"
 
-		# Build our list of selective build packages
-		jq -r '."packages" | join("\n")' ${TRUEOS_MANIFEST} > ${OBJDIR}/trueos-mk-bulk-list
-		jq -r '."essential-packages" | join("\n")' ${TRUEOS_MANIFEST} >> ${OBJDIR}/trueos-mk-bulk-list
-		get_explicit_pkg_deps | tr -s ' ' '\n' >> ${OBJDIR}/trueos-mk-bulk-list
-		cat ${OBJDIR}/trueos-mk-bulk-list | sort -r | uniq > ${OBJDIR}/trueos-mk-bulk-list.new
-		mv ${OBJDIR}/trueos-mk-bulk-list.new ${OBJDIR}/trueos-mk-bulk-list
+			# Build our list of selective build packages
+			jq -r '."packages" | join("\n")' ${TRUEOS_MANIFEST} > ${OBJDIR}/trueos-mk-bulk-list
+			jq -r '."essential-packages" | join("\n")' ${TRUEOS_MANIFEST} >> ${OBJDIR}/trueos-mk-bulk-list
+			get_explicit_pkg_deps | tr -s ' ' '\n' >> ${OBJDIR}/trueos-mk-bulk-list
+			cat ${OBJDIR}/trueos-mk-bulk-list | sort -r | uniq > ${OBJDIR}/trueos-mk-bulk-list.new
+			mv ${OBJDIR}/trueos-mk-bulk-list.new ${OBJDIR}/trueos-mk-bulk-list
 
-		# Start the build
-		poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
-		if [ $? -ne 0 ] ; then
-			exit_err "Failed poudriere build"
+			# Start the build
+			poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
+			if [ $? -ne 0 ] ; then
+				exit_err "Failed poudriere build"
+			fi
 		fi
+
 	fi
 
 	# Save the FreeBSD ABI Version
