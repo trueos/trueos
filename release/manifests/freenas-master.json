@@ -5,7 +5,10 @@
         "branch":"trueos-master",
         "make.conf":[
           "MAKE_JOBS_NUMBER_LIMIT=3",
-          "PYTHON_DEFAULT=3.6"
+          "PYTHON_DEFAULT=3.6",
+	  "editors_jed_UNSET=X11",
+	  "devel_gdb_SET=PYTHON",
+	  "emulators_virtualbox-ose-kmod_SET=VIMAGE"
         ]
   },
   "poudriere-conf":[
