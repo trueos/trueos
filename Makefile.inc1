@@ -1891,7 +1891,10 @@ sign-packages:	_pkgbootstrap .PHONY
 		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest ; \
 	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI); \
 	ln -s ${PKG_VERSION} latest
-	@env -i TRUEOS_MANIFEST=${TRUEOS_MANIFEST} make -C ${SRCDIR}/release poudriere
+	@env -i POUDRIERE_PORTS=${POUDRIERE_PORTS} \
+		POUDRIERE_BASE=${POUDRIERE_BASE} \
+		TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
+		make -C ${SRCDIR}/release poudriere
 	@${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
 		-o ${OBJROOT}pkgset \
 		${OBJROOT}pkgset \
