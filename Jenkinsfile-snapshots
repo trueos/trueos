@@ -27,6 +27,7 @@ pipeline {
 
     stage('Nullfs') {
       steps {
+        sh 'kldload filemon || true'
         sh 'mkdir -p ${SRCROOT} || true'
         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
       }
@@ -40,12 +41,12 @@ pipeline {
     }
     stage('World') {
       steps {
-        sh 'cd ${SRCROOT} && make -j32 buildworld'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) WITH_META_MODE=yes buildworld'
       }
     }
     stage('Kernel') {
       steps {
-        sh 'cd ${SRCROOT} && make -j32 buildkernel'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) WITH_META_MODE=yes buildkernel'
       }
     }
     stage('Base Packages') {
@@ -88,7 +89,6 @@ pipeline {
   }
   post {
     success {
-      sh 'rm -rf /usr/obj${SRCROOT}'
       script {
         cleanWs notFailBuild: true
       }
