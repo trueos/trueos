@@ -13,31 +13,20 @@
   ],
   "package-all":false,
   "packages":[
-	"freenas/freenas-docs",
-	"freenas/freenas-files",
-	"freenas/freenas-installer",
-	"freenas/freenas-migrate93",
-	"freenas/freenas-ui",
-	"freenas/mDNSResponder",
-	"freenas/mDNSResponder_nss",
-	"freenas/netatalk3",
-	"freenas/pipewatcher",
-	"freenas/py-bonjour",
-	"freenas/py-bsd",
-	"freenas/py-dnspython2",
-	"freenas/py-licenselib",
-	"freenas/samba48",
-	"freenas/sssd",
-	"freenas/sudo",
-	"freenas/py-middlewared",
-	"freenas/swagger-ui"
   ],
   "essential-packages":[
+	"databases/rrdtool",
+	"devel/dbus",
+	"devel/gdb",
+	"devel/ipython",
+	"dns/samba-nsupdate",
+	"editors/jed",
+	"emulators/mtools",
+	"emulators/open-vm-tools-nox11",
+	"emulators/virtualbox-ose-kmod",
 	"freenas/freenas-docs",
-	"freenas/freenas-files",
 	"freenas/freenas-installer",
 	"freenas/freenas-migrate93",
-	"freenas/freenas-ui",
 	"freenas/mDNSResponder",
 	"freenas/mDNSResponder_nss",
 	"freenas/netatalk3",
@@ -49,8 +38,30 @@
 	"freenas/samba48",
 	"freenas/sssd",
 	"freenas/sudo",
-	"freenas/py-middlewared",
-	"freenas/swagger-ui"
+	"freenas/swagger-ui",
+	"graphics/cairo",
+	"lang/python27",
+	"misc/mc",
+	"net-mgmt/collectd5",
+	"net-mgmt/net-snmp",
+	"net/netatalk3",
+	"net/nss-pam-ldapd-sasl",
+	"net/openldap24-sasl-client",
+	"net/py-pyldap",
+	"net/rsync",
+	"net/samba47",
+	"net/unison@nox11",
+	"print/harfbuzz",
+	"security/ca_root_nss",
+	"security/openssh-portable",
+	"security/openvpn",
+	"security/sssd",
+	"security/sudo",
+	"shells/bash",
+	"shells/scponly",
+	"sysutils/nut",
+	"sysutils/tmux",
+	"www/nginx"
   ],
   "iso-install-packages":[
 	"freenas/freenas-installer"
@@ -58,11 +69,18 @@
   "dist-packages":[
   ],
   "auto-install-packages":[
+ 	"databases/rrdtool",
+	"devel/dbus",
+	"devel/gdb",
+	"devel/ipython",
+	"dns/samba-nsupdate",
+	"editors/jed",
+	"emulators/mtools",
+	"emulators/open-vm-tools-nox11",
+	"emulators/virtualbox-ose-kmod",
 	"freenas/freenas-docs",
-	"freenas/freenas-files",
 	"freenas/freenas-installer",
 	"freenas/freenas-migrate93",
-	"freenas/freenas-ui",
 	"freenas/mDNSResponder",
 	"freenas/mDNSResponder_nss",
 	"freenas/netatalk3",
@@ -74,33 +92,66 @@
 	"freenas/samba48",
 	"freenas/sssd",
 	"freenas/sudo",
-	"freenas/py-middlewared",
-	"freenas/swagger-ui"
+	"freenas/swagger-ui",
+	"graphics/cairo",
+	"lang/python27",
+	"misc/mc",
+	"net-mgmt/collectd5",
+	"net-mgmt/net-snmp",
+	"net/netatalk3",
+	"net/nss-pam-ldapd-sasl",
+	"net/openldap24-sasl-client",
+	"net/py-pyldap",
+	"net/rsync",
+	"net/samba47",
+	"net/unison@nox11",
+	"print/harfbuzz",
+	"security/ca_root_nss",
+	"security/openssh-portable",
+	"security/openvpn",
+	"security/sssd",
+	"security/sudo",
+	"shells/bash",
+	"shells/scponly",
+	"sysutils/nut",
+	"sysutils/tmux",
+	"www/nginx"
   ],
   "install-overlay":"",
   "install-script":"",
   "auto-install-script":"",
-  "pkg-repo": {
-	  "url":"https://pkg.trueos.org/pkg/freenas-master/ports/${ABI}/latest",
-	  "pubKey": [
-		"-----BEGIN PUBLIC KEY-----",
-		"MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx4YxSavJkE7HjopkMtgK",
-		"tk/plcnImzfx0MmdK3ijv2724+v810kbAmRI01aiooQvusfcQ5OOyNpAzxwKMTTB",
-		"6bo46YtrnYBTP5G1mNqTRxL5Sg03Kpwcb6fCZ4gYOqTNPmhV6BskhRrfGOzNazcd",
-		"cb8CeqTeL7A44vwkyufQrSNgT9+ByCGuxaEp2os+GEbELyWZMmpQD6s2gAgpXuB6",
-		"K/f7pm9ZsULjJ+ZKc31TjgMTyVA07niocjDxiD2KVEbiagirnxA7BLa66u58B1ol",
-		"tnvOD8JNkGONT2LJhWOMXowZ8fCQ6Ec6ws2SY0UJ14d4w7xnz7U9+STHRYlJnNyl",
-		"ZYNLZ7UK7zyILWhAjkmq3TUaw7o456+QIyf4hA/he9UZhwhgRGNjJCUATbEUT+PF",
-		"65ox6+rT5g/jjDlY6kxfvLCTYJG/Arlj9FCAV/vBa/0lUu1OjivxPNK694G4tVHl",
-		"/z1yApzgzbOgkOY1caPCkGgniD2N4rySm744RxVXonrKmso9nsG0tGrDTC72M39Y",
-		"xgzt2x+NCDhBxZ6EWkqXH6Xk5yOPUV8XDTjqwOnm4XvyD9jzxAiK9Bex6CxKNfph",
-		"9p42Kr3QZPVXjZofqcfhJxZ4Nv0s09K1R1yqNzMmO7Aa2uF2F6ChQ/m6Z41hdaeO",
-		"AxxsOeRYAlBFJ4oo2cFVyqkCAwEAAQ==",
-		"-----END PUBLIC KEY-----"
-	  ]
+  "iso-file-name":"FreeNAS-x64-%%GITHASH%%-%%DATE%%",
+  "base-packages": {
+          "name-prefix":"FreeNAS",
+          "depends": {
+                  "runtime": {
+                        "freenas-files": {
+                                "origin": "freenas/freenas-files",
+                                "version": ">0"
+                        },
+                        "py-middlewared": {
+                                "origin": "freenas/py-middlewared",
+                                "version": ">0"
+                        },
+                        "freenas-ui": {
+                                "origin": "freenas/freenas-ui",
+                                "version": ">0"
+                        }
+                  },
+                 "runtime-development": {
+                        "llvm60": {
+                                "origin": "devel/llvm60",
+                                "version": ">0"
+                        },
+                        "go": {
+                                "origin": "lang/go",
+                                "version": ">0"
+                        }
+                  }
+          }
   },
-  "base-pkg-repo": {
-	  "url":"https://pkg.trueos.org/pkg/freenas-master/base/${ABI}/latest",
+  "pkg-repo": {
+	  "url":"https://pkg.trueos.org/pkg/freenas-master/${ABI}/latest",
 	  "pubKey": [
 		"-----BEGIN PUBLIC KEY-----",
 		"MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx4YxSavJkE7HjopkMtgK",

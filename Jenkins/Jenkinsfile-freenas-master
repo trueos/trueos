@@ -28,6 +28,7 @@ pipeline {
 
     stage('Nullfs') {
       steps {
+        sh 'kldload filemon || true'
         sh 'mkdir -p ${SRCROOT} || true'
         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
       }
@@ -48,12 +49,12 @@ pipeline {
     }
     stage('World') {
       steps {
-        sh 'cd ${SRCROOT} && make -j32 buildworld'
+        sh 'cd ${SRCROOT} && make WITH_META_MODE=yes -j $(sysctl -n hw.ncpu) buildworld'
       }
     }
     stage('Kernel') {
       steps {
-        sh 'cd ${SRCROOT} && make -j32 buildkernel'
+        sh 'cd ${SRCROOT} && make WITH_META_MODE=yes -j $(sysctl -n hw.ncpu) buildkernel'
       }
     }
     stage('Base Packages') {
@@ -97,15 +98,13 @@ pipeline {
   }
   post {
     success {
-      sh 'cd ${SRCROOT} && make clean'
-      sh 'cd ${SRCROOT}/release && make clean'
-      sh 'rm -rf /usr/obj${SRCROOT}'
+      sh 'rm -rf /usr/obj${SRCROOT}/pkgset/FreeNAS-*'
       script {
         cleanWs notFailBuild: true
       }
     }
     always {
-      sh 'umount -f ${SRCROOT}'
+      sh 'umount -f ${SRCROOT} || true'
     }
   }
 }
