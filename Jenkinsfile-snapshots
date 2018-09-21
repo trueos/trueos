@@ -31,7 +31,7 @@ pipeline {
         sh 'mkdir -p ${SRCROOT} || true'
         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
         script {
-          if (fileExists '/usr/obj$SRCROOT/amd64.amd64/toolchain-metadata.mk.meta') {
+          if (fileExists('/usr/obj$SRCROOT/amd64.amd64/toolchain-metadata.mk.meta')) {
             echo "Enabling WITH_META_MODE"
             env.METAMODE = 'YES'
           }
