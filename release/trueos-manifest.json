@@ -3,49 +3,78 @@
 	"type":"git",
 	"url":"https://github.com/trueos/trueos-ports",
 	"branch":"trueos-master",
-	"make.conf":[
-		"devel_git_UNSET=PERL CVS P4 GITWEB"
-	]
+	"make.conf":{
+		"default": [
+			"devel_git_UNSET=PERL CVS P4 GITWEB"
+		],
+		"WITH_XTRA_PKGS":[
+			"archivers_cabextract_UNSET=docs"
+		]
+	}
   },
   "package-all":false,
-  "packages":[
-    "archivers/cabextract",
-    "devel/git",
-    "sysutils/ipmitool",
-    "sysutils/dmidecode",
-    "sysutils/tmux"
-  ],
-  "essential-packages":[
-    "devel/git",
-    "sysutils/ipmitool",
-    "sysutils/dmidecode",
-    "sysutils/tmux"
-  ],
-  "iso-file-name":"TrueOS-x64-%%GITHASH%%-%%DATE%%",
-  "iso-install-packages":[
-    "archivers/cabextract",
-    "devel/git",
-    "sysutils/ipmitool",
-    "sysutils/dmidecode",
-    "sysutils/tmux"
-  ],
-  "dist-packages":[
-    "devel/git",
-    "sysutils/ipmitool",
-    "sysutils/dmidecode",
-    "sysutils/tmux"
-  ],
-  "auto-install-packages":[
-    "devel/git",
-    "sysutils/ipmitool",
-    "sysutils/dmidecode",
-    "sysutils/tmux"
-  ],
+  "packages":{
+	"default":[
+		"devel/git",
+		"sysutils/ipmitool",
+		"sysutils/dmidecode",
+		"sysutils/tmux"
+	],
+	"WITH_XTRA_PACKAGES": [
+		"archivers/cabextract"
+	]
+  },
+  "essential-packages":{
+	"default":[
+		"devel/git",
+		"sysutils/ipmitool",
+		"sysutils/dmidecode",
+		"sysutils/tmux"
+	],
+	"WITH_XTRA_PACKAGES": [
+		"archivers/cabextract"
+	]
+  },
+  "iso-install-packages":{
+	"default": [
+		"archivers/cabextract",
+		"devel/git",
+		"sysutils/ipmitool",
+		"sysutils/dmidecode",
+		"sysutils/tmux"
+	],
+	"WITH_XTRA_PACKAGES": [
+		"archivers/cabextract"
+	]
+  },
+  "dist-packages":{
+	"default": [
+		"devel/git",
+		"sysutils/ipmitool",
+		"sysutils/dmidecode",
+		"sysutils/tmux"
+	],
+	"WITH_XTRA_PACKAGES": [
+		"archivers/cabextract"
+	]
+  },
+  "auto-install-packages":{
+	"default": [
+		"devel/git",
+		"sysutils/ipmitool",
+		"sysutils/dmidecode",
+		"sysutils/tmux"
+	],
+	"WITH_XTRA_PACKAGES": [
+		"archivers/cabextract"
+	]
+  },
   "iso-overlay":{
 	"type":"git",
 	"url":"https://github.com/trueos/iso-overlay",
 	"branch":"master"
   },
+  "iso-file-name":"TrueOS-x64-%%GITHASH%%-%%DATE%%",
   "install-script":"",
   "auto-install-script":"",
   "post-install-commands": [
