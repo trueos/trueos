@@ -16,8 +16,7 @@ extra_commands="keygen configtest"
 
 depend()
 {
-	use logger dns
-	need net
+	use logger dns net
 }
 
 sshd_keygen_alg()
