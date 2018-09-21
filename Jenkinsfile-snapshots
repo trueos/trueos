@@ -30,12 +30,6 @@ pipeline {
         sh 'kldload filemon || true'
         sh 'mkdir -p ${SRCROOT} || true'
         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
-        script {
-          if (fileExists('/usr/obj$SRCROOT/amd64.amd64/toolchain-metadata.mk.meta')) {
-            echo "Enabling WITH_META_MODE"
-            env.METAMODE = 'YES'
-          }
-        }
       }
     }
 
@@ -47,7 +41,7 @@ pipeline {
     stage('World') {
       steps {
 	script {
-          if ( '${env.METAMODE}' = "YES" ) {
+          if (fileExists('/usr/obj$SRCROOT/amd64.amd64/toolchain-metadata.mk.meta')) {
             sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) WITH_META_MODE=YES buildworld'
           } else {
             sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildworld'
@@ -58,7 +52,7 @@ pipeline {
     stage('Kernel') {
       steps {
         script {
-          if ( '${env.METAMODE}' = "YES" ) {
+          if (fileExists('/usr/obj$SRCROOT/amd64.amd64/toolchain-metadata.mk.meta')) {
             sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) WITH_META_MODE=YES buildkernel'
           } else {
             sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildkernel'
