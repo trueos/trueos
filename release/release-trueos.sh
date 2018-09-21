@@ -169,8 +169,17 @@ setup_poudriere_jail()
 		fi
 	fi
 
+	rm /etc/poudriere.d/${POUDRIERE_BASE}-make.conf
+	for c in $(jq -r '."ports"."make.conf" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+	do
+		eval "CHECK=\$$c"
+		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+
+		# We have a conditional set of packages to include, lets do it
+		jq -r '."ports"."make.conf"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >>/etc/poudriere.d/${POUDRIERE_BASE}-make.conf
+	done
+
 	# Save the list of build flags
-	jq -r '."ports"."make.conf" | join("\n")' ${TRUEOS_MANIFEST} >/etc/poudriere.d/${POUDRIERE_BASE}-make.conf
 }
 
 get_explicit_pkg_deps()
@@ -205,13 +214,10 @@ get_pkg_build_list()
 	# Check for any conditional packages to build
 	for pkgstring in packages essential-packages
 	do
-		# Get any default set of packages
-		jq -r '."'$pkgstring'"."default" | join("\n")' ${TRUEOS_MANIFEST} >> ${1} 2>/dev/null
-
-		for c in $(jq -r '."'$pkgstring'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | grep -v '^default$' | tr -s '\n' ' ')
+		for c in $(jq -r '."'$pkgstring'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 		do
 			eval "CHECK=\$$c"
-			if [ -z "$CHECK" ] ; then continue; fi
+			if [ -z "$CHECK" -a "$c" != "default"] ; then continue; fi
 
 			# We have a conditional set of packages to include, lets do it
 			jq -r '."'$pkgstring'"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >> ${1} 2>/dev/null
@@ -238,17 +244,13 @@ build_poudriere()
 			exit_err "Failed building all essential packages.."
 		fi
 	else
-		# Check if we want to do a selective build
-		if [ "$(jq -r '."packages"."default" | length' ${TRUEOS_MANIFEST})" != "0" -o -n "$(get_explicit_pkg_deps)" ] ; then
+		echo "Starting poudriere SELECTIVE build"
+		get_pkg_build_list ${OBJDIR}/trueos-mk-bulk-list
 
-			echo "Starting poudriere SELECTIVE build"
-			get_pkg_build_list ${OBJDIR}/trueos-mk-bulk-list
-
-			# Start the build
-			poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
-			if [ $? -ne 0 ] ; then
-				exit_err "Failed poudriere build"
-			fi
+		# Start the build
+		poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed poudriere build"
 		fi
 
 	fi
