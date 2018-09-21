@@ -44,16 +44,24 @@
 # use /conf/base/usr__local__etc which would make /usr/local/etc
 # a tmpfs backed FS.
 
+DEFAULT_TMPFS_SIZE=$(($(/sbin/sysctl -n hw.physmem) / 1536))
+
 copy_subdir()
 {
 	CDIR=$(basename $1)
 	TDIR=$(basename $1 | sed 's|__|/|g')
 	if [ ! -d "$TDIR" ] ; then
-		echo "ERROR: /conf/base/$TDIR was specified but /$TDIR does not exist"
+		echo "ERROR: /conf/base/$CDIR was specified but /$TDIR does not exist"
 		return 1
 	fi
 
-	mount -t tmpfs tmpfs /conf/base/$CDIR
+	# Check if we have a md_size specificed for this FS
+	unset MDSIZE
+	if [ -e "/conf/base/$CDIR/md_size" ] ; then
+		MDSIZE=$(cat /conf/base/$CDIR/md_size)
+	fi
+
+	create_md /conf/base/$CDIR $CDIR $MDSIZE
 	if [ $? -ne 0 ] ; then
 		echo "ERROR: Failed mounting tmpfs on /conf/base/$CDIR"
 		return 1
@@ -65,7 +73,7 @@ copy_subdir()
 		return 1
 	fi
 
-	mount -t tmpfs tmpfs $TDIR
+	create_md $TDIR $CDIR $MDSIZE
 	if [ $? -ne 0 ] ; then
 		echo "ERROR: Failed mounting tmpfs on /$TDIR"
 		return 1
@@ -76,6 +84,28 @@ copy_subdir()
 		echo "ERROR: Failed copying /conf/base/$CDIR -> /$TDIR"
 		return 1
 	fi
+}
+
+# Create a generic memory disk.
+# The 'auto' parameter will attempt to use tmpfs(5), falls back to md(4).
+# $1 is size in 512-byte sectors, $2 is the mount point.
+mount_md() {
+    /sbin/mdmfs -s $1 auto $2
+}
+
+# Create the memory filesystem if it has not already been created
+#
+create_md() {
+	[ "x`eval echo \\$md_created_$2`" = "x" ] || return # only once
+	if [ -z "$3" ]; then
+	    md_size=${DEFAULT_TMPFS_SIZE}
+	else
+	    md_size="$3"
+	fi
+	md_size=$((${md_size} * 512))
+	mount_md $md_size /$1
+	/bin/chmod 755 /$1
+	eval md_created_$2=created
 }
 
 # Do we have anything to do?
