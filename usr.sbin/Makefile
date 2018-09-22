@@ -62,8 +62,6 @@ SUBDIR=	adduser \
 	nologin \
 	pciconf \
 	periodic \
-	pkg \
-	pkg-static \
 	pkg_sanity \
 	pmcannotate \
 	pmccontrol \
