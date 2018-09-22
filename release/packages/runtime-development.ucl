@@ -30,4 +30,8 @@ deps: {
         origin: "base",
         version: "%VERSION%"
     }
+    "poudriere": {
+	origin: "ports-mgmt/poudriere"
+	version: ">0"
+    }
 }
