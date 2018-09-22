@@ -134,6 +134,32 @@ setup_poudriere_jail()
 		exit_err "Failed creating poudriere jail"
 	fi
 
+	# We need to boot-strap loading llvm60 into the jail so we can compile
+	ZPOOL=$(mount | grep 'on / ' | cut -d '/' -f 1)
+	zfs delete ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed deleting @clean snapshot on: ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean"
+	fi
+
+	# Copy llvm60 to the jail dir
+	mkdir -p ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/ 2>/dev/null
+	cp -a /usr/local/llvm60 ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed copying /usr/local/llvm60 -> ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/"
+	fi
+
+	# Setup the sym-links inside the jail
+	chroot ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE} clang-bootstrap llvm60
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed clang-bootstrap in -> ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}"
+	fi
+
+	# Re-snap the jail dir
+	zfs snapshow ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed creating @clean snapshot on: ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean"
+	fi
+
 	# Create the new ports tree
 	echo "Setting up poudriere ports"
 	if [ "$PORTS_TYPE" = "git" ] ; then
