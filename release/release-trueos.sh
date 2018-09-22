@@ -169,8 +169,17 @@ setup_poudriere_jail()
 		fi
 	fi
 
+	rm /etc/poudriere.d/${POUDRIERE_BASE}-make.conf
+	for c in $(jq -r '."ports"."make.conf" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+	do
+		eval "CHECK=\$$c"
+		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+
+		# We have a conditional set of packages to include, lets do it
+		jq -r '."ports"."make.conf"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >>/etc/poudriere.d/${POUDRIERE_BASE}-make.conf
+	done
+
 	# Save the list of build flags
-	jq -r '."ports"."make.conf" | join("\n")' ${TRUEOS_MANIFEST} >/etc/poudriere.d/${POUDRIERE_BASE}-make.conf
 }
 
 get_explicit_pkg_deps()
@@ -200,6 +209,29 @@ get_explicit_pkg_deps()
 	fi
 }
 
+get_pkg_build_list()
+{
+	# Check for any conditional packages to build
+	for pkgstring in packages essential-packages
+	do
+		for c in $(jq -r '."'$pkgstring'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+		do
+			eval "CHECK=\$$c"
+			if [ -z "$CHECK" -a "$c" != "default"] ; then continue; fi
+
+			# We have a conditional set of packages to include, lets do it
+			jq -r '."'$pkgstring'"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >> ${1} 2>/dev/null
+		done
+	done
+
+	# Get the explicity packages
+	get_explicit_pkg_deps | tr -s ' ' '\n' >> ${1}
+
+	# Sort and remove dups
+	cat ${OBJDIR}/trueos-mk-bulk-list | sort -r | uniq > ${1}.new
+	mv ${OBJDIR}/${1}.new ${1}
+}
+
 build_poudriere()
 {
 	# Check if we want to do a bulk build of everything
@@ -212,23 +244,13 @@ build_poudriere()
 			exit_err "Failed building all essential packages.."
 		fi
 	else
-		# Check if we want to do a selective build
-		if [ "$(jq -r '."packages" | length' ${TRUEOS_MANIFEST})" != "0" -o -n "$(get_explicit_pkg_deps)" ] ; then
+		echo "Starting poudriere SELECTIVE build"
+		get_pkg_build_list ${OBJDIR}/trueos-mk-bulk-list
 
-			echo "Starting poudriere SELECTIVE build"
-
-			# Build our list of selective build packages
-			jq -r '."packages" | join("\n")' ${TRUEOS_MANIFEST} > ${OBJDIR}/trueos-mk-bulk-list
-			jq -r '."essential-packages" | join("\n")' ${TRUEOS_MANIFEST} >> ${OBJDIR}/trueos-mk-bulk-list
-			get_explicit_pkg_deps | tr -s ' ' '\n' >> ${OBJDIR}/trueos-mk-bulk-list
-			cat ${OBJDIR}/trueos-mk-bulk-list | sort -r | uniq > ${OBJDIR}/trueos-mk-bulk-list.new
-			mv ${OBJDIR}/trueos-mk-bulk-list.new ${OBJDIR}/trueos-mk-bulk-list
-
-			# Start the build
-			poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
-			if [ $? -ne 0 ] ; then
-				exit_err "Failed poudriere build"
-			fi
+		# Start the build
+		poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed poudriere build"
 		fi
 
 	fi
@@ -295,15 +317,36 @@ super_clean_poudriere()
 
 check_essential_pkgs()
 {
-	if [ "$(jq -r '."essential-packages"' ${TRUEOS_MANIFEST})" = "null" -a -z "$(get_explicit_pkg_deps)" ] ; then
+	echo "Checking essential-packages..."
+	local haveWarn=0
+
+	ESSENTIAL=""
+
+	# Check for any conditional packages to build
+	for ptype in essential-packages auto-install-packages iso-install-packages dist-packages
+	do
+		for c in $(jq -r '."'$ptype'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+		do
+			eval "CHECK=\$$c"
+			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+
+			# We have a conditional set of packages to include, lets do it
+			ESSENTIAL="$ESSENTIAL $(jq -r '."'$ptype'"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})"
+		done
+	done
+
+	# Get the explicit depends from base system
+	ESSENTIAL="$ESSENTIAL $(get_explicit_pkg_deps)"
+
+	# Cleanup whitespace
+	ESSENTIAL=$(echo $ESSENTIAL | awk '{$1=$1;print}')
+
+	if [ -z "$ESSENTIAL" ] ; then
 		echo "No essential-packages defined. Skipping..."
 		return 0
 	fi
 
-	echo "Checking essential-packages..."
-	local haveWarn=0
-
-	for i in $(jq -r '."essential-packages" | join(" ")' ${TRUEOS_MANIFEST}) $(get_explicit_pkg_deps)
+	for i in $ESSENTIAL
 	do
 
 		if [ ! -d "${POUDRIERE_PORTDIR}/${i}" ] ; then
@@ -399,8 +442,11 @@ EOF
 	fi
 
 	# Check if we have dist-packages to include on the ISO
-	if [ "$(jq -r '."dist-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] || [ "$(jq -r '."auto-install-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
-		for i in $(jq -r '."dist-packages" | join(" ")' ${TRUEOS_MANIFEST}) $(jq -r '."auto-install-packages" | join(" ")' ${TRUEOS_MANIFEST})
+	for c in $(jq -r '."dist-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+	do
+		eval "CHECK=\$$c"
+		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+		for i in $(jq -r '."dist-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 		do
 			pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
 				-R ${OBJDIR}/repo-config \
@@ -409,17 +455,34 @@ EOF
 					exit_err "Failed copying dist-package $i to ISO..."
 				fi
 		done
-	fi
+	done
+
+	rm ${OBJDIR}/disc1/root/auto-dist-install 2>/dev/null
+	# Check if we have auto-install-packages to include on the ISO
+	for c in $(jq -r '."auto-install-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+	do
+		eval "CHECK=\$$c"
+		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+		for i in $(jq -r '."dist-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
+		do
+			pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
+				-R ${OBJDIR}/repo-config \
+				fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} $i
+				if [ $? -ne 0 ] ; then
+					exit_err "Failed copying dist-package $i to ISO..."
+				fi
+		done
+
+		echo "Saving package list to auto-install"
+		jq -r '."auto-install-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST} \
+			 >>${OBJDIR}/disc1/root/auto-dist-install
+	done
+
 
 	# Create the repo DB
 	echo "Creating installer pkg repo"
 	pkg-static repo ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
 
-	if [ "$(jq -r '."auto-install-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
-		echo "Saving package list to auto-install"
-		jq -r '."auto-install-packages" | join(" ")' ${TRUEOS_MANIFEST} \
-			 >${OBJDIR}/disc1/root/auto-dist-install
-	fi
 
 	# Check if we have any post install commands to run
 	if [ "$(jq -r '."post-install-commands" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
@@ -440,9 +503,14 @@ EOF
 	mkdir -p ${OBJDIR}/disc1/install-pkg
 	mount_nullfs ${PKG_DIR} ${OBJDIR}/disc1/install-pkg
 
-	# If there are any packages to install into the ISO, do it now
-	if [ "$(jq -r '."iso-install-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
-		for i in $(jq -r '."iso-install-packages" | join(" ")' ${TRUEOS_MANIFEST})
+	# Check for conditionals packages to install
+	for c in $(jq -r '."iso-install-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+	do
+		eval "CHECK=\$$c"
+		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+
+		# We have a conditional set of packages to include, lets do it
+		for i in $(jq -r '."iso-install-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 		do
 			pkg-static -o ABI_FILE=/bin/sh \
 				-R /etc/pkg \
@@ -452,7 +520,7 @@ EOF
 					exit_err "Failed installing package $i to ISO..."
 				fi
 		done
-	fi
+	done
 
 	# Cleanup the ISO install packages
 	umount -f ${OBJDIR}/disc1/install-pkg
