@@ -58,10 +58,6 @@ BIN1=	\
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_POUDRIERE} != "no"
-BIN1+= poudriere.conf poudriered.conf
-.endif
-
 .if ${MK_SENDMAIL} != "no"
 BIN1+=	rc.sendmail
 .endif
@@ -124,9 +120,6 @@ distribution:
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
 .if ${MK_PKGBOOTSTRAP} != "no"
 	${_+_}cd ${.CURDIR}/pkg; ${MAKE} install
-.endif
-.if ${MK_POUDRIERE} != "no"
-	${_+_}cd ${.CURDIR}/poudriere.d; ${MAKE} install
 .endif
 	if [ ! -e ${DESTDIR}/etc/init.d/functions.sh ]; then \
 		${INSTALL_SYMLINK} /libexec/rc/sh/functions.sh ${DESTDIR}/etc/init.d/functions.sh; \
