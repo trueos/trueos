@@ -298,18 +298,21 @@ disc1.iso: disc1
 	env SRCDIR=${.CURDIR}/.. \
 	OBJDIR=${.OBJDIR} \
 	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
+	TRUEOS_VERSION=${TRUEOS_VERSION} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1 ${XTRADIR}
 
 dvd1.iso: dvd pkg-stage
 	env SRCDIR=${.CURDIR}/.. \
 	OBJDIR=${.OBJDIR} \
 	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
+	TRUEOS_VERSION=${TRUEOS_VERSION} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ${.TARGET} dvd ${XTRADIR}
 
 bootonly.iso: bootonly
 	env SRCDIR=${.CURDIR}/.. \
 	OBJDIR=${.OBJDIR} \
 	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
+	TRUEOS_VERSION=${TRUEOS_VERSION} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ${.TARGET} bootonly ${XTRADIR}
 
 memstick: memstick.img
