@@ -160,7 +160,7 @@ setup_poudriere_jail()
 	fi
 
 	# Re-snap the jail dir
-	zfs snapshow ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean
+	zfs snapshot ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed creating @clean snapshot on: ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean"
 	fi
