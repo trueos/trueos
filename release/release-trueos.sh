@@ -36,7 +36,12 @@ PKG_CMD=${PKG_CMD:-pkg-static}
 
 POUDRIERE_PORTDIR="${POUDRIERE_BASEFS}/ports/${POUDRIERE_PORTS}"
 POUDRIERE_PKGDIR="${POUDRIERE_BASEFS}/data/packages/${POUDRIERE_BASE}-${POUDRIERE_PORTS}"
-POUDRIERED_DIR=/usr/local/etc/poudriere.d
+if [ -e /usr/bin/poudriere ] ; then
+	# To help us transition builders, remove this eventually
+	POUDRIERED_DIR=/etc/poudriere.d
+else
+	POUDRIERED_DIR=/usr/local/etc/poudriere.d
+fi
 
 exit_err()
 {
