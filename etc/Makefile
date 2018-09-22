@@ -53,7 +53,6 @@ BIN1=	\
 	group \
 	login.access \
 	rc.bsdextended \
-	rc.devd \
 	rc.firewall \
 	termcap.small
 
