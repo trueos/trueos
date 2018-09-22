@@ -141,7 +141,7 @@ setup_poudriere_jail()
 
 	# We need to boot-strap loading llvm60 into the jail so we can compile
 	ZPOOL=$(mount | grep 'on / ' | cut -d '/' -f 1)
-	zfs delete ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean
+	zfs destroy ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed deleting @clean snapshot on: ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean"
 	fi
