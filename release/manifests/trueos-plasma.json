@@ -3,65 +3,75 @@
         "type":"git",
         "url":"https://github.com/trueos/trueos-ports",
         "branch":"trueos-master",
-        "make.conf":[
-          "MAKE_JOBS_NUMBER_LIMIT=3",
-	  "OPTIONS_SET=OPTIMIZED_CFLAGS THREADS RASTER ZSH AESNI OPUS WEBP NONFREE SSE MONO GECKO PORT_LLVM WAYLAND PULSEAUDIO",
-	  "audio_dream_UNSET=PORTAUDIO",
-	  "audio_dream_UNSET=PORTAUDIO",
-	  "audio_espeak_UNSET=PORTAUDIO",
-	  "audio_harp_UNSET=OSS",
-	  "audio_openal-soft_UNSET=OSS",
-	  "comms_morse_UNSET=OSS",
-	  "deskutils_spice-gtk_UNSET=GSTREAMER",
-	  "mail_thunderbird_UNSET=JACK",
-	  "multimedia_qmmp-qt5_UNSET=OSS4 JACK",
-	  "multimedia_qt5-multimedia_UNSET=ALSA",
-	  "print_cups-base_SET=XPDF",
-	  "print_cups-base_UNSET=GHOSTSCRIPT",
-	  "www_chromium_UNSET=ALSA",
-	  "www_chromium_SET=PULSEAUDIO",
-	  "www_firefox_UNSET=JACK",
-	  "www_firefox-esr_UNSET=JACK",
-	  "www_qt5-webengine_UNSET=ALSA",
-	  "www_seamonkey_UNSET=JACK"
-        ]
+        "make.conf":{
+		"default":[
+			"MAKE_JOBS_NUMBER_LIMIT=3",
+			"OPTIONS_SET=OPTIMIZED_CFLAGS THREADS RASTER ZSH AESNI OPUS WEBP NONFREE SSE MONO GECKO PORT_LLVM WAYLAND PULSEAUDIO",
+			"audio_dream_UNSET=PORTAUDIO",
+			"audio_dream_UNSET=PORTAUDIO",
+			"audio_espeak_UNSET=PORTAUDIO",
+			"audio_harp_UNSET=OSS",
+			"audio_openal-soft_UNSET=OSS",
+			"comms_morse_UNSET=OSS",
+			"deskutils_spice-gtk_UNSET=GSTREAMER",
+			"mail_thunderbird_UNSET=JACK",
+			"multimedia_qmmp-qt5_UNSET=OSS4 JACK",
+			"multimedia_qt5-multimedia_UNSET=ALSA",
+			"print_cups-base_SET=XPDF",
+			"print_cups-base_UNSET=GHOSTSCRIPT",
+			"www_chromium_UNSET=ALSA",
+			"www_chromium_SET=PULSEAUDIO",
+			"www_firefox_UNSET=JACK",
+			"www_firefox-esr_UNSET=JACK",
+			"www_qt5-webengine_UNSET=ALSA",
+			"www_seamonkey_UNSET=JACK"
+		]
+        }
   },
   "poudriere-conf":[
 	  "NOHANG_TIME=14400"
   ],
   "package-all":true,
-  "packages":[
-  ],
-  "essential-packages":[
-	"www/firefox",
-	"mail/thunderbird",
-	"sysutils/ipmitool",
-	"sysutils/dmidecode",
-	"sysutils/pc-networkmanager",
-	"sysutils/tmux",
-	"x11/kde5",
-	"graphics/drm-next-kmod",
-	"x11/nvidia-driver",
-	"x11/sddm",
-	"x11/xorg"
-  ],
+  "packages":{
+  },
+  "essential-packages":{
+	  "default":[
+		"www/firefox",
+		"mail/thunderbird",
+		"sysutils/ipmitool",
+		"sysutils/dmidecode",
+		"sysutils/pc-networkmanager",
+		"sysutils/tmux",
+		"x11/kde5",
+		"graphics/drm-next-kmod",
+		"x11/nvidia-driver",
+		"x11/sddm",
+		"x11/xorg"
+	  ]
+  },
   "iso-file-name":"TrueOS-Plasma-Unstable-x64-%%GITHASH%%-%%DATE%%",
-  "iso-install-packages":[
-	"sysutils/tmux"
-  ],
-  "dist-packages":[
-	"graphics/drm-next-kmod",
-	"x11/nvidia-driver"
-  ],
-  "auto-install-packages":[
-        "mail/thunderbird",
-        "www/firefox",
-	"sysutils/pc-networkmanager",
-	"sysutils/tmux",
-	"x11/kde5",
-	"x11/sddm",
-	"x11/xorg"
-  ],
+  "iso-install-packages":{
+	  "default":[
+		"sysutils/tmux"
+	  ]
+  },
+  "dist-packages":{
+	  "default":[
+		"graphics/drm-next-kmod",
+		"x11/nvidia-driver"
+	  ]
+  },
+  "auto-install-packages":{
+	"default":[
+		"mail/thunderbird",
+		"www/firefox",
+		"sysutils/pc-networkmanager",
+		"sysutils/tmux",
+		"x11/kde5",
+		"x11/sddm",
+		"x11/xorg"
+	]
+  },
   "iso-overlay":{
         "type":"git",
         "url":"https://github.com/trueos/trueos-plasma-overlay",

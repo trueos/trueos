@@ -140,7 +140,7 @@ GITHASH=$(git -C ${SRCDIR} log -1 --pretty=format:%h)
 FILE_RENAME="$(jq -r '."iso-file-name"' $TRUEOS_MANIFEST)"
 if [ -n "$FILE_RENAME" -a "$FILE_RENAME" != "null" -a "$NAME" = "disc1.iso" ] ; then
   DATE="$(date +%Y%m%d)"
-  FILE_RENAME=$(echo $FILE_RENAME | sed "s|%%GITHASH%%|$GITHASH|g" | sed "s|%%DATE%%|$DATE|g")
+  FILE_RENAME=$(echo $FILE_RENAME | sed "s|%%GITHASH%%|$GITHASH|g" | sed "s|%%DATE%%|$DATE|g" | sed "s|%%TRUEOS_VERSION%%|$TRUEOS_VERSION|g")
   echo "Renaming ${NAME}.iso -> ${FILE_RENAME}.iso"
   mv ${NAME} ${FILE_RENAME}.iso
 fi
