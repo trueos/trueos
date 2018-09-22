@@ -61,7 +61,6 @@ SUBDIR=	alias \
 	ipcs \
 	join \
 	jot \
-	jq \
 	keylogin \
 	keylogout \
 	killall \
