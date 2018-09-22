@@ -74,7 +74,7 @@
 	"url":"https://github.com/trueos/iso-overlay",
 	"branch":"master"
   },
-  "iso-file-name":"TrueOS-x64-%%GITHASH%%-%%DATE%%",
+  "iso-file-name":"TrueOS-x64-%%TRUEOS_VERSION%%-%%GITHASH%%-%%DATE%%",
   "install-script":"",
   "auto-install-script":"",
   "post-install-commands": [
