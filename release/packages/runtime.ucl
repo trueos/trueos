@@ -197,6 +197,10 @@ deps: {
 	origin: "ports-mgmt/pkg"
 	version: ">0"
     }
+    "jq": {
+	origin: "textproc/jq"
+	version: ">0"
+    }
 }
 directories {
     /dev = "y";

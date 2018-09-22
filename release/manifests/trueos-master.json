@@ -54,10 +54,6 @@
           "name-prefix":"TrueOS",
           "depends": {
                   "runtime": {
-                        "jq": {
-                                "origin": "textproc/jq",
-                                "version": ">0"
-                        },
                         "uclcmd": {
                                 "origin": "devel/uclcmd",
                                 "version": ">0"
