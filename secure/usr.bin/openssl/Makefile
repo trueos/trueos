@@ -4,6 +4,8 @@
 
 .if ${MK_LIBRESSL} == "no"
 
+CONFS=	openssl.cnf
+CONFSDIR=	/etc/ssl
 PROG=	openssl
 
 LIBADD=	ssl crypto
