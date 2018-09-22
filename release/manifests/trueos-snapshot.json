@@ -45,6 +45,31 @@
   "install-overlay":"",
   "install-script":"",
   "auto-install-script":"",
+  "base-packages": {
+          "name-prefix":"TrueOS",
+          "depends": {
+                  "runtime": {
+                        "jq": {
+                                "origin": "textproc/jq",
+                                "version": ">0"
+                        },
+                        "uclcmd": {
+                                "origin": "devel/uclcmd",
+                                "version": ">0"
+                        }
+                  },
+                 "runtime-development": {
+                        "llvm60": {
+                                "origin": "devel/llvm60",
+                                "version": ">0"
+                        },
+                        "go": {
+                                "origin": "lang/go",
+                                "version": ">0"
+                        }
+                  }
+          }
+  },
   "pkg-repo": {
 	  "url":"https://pkg.trueos.org/pkg/snapshot/${ABI}/latest",
 	  "pubKey": [
