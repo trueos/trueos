@@ -125,7 +125,7 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-CLEANDIRS=	dist ftp disc1 bootonly dvd repo-config
+CLEANDIRS=	dist ftp disc1 bootonly dvd repo-config iso-overlay
 .if !defined(NODOC)
 CLEANDIRS+=    reldoc rdoc
 .endif
@@ -185,7 +185,9 @@ reldoc:
 	cp ${.OBJDIR}/rdoc/docbook.css \
 		reldoc/
 
-disc1: packagesystem
+iso: disc1 disc1.iso
+
+disc1:
 # Install system
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
@@ -198,15 +200,15 @@ disc1: packagesystem
 # Copy base packages
 	mkdir -p ${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)
 	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
-		OBJDIR=${.OBJDIR} PKG_DIR=$${OBJROOT}/pkgset \
+		OBJDIR=${.OBJDIR} PKG_DIR=${.OBJDIR}/../../pkgset \
 		TARGET_DIR=${.TARGET}/dist \
 		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI) \
 		sh ${WORLDDIR}/release/release-trueos.sh iso
 # Copy distfiles
-	mkdir -p ${.TARGET}/usr/freebsd-dist
-	for dist in MANIFEST $$(ls *.txz | grep -vE -- '(base|lib32)-dbg'); \
-	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
-	done
+#	mkdir -p ${.TARGET}/usr/freebsd-dist
+#	for dist in MANIFEST $$(ls *.txz | grep -vE -- '(base|lib32)-dbg'); \
+#	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
+#	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
