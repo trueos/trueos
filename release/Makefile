@@ -192,8 +192,13 @@ disc1:
 	mkdir -p ${.TARGET}
 # Copy the existing WORLDSTAGE
 	rm -rf ${.OBJDIR}/../worldstage/usr/local
+	rm -rf ${.OBJDIR}/../worldstage/usr/src
 	cp -a ${.OBJDIR}/../worldstage/ ${.OBJDIR}/${.TARGET}/
+	rm -f ${.OBJDIR}/${.TARGET}/rescue/*
+	rm -rf ${.OBJDIR}/${.TARGET}/usr/lib/debug
+	rm -rf ${.OBJDIR}/${.TARGET}/usr/tests
 	rm ${.OBJDIR}/${.TARGET}/*.ucl
+	rm ${.OBJDIR}/${.TARGET}/*.plist
 	mkdir -p ${.OBJDIR}/${.TARGET}/usr/local/
 
 #	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
