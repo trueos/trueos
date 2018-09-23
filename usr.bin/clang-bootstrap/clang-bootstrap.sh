@@ -42,11 +42,12 @@ if [ ! -d "/usr/local/$LLVM/bin" ] ; then
 fi
 
 # Make the sym-links now
-for i in cc c++ clang clang++ clang-cpp clang-tblgen ld ld.lld
+for i in cc c++ cpp clang clang++ clang-cpp clang-tblgen ld ld.lld
 do
 	case $i in
 		cc) ln -fs /usr/local/$LLVM/bin/clang /usr/bin/$i ;;
 		c++) ln -fs /usr/local/$LLVM/bin/clang++ /usr/bin/$i ;;
+		cpp) ln -fs /usr/local/$LLVM/bin/clang-cpp /usr/bin/$i ;;
 		ld) ln -fs /usr/local/$LLVM/bin/ld.lld /usr/bin/$i ;;
 		*) ln -fs /usr/local/$LLVM/bin/$i /usr/bin/$i ;;
 	esac
