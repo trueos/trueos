@@ -45,12 +45,12 @@ pipeline {
     }
     stage('World') {
       steps {
-        sh 'cd ${SRCROOT} && make -j32 buildworld'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildworld'
       }
     }
     stage('Kernel') {
       steps {
-        sh 'cd ${SRCROOT} && make -j32 buildkernel'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildkernel'
       }
     }
     stage('Base Packages') {
@@ -58,7 +58,7 @@ pipeline {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
-        sh 'cd ${SRCROOT} && make packages'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) packages'
       }
     }
     stage('Release') {
