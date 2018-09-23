@@ -72,8 +72,6 @@ pipeline {
         sh 'cd ${SRCROOT}/release && make iso'
         sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
         sh 'cp -r /usr/obj${SRCROOT}/repo/* ${WORKSPACE}/artifacts/repo/'
       }
     }
