@@ -1,20 +1,25 @@
 /*
 
-This is the Jenkins Pipeline file used to create our
-stable images
+This is the default Jenkins Pipeline file used to create our
+full weekly build images.
 
 */
 
 pipeline {
   agent { label 'TrueOS-World' }
 
+  triggers {
+    cron('01 17 * * 1')
+  }
+
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
     SRCROOT = '/usr/trueos-src'
+    POUDRIERE_BASE = 'trueos-unstable-base'
 
     // Set the MANIFEST we want to use for this build
-    TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-stable.json'
+    TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-master.json'
   }
 
   stages {
@@ -55,7 +60,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
-        sh 'cd ${SRCROOT} && make packages'
+        sh 'cd ${SRCROOT} && make packages -DDB_FROM_SRC'
       }
     }
     stage('Release') {
@@ -66,23 +71,19 @@ pipeline {
       }
       steps {
         sh 'rm -rf ${WORKSPACE}/artifacts'
-        sh 'cd ${SRCROOT}/release && make release'
+        sh 'cd ${SRCROOT}/release && make iso'
         sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
-        sh 'sha256 -q ${WORKSPACE}/artifacts/disc1.iso > ${WORKSPACE}/artifacts/disc1.iso.sha256'
-        sh 'md5 -q ${WORKSPACE}/artifacts/disc1.iso > ${WORKSPACE}/artifacts/disc1.iso.md5'
       }
     }
 
     stage('Publish') {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
-          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/stable/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/stable/'
-          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/stable/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/stable/'
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/unstable/ || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/unstable/'
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/unstable/ || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/unstable/'
         }
       }
     }
