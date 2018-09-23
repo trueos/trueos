@@ -93,7 +93,7 @@ setup_poudriere_conf()
 	fi
 
 	# Copy the systems poudriere.conf over
-	cat ${SRCDIR}/etc/poudriere.conf \
+	cat ${SRCDIR}/release/poudriere.conf \
 		| grep -v "ZPOOL=" \
 		| grep -v "FREEBSD_HOST=" \
 		| grep -v "GIT_PORTSURL=" \
