@@ -351,7 +351,7 @@ release:	real-release vm-release cloudware-release
 release-done:
 	touch release
 
-poudriere: packagesystem
+poudriere:
 .if defined(TRUEOS_MANIFEST) && !empty(TRUEOS_MANIFEST)
 	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 		DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \

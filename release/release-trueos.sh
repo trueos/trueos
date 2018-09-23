@@ -133,44 +133,52 @@ setup_poudriere_conf()
 setup_poudriere_jail()
 {
 	echo "Setting up poudriere jail"
-	# Create new jail
-	poudriere jail -c -j $POUDRIERE_BASE -m url=file://${DIST_DIR} -v ${OSRELEASE}
-	if [ $? -ne 0 ] ; then
-		exit_err "Failed creating poudriere jail"
-	fi
 
-	# We need to boot-strap loading llvm60 into the jail so we can compile
-	ZPOOL=$(mount | grep 'on / ' | cut -d '/' -f 1)
-	zfs destroy ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean
-	if [ $? -ne 0 ] ; then
-		exit_err "Failed deleting @clean snapshot on: ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean"
+	# Locate the worldstagedir
+	if [ -e "${OBJDIR}/../worldstage" ] ; then
+		JDIR="${OBJDIR}/../worldstage"
+	elif [ -e "${OBJDIR}/worldstage" ] ; then
+		JDIR="${OBJDIR}/worldstage"
+	else
+		exit_err "Unable to locate worldstage dir"
 	fi
 
 	# Copy llvm60 to the jail dir
-	mkdir -p ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/lib 2>/dev/null
-	cp -a /usr/local/llvm60 ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/
+	mkdir -p ${JDIR}/usr/local/lib 2>/dev/null
+	cp -a /usr/local/llvm60 ${JDIR}/usr/local/
 	if [ $? -ne 0 ] ; then
-		exit_err "Failed copying /usr/local/llvm60 -> ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/"
+		exit_err "Failed copying /usr/local/llvm60 -> ${JDIR}/usr/local/"
 	fi
-	cp -a /usr/local/lib/libxml* ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/lib
+
+	# Copy libxml2*
+	cp -a /usr/local/lib/libxml* ${JDIR}/usr/local/lib
 	if [ $? -ne 0 ] ; then
-		exit_err "Failed copying /usr/local/lib/libxml* -> ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/lib"
+		exit_err "Failed copying /usr/local/lib/libxml* -> ${JDIR}/usr/local/lib"
 	fi
-	cp -a /usr/local/lib/libedit* ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/lib
+
+	# Copy libedit
+	cp -a /usr/local/lib/libedit* ${JDIR}/usr/local/lib
 	if [ $? -ne 0 ] ; then
-		exit_err "Failed copying /usr/local/lib/libedit* -> ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/lib"
+		exit_err "Failed copying /usr/local/lib/libedit* -> ${JDIR}/usr/local/lib"
+	fi
+
+	# Copy over the sources
+	mkdir -p ${JDIR}/usr/src 2>/dev/null
+	cp -a ${SRCDIR}/ ${JDIR}/usr/src/
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed copying ${SRCDIR} -> ${JDIR}/usr/src"
 	fi
 
 	# Setup the sym-links inside the jail
-	chroot ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE} clang-bootstrap llvm60
+	chroot ${JDIR} clang-bootstrap llvm60
 	if [ $? -ne 0 ] ; then
-		exit_err "Failed clang-bootstrap in -> ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}"
+		exit_err "Failed clang-bootstrap in -> ${JDIR}"
 	fi
 
-	# Re-snap the jail dir
-	zfs snapshot ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean
+	# Create new jail
+	poudriere jail -c -j $POUDRIERE_BASE -m null -M ${JDIR} -v ${OSRELEASE}
 	if [ $? -ne 0 ] ; then
-		exit_err "Failed creating @clean snapshot on: ${ZPOOL}/poudriere/jails/${POUDRIERE_BASE}@clean"
+		exit_err "Failed creating poudriere jail"
 	fi
 
 	# Create the new ports tree
@@ -331,7 +339,7 @@ clean_poudriere()
 
 	# If the ABI has changed, we need to rebuild all
 	ABIVER=$(awk '/^\#define[[:blank:]]__FreeBSD_version/ {print $3}' < ${SRCDIR}/sys/sys/param.h)
-	if [ $(cat ${POUDRIERE_PKGDIR}/.FreeBSD_Version) != "$ABIVER" ] ; then
+	if [ "$(cat ${POUDRIERE_PKGDIR}/.FreeBSD_Version 2>/dev/null)" != "$ABIVER" ] ; then
 		echo "New ABI detected! Removing stale packages..."
 		rm -rf ${POUDRIERE_PKGDIR}
 	fi
@@ -340,7 +348,7 @@ clean_poudriere()
 super_clean_poudriere()
 {
 	#Look for any leftover mountpoints/directories and remove them too
-	for i in `ls ${POUDRIERED_DIR}/*-make.conf`
+	for i in `ls ${POUDRIERED_DIR}/*-make.conf 2>/dev/null`
 	do
 		name=`basename "${i}" | sed 's|-make.conf||g'`
 		if [ ! -d "${POUDRIERED_DIR}/jails/${name}" ]  && [ -d "${POUDRIERE_BASEFS}/jails/${name}" ] ; then
@@ -459,9 +467,11 @@ merge_pkg_sets()
 	fi
 }
 
-cp_iso_pkgs()
+mk_repo_config()
 {
+	rm -rf ${OBJDIR}/repo-config
 	mkdir -p ${OBJDIR}/repo-config
+
 	cat >${OBJDIR}/repo-config/repo.conf <<EOF
 base: {
   url: "file://${PKG_DIR}",
@@ -472,6 +482,11 @@ EOF
 	PKG_VERSION=$(readlink ${PKG_DIR}/../repo/${ABI_DIR}/latest)
 	mkdir -p ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
 	ln -s ${PKG_VERSION} ${TARGET_DIR}/${ABI_DIR}/latest
+}
+
+cp_iso_pkgs()
+{
+	mk_repo_config
 
 	# Figure out the BASE PREFIX for base packages
 	BASENAME=$(jq -r '."base-packages"."name-prefix"' ${TRUEOS_MANIFEST})
