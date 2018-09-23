@@ -297,11 +297,13 @@ build_poudriere()
 		echo "Starting poudriere SELECTIVE build"
 		get_pkg_build_list ${OBJDIR}/trueos-mk-bulk-list
 
-		echo "Starting POUDRIERE to build:"
+		echo "Starting poudriere to build:"
 		echo "------------------------------------"
 		cat ${OBJDIR}/trueos-mk-bulk-list
 
 		# Start the build
+		echo "Starting: poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}"
+		echo "------------------------------------"
 		poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
 		if [ $? -ne 0 ] ; then
 			exit_err "Failed poudriere build"
