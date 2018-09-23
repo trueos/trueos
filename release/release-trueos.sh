@@ -152,13 +152,13 @@ setup_poudriere_jail()
 	fi
 
 	# Copy libxml2*
-	cp -a /usr/local/lib/libxml* ${JDIR}/usr/local/lib
+	cp -a /usr/local/lib/libxml* ${JDIR}/usr/local/llvm60/lib/
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed copying /usr/local/lib/libxml* -> ${JDIR}/usr/local/lib"
 	fi
 
 	# Copy libedit
-	cp -a /usr/local/lib/libedit* ${JDIR}/usr/local/lib
+	cp -a /usr/local/lib/libedit* ${JDIR}/usr/local/llvm60/lib/
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed copying /usr/local/lib/libedit* -> ${JDIR}/usr/local/lib"
 	fi
@@ -176,8 +176,9 @@ setup_poudriere_jail()
 		exit_err "Failed clang-bootstrap in -> ${JDIR}"
 	fi
 
-	# Make sure /tmp will work for poudriere
+	# Make sure the various /tmp(s) will work for poudriere
 	chmod 777 ${JDIR}/tmp
+	chmod 777 ${JDIR}/var/tmp
 
 	# Create new jail
 	poudriere jail -c -j $POUDRIERE_BASE -m null -M ${JDIR} -v ${OSRELEASE}
@@ -337,8 +338,15 @@ clean_poudriere()
 		mkdir -p "${POUDRIERE_PKGDIR}/All"
 	fi
 
+	# Figure out the BASE PREFIX for base packages
+	BASENAME=$(jq -r '."base-packages"."name-prefix"' ${TRUEOS_MANIFEST})
+	if [ "$BASENAME" = "null" ] ; then
+		BASENAME="FreeBSD"
+	fi
+
 	# Move over previously built pkgs
 	if [ -d "${OBJDIR}/pkgset/All" ] ; then
+		rm -f ${OBJDIR}/pkgset/All/${BASENAME}-*
 		mv ${OBJDIR}/pkgset/All/* ${POUDRIERE_PKGDIR}/All
 		rm -rf ${OBJDIR}/pkgset
 	fi
