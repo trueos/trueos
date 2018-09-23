@@ -227,6 +227,7 @@ get_explicit_pkg_deps()
 		if [ $? -ne 0 ] ; then
 			continue
 		fi
+		echo "Searching UCL ${ucl} for package depends" >&2
 		pdeps=$(uclcmd get --file ${ucl} -j deps 2>/dev/null | jq -r '.[]."origin"' 2>/dev/null | grep -v '^base$' | tr -s '\n' ' ')
 		if [ -n "$pdeps" ] ; then
 			retdeps="$pdeps $retdeps"
@@ -248,19 +249,20 @@ get_pkg_build_list()
 		for c in $(jq -r '."'$pkgstring'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 		do
 			eval "CHECK=\$$c"
-			if [ -z "$CHECK" -a "$c" != "default"] ; then continue; fi
+			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 
+			echo "Getting packages in JSON $pkgstring -> $c"
 			# We have a conditional set of packages to include, lets do it
 			jq -r '."'$pkgstring'"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >> ${1} 2>/dev/null
 		done
 	done
 
-	# Get the explicity packages
+	# Get the explicit packages
 	get_explicit_pkg_deps | tr -s ' ' '\n' >> ${1}
 
 	# Sort and remove dups
-	cat ${OBJDIR}/trueos-mk-bulk-list | sort -r | uniq > ${1}.new
-	mv ${OBJDIR}/${1}.new ${1}
+	cat ${1} | sort -r | uniq > ${1}.new
+	mv ${1}.new ${1}
 }
 
 build_poudriere()
@@ -275,8 +277,13 @@ build_poudriere()
 			exit_err "Failed building all essential packages.."
 		fi
 	else
+		rm ${OBJDIR}/trueos-mk-bulk-list 2>/dev/null
 		echo "Starting poudriere SELECTIVE build"
 		get_pkg_build_list ${OBJDIR}/trueos-mk-bulk-list
+
+		echo "Starting POUDRIERE to build:"
+		echo "------------------------------------"
+		cat ${OBJDIR}/trueos-mk-bulk-list
 
 		# Start the build
 		poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
