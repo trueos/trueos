@@ -52,7 +52,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf /usr/obj${WORKSPACE}/amd64.amd64/repo'
-        sh 'make packages'
+        sh 'make -j $(sysctl -n hw.ncpu) packages'
       }
     }
     stage('Release') {

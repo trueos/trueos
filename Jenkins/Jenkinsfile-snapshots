@@ -68,7 +68,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
-        sh 'cd ${SRCROOT} && make packages'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) packages'
       }
     }
     stage('Release') {
