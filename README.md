@@ -56,7 +56,9 @@ images:
 ```
 make buildworld buildkernel
 make packages
-cd release
-make poudriere
-make release
+cd release && make release
+```
+If you want to re-use the base packages and just re-run port builds, you may do so with:
+```
+make ports
 ```
