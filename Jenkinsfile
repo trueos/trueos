@@ -12,6 +12,7 @@ pipeline {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
     SRCROOT = '/usr/trueos-src'
+    TRUEOS_VERSION = 'JenkinsCI'
   }
 
   stages {
