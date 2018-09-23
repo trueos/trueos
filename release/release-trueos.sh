@@ -347,6 +347,7 @@ clean_poudriere()
 	# Move over previously built pkgs
 	if [ -d "${OBJDIR}/pkgset/All" ] ; then
 		rm -f ${OBJDIR}/pkgset/All/${BASENAME}-*
+		mkdir -p ${POUDRIERE_PKGDIR}/All 2>/dev/null
 		mv ${OBJDIR}/pkgset/All/* ${POUDRIERE_PKGDIR}/All
 		rm -rf ${OBJDIR}/pkgset
 	fi
@@ -468,8 +469,11 @@ merge_pkg_sets()
 	RELMAJ=$(echo $OSRELEASE | cut -d '.' -f 1 | cut -d '-' -f 2)
 	ABI_DIR="FreeBSD:$RELMAJ:`uname -m`"
 
-	# Move the base packages
-	mv ${OBJROOT}repo/${ABI_DIR}/latest/* ${PDIR}/All/
+	# Copy the base packages
+	#
+	# Why a copy? So we can re-run port builds with 'make ports'
+	# and still have our pristine set here for reference
+	cp ${OBJROOT}repo/${ABI_DIR}/latest/* ${PDIR}/All/
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed staging base packages..."
 	fi
