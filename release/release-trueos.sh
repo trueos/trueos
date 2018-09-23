@@ -344,12 +344,15 @@ clean_poudriere()
 		BASENAME="FreeBSD"
 	fi
 
+
 	# Move over previously built pkgs
-	if [ -d "${OBJDIR}/pkgset/All" ] ; then
-		rm -f ${OBJDIR}/pkgset/All/${BASENAME}-*
+	PSETDIR="${OBJDIR}/../../pkgset"
+	if [ -d "$PSETDIR" ] ; then
+		echo "Re-using existing packages from: $PSETDIR"
+		rm -f ${PSETDIR}/All/${BASENAME}-*
 		mkdir -p ${POUDRIERE_PKGDIR}/All 2>/dev/null
-		mv ${OBJDIR}/pkgset/All/* ${POUDRIERE_PKGDIR}/All
-		rm -rf ${OBJDIR}/pkgset
+		mv ${PSETDIR}/All/* ${POUDRIERE_PKGDIR}/All
+		rm -rf ${PSETDIR}
 	fi
 
 	# If the ABI has changed, we need to rebuild all
