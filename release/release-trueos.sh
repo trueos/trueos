@@ -248,6 +248,20 @@ get_explicit_pkg_deps()
 		if [ $? -ne 0 ] ; then
 			continue
 		fi
+		# Check for filters to skip
+		# This is used when building list for ISO and we don't want things
+		# like development or debug package depends
+		if [ -n "$1" ] ; then
+			skip="0"
+			for i in $1
+			do
+				echo ${ucl} | grep -q "$i"
+				if [ $? -eq 0 ] ; then
+					skip=1
+				fi
+			done
+			if [ "$skip" = "1" ] ; then continue ; fi
+		fi
 		echo "Searching UCL ${ucl} for package depends" >&2
 		pdeps=$(uclcmd get --file ${ucl} -j deps 2>/dev/null | jq -r '.[]."origin"' 2>/dev/null | grep -v '^base$' | tr -s '\n' ' ')
 		if [ -n "$pdeps" ] ; then
@@ -584,6 +598,19 @@ install-repo: {
 EOF
 	mkdir -p ${OBJDIR}/disc1/install-pkg
 	mount_nullfs ${PKG_DIR} ${OBJDIR}/disc1/install-pkg
+
+	# Check for explict pkgs to install, minus development and debug
+	for e in $(get_explicit_pkg_deps "development debug")
+	do
+		pkg-static -o ABI_FILE=/bin/sh \
+			-R /etc/pkg \
+			-c ${OBJDIR}/disc1 \
+			install -y $e
+			if [ $? -ne 0 ] ; then
+				exit_err "Failed installing package $i to ISO..."
+			fi
+
+	done
 
 	# Check for conditionals packages to install
 	for c in $(jq -r '."iso-install-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')

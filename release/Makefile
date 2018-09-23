@@ -190,13 +190,19 @@ iso: disc1 disc1.iso
 disc1:
 # Install system
 	mkdir -p ${.TARGET}
-	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
-	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AMD=no MK_AT=no \
-	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
-	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
-	    MK_RESCUE=no MK_DICT=no \
-	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
-	    -DDB_FROM_SRC
+# Copy the existing WORLDSTAGE
+	rm -rf ${.OBJDIR}/../worldstage/usr/local
+	cp -a ${.OBJDIR}/../worldstage/ ${.OBJDIR}/${.TARGET}/
+	rm ${.OBJDIR}/${.TARGET}/*.ucl
+	mkdir -p ${.OBJDIR}/${.TARGET}/usr/local/
+
+#	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
+#	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AMD=no MK_AT=no \
+#	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
+#	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
+#	    MK_RESCUE=no MK_DICT=no \
+#	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
+#	    -DDB_FROM_SRC
 # Copy base packages
 	mkdir -p ${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)
 	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
