@@ -147,10 +147,18 @@ setup_poudriere_jail()
 	fi
 
 	# Copy llvm60 to the jail dir
-	mkdir -p ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/ 2>/dev/null
+	mkdir -p ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/lib 2>/dev/null
 	cp -a /usr/local/llvm60 ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed copying /usr/local/llvm60 -> ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/"
+	fi
+	cp -a /usr/local/lib/libxml* ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/lib
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed copying /usr/local/lib/libxml* -> ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/lib"
+	fi
+	cp -a /usr/local/lib/libedit* ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/lib
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed copying /usr/local/lib/libedit* -> ${POUDRIERE_BASEFS}/jails/${POUDRIERE_BASE}/usr/local/lib"
 	fi
 
 	# Setup the sym-links inside the jail
