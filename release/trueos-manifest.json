@@ -37,7 +37,6 @@
   },
   "iso-install-packages":{
 	"default": [
-		"archivers/cabextract",
 		"devel/git",
 		"sysutils/ipmitool",
 		"sysutils/dmidecode",
