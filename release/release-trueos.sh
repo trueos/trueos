@@ -144,6 +144,7 @@ setup_poudriere_jail()
 	fi
 
 	# Copy llvm60 to the jail dir
+	rm -rf ${JDIR}/usr/local
 	mkdir -p ${JDIR}/usr/local/lib 2>/dev/null
 	cp -a /usr/local/llvm60 ${JDIR}/usr/local/
 	if [ $? -ne 0 ] ; then
@@ -174,6 +175,9 @@ setup_poudriere_jail()
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed clang-bootstrap in -> ${JDIR}"
 	fi
+
+	# Make sure /tmp will work for poudriere
+	chmod 777 ${JDIR}/tmp
 
 	# Create new jail
 	poudriere jail -c -j $POUDRIERE_BASE -m null -M ${JDIR} -v ${OSRELEASE}
