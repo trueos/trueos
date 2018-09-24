@@ -78,14 +78,14 @@
 	  },
 	  {
 		"chroot":false,
-		"command":"true /root/outside-chroot"
-	  },
-	  {
-		"chroot":false,
-		"command":"rm /root/outside-chroot"
+		"command":"touch /root/outside-chroot"
 	  },
 	  {
 		"chroot":true,
+		"command":"rm /root/outside-chroot"
+	  },
+	  {
+		"chroot":false,
 		"command":"rm /root/inside-chroot"
 	  }
   ],
