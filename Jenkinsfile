@@ -40,8 +40,9 @@ pipeline {
 
     stage('Pre-Clean') {
       steps {
-        sh 'cd ${SRCROOT} && make clean'
-        sh 'cd ${SRCROOT}/release && make clean'
+        sh 'rm -rf /usr/obj${SRCROOT} || true'
+        sh 'chflags -R noschg /usr/obj${SRCROOT} || true'
+        sh 'rm -rf /usr/obj${SRCROOT} || true'
       }
     }
     stage('World') {
@@ -80,8 +81,8 @@ pipeline {
   post {
     always {
       echo "*** Cleaning up ***"
-      sh 'cd ${SRCROOT} && make clean >/dev/null 2>/dev/null || true'
-      sh 'cd ${SRCROOT}/release && make clean >/dev/null 2>/dev/null || true '
+      sh 'rm -rf /usr/obj${SRCROOT} || true'
+      sh 'chflags -R noschg /usr/obj${SRCROOT} || true'
       sh 'rm -rf /usr/obj${SRCROOT} || true'
       sh 'umount -f ${SRCROOT} || true'
       script {
