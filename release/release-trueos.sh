@@ -178,7 +178,7 @@ setup_poudriere_jail()
 
 	# Make sure the various /tmp(s) will work for poudriere
 	chmod 777 ${JDIR}/tmp
-	chmod 777 ${JDIR}/var/tmp
+	chmod -R 777 ${JDIR}/var/tmp
 
 	# Create new jail
 	poudriere jail -c -j $POUDRIERE_BASE -m null -M ${JDIR} -v ${OSRELEASE}
