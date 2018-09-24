@@ -57,6 +57,17 @@
   "install-overlay":"",
   "install-script":"",
   "auto-install-script":"",
+  "base-packages": {
+          "name-prefix":"TrueOS",
+          "depends": {
+                  "runtime": {
+                        "uclcmd": {
+                                "origin": "devel/uclcmd",
+                                "version": ">0"
+                        }
+                  }
+          }
+  },
   "pkg-repo": {
 	  "url":"https://pkg.trueos.org/pkg/snapshot/${ABI}/latest",
 	  "pubKey": [

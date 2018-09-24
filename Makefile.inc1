@@ -46,6 +46,12 @@
 # /usr/share/mk.  These include:
 #		obj depend all install clean cleandepend cleanobj
 
+MK_CLANG_BOOTSTRAP=	no
+MK_GCC_BOOTSTRAP=	no
+MK_CLANG=		no
+MK_LLD_BOOTSTRAP=	no
+MK_BINUTILS_BOOTSTRAP=	no
+
 .if !defined(TARGET) || !defined(TARGET_ARCH)
 .error "Both TARGET and TARGET_ARCH must be defined."
 .endif
@@ -1721,12 +1727,16 @@ PKGSIGNKEY?=	# empty
 .ORDER:		stage-packages create-packages
 .ORDER:		create-packages create-world-packages
 .ORDER:		create-packages create-kernel-packages
-.ORDER:		create-packages sign-packages
+.ORDER:		create-packages link-packages run-ports sign-packages
 
 _pkgbootstrap: .PHONY
 .if make(*package*) && !exists(${LOCALBASE}/sbin/pkg)
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
 .endif
+
+ports: .PHONY
+	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} run-ports
+	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} sign-packages
 
 packages: .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} real-packages
@@ -1738,7 +1748,7 @@ package-pkg: .PHONY
 		WSTAGEDIR=${WSTAGEDIR} \
 		sh ${.CURDIR}/release/scripts/make-pkg-package.sh
 
-real-packages:	stage-packages create-packages sign-packages .PHONY
+real-packages:	stage-packages create-packages link-packages run-ports sign-packages .PHONY
 
 stage-packages-world: .PHONY
 	@mkdir -p ${WSTAGEDIR}
@@ -1886,16 +1896,20 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 . endfor
 .endif
 
-sign-packages:	_pkgbootstrap .PHONY
+link-packages: _pkgbootstrap .PHONY
 	@[ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest" ] && \
 		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest ; \
 	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI); \
 	ln -s ${PKG_VERSION} latest
+
+run-ports: _pkgbootstrap .PHONY
 	@env -i POUDRIERE_PORTS=${POUDRIERE_PORTS} \
 		POUDRIERE_BASE=${POUDRIERE_BASE} \
 		TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 		TRUEOS_VERSION=${TRUEOS_VERSION} \
 		make -C ${SRCDIR}/release poudriere
+
+sign-packages:	_pkgbootstrap .PHONY
 	@${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
 		-o ${OBJROOT}pkgset \
 		${OBJROOT}pkgset \

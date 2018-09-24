@@ -34,8 +34,4 @@ LINKS=		/libexec/rc/sh/functions.sh /etc/init.d/functions.sh
 ${fg}MODE?=	${BINMODE}
 .endfor
 
-.if ${MK_POUDRIERE} != "no"
-CONFS+= poudriered
-.endif
-
 .include <bsd.prog.mk>

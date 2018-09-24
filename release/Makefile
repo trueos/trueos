@@ -125,7 +125,7 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-CLEANDIRS=	dist ftp disc1 bootonly dvd repo-config
+CLEANDIRS=	dist ftp disc1 bootonly dvd repo-config iso-overlay
 .if !defined(NODOC)
 CLEANDIRS+=    reldoc rdoc
 .endif
@@ -185,28 +185,49 @@ reldoc:
 	cp ${.OBJDIR}/rdoc/docbook.css \
 		reldoc/
 
-disc1: packagesystem
+iso: disc1 disc1.iso
+
+disc1:
 # Install system
 	mkdir -p ${.TARGET}
-	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
+# Copy the existing WORLDSTAGE
+	rm -rf ${.OBJDIR}/../worldstage/usr/local
+	rm -rf ${.OBJDIR}/../worldstage/usr/src
+	cp -a ${.OBJDIR}/../worldstage/ ${.OBJDIR}/${.TARGET}/
+	rm -f ${.OBJDIR}/${.TARGET}/rescue/*
+	rm -rf ${.OBJDIR}/${.TARGET}/usr/lib/debug
+	rm -rf ${.OBJDIR}/${.TARGET}/usr/tests
+	rm ${.OBJDIR}/${.TARGET}/*.ucl
+	rm ${.OBJDIR}/${.TARGET}/*.plist
+	mkdir -p ${.OBJDIR}/${.TARGET}/usr/local/
+
+# Need a kernel since worldstage doesn't include one
+	cd ${WORLDDIR} && ${IMAKE} installkernel \
 	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AMD=no MK_AT=no \
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
-	    -DDB_FROM_SRC
+
+#	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
+#	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AMD=no MK_AT=no \
+#	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
+#	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
+#	    MK_RESCUE=no MK_DICT=no \
+#	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
+#	    -DDB_FROM_SRC
 # Copy base packages
 	mkdir -p ${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)
 	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
-		OBJDIR=${.OBJDIR} PKG_DIR=$${OBJROOT}/pkgset \
+		OBJDIR=${.OBJDIR} PKG_DIR=${.OBJDIR}/../../pkgset \
 		TARGET_DIR=${.TARGET}/dist \
 		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI) \
 		sh ${WORLDDIR}/release/release-trueos.sh iso
 # Copy distfiles
-	mkdir -p ${.TARGET}/usr/freebsd-dist
-	for dist in MANIFEST $$(ls *.txz | grep -vE -- '(base|lib32)-dbg'); \
-	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
-	done
+#	mkdir -p ${.TARGET}/usr/freebsd-dist
+#	for dist in MANIFEST $$(ls *.txz | grep -vE -- '(base|lib32)-dbg'); \
+#	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
+#	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
@@ -351,7 +372,7 @@ release:	real-release vm-release cloudware-release
 release-done:
 	touch release
 
-poudriere: packagesystem
+poudriere:
 .if defined(TRUEOS_MANIFEST) && !empty(TRUEOS_MANIFEST)
 	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 		DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \

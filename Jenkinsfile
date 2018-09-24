@@ -12,6 +12,7 @@ pipeline {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
     SRCROOT = '/usr/trueos-src'
+    TRUEOS_VERSION = 'JenkinsCI'
   }
 
   stages {
@@ -39,18 +40,19 @@ pipeline {
 
     stage('Pre-Clean') {
       steps {
-        sh 'cd ${SRCROOT} && make clean'
-        sh 'cd ${SRCROOT}/release && make clean'
+        sh 'rm -rf /usr/obj${SRCROOT} || true'
+        sh 'chflags -R noschg /usr/obj${SRCROOT} || true'
+        sh 'rm -rf /usr/obj${SRCROOT} || true'
       }
     }
     stage('World') {
       steps {
-        sh 'cd ${SRCROOT} && make -j32 buildworld'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildworld'
       }
     }
     stage('Kernel') {
       steps {
-        sh 'cd ${SRCROOT} && make -j32 buildkernel'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildkernel'
       }
     }
     stage('Base Packages') {
@@ -58,7 +60,7 @@ pipeline {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
-        sh 'cd ${SRCROOT} && make packages'
+        sh 'cd ${SRCROOT} && make -j 4 packages'
       }
     }
     stage('Release') {
@@ -69,11 +71,9 @@ pipeline {
       }
       steps {
         sh 'rm -rf ${WORKSPACE}/artifacts'
-        sh 'cd ${SRCROOT}/release && make release'
+        sh 'cd ${SRCROOT}/release && make iso'
         sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
         sh 'cp -r /usr/obj${SRCROOT}/repo/* ${WORKSPACE}/artifacts/repo/'
       }
     }
@@ -81,8 +81,8 @@ pipeline {
   post {
     always {
       echo "*** Cleaning up ***"
-      sh 'cd ${SRCROOT} && make clean >/dev/null 2>/dev/null || true'
-      sh 'cd ${SRCROOT}/release && make clean >/dev/null 2>/dev/null || true '
+      sh 'rm -rf /usr/obj${SRCROOT} || true'
+      sh 'chflags -R noschg /usr/obj${SRCROOT} || true'
       sh 'rm -rf /usr/obj${SRCROOT} || true'
       sh 'umount -f ${SRCROOT} || true'
       script {

@@ -5,7 +5,7 @@
 	"branch":"trueos-master",
 	"make.conf":{
 		"default": [
-			"devel_git_UNSET=PERL CVS P4 GITWEB"
+			"sysutils_tmux_UNSET=DOCS EXAMPLES"
 		],
 		"WITH_XTRA_PKGS":[
 			"archivers_cabextract_UNSET=docs"
@@ -15,7 +15,6 @@
   "package-all":false,
   "packages":{
 	"default":[
-		"devel/git",
 		"sysutils/ipmitool",
 		"sysutils/dmidecode",
 		"sysutils/tmux"
@@ -26,7 +25,6 @@
   },
   "essential-packages":{
 	"default":[
-		"devel/git",
 		"sysutils/ipmitool",
 		"sysutils/dmidecode",
 		"sysutils/tmux"
@@ -37,8 +35,6 @@
   },
   "iso-install-packages":{
 	"default": [
-		"archivers/cabextract",
-		"devel/git",
 		"sysutils/ipmitool",
 		"sysutils/dmidecode",
 		"sysutils/tmux"
@@ -49,7 +45,6 @@
   },
   "dist-packages":{
 	"default": [
-		"devel/git",
 		"sysutils/ipmitool",
 		"sysutils/dmidecode",
 		"sysutils/tmux"
@@ -60,7 +55,6 @@
   },
   "auto-install-packages":{
 	"default": [
-		"devel/git",
 		"sysutils/ipmitool",
 		"sysutils/dmidecode",
 		"sysutils/tmux"
@@ -99,22 +93,8 @@
 	  "name-prefix":"TrueOS",
 	  "depends": {
 		  "runtime": {
-			"jq": {
-				"origin": "textproc/jq",
-				"version": ">0"
-			},
 			"uclcmd": {
 				"origin": "devel/uclcmd",
-				"version": ">0"
-			}
-		  },
-		 "runtime-development": {
-			"llvm60": {
-				"origin": "devel/llvm60",
-				"version": ">0"
-			},
-			"go": {
-				"origin": "lang/go",
 				"version": ">0"
 			}
 		  }

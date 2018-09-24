@@ -15,10 +15,23 @@ licenses = [ BSD2CLAUSE ]
 desc = <<EOD
 %DESC%
 EOD
+scripts: {
+        post-install = <<EOD
+        if [ -z "${PKG_ROOTDIR}" ] ; then
+                PKG_ROOTDIR=/
+        fi
+
+	# Boot-strap clang sym-links
+	chroot ${PKG_ROOTDIR} clang-bootstrap
+EOD
+}
 deps: {
     "%BASENAME%-%PKGDEPS%": {
         origin: "base",
         version: "%VERSION%"
     }
+    "poudriere": {
+	origin: "ports-mgmt/poudriere"
+	version: ">0"
+    }
 }
-

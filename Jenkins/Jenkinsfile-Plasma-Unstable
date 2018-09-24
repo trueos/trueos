@@ -52,7 +52,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf /usr/obj${WORKSPACE}/amd64.amd64/repo'
-        sh 'make packages'
+        sh 'make -j 4 packages'
       }
     }
     stage('Release') {
@@ -63,11 +63,9 @@ pipeline {
       }
       steps {
         sh 'rm -rf ${WORKSPACE}/artifacts'
-        sh 'cd release && make release'
+        sh 'cd release && make iso'
         sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
         sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
       }
     }
 

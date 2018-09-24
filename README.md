@@ -6,7 +6,7 @@ TrueOS Source:
 This is the top level TrueOS source directory. It is more or less a fork
 of [FreeBSD](https://github.com/freebsd/freebsd).
 
-The last sync of freebsd was [r338535](https://svnweb.freebsd.org/base?view=revision&revision=338535) on Sept 8th 2018, in the commit [e5ee207835f2d9ec37c31e1637a5903265503cd5](https://github.com/trueos/trueos/commit/e5ee207835f2d9ec37c31e1637a5903265503cd5).
+The last sync of freebsd was [r338887](https://svnweb.freebsd.org/base?view=revision&revision=338887) on Sept 22th 2018, in the commit [e97b59664c6c3a579544dfb371d601bc08094a68](https://github.com/trueos/trueos/commit/e97b59664c6c3a579544dfb371d601bc08094a68).
 
 TrueOS Differences:
 --------------
@@ -29,8 +29,6 @@ allowing more advanced IPv4 and IPv6 network configuration
 * [OpenRC](https://github.com/openrc/openrc/) - This replaces the legacy rc.d scripts with
 OpenRC's init.d subsystem, allowing faster boots, as well as a host of other service improvements.
 
-* [JQ](https://stedolan.github.io/jq/) - Because working with JSON files using SED and AWK isn't exactly ideal... JQ allows using JSON in shell and other utilties in the base system.
-
 * Package Base - TrueOS is installed and based on using Packages for the Base OS.
 
 * [pkg in base](https://github.com/freebsd/pkg) - To go along with using base system packages,
@@ -44,6 +42,10 @@ as scriptability.
 
 * [JSON Build Manifest](https://github.com/trueos/trueos/tree/trueos-master/release/README.md) - TrueOS supports a customizable JSON manifest for building. This allows TrueOS to run poudriere and assemble installation images for a variety of use-cases.
 
+* Single repo - Base packages and ports now share a single repository which allows base packages to depend upon ports, such as llvm60 or jq for -devel packages
+
+* Clang disabled from base - This allows us to buildworld in a fraction of the time, while using a more up to date version of clang/llvm from ports
+
 * More as they come...
 
 Build Instructions:
@@ -54,7 +56,9 @@ images:
 ```
 make buildworld buildkernel
 make packages
-cd release
-make poudriere
-make release
+cd release && make iso
+```
+If you want to re-use the base packages and just re-run port builds, you may do so with:
+```
+make ports
 ```

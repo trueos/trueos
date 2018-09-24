@@ -64,7 +64,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
-        sh 'cd ${SRCROOT} && make packages -DDB_FROM_SRC'
+        sh 'cd ${SRCROOT} && make -j 4 packages -DDB_FROM_SRC'
       }
     }
     stage('Release') {
@@ -75,13 +75,9 @@ pipeline {
       }
       steps {
         sh 'rm -rf ${WORKSPACE}/artifacts'
-        sh 'cd ${SRCROOT}/release && make release'
+        sh 'cd ${SRCROOT}/release && make iso'
         sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts'
-	sh 'sha256 -q ${WORKSPACE}/artifacts/disc1.iso > ${WORKSPACE}/artifacts/disc1.iso.sha256'
-	sh 'md5 -q ${WORKSPACE}/artifacts/disc1.iso > ${WORKSPACE}/artifacts/disc1.iso.md5'
       }
     }
 

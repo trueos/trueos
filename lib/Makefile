@@ -71,6 +71,8 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libpathconv \
 	libpcap \
 	libpjdlog \
+	libpmc \
+	libpmcstat \
 	${_libproc} \
 	libprocstat \
 	librc \
@@ -98,9 +100,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	liby \
 	libz \
 	libzstd \
-	ncurses \
-	.WAIT \
-	libpkg
+	ncurses
 
 # Inter-library dependencies.  When the makefile for a library contains LDADD
 # libraries, those libraries should be listed as build order dependencies here.
@@ -122,7 +122,6 @@ SUBDIR_DEPEND_libmagic= libz
 SUBDIR_DEPEND_libmemstat= libkvm
 SUBDIR_DEPEND_libopie= libmd
 SUBDIR_DEPEND_libpam= libcrypt libopie ${_libradius} librpcsvc libtacplus libutil ${_libypclnt} ${_libcom_err} 
-SUBDIR_DEPEND_libpkg= libarchive libfetch libucl libsbuf libcrypt libutil libucl libjail libelf libbz2 liblzma libz
 SUBDIR_DEPEND_libpjdlog= libutil
 SUBDIR_DEPEND_libprocstat= libkvm libutil
 SUBDIR_DEPEND_libradius= libmd
@@ -142,9 +141,9 @@ SUBDIR.${MK_BLACKLIST}+=libblacklist
 SUBDIR.${MK_BLUETOOTH}+=libbluetooth libsdp
 SUBDIR.${MK_BSNMP}+=	libbsnmp
 
-.if !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
-SUBDIR.${MK_CLANG}+=	clang
-.endif
+#.if !defined(COMPAT_32BIT) && !defined(COMPAT_SOFTFP)
+#SUBDIR.${MK_CLANG}+=	clang
+#.endif
 
 SUBDIR.${MK_CUSE}+= 	libcuse
 SUBDIR.${MK_CXX}+=	libdevdctl
@@ -203,9 +202,6 @@ _libdl=		libdl
 .endif
 
 SUBDIR.${MK_OPENSSL}+=	libmp
-.if (${COMPILER_TYPE} == "clang" || (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60100 && ${MACHINE_CPUARCH} != "riscv"))
-SUBDIR.${MK_PMC}+=	libpmc libpmcstat
-.endif
 SUBDIR.${MK_RADIUS_SUPPORT}+=	libradius
 SUBDIR.${MK_SENDMAIL}+=	libmilter libsm libsmdb libsmutil
 SUBDIR.${MK_TELNET}+=	libtelnet

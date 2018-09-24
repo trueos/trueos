@@ -143,6 +143,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	stage-packages \
 	create-packages-world create-packages-kernel create-packages \
 	packages installconfig real-packages sign-packages package-pkg \
+	link-packages ports run-ports \
 	print-dir test-system-compiler test-system-linker
 
 # These targets require a TARGET and TARGET_ARCH be defined.

@@ -36,7 +36,12 @@ PKG_CMD=${PKG_CMD:-pkg-static}
 
 POUDRIERE_PORTDIR="${POUDRIERE_BASEFS}/ports/${POUDRIERE_PORTS}"
 POUDRIERE_PKGDIR="${POUDRIERE_BASEFS}/data/packages/${POUDRIERE_BASE}-${POUDRIERE_PORTS}"
-POUDRIERED_DIR=/etc/poudriere.d
+if [ -e /usr/bin/poudriere ] ; then
+	# To help us transition builders, remove this eventually
+	POUDRIERED_DIR=/etc/poudriere.d
+else
+	POUDRIERED_DIR=/usr/local/etc/poudriere.d
+fi
 
 exit_err()
 {
@@ -88,7 +93,7 @@ setup_poudriere_conf()
 	fi
 
 	# Copy the systems poudriere.conf over
-	cat ${SRCDIR}/etc/poudriere.conf \
+	cat ${SRCDIR}/release/poudriere.conf \
 		| grep -v "ZPOOL=" \
 		| grep -v "FREEBSD_HOST=" \
 		| grep -v "GIT_PORTSURL=" \
@@ -128,8 +133,55 @@ setup_poudriere_conf()
 setup_poudriere_jail()
 {
 	echo "Setting up poudriere jail"
+
+	# Locate the worldstagedir
+	if [ -e "${OBJDIR}/../worldstage" ] ; then
+		JDIR="${OBJDIR}/../worldstage"
+	elif [ -e "${OBJDIR}/worldstage" ] ; then
+		JDIR="${OBJDIR}/worldstage"
+	else
+		exit_err "Unable to locate worldstage dir"
+	fi
+
+	# Copy llvm60 to the jail dir
+	rm -rf ${JDIR}/usr/local
+	mkdir -p ${JDIR}/usr/local/lib 2>/dev/null
+	cp -a /usr/local/llvm60 ${JDIR}/usr/local/
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed copying /usr/local/llvm60 -> ${JDIR}/usr/local/"
+	fi
+
+	# Copy libxml2*
+	cp -a /usr/local/lib/libxml* ${JDIR}/usr/local/llvm60/lib/
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed copying /usr/local/lib/libxml* -> ${JDIR}/usr/local/lib"
+	fi
+
+	# Copy libedit
+	cp -a /usr/local/lib/libedit* ${JDIR}/usr/local/llvm60/lib/
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed copying /usr/local/lib/libedit* -> ${JDIR}/usr/local/lib"
+	fi
+
+	# Copy over the sources
+	mkdir -p ${JDIR}/usr/src 2>/dev/null
+	cp -a ${SRCDIR}/ ${JDIR}/usr/src/
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed copying ${SRCDIR} -> ${JDIR}/usr/src"
+	fi
+
+	# Setup the sym-links inside the jail
+	chroot ${JDIR} clang-bootstrap llvm60
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed clang-bootstrap in -> ${JDIR}"
+	fi
+
+	# Make sure the various /tmp(s) will work for poudriere
+	chmod 777 ${JDIR}/tmp
+	chmod 777 ${JDIR}/var/tmp
+
 	# Create new jail
-	poudriere jail -c -j $POUDRIERE_BASE -m url=file://${DIST_DIR} -v ${OSRELEASE}
+	poudriere jail -c -j $POUDRIERE_BASE -m null -M ${JDIR} -v ${OSRELEASE}
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed creating poudriere jail"
 	fi
@@ -196,6 +248,21 @@ get_explicit_pkg_deps()
 		if [ $? -ne 0 ] ; then
 			continue
 		fi
+		# Check for filters to skip
+		# This is used when building list for ISO and we don't want things
+		# like development or debug package depends
+		if [ -n "$1" ] ; then
+			skip="0"
+			for i in $1
+			do
+				echo ${ucl} | grep -q "$i"
+				if [ $? -eq 0 ] ; then
+					skip=1
+				fi
+			done
+			if [ "$skip" = "1" ] ; then continue ; fi
+		fi
+		echo "Searching UCL ${ucl} for package depends" >&2
 		pdeps=$(uclcmd get --file ${ucl} -j deps 2>/dev/null | jq -r '.[]."origin"' 2>/dev/null | grep -v '^base$' | tr -s '\n' ' ')
 		if [ -n "$pdeps" ] ; then
 			retdeps="$pdeps $retdeps"
@@ -217,19 +284,20 @@ get_pkg_build_list()
 		for c in $(jq -r '."'$pkgstring'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 		do
 			eval "CHECK=\$$c"
-			if [ -z "$CHECK" -a "$c" != "default"] ; then continue; fi
+			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 
+			echo "Getting packages in JSON $pkgstring -> $c"
 			# We have a conditional set of packages to include, lets do it
 			jq -r '."'$pkgstring'"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >> ${1} 2>/dev/null
 		done
 	done
 
-	# Get the explicity packages
+	# Get the explicit packages
 	get_explicit_pkg_deps | tr -s ' ' '\n' >> ${1}
 
 	# Sort and remove dups
-	cat ${OBJDIR}/trueos-mk-bulk-list | sort -r | uniq > ${1}.new
-	mv ${OBJDIR}/${1}.new ${1}
+	cat ${1} | sort -r | uniq > ${1}.new
+	mv ${1}.new ${1}
 }
 
 build_poudriere()
@@ -244,10 +312,17 @@ build_poudriere()
 			exit_err "Failed building all essential packages.."
 		fi
 	else
+		rm ${OBJDIR}/trueos-mk-bulk-list 2>/dev/null
 		echo "Starting poudriere SELECTIVE build"
 		get_pkg_build_list ${OBJDIR}/trueos-mk-bulk-list
 
+		echo "Starting poudriere to build:"
+		echo "------------------------------------"
+		cat ${OBJDIR}/trueos-mk-bulk-list
+
 		# Start the build
+		echo "Starting: poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}"
+		echo "------------------------------------"
 		poudriere bulk -f ${OBJDIR}/trueos-mk-bulk-list -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
 		if [ $? -ne 0 ] ; then
 			exit_err "Failed poudriere build"
@@ -277,15 +352,26 @@ clean_poudriere()
 		mkdir -p "${POUDRIERE_PKGDIR}/All"
 	fi
 
+	# Figure out the BASE PREFIX for base packages
+	BASENAME=$(jq -r '."base-packages"."name-prefix"' ${TRUEOS_MANIFEST})
+	if [ "$BASENAME" = "null" ] ; then
+		BASENAME="FreeBSD"
+	fi
+
+
 	# Move over previously built pkgs
-	if [ -d "${OBJDIR}/pkgset/All" ] ; then
-		mv ${OBJDIR}/pkgset/All/* ${POUDRIERE_PKGDIR}/All
-		rm -rf ${OBJDIR}/pkgset
+	PSETDIR="${OBJDIR}/../../pkgset"
+	if [ -d "$PSETDIR" ] ; then
+		echo "Re-using existing packages from: $PSETDIR"
+		rm -f ${PSETDIR}/All/${BASENAME}-*
+		mkdir -p ${POUDRIERE_PKGDIR}/All 2>/dev/null
+		mv ${PSETDIR}/All/* ${POUDRIERE_PKGDIR}/All
+		rm -rf ${PSETDIR}
 	fi
 
 	# If the ABI has changed, we need to rebuild all
 	ABIVER=$(awk '/^\#define[[:blank:]]__FreeBSD_version/ {print $3}' < ${SRCDIR}/sys/sys/param.h)
-	if [ $(cat ${POUDRIERE_PKGDIR}/.FreeBSD_Version) != "$ABIVER" ] ; then
+	if [ "$(cat ${POUDRIERE_PKGDIR}/.FreeBSD_Version 2>/dev/null)" != "$ABIVER" ] ; then
 		echo "New ABI detected! Removing stale packages..."
 		rm -rf ${POUDRIERE_PKGDIR}
 	fi
@@ -294,7 +380,7 @@ clean_poudriere()
 super_clean_poudriere()
 {
 	#Look for any leftover mountpoints/directories and remove them too
-	for i in `ls ${POUDRIERED_DIR}/*-make.conf`
+	for i in `ls ${POUDRIERED_DIR}/*-make.conf 2>/dev/null`
 	do
 		name=`basename "${i}" | sed 's|-make.conf||g'`
 		if [ ! -d "${POUDRIERED_DIR}/jails/${name}" ]  && [ -d "${POUDRIERE_BASEFS}/jails/${name}" ] ; then
@@ -400,8 +486,11 @@ merge_pkg_sets()
 	RELMAJ=$(echo $OSRELEASE | cut -d '.' -f 1 | cut -d '-' -f 2)
 	ABI_DIR="FreeBSD:$RELMAJ:`uname -m`"
 
-	# Move the base packages
-	mv ${OBJROOT}repo/${ABI_DIR}/latest/* ${PDIR}/All/
+	# Copy the base packages
+	#
+	# Why a copy? So we can re-run port builds with 'make ports'
+	# and still have our pristine set here for reference
+	cp ${OBJROOT}repo/${ABI_DIR}/latest/* ${PDIR}/All/
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed staging base packages..."
 	fi
@@ -413,9 +502,11 @@ merge_pkg_sets()
 	fi
 }
 
-cp_iso_pkgs()
+mk_repo_config()
 {
+	rm -rf ${OBJDIR}/repo-config
 	mkdir -p ${OBJDIR}/repo-config
+
 	cat >${OBJDIR}/repo-config/repo.conf <<EOF
 base: {
   url: "file://${PKG_DIR}",
@@ -426,6 +517,11 @@ EOF
 	PKG_VERSION=$(readlink ${PKG_DIR}/../repo/${ABI_DIR}/latest)
 	mkdir -p ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
 	ln -s ${PKG_VERSION} ${TARGET_DIR}/${ABI_DIR}/latest
+}
+
+cp_iso_pkgs()
+{
+	mk_repo_config
 
 	# Figure out the BASE PREFIX for base packages
 	BASENAME=$(jq -r '."base-packages"."name-prefix"' ${TRUEOS_MANIFEST})
@@ -502,6 +598,19 @@ install-repo: {
 EOF
 	mkdir -p ${OBJDIR}/disc1/install-pkg
 	mount_nullfs ${PKG_DIR} ${OBJDIR}/disc1/install-pkg
+
+	# Check for explict pkgs to install, minus development and debug
+	for e in $(get_explicit_pkg_deps "development debug")
+	do
+		pkg-static -o ABI_FILE=/bin/sh \
+			-R /etc/pkg \
+			-c ${OBJDIR}/disc1 \
+			install -y $e
+			if [ $? -ne 0 ] ; then
+				exit_err "Failed installing package $i to ISO..."
+			fi
+
+	done
 
 	# Check for conditionals packages to install
 	for c in $(jq -r '."iso-install-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
