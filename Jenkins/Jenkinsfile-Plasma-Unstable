@@ -31,18 +31,19 @@ pipeline {
 
     stage('Pre-Clean') {
       steps {
-        sh 'make clean'
-        sh 'cd release && make clean'
+        sh 'rm -rf /usr/obj${WORKSPACE} || true'
+        sh 'chflags -R noschg /usr/obj${WORKSPACE} || true'
+        sh 'rm -rf /usr/obj${WORKSPACE} || true'
       }
     }
     stage('World') {
       steps {
-        sh 'make -j32 buildworld'
+        sh 'make -j $(sysctl -n hw.ncpu) buildworld'
       }
     }
     stage('Kernel') {
       steps {
-        sh 'make -j32 buildkernel'
+        sh 'make -j $(sysctl -n hw.ncpu) buildkernel'
       }
     }
     stage('Base Packages') {
@@ -82,6 +83,8 @@ pipeline {
   }
   post {
     success {
+      sh 'rm -rf /usr/obj${WORKSPACE} || true'
+      sh 'chflags -R noschg /usr/obj${WORKSPACE} || true'
       sh 'rm -rf /usr/obj${WORKSPACE} || true'
       script {
         cleanWs notFailBuild: true

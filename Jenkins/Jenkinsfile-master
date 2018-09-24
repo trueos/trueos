@@ -39,18 +39,19 @@ pipeline {
 
     stage('Pre-Clean') {
       steps {
-        sh 'cd ${SRCROOT} && make clean'
-        sh 'cd ${SRCROOT}/release && make clean'
+        sh 'rm -rf /usr/obj${SRCROOT} || true'
+        sh 'chflags -R noschg /usr/obj${SRCROOT} || true'
+        sh 'rm -rf /usr/obj${SRCROOT} || true'
       }
     }
     stage('World') {
       steps {
-        sh 'cd ${SRCROOT} && make -j32 buildworld'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildworld'
       }
     }
     stage('Kernel') {
       steps {
-        sh 'cd ${SRCROOT} && make -j32 buildkernel'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildkernel'
       }
     }
     stage('Base Packages') {
@@ -90,6 +91,8 @@ pipeline {
   }
   post {
     success {
+      sh 'rm -rf /usr/obj${SRCROOT} || true'
+      sh 'chflags -R noschg /usr/obj${SRCROOT} || true'
       sh 'rm -rf /usr/obj${SRCROOT} || true'
       script {
         cleanWs notFailBuild: true
