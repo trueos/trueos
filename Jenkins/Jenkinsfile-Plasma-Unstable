@@ -15,6 +15,7 @@ pipeline {
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
+    SRCROOT = '/usr/trueos-src'
     POUDRIERE_BASE = 'plasma-unstable-base'
 
     // Set the MANIFEST we want to use for this build
@@ -29,33 +30,43 @@ pipeline {
       }
     }
 
-    stage('Pre-Clean') {
+    stage('Nullfs') {
       steps {
-        sh 'rm -rf /usr/obj${WORKSPACE} || true'
-        sh 'chflags -R noschg /usr/obj${WORKSPACE} || true'
-        sh 'rm -rf /usr/obj${WORKSPACE} || true'
+         sh 'mkdir -p ${SRCROOT} || true'
+         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
       }
     }
+
+    stage('Pre-Clean') {
+      steps {
+        sh 'rm -rf /usr/obj${SRCROOT} || true'
+        sh 'chflags -R noschg /usr/obj${SRCROOT} || true'
+        sh 'rm -rf /usr/obj${SRCROOT} || true'
+      }
+    }
+
     stage('World') {
       steps {
         sh 'make -j $(sysctl -n hw.ncpu) buildworld'
       }
     }
+
     stage('Kernel') {
       steps {
         sh 'make -j $(sysctl -n hw.ncpu) buildkernel'
       }
     }
+
     stage('Base Packages') {
       environment {
 	   // Get our credentials from Jenkins
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
-        sh 'rm -rf /usr/obj${WORKSPACE}/amd64.amd64/repo'
         sh 'make -j 4 packages'
       }
     }
+
     stage('Release') {
       post {
         success {
@@ -66,7 +77,7 @@ pipeline {
         sh 'rm -rf ${WORKSPACE}/artifacts'
         sh 'cd release && make iso'
         sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
-        sh 'cp /usr/obj${WORKSPACE}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
+        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
       }
     }
 
@@ -74,7 +85,7 @@ pipeline {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/plasma-unstable/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${WORKSPACE}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/plasma-unstable/'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/plasma-unstable/'
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/plasma-unstable/ || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/plasma-unstable/'
         }
@@ -83,12 +94,14 @@ pipeline {
   }
   post {
     success {
-      sh 'rm -rf /usr/obj${WORKSPACE} || true'
-      sh 'chflags -R noschg /usr/obj${WORKSPACE} || true'
-      sh 'rm -rf /usr/obj${WORKSPACE} || true'
       script {
         cleanWs notFailBuild: true
       }
+    }
+    always {
+      sh 'rm -rf /usr/obj${SRCROOT} || true'
+      sh 'chflags -R noschg /usr/obj${SRCROOT} || true'
+      sh 'rm -rf /usr/obj${SRCROOT} || true'
     }
   }
 }
