@@ -41,13 +41,31 @@ if [ ! -d "/usr/local/$LLVM/bin" ] ; then
 	echo "WARNING: /usr/local/$LLVM/bin does not exist"
 fi
 
+# Figure out real binary for clang
+CLINK=$(readlink /usr/local/${LLVM}/bin/clang)
+
 # Make the sym-links now
 for i in cc c++ cpp clang clang++ clang-cpp clang-tblgen ld ld.lld
 do
 	case $i in
-		cc) ln -fs /usr/local/$LLVM/bin/clang /usr/bin/$i ;;
-		c++) ln -fs /usr/local/$LLVM/bin/clang++ /usr/bin/$i ;;
-		cpp) ln -fs /usr/local/$LLVM/bin/clang-cpp /usr/bin/$i ;;
+                cc)
+			if [ ! -e "/usr/local/$LLVM/bin/cc" ] ; then
+				ln /usr/local/${LLVM}/bin/$CLINK /usr/local/$LLVM/bin/cc
+			fi
+			ln -fs /usr/local/$LLVM/bin/$i /usr/bin/$i
+			;;
+               c++)
+			if [ ! -e "/usr/local/$LLVM/bin/c++" ] ; then
+				ln /usr/local/${LLVM}/bin/$CLINK /usr/local/$LLVM/bin/c++
+			fi
+		        ln -fs /usr/local/$LLVM/bin/$i /usr/bin/$i
+			;;
+               cpp)
+			if [ ! -e "/usr/local/$LLVM/bin/cpp" ] ; then
+				ln /usr/local/${LLVM}/bin/$CLINK /usr/local/$LLVM/bin/cpp
+			fi
+		        ln -fs /usr/local/$LLVM/bin/$i /usr/bin/$i
+			;;
 		ld) ln -fs /usr/local/$LLVM/bin/ld.lld /usr/bin/$i ;;
 		*) ln -fs /usr/local/$LLVM/bin/$i /usr/bin/$i ;;
 	esac

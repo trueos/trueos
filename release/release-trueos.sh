@@ -151,12 +151,6 @@ setup_poudriere_jail()
 		exit_err "Failed copying /usr/local/llvm60 -> ${JDIR}/usr/local/"
 	fi
 
-#	mkdir -p ${JDIR}/usr/local/libdata/ldconfig/ 2>/dev/null
-#	cp /usr/local/libdata/ldconfig/llvm60 ${JDIR}/usr/local/libdata/ldconfig/
-#	if [ $? -ne 0 ] ; then
-#		exit_err "Failed copying /usr/local/libdata/ldconfig/llvm60 -> ${JDIR}/usr/local/libdata/ldconfig/"
-#	fi
-
 	# Copy libxml2*
 	cp -a /usr/local/lib/libxml* ${JDIR}/usr/local/llvm60/lib/
 	if [ $? -ne 0 ] ; then
