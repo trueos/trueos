@@ -481,25 +481,25 @@ merge_pkg_sets()
 
 	# Prep our pkgset directory
 	rm -rf ${PDIR} 2>/dev/null
-	mkdir -p ${PDIR}/All
 
 	RELMAJ=$(echo $OSRELEASE | cut -d '.' -f 1 | cut -d '-' -f 2)
 	ABI_DIR="FreeBSD:$RELMAJ:`uname -m`"
 
-	# Copy the base packages
-	#
 	# Why a copy? So we can re-run port builds with 'make ports'
 	# and still have our pristine set here for reference
+
+	# Move the port packages
+	mv ${POUDRIERE_PKGDIR}/All ${PDIR}/All
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed staging ports packages..."
+	fi
+
+	# Copy the base packages
 	cp ${OBJROOT}repo/${ABI_DIR}/latest/* ${PDIR}/All/
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed staging base packages..."
 	fi
 
-	# Move the port packages
-	mv ${POUDRIERE_PKGDIR}/All/* ${PDIR}/All/
-	if [ $? -ne 0 ] ; then
-		exit_err "Failed staging ports packages..."
-	fi
 }
 
 mk_repo_config()
