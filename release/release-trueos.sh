@@ -361,11 +361,15 @@ clean_poudriere()
 
 	# Move over previously built pkgs
 	PSETDIR="${OBJDIR}/../../pkgset"
-	if [ -d "$PSETDIR" ] ; then
+	if [ -d "$PSETDIR/All" ] ; then
 		echo "Re-using existing packages from: $PSETDIR"
 		rm -f ${PSETDIR}/All/${BASENAME}-*
-		mkdir -p ${POUDRIERE_PKGDIR}/All 2>/dev/null
-		mv ${PSETDIR}/All/* ${POUDRIERE_PKGDIR}/All
+		rm -rf ${POUDRIERE_PKGDIR}/All 2>/dev/null
+		mv ${PSETDIR}/All ${POUDRIERE_PKGDIR}/All
+		if [ $? -ne 0 ] ; then
+			echo "Failed restoring packages from ${PSETDIR}/All"
+			exit 1
+		fi
 		rm -rf ${PSETDIR}
 	fi
 
