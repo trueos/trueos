@@ -485,6 +485,7 @@ merge_pkg_sets()
 
 	# Prep our pkgset directory
 	rm -rf ${PDIR} 2>/dev/null
+	mkdir -p ${PDIR} 2>/dev/null
 
 	RELMAJ=$(echo $OSRELEASE | cut -d '.' -f 1 | cut -d '-' -f 2)
 	ABI_DIR="FreeBSD:$RELMAJ:`uname -m`"
