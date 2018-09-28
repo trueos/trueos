@@ -19,7 +19,8 @@
 		"sysutils/ipmitool",
 		"sysutils/dmidecode",
 		"www/nginx",
-		"editors/vim-console"
+		"editors/vim-console",
+		"ports-mgmt/poudriere-devel"
 	  ]
   },
   "essential-packages":{
@@ -31,7 +32,8 @@
 		"sysutils/ipmitool",
 		"sysutils/dmidecode",
 		"www/nginx",
-		"editors/vim-console"
+		"editors/vim-console",
+		"ports-mgmt/poudriere-devel"
 	]
   },
   "iso-install-packages":{
@@ -51,7 +53,8 @@
 	"default":[
 		"sysutils/ipmitool",
 		"sysutils/dmidecode",
-		"www/nginx"
+		"www/nginx",
+		"ports-mgmt/poudriere-devel"
 	]
   },
   "install-overlay":"",
@@ -69,7 +72,7 @@
           }
   },
   "pkg-repo": {
-	  "url":"https://pkg.trueos.org/pkg/snapshot/${ABI}/latest",
+	  "url":"https://pkg.trueos.org/pkg/snapshot",
 	  "pubKey": [
 		"-----BEGIN PUBLIC KEY-----",
 		"MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx4YxSavJkE7HjopkMtgK",
