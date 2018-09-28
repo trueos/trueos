@@ -69,7 +69,7 @@
           }
   },
   "pkg-repo": {
-	  "url":"https://pkg.trueos.org/pkg/snapshot/${ABI}/latest",
+	  "url":"https://pkg.trueos.org/pkg/snapshot",
 	  "pubKey": [
 		"-----BEGIN PUBLIC KEY-----",
 		"MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx4YxSavJkE7HjopkMtgK",
