@@ -104,6 +104,19 @@
 				"version": ">0"
 			}
 		  }
+	  },
+	  "world-flags":{
+		"default": [
+			"WITH_FOO=1",
+			"WITH_BAR=2"
+		]
+
+	  },
+	  "kernel-flags":{
+		"default": [
+			"WITH_FOO=1",
+			"WITH_BAR=2"
+		]
 	  }
   },
   "pkg-repo": {

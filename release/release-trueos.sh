@@ -58,7 +58,7 @@ env_check()
 	if [ -z "$TRUEOS_MANIFEST" ] ; then
 		exit_err "Unset TRUEOS_MANIFEST"
 	fi
-	echo "Using TRUEOS_MANIFEST: $TRUEOS_MANIFEST"
+	echo "Using TRUEOS_MANIFEST: $TRUEOS_MANIFEST" >&2
 	PORTS_TYPE=$(jq -r '."ports"."type"' $TRUEOS_MANIFEST)
 	PORTS_URL=$(jq -r '."ports"."url"' $TRUEOS_MANIFEST)
 	PORTS_BRANCH=$(jq -r '."ports"."branch"' $TRUEOS_MANIFEST)
@@ -692,7 +692,7 @@ prune_iso()
 	do
 		eval "CHECK=\$$c"
 		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
-		for i in $(jq -r '."prune"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
+		for i in $(jq -r '."iso"."prune"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 		do
 			echo "Pruning from ISO: ${i}"
 			rm -rf "${OBJDIR}/disc1/${i}"
@@ -721,8 +721,6 @@ apply_iso_config()
 
 }
 
-env_check
-
 check_version()
 {
 	TMVER=$(jq -r '."version"' ${TRUEOS_MANIFEST} 2>/dev/null)
@@ -731,6 +729,40 @@ check_version()
 	fi
 }
 
+get_world_flags()
+{
+	# Check if we have any world-flags to pass back
+	for c in $(jq -r '."base-packages"."world-flags" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+	do
+		eval "CHECK=\$$c"
+		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+		for i in $(jq -r '."base-packages"."world-flags"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
+		do
+			WF="$WF ${i}"
+		done
+	done
+
+	echo "$WF"
+}
+
+get_kernel_flags()
+{
+	# Check if we have any kernel-flags to pass back
+	for c in $(jq -r '."base-packages"."kernel-flags" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+	do
+		eval "CHECK=\$$c"
+		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+		for i in $(jq -r '."base-packages"."kernel-flags"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
+		do
+			WF="$WF ${i}"
+		done
+	done
+
+	echo "$WF"
+}
+
+env_check
+
 case $1 in
 	clean) clean_jails ; exit 0 ;;
 	poudriere) run_poudriere ;;
@@ -738,6 +770,8 @@ case $1 in
 	     apply_iso_config
 	     ;;
 	check) check_version ;;
+	world_flags) get_world_flags ;;
+	kernel_flags) get_kernel_flags ;;
 	*) echo "Unknown option selected" ;;
 esac
 

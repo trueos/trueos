@@ -83,6 +83,10 @@ TM_VERCHECK!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release
 .error Invalid TRUEOS_MANIFEST version - halting!
 .endif
 
+# Set any world/kernel flags from our manifest
+WORLD_FLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh world_flags)
+KERNEL_FLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh kernel_flags)
+
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
 .if defined(CROSS_TOOLCHAIN)
