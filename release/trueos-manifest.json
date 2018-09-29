@@ -1,4 +1,5 @@
 {
+  "version":"1.0",
   "ports":{
 	"type":"git",
 	"url":"https://github.com/trueos/trueos-ports",
@@ -10,85 +11,90 @@
 		"WITH_XTRA_PKGS":[
 			"archivers_cabextract_UNSET=docs"
 		]
+	},
+	"build-all":false,
+	"build":{
+		"default":[
+			"sysutils/ipmitool",
+			"sysutils/dmidecode",
+			"sysutils/tmux"
+		],
+		"WITH_TRUEOS_TEST": [
+			"archivers/cabextract"
+		]
+	},
+	"essential":{
+		"default":[ ]
 	}
   },
-  "package-all":false,
-  "packages":{
-	"default":[
-		"sysutils/ipmitool",
-		"sysutils/dmidecode",
-		"sysutils/tmux"
-	],
-	"WITH_XTRA_PACKAGES": [
-		"archivers/cabextract"
+ "iso":{
+	"file-name":"TrueOS-x64-%%TRUEOS_VERSION%%-%%GITHASH%%-%%DATE%%",
+	"overlay":{
+		"type":"git",
+		"url":"https://github.com/trueos/iso-overlay",
+		"branch":"master"
+	},
+	"prune":{
+		"default": [
+			"/usr/local/share/examples",
+			"/usr/local/include"
+		],
+		"WITH_TRUEOS_TEST": [
+			"/usr/share/examples",
+			"/usr/include"
+		]
+	},
+	"iso-packages":{
+		"default": [
+			"sysutils/ipmitool",
+			"sysutils/dmidecode",
+			"sysutils/tmux"
+		],
+		"WITH_TRUEOS_TEST": [
+			"archivers/cabextract"
+		]
+	},
+	"dist-packages":{
+		"default": [
+			"sysutils/ipmitool",
+			"sysutils/dmidecode",
+			"sysutils/tmux"
+		],
+		"WITH_TRUEOS_TEST": [
+			"archivers/cabextract"
+		]
+	},
+	"auto-install-packages":{
+		"default": [
+			"sysutils/ipmitool",
+			"sysutils/dmidecode",
+			"sysutils/tmux"
+		],
+		"WITH_TRUEOS_TEST": [
+			"archivers/cabextract"
+		]
+	},
+	"install-script":"",
+	"auto-install-script":"",
+	"post-install-commands": [
+		{
+			"chroot":true,
+			"command":"touch /root/inside-chroot"
+		},
+		{
+			"chroot":false,
+			"command":"touch /root/outside-chroot"
+		},
+		{
+			"chroot":true,
+			"command":"rm /root/outside-chroot"
+		},
+		{
+			"chroot":false,
+			"command":"rm /root/inside-chroot"
+		}
 	]
-  },
-  "essential-packages":{
-	"default":[
-		"sysutils/ipmitool",
-		"sysutils/dmidecode",
-		"sysutils/tmux"
-	],
-	"WITH_XTRA_PACKAGES": [
-		"archivers/cabextract"
-	]
-  },
-  "iso-install-packages":{
-	"default": [
-		"sysutils/ipmitool",
-		"sysutils/dmidecode",
-		"sysutils/tmux"
-	],
-	"WITH_XTRA_PACKAGES": [
-		"archivers/cabextract"
-	]
-  },
-  "dist-packages":{
-	"default": [
-		"sysutils/ipmitool",
-		"sysutils/dmidecode",
-		"sysutils/tmux"
-	],
-	"WITH_XTRA_PACKAGES": [
-		"archivers/cabextract"
-	]
-  },
-  "auto-install-packages":{
-	"default": [
-		"sysutils/ipmitool",
-		"sysutils/dmidecode",
-		"sysutils/tmux"
-	],
-	"WITH_XTRA_PACKAGES": [
-		"archivers/cabextract"
-	]
-  },
-  "iso-overlay":{
-	"type":"git",
-	"url":"https://github.com/trueos/iso-overlay",
-	"branch":"master"
-  },
-  "iso-file-name":"TrueOS-x64-%%TRUEOS_VERSION%%-%%GITHASH%%-%%DATE%%",
-  "install-script":"",
-  "auto-install-script":"",
-  "post-install-commands": [
-	  {
-		"chroot":true,
-		"command":"touch /root/inside-chroot"
-	  },
-	  {
-		"chroot":false,
-		"command":"touch /root/outside-chroot"
-	  },
-	  {
-		"chroot":true,
-		"command":"rm /root/outside-chroot"
-	  },
-	  {
-		"chroot":false,
-		"command":"rm /root/inside-chroot"
-	  }
-  ],
+ },
   "base-packages": {
 	  "name-prefix":"TrueOS",
 	  "depends": {

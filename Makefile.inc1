@@ -77,6 +77,12 @@ TRUEOS_MANIFEST=	${SRCDIR}/release/trueos-manifest.json
 PKG_BASENAME!=		jq -r '."base-packages"."name-prefix"' \
 				${TRUEOS_MANIFEST}
 
+# Validate the version of this manifest
+TM_VERCHECK!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh check >/dev/null 2>/dev/null; echo $$?)
+.if ${TM_VERCHECK} != "0"
+.error Invalid TRUEOS_MANIFEST version - halting!
+.endif
+
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
 .if defined(CROSS_TOOLCHAIN)

@@ -25,13 +25,13 @@
 
 parse_overlay()
 {
-	OVERLAY="$(jq -r '."iso-overlay"' $TRUEOS_MANIFEST)"
+	OVERLAY="$(jq -r '."iso"."overlay"' $TRUEOS_MANIFEST)"
 	if [ "$OVERLAY" = "null" ] ; then
 		return
 	fi
-	OVERLAY_TYPE="$(jq -r '."iso-overlay"."type"' $TRUEOS_MANIFEST)"
-	OVERLAY_URL="$(jq -r '."iso-overlay"."url"' $TRUEOS_MANIFEST)"
-	OVERLAY_BRANCH="$(jq -r '."iso-overlay"."branch"' $TRUEOS_MANIFEST)"
+	OVERLAY_TYPE="$(jq -r '."iso"."overlay"."type"' $TRUEOS_MANIFEST)"
+	OVERLAY_URL="$(jq -r '."iso"."overlay"."url"' $TRUEOS_MANIFEST)"
+	OVERLAY_BRANCH="$(jq -r '."iso"."overlay"."branch"' $TRUEOS_MANIFEST)"
 	export OVERLAY_DIR="${OBJDIR}/iso-overlay"
 
 	if [ -d "${OVERLAY_DIR}" ] ; then
@@ -47,6 +47,12 @@ parse_overlay()
 		fetch -o ${OBJDIR}/iso-overlay.tar ${OVERLAY_URL}
 		if [ $? -ne 0 ] ; then exit 1; fi
 		tar xvpf ${OBJDIR}/iso-overlay.tar -C ${OVERLAY_DIR}
+		if [ $? -ne 0 ] ; then exit 1; fi
+	elif [ "$OVERLAY_TYPE" = "svn" ] ; then
+		if [ -n "$OVERLAY_BRANCH" ] ; then
+			SVNREV="@${OVERLAY_BRANCH}"
+		fi
+		svn checkout ${OVERLAY_URL}${SVNREV} ${OVERLAY_DIR}
 		if [ $? -ne 0 ] ; then exit 1; fi
 	elif [ "$OVERLAY_TYPE" = "local" ] ; then
 		export OVERLAY_DIR="${OVERLAY_URL}"
@@ -137,7 +143,7 @@ if [ "$bootable" != "" ]; then
 fi
 
 GITHASH=$(git -C ${SRCDIR} log -1 --pretty=format:%h)
-FILE_RENAME="$(jq -r '."iso-file-name"' $TRUEOS_MANIFEST)"
+FILE_RENAME="$(jq -r '."iso."."file-name"' $TRUEOS_MANIFEST)"
 if [ -n "$FILE_RENAME" -a "$FILE_RENAME" != "null" -a "$NAME" = "disc1.iso" ] ; then
   DATE="$(date +%Y%m%d)"
   FILE_RENAME=$(echo $FILE_RENAME | sed "s|%%GITHASH%%|$GITHASH|g" | sed "s|%%DATE%%|$DATE|g" | sed "s|%%TRUEOS_VERSION%%|$TRUEOS_VERSION|g")

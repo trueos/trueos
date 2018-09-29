@@ -67,6 +67,7 @@ env_check()
 		git) if [ -z "$PORTS_BRANCH" ] ; then
 			exit_err "Empty ports.branch!"
 		     fi ;;
+		svn) ;;
               local) ;;
 		tar) ;;
 		*) exit_err "Unknown or unspecified ports.type!" ;;
@@ -105,9 +106,6 @@ setup_poudriere_conf()
 	echo "Using Dist Directory: $DIST_DIR"
 	echo "FREEBSD_HOST=file://${DIST_DIR}" >> ${_pdconf}
 	echo "Using Ports Tree: $PORTS_URL"
-	if [ "$PORTS_TYPE" = "git" ] ; then
-		echo "GIT_URL=${PORTS_URL}" >> ${_pdconf}
-	fi
 	echo "USE_TMPFS=data" >> ${_pdconf}
 	echo "BASEFS=$POUDRIERE_BASEFS" >> ${_pdconf}
 	echo "ATOMIC_PACKAGE_REPOSITORY=no" >> ${_pdconf}
@@ -189,15 +187,20 @@ setup_poudriere_jail()
 	# Create the new ports tree
 	echo "Setting up poudriere ports"
 	if [ "$PORTS_TYPE" = "git" ] ; then
-		poudriere ports -c -p $POUDRIERE_PORTS -m git -B $PORTS_BRANCH
+		poudriere ports -c -p $POUDRIERE_PORTS -m git -U "${PORTS_URL}" -B $PORTS_BRANCH
 		if [ $? -ne 0 ] ; then
-			exit_err "Failed creating poudriere ports"
+			exit_err "Failed creating poudriere ports - GIT"
+		fi
+	elif [ "$PORTS_TYPE" = "svn" ] ; then
+		poudriere ports -c -p $POUDRIERE_PORTS -m svn -U "${PORTS_URL}" -B $PORTS_BRANCH
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed creating poudriere ports - SVN"
 		fi
 	elif [ "$PORTS_TYPE" = "tar" ] ; then
 		echo "Fetching ports tarball"
 		fetch -o ${OBJDIR}/ports.tar ${PORTS_URL}
 		if [ $? -ne 0 ] ; then
-			exit_err "Failed fetching poudriere ports"
+			exit_err "Failed fetching poudriere ports - TARBALL"
 		fi
 
 		rm -rf ${OBJDIR}/ports-tree
@@ -217,7 +220,7 @@ setup_poudriere_jail()
 		# Doing a nullfs mount of existing directory
 		poudriere ports -c -p $POUDRIERE_PORTS -m null -M ${PORTS_URL}
 		if [ $? -ne 0 ] ; then
-			exit_err "Failed creating poudriere ports"
+			exit_err "Failed creating poudriere ports - NULLFS"
 		fi
 	fi
 
@@ -278,10 +281,24 @@ get_explicit_pkg_deps()
 
 get_pkg_build_list()
 {
-	# Check for any conditional packages to build
-	for pkgstring in packages essential-packages
+	# Check for any conditional packages to build in ports
+	for pkgstring in build essential
 	do
-		for c in $(jq -r '."'$pkgstring'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+		for c in $(jq -r '."ports"."'$pkgstring'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+		do
+			eval "CHECK=\$$c"
+			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+
+			echo "Getting packages in JSON $pkgstring -> $c"
+			# We have a conditional set of packages to include, lets do it
+			jq -r '."'$pkgstring'"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >> ${1} 2>/dev/null
+		done
+	done
+
+	# Check for any conditional packages to build in iso
+	for pkgstring in iso-packages dist-packages auto-install-packages
+	do
+		for c in $(jq -r '."iso"."'$pkgstring'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 		do
 			eval "CHECK=\$$c"
 			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
@@ -303,7 +320,7 @@ get_pkg_build_list()
 build_poudriere()
 {
 	# Check if we want to do a bulk build of everything
-	if [ $(jq -r '."package-all"' ${TRUEOS_MANIFEST}) = "true" ] ; then
+	if [ $(jq -r '."ports"."build-all"' ${TRUEOS_MANIFEST}) = "true" ] ; then
 		# Start the build
 		echo "Starting poudriere FULL build"
 		poudriere bulk -a -j $POUDRIERE_BASE -p ${POUDRIERE_PORTS}
@@ -412,10 +429,23 @@ check_essential_pkgs()
 
 	ESSENTIAL=""
 
-	# Check for any conditional packages to build
-	for ptype in essential-packages auto-install-packages iso-install-packages dist-packages
+	# Check for any conditional packages to build in ports
+	for ptype in build essential
 	do
-		for c in $(jq -r '."'$ptype'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+		for c in $(jq -r '."ports"."'$ptype'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+		do
+			eval "CHECK=\$$c"
+			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+
+			# We have a conditional set of packages to include, lets do it
+			ESSENTIAL="$ESSENTIAL $(jq -r '."'$ptype'"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})"
+		done
+	done
+
+	# Check for any conditional packages to build in iso
+	for ptype in iso-packages dist-packages auto-install-packages
+	do
+		for c in $(jq -r '."iso"."'$ptype'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 		do
 			eval "CHECK=\$$c"
 			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
@@ -543,11 +573,11 @@ cp_iso_pkgs()
 	fi
 
 	# Check if we have dist-packages to include on the ISO
-	for c in $(jq -r '."dist-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+	for c in $(jq -r '."iso"."dist-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 	do
 		eval "CHECK=\$$c"
 		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
-		for i in $(jq -r '."dist-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
+		for i in $(jq -r '."iso"."dist-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 		do
 			pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
 				-R ${OBJDIR}/repo-config \
@@ -560,11 +590,11 @@ cp_iso_pkgs()
 
 	rm ${OBJDIR}/disc1/root/auto-dist-install 2>/dev/null
 	# Check if we have auto-install-packages to include on the ISO
-	for c in $(jq -r '."auto-install-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+	for c in $(jq -r '."iso"."auto-install-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 	do
 		eval "CHECK=\$$c"
 		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
-		for i in $(jq -r '."dist-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
+		for i in $(jq -r '."iso"."auto-install-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 		do
 			pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
 				-R ${OBJDIR}/repo-config \
@@ -575,7 +605,7 @@ cp_iso_pkgs()
 		done
 
 		echo "Saving package list to auto-install"
-		jq -r '."auto-install-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST} \
+		jq -r '."iso"."auto-install-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST} \
 			 >>${OBJDIR}/disc1/root/auto-dist-install
 	done
 
@@ -586,9 +616,9 @@ cp_iso_pkgs()
 
 
 	# Check if we have any post install commands to run
-	if [ "$(jq -r '."post-install-commands" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
+	if [ "$(jq -r '."iso"."post-install-commands" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
 		echo "Saving post-install commands"
-		jq -r '."post-install-commands"' ${TRUEOS_MANIFEST} \
+		jq -r '."iso"."post-install-commands"' ${TRUEOS_MANIFEST} \
 			 >${OBJDIR}/disc1/root/post-install-commands.json
 	fi
 
@@ -618,13 +648,13 @@ EOF
 	done
 
 	# Check for conditionals packages to install
-	for c in $(jq -r '."iso-install-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+	for c in $(jq -r '."iso"."iso-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 	do
 		eval "CHECK=\$$c"
 		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 
 		# We have a conditional set of packages to include, lets do it
-		for i in $(jq -r '."iso-install-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
+		for i in $(jq -r '."iso"."install-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 		do
 			pkg-static -o ABI_FILE=/bin/sh \
 				-R /etc/pkg \
@@ -650,24 +680,42 @@ install-repo: {
 }
 EOF
 
+	# Prune specified files
+	prune_iso
+
+}
+
+prune_iso()
+{
+	# Check if we have paths to prune from the ISO before build
+	for c in $(jq -r '."iso"."prune" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+	do
+		eval "CHECK=\$$c"
+		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+		for i in $(jq -r '."prune"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
+		do
+			echo "Pruning from ISO: ${i}"
+			rm -rf "${OBJDIR}/disc1/${i}"
+		done
+	done
 }
 
 apply_iso_config()
 {
 
 	# Check for a custom install script
-	_jsins=$(jq -r '."install-script"' ${TRUEOS_MANIFEST})
+	_jsins=$(jq -r '."iso"."install-script"' ${TRUEOS_MANIFEST})
 	if [ "$_jsins" != "null" -a -n "$_jsins" ] ; then
 		echo "Setting custom install script"
-		jq -r '."install-script"' ${TRUEOS_MANIFEST} \
+		jq -r '."iso"."install-script"' ${TRUEOS_MANIFEST} \
 			 >${OBJDIR}/disc1/etc/trueos-custom-install
 	fi
 
 	# Check for auto-install script
-	_jsauto=$(jq -r '."auto-install-script"' ${TRUEOS_MANIFEST})
+	_jsauto=$(jq -r '."iso"."auto-install-script"' ${TRUEOS_MANIFEST})
 	if [ "$_jsauto" != "null" -a -n "$_jsauto" ] ; then
 		echo "Setting auto install script"
-		cp $(jq -r '."auto-install-script"' ${TRUEOS_MANIFEST}) \
+		cp $(jq -r '."iso"."auto-install-script"' ${TRUEOS_MANIFEST}) \
 			 ${OBJDIR}/disc1/etc/installerconfig
 	fi
 
@@ -675,12 +723,21 @@ apply_iso_config()
 
 env_check
 
+check_version()
+{
+	TMVER=$(jq -r '."version"' ${TRUEOS_MANIFEST} 2>/dev/null)
+	if [ "$TMVER" != "1.0" ] ; then
+		exit_err "Invalid version of MANIFEST specified"
+	fi
+}
+
 case $1 in
 	clean) clean_jails ; exit 0 ;;
 	poudriere) run_poudriere ;;
 	iso) cp_iso_pkgs
 	     apply_iso_config
 	     ;;
+	check) check_version ;;
 	*) echo "Unknown option selected" ;;
 esac
 
