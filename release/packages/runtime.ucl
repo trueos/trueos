@@ -125,10 +125,6 @@ deps: {
         origin: "base"
         version: "%VERSION%"
     }
-    "%BASENAME%-libpkg": {
-        origin: "base"
-        version: "%VERSION%"
-    }
     "%BASENAME%-libfetch": {
         origin: "base"
         version: "%VERSION%"
