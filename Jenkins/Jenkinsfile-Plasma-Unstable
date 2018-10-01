@@ -47,13 +47,13 @@ pipeline {
 
     stage('World') {
       steps {
-        sh 'make -j $(sysctl -n hw.ncpu) buildworld'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildworld'
       }
     }
 
     stage('Kernel') {
       steps {
-        sh 'make -j $(sysctl -n hw.ncpu) buildkernel'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildkernel'
       }
     }
 
@@ -63,7 +63,7 @@ pipeline {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
-        sh 'make -j 4 packages'
+        sh 'cd ${SRCROOT} && make -j 4 packages'
       }
     }
 
@@ -75,7 +75,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf ${WORKSPACE}/artifacts'
-        sh 'cd release && make iso'
+        sh 'cd ${SRCROOT}/release && make iso'
         sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
       }
