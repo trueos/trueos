@@ -14,12 +14,9 @@
 		]
         },
 	"build-all":false,
-	"build":[
-	],
-	"essential":{
+	"build":{
 		"default":[ ]
 	}
-
   },
   "poudriere-conf":[
 	"NOHANG_TIME=14400"

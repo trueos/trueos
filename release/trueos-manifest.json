@@ -22,9 +22,6 @@
 		"WITH_TRUEOS_TEST": [
 			"archivers/cabextract"
 		]
-	},
-	"essential":{
-		"default":[ ]
 	}
   },
  "iso":{

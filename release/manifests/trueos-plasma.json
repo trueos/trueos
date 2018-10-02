@@ -29,8 +29,7 @@
 		]
         },
 	"build-all":true,
-	"build":{ },
-	"essential":{
+	"build":{
 		  "default":[
 			"www/firefox",
 			"mail/thunderbird",

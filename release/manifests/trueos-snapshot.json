@@ -11,9 +11,6 @@
         },
 	"build-all":false,
 	"build":{
-		  "default":[ ]
-	},
-	"essential":{
 		  "default":[
 			"devel/git",
 			"lang/python",

@@ -282,17 +282,14 @@ get_explicit_pkg_deps()
 get_pkg_build_list()
 {
 	# Check for any conditional packages to build in ports
-	for pkgstring in build essential
+	for c in $(jq -r '."ports"."build" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 	do
-		for c in $(jq -r '."ports"."'$pkgstring'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
-		do
-			eval "CHECK=\$$c"
-			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+		eval "CHECK=\$$c"
+		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 
-			echo "Getting packages in JSON $pkgstring -> $c"
-			# We have a conditional set of packages to include, lets do it
-			jq -r '."'$pkgstring'"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >> ${1} 2>/dev/null
-		done
+		echo "Getting packages in JSON ports.build -> $c"
+		# We have a conditional set of packages to include, lets do it
+		jq -r '."ports"."build"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >> ${1} 2>/dev/null
 	done
 
 	# Check for any conditional packages to build in iso
@@ -303,9 +300,9 @@ get_pkg_build_list()
 			eval "CHECK=\$$c"
 			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 
-			echo "Getting packages in JSON $pkgstring -> $c"
+			echo "Getting packages in JSON iso.$pkgstring -> $c"
 			# We have a conditional set of packages to include, lets do it
-			jq -r '."'$pkgstring'"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >> ${1} 2>/dev/null
+			jq -r '."iso"."'$pkgstring'"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >> ${1} 2>/dev/null
 		done
 	done
 
@@ -430,16 +427,13 @@ check_essential_pkgs()
 	ESSENTIAL=""
 
 	# Check for any conditional packages to build in ports
-	for ptype in build essential
+	for c in $(jq -r '."ports"."build" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 	do
-		for c in $(jq -r '."ports"."'$ptype'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
-		do
-			eval "CHECK=\$$c"
-			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+		eval "CHECK=\$$c"
+		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 
-			# We have a conditional set of packages to include, lets do it
-			ESSENTIAL="$ESSENTIAL $(jq -r '."'$ptype'"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})"
-		done
+		# We have a conditional set of packages to include, lets do it
+		ESSENTIAL="$ESSENTIAL $(jq -r '."ports"."build"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})"
 	done
 
 	# Check for any conditional packages to build in iso
@@ -451,7 +445,7 @@ check_essential_pkgs()
 			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 
 			# We have a conditional set of packages to include, lets do it
-			ESSENTIAL="$ESSENTIAL $(jq -r '."'$ptype'"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})"
+			ESSENTIAL="$ESSENTIAL $(jq -r '."iso"."'$ptype'"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})"
 		done
 	done
 
