@@ -1,0 +1,170 @@
+#!/usr/bin/env expect
+
+set vm [lindex $argv 0];
+set logfilepath [lindex $argv 1];
+log_file -noappend "$logfilepath"
+set timeout 1800
+set PID [spawn vm console "$vm"]
+send_user "Spawned PID: $PID \n"
+
+# Install menu, options being:
+# 1) Install, 2) utility, 3) Reboot
+# Options: [O]K, [C]ancel
+expect {
+  "TrueOS Server Installation Menu" {
+    sleep .5
+    send "1"
+    send "\r"
+  }
+}
+
+# Selecte the disk.
+# Disk is already selected?
+# Options: [Y]es, [N]o
+expect {
+  "Select target disk" {
+    sleep .5
+    send "\r"
+  }
+}
+
+
+# Select to isntall ALL or on the freespace
+# Options: [O]K, [C]ancel
+expect {
+  "Select target partition" {
+    sleep .5
+    send "\r"
+  }
+}
+
+# WARNING: This will erase ALL paritions and data, proceed?
+# Options: [Y]es, [N]o
+expect {
+  "Select the disk" {
+    sleep 1
+    send "\r"
+  }
+}
+
+# Set the default root account password:
+# Options: [O]K, [C]ancel
+expect {
+  "Enter the root password" {
+    sleep .5
+    send "testing"
+    send "\r"
+  }
+}
+
+
+# Select Boot via UEFI
+# Options: [B]oot via UEFI, Boot via B[I]OS
+expect {
+  "Confirm root password" {
+    sleep .5
+    send "testing"
+    send "\r"
+  }
+}
+
+expect {
+  "Enter a username" {
+    sleep .5
+    send "testing"
+    send "\r"
+  }
+}
+
+expect {
+  "Enter the password for testing" {
+    sleep .5
+    send "testing"
+    send "\r"
+  }
+}
+
+expect {
+  "Confirm password" {
+    sleep .5
+    send "testing"
+    send "\r"
+  }
+}
+
+expect {
+  "Enter the real name for testing" {
+    sleep .5
+    send "Test User"
+    send "\r"
+  }
+}
+
+expect {
+  "Select the users shell" {
+    sleep .5
+    #send \025
+    #send \025
+    #send \025
+    send "\r"
+  }
+}
+
+expect {
+  "Enter a system Hostname" {
+    sleep .5
+    send "wmtest.tn.ixsystems.com"
+    send "\r"
+  }
+}
+
+expect {
+  "Enable networking?" {
+    sleep .5
+    send "\r"
+  }
+}
+
+
+expect {
+  "Select network card to configure" {
+    sleep .5
+    send "\r"
+  }
+}
+
+
+expect {
+  "Enable SSH?" {
+    sleep .5
+    send "Y"
+    send "\r"
+  }
+}
+
+
+expect {
+  "Please select from the" {
+    sleep .5
+    send "i"
+    send "\r"
+  }
+}
+
+
+expect {
+  "This will begin the" {
+    sleep .5
+    send "\r"
+  }
+}
+
+
+# Installation finished!
+expect {
+  "Installation finished!" {
+    send_user "is installation finished."
+    sleep .5
+    exit
+  }
+}
