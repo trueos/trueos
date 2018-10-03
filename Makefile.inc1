@@ -1817,6 +1817,8 @@ create-world-package-${pkgname}: .PHONY
 		cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
 		echo "/var/db/trueos-manifest.json" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 	fi
+	@cat ${WSTAGEDIR}/${pkgname}.plist | uniq > ${WSTAGEDIR}/${pkgname}.plist.new; \
+		mv ${WSTAGEDIR}/${pkgname}.plist.new ${WSTAGEDIR}/${pkgname}.plist;
 	@sh ${SRCDIR}/release/packages/transform-ucl.sh ${pkgname} \
 		${SRCDIR} ${WSTAGEDIR}/${pkgname}.ucl ${TRUEOS_MANIFEST}
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
