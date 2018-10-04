@@ -30,17 +30,15 @@ pipeline {
     stage('Nullfs') {
       steps {
         sh 'mkdir -p ${SRCROOT} || true'
+        sh 'umount -f ${SRCROOT} || true'
         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
+        sh 'rm -rf /usr/obj/${SRCROOT}/amd64.amd64 || true'
+        sh 'chflags -R noschg /usr/obj/${SRCROOT}/amd64.amd64 || true'
+        sh 'rm -rf /usr/obj/${SRCROOT}/amd64.amd64 || true'
       }
+
     }
 
-    stage('Pre-Clean') {
-      steps {
-        sh 'rm -rf /usr/obj${SRCROOT} || true'
-        sh 'chflags -R noschg /usr/obj${SRCROOT} || true'
-        sh 'rm -rf /usr/obj${SRCROOT} || true'
-      }
-    }
     stage('World') {
       steps {
         sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildworld'
@@ -92,9 +90,6 @@ pipeline {
       }
     }
     always {
-      sh 'rm -rf /usr/obj${SRCROOT} || true'
-      sh 'chflags -R noschg /usr/obj${SRCROOT} || true'
-      sh 'rm -rf /usr/obj${SRCROOT} || true'
       sh 'umount -f ${SRCROOT} || true'
     }
   }

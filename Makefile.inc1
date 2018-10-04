@@ -1833,6 +1833,8 @@ create-world-package-${pkgname}: .PHONY
 		sync
 		sleep 2
 	fi
+	@cat ${WSTAGEDIR}/${pkgname}.plist | uniq > ${WSTAGEDIR}/${pkgname}.plist.new; \
+		mv ${WSTAGEDIR}/${pkgname}.plist.new ${WSTAGEDIR}/${pkgname}.plist;
 	@sh ${SRCDIR}/release/packages/transform-ucl.sh ${pkgname} \
 		${SRCDIR} \
 		${WSTAGEDIR}/${pkgname}.ucl \
