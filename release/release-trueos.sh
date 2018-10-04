@@ -178,6 +178,15 @@ setup_poudriere_jail()
 	chmod 777 ${JDIR}/tmp
 	chmod -R 777 ${JDIR}/var/tmp
 
+	# Do we have any locally checked out sources to copy into poudirere jail?
+	if [ -e "${LOCAL_SOURCE_DIR}" ] ; then
+		rm -rf ${JDIR}/usr/local_source 2>/dev/null
+		cp -a ${LOCAL_SOURCE_DIR} ${JDIR}/usr/local_source
+		if [ $? -ne 0 ] ; then
+			exit_err "Failed copying ${LOCAL_SOURCE_DIR} -> ${JDIR}/usr/local_source"
+		fi
+	fi
+
 	# Create new jail
 	poudriere jail -c -j $POUDRIERE_BASE -m null -M ${JDIR} -v ${OSRELEASE}
 	if [ $? -ne 0 ] ; then
