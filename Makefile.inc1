@@ -74,8 +74,22 @@ TRUEOS_MANIFEST=	${SRCDIR}/release/trueos-manifest.json
 .endif
 
 # Get the base package name
+.if make(create-world-packages-jobs) || make(create-kernel-packages)
 PKG_BASENAME!=		jq -r '."base-packages"."name-prefix"' \
 				${TRUEOS_MANIFEST}
+.endif
+
+# Validate the version of this manifest
+.if make(buildworld) || make(buildkernel) || make(packages)
+TM_VERCHECK!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh check >/dev/null 2>/dev/null; echo $$?)
+.if ${TM_VERCHECK} != "0"
+.error Invalid TRUEOS_MANIFEST version - halting!
+.endif
+.endif
+
+# Set any world/kernel flags from our manifest
+WORLD_FLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh world_flags)
+KERNEL_FLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh kernel_flags)
 
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
@@ -1815,12 +1829,14 @@ create-world-package-${pkgname}: .PHONY
 		echo "/var/db/etcupdate-current.tbz" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 		echo "Saving TrueOS Manifest" ; \
 		cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
-		echo "/var/db/trueos-manifest.json" >> ${WSTAGEDIR}/${pkgname}.plist ; \
+		echo "/var/db/trueos-manifest.json" >> ${WSTAGEDIR}/${pkgname}.plist ;
 	fi
 	@cat ${WSTAGEDIR}/${pkgname}.plist | uniq > ${WSTAGEDIR}/${pkgname}.plist.new; \
 		mv ${WSTAGEDIR}/${pkgname}.plist.new ${WSTAGEDIR}/${pkgname}.plist;
 	@sh ${SRCDIR}/release/packages/transform-ucl.sh ${pkgname} \
-		${SRCDIR} ${WSTAGEDIR}/${pkgname}.ucl ${TRUEOS_MANIFEST}
+		${SRCDIR} \
+		${WSTAGEDIR}/${pkgname}.ucl \
+		${TRUEOS_MANIFEST}
 	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
@@ -1908,6 +1924,7 @@ run-ports: _pkgbootstrap .PHONY
 		POUDRIERE_BASE=${POUDRIERE_BASE} \
 		TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 		TRUEOS_VERSION=${TRUEOS_VERSION} \
+		LOCAL_SOURCE_DIR=${LOCAL_SOURCE_DIR} \
 		make -C ${SRCDIR}/release poudriere
 
 sign-packages:	_pkgbootstrap .PHONY

@@ -1,4 +1,5 @@
 {
+  "version":"1.0",
   "ports":{
 	"type":"git",
 	"url":"https://github.com/trueos/trueos-ports",
@@ -7,49 +8,49 @@
 		"default":[
 			"MAKE_JOBS_NUMBER_LIMIT=3"
 		]
+	},
+	"build-all":true,
+	"build":{
+		"default":[
+			"www/firefox",
+			"mail/thunderbird",
+			"sysutils/ipmitool",
+			"sysutils/dmidecode",
+			"sysutils/tmux",
+			"x11/kde5",
+			"x11/sddm"
+		]
 	}
   },
   "poudriere-conf":[
 	  "NOHANG_TIME=14400"
   ],
-  "package-all":true,
-  "packages":[
-  ],
-  "essential-packages":{
-	"default":[
-		"www/firefox",
-		"mail/thunderbird",
-		"sysutils/ipmitool",
-		"sysutils/dmidecode",
-		"sysutils/tmux",
-		"x11/kde5",
-		"x11/sddm"
-	]
+  "iso":{
+	"iso-packages":{
+		  "default":[
+			"sysutils/ipmitool",
+			"sysutils/dmidecode",
+			"sysutils/tmux"
+		]
+	},
+	 "dist-packages":{
+		"default":[
+			"sysutils/ipmitool",
+			"sysutils/dmidecode",
+			"sysutils/tmux"
+		]
+	},
+	"auto-install-packages":{
+		"default":[
+			"sysutils/ipmitool",
+			"sysutils/dmidecode",
+			"sysutils/tmux"
+		]
+	},
+	"overlay":"",
+	"install-script":"",
+	"auto-install-script":""
   },
-  "iso-install-packages":{
-	  "default":[
-		"sysutils/ipmitool",
-		"sysutils/dmidecode",
-		"sysutils/tmux"
-	  ]
-  },
-  "dist-packages":{
-	  "default":[
-		"sysutils/ipmitool",
-		"sysutils/dmidecode",
-		"sysutils/tmux"
-	  ]
-  },
-  "auto-install-packages":{
-	  "default":[
-		"sysutils/ipmitool",
-		"sysutils/dmidecode",
-		"sysutils/tmux"
-	  ]
-  },
-  "install-overlay":"",
-  "install-script":"",
-  "auto-install-script":"",
   "base-packages": {
           "name-prefix":"TrueOS",
           "depends": {

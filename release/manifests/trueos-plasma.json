@@ -1,4 +1,5 @@
 {
+  "version":"1.0",
   "ports":{
         "type":"git",
         "url":"https://github.com/trueos/trueos-ports",
@@ -26,73 +27,74 @@
 			"www_qt5-webengine_UNSET=ALSA",
 			"www_seamonkey_UNSET=JACK"
 		]
-        }
+        },
+	"build-all":true,
+	"build":{
+		  "default":[
+			"www/firefox",
+			"mail/thunderbird",
+			"sysutils/ipmitool",
+			"sysutils/dmidecode",
+			"sysutils/pc-networkmanager",
+			"sysutils/tmux",
+			"x11/kde5",
+			"graphics/drm-next-kmod",
+			"x11/nvidia-driver",
+			"x11/sddm",
+			"x11/xorg"
+		]
+	}
+
   },
   "poudriere-conf":[
 	  "NOHANG_TIME=14400"
   ],
-  "package-all":true,
-  "packages":{
-  },
-  "essential-packages":{
-	  "default":[
-		"www/firefox",
-		"mail/thunderbird",
-		"sysutils/ipmitool",
-		"sysutils/dmidecode",
-		"sysutils/pc-networkmanager",
-		"sysutils/tmux",
-		"x11/kde5",
-		"graphics/drm-next-kmod",
-		"x11/nvidia-driver",
-		"x11/sddm",
-		"x11/xorg"
-	  ]
-  },
-  "iso-file-name":"TrueOS-Plasma-Unstable-x64-%%GITHASH%%-%%DATE%%",
-  "iso-install-packages":{
-	  "default":[
-		"sysutils/tmux"
-	  ]
-  },
-  "dist-packages":{
-	  "default":[
-		"graphics/drm-next-kmod",
-		"x11/nvidia-driver"
-	  ]
-  },
-  "auto-install-packages":{
-	"default":[
-		"mail/thunderbird",
-		"www/firefox",
-		"sysutils/pc-networkmanager",
-		"sysutils/tmux",
-		"x11/kde5",
-		"x11/sddm",
-		"x11/xorg"
+  "iso":{
+	"file-name":"TrueOS-Plasma-Unstable-x64-%%GITHASH%%-%%DATE%%",
+	"iso-packages":{
+		  "default":[
+			"sysutils/tmux"
+		]
+	},
+	"dist-packages":{
+		  "default":[
+			"graphics/drm-next-kmod",
+			"x11/nvidia-driver"
+		]
+	},
+	"auto-install-packages":{
+		"default":[
+			"mail/thunderbird",
+			"www/firefox",
+			"sysutils/pc-networkmanager",
+			"sysutils/tmux",
+			"x11/kde5",
+			"x11/sddm",
+			"x11/xorg"
+		]
+	},
+	"overlay":{
+		"type":"git",
+		"url":"https://github.com/trueos/trueos-plasma-overlay",
+		"branch":"master"
+	  },
+	"install-script":"",
+	"auto-install-script":"",
+	"post-install-commands": [
+		{
+			"chroot":true,
+			"command":"rc-update add dbus"
+		},
+		{
+			"chroot":true,
+			"command":"rc-update add sddm"
+		},
+		{
+			"chroot":false,
+			"command":"/root/plasma-init.sh"
+		}
 	]
   },
-  "iso-overlay":{
-        "type":"git",
-        "url":"https://github.com/trueos/trueos-plasma-overlay",
-        "branch":"master"
-  },
-  "install-script":"",
-  "auto-install-script":"",
-  "post-install-commands": [
-	{
-		"chroot":true,
-		"command":"rc-update add dbus"
-	},
-	{
-		"chroot":true,
-		"command":"rc-update add sddm"
-	},
-	{
-		"chroot":false,
-		"command":"/root/plasma-init.sh"
-	}
-  ],
   "base-packages": {
           "name-prefix":"TrueOS",
           "depends": {

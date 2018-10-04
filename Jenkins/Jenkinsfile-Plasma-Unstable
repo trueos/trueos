@@ -81,8 +81,8 @@ pipeline {
     stage('Publish') {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
-          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/plasma-unstable/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/plasma-unstable/'
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/plasma-unstable/FreeBSD:12:amd64/latest || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/plasma-unstable/FreeBSD:12:amd64/latest'
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/plasma-unstable/ || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/plasma-unstable/'
         }
