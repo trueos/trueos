@@ -42,8 +42,10 @@
 			"emulators/open-vm-tools-nox11",
 			"emulators/virtualbox-ose-kmod",
 			"freenas/freenas-docs",
+			"freenas/freenas-files",
 			"freenas/freenas-installer",
 			"freenas/freenas-migrate93",
+			"freenas/freenas-ui",
 			"freenas/mDNSResponder",
 			"freenas/mDNSResponder_nss",
 			"freenas/netatalk3",
@@ -52,9 +54,7 @@
 			"freenas/py-bsd",
 			"freenas/py-dnspython2",
 			"freenas/py-licenselib",
-			"freenas/samba48",
-			"freenas/sssd",
-			"freenas/sudo",
+			"freenas/py-middlewared",
 			"freenas/swagger-ui",
 			"graphics/cairo",
 			"lang/python27",
@@ -88,20 +88,6 @@
   "base-packages": {
           "name-prefix":"FreeNAS",
           "depends": {
-                  "runtime": {
-                        "freenas-files": {
-                                "origin": "freenas/freenas-files",
-                                "version": ">0"
-                        },
-                        "py-middlewared": {
-                                "origin": "freenas/py-middlewared",
-                                "version": ">0"
-                        },
-                        "freenas-ui": {
-                                "origin": "freenas/freenas-ui",
-                                "version": ">0"
-                        }
-                  },
                  "runtime-development": {
                         "llvm60": {
                                 "origin": "devel/llvm60",
