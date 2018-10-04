@@ -240,7 +240,7 @@
       "default": [
         "MAKE_JOBS_NUMBER_LIMIT=3",
         "NET_SNMP_WITHOUT_MIB_MODULE_LIST=sctp-mib",
-        "PYTHON_DEFAULT=3.6",
+        "DEFAULT_VERSIONS+=python=3.6",
         "WITHOUT_CHECK=YES",
         "editors_jed_UNSET+=X11",
         "databases_rrdtool_UNSET+=DEJAVU",
