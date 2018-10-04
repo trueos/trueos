@@ -32,6 +32,7 @@
 	"build":{
 		  "default":[
 			"www/firefox",
+			"www/chromium",
 			"mail/thunderbird",
 			"sysutils/ipmitool",
 			"sysutils/dmidecode",
@@ -66,6 +67,7 @@
 		"default":[
 			"mail/thunderbird",
 			"www/firefox",
+			"www/chromium",
 			"sysutils/pc-networkmanager",
 			"sysutils/tmux",
 			"x11/kde5",

@@ -575,43 +575,32 @@ cp_iso_pkgs()
 		exit_err "Failed copying base packages to ISO..."
 	fi
 
-	# Check if we have dist-packages to include on the ISO
-	for c in $(jq -r '."iso"."dist-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
-	do
-		eval "CHECK=\$$c"
-		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
-		for i in $(jq -r '."iso"."dist-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
-		do
-			pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
-				-R ${OBJDIR}/repo-config \
-				fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} $i
-				if [ $? -ne 0 ] ; then
-					exit_err "Failed copying dist-package $i to ISO..."
-				fi
-		done
-	done
-
 	rm ${OBJDIR}/disc1/root/auto-dist-install 2>/dev/null
-	# Check if we have auto-install-packages to include on the ISO
-	for c in $(jq -r '."iso"."auto-install-packages" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
+
+	# Check if we have dist-packages to include on the ISO
+	for ptype in dist-packages auto-install-packages
 	do
-		eval "CHECK=\$$c"
-		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
-		for i in $(jq -r '."iso"."auto-install-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
+		for c in $(jq -r '."iso"."'${ptype}'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 		do
-			pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
-				-R ${OBJDIR}/repo-config \
-				fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} $i
-				if [ $? -ne 0 ] ; then
-					exit_err "Failed copying dist-package $i to ISO..."
-				fi
+			eval "CHECK=\$$c"
+			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
+			for i in $(jq -r '."iso"."'${ptype}'"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
+			do
+				echo "Fetching image dist-files for: $i"
+				pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
+					-R ${OBJDIR}/repo-config \
+					fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} $i
+					if [ $? -ne 0 ] ; then
+						exit_err "Failed copying dist-package $i to ISO..."
+					fi
+			done
+			if [ "$ptype" = "auto-install-packages" ] ; then
+				echo "Saving package list to auto-install from: $c"
+				jq -r '."iso"."auto-install-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST} \
+				>>${OBJDIR}/disc1/root/auto-dist-install
+			fi
 		done
-
-		echo "Saving package list to auto-install"
-		jq -r '."iso"."auto-install-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST} \
-			 >>${OBJDIR}/disc1/root/auto-dist-install
 	done
-
 
 	# Create the repo DB
 	echo "Creating installer pkg repo"
