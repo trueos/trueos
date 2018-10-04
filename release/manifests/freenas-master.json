@@ -203,7 +203,13 @@
         "freenas/freenas-installer"
       ]
     },
-    "overlay": {}
+    "overlay": {},
+    "post-install-commands": [
+      {	
+        "chroot":true,
+        "command":"sysrc -f /boot/loader.conf rc_system=rc"
+      }
+    ]
   },
   "pkg-repo": {
     "pubKey": [
