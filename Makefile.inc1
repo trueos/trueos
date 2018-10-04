@@ -1829,7 +1829,7 @@ create-world-package-${pkgname}: .PHONY
 		echo "/var/db/etcupdate-current.tbz" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 		echo "Saving TrueOS Manifest" ; \
 		cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
-		echo "/var/db/trueos-manifest.json" >> ${WSTAGEDIR}/${pkgname}.plist ;
+		echo "/var/db/trueos-manifest.json" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 	fi
 	@cat ${WSTAGEDIR}/${pkgname}.plist | uniq > ${WSTAGEDIR}/${pkgname}.plist.new; \
 		mv ${WSTAGEDIR}/${pkgname}.plist.new ${WSTAGEDIR}/${pkgname}.plist;
