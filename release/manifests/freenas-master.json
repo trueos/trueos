@@ -67,6 +67,7 @@
         "freenas/freenas-installer",
         "freenas/freenas-migrate93",
         "freenas/freenas-ui",
+        "freenas/freenas-webui",
         "freenas/mDNSResponder",
         "freenas/mDNSResponder_nss",
         "freenas/pipewatcher",
