@@ -278,7 +278,6 @@
         "net_samba47_SET+=FAM",
         "net_samba47_SET+=LDAP",
         "net_samba47_SET+=LIBZFS",
-        "net_samba47_SET+=MANPAGES",
         "net_samba47_SET+=MDNSRESPONDER",
         "net_samba47_SET+=NSUPDATE",
         "net_samba47_SET+=PAM_SMBPASS",
