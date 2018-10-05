@@ -69,7 +69,6 @@
         "freenas/freenas-ui",
         "freenas/mDNSResponder",
         "freenas/mDNSResponder_nss",
-        "freenas/netatalk3",
         "freenas/pipewatcher",
         "freenas/py-bonjour",
         "freenas/py-bsd",
@@ -158,15 +157,12 @@
         "sysutils/ipmitool",
         "sysutils/jailme",
         "sysutils/lsof",
-        "sysutils/mcelog",
         "sysutils/megacli",
         "sysutils/ncdu",
-        "sysutils/nomad",
         "sysutils/nut",
         "sysutils/pciutils",
         "sysutils/pv",
         "sysutils/py-consul",
-        "sysutils/py-nomad",
         "sysutils/screen",
         "sysutils/sedutil",
         "sysutils/sg3_utils",
@@ -184,7 +180,6 @@
         "www/apache24",
         "www/dojo",
         "www/minio",
-        "www/minio-client",
         "www/mod_mpm_itk",
         "www/nginx",
         "www/novnc",
@@ -310,6 +305,7 @@
         "net-mgmt_collectd5_UNSET+=SNMP",
         "security_openssh-portable_SET+=HEIMDIAL_BASE",
         "security_openssh-portable_SET+=NONECIPHER",
+        "security_openssh-portable_SET+=HPN",
         "security_sssd_SET+=SMB",
         "security_sssd_UNSET+=DOCS",
         "security_sudo_SET+=LDAP SSSD",
@@ -332,7 +328,8 @@
     "url": "https://github.com/trueos/trueos-ports"
   },
   "poudriere-conf": [
-    "NOHANG_TIME=14400"
+    "NOHANG_TIME=14400",
+    "BUILD_AS_NON_ROOT=no"
   ],
   "version": "1.0"
 }
