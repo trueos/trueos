@@ -203,6 +203,10 @@
       {	
         "chroot":true,
         "command":"sysrc -f /boot/loader.conf rc_system=rc"
+      },
+      {
+        "chroot":true,
+        "command":"touch /etc/dynamicdiskless"
       }
     ]
   },
