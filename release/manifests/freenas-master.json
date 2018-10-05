@@ -335,7 +335,8 @@
   },
   "poudriere-conf": [
     "NOHANG_TIME=14400",
-    "BUILD_AS_NON_ROOT=no"
+    "BUILD_AS_NON_ROOT=no",
+    "RESTRICT_NETWORKING=no"
   ],
   "version": "1.0"
 }
