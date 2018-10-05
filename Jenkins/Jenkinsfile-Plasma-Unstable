@@ -63,21 +63,27 @@ pipeline {
         sh 'cd ${SRCROOT} && make -j 4 packages'
       }
     }
-
-    stage('Release') {
-      post {
-        success {
-          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
-        }
-      }
+    stage('ISO') {
       steps {
         sh 'rm -rf ${WORKSPACE}/artifacts'
         sh 'cd ${SRCROOT}/release && make iso'
-        sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
+        sh 'mkdir -p ${WORKSPACE}/artifacts'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
       }
     }
-
+    stage('Dist') {
+      steps {
+        sh 'cd ${SRCROOT}/release && make packagesystem'
+        sh 'mkdir -p ${WORKSPACE}/artifacts/dist'
+        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts/dist/'
+        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts/dist/'
+      }
+    }
+    stage('Artifact') {
+      steps {
+        archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+      }
+    }
     stage('Publish') {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
