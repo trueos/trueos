@@ -16,7 +16,8 @@
 			"lang/python",
 			"lang/python2",
 			"lang/python3",
-			"editors/vim-console"
+			"editors/vim-console",
+			"sysutils/tmux"
 		]
 	 }
 
@@ -25,13 +26,15 @@
 	 "iso-packages":{
 		"default":[
 			"sysutils/ipmitool",
-			"sysutils/dmidecode"
+			"sysutils/dmidecode",
+			"sysutils/tmux"
 		]
 	},
 	"dist-packages":{
 		"default":[
 			"sysutils/ipmitool",
 			"sysutils/dmidecode",
+			"sysutils/tmux",
 			"www/nginx"
 		]
 	},
@@ -39,8 +42,9 @@
 		"default":[
 			"sysutils/ipmitool",
 			"sysutils/dmidecode",
+			"sysutils/tmux",
 			"www/nginx",
-			"ports-mgmt/poudriere-devel"
+			"ports-mgmt/poudriere-trueos"
 		]
 	},
 	"overlay":"",
