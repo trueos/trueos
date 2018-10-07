@@ -13,6 +13,7 @@
 	"build":{
 		  "default":[
 			"devel/git",
+			"devel/llvm60",
 			"lang/python",
 			"lang/python2",
 			"lang/python3",
