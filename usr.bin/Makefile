@@ -95,6 +95,7 @@ SUBDIR=	alias \
 	ministat \
 	mkdep \
 	mkfifo \
+	mk-base-jail \
 	mkimg \
 	mklocale \
 	mktemp \
