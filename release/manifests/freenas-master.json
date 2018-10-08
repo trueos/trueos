@@ -1,17 +1,6 @@
 {
   "base-packages": {
-    "depends": {
-      "runtime-development": {
-        "go": {
-          "origin": "lang/go",
-          "version": ">0"
-        },
-        "llvm60": {
-          "origin": "devel/llvm60",
-          "version": ">0"
-        }
-      }
-    },
+    "depends": { },
     "name-prefix": "FreeNAS"
   },
   "iso": {
