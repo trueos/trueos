@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SCRIPTS=clang-bootstrap
+SCRIPTS=compiler-bootstrap
 
 .include <bsd.prog.mk>

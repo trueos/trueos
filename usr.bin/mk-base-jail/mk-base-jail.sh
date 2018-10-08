@@ -1,11 +1,37 @@
 #!/bin/sh
-#
-# Author: Kris Moore <kris@ixsystems.com>
-# License: 3 Clause BSD
-#
 
-DEFAULTCC="llvm60"
+# $FreeBSD$
 
+# SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+#
+#  Copyright (c) 2018 Kris Moore
+#  All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+#  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+#  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+#  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+#  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+#  SUCH DAMAGE.
+
+# If no default CC is specified, lets add one
+if [ -z "$DEFAULTCC" ] ; then
+	DEFAULTCC="llvm60"
+fi
 
 usage()
 {
@@ -56,7 +82,7 @@ pkg_install_jail()
 
 boot_strap_cc()
 {
-	chroot ${1} clang-bootstrap ${DEFAULTCC}
+	chroot ${1} compiler-bootstrap ${DEFAULTCC}
 }
 
 prep_poudriere()
@@ -88,12 +114,15 @@ prep_poudriere()
 	if [ -d "${1}/usr/local/llvm60" ] ; then
 		CDIR="${1}/usr/local/llvm60"
 	fi
+	if [ -d "${1}/usr/local/llvm70" ] ; then
+		CDIR="${1}/usr/local/llvm70"
+	fi
 	if [ -z "$CDIR" ] ; then
 		echo "WARNING: unknown default compiler!"
 		return 0
 	fi
 
-	# Copy over a few shared libs needed for llvm60
+	# Copy over a few shared libs needed for llvm
 	cp -a ${1}/usr/local/lib/libedit* "${CDIR}/lib/"
 	if [ $? -ne 0 ] ; then
 		echo "Failed copying libedit*"

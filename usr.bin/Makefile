@@ -18,13 +18,13 @@ SUBDIR=	alias \
 	chat \
 	chpass \
 	cksum \
-	clang-bootstrap \
 	cmp \
 	col \
 	colldef \
 	colrm \
 	column \
 	comm \
+	compiler-bootstrap \
 	compress \
 	cpuset \
 	csplit \
