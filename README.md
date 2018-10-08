@@ -92,7 +92,7 @@ Since TrueOS uses an external toolchain, an additional step is required before u
 pkg environment and boot-strap the external compiler. To create a Poudriere jail on TrueOS, run the following:
 
 ```
-# mk-base-jail -t poudriere <directory>
+# mk-base-jail -t poudriere -c llvm60 <directory>
 ```
 
 You can then import this prepared jail into poudriere using the following command:

@@ -28,15 +28,59 @@
 #  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 #  SUCH DAMAGE.
 
-# If no default CC is specified, lets add one
-if [ -z "$DEFAULTCC" ] ; then
-	DEFAULTCC="llvm60"
-fi
-
 usage()
 {
-	echo "Usage: $0 -t (poudriere|jail) <directory>"
+	echo "Usage: $0 <directory>"
+	echo "----------------------------"
+	echo "Optional flags:"
+	echo "	-t (poudriere|jail)	- Setup traditional jail or boot-strap for poudriere"
+	echo "	-c (llvm60|llvm70)	- Which default compiler to load"
 	exit 1
+}
+
+default_params() {
+	DEFAULTCC="llvm60"
+	JTYPE="jail"
+}
+
+# Parse the command line
+parse_cmdline() {
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		-t)
+			if [ $# -eq 1 ]; then usage; fi
+			if [ ! -z "${GITBRANCH}" ]; then usage; fi
+			shift; JTYPE="$1"
+			case ${JTYPE} in
+				poudriere|jail) ;;
+				*) usage ;;
+			esac
+			;;
+		-c)
+			if [ $# -eq 1 ]; then usage; fi
+			if [ ! -z "${CONFFILE}" ]; then usage; fi
+			shift; DEFAULTCC="$1"
+			;;
+		-h | --help | help)
+			usage
+			;;
+		*)
+			if [ $# -gt 1 ]; then usage; fi
+			TDIR="$1"
+			;;
+		esac
+		shift
+	done
+
+	if [ ! -d "$TDIR" ] ; then
+		echo "Target directory: $1 does not exist!"
+		exit 1
+	fi
+
+	if [ "$TDIR" = "/" ]; then
+		echo "ERROR: Target dir is: '/' ???"
+		exit 1
+	fi
 }
 
 pkg_install_jail()
@@ -154,31 +198,9 @@ prep_poudriere()
 
 }
 
-if [ "$1" != "-t" ] ; then
-	usage
-fi
+default_params
 
-JTYPE="$2"
-
-case ${JTYPE} in
-	poudriere|jail) ;;
-	*) usage ;;
-esac
-
-if [ -z "$3" ] ; then
-	usage
-fi
-if [ ! -d "$3" ] ; then
-	echo "Target directory: $1 does not exist!"
-	exit 1
-fi
-
-if [ "$3" = "/" ]; then
-	echo "ERROR: Target dir is: '/' ???"
-	exit 1
-fi
-
-TDIR="$3"
+parse_cmdline $@
 
 echo "Preparing to install $JTYPE base to $TDIR"
 
