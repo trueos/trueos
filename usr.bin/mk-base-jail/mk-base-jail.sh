@@ -61,15 +61,30 @@ boot_strap_cc()
 
 prep_poudriere()
 {
+	if [ "$1" = "/" ] ; then
+		echo "FATAL: TDIR is /"
+		exit 1
+	fi
 
 	# For poudriere we have some additional steps to do to make it safe for building ports
 	# This is to boot-strap our compiler and then un-register any packages, so it appears
 	# More like a dist or source compiled world
 
-	if [ "$1" = "/" ] ; then
-		echo "FATAL: TDIR is /"
-		exit 1
+	# Start by grabbing system sources
+	DURL=$(cat /etc/pkg/TrueOS.conf | grep url: | awk '{print $2}' | cut -d '"' -f 2 | sed 's|/pkg/|/iso/|g' | sed 's|${ABI}/latest|dist|g')
+	fetch -o "${1}/src.txz" ${DURL}/src.txz
+	if [ $? -ne 0 ] ; then
+		echo "WARNING: Failed fetching system sources!"
+		echo "Please fetch and extract to ${1}/usr/src"
+	else
+		mkdir -p "${1}/usr/src"
+		tar xpf "${1}/src.txz" -C "${1}"
+		if [ $? -ne 0 ] ; then
+			echo "WARNING: Failed extracting src.txz"
+		fi
+		rm "${1}/src.txz"
 	fi
+
 	if [ -d "${1}/usr/local/llvm60" ] ; then
 		CDIR="${1}/usr/local/llvm60"
 	fi
@@ -107,7 +122,7 @@ prep_poudriere()
 
 	# Remove pkg registration
 	rm -rf "${1}/var/db/pkg"
-	
+
 }
 
 if [ "$1" != "-t" ] ; then
