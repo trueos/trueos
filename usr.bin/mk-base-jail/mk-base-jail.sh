@@ -1,8 +1,11 @@
 #!/bin/sh
-# 
+#
 # Author: Kris Moore <kris@ixsystems.com>
 # License: 3 Clause BSD
 #
+
+DEFAULTCC="llvm60"
+
 
 usage()
 {
@@ -40,11 +43,20 @@ pkg_install_jail()
 		fi
 	done
 
+	# Verify we included a default compiler
+	pkg -r "$1" info -q ${DEFAULTCC}
+	if [ $? -ne 0 ] ; then
+		pkg-static -r "${1}" install -U -y ${DEFAULTCC}
+		if [ $? -ne 0 ] ; then
+			echo "Failed installing: ${DEFAULTCC}"
+			exit 1
+		fi
+	fi
 }
 
 boot_strap_cc()
 {
-	chroot ${1} clang-bootstrap
+	chroot ${1} clang-bootstrap ${DEFAULTCC}
 }
 
 prep_poudriere()
