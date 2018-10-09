@@ -81,6 +81,7 @@ install_packages()
     # If the package is not already installed, install it!
     if ! run_chroot_cmd "${PKGINFO} -e ${PKGNAME}" >/dev/null 2>/dev/null
     then
+      chroot ${FSMNT} /etc/rc.d/ldconfig start >/dev/null 2>/dev/null
       echo_log "Installing package: ${PKGNAME}"
       $PKGADD
       if [ $? -ne 0 ] ; then
