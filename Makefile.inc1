@@ -1838,7 +1838,7 @@ create-world-package-${pkgname}: .PHONY
 		${WSTAGEDIR}/${pkgname}.ucl \
 		${TRUEOS_MANIFEST}
 	@if [ "${pkgname}" = "runtime" ]; then \
-		sync
+		sync \
 		sleep 2 \
 	fi
 	@env -i ${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
