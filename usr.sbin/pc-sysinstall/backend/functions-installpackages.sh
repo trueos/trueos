@@ -63,6 +63,9 @@ install_packages()
   # Make sure the pkg db dir is ready to install
   export PKG_DBDIR="${FSMNT}/var/db/pkg"
 
+  # Need to setup devfs
+  rc_halt "mount -t devfs devfs ${FSMNT}/dev"
+
   # Update the local pkg DB
   rc_nohalt "pkg update"
 
@@ -86,5 +89,6 @@ install_packages()
     fi
   done
 
+  rc_halt "umount -f ${FSMNT}/dev"
   echo_log "Package installation complete!"
 };
