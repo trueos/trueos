@@ -1,6 +1,12 @@
 /*-
- * Copyright (c) 2006 M. Warner Losh
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2018 John Baldwin <jhb@FreeBSD.org>
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory (Department of Computer Science and
+ * Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+ * DARPA SSITH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,25 +28,51 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-struct spi_command {
-	void	*tx_cmd;
-	uint32_t tx_cmd_sz;
-	void	*rx_cmd;
-	uint32_t rx_cmd_sz;
-	void	*tx_data;
-	uint32_t tx_data_sz;
-	void	*rx_data;
-	uint32_t rx_data_sz;
-};
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	SPI_COMMAND_INITIALIZER	{ 0 }
+#include <sys/types.h>
+#include <machine/elf.h>
 
-#define	SPI_CHIP_SELECT_HIGH	0x1		/* Chip select high (else low) */
+#include <err.h>
+#include <errno.h>
 
-#define SPIBUS_PNP_DESCR "Z:compat;P:#;"
-#define SPIBUS_PNP_INFO(t) \
-	MODULE_PNP_INFO(SPIBUS_PNP_DESCR, spibus, t, t, sizeof(t) / sizeof(t[0]));
+#include "ef.h"
+
+int
+ef_reloc(struct elf_file *ef, const void *reldata, int reltype, Elf_Off relbase,
+    Elf_Off dataoff, size_t len, void *dest)
+{
+	Elf_Addr *where, val;
+	const Elf_Rela *rela;
+	Elf_Addr addend, addr;
+	Elf_Size rtype;
+
+	switch (reltype) {
+	case EF_RELOC_RELA:
+		rela = (const Elf_Rela *)reldata;
+		where = (Elf_Addr *)((char *)dest + relbase + rela->r_offset -
+		    dataoff);
+		addend = rela->r_addend;
+		rtype = ELF_R_TYPE(rela->r_info);
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	if ((char *)where < (char *)dest || (char *)where >= (char *)dest + len)
+		return (0);
+
+	switch (rtype) {
+	case R_RISCV_RELATIVE:	/* B + A */
+		addr = addend + relbase;
+		val = addr;
+		*where = val;
+		break;
+	default:
+		warnx("unhandled relocation type %d", (int)rtype);
+	}
+	return (0);
+}
