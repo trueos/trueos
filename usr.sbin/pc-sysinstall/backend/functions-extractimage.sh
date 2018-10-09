@@ -63,7 +63,8 @@ start_extract_pkg()
   done
 
   # Don't allow any of the FreeBSD packages to be auto-removed
-  pkg -c ${FSMNT} set -y -A 00 -g $BASENAME-\*
+  echo_log "chroot ${FSMNT} pkg set -y -A 00 -g $BASENAME-*"
+  rc_nohalt "chroot ${FSMNT} pkg set -y -A 00 -g $BASENAME-*"
 
   # Workaround to issue in FreeBSD pkg base
   rc_nohalt "chroot ${FSMNT} chown root:operator /sbin/shutdown"
