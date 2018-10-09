@@ -122,6 +122,9 @@ pkg_install_jail()
 			exit 1
 		fi
 	fi
+
+	# Cleanup any cached packages now
+	rm -rf "${1}/var/cache/pkg"
 }
 
 boot_strap_cc()
