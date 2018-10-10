@@ -18,13 +18,13 @@ SUBDIR=	alias \
 	chat \
 	chpass \
 	cksum \
-	clang-bootstrap \
 	cmp \
 	col \
 	colldef \
 	colrm \
 	column \
 	comm \
+	compiler-bootstrap \
 	compress \
 	cpuset \
 	csplit \
@@ -95,6 +95,7 @@ SUBDIR=	alias \
 	ministat \
 	mkdep \
 	mkfifo \
+	mk-base-jail \
 	mkimg \
 	mklocale \
 	mktemp \

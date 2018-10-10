@@ -22,7 +22,7 @@ scripts: {
         fi
 
 	# Boot-strap clang sym-links
-	chroot ${PKG_ROOTDIR} clang-bootstrap
+	chroot ${PKG_ROOTDIR} compiler-bootstrap
 EOD
 }
 deps: {

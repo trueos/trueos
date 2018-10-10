@@ -62,3 +62,43 @@ If you want to re-use the base packages and just re-run port builds, you may do 
 ```
 make ports
 ```
+
+To change the default manifest from CI to something else, set the TRUEOS_MANIFEST variable to the full path. I.E:
+
+```
+# setenv TRUEOS_MANIFEST /usr/src/release/manifests/trueos-master.json
+# make buildworld buildkernel
+ ...
+```
+
+Compiler Instructions:
+--------------
+
+By default TrueOS now uses the external llvm compiler from ports. This will be included with "TrueNAS-runtime-development" when installed.
+
+To change from the default (current llvm60) you can run:
+
+```
+# compiler-bootstrap llvm70
+```
+
+Currently only llvm60 and llvm70 are supported. If you have both installed you can toggle between them by re-running the
+"compiler-bootstrap" command as necessary.
+
+Using Poudriere:
+--------------
+
+Since TrueOS uses an external toolchain, an additional step is required before using stock Poudriere. This is to install the base
+pkg environment and boot-strap the external compiler. To create a Poudriere jail on TrueOS, run the following:
+
+```
+# mk-base-jail -t poudriere -c llvm60 <directory>
+```
+
+You can then import this prepared jail into poudriere using the following command:
+
+```
+# poudriere jail -c -j myjailname -m null -M <directory> -v 12.0-RELEASE
+```
+
+Replace "myjailname" and 12.0-RELEASE" as necessary.

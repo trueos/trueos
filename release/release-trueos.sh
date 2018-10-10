@@ -169,9 +169,9 @@ setup_poudriere_jail()
 	fi
 
 	# Setup the sym-links inside the jail
-	chroot ${JDIR} clang-bootstrap llvm60
+	chroot ${JDIR} compiler-bootstrap llvm60
 	if [ $? -ne 0 ] ; then
-		exit_err "Failed clang-bootstrap in -> ${JDIR}"
+		exit_err "Failed compiler-bootstrap in -> ${JDIR}"
 	fi
 
 	# Make sure the various /tmp(s) will work for poudriere

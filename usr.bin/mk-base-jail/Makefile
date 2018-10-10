@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SCRIPTS=clang-bootstrap
+SCRIPTS=mk-base-jail.sh
 
 .include <bsd.prog.mk>
