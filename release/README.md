@@ -95,6 +95,37 @@ unattended installation when used.
   "install-script":"/usr/local/etc/autoinstall.cfg"
 ```
 
+* world-flags - Allows setting different make options for building world directly in manifest
+
+```
+  "base-packages": {
+          "world-flags":{
+                "default": [
+                        "WITH_FOO=1",
+                        "WITH_BAR=2"
+                ]
+
+          },
+  },
+```
+
+* kernel-flags - Allows setting different make options for building kernel directly in manifest
+
+```
+  "base-packages": {
+          "world-flags":{
+                "default": [
+                        "WITH_FOO=1",
+                        "WITH_BAR=2"
+                ]
+
+          },
+  },
+```
+
+
+
+
 * And More! Take a look at [default manifest](trueos-manifest.json) for details.
 
 Poudriere Configuration (building ports):
