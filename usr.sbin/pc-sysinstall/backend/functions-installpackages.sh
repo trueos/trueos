@@ -66,6 +66,11 @@ install_packages()
   # Need to setup devfs
   rc_halt "mount -t devfs devfs ${FSMNT}/dev"
 
+  # Mount dist
+  rc_halt "mkdir ${FSMNT}/dist"
+  rc_halt "mount_nullfs /dist ${FSMNT}/dist"
+  rc_halt "mount_nullfs /etc/pkg ${FSMNT}/etc/pkg"
+
   # Update the local pkg DB
   rc_nohalt "pkg update"
 
@@ -75,8 +80,8 @@ install_packages()
     PKGNAME="${i}"
 
     # Doing a local install into a different root
-    PKGADD="pkg -r ${FSMNT} install -y ${PKGNAME}"
-    PKGINFO="pkg -r ${FSMNT} info"
+    PKGADD="pkg -c ${FSMNT} install -y ${PKGNAME}"
+    PKGINFO="pkg -c ${FSMNT} info"
 
     # If the package is not already installed, install it!
     if ! run_chroot_cmd "${PKGINFO} -e ${PKGNAME}" >/dev/null 2>/dev/null
@@ -91,5 +96,7 @@ install_packages()
   done
 
   rc_halt "umount -f ${FSMNT}/dev"
+  rc_halt "umount -f ${FSMNT}/dist"
+  rc_halt "umount -f ${FSMNT}/etc/pkg"
   echo_log "Package installation complete!"
 };
