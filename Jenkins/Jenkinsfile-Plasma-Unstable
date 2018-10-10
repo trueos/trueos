@@ -15,7 +15,7 @@ pipeline {
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
-    SRCROOT = '/usr/trueos-src'
+    SRCROOT = '/usr/plasma-src'
     POUDRIERE_BASE = 'plasma-unstable-base'
 
     // Set the MANIFEST we want to use for this build
