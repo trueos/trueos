@@ -57,8 +57,6 @@
         "freenas/freenas-pkgtools",
         "freenas/freenas-ui",
         "freenas/freenas-webui",
-        "freenas/mDNSResponder",
-        "freenas/mDNSResponder_nss",
         "freenas/pipewatcher",
         "freenas/py-bonjour",
         "freenas/py-bsd",
