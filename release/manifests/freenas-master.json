@@ -98,7 +98,7 @@
         "net/trafshow",
         "net/viamillipede",
         "net/zerotier",
-        "net/unison@nox11",
+        "net/unison",
         "net-mgmt/clog",
         "net-mgmt/collectd5",
         "net-mgmt/net-snmp",
