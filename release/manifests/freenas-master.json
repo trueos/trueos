@@ -60,7 +60,6 @@
         "freenas/pipewatcher",
         "freenas/py-bonjour",
         "freenas/py-bsd",
-        "freenas/py-dnspython2",
         "freenas/py-licenselib",
         "freenas/py-middlewared",
         "freenas/swagger-ui",
