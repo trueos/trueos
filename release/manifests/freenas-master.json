@@ -54,6 +54,7 @@
         "freenas/freenas-docs",
         "freenas/freenas-files",
         "freenas/freenas-migrate93",
+        "freenas/freenas-pkgtools",
         "freenas/freenas-ui",
         "freenas/freenas-webui",
         "freenas/mDNSResponder",
