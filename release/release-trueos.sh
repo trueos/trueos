@@ -187,11 +187,19 @@ setup_poudriere_jail()
 		fi
 	fi
 
+	# Create a tarball and feed this into poudriere
+	# We used nullfs for a while, but it does consume much more memory
+	echo "Creating poudriere tarball..."
+	tar cvf ${JDIR}/../pjail.tar -C ${JDIR} . >/dev/null 2>/dev/null
+
+
 	# Create new jail
-	poudriere jail -c -j $POUDRIERE_BASE -m null -M ${JDIR} -v ${OSRELEASE}
+	poudriere jail -c -j $POUDRIERE_BASE -m tar=${JDIR}/../pjail.tar -v ${OSRELEASE}
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed creating poudriere jail"
 	fi
+
+	rm ${JDIR}/../pjail.tar
 
 	# Create the new ports tree
 	echo "Setting up poudriere ports"
