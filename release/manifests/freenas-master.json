@@ -226,7 +226,7 @@
         "DEFAULT_VERSIONS+=python=3.6",
         "MAKE_JOBS_NUMBER_LIMIT=3",
         "NET_SNMP_WITHOUT_MIB_MODULE_LIST=sctp-mib",
-	"WANT_OPENLDAP_SASL",
+	"WANT_OPENLDAP_SASL=YES",
         "WITHOUT_CHECK=YES",
         "editors_jed_UNSET+=X11",
         "databases_rrdtool_UNSET+=DEJAVU",
