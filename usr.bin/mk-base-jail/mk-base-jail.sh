@@ -33,14 +33,18 @@ usage()
 	echo "Usage: $0 <directory>"
 	echo "----------------------------"
 	echo "Optional flags:"
-	echo "	-t (poudriere|jail)	- Setup traditional jail or boot-strap for poudriere"
 	echo "	-c (llvm60|llvm70)	- Which default compiler to load"
+	echo "	-j <name>		- Jail name to give poudriere"
+	echo "	-t (poudriere|jail)	- Setup traditional jail or boot-strap for poudriere"
+	echo ""
+	echo "NOTE: When making a poudriere jail the <directory> specified will be removed after import."
 	exit 1
 }
 
 default_params() {
 	DEFAULTCC="llvm60"
 	JTYPE="jail"
+	PNAME=""
 }
 
 # Parse the command line
@@ -49,16 +53,18 @@ parse_cmdline() {
 		case "$1" in
 		-t)
 			if [ $# -eq 1 ]; then usage; fi
-			if [ ! -z "${GITBRANCH}" ]; then usage; fi
 			shift; JTYPE="$1"
 			case ${JTYPE} in
 				poudriere|jail) ;;
 				*) usage ;;
 			esac
 			;;
+		-j)
+			if [ $# -eq 1 ]; then usage; fi
+			shift; PNAME="$1"
+			;;
 		-c)
 			if [ $# -eq 1 ]; then usage; fi
-			if [ ! -z "${CONFFILE}" ]; then usage; fi
 			shift; DEFAULTCC="$1"
 			;;
 		-h | --help | help)
@@ -201,6 +207,39 @@ prep_poudriere()
 
 }
 
+mk_poud_jail()
+{
+	# Dump the jail to a tarball
+	echo "Creating archive for poudriere... (This may take a while)"
+	tar cvf /tmp/poud.$$.tar -C "${1}" . >/dev/null 2>/dev/null
+	if [ $? -ne 0 ] ; then
+		echo "Failed creating poudriere archive..."
+		rm /tmp/poud.$$.tar
+		exit 1
+	fi
+
+	if [ "$1" != "/" ] ; then
+		echo "Cleaning up temp jail directory..."
+		rm -rf "$1" >/dev/null 2>/dev/null
+		chflags -R noschg "$1" >/dev/null 2>/dev/null
+		rm -rf "$1" >/dev/null 2>/dev/null
+	fi
+
+	if [ -z "$JNAME" ] ; then
+		JNAME="trueos"
+	fi
+
+	poudriere jail -c -j $JNAME -m tar=/tmp/poud.$$.tar -v "trueos-pkg-base"
+	if [ $? -ne 0 ] ; then
+		echo "Failed creating poudriere jail..."
+		rm /tmp/poud.$$.tar
+		exit 1
+	fi
+
+	rm /tmp/poud.$$.tar
+	echo "Poudriere jail ($JNAME) is ready to be used"
+}
+
 default_params
 
 parse_cmdline $@
@@ -215,9 +254,9 @@ fi
 
 boot_strap_cc "$TDIR"
 
-echo "Finished preparing $JTYPE base at $TDIR"
 if [ "$JTYPE" = "poudriere" ] ; then
-	echo "To import this poudriere jail, run:"
-	echo "poudriere jail -c -j myjailname -m null -M ${TDIR} -v 12.0-RELEASE"
+	mk_poud_jail "$TDIR"
+else
+	echo "Finished preparing $JTYPE base at $TDIR"
 fi
 
