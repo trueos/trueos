@@ -1,17 +1,6 @@
 {
   "base-packages": {
-    "depends": {
-      "runtime-development": {
-        "go": {
-          "origin": "lang/go",
-          "version": ">0"
-        },
-        "llvm60": {
-          "origin": "devel/llvm60",
-          "version": ">0"
-        }
-      }
-    },
+    "depends": { },
     "name-prefix": "FreeNAS"
   },
   "iso": {
@@ -64,7 +53,6 @@
         "ftp/wget",
         "freenas/freenas-docs",
         "freenas/freenas-files",
-        "freenas/freenas-installer",
         "freenas/freenas-migrate93",
         "freenas/freenas-ui",
         "freenas/freenas-webui",
@@ -195,9 +183,7 @@
     "file-name": "FreeNAS-x64-%%GITHASH%%-%%DATE%%",
     "install-script": "",
     "iso-packages": {
-      "default": [
-        "freenas/freenas-installer"
-      ]
+      "default": [ ]
     },
     "overlay": {},
     "post-install-commands": [

@@ -264,7 +264,7 @@ XZ_CMD?=	xz -T ${XZ_THREADS}
 XZ_CMD?=	xz
 .endif
 
-PKG_CMD?=	pkg
+PKG_CMD?=	pkg-static
 
 # Pointer to the top directory into which tests are installed.  Should not be
 # overridden by Makefiles, but the user may choose to set this in src.conf(5).

@@ -63,6 +63,9 @@ install_packages()
   # Make sure the pkg db dir is ready to install
   export PKG_DBDIR="${FSMNT}/var/db/pkg"
 
+  # Need to setup devfs
+  rc_halt "mount -t devfs devfs ${FSMNT}/dev"
+
   # Update the local pkg DB
   rc_nohalt "pkg update"
 
@@ -78,6 +81,7 @@ install_packages()
     # If the package is not already installed, install it!
     if ! run_chroot_cmd "${PKGINFO} -e ${PKGNAME}" >/dev/null 2>/dev/null
     then
+      chroot ${FSMNT} /etc/rc.d/ldconfig start >/dev/null 2>/dev/null
       echo_log "Installing package: ${PKGNAME}"
       $PKGADD
       if [ $? -ne 0 ] ; then
@@ -86,5 +90,6 @@ install_packages()
     fi
   done
 
+  rc_halt "umount -f ${FSMNT}/dev"
   echo_log "Package installation complete!"
 };

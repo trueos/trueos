@@ -17,6 +17,7 @@ fi
 
 # Verify we have depends in our MANIFEST
 if [ "$(jq -r '."base-packages"."depends"."'$LPKG'"' $MANIFEST)" = "null" ] ; then
+	sync
 	return 0
 fi
 
@@ -41,3 +42,4 @@ do
 	rm ${UCL}.new
 	if [ $? -ne 0 ] ; then return 1; fi
 done
+sync
