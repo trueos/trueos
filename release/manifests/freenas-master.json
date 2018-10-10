@@ -58,7 +58,6 @@
         "freenas/freenas-ui",
         "freenas/freenas-webui",
         "freenas/pipewatcher",
-        "freenas/py-bonjour",
         "freenas/py-bsd",
         "freenas/py-licenselib",
         "freenas/py-middlewared",
