@@ -222,11 +222,12 @@
     "build-all": false,
     "make.conf": {
       "default": [
+        "CRAZY=YES",
+        "DEFAULT_VERSIONS+=python=3.6",
         "MAKE_JOBS_NUMBER_LIMIT=3",
         "NET_SNMP_WITHOUT_MIB_MODULE_LIST=sctp-mib",
-        "DEFAULT_VERSIONS+=python=3.6",
+	"WANT_OPENLDAP_SASL",
         "WITHOUT_CHECK=YES",
-        "CRAZY=YES",
         "editors_jed_UNSET+=X11",
         "databases_rrdtool_UNSET+=DEJAVU",
         "databases_rrdtool_UNSET+=PERL",
