@@ -38,8 +38,6 @@ SUBDIR=	adduser \
 	iostat \
 	iovctl \
 	kldxref \
-	ldapd \
-	ldapctl \
 	mailwrapper \
 	makefs \
 	memcontrol \
