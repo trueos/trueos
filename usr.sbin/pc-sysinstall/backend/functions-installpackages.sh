@@ -61,7 +61,7 @@ install_packages()
   PACKAGES="${VAL}"
 
   # Make sure the pkg db dir is ready to install
-  export PKG_DBDIR="${FSMNT}/var/db/pkg"
+  unset PKG_DBDIR
 
   # Need to setup devfs
   rc_halt "mount -t devfs devfs ${FSMNT}/dev"
@@ -88,7 +88,7 @@ install_packages()
     then
       chroot ${FSMNT} /etc/rc.d/ldconfig start >/dev/null 2>/dev/null
       echo_log "Installing package: ${PKGNAME}"
-      $PKGADD
+      run_cmd_wtee "$PKGADD" "$LOGOUT"
       if [ $? -ne 0 ] ; then
         exit_err "Failed installing: $PKGADD"
       fi

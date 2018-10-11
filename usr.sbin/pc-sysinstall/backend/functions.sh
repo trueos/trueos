@@ -614,3 +614,9 @@ restore_zfs_iscsi()
 
   echo_log "Installation finished!"
 };
+
+run_cmd_wtee()
+{
+  ((((${1} 2>&1 ; echo $? >&3 ) | tee -a ${2} >&4 ) 3>&1) | (read xs; exit $xs)) 4>&1
+  return $?
+};
