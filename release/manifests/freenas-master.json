@@ -215,6 +215,14 @@
       {
         "chroot":true,
         "command":"mkdir -p /conf/base/usr__local__etc"
+      },
+      {
+        "chroot":true,
+        "command":"echo 65535 > /conf/base/usr__local__etc/md_size"
+      },
+      {
+        "chroot":true,
+        "command":"ln -s /usr/local/etc /etc/local"
       }
     ]
   },
