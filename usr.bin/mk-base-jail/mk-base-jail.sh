@@ -44,7 +44,7 @@ usage()
 default_params() {
 	DEFAULTCC="llvm60"
 	JTYPE="jail"
-	PNAME=""
+	JNAME=""
 }
 
 # Parse the command line
@@ -61,7 +61,7 @@ parse_cmdline() {
 			;;
 		-j)
 			if [ $# -eq 1 ]; then usage; fi
-			shift; PNAME="$1"
+			shift; JNAME="$1"
 			;;
 		-c)
 			if [ $# -eq 1 ]; then usage; fi
