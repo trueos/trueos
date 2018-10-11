@@ -50,7 +50,7 @@ copy_subdir()
 {
 	CDIR=$(basename $1)
 	TDIR=$(basename $1 | sed 's|__|/|g')
-	if [ ! -d "$TDIR" ] ; then
+	if [ ! -d "/$TDIR" ] ; then
 		echo "ERROR: /conf/base/$CDIR was specified but /$TDIR does not exist"
 		return 1
 	fi
@@ -73,7 +73,7 @@ copy_subdir()
 		return 1
 	fi
 
-	create_md $TDIR $CDIR $MDSIZE
+	create_md /$TDIR ${CDIR}_real $MDSIZE
 	if [ $? -ne 0 ] ; then
 		echo "ERROR: Failed mounting tmpfs on /$TDIR"
 		return 1
