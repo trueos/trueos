@@ -63,6 +63,7 @@ start_extract_pkg()
   done
 
   # Don't allow any of the FreeBSD packages to be auto-removed
+  unset PKG_DBDIR
   echo_log "chroot ${FSMNT} pkg set -y -A 00 -g $BASENAME-*"
   chroot ${FSMNT} pkg set -y -A 00 -g $BASENAME-\*
 
