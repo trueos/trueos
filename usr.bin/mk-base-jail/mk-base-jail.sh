@@ -79,8 +79,7 @@ parse_cmdline() {
 	done
 
 	if [ ! -d "$TDIR" ] ; then
-		echo "Target directory: $1 does not exist!"
-		exit 1
+		usage
 	fi
 
 	if [ "$TDIR" = "/" ]; then
