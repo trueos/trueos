@@ -935,7 +935,7 @@ gen_pc-sysinstall_cfg()
 
    # Check for any post-install commands
    if [ -e "${PIJSON}" ]; then
-     CMDLEN=$(jq -r '."post-install-commands" | length' ${PIJSON})
+     CMDLEN=$(jq -r '. | length' ${PIJSON})
      if [ $CMDLEN -gt 0 ] ; then
        i=0
        while [ $i -lt $CMDLEN ]
