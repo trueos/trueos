@@ -13,12 +13,15 @@
 	"build":{
 		  "default":[
 			"devel/git",
+			"devel/jenkins",
 			"devel/llvm60",
 			"lang/python",
 			"lang/python2",
 			"lang/python3",
-			"editors/vim-console",
-			"sysutils/tmux"
+			"net/rsync",
+			"ports-mgmt/poudriere-trueos",
+			"ports-mgmt/poudriere-devel",
+			"editors/vim-console"
 		]
 	 }
 
@@ -26,26 +29,19 @@
   "iso":{
 	 "iso-packages":{
 		"default":[
-			"sysutils/ipmitool",
-			"sysutils/dmidecode",
-			"sysutils/tmux"
 		]
 	},
 	"dist-packages":{
 		"default":[
-			"sysutils/ipmitool",
-			"sysutils/dmidecode",
-			"sysutils/tmux",
-			"www/nginx"
 		]
 	},
 	"auto-install-packages":{
 		"default":[
+			"ports-mgmt/poudriere",
 			"sysutils/ipmitool",
 			"sysutils/dmidecode",
 			"sysutils/tmux",
-			"www/nginx",
-			"ports-mgmt/poudriere-trueos"
+			"www/nginx"
 		]
 	},
 	"overlay":"",
