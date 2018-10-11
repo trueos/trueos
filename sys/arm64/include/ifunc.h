@@ -1,6 +1,9 @@
 /*-
- * Copyright (c) 2006 M. Warner Losh
+ * Copyright (c) 2015-2018 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,7 +17,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,21 +29,23 @@
  * $FreeBSD$
  */
 
-struct spi_command {
-	void	*tx_cmd;
-	uint32_t tx_cmd_sz;
-	void	*rx_cmd;
-	uint32_t rx_cmd_sz;
-	void	*tx_data;
-	uint32_t tx_data_sz;
-	void	*rx_data;
-	uint32_t rx_data_sz;
-};
+#ifndef __ARM64_IFUNC_H
+#define	__ARM64_IFUNC_H
 
-#define	SPI_COMMAND_INITIALIZER	{ 0 }
+#define	DEFINE_IFUNC(qual, ret_type, name, args, resolver_qual)		\
+    resolver_qual ret_type (*name##_resolver(void))args __used;		\
+    qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
+    resolver_qual ret_type (*name##_resolver(void))args
 
-#define	SPI_CHIP_SELECT_HIGH	0x1		/* Chip select high (else low) */
+#define	DEFINE_UIFUNC(qual, ret_type, name, args, resolver_qual)	\
+    resolver_qual ret_type (*name##_resolver(uint64_t, uint64_t,	\
+	uint64_t, uint64_t, uint64_t, uint64_t, uint64_t,		\
+	uint64_t))args __used;						\
+    qual ret_type name args __attribute__((ifunc(#name "_resolver")));	\
+    resolver_qual ret_type (*name##_resolver(uint64_t _arg1 __unused,	\
+	uint64_t _arg2 __unused, uint64_t _arg3 __unused,		\
+	uint64_t _arg4 __unused, uint64_t _arg5 __unused,		\
+	uint64_t _arg6 __unused, uint64_t _arg7 __unused,		\
+	uint64_t _arg8 __unused))args
 
-#define SPIBUS_PNP_DESCR "Z:compat;P:#;"
-#define SPIBUS_PNP_INFO(t) \
-	MODULE_PNP_INFO(SPIBUS_PNP_DESCR, spibus, t, t, sizeof(t) / sizeof(t[0]));
+#endif
