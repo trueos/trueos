@@ -111,7 +111,7 @@
         "security/pam_mkhomedir",
         "security/py-openssl",
         "security/py-paramiko",
-        "security/py-pycrypto",
+        "security/py-pycryptodome",
         "security/sssd",
         "security/sudo",
         "security/stunnel",
