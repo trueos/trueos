@@ -191,6 +191,30 @@
       {
         "chroot":true,
         "command":"touch /etc/dynamicdiskless"
+      },
+      {
+        "chroot":true,
+        "command":"mkdir -p /conf/base/etc"
+      },
+      {
+        "chroot":true,
+        "command":"echo 65535 > /conf/base/etc/md_size"
+      },
+      {
+        "chroot":true,
+        "command":"mkdir -p /conf/base/var"
+      },
+      {
+        "chroot":true,
+        "command":"mkdir -p /conf/base/mnt"
+      },
+      {
+        "chroot":true,
+        "command":"echo 8192 > /conf/base/mnt/md_size"
+      },
+      {
+        "chroot":true,
+        "command":"mkdir -p /conf/base/usr__local__etc"
       }
     ]
   },
