@@ -5,6 +5,9 @@ SRCDIR="$2"
 UCL="$3"
 MANIFEST="$4"
 
+PATH="${PATH}:/usr/local/bin:/usr/local/sbin"
+export PATH
+
 if [ ! -e "$MANIFEST" ] ; then
 	echo "Missing MANIFEST"
 	exit 1
