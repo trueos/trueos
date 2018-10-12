@@ -75,7 +75,7 @@ TRUEOS_MANIFEST=	${SRCDIR}/release/trueos-manifest.json
 
 # Get the base package name
 .if make(create-world-packages-jobs) || make(create-kernel-packages)
-PKG_BASENAME!=		jq -r '."base-packages"."name-prefix"' \
+PKG_BASENAME!=		/usr/local/bin/jq -r '."base-packages"."name-prefix"' \
 				${TRUEOS_MANIFEST}
 .endif
 
