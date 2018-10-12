@@ -6,7 +6,8 @@
         "branch":"trueos-master",
         "make.conf":{
 		"default":[
-			"MAKE_JOBS_NUMBER_LIMIT=3"
+			"MAKE_JOBS_NUMBER_LIMIT=3",
+			"devel_llvm60_UNSET=LLDB"
 		]
         },
 	"build-all":false,
