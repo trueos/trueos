@@ -241,14 +241,14 @@ setup_poudriere_jail()
 		fi
 	fi
 
-	rm /etc/poudriere.d/${POUDRIERE_BASE}-make.conf
+	rm ${POUDRIERED_DIR}/${POUDRIERE_BASE}-make.conf
 	for c in $(jq -r '."ports"."make.conf" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 	do
 		eval "CHECK=\$$c"
 		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 
 		# We have a conditional set of packages to include, lets do it
-		jq -r '."ports"."make.conf"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >>/etc/poudriere.d/${POUDRIERE_BASE}-make.conf
+		jq -r '."ports"."make.conf"."'$c'" | join("\n")' ${TRUEOS_MANIFEST} >>${POUDRIERED_DIR}/${POUDRIERE_BASE}-make.conf
 	done
 
 	# Save the list of build flags
