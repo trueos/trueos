@@ -27,7 +27,7 @@
 # $FreeBSD$
 #
 
-export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"
+export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 
 POUDRIERE_BASEFS=${POUDRIERE_BASEFS:-/usr/local/poudriere}
 POUDRIERE_BASE=${POUDRIERE_BASE:-trueos-mk-base}
