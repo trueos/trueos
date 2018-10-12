@@ -333,6 +333,14 @@ get_pkg_build_list()
 
 build_poudriere()
 {
+
+	# Save the FreeBSD ABI Version
+	if [ ! -d "${POUDRIERE_PKGDIR}" ] ; then
+		mkdir -p ${POUDRIERE_PKGDIR}
+	fi
+	awk '/^\#define[[:blank:]]__FreeBSD_version/ {print $3}' < ${SRCDIR}/sys/sys/param.h > ${POUDRIERE_PKGDIR}/.FreeBSD_Version
+	echo "Saved ABI version: $(cat ${POUDRIERE_PKGDIR}/.FreeBSD_Version)"
+
 	# Check if we want to do a bulk build of everything
 	if [ $(jq -r '."ports"."build-all"' ${TRUEOS_MANIFEST}) = "true" ] ; then
 		# Start the build
@@ -360,9 +368,6 @@ build_poudriere()
 		fi
 
 	fi
-
-	# Save the FreeBSD ABI Version
-	awk '/^\#define[[:blank:]]__FreeBSD_version/ {print $3}' < ${SRCDIR}/sys/sys/param.h > ${POUDRIERE_PKGDIR}/.FreeBSD_Version
 
 }
 
@@ -406,8 +411,10 @@ clean_poudriere()
 
 	# If the ABI has changed, we need to rebuild all
 	ABIVER=$(awk '/^\#define[[:blank:]]__FreeBSD_version/ {print $3}' < ${SRCDIR}/sys/sys/param.h)
-	if [ "$(cat ${POUDRIERE_PKGDIR}/.FreeBSD_Version 2>/dev/null)" != "$ABIVER" ] ; then
-		echo "New ABI detected! Removing stale packages..."
+	OABIVER=$(cat ${POUDRIERE_PKGDIR}/.FreeBSD_Version 2>/dev/null)
+	if [ "$OABIVER" != "$ABIVER" ] ; then
+		echo "New ABI detected: $OABIVER -> $ABIVER"
+		echo "Removing stale packages..."
 		rm -rf ${POUDRIERE_PKGDIR}
 	fi
 }
