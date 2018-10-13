@@ -23,6 +23,9 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
+PATH="${PATH}:/usr/local/bin:/usr/local/sbin"
+export PATH
+
 parse_overlay()
 {
 	OVERLAY="$(jq -r '."iso"."overlay"' $TRUEOS_MANIFEST)"

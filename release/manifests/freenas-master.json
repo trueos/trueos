@@ -177,14 +177,14 @@
     },
     "auto-install-script": "",
     "dist-packages": {},
-    "file-name": "FreeNAS-x64-%%GITHASH%%-%%DATE%%",
+    "file-name": "FreeNAS-12-unstable-x64-%%GITHASH%%-%%DATE%%",
     "install-script": "",
     "iso-packages": {
       "default": [ ]
     },
     "overlay": {},
     "post-install-commands": [
-      {	
+      {
         "chroot":true,
         "command":"sysrc -f /boot/loader.conf rc_system=rc"
       },
