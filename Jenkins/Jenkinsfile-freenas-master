@@ -16,7 +16,7 @@ pipeline {
     POUDRIERE_PORTS = 'fn-master-ports'
 
     // Set the MANIFEST we want to use for this build
-    TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/freenas-master.json'
+    //TRUEOS_MANIFEST='${SRCROOT}/release/manifests/freenas-master.json'
   }
 
   stages {
