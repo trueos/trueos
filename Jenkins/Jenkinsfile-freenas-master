@@ -6,7 +6,7 @@ freenas master images.
 */
 
 pipeline {
-  agent { label 'TrueOS-World' }
+  agent { label 'FreeNAS-TrueOS' }
 
   environment {
     GH_ORG = 'trueos'
@@ -28,23 +28,12 @@ pipeline {
 
     stage('Nullfs') {
       steps {
-        sh 'kldload filemon || true'
         sh 'mkdir -p ${SRCROOT} || true'
+        sh 'umount -f ${SRCROOT} || true'
         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
-      }
-    }
-    stage('Pre-Clean') {
-      steps {
-        sh 'cd ${SRCROOT} && make clean'
-        sh 'cd ${SRCROOT}/release && make clean'
-      }
-    }
-    stage('Prep-Ports') {
-      steps {
-        sh 'umount -f /usr/freenas-ports || true'
-        sh 'rm -rf /usr/freenas-ports || true'
-        sh 'git clone --depth=1 --recurse-submodules -j8 https://github.com/trueos/trueos-ports /usr/freenas-ports'
-        sh 'cd /usr/freenas-ports/freenas && ./update-to-branch.sh all master'
+        sh 'rm -rf /usr/obj/${SRCROOT}/amd64.amd64 || true'
+        sh 'chflags -R noschg /usr/obj/${SRCROOT}/amd64.amd64 || true'
+        sh 'rm -rf /usr/obj/${SRCROOT}/amd64.amd64 || true'
       }
     }
     stage('World') {
@@ -64,7 +53,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
-        sh 'cd ${SRCROOT} && make -j 4 packages -DDB_FROM_SRC'
+        sh 'cd ${SRCROOT} && make -j 6 packages -DDB_FROM_SRC'
       }
     }
     stage('Release') {
@@ -84,17 +73,15 @@ pipeline {
     stage('Publish') {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
-          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/unstable/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/unstable/'
-          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/unstable/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/unstable/'
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/freenas-master/ || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/freenas-master/'
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/freenas-master/ || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/freenas-master/'
         }
-      }
     }
   }
   post {
     success {
-      sh 'rm -rf /usr/obj${SRCROOT}/pkgset/FreeNAS-*'
       script {
         cleanWs notFailBuild: true
       }
