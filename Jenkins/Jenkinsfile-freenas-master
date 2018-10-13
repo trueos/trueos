@@ -38,12 +38,12 @@ pipeline {
     }
     stage('World') {
       steps {
-        sh 'cd ${SRCROOT} && make WITH_META_MODE=yes -j $(sysctl -n hw.ncpu) buildworld'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildworld'
       }
     }
     stage('Kernel') {
       steps {
-        sh 'cd ${SRCROOT} && make WITH_META_MODE=yes -j $(sysctl -n hw.ncpu) buildkernel'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildkernel'
       }
     }
     stage('Base Packages') {
