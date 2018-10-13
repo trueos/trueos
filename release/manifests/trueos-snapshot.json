@@ -7,7 +7,12 @@
         "make.conf":{
 		"default":[
 			"MAKE_JOBS_NUMBER_LIMIT=3",
-			"devel_llvm60_UNSET=LLDB"
+			"devel_llvm60_UNSET=LLDB",
+			"devel_llvm60_UNSET=DOCS",
+			"devel_llvm60_UNSET=GOLD",
+			"devel_llvm60_UNSET=OPENMP",
+			"devel_LLVM60_UNSET=EXTRAS",
+			"devel_LLVM60_UNSET=LIT"
 		]
         },
 	"build-all":false,
