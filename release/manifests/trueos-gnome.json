@@ -1,0 +1,142 @@
+{
+  "version":"1.0",
+  "ports":{
+        "type":"git",
+        "url":"https://github.com/trueos/trueos-ports",
+        "branch":"trueos-master",
+        "make.conf":{
+		"default":[
+			"MAKE_JOBS_NUMBER_LIMIT=3",
+			"OPTIONS_SET=OPTIMIZED_CFLAGS THREADS RASTER ZSH AESNI OPUS WEBP NONFREE SSE MONO GECKO PORT_LLVM WAYLAND PULSEAUDIO",
+			"audio_dream_UNSET=PORTAUDIO",
+			"audio_dream_UNSET=PORTAUDIO",
+			"audio_espeak_UNSET=PORTAUDIO",
+			"audio_harp_UNSET=OSS",
+			"audio_openal-soft_UNSET=OSS",
+			"comms_morse_UNSET=OSS",
+			"deskutils_spice-gtk_UNSET=GSTREAMER",
+			"mail_thunderbird_UNSET=JACK",
+			"multimedia_qmmp-qt5_UNSET=OSS4 JACK",
+			"multimedia_qt5-multimedia_UNSET=ALSA",
+			"print_cups-base_SET=XPDF",
+			"print_cups-base_UNSET=GHOSTSCRIPT",
+			"www_chromium_UNSET=ALSA",
+			"www_chromium_SET=PULSEAUDIO",
+			"www_firefox_UNSET=JACK",
+			"www_firefox-esr_UNSET=JACK",
+			"www_qt5-webengine_UNSET=ALSA",
+			"www_seamonkey_UNSET=JACK"
+		]
+        },
+	"build-all":true,
+	"build":{
+		  "default":[
+			"www/firefox",
+			"www/chromium",
+			"mail/thunderbird",
+			"sysutils/ipmitool",
+			"sysutils/dmidecode",
+			"sysutils/networkmgr",
+			"sysutils/tmux",
+			"x11/gnome3",
+			"graphics/drm-next-kmod",
+			"x11/nvidia-driver",
+			"x11/xorg"
+		]
+	}
+
+  },
+  "poudriere-conf":[
+	  "NOHANG_TIME=14400"
+  ],
+  "iso":{
+	"file-name":"TrueOS-Gnome-Unstable-x64-%%GITHASH%%-%%DATE%%",
+	"iso-packages":{
+		  "default":[
+			"sysutils/tmux"
+		]
+	},
+	"dist-packages":{
+		  "default":[
+			"graphics/drm-next-kmod",
+			"x11/nvidia-driver"
+		]
+	},
+	"auto-install-packages":{
+		"default":[
+			"mail/thunderbird",
+			"www/firefox",
+			"www/chromium",
+			"sysutils/networkmgr",
+			"sysutils/tmux",
+			"x11/gnome3",
+			"x11/xorg"
+		]
+	},
+	"overlay":{
+		"type":"git",
+		"url":"https://github.com/trueos/trueos-plasma-overlay.git",
+		"branch":"master"
+	  },
+	"install-script":"",
+	"auto-install-script":"",
+	"post-install-commands": [
+		{
+			"chroot":true,
+			"command":"rc-update add dbus"
+		},
+		{
+			"chroot":true,
+			"command":"rc-update add hald"
+		},
+		{
+			"chroot":true,
+			"command":"rc-update add gdm"
+		},
+		{
+			"chroot":false,
+			"command":"/root/gnome-init.sh"
+		}
+	]
+  },
+  "base-packages": {
+          "name-prefix":"TrueOS",
+          "depends": {
+                  "runtime": {
+                        "uclcmd": {
+                                "origin": "devel/uclcmd",
+                                "version": ">0"
+                        }
+                  },
+                 "runtime-development": {
+                        "llvm60": {
+                                "origin": "devel/llvm60",
+                                "version": ">0"
+                        },
+                        "go": {
+                                "origin": "lang/go",
+                                "version": ">0"
+                        }
+                  }
+          }
+  },
+  "pkg-repo": {
+	  "url":"https://pkg.trueos.org/pkg/gnome-unstable/${ABI}/latest",
+	  "pubKey": [
+		"-----BEGIN PUBLIC KEY-----",
+		"MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx4YxSavJkE7HjopkMtgK",
+		"tk/plcnImzfx0MmdK3ijv2724+v810kbAmRI01aiooQvusfcQ5OOyNpAzxwKMTTB",
+		"6bo46YtrnYBTP5G1mNqTRxL5Sg03Kpwcb6fCZ4gYOqTNPmhV6BskhRrfGOzNazcd",
+		"cb8CeqTeL7A44vwkyufQrSNgT9+ByCGuxaEp2os+GEbELyWZMmpQD6s2gAgpXuB6",
+		"K/f7pm9ZsULjJ+ZKc31TjgMTyVA07niocjDxiD2KVEbiagirnxA7BLa66u58B1ol",
+		"tnvOD8JNkGONT2LJhWOMXowZ8fCQ6Ec6ws2SY0UJ14d4w7xnz7U9+STHRYlJnNyl",
+		"ZYNLZ7UK7zyILWhAjkmq3TUaw7o456+QIyf4hA/he9UZhwhgRGNjJCUATbEUT+PF",
+		"65ox6+rT5g/jjDlY6kxfvLCTYJG/Arlj9FCAV/vBa/0lUu1OjivxPNK694G4tVHl",
+		"/z1yApzgzbOgkOY1caPCkGgniD2N4rySm744RxVXonrKmso9nsG0tGrDTC72M39Y",
+		"xgzt2x+NCDhBxZ6EWkqXH6Xk5yOPUV8XDTjqwOnm4XvyD9jzxAiK9Bex6CxKNfph",
+		"9p42Kr3QZPVXjZofqcfhJxZ4Nv0s09K1R1yqNzMmO7Aa2uF2F6ChQ/m6Z41hdaeO",
+		"AxxsOeRYAlBFJ4oo2cFVyqkCAwEAAQ==",
+		"-----END PUBLIC KEY-----"
+	  ]
+  }
+}
