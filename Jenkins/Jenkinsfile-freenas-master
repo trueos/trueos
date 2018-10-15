@@ -28,6 +28,8 @@ pipeline {
 
     stage('Nullfs') {
       steps {
+        sh 'rm -rf ${WORKSPACE}/artifacts'
+        sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
         sh 'mkdir -p ${SRCROOT} || true'
         sh 'umount -f ${SRCROOT} || true'
         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
