@@ -264,7 +264,11 @@ XZ_CMD?=	xz -T ${XZ_THREADS}
 XZ_CMD?=	xz
 .endif
 
+.if exists(/usr/local/sbin/pkg-static)
 PKG_CMD?=	/usr/local/sbin/pkg-static
+.else
+PKG_CMD?=	/usr/sbin/pkg-static
+.endif
 
 # Pointer to the top directory into which tests are installed.  Should not be
 # overridden by Makefiles, but the user may choose to set this in src.conf(5).
