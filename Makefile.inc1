@@ -1945,7 +1945,7 @@ run-ports: _pkgbootstrap .PHONY
 		make -C ${SRCDIR}/release poudriere
 
 sign-packages:	_pkgbootstrap .PHONY
-	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
+	@${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
 		-o ${OBJROOT}pkgset \
 		${OBJROOT}pkgset \
 		${PKGSIGNKEY} ;
