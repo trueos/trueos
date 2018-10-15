@@ -53,7 +53,7 @@ start_extract_pkg()
   for inspkg in `pkg rquery '%o %n-%v' | grep "^base" | awk '{print $2}' | tr -s '\n' ' '`
   do
     # Skip any {debug|development} packages
-    echo "$inspkg" | grep -q -e '-debug-' -e '-development-'
+    echo "$inspkg" | grep -q -e '-debug-' -e '-profile-'
     if [ $? -eq 0 ] ; then continue ; fi
     echo_log "pkg -r ${FSMNT} install -yf $inspkg"
     env ASSUME_ALWAYS_YES=YES pkg -r ${FSMNT} install -yf $inspkg
