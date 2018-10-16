@@ -1831,6 +1831,7 @@ create-world-package-${pkgname}: .PHONY
 		echo "Building etcupdate image" ; \
 		(mkdir -p ${WSTAGEDIR}/var/db || true) ; \
 		${WSTAGEDIR}/usr/sbin/etcupdate build -s ${SRCDIR} ${WSTAGEDIR}/var/db/etcupdate-current.tbz ; \
+		echo "@dir(root,wheel,0755,) /var/db" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 		echo "@(root,wheel,0444,) /var/db/etcupdate-current.tbz" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 		echo "Saving TrueOS Manifest" ; \
 		cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
@@ -1843,8 +1844,10 @@ create-world-package-${pkgname}: .PHONY
 		${WSTAGEDIR}/${pkgname}.ucl \
 		${TRUEOS_MANIFEST}
 	@if [ "${pkgname}" = "runtime" ]; then \
+		touch ${WSTAGEDIR}/${pkgname}.ucl ; \
+		touch ${WSTAGEDIR}/${pkgname}.plist ; \
+		sleep 10 ; \
 		sync ; \
-		sleep 2 ; \
 	fi
 	env -i ${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
