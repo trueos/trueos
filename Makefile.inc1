@@ -1810,9 +1810,9 @@ create-world-packages:	_pkgbootstrap .PHONY
 	done > ${WSTAGEDIR}/packages.mk
 	echo "Building etcupdate image" ; \
 	(mkdir -p ${WSTAGEDIR}/var/db || true) ; \
-	${WSTAGEDIR}/usr/sbin/etcupdate build -s ${SRCDIR} ${WSTAGEDIR}/var/db/etcupdate-current.tbz ; \
+	${WSTAGEDIR}/usr/sbin/etcupdate build -s ${SRCDIR} ${WSTAGEDIR}/var/db/etcupdate-current.tar ; \
 	echo "@dir(root,wheel,0755,) /var/db" >> ${WSTAGEDIR}/runtime.plist ; \
-	echo "@(root,wheel,0444,) /var/db/etcupdate-current.tbz" >> ${WSTAGEDIR}/runtime.plist ; \
+	echo "@(root,wheel,0444,) /var/db/etcupdate-current.tar" >> ${WSTAGEDIR}/runtime.plist ; \
 	echo "Saving TrueOS Manifest" ; \
 	cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
 	echo "@(root,wheel,0444,) /var/db/trueos-manifest.json" >> ${WSTAGEDIR}/runtime.plist

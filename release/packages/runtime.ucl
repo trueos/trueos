@@ -25,12 +25,12 @@ scripts: {
 	if [ ! -e ${PKG_ROOTDIR}/etc/master.passwd ] ; then
 		# Boot-strap /etc for fresh install
 		echo "** Performing first-time setup of /etc **"
-		tar xpf ${PKG_ROOTDIR}/var/db/etcupdate-current.tbz -C ${PKG_ROOTDIR}
-		etcupdate extract -D ${PKG_ROOTDIR} -t ${PKG_ROOTDIR}/var/db/etcupdate-current.tbz
+		tar xpf ${PKG_ROOTDIR}/var/db/etcupdate-current.tar -C ${PKG_ROOTDIR}
+		etcupdate extract -D ${PKG_ROOTDIR} -t ${PKG_ROOTDIR}/var/db/etcupdate-current.tar
 	else
 		# Update existing /etc directory
 		echo "** Performing automated etcupdate of /etc **"
-		etcupdate -D ${PKG_ROOTDIR} -a -t ${PKG_ROOTDIR}/var/db/etcupdate-current.tbz
+		etcupdate -D ${PKG_ROOTDIR} -a -t ${PKG_ROOTDIR}/var/db/etcupdate-current.tar
 	fi
 
 	# Do the first-time setup of package repo

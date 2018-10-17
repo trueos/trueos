@@ -1299,7 +1299,7 @@ build_cmd()
 		remove_tree $dir
 		exit 1
 	fi
-	if ! tar cfj $1 -C $dir . >&3 2>&1; then
+	if ! tar cf $1 -C $dir . >&3 2>&1; then
 		echo "Failed to create tarball."
 		remove_tree $dir
 		exit 1
