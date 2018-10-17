@@ -1808,6 +1808,14 @@ create-world-packages:	_pkgbootstrap .PHONY
 	  pkgname=$${plist%.plist} ; \
 	  echo "_PKGS+= $${pkgname}" ; \
 	done > ${WSTAGEDIR}/packages.mk
+	echo "Building etcupdate image" ; \
+	(mkdir -p ${WSTAGEDIR}/var/db || true) ; \
+	${WSTAGEDIR}/usr/sbin/etcupdate build -s ${SRCDIR} ${WSTAGEDIR}/var/db/etcupdate-current.tbz ; \
+	echo "@dir(root,wheel,0755,) /var/db" >> ${WSTAGEDIR}/runtime.plist ; \
+	echo "@(root,wheel,0444,) /var/db/etcupdate-current.tbz" >> ${WSTAGEDIR}/runtime.plist ; \
+	echo "Saving TrueOS Manifest" ; \
+	cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
+	echo "@(root,wheel,0444,) /var/db/trueos-manifest.json" >> ${WSTAGEDIR}/runtime.plist
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 create-world-packages-jobs \
 		.MAKE.JOB.PREFIX=
@@ -1828,14 +1836,6 @@ create-world-package-${pkgname}: .PHONY
 		' ${WSTAGEDIR}/${pkgname}.ucl
 	@if [ "${pkgname}" = "runtime" ]; then \
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
-		echo "Building etcupdate image" ; \
-		(mkdir -p ${WSTAGEDIR}/var/db || true) ; \
-		${WSTAGEDIR}/usr/sbin/etcupdate build -s ${SRCDIR} ${WSTAGEDIR}/var/db/etcupdate-current.tbz ; \
-		echo "@dir(root,wheel,0755,) /var/db" >> ${WSTAGEDIR}/${pkgname}.plist ; \
-		echo "@(root,wheel,0444,) /var/db/etcupdate-current.tbz" >> ${WSTAGEDIR}/${pkgname}.plist ; \
-		echo "Saving TrueOS Manifest" ; \
-		cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
-		echo "@(root,wheel,0444,) /var/db/trueos-manifest.json" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 	fi
 	@cat ${WSTAGEDIR}/${pkgname}.plist | uniq > ${WSTAGEDIR}/${pkgname}.plist.new; \
 		mv ${WSTAGEDIR}/${pkgname}.plist.new ${WSTAGEDIR}/${pkgname}.plist;
@@ -1843,7 +1843,7 @@ create-world-package-${pkgname}: .PHONY
 		${SRCDIR} \
 		${WSTAGEDIR}/${pkgname}.ucl \
 		${TRUEOS_MANIFEST}
-	env -i nice -n 20 ${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+	env -i ${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
 		-r ${WSTAGEDIR} \
