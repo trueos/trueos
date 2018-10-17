@@ -1843,24 +1843,11 @@ create-world-package-${pkgname}: .PHONY
 		${SRCDIR} \
 		${WSTAGEDIR}/${pkgname}.ucl \
 		${TRUEOS_MANIFEST}
-	@if [ "${pkgname}" = "runtime" ]; then \
-		touch ${WSTAGEDIR}/${pkgname}.ucl ; \
-		touch ${WSTAGEDIR}/${pkgname}.plist ; \
-		sleep 10 ; \
-		sync ; \
-	fi
-	env -i ${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+	env -i nice -n 20 ${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
 		-r ${WSTAGEDIR} \
-		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
-	if [ $$? != "0" ] ; then \
-                env -i ${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
-                        create -M ${WSTAGEDIR}/${pkgname}.ucl \
-                        -p ${WSTAGEDIR}/${pkgname}.plist \
-                        -r ${WSTAGEDIR} \
-                        -o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
-	fi
+		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
 
 .endfor
 
