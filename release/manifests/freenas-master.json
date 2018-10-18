@@ -251,6 +251,7 @@
       "default": []
     },
     "build-all": false,
+    "local_source":"/usr/local_source",
     "make.conf": {
       "default": [
         "CRAZY=YES",

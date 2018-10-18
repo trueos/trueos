@@ -179,7 +179,8 @@ setup_poudriere_jail()
 	chmod -R 777 ${JDIR}/var/tmp
 
 	# Do we have any locally checked out sources to copy into poudirere jail?
-	if [ -e "${LOCAL_SOURCE_DIR}" ] ; then
+	LOCAL_SOURCE_DIR=$(jq -r '."ports"."local_source"' $TRUEOS_MANIFEST 2>/dev/null)
+	if [ -n "$LOCAL_SOURCE_DIR" -a -d "${LOCAL_SOURCE_DIR}" ] ; then
 		rm -rf ${JDIR}/usr/local_source 2>/dev/null
 		cp -a ${LOCAL_SOURCE_DIR} ${JDIR}/usr/local_source
 		if [ $? -ne 0 ] ; then

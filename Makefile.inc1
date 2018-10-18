@@ -1936,7 +1936,6 @@ run-ports: _pkgbootstrap .PHONY
 		POUDRIERE_BASE=${POUDRIERE_BASE} \
 		TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
 		TRUEOS_VERSION=${TRUEOS_VERSION} \
-		LOCAL_SOURCE_DIR=${LOCAL_SOURCE_DIR} \
 		make -C ${SRCDIR}/release poudriere
 
 sign-packages:	_pkgbootstrap .PHONY
