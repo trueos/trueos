@@ -1842,23 +1842,16 @@ create-world-package-${pkgname}: .PHONY
 		${SRCDIR} \
 		${WSTAGEDIR}/${pkgname}.ucl \
 		${TRUEOS_MANIFEST}
-	@if [ "${pkgname}" = "runtime" ]; then \
-		sync ; \
-		sleep 2 ; \
-	fi
-	@env -i ${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+# XXX REMOVE ME LATER
+# This "truss" may not be necessary at a later point. Right now we're dealing with some
+# very odd race conditions with pkg-static that causes segfaults at random.
+# Try to capture the error if we can with truss (which also oddly fixes the issue 99% of the time)
+	@env -i truss -a -f -o ${WSTAGEDIR}/pkg-truss.log ${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
 		-r ${WSTAGEDIR} \
-		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
-	if [ $$? != "0" ] ; then \
-                env -i ${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
-                        create -M ${WSTAGEDIR}/${pkgname}.ucl \
-                        -p ${WSTAGEDIR}/${pkgname}.plist \
-                        -r ${WSTAGEDIR} \
-                        -o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
-	fi
-
+		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
+	@rm ${WSTAGEDIR}/pkg-truss.log
 .endfor
 
 _default_flavor=	-default
