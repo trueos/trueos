@@ -84,11 +84,11 @@ PKG_BASENAME!=		/usr/bin/jq -r '."base-packages"."name-prefix"' \
 .endif
 .endif
 
-# Validate the version of this manifest
+# Validate the version of this manifest and sanity check environment
 .if make(buildworld) || make(buildkernel) || make(packages)
-TM_VERCHECK!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh check >/dev/null 2>/dev/null; echo $$?)
+TM_VERCHECK!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh check >&2 ; echo $$?)
 .if ${TM_VERCHECK} != "0"
-.error Invalid TRUEOS_MANIFEST version - halting!
+.error Failed environment sanity check!
 .endif
 .endif
 
