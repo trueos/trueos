@@ -1851,7 +1851,8 @@ create-world-package-${pkgname}: .PHONY
 		-p ${WSTAGEDIR}/${pkgname}.plist \
 		-r ${WSTAGEDIR} \
 		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
-	@rm ${WSTAGEDIR}/pkg-truss.log
+	@rm ${WSTAGEDIR}/pkg-truss.log || true
+
 .endfor
 
 _default_flavor=	-default
