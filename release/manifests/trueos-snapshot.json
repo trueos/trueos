@@ -60,13 +60,7 @@
                                 "origin": "devel/uclcmd",
                                 "version": ">0"
                         }
-                  },
-                  "runtime-development": {
-                        "llvm60": {
-                                "origin": "devel/llvm60",
-                                "version": ">0"
-                        }
-		  }
+                  }
           }
   },
   "pkg-repo": {

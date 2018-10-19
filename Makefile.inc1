@@ -46,10 +46,10 @@
 # /usr/share/mk.  These include:
 #		obj depend all install clean cleandepend cleanobj
 
-MK_CLANG_BOOTSTRAP=	no
-MK_GCC_BOOTSTRAP=	no
-MK_CLANG=		no
-MK_LLD_BOOTSTRAP=	no
+#MK_CLANG_BOOTSTRAP=	no
+#MK_GCC_BOOTSTRAP=	no
+#MK_CLANG=		no
+#MK_LLD_BOOTSTRAP=	no
 
 .if !defined(TARGET) || !defined(TARGET_ARCH)
 .error "Both TARGET and TARGET_ARCH must be defined."
