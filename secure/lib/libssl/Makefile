@@ -38,3 +38,5 @@ PICFLAG+=	-DOPENSS_PIC
 .PATH:	${LCRYPTO_SRC}/ssl \
 	${LCRYPTO_SRC}/ssl/record \
 	${LCRYPTO_SRC}/ssl/statem
+
+.endif
