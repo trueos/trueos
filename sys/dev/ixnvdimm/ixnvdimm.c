@@ -345,7 +345,7 @@ static devclass_t nvdimm_root_devclass;
 
 DRIVER_MODULE(pmem, nexus, pmem_driver, pmem_devclass, 0, 0);
 DRIVER_MODULE(pmem, nvdimm_root, pmem_driver, pmem_devclass, 0, 0);
-MODULE_VERSION(nvdimm, 1);
+MODULE_VERSION(ixnvdimm, 1);
 
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_BUS
