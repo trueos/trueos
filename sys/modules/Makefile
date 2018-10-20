@@ -287,7 +287,7 @@ SUBDIR=	\
 	nullfs \
 	${_ntb} \
 	${_nvd} \
-	${_nvdimm} \
+	${_ixnvdimm} \
 	${_nvme} \
 	${_nvram} \
 	oce \
@@ -679,6 +679,7 @@ _iwifw=		iwifw
 _iwmfw=		iwmfw
 _iwnfw=		iwnfw
 .endif
+_ixnvdimm=	ixnvdimm
 _mlx4=		mlx4
 _mlx5=		mlx5
 .if (${MK_INET_SUPPORT} != "no" && ${MK_INET6_SUPPORT} != "no") || \
@@ -694,7 +695,6 @@ _mlx5ib=	mlx5ib
 _mly=		mly
 _nfe=		nfe
 _nvd=		nvd
-_nvdimm=	nvdimm
 _nvme=		nvme
 _nvram=		nvram
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)

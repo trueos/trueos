@@ -1,11 +1,11 @@
-# nvdimm Loadable Kernel Module
+# ixnvdimm Loadable Kernel Module
 #
 # $FreeBSD$
 
-.PATH:  ${.CURDIR}/../../dev/nvdimm
+.PATH:  ${.CURDIR}/../../dev/ixnvdimm
 
-KMOD=	nvdimm
-SRCS=	nvdimm.c nvdimm_copy.S
+KMOD=	ixnvdimm
+SRCS=	ixnvdimm.c ixnvdimm_copy.S
 SRCS+=	opt_acpi.h acpi_if.h device_if.h bus_if.h ntb_if.h opt_ddb.h
 
 # XXX: for assym.inc
