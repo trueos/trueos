@@ -372,7 +372,7 @@ nvdimm_probe(device_t dev)
 	ivar = (struct nvdimm_child *)device_get_ivars(dev);
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
-	if (acpi_disabled("ixnvdimm"))
+	if (acpi_disabled("nvdimm"))
 		return (ENXIO);
 
 	snprintf(buf, sizeof(buf), "NVDIMM region %juGB interleave %d",
@@ -404,7 +404,7 @@ static device_method_t nvdimm_methods[] = {
 };
 
 static driver_t nvdimm_driver = {
-	"ixnvdimm",
+	"nvdimm",
 	nvdimm_methods,
 	0,
 };
@@ -423,7 +423,7 @@ nvdimm_root_probe(device_t dev)
 {
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
-	if (acpi_disabled("ixnvdimm"))
+	if (acpi_disabled("nvdimm"))
 		return (ENXIO);
 	if (acpi_get_handle(dev) != NULL &&
 	    ACPI_ID_PROBE(device_get_parent(dev), dev, nvdimm_root_ids) == NULL)
@@ -477,7 +477,7 @@ nvdimm_root_walk_dev(ACPI_HANDLE handle, UINT32 level, void *ctx, void **st)
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	if (device_find_child(dev, "ixnvdimm", mm->RegionId) != NULL)
+	if (device_find_child(dev, "nvdimm", mm->RegionId) != NULL)
 		return_ACPI_STATUS(AE_OK);
 
 	ivar = malloc(sizeof(struct nvdimm_child), M_DEVBUF,
@@ -496,7 +496,7 @@ nvdimm_root_walk_dev(ACPI_HANDLE handle, UINT32 level, void *ctx, void **st)
 	ivar->size = mm->RegionSize;
 	ivar->interleave = mm->InterleaveWays;
 
-	child = device_add_child(dev, "ixnvdimm", mm->RegionId);
+	child = device_add_child(dev, "nvdimm", mm->RegionId);
 	if (child) {
 		device_set_ivars(child, ivar);
 		if (mm->Flags & ~ACPI_NFIT_MEM_HEALTH_ENABLED) {
@@ -679,7 +679,7 @@ static device_method_t nvdimm_root_methods[] = {
 };
 
 static driver_t nvdimm_root_driver = {
-	"ixnvdimm_root",
+	"nvdimm_root",
 	nvdimm_root_methods,
 	sizeof(struct nvdimm_root),
 };
