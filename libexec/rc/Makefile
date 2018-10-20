@@ -13,10 +13,12 @@ CONFETCDEFAULTS=	rc.conf
 #PACKAGE=rc
 
 SUBDIR+=	bin
-SUBDIR+=	etc.init.d
 SUBDIR+=	init.d
 SUBDIR+=	rc.d
 SUBDIR+=	sbin
 SUBDIR+=	sh
+
+# Needs to be added after sh
+SUBDIR+=	etc.init.d
 
 .include <bsd.prog.mk>
