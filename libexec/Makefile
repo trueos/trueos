@@ -18,7 +18,6 @@ SUBDIR=	${_atf} \
 	rc \
 	revnetgroup \
 	${_rlogind} \
-	rc \
 	rpc.rquotad \
 	rpc.rstatd \
 	rpc.rusersd \
