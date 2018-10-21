@@ -4,6 +4,7 @@
 	"type":"git",
 	"url":"https://github.com/trueos/trueos-ports",
 	"branch":"trueos-master",
+	"local_source":"/usr/local_source",
 	"make.conf":{
 		"default": [
 			"sysutils_tmux_UNSET=DOCS EXAMPLES"

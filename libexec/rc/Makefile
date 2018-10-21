@@ -1,12 +1,24 @@
 # $FreeBSD$
 
-PACKAGE=runtime
+CONFGROUPS=	CONFETC CONFETCEXEC CONFETCDEFAULTS
+CONFETCDIR=	/etc
+CONFETC+=	network.subr openrc openrc.shutdown rc rc.devd rc.dynamicdiskless
+CONFETC+=	rc.initdiskless rc.subr rc.shutdown
+CONFETCMODE=	644
+CONFETCEXEC=	netstart pccard_ether rc.resume rc.suspend
+CONFETCEXECDIR=	/etc
+CONFETCEXECMODE=	755
+CONFETCDEFAULTSDIR=	/etc/defaults
+CONFETCDEFAULTS=	rc.conf
+#PACKAGE=rc
 
-SUBDIR= sh
-SUBDIR+= bin
-SUBDIR+= sbin
-SUBDIR+= init.d
-SUBDIR_PARALLEL=
+SUBDIR+=	bin
+SUBDIR+=	init.d
+SUBDIR+=	rc.d
+SUBDIR+=	sbin
+SUBDIR+=	sh
 
-.include <bsd.subdir.mk>
+# Needs to be added after sh
+SUBDIR+=	etc.init.d
 
+.include <bsd.prog.mk>

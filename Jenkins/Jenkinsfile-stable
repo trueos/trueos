@@ -1,7 +1,7 @@
 /*
 
-This is the Jenkins Pipeline file used to create our
-stable images
+This is the default Jenkins Pipeline file used to create our
+stable images.
 
 */
 
@@ -12,6 +12,7 @@ pipeline {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
     SRCROOT = '/usr/trueos-src'
+    POUDRIERE_BASE = 'trueos-stable-base'
 
     // Set the MANIFEST we want to use for this build
     TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-stable.json'
@@ -27,48 +28,86 @@ pipeline {
 
     stage('Nullfs') {
       steps {
+        sh 'rm -rf ${WORKSPACE}/artifacts'
+        sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
         sh 'mkdir -p ${SRCROOT} || true'
+        sh 'umount -f ${SRCROOT} || true'
         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
+        sh 'rm -rf /usr/obj/${SRCROOT}/amd64.amd64 || true'
+        sh 'chflags -R noschg /usr/obj/${SRCROOT}/amd64.amd64 || true'
+        sh 'rm -rf /usr/obj/${SRCROOT}/amd64.amd64 || true'
       }
     }
 
-    stage('Pre-Clean') {
-      steps {
-        sh 'cd ${SRCROOT} && make clean'
-        sh 'cd ${SRCROOT}/release && make clean'
-      }
-    }
     stage('World') {
+      post {
+        always {
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+        }
+        failure {
+          sh 'tail -n 200 ${WORKSPACE}/artifacts/world.log'
+        }
+      }
       steps {
-        sh 'cd ${SRCROOT} && make -j32 buildworld'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildworld >${WORKSPACE}/artifacts/world.log 2>&1'
       }
     }
     stage('Kernel') {
+      post {
+        always {
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+        }
+        failure {
+          sh 'tail -n 200 ${WORKSPACE}/artifacts/kernel.log'
+        }
+      }
       steps {
-        sh 'cd ${SRCROOT} && make -j32 buildkernel'
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildkernel >${WORKSPACE}/artifacts/kernel.log 2>&1'
       }
     }
     stage('Base Packages') {
+      post {
+        always {
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+        }
+        failure {
+          sh 'tail -n 200 ${WORKSPACE}/artifacts/packages.log'
+        }
+      }
       environment {
 	   // Get our credentials from Jenkins
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
         sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
-        sh 'cd ${SRCROOT} && make -j 4 packages'
+        sh 'cd ${SRCROOT} && make packages -DDB_FROM_SRC >${WORKSPACE}/artifacts/packages.log 2>&1'
       }
     }
     stage('ISO') {
+      post {
+        always {
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+        }
+        failure {
+          sh 'tail -n 200 ${WORKSPACE}/artifacts/iso.log'
+        }
+      }
       steps {
-        sh 'rm -rf ${WORKSPACE}/artifacts'
-        sh 'cd ${SRCROOT}/release && make iso'
-        sh 'mkdir -p ${WORKSPACE}/artifacts'
+        sh 'cd ${SRCROOT}/release && make iso >${WORKSPACE}/artifacts/iso.log 2>&1'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
       }
     }
     stage('Dist') {
+      post {
+        always {
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+        }
+        failure {
+          sh 'tail -n 200 ${WORKSPACE}/artifacts/dist.log'
+        }
+      }
       steps {
-        sh 'cd ${SRCROOT}/release && make packagesystem'
+        sh 'cd ${SRCROOT}/release && make packagesystem >${WORKSPACE}/artifacts/dist.log 2>&1'
         sh 'mkdir -p ${WORKSPACE}/artifacts/dist'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts/dist/'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts/dist/'
@@ -82,8 +121,8 @@ pipeline {
     stage('Publish') {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
-          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/stable/ || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/stable/'
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/stable/FreeBSD:12:amd64/latest || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/stable/FreeBSD:12:amd64/latest'
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/stable/ || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/stable/'
         }
@@ -92,7 +131,6 @@ pipeline {
   }
   post {
     success {
-      sh 'rm -rf /usr/obj${SRCROOT} || true'
       script {
         cleanWs notFailBuild: true
       }
