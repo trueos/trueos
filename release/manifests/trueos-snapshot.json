@@ -1,89 +1,86 @@
 {
-  "version":"1.0",
-  "ports":{
-        "type":"git",
-        "url":"https://github.com/trueos/trueos-ports",
-        "branch":"trueos-master",
-        "make.conf":{
-		"default":[
-			"MAKE_JOBS_NUMBER_LIMIT=3",
-			"devel_llvm60_UNSET=LLDB",
-			"devel_llvm60_UNSET=DOCS",
-			"devel_llvm60_UNSET=GOLD",
-			"devel_llvm60_UNSET=OPENMP",
-			"devel_LLVM60_UNSET=EXTRAS",
-			"devel_LLVM60_UNSET=LIT"
-		]
-        },
-	"build-all":false,
-	"build":{
-		  "default":[
-			"archivers/pxz",
-			"archivers/pigz",
-			"devel/git",
-			"devel/jenkins",
-			"devel/llvm60",
-			"lang/python",
-			"lang/python2",
-			"lang/python3",
-			"net/rsync",
-			"ports-mgmt/poudriere-trueos",
-			"ports-mgmt/poudriere-devel",
-			"editors/vim-console"
-		]
-	 }
-
+  "base-packages": {
+    "depends": {
+      "runtime": {
+        "uclcmd": {
+          "origin": "devel/uclcmd",
+          "version": ">0"
+        }
+      }
+    },
+    "name-prefix": "TrueOS"
   },
-  "iso":{
-	 "iso-packages":{
-		"default":[
-		]
-	},
-	"dist-packages":{
-		"default":[
-		]
-	},
-	"auto-install-packages":{
-		"default":[
-			"ports-mgmt/poudriere",
-			"sysutils/ipmitool",
-			"sysutils/dmidecode",
-			"sysutils/tmux",
-			"www/nginx"
-		]
-	},
-	"overlay":"",
-	"install-script":"",
-	"auto-install-script":""
-  },
- "base-packages": {
-          "name-prefix":"TrueOS",
-          "depends": {
-                  "runtime": {
-                        "uclcmd": {
-                                "origin": "devel/uclcmd",
-                                "version": ">0"
-                        }
-                  }
-          }
+  "iso": {
+    "auto-install-packages": {
+      "default": [
+        "ports-mgmt/poudriere",
+        "sysutils/ipmitool",
+        "sysutils/dmidecode",
+        "sysutils/tmux",
+        "www/nginx"
+      ]
+    },
+    "auto-install-script": "",
+    "dist-packages": {
+      "default": []
+    },
+    "install-script": "",
+    "iso-packages": {
+      "default": []
+    },
+    "overlay": ""
   },
   "pkg-repo": {
-	  "url":"https://pkg.trueos.org/pkg/snapshot/${ABI}/latest",
-	  "pubKey": [
-		"-----BEGIN PUBLIC KEY-----",
-		"MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx4YxSavJkE7HjopkMtgK",
-		"tk/plcnImzfx0MmdK3ijv2724+v810kbAmRI01aiooQvusfcQ5OOyNpAzxwKMTTB",
-		"6bo46YtrnYBTP5G1mNqTRxL5Sg03Kpwcb6fCZ4gYOqTNPmhV6BskhRrfGOzNazcd",
-		"cb8CeqTeL7A44vwkyufQrSNgT9+ByCGuxaEp2os+GEbELyWZMmpQD6s2gAgpXuB6",
-		"K/f7pm9ZsULjJ+ZKc31TjgMTyVA07niocjDxiD2KVEbiagirnxA7BLa66u58B1ol",
-		"tnvOD8JNkGONT2LJhWOMXowZ8fCQ6Ec6ws2SY0UJ14d4w7xnz7U9+STHRYlJnNyl",
-		"ZYNLZ7UK7zyILWhAjkmq3TUaw7o456+QIyf4hA/he9UZhwhgRGNjJCUATbEUT+PF",
-		"65ox6+rT5g/jjDlY6kxfvLCTYJG/Arlj9FCAV/vBa/0lUu1OjivxPNK694G4tVHl",
-		"/z1yApzgzbOgkOY1caPCkGgniD2N4rySm744RxVXonrKmso9nsG0tGrDTC72M39Y",
-		"xgzt2x+NCDhBxZ6EWkqXH6Xk5yOPUV8XDTjqwOnm4XvyD9jzxAiK9Bex6CxKNfph",
-		"9p42Kr3QZPVXjZofqcfhJxZ4Nv0s09K1R1yqNzMmO7Aa2uF2F6ChQ/m6Z41hdaeO",
-		"AxxsOeRYAlBFJ4oo2cFVyqkCAwEAAQ==",
-		"-----END PUBLIC KEY-----"
-	  ]
-  }
+    "pubKey": [
+      "-----BEGIN PUBLIC KEY-----",
+      "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx4YxSavJkE7HjopkMtgK",
+      "tk/plcnImzfx0MmdK3ijv2724+v810kbAmRI01aiooQvusfcQ5OOyNpAzxwKMTTB",
+      "6bo46YtrnYBTP5G1mNqTRxL5Sg03Kpwcb6fCZ4gYOqTNPmhV6BskhRrfGOzNazcd",
+      "cb8CeqTeL7A44vwkyufQrSNgT9+ByCGuxaEp2os+GEbELyWZMmpQD6s2gAgpXuB6",
+      "K/f7pm9ZsULjJ+ZKc31TjgMTyVA07niocjDxiD2KVEbiagirnxA7BLa66u58B1ol",
+      "tnvOD8JNkGONT2LJhWOMXowZ8fCQ6Ec6ws2SY0UJ14d4w7xnz7U9+STHRYlJnNyl",
+      "ZYNLZ7UK7zyILWhAjkmq3TUaw7o456+QIyf4hA/he9UZhwhgRGNjJCUATbEUT+PF",
+      "65ox6+rT5g/jjDlY6kxfvLCTYJG/Arlj9FCAV/vBa/0lUu1OjivxPNK694G4tVHl",
+      "/z1yApzgzbOgkOY1caPCkGgniD2N4rySm744RxVXonrKmso9nsG0tGrDTC72M39Y",
+      "xgzt2x+NCDhBxZ6EWkqXH6Xk5yOPUV8XDTjqwOnm4XvyD9jzxAiK9Bex6CxKNfph",
+      "9p42Kr3QZPVXjZofqcfhJxZ4Nv0s09K1R1yqNzMmO7Aa2uF2F6ChQ/m6Z41hdaeO",
+      "AxxsOeRYAlBFJ4oo2cFVyqkCAwEAAQ==",
+      "-----END PUBLIC KEY-----"
+    ],
+    "url": "https://pkg.trueos.org/pkg/snapshot/${ABI}/latest"
+  },
+  "ports": {
+    "branch": "trueos-master",
+    "build": {
+      "default": [
+        "archivers/pxz",
+        "archivers/pigz",
+        "devel/git",
+        "devel/jenkins",
+        "devel/llvm60",
+        "lang/python",
+        "lang/python2",
+        "lang/python3",
+        "net/rsync",
+        "ports-mgmt/poudriere-trueos",
+        "ports-mgmt/poudriere-devel",
+        "editors/vim-console"
+      ]
+    },
+    "build-all": false,
+    "make.conf": {
+      "default": [
+        "MAKE_JOBS_NUMBER_LIMIT=3",
+        "devel_llvm60_UNSET=LLDB",
+        "devel_llvm60_UNSET=DOCS",
+        "devel_llvm60_UNSET=GOLD",
+        "devel_llvm60_UNSET=OPENMP",
+        "devel_LLVM60_UNSET=EXTRAS",
+        "devel_LLVM60_UNSET=LIT"
+      ]
+    },
+    "type": "git",
+    "url": "https://github.com/trueos/trueos-ports"
+  },
+  "version": "1.0"
 }
