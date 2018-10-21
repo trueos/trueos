@@ -1,4 +1,4 @@
-[![Build Status](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20Snapshot%20-%20Master/job/trueos-master/badge/icon)](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20Snapshot%20-%20Master/job/trueos-master/) [![Waffle.io - Columns and their card count](https://badge.waffle.io/trueos/trueos.svg?columns=all)](https://waffle.io/trueos/trueos) 
+[![Build Status](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20Snapshot%20-%20Master/job/trueos-master/badge/icon)](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20Snapshot%20-%20Master/job/trueos-master/)
 
 TrueOS Source:
 --------------
@@ -6,7 +6,7 @@ TrueOS Source:
 This is the top level TrueOS source directory. It is more or less a fork
 of [FreeBSD](https://github.com/freebsd/freebsd).
 
-The last sync of freebsd was [r338887](https://svnweb.freebsd.org/base?view=revision&revision=338887) on Sept 22th 2018, in the commit [e97b59664c6c3a579544dfb371d601bc08094a68](https://github.com/trueos/trueos/commit/e97b59664c6c3a579544dfb371d601bc08094a68).
+The last sync of freebsd was [r339436](https://svnweb.freebsd.org/base?view=revision&revision=339436) on Oct 20th 2018, in the commit [e1b493804565028de8b1791e8bff44305aa70113](https://github.com/trueos/trueos/commit/e1b493804565028de8b1791e8bff44305aa70113).
 
 TrueOS Differences:
 --------------

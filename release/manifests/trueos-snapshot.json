@@ -6,19 +6,30 @@
         "branch":"trueos-master",
         "make.conf":{
 		"default":[
-			"MAKE_JOBS_NUMBER_LIMIT=3"
+			"MAKE_JOBS_NUMBER_LIMIT=3",
+			"devel_llvm60_UNSET=LLDB",
+			"devel_llvm60_UNSET=DOCS",
+			"devel_llvm60_UNSET=GOLD",
+			"devel_llvm60_UNSET=OPENMP",
+			"devel_LLVM60_UNSET=EXTRAS",
+			"devel_LLVM60_UNSET=LIT"
 		]
         },
 	"build-all":false,
 	"build":{
 		  "default":[
+			"archivers/pxz",
+			"archivers/pigz",
 			"devel/git",
+			"devel/jenkins",
 			"devel/llvm60",
 			"lang/python",
 			"lang/python2",
 			"lang/python3",
-			"editors/vim-console",
-			"sysutils/tmux"
+			"net/rsync",
+			"ports-mgmt/poudriere-trueos",
+			"ports-mgmt/poudriere-devel",
+			"editors/vim-console"
 		]
 	 }
 
@@ -26,26 +37,19 @@
   "iso":{
 	 "iso-packages":{
 		"default":[
-			"sysutils/ipmitool",
-			"sysutils/dmidecode",
-			"sysutils/tmux"
 		]
 	},
 	"dist-packages":{
 		"default":[
-			"sysutils/ipmitool",
-			"sysutils/dmidecode",
-			"sysutils/tmux",
-			"www/nginx"
 		]
 	},
 	"auto-install-packages":{
 		"default":[
+			"ports-mgmt/poudriere",
 			"sysutils/ipmitool",
 			"sysutils/dmidecode",
 			"sysutils/tmux",
-			"www/nginx",
-			"ports-mgmt/poudriere-trueos"
+			"www/nginx"
 		]
 	},
 	"overlay":"",
@@ -64,7 +68,7 @@
           }
   },
   "pkg-repo": {
-	  "url":"https://pkg.trueos.org/pkg/snapshot",
+	  "url":"https://pkg.trueos.org/pkg/snapshot/${ABI}/latest",
 	  "pubKey": [
 		"-----BEGIN PUBLIC KEY-----",
 		"MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx4YxSavJkE7HjopkMtgK",

@@ -22,6 +22,7 @@ which can be customized with the following JSON settings:
     "type":"git",
     "url":"https://github.com/trueos/trueos-ports",
     "branch":"trueos-master",
+    "local_source":"/usr/local_source",
     "make.conf":[
       "devel_git_SET=SVN"
     ]

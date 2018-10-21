@@ -247,9 +247,9 @@ disc1:
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo rc_logger=\"NO\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
-	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc ${.TARGET}/etc
+	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	rm ${.TARGET}/etc/runlevels/boot/*
 .for i in abi localmount
@@ -280,9 +280,9 @@ bootonly: packagesystem
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo rc_logger=\"NO\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
-	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc ${.TARGET}/etc
+	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	rm ${.TARGET}/etc/runlevels/boot/*
 .for i in abi localmount
@@ -314,9 +314,9 @@ dvd: packagesystem
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo rc_logger=\"NO\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
-	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc ${.TARGET}/etc
+	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	rm ${.TARGET}/etc/runlevels/boot/*
 .for i in abi localmount

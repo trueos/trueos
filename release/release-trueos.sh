@@ -153,7 +153,8 @@ setup_poudriere_jail()
 	chmod -R 777 ${JDIR}/var/tmp
 
 	# Do we have any locally checked out sources to copy into poudirere jail?
-	if [ -e "${LOCAL_SOURCE_DIR}" ] ; then
+	LOCAL_SOURCE_DIR=$(jq -r '."ports"."local_source"' $TRUEOS_MANIFEST 2>/dev/null)
+	if [ -n "$LOCAL_SOURCE_DIR" -a -d "${LOCAL_SOURCE_DIR}" ] ; then
 		rm -rf ${JDIR}/usr/local_source 2>/dev/null
 		cp -a ${LOCAL_SOURCE_DIR} ${JDIR}/usr/local_source
 		if [ $? -ne 0 ] ; then
@@ -710,6 +711,24 @@ check_version()
 	fi
 }
 
+check_build_environment()
+{
+	for cmd in poudriere jq uclcmd
+	do
+		which -s $cmd
+		if [ $? -ne 0 ] ; then
+			echo "ERROR: Missing \"$cmd\" command. Please install first." >&2
+			exit 1
+		fi
+	done
+
+	cpp --version >/dev/null 2>/dev/null
+	if [ $? -ne 0 ] ; then
+		echo "Missing compiler! Please install llvm first."
+		exit 1
+	fi
+}
+
 get_world_flags()
 {
 	# Check if we have any world-flags to pass back
@@ -750,7 +769,8 @@ case $1 in
 	iso) cp_iso_pkgs
 	     apply_iso_config
 	     ;;
-	check) check_version ;;
+	check)  check_build_environment
+		check_version ;;
 	world_flags) get_world_flags ;;
 	kernel_flags) get_kernel_flags ;;
 	*) echo "Unknown option selected" ;;
