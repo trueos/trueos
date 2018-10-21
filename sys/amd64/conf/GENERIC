@@ -88,7 +88,6 @@ options 	RCTL			# Resource limits
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
 options 	KDB_TRACE		# Print a stack trace for a panic.
-options 	DDB			# Support DDB.
 
 # Kernel dump features.
 options 	EKCD			# Support for encrypted kernel dumps
