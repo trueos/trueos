@@ -16,7 +16,7 @@ pipeline {
     POUDRIERE_PORTS = 'trueos-snap-ports'
     TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-snapshot.json'
     WITH_XTRA_PKGS = 'YES'
-    TRUEOS_VERSION = '12.0'
+    TRUEOS_VERSION = '13.0'
   }
 
   stages {
@@ -122,8 +122,8 @@ pipeline {
     stage('Publish') {
       steps {
         sshagent (credentials: ['syncbot-credentials']) {
-          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/snapshot/FreeBSD:12:amd64/latest || true'
-          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/snapshot/FreeBSD:12:amd64/latest'
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/snapshot/FreeBSD:13:amd64/latest || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/snapshot/FreeBSD:13:amd64/latest'
           sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/snapshot/ || true'
           sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/snapshot/'
         }
