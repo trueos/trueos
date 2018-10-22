@@ -86,7 +86,7 @@ pipeline {
            PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
       }
       steps {
-        sh 'cd ${SRCROOT} && make -j 4 packages >${WORKSPACE}/artifacts/packages.log 2>&1'
+        sh 'cd ${SRCROOT} && make packages >${WORKSPACE}/artifacts/packages.log 2>&1'
       }
     }
     stage('ISO') {
