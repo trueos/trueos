@@ -79,7 +79,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
-        sh 'cd ${SRCROOT} && make -j 6 packages >${WORKSPACE}/artifacts/packages.log 2>&1'
+        sh 'cd ${SRCROOT} && make packages >${WORKSPACE}/artifacts/packages.log 2>&1'
       }
     }
     stage('Release') {
