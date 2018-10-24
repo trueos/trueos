@@ -17,7 +17,8 @@
         "sysutils/ipmitool",
         "sysutils/dmidecode",
         "sysutils/tmux",
-        "www/nginx"
+        "www/nginx",
+        "security/ca_root_nss"
       ]
     },
     "auto-install-script": "",
