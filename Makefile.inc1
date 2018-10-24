@@ -1934,7 +1934,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		${KSTAGEDIR}/${DISTDIR} \
 		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
 		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
-	@export PPKG=$$(ls ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/previous/${PKG_BASENAME}-kernel.${INSTALLKERNEL}${flavor}-[0-9]* 2>/dev/null || true) ; \
+	export PPKG=$$(ls ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/previous/${PKG_BASENAME}-kernel.${INSTALLKERNEL}${flavor}-[0-9]* 2>/dev/null || true) ; \
 	if [ -n "$${PPKG}" -a "$$(${PKG_CMD} info -R --raw-format json -F $${PPKG} 2>/dev/null | /usr/local/bin/jq -r '."annotations"."psum"')" = "$$(cat ${WSTAGEDIR}/kernel.${INSTALLKERNEL}${flavor}.plist.csum)" ] ; then \
 		echo "=====> Using previous package for kernel.${INSTALLKERNEL}${flavor}" ; \
 		cp $${PPKG} ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION}/ ; \
@@ -1978,7 +1978,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		${KSTAGEDIR}/${DISTDIR} \
 		${KSTAGEDIR}/${DISTDIR}/kernel.${_kernel}${flavor}.plist \
 		${KSTAGEDIR}/${DISTDIR}/kernel.${_kernel}${flavor}.ucl ; \
-	@export PPKG=$$(ls ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/previous/${PKG_BASENAME}-kernel.${_kernel}${flavor}-[0-9]* 2>/dev/null || true) ; \
+	export PPKG=$$(ls ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/previous/${PKG_BASENAME}-kernel.${_kernel}${flavor}-[0-9]* 2>/dev/null || true) ; \
 	if [ -n "$${PPKG}" -a "$$(${PKG_CMD} info -R --raw-format json -F $${PPKG} 2>/dev/null | /usr/local/bin/jq -r '."annotations"."psum"')" = "$$(cat ${WSTAGEDIR}/kernel.${_kernel}${flavor}.plist.csum)" ] ; then \
 		echo "=====> Using previous package for kernel.${_kernel}${flavor}" ; \
 		cp $${PPKG} ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION}/ ; \
@@ -2007,6 +2007,7 @@ run-ports: _pkgbootstrap .PHONY
 		make -C ${SRCDIR}/release poudriere
 
 sign-packages:	_pkgbootstrap .PHONY
+	@cd ${OBJROOT}pkgset && ls ${PKG_BASENAME}-* > ${OBJROOT}pkgset/BASEMANIFEST
 	@${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
 		-o ${OBJROOT}pkgset \
 		${OBJROOT}pkgset \
