@@ -1859,6 +1859,10 @@ create-world-package-${pkgname}: .PHONY
 		${SRCDIR} \
 		${WSTAGEDIR}/${pkgname}.ucl \
 		${TRUEOS_MANIFEST}
+	@sh ${SRCDIR}/release/packages/transform-plist.sh ${pkgname} \
+		${SRCDIR} \
+		${WSTAGEDIR}/${pkgname}.plist \
+		${TRUEOS_MANIFEST}
 # XXX REMOVE ME LATER
 # This "truss" may not be necessary at a later point. Right now we're dealing with some
 # very odd race conditions with pkg-static that causes segfaults at random.

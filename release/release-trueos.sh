@@ -162,6 +162,14 @@ setup_poudriere_jail()
 		fi
 	fi
 
+	# Add any list of files to strip from port plists
+	# Verify we have anything to strip in our MANIFEST
+	if [ "$(jq -r '."base-packages"."strip-plist" | length' $TRUEOS_MANIFEST)" != "0" ] ; then
+		jq -r '."base-packages"."strip-plist" | join("\n")' $TRUEOS_MANIFEST > ${JDIR}/etc/strip-plist-ports
+	else
+		rm ${JDIR}/etc/strip-plist-ports >/dev/null 2>/dev/null
+	fi
+
 	# Create a tarball and feed this into poudriere
 	# We used nullfs for a while, but it does consume much more memory
 	echo "Creating poudriere tarball..."

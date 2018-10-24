@@ -15,6 +15,10 @@
       ]
     },
     "name-prefix": "TrueOS",
+    "strip-plist":[
+	"/usr/share/examples/pc",
+	"/usr/share/examples/ppp"
+    ],
     "world-flags": {
       "default": [
         "WITH_FOO=1",
@@ -131,6 +135,10 @@
         "sysutils_tmux_UNSET=DOCS EXAMPLES"
       ]
     },
+    "strip-plist":[
+	"/usr/local/share/doc/tmux",
+	"/usr/local/share/examples/tmux"
+    ],
     "type": "git",
     "url": "https://github.com/trueos/trueos-ports"
   },
