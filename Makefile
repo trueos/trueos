@@ -142,6 +142,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	xdev-links native-xtools native-xtools-install stageworld stagekernel \
 	stage-packages \
 	create-packages-world create-packages-kernel create-packages \
+	base-packages real-base-packages unlink-packages \
 	packages installconfig real-packages sign-packages package-pkg \
 	link-packages ports run-ports \
 	print-dir test-system-compiler test-system-linker
