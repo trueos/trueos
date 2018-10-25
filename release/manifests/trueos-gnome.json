@@ -95,7 +95,7 @@
 		},
 		{
 			"chroot":false,
-			"command":"/root/gnome-init.sh"
+			"command":"/root/plasma-init.sh"
 		}
 	]
   },
