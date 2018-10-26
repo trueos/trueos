@@ -75,7 +75,7 @@
 	},
 	"overlay":{
 		"type":"git",
-		"url":"https://github.com/trueos/trueos-plasma-overlay.git",
+		"url":"https://github.com/trueos/trueos-desktop-install-overlay.git",
 		"branch":"master"
 	  },
 	"install-script":"",
@@ -95,7 +95,7 @@
 		},
 		{
 			"chroot":false,
-			"command":"/root/plasma-init.sh"
+			"command":"/root/desktop-init.sh"
 		}
 	]
   },
