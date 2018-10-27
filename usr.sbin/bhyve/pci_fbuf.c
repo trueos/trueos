@@ -122,8 +122,9 @@ static void
 pci_fbuf_usage(char *opt)
 {
 
-	fprintf(stderr, "Invalid fbuf emulation \"%s\"\r\n", opt);
-	fprintf(stderr, "fbuf: {wait,}{vga=on|io|off,}rfb=<ip>:port\r\n");
+	fprintf(stderr, "Invalid fbuf emulation option \"%s\"\r\n", opt);
+	fprintf(stderr, "fbuf: {wait,}{vga=on|io|off,}rfb=<ip>:port"
+	    "{,w=width}{,h=height}\r\n");
 }
 
 static void
@@ -274,15 +275,34 @@ pci_fbuf_parse_opts(struct pci_fbuf_softc *sc, char *opts)
 		DPRINTF(DEBUG_VERBOSE, ("pci_fbuf option %s = %s\r\n",
 		   xopts, config));
 
-		if (!strcmp(xopts, "tcp") || !strcmp(xopts, "rfb") ||
-		    !strcmp(xopts, "vncserver")) {
-			/* parse host-ip:port */
-			tmpstr = strsep(&config, ":");
-			if (!config)
-				sc->rfb_port = atoi(tmpstr);
-			else {
-				sc->rfb_port = atoi(config);
+		if (!strcmp(xopts, "tcp") || !strcmp(xopts, "rfb")) {
+			/*
+			 * IPv4 -- host-ip:port
+			 * IPv6 -- [host-ip%zone]:port
+			 * XXX for now port is mandatory.
+			 */
+			tmpstr = strsep(&config, "]");
+			if (config) {
+				if (tmpstr[0] == '[')
+					tmpstr++;
 				sc->rfb_host = tmpstr;
+				if (config[0] == ':')
+					config++;
+				else {
+					pci_fbuf_usage(xopts);
+					ret = -1;
+					goto done;
+				}
+				sc->rfb_port = atoi(config);
+			} else {
+				config = tmpstr;
+				tmpstr = strsep(&config, ":");
+				if (!config)
+					sc->rfb_port = atoi(tmpstr);
+				else {
+					sc->rfb_port = atoi(config);
+					sc->rfb_host = tmpstr;
+				}
 			}
 		} else if (!strcmp(xopts, "vga")) {
 			if (!strcmp(config, "off")) {
@@ -294,7 +314,7 @@ pci_fbuf_parse_opts(struct pci_fbuf_softc *sc, char *opts)
 				sc->vga_enabled = 1;
 				sc->vga_full = 1;
 			} else {
-				pci_fbuf_usage(opts);
+				pci_fbuf_usage(xopts);
 				ret = -1;
 				goto done;
 			}
