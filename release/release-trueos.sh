@@ -141,11 +141,37 @@ setup_poudriere_jail()
 		exit_err "Unable to locate worldstage dir"
 	fi
 
+	# Copy llvm60 to the jail dir
+	rm -rf ${JDIR}/usr/local
+	mkdir -p ${JDIR}/usr/local 2>/dev/null
+	cp -a /usr/local/llvm60 ${JDIR}/usr/local/
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed copying /usr/local/llvm60 -> ${JDIR}/usr/local/"
+	fi
+
+	# Copy libxml2*
+	cp -a /usr/local/lib/libxml* ${JDIR}/usr/local/llvm60/lib/
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed copying /usr/local/lib/libxml* -> ${JDIR}/usr/local/lib"
+	fi
+
+	# Copy libedit
+	cp -a /usr/local/lib/libedit* ${JDIR}/usr/local/llvm60/lib/
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed copying /usr/local/lib/libedit* -> ${JDIR}/usr/local/lib"
+	fi
+
 	# Copy over the sources
 	mkdir -p ${JDIR}/usr/src 2>/dev/null
 	cp -a ${SRCDIR}/ ${JDIR}/usr/src/
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed copying ${SRCDIR} -> ${JDIR}/usr/src"
+	fi
+
+	# Setup the sym-links inside the jail
+	chroot ${JDIR} compiler-bootstrap llvm60
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed compiler-bootstrap in -> ${JDIR}"
 	fi
 
 	# Make sure the various /tmp(s) will work for poudriere
