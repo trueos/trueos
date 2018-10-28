@@ -85,6 +85,7 @@ __DEFAULT_YES_OPTIONS = \
     CTM \
     CUSE \
     CXX \
+    CXGBETOOL \
     DIALOG \
     DICT \
     DMAGENT \
@@ -111,6 +112,7 @@ __DEFAULT_YES_OPTIONS = \
     GPIO \
     HAST \
     HTML \
+    HYPERV \
     ICONV \
     INET \
     INET6 \
@@ -140,12 +142,14 @@ __DEFAULT_YES_OPTIONS = \
     MAIL \
     MAILWRAPPER \
     MAKE \
+    MLX5TOOL \
     NDIS \
     NETCAT \
     NETGRAPH \
     NLS_CATALOGS \
     NS_CACHING \
     NTP \
+    NVME \
     OFED \
     OPENSSL \
     PAM \
@@ -285,8 +289,8 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 .if ${COMPILER_FEATURES:Mc++11} && (${__T} == "aarch64" || \
     ${__T} == "amd64" || ${__TT} == "arm" || ${__T} == "i386")
 # Clang is enabled, and will be installed as the default /usr/bin/cc.
-__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
-__DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
+#__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
+__DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
 .elif ${COMPILER_FEATURES:Mc++11} && ${__T:Mriscv*} == "" && ${__T} != "sparc64"
 # If an external compiler that supports C++11 is used as ${CC} and Clang
 # supports the target, then Clang is enabled but GCC is installed as the
@@ -366,27 +370,27 @@ BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
 # profiling won't work on MIPS64 because there is only assembly for o32
 BROKEN_OPTIONS+=PROFILE
 .endif
-.if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "i386" || \
-    ${__T} == "powerpc64" || ${__T} == "sparc64"
-__DEFAULT_YES_OPTIONS+=CXGBETOOL
-__DEFAULT_YES_OPTIONS+=MLX5TOOL
-.else
-__DEFAULT_NO_OPTIONS+=CXGBETOOL
-__DEFAULT_NO_OPTIONS+=MLX5TOOL
+.if ${__T} != "aarch64" && ${__T} != "amd64" && ${__T} != "i386" && \
+    ${__T} != "powerpc64" && ${__T} != "sparc64"
+BROKEN_OPTIONS+=CXGBETOOL
+BROKEN_OPTIONS+=MLX5TOOL
 .endif
 
 # HyperV is currently x86-only
-.if ${__T} == "amd64" || ${__T} == "i386"
-__DEFAULT_YES_OPTIONS+=HYPERV
-.else
-__DEFAULT_NO_OPTIONS+=HYPERV
+.if ${__T} != "amd64" && ${__T} != "i386"
+BROKEN_OPTIONS+=HYPERV
 .endif
 
 # NVME is only x86 and powerpc64
-.if ${__T} == "amd64" || ${__T} == "i386" || ${__T} == "powerpc64"
-__DEFAULT_YES_OPTIONS+=NVME
+.if ${__T} != "amd64" && ${__T} != "i386" && ${__T} != "powerpc64"
+BROKEN_OPTIONS+=NVME
+.endif
+
+.if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "i386" || \
+    ${__T} == "powerpc64"
+__DEFAULT_NO_OPTIONS+=BSD_CRTBEGIN
 .else
-__DEFAULT_NO_OPTIONS+=NVME
+BROKEN_OPTIONS+=BSD_CRTBEGIN
 .endif
 
 .include <bsd.mkopt.mk>
