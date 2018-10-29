@@ -35,7 +35,7 @@ do
 	CSUM="$(sha256 -q ${WORLDDIR}/${JFILE})"
 
 	# Add it to the total string
-	CSUMTOTAL="${CSUMTOTAL}"
+	CSUMTOTAL="${CSUMTOTAL}${CSUM}"
 	
 done < ${PLIST}
 
