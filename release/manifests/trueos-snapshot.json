@@ -58,6 +58,7 @@
         "devel/git",
         "devel/jenkins",
         "devel/llvm60",
+        "dns/mDNSResponder",
         "lang/python",
         "lang/python2",
         "lang/python3",
