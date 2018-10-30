@@ -31,42 +31,48 @@
 # Script to go through and create sym-links to ports version of LLVM
 DEFAULT_LLVM=llvm60
 
+if [ -z "${TRUEOS_MANIFEST}" ] ; then
+	BASEDIR="/usr/local"
+else
+	BASEDIR="/usr"
+fi
+
 if [ -n "$1" ] ; then
 	LLVM="$1"
 else
 	LLVM="$DEFAULT_LLVM"
 fi
 
-if [ ! -d "/usr/local/$LLVM/bin" ] ; then
-	echo "WARNING: /usr/local/$LLVM/bin does not exist"
+if [ ! -d "$BASEDIR/$LLVM/bin" ] ; then
+	echo "WARNING: $BASEDIR/$LLVM/bin does not exist"
 fi
 
 # Figure out real binary for clang
-CLINK=$(readlink /usr/local/${LLVM}/bin/clang)
+CLINK=$(readlink ${BASEDIR}/${LLVM}/bin/clang)
 
 # Make the sym-links now
 for i in cc c++ cpp clang clang++ clang-cpp clang-tblgen ld ld.lld
 do
 	case $i in
                 cc)
-			if [ ! -e "/usr/local/$LLVM/bin/cc" ] ; then
-				ln /usr/local/${LLVM}/bin/$CLINK /usr/local/$LLVM/bin/cc
+			if [ ! -e "$BASEDIR/$LLVM/bin/cc" ] ; then
+				ln $BASEDIR/${LLVM}/bin/$CLINK $BASEDIR/$LLVM/bin/cc
 			fi
-			ln -fs /usr/local/$LLVM/bin/$i /usr/bin/$i
+			ln -fs $BASEDIR/$LLVM/bin/$i /usr/bin/$i
 			;;
                c++)
-			if [ ! -e "/usr/local/$LLVM/bin/c++" ] ; then
-				ln /usr/local/${LLVM}/bin/$CLINK /usr/local/$LLVM/bin/c++
+			if [ ! -e "$BASEDIR/$LLVM/bin/c++" ] ; then
+				ln $BASEDIR/${LLVM}/bin/$CLINK $BASEDIR/$LLVM/bin/c++
 			fi
-		        ln -fs /usr/local/$LLVM/bin/$i /usr/bin/$i
+		        ln -fs $BASEDIR/$LLVM/bin/$i /usr/bin/$i
 			;;
                cpp)
-			if [ ! -e "/usr/local/$LLVM/bin/cpp" ] ; then
-				ln /usr/local/${LLVM}/bin/$CLINK /usr/local/$LLVM/bin/cpp
+			if [ ! -e "$BASEDIR/$LLVM/bin/cpp" ] ; then
+				ln $BASEDIR/${LLVM}/bin/$CLINK $BASEDIR/$LLVM/bin/cpp
 			fi
-		        ln -fs /usr/local/$LLVM/bin/$i /usr/bin/$i
+		        ln -fs $BASEDIR/$LLVM/bin/$i /usr/bin/$i
 			;;
-		ld) ln -fs /usr/local/$LLVM/bin/ld.lld /usr/bin/$i ;;
-		*) ln -fs /usr/local/$LLVM/bin/$i /usr/bin/$i ;;
+		ld) ln -fs $BASEDIR/$LLVM/bin/ld.lld /usr/bin/$i ;;
+		*) ln -fs $BASEDIR/$LLVM/bin/$i /usr/bin/$i ;;
 	esac
 done
