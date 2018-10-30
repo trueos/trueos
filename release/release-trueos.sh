@@ -563,6 +563,13 @@ merge_pkg_sets()
 		exit_err "Failed staging base packages..."
 	fi
 
+	# Build MANIFEST of just the base packages (for repro builds to boot-strap)
+	rm ${PDIR}/All/BASEMANIFEST >/dev/null 2>/dev/null
+	for p in $(cd ${OBJROOT}repo/${ABI_DIR}/latest/ && ls *.txz | sort)
+	do
+		sha=$(sha256 -q ${OBJROOT}repo/${ABI_DIR}/latest/${p})
+		echo "${p}:::${sha}" >> ${PDIR}/All/BASEMANIFEST
+	done
 }
 
 mk_repo_config()

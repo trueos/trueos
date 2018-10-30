@@ -18,7 +18,7 @@ EOD
 deps: {
     %BASENAME%-%PKGDEPS%: {
         origin: "base",
-        version: "%VERSION%"
+        version: ">0"
     }
 }
 

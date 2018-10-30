@@ -95,99 +95,99 @@ EOD
 deps: {
     "%BASENAME%-clibs": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libmd": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libarchive": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libbz2": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-liblzma": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libbsdxml": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libutil": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-librc": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libfetch": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libelf": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libz": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-lib": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-lib80211": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libbsm": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libeinfo": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libgeom": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libkvm": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libopie": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libsbuf": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libucl": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libwrap": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libxo": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libypclnt": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "%BASENAME%-libcrypt": {
         origin: "base"
-        version: "%VERSION%"
+        version: ">0"
     }
     "pkg": {
 	origin: "ports-mgmt/pkg"
