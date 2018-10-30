@@ -142,23 +142,21 @@ setup_poudriere_jail()
 	fi
 
 	# Copy llvm60 to the jail dir
-	rm -rf ${JDIR}/usr/local
-	mkdir -p ${JDIR}/usr/local 2>/dev/null
-	cp -a /usr/local/llvm60 ${JDIR}/usr/local/
+	cp -a /usr/local/llvm60 ${JDIR}/usr/
 	if [ $? -ne 0 ] ; then
-		exit_err "Failed copying /usr/local/llvm60 -> ${JDIR}/usr/local/"
+		exit_err "Failed copying /usr/local/llvm60 -> ${JDIR}/usr/"
 	fi
 
 	# Copy libxml2*
-	cp -a /usr/local/lib/libxml* ${JDIR}/usr/local/llvm60/lib/
+	cp -a /usr/local/lib/libxml* ${JDIR}/usr/llvm60/lib/
 	if [ $? -ne 0 ] ; then
-		exit_err "Failed copying /usr/local/lib/libxml* -> ${JDIR}/usr/local/lib"
+		exit_err "Failed copying /usr/local/lib/libxml* -> ${JDIR}/usr/llvm60/lib"
 	fi
 
 	# Copy libedit
-	cp -a /usr/local/lib/libedit* ${JDIR}/usr/local/llvm60/lib/
+	cp -a /usr/local/lib/libedit* ${JDIR}/usr/llvm60/lib/
 	if [ $? -ne 0 ] ; then
-		exit_err "Failed copying /usr/local/lib/libedit* -> ${JDIR}/usr/local/lib"
+		exit_err "Failed copying /usr/local/lib/libedit* -> ${JDIR}/usr/llvm60/lib"
 	fi
 
 	# Copy over the sources
