@@ -134,6 +134,7 @@ pkg_install_jail()
 
 boot_strap_cc()
 {
+	TRUEOS_MANIFEST="foo" ; export TRUEOS_MANIFEST
 	chroot ${1} compiler-bootstrap ${DEFAULTCC}
 }
 
@@ -165,9 +166,11 @@ prep_poudriere()
 
 	if [ -d "${1}/usr/local/llvm60" ] ; then
 		CDIR="${1}/usr/local/llvm60"
+		TDIR="${1}/usr/llvm60"
 	fi
 	if [ -d "${1}/usr/local/llvm70" ] ; then
 		CDIR="${1}/usr/local/llvm70"
+		TDIR="${1}/usr/llvm70"
 	fi
 	if [ -z "$CDIR" ] ; then
 		echo "WARNING: unknown default compiler!"
@@ -195,9 +198,9 @@ prep_poudriere()
 	rm -rf "${1}/usr/local"
 	mkdir -p "${1}/usr/local"
 
-	mv "${1}/tmpcc" "${CDIR}"
+	mv "${1}/tmpcc" "${TDIR}"
 	if [ $? -ne 0 ] ; then
-		echo "Failed moving $CDIR"
+		echo "Failed moving $TDIR"
 		exit 1
 	fi
 
