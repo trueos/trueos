@@ -246,6 +246,9 @@ setup_poudriere_jail()
 		if [ $? -ne 0 ] ; then
 			exit_err "Failed creating poudriere ports - NULLFS"
 		fi
+		# Also fix the internal variable pointing to the location of the ports tree on disk
+		# This is used for checking essential packages later
+		POUDRIERE_PORTDIR=${PORTS_URL}
 	fi
 
 	rm ${POUDRIERED_DIR}/${POUDRIERE_BASE}-make.conf
