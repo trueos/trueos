@@ -67,6 +67,7 @@ pipeline {
     stage('Base Packages') {
       post {
         always {
+          sh 'cp -r /usr/local/poudriere/data/logs/bulk/fn-master-base-fn-master-ports/latest/logs ${WORKSPACE}/artifacts/poudriere-logs'
           archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
         }
         failure {
