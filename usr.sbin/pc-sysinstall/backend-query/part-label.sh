@@ -47,8 +47,8 @@ fi
 
 gpart show ${1} >/dev/null 2>/dev/null
 if [ "$?" != "0" ] ; then
-  # No partitions on this disk, display entire disk size and exit
-  echo "Not a primary partition"
+  # Partitons is not a primary partition
+  echo "${1} is not a primary partition"
   exit
 fi
 
@@ -65,7 +65,7 @@ EXTENDED="0"
 START="0"
 SIZEB="0"
 
-# Get a listing of partitions on this disk
+# Get a listing of partitions from the primary partition
 get_partitions_lables "${SLICE_PART}"
 LABELS="${VAL}"
 for curpart in $LABELS
@@ -96,3 +96,4 @@ FREEB=`gpart show ${SLICE_PART} | grep '\- free\ -' | awk '{print $2}' | sort -g
 FREEMB="`expr ${FREEB} / 2048`"
 echo "${1}-freemb: $FREEMB"
 echo "${1}-freeblocks: $FREEB"
+
