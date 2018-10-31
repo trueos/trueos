@@ -7,7 +7,7 @@ FILES=	detect-country.sh detect-laptop.sh detect-nics.sh detect-emulation.sh \
 	list-tzones.sh query-langs.sh send-logs.sh set-mirror.sh setup-ssh-keys.sh \
 	list-zpools.sh \
 	sys-mem.sh test-live.sh test-netup.sh update-part-list.sh xkeyboard-layouts.sh \
-	xkeyboard-models.sh xkeyboard-variants.sh
+	xkeyboard-models.sh xkeyboard-variants.sh part-label.sh
 FILESMODE=	${BINMODE}
 FILESDIR=${SHAREDIR}/pc-sysinstall/backend-query
 

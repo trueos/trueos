@@ -129,6 +129,26 @@ get_partition_label_gpt()
   export VAL="${LABEL}"
 };
 
+get_partition_label()
+{
+  PART="${1}"
+  CHAR=`echo -n ${2} | tail -c 1`
+  CHAR_NUM=`printf "%d\n" "'${CHAR}"`
+  LABEL_NUM=$((${CHAR_NUM}-96))
+  gpart show ${PART} >${TMPDIR}/part-${PART}
+  while read i
+  do
+     SLICE="`echo ${i} | grep -v ${PART} | grep -v ' free ' |tr -s '\t' ' ' | cut -d ' ' -f 3`"
+     if [ "${SLICE}" = "${LABEL_NUM}" ] ; then
+       LABEL="`echo ${i} | grep -v ${PART} | grep -v ' free ' |tr -s '\t' ' ' | cut -d ' ' -f 4`"
+       break
+     fi
+  done <${TMPDIR}/part-${PART}
+  rm ${TMPDIR}/part-${PART}
+
+  export VAL="${LABEL}"
+};
+
 # Get a partitions startblock
 get_partition_startblock()
 {
@@ -145,6 +165,26 @@ get_partition_startblock()
      fi
   done <${TMPDIR}/disk-${DISK}
   rm ${TMPDIR}/disk-${DISK}
+
+  export VAL="${SB}"
+};
+
+get_label_startblock()
+{
+  PART="${1}"
+  CHAR=`echo -n ${2} | tail -c 1`
+  CHAR_NUM=`printf "%d\n" "'${CHAR}"`
+  LABEL_NUM=$((${CHAR_NUM}-96))
+  gpart show ${PART} >${TMPDIR}/part-${PART}
+  while read i
+  do
+     SLICE="`echo ${i} | grep -v ${PART} | grep -v ' free ' |tr -s '\t' ' ' | cut -d ' ' -f 3`"
+     if [ "$SLICE" = "${LABEL_NUM}" ] ; then
+       SB="`echo ${i} | grep -v ${PART} | grep -v ' free ' |tr -s '\t' ' ' | cut -d ' ' -f 1`"
+       break
+     fi
+  done <${TMPDIR}/part-${PART}
+  rm ${TMPDIR}/part-${PART}
 
   export VAL="${SB}"
 };
@@ -169,6 +209,27 @@ get_partition_blocksize()
   export VAL="${BS}"
 };
 
+get_label_blocksize()
+{
+  PART="${1}"
+  CHAR=`echo -n ${2} | tail -c 1`
+  CHAR_NUM=`printf "%d\n" "'${CHAR}"`
+  LABEL_NUM=$((${CHAR_NUM}-96))
+
+  gpart show ${PART} >${TMPDIR}/part-${PART}
+  while read i
+  do
+     SLICE="`echo ${i} | grep -v ${PART} | grep -v ' free ' |tr -s '\t' ' ' | cut -d ' ' -f 3`"
+     if [ "$SLICE" = "${LABEL_NUM}" ] ; then
+       BS="`echo ${i} | grep -v ${PART} | grep -v ' free ' |tr -s '\t' ' ' | cut -d ' ' -f 2`"
+       break
+     fi
+  done <${TMPDIR}/part-${PART}
+  rm ${TMPDIR}/part-${PART}
+
+  export VAL="${BS}"
+};
+
 # Function which returns the partitions on a target disk
 get_disk_partitions()
 {
@@ -188,6 +249,30 @@ get_disk_partitions()
       GPT) name="${1}p${i}";;
       *) name="${1}s${i}";;
     esac
+    if [ -z "${RSLICES}" ]
+    then
+      RSLICES="${name}"
+    else
+      RSLICES="${RSLICES} ${name}"
+    fi
+  done
+
+  export VAL="${RSLICES}"
+};
+
+get_partitions_lables()
+{
+  gpart show ${1} >/dev/null 2>/dev/null
+  if [ $? -ne 0 ] ; then
+    export VAL=""
+    return
+  fi
+
+  SLICES="`gpart show ${1} | grep -v ${1} | grep -v ' free ' |tr -s '\t' ' ' | cut -d ' ' -f 4 | sed '/^$/d'`"
+  for i in ${SLICES}
+  do
+    label=`awk -v char=$((96+${i})) 'BEGIN { printf "%c\n", char; exit }'`
+    name="${1}${label}"
     if [ -z "${RSLICES}" ]
     then
       RSLICES="${name}"
@@ -343,7 +428,7 @@ setup_disk_slice()
 
       echo "${DISK}" | grep -q '^/dev/'
       if [ $? -ne 0 ] ; then DISK="/dev/$DISK" ; fi
-     
+
       # Before we go further, lets confirm this disk really exists
       if [ ! -e "${DISK}" ] ; then
         exit_err "ERROR: The disk ${DISK} does not exist!"
@@ -371,7 +456,7 @@ setup_disk_slice()
       MIRRORDISK="$VAL"
       echo "${MIRRORDISK}" | grep -q '^/dev/'
       if [ $? -ne 0 ] ; then MIRRORDISK="/dev/$MIRRORDISK" ; fi
-     
+
       # Before we go further, lets confirm this disk really exists
       if [ ! -e "${MIRRORDISK}" ]
       then
@@ -403,7 +488,7 @@ setup_disk_slice()
     echo $line | grep -q "^partition=" 2>/dev/null
     if [ $? -eq 0 ]
     then
-      # Found a partition= entry, lets read / set it 
+      # Found a partition= entry, lets read / set it
       get_value_from_string "${line}"
       strip_white_space "$VAL"
       PTYPE=`echo $VAL|tr A-Z a-z`
@@ -454,12 +539,12 @@ setup_disk_slice()
     # Check if we have a partscheme specified
     echo $line | grep -q "^partscheme=" 2>/dev/null
     if [ $? -eq 0 ] ; then
-      # Found a partscheme= entry, lets read / set it 
+      # Found a partscheme= entry, lets read / set it
       get_value_from_string "${line}"
       strip_white_space "$VAL"
       PSCHEME="$VAL"
       if [ "$PSCHEME" != "GPT" -a "$PSCHEME" != "MBR" ] ; then
-        exit_err "Unknown partition scheme: $PSCHEME" 
+        exit_err "Unknown partition scheme: $PSCHEME"
       fi
     fi
 
@@ -507,29 +592,29 @@ setup_disk_slice()
 
             if [ "$PSCHEME" = "GPT" -o -z "$PSCHEME" ] ; then
               PSCHEME="GPT"
-              tmpSLICE="${DISK}p1"  
+              tmpSLICE="${DISK}p1"
             else
-              tmpSLICE="${DISK}s1"  
+              tmpSLICE="${DISK}s1"
             fi
 
 	    if [ `uname -m` = "powerpc" -o `uname -m` = "powerpc64" ]
 	    then
               PSCHEME="APM"
-              tmpSLICE="${DISK}s1"  
+              tmpSLICE="${DISK}s1"
 	    fi
 
             run_gpart_full "${DISK}" "${BMANAGER}" "${PSCHEME}"
             ;;
 
           s1|s2|s3|s4)
-            tmpSLICE="${DISK}${PTYPE}" 
+            tmpSLICE="${DISK}${PTYPE}"
             # Get the number of the slice we are working on
-            s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`" 
+            s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`"
             run_gpart_slice "${DISK}" "${BMANAGER}" "${s}"
             ;;
 
           p1|p2|p3|p4|p5|p6|p7|p8|p9|p10|p11|p12|p13|p14|p15|p16|p17|p18|p19|p20|p21|p22|p23|p24|p25|p26|p27)
-            tmpSLICE="${DISK}${PTYPE}" 
+            tmpSLICE="${DISK}${PTYPE}"
             # Get the number of the gpt partition we are working on
             s="`echo ${PTYPE} | cut -c 2-3`"
             run_gpart_gpt_part "${DISK}" "${BMANAGER}" "${s}"
@@ -557,23 +642,23 @@ setup_disk_slice()
             if [ -z "${IMAGE}" ]
             then
               exit_err "ERROR: partition type image specified with no image!"
-            fi 
+            fi
             ;;
 
           *) exit_err "ERROR: Unknown PTYPE: $PTYPE" ;;
         esac
-        
+
 
 		if [ -n "${IMAGE}" ]
-		then 
+		then
           local DEST
-          
+
 		  if [ -n "${tmpSLICE}" ]
           then
 			DEST="${tmpSLICE}"
-          else 
+          else
 			DEST="${DISK}"
-          fi 
+          fi
 
           write_image "${IMAGE}" "${DEST}"
           check_disk_layout "${DEST}"
@@ -590,7 +675,7 @@ setup_disk_slice()
         unset BMANAGER PTYPE DISK MIRRORDISK MIRRORBAL PSCHEME IMAGE
         disknum=$((disknum+1))
       else
-        exit_err "ERROR: commitDiskPart was called without procceding disk<num>= and partition= entries!!!" 
+        exit_err "ERROR: commitDiskPart was called without procceding disk<num>= and partition= entries!!!"
       fi
     fi
 
@@ -644,7 +729,7 @@ clear_backup_gpt_table()
 init_apm_full_disk()
 {
   _intDISK=$1
- 
+
   # Set our sysctl so we can overwrite any geom using drives
   sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
   sysctl kern.geom.label.disk_ident.enable=0 >>${LOGOUT} 2>>${LOGOUT}
@@ -660,7 +745,7 @@ init_apm_full_disk()
   echo_log "Running gpart on ${_intDISK}"
   rc_halt "gpart create -s APM ${_intDISK}"
   rc_halt "gpart add -s 800k -t freebsd-boot ${_intDISK}"
-  
+
   echo_log "Stamping boot sector on ${_intDISK}"
   rc_halt "gpart bootcode -p /boot/boot1.hfs -i 1 ${_intDISK}"
 
@@ -671,7 +756,7 @@ init_gpt_full_disk()
 {
   _intDISK=$1
   _intBOOT=$2
- 
+
   # Set our sysctl so we can overwrite any geom using drives
   sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
   sysctl kern.geom.label.disk_ident.enable=0 >>${LOGOUT} 2>>${LOGOUT}
@@ -720,7 +805,7 @@ init_mbr_full_disk()
 {
   _intDISK=$1
   _intBOOT=$2
- 
+
   # Set our sysctl so we can overwrite any geom using drives
   sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
   sysctl kern.geom.label.disk_ident.enable=0 >>${LOGOUT} 2>>${LOGOUT}
@@ -738,13 +823,13 @@ init_mbr_full_disk()
 
   # Install new partition setup
   echo_log "Running gpart add on ${_intDISK}"
-  if [ "${INSTALLTYPE}" = "GhostBSD" ] ; then 
+  if [ "${INSTALLTYPE}" = "GhostBSD" ] ; then
     rc_halt "gpart add -a 4k -t freebsd -i 1 ${_intDISK}"
   else
     rc_halt "gpart add -b 2048 -a 4k -t freebsd -i 1 ${_intDISK}"
   fi
   sleep 2
-  
+
   # Make the partition active
   rc_halt "gpart set -a active -i 1 ${_intDISK}"
 
@@ -799,7 +884,7 @@ run_gpart_gpt_part()
 
   # Set the slice we will use later
   slice="${1}p${3}"
- 
+
   # Set our sysctl so we can overwrite any geom using drives
   sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
   sysctl kern.geom.label.disk_ident.enable=0 >>${LOGOUT} 2>>${LOGOUT}
@@ -865,7 +950,7 @@ run_gpart_slice()
 
   # Set the slice we will use later
   slice="${1}s${3}"
- 
+
   # Set our sysctl so we can overwrite any geom using drives
   sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
   sysctl kern.geom.label.disk_ident.enable=0 >>${LOGOUT} 2>>${LOGOUT}
