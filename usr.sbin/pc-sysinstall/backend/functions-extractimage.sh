@@ -50,7 +50,7 @@ start_extract_pkg()
   BASENAME=$(pkg rquery '%o %n-%v' | grep ^base | grep -e '-runtime-' | head -n 1 | awk '{print $2}' | cut -d '-' -f 1)
 
   # Do the package installation
-  for inspkg in `pkg rquery '%o %n-%v' | grep "^base" | awk '{print $2}' | tr -s '\n' ' '`
+  for inspkg in `pkg rquery '%o %n' | grep "^base" | awk '{print $2}' | tr -s '\n' ' '`
   do
     # Skip any {debug|development} packages
     echo "$inspkg" | grep -q -e '-debug-' -e '-profile-'
