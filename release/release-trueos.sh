@@ -470,8 +470,14 @@ check_essential_pkgs()
 		ESSENTIAL="$ESSENTIAL $(jq -r '."ports"."build"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})"
 	done
 
+	#See if we need to include the dist-packages as essential or not (default: YES)
+	local _include_dist_as_essential=$(jq -r '."iso"."dist-packages-are-essential"' $TRUEOS_MANIFEST)
+	local _checklist="iso-packages auto-install-packages"
+	if [ "false" != "${include_dist_as_essential}" ] ; then
+	  _checklist="${_checklist} dist-packages"
+	fi
 	# Check for any conditional packages to build in iso
-	for ptype in iso-packages dist-packages auto-install-packages
+	for ptype in ${_checklist}
 	do
 		for c in $(jq -r '."iso"."'$ptype'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 		do
@@ -494,6 +500,7 @@ check_essential_pkgs()
 		return 0
 	fi
 
+	local _missingpkglist=""
 	for i in $ESSENTIAL
 	do
 
@@ -513,12 +520,15 @@ check_essential_pkgs()
 		if [ ! -e "${POUDRIERE_PKGDIR}/All/${pkgName}.txz" ] ; then
 			echo "Checked: ${POUDRIERE_PKGDIR}/All/${pkgName}.txz"
 			echo "WARNING: Missing package ${pkgName} for port ${i}"
+			_missingpkglist="${missingpkglist} ${pkgname}"
 			haveWarn=1
 		else
 			echo "Verified: ${pkgName}"
 		fi
    done
-
+   if [ $haveWarn ] ; then
+     echo "WARNING: Essential Packages Missing: ${_missingpkglist}"
+   fi
    return $haveWarn
 }
 
