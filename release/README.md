@@ -62,6 +62,39 @@ This is useful when doing a package-all build and don't want it to pass if somet
 
 * dist-packages - JSON Object Array, List of packages you want to include on install media in their pkg/txz form.
 
+### iso
+The "iso" target within the manifest controls all the options specific to creation/setup of the ISO image. This can involve setting a custom install script, choosing packages which need to be installed or available for installation on the ISO, and more.
+
+#### ISO Options
+* "file-name" (string): Template for the generation of the ISO filename. There are a few format options which can be auto-populated:
+   * "%%TRUEOS_VERSION%%" : Replace this field with the value of the TRUEOS_VERSION environment variable.
+   * "%%GITHASH%%" : (Requires sources to be cloned with git) Replace this field with the hash of the latest git commit.
+   * "%%DATE%%" : Replace this field with the date that the ISO was generated (YYYYMMDD)'
+* "install-script" (string): Tool to automatically launch when booting the ISO (default: `pc-sysinstaller`)
+* "auto-install-script" (string): Path to config file for `pc-sysinstall` to perform an unattended installation.
+* "post-install-commands" (JSON array of objects) : Additional commands to run after an installation with pc-sysinstaller (not used for custom install scripts).
+   * "chroot" (boolian) : Run command within the newly-installed system (true) or on the ISO itself (false)
+   * "command" (string) : Command to run
+* "prune" (JSON object) : Lists of files or directories to remove from the ISO
+   * "default" (JSON array of strings) : Default list (required)
+   * "ENV_VARIABLE" (JSON array of strings) : Additional list to be added to the "default" list **if** an environment variable with the same name exists.
+* "dist-packages" (JSON object) : Lists of packages (by port origin) to have available in .txz form on the ISO
+   * "default" (JSON array of strings) : Default list (required)
+   * "ENV_VARIABLE" (JSON array of strings) : Additional list to be added to the "default" list **if** an environment variable with the same name exists.
+* "dist-packages-are-essential" (boolian) : (default: true) Include the list of dist-packages in the essential package checks for verifying if a build was successful.
+* "iso-packages" (JSON object) : Lists of packages (by port origin) to install into the ISO (when booting the ISO, these packages will be available to use)
+   * "default" (JSON array of strings) : Default list (required)
+   * "ENV_VARIABLE" (JSON array of strings) : Additional list to be added to the "default" list **if** an environment variable with the same name exists.
+* "auto-install-packages" (JSON object) : Lists of packages (by port origin) to automatically install when using the default TrueOS installer.
+   * **NOTE:** These packages will automatically get added to the "dist-packages" available on the ISO as well.
+   * "default" (JSON array of strings) : Default list (required)
+   * "ENV_VARIABLE" (JSON array of strings) : Additional list to be added to the "default" list **if** an environment variable with the same name exists.
+* "overlay" (JSON object) : Overlay files or directories to be inserted into the ISO
+   * "type" (string) : One of the following options: [git, svn, tar, local]
+   * "branch" (string) : Branch of the repository to fetch (svn/git).
+   * "url" (string) : Url to the repository (svn/git), URL to fetch tar file (tar), or path to the directory (local)
+   
+#### ISO Example
 ```
   "dist-packages":[
     "devel/git"
