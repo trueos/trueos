@@ -467,12 +467,8 @@ check_essential_pkgs()
 		ESSENTIAL="$ESSENTIAL $(jq -r '."ports"."build"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})"
 	done
 
-	#See if we need to include the dist-packages as essential or not (default: YES)
-	local _include_dist_as_essential=$(jq -r '."iso"."dist-packages-are-essential"' $TRUEOS_MANIFEST)
-	local _checklist="iso-packages auto-install-packages"
-	if [ "false" != "${include_dist_as_essential}" ] ; then
-	  _checklist="${_checklist} dist-packages"
-	fi
+	#Check any other iso lists for essential packages
+	local _checklist="iso-packages auto-install-packages dist-packages"
 	# Check for any conditional packages to build in iso
 	for ptype in ${_checklist}
 	do
@@ -617,7 +613,8 @@ cp_iso_pkgs()
 	rm ${OBJDIR}/disc1/root/auto-dist-install 2>/dev/null
 
 	# Check if we have dist-packages to include on the ISO
-	for ptype in dist-packages auto-install-packages
+	local _missingpkgs=""
+	for ptype in dist-packages auto-install-packages optional-dist-packages
 	do
 		for c in $(jq -r '."iso"."'${ptype}'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 		do
@@ -630,7 +627,12 @@ cp_iso_pkgs()
 					-R ${OBJDIR}/repo-config \
 					fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} $i
 					if [ $? -ne 0 ] ; then
-						exit_err "Failed copying dist-package $i to ISO..."
+						if [ "${ptype}" = "optional-dist-packages" ] ; then
+							echo "WARNING: Optional dist package missing: $i"
+							_missingpkgs="${_missingpkgs} $i"
+						else
+							exit_err "Failed copying dist-package $i to ISO..."
+						fi
 					fi
 			done
 			if [ "$ptype" = "auto-install-packages" ] ; then
@@ -640,7 +642,9 @@ cp_iso_pkgs()
 			fi
 		done
 	done
-
+	if [ -n "${_missingpkgs}" ] ; then
+	  echo "WARNING: Optional Packages not available for ISO: ${_missingpkgs}"
+	fi
 	# Create the repo DB
 	echo "Creating installer pkg repo"
 	pkg-static repo ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
