@@ -470,8 +470,10 @@ check_essential_pkgs()
 		ESSENTIAL="$ESSENTIAL $(jq -r '."ports"."build"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})"
 	done
 
+	#Check any other iso lists for essential packages
+	local _checklist="iso-packages auto-install-packages dist-packages"
 	# Check for any conditional packages to build in iso
-	for ptype in iso-packages dist-packages auto-install-packages
+	for ptype in ${_checklist}
 	do
 		for c in $(jq -r '."iso"."'$ptype'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 		do
@@ -494,6 +496,7 @@ check_essential_pkgs()
 		return 0
 	fi
 
+	local _missingpkglist=""
 	for i in $ESSENTIAL
 	do
 
@@ -513,12 +516,15 @@ check_essential_pkgs()
 		if [ ! -e "${POUDRIERE_PKGDIR}/All/${pkgName}.txz" ] ; then
 			echo "Checked: ${POUDRIERE_PKGDIR}/All/${pkgName}.txz"
 			echo "WARNING: Missing package ${pkgName} for port ${i}"
+			_missingpkglist="${missingpkglist} ${pkgname}"
 			haveWarn=1
 		else
 			echo "Verified: ${pkgName}"
 		fi
    done
-
+   if [ $haveWarn ] ; then
+     echo "WARNING: Essential Packages Missing: ${_missingpkglist}"
+   fi
    return $haveWarn
 }
 
@@ -610,7 +616,8 @@ cp_iso_pkgs()
 	rm ${OBJDIR}/disc1/root/auto-dist-install 2>/dev/null
 
 	# Check if we have dist-packages to include on the ISO
-	for ptype in dist-packages auto-install-packages
+	local _missingpkgs=""
+	for ptype in dist-packages auto-install-packages optional-dist-packages
 	do
 		for c in $(jq -r '."iso"."'${ptype}'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 		do
@@ -623,7 +630,12 @@ cp_iso_pkgs()
 					-R ${OBJDIR}/repo-config \
 					fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} $i
 					if [ $? -ne 0 ] ; then
-						exit_err "Failed copying dist-package $i to ISO..."
+						if [ "${ptype}" = "optional-dist-packages" ] ; then
+							echo "WARNING: Optional dist package missing: $i"
+							_missingpkgs="${_missingpkgs} $i"
+						else
+							exit_err "Failed copying dist-package $i to ISO..."
+						fi
 					fi
 			done
 			if [ "$ptype" = "auto-install-packages" ] ; then
@@ -633,7 +645,9 @@ cp_iso_pkgs()
 			fi
 		done
 	done
-
+	if [ -n "${_missingpkgs}" ] ; then
+	  echo "WARNING: Optional Packages not available for ISO: ${_missingpkgs}"
+	fi
 	# Create the repo DB
 	echo "Creating installer pkg repo"
 	pkg-static repo ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
