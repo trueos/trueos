@@ -161,7 +161,7 @@ setup_poudriere_jail()
 
 	# Copy over the sources
 	mkdir -p ${JDIR}/usr/src 2>/dev/null
-	tar cf - -C ${SRCDIR} --exclude .git . | tar xf - -C ${JDIR}/usr/src/
+	tar cf - -C ${SRCDIR} --exclude ./usr/lib/debug --exclude .git . | tar xf - -C ${JDIR}/usr/src/
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed copying ${SRCDIR} -> ${JDIR}/usr/src"
 	fi
