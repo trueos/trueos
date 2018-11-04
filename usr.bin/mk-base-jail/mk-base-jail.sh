@@ -33,7 +33,6 @@ usage()
 	echo "Usage: $0 <directory>"
 	echo "----------------------------"
 	echo "Optional flags:"
-	echo "	-c (llvm60|llvm70)	- Which default compiler to load"
 	echo "	-j <name>		- Jail name to give poudriere"
 	echo "	-t (poudriere|jail)	- Setup traditional jail or boot-strap for poudriere"
 	echo ""
@@ -42,7 +41,6 @@ usage()
 }
 
 default_params() {
-	DEFAULTCC="llvm60"
 	JTYPE="jail"
 	JNAME=""
 }
@@ -62,10 +60,6 @@ parse_cmdline() {
 		-j)
 			if [ $# -eq 1 ]; then usage; fi
 			shift; JNAME="$1"
-			;;
-		-c)
-			if [ $# -eq 1 ]; then usage; fi
-			shift; DEFAULTCC="$1"
 			;;
 		-h | --help | help)
 			usage
@@ -132,14 +126,6 @@ pkg_install_jail()
 	rm -rf "${1}/var/cache/pkg"
 }
 
-boot_strap_cc()
-{
-	if [ "$JTYPE" = "poudriere" ] ; then
-		TRUEOS_MANIFEST="foo" ; export TRUEOS_MANIFEST
-	fi
-	chroot ${1} compiler-bootstrap ${DEFAULTCC}
-}
-
 prep_poudriere()
 {
 	if [ "$1" = "/" ] ; then
@@ -164,46 +150,6 @@ prep_poudriere()
 			echo "WARNING: Failed extracting src.txz"
 		fi
 		rm "${1}/src.txz"
-	fi
-
-	if [ -d "${1}/usr/local/llvm60" ] ; then
-		CDIR="${1}/usr/local/llvm60"
-		TCDIR="${1}/usr/llvm60"
-	fi
-	if [ -d "${1}/usr/local/llvm70" ] ; then
-		CDIR="${1}/usr/local/llvm70"
-		TCDIR="${1}/usr/llvm70"
-	fi
-	if [ -z "$CDIR" ] ; then
-		echo "WARNING: unknown default compiler!"
-		return 0
-	fi
-
-	# Copy over a few shared libs needed for llvm
-	cp -a ${1}/usr/local/lib/libedit* "${CDIR}/lib/"
-	if [ $? -ne 0 ] ; then
-		echo "Failed copying libedit*"
-		exit 1
-	fi
-	cp -a ${1}/usr/local/lib/libxml* "${CDIR}/lib/"
-	if [ $? -ne 0 ] ; then
-		echo "Failed copying libxml*"
-		exit 1
-	fi
-
-	mv "${CDIR}" "${1}/tmpcc"
-	if [ $? -ne 0 ] ; then
-		echo "Failed moving $CDIR"
-		exit 1
-	fi
-
-	rm -rf "${1}/usr/local"
-	mkdir -p "${1}/usr/local"
-
-	mv "${1}/tmpcc" "${TCDIR}"
-	if [ $? -ne 0 ] ; then
-		echo "Failed moving $TCDIR"
-		exit 1
 	fi
 
 	# Remove pkg registration
@@ -255,8 +201,6 @@ pkg_install_jail "$TDIR"
 if [ "$JTYPE" = "poudriere" ] ; then
 	prep_poudriere "$TDIR"
 fi
-
-boot_strap_cc "$TDIR"
 
 if [ "$JTYPE" = "poudriere" ] ; then
 	mk_poud_jail "$TDIR"

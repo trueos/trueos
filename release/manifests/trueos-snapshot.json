@@ -57,7 +57,6 @@
         "archivers/pigz",
         "devel/git",
         "devel/jenkins",
-        "devel/llvm60",
         "dns/mDNSResponder_nss",
         "lang/python",
         "lang/python2",
