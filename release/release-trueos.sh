@@ -665,7 +665,7 @@ EOF
 		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 
 		# We have a conditional set of packages to include, lets do it
-		for i in $(jq -r '."iso"."install-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
+		for i in $(jq -r '."iso"."iso-packages"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 		do
 			pkg-static -o ABI_FILE=/bin/sh \
 				-R /etc/pkg \
