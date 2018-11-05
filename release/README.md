@@ -102,6 +102,7 @@ The "iso" target within the manifest controls all the options specific to creati
 * "dist-packages" (JSON object) : Lists of packages (by port origin) to have available in .txz form on the ISO
    * "default" (JSON array of strings) : Default list (required)
    * "ENV_VARIABLE" (JSON array of strings) : Additional list to be added to the "default" list **if** an environment variable with the same name exists.
+* "offline-update" (boolian) : If set to true will generate a system-update.img file containing ISOs dist files
 * "optional-dist-packages" (JSON object) : Lists of packages (by port origin) to have available in .txz form on the ISO. These ones are considered "optional" and may or may not be included depending on whether the package built successfully.
    * "default" (JSON array of strings) : Default list (required)
    * "ENV_VARIABLE" (JSON array of strings) : Additional list to be added to the "default" list **if** an environment variable with the same name exists.
