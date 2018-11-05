@@ -623,8 +623,18 @@ cp_iso_pkgs()
 	fi
 	# Create the repo DB
 	echo "Creating installer pkg repo"
-	pkg-static repo ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
+	pkg-static repo ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} ${PKGSIGNKEY}
+}
 
+create_offline_update()
+{
+	makefs ${OBJDIR}/system-update.img ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed creating system-update.img"
+	fi
+}
+
+setup_iso_post() {
 
 	# Check if we have any post install commands to run
 	if [ "$(jq -r '."iso"."post-install-commands" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
@@ -796,6 +806,10 @@ case $1 in
 	clean) clean_jails ; exit 0 ;;
 	poudriere) run_poudriere ;;
 	iso) cp_iso_pkgs
+	     if [ "$(jq -r '."base-packages"."name-prefix"' ${TRUEOS_MANIFEST})" = "true" ] ; then
+		     create_offline_update
+	     fi
+	     setup_iso_post
 	     apply_iso_config
 	     ;;
 	check)  check_build_environment
