@@ -907,7 +907,7 @@ gen_pc-sysinstall_cfg()
 
    # Are there packages to install out of box?
    if [ -e "/root/auto-dist-install" ] ; then
-     echo "installPackages=$(cat /root/auto-dist-install)" >> ${CFGFILE}
+     echo "installPackages=$(cat /root/auto-dist-install | tr -s '\n' ' ')" >> ${CFGFILE}
    fi
    echo "" >> ${CFGFILE}
    echo "" >> ${CFGFILE}
