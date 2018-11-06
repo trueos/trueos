@@ -60,6 +60,7 @@
         "sysutils/tmux"
       ]
     },
+    "offline-update":true,
     "overlay": {
       "branch": "master",
       "type": "git",
