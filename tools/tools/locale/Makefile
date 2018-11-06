@@ -8,6 +8,8 @@
 # Modified by John Marino to suit DragonFly needs
 #
 
+.OBJDIR:	.
+
 .if !defined(CLDRDIR)
 CLDRDIR!=	grep ^cldr etc/unicode.conf | cut -f 2 -d " "
 .endif
@@ -52,7 +54,7 @@ LC:=	--lc=${LC}
 .endif
 
 all:
-	cp ${ETCDIR}/common.UTF-8.src ${CLDRDIR}/posix/xx_Comm_US.UTF-8.src
+	cp ${ETCDIR}/common.UTF-8.src ${CLDRDIR}/posix/xx_Comm_C.UTF-8.src
 .for t in ${TYPES}
 .  if ${KNOWN:M${t}}
 	test -d ${t} || mkdir ${t}
@@ -103,7 +105,7 @@ static-colldef:
 .endfor
 
 transfer-rollup:
-	cp ${ETCDIR}/common.UTF-8.src ${CLDRDIR}/posix/xx_Comm_US.UTF-8.src
+	cp ${ETCDIR}/common.UTF-8.src ${CLDRDIR}/posix/xx_Comm_C.UTF-8.src
 
 rollup:
 	perl -I tools tools/utf8-rollup.pl \
