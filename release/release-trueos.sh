@@ -628,6 +628,7 @@ cp_iso_pkgs()
 
 create_offline_update()
 {
+	echo "Creating system-update.img..."
 	makefs ${OBJDIR}/system-update.img ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}
 	if [ $? -ne 0 ] ; then
 		exit_err "Failed creating system-update.img"
@@ -806,7 +807,7 @@ case $1 in
 	clean) clean_jails ; exit 0 ;;
 	poudriere) run_poudriere ;;
 	iso) cp_iso_pkgs
-	     if [ "$(jq -r '."base-packages"."name-prefix"' ${TRUEOS_MANIFEST})" = "true" ] ; then
+	     if [ "$(jq -r '."iso"."offline-update"' ${TRUEOS_MANIFEST})" = "true" ] ; then
 		     create_offline_update
 	     fi
 	     setup_iso_post
