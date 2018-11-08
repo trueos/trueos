@@ -26,4 +26,8 @@ WARNS?=	1
 MAN=	${ORSRC}/dhcpcd.conf.5
 MAN+=	${ORSRC}/dhcpcd.8
 
+CONFS=		dhcpcd.conf
+CONFDIR=	/etc
+CONFMODE=	644
+
 .include <bsd.prog.mk>

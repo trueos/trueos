@@ -23,4 +23,8 @@ LIBADD=	einfo rc util
 .PATH: ${RC}
 .PATH: ${OPENRC}/man
 
+SUBDIR+=	conf.d
+SUBDIR+=	local.d
+SUBDIR+=	sysctl.d
+
 .include <bsd.prog.mk>
