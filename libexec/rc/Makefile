@@ -14,9 +14,11 @@ CONFETCDEFAULTS=	rc.conf
 
 SUBDIR+=	bin
 SUBDIR+=	init.d
+SUBDIR+=	pkg
 SUBDIR+=	rc.d
 SUBDIR+=	sbin
 SUBDIR+=	sh
+SUBDIR+=	ssl
 
 # Needs to be added after sh
 SUBDIR+=	etc.init.d
