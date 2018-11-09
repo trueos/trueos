@@ -63,7 +63,7 @@ ${mc:T:R}.cf: ${mc}
 
 all: ${ALL}
 
-distribution:
+afterinstall:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${.CURDIR}/freebsd.mc freebsd.cf ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
