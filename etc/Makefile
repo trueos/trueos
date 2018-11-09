@@ -10,22 +10,9 @@ NLS_ALIASES=	POSIX C \
 # No need as it is empty and just causes rebuilds since this file does so much.
 UPDATE_DEPENDFILE=	no
 
-.if ${MK_SENDMAIL} != "no"
-SUBDIR+=sendmail
-.endif
-
-BIN1=	\
-	group \
-	login.access \
-	rc.bsdextended \
-	rc.firewall \
-	termcap.small
+BIN1=
 
 # NB: keep these sorted by MK_* knobs
-
-.if ${MK_SENDMAIL} != "no"
-BIN1+=	rc.sendmail
-.endif
 
 .if ${MK_SENDMAIL} == "no"
 ETCMAIL=mailer.conf aliases
@@ -44,6 +31,26 @@ afterinstall:
 .if ${MK_MAN} != "no"
 	${_+_}cd ${SRCTOP}/share/man; ${MAKE} makedb
 .endif
+	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
+	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
+.if ${MK_UNBOUND} != "no"
+	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
+		${INSTALL_SYMLINK} ../var/unbound ${DESTDIR}/etc/unbound; \
+	fi
+.endif
+.if ${MK_KERBEROS} != "no"
+	cd ${.CURDIR}/root; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.k5login ${DESTDIR}/root/.k5login;
+.endif
+.if ${MK_BOOT} != "no"
+.if exists(${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints)
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints \
+	    ${DESTDIR}/boot/device.hints
+.endif
+.endif
+
 
 distribute:
 	# Avoid installing tests here; "make distribution" will do this and
@@ -63,16 +70,7 @@ distribution:
 	@echo "set DESTDIR before running \"make ${.TARGET}\""
 	@false
 .endif
-	cd ${.CURDIR}; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		${BIN1} ${DESTDIR}/etc; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
-		master.passwd ${DESTDIR}/etc;
 
-.if ${MK_TCSH} == "no"
-	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
-.endif
-	pwd_mkdb -i -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
 .if defined(NO_ROOT)
 	( \
 		echo "./etc/passwd type=file mode=0644 uname=root gname=wheel"; \
@@ -80,46 +78,9 @@ distribution:
 		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
-	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/mtree; ${MAKE} install
-	${_+_}cd ${SRCTOP}/share/termcap; ${MAKE} etc-termcap
-	${_+_}cd ${SRCTOP}/usr.sbin/rmt; ${MAKE} etc-rmt
-.if ${MK_UNBOUND} != "no"
-	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
-		${INSTALL_SYMLINK} ../var/unbound ${DESTDIR}/etc/unbound; \
-	fi
-.endif
-.if ${MK_SENDMAIL} != "no"
-	${_+_}cd ${.CURDIR}/sendmail; ${MAKE} distribution
-.endif
-.if ${MK_KERBEROS} != "no"
-	cd ${.CURDIR}/root; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		dot.k5login ${DESTDIR}/root/.k5login;
-.endif
-
-.if ${MK_MAIL} != "no"
-	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${ETCMAIL} ${DESTDIR}/etc/mail
-	if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
-	      ! -f ${DESTDIR}/etc/aliases ]; then \
-		${INSTALL_SYMLINK} mail/aliases ${DESTDIR}/etc/aliases; \
-	fi
-.endif
-.if ${MK_LOCATE} != "no"
-	${INSTALL} -o nobody -g ${BINGRP} -m 644 /dev/null \
-	    ${DESTDIR}/var/db/locate.database
-.endif
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FREEBSD} ${DESTDIR}/
-.if ${MK_BOOT} != "no"
-.if exists(${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints)
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints \
-	    ${DESTDIR}/boot/device.hints
-.endif
-.endif
-
 MTREE_CMD?=	mtree
 
 MTREES=		mtree/BSD.root.dist		/		\

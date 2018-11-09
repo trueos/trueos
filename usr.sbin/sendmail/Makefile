@@ -28,6 +28,12 @@ BINMODE=4555
 BINMODE=2555
 .endif
 
+CONFS+=		rc.sendmail
+CONFDIR=	/etc
+CONFMODE=	644
+
+SUBDIR+=	mail sendmail
+
 # Define the database format to use for aliases et al.
 DBMDEF=	-DNEWDB
 # If you don't want NIS alias/map support, comment out this line
