@@ -65,9 +65,9 @@ all: ${ALL}
 
 afterinstall:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    ${.CURDIR}/freebsd.mc freebsd.cf ${DESTDIR}/etc/mail
+	    ${SRCTOP}/usr.sbin/sendmail/sendmailetc/freebsd.mc freebsd.cf ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/freebsd.submit.mc freebsd.submit.cf ${DESTDIR}/etc/mail
+	    ${SRCTOP}/usr.sbin/sendmail/sendmailetc/freebsd.submit.mc freebsd.submit.cf ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${SMDIR}/helpfile ${DESTDIR}/etc/mail
 .if defined(INSTALL_CF)
