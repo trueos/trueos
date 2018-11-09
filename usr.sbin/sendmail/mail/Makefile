@@ -186,6 +186,8 @@ all: cf maps aliases
 
 clean:
 
+cleandir:
+
 depend:
 
 cf: ${INSTALL_CF} ${INSTALL_SUBMIT_CF}
@@ -246,3 +248,4 @@ restart restart-mta restart-mspq:
 
 # For the definition of $SHAREMODE
 .include <bsd.own.mk>
+.include <bsd.prog.mk>

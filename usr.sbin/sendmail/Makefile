@@ -32,7 +32,7 @@ CONFS+=		rc.sendmail
 CONFDIR=	/etc
 CONFMODE=	644
 
-SUBDIR+=	mail sendmail
+SUBDIR+=	mail sendmailetc
 
 # Define the database format to use for aliases et al.
 DBMDEF=	-DNEWDB
