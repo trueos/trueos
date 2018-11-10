@@ -876,8 +876,8 @@ DB_FROM_SRC=	yes
 .endif
 
 .if defined(DB_FROM_SRC)
-INSTALLFLAGS+=	-N ${.CURDIR}/etc
-MTREEFLAGS+=	-N ${.CURDIR}/etc
+INSTALLFLAGS+=	-N ${.CURDIR}/libexec/rc
+MTREEFLAGS+=	-N ${.CURDIR}/libexec/rc
 .endif
 _INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
 INSTALL_DDIR=	${_INSTALL_DDIR:S://:/:g:C:/$::}
