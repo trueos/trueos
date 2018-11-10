@@ -11,7 +11,7 @@ pipeline {
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
-    SRCROOT = '/usr/trueos-src'
+    SRCROOT = '/usr/trueos-ci'
     TRUEOS_VERSION = 'JenkinsCI'
   }
 
