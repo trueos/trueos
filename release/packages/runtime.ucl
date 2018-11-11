@@ -66,6 +66,11 @@ scripts: {
 	services_mkdb %CAP_MKDB_ENDIAN% -q -o ${PKG_ROOTDIR}/var/db/services.db ${PKG_ROOTDIR}/etc/services
 	chmod 1777 ${PKG_ROOTDIR}/tmp
 
+	# Make sure /etc/fstab exists to silence warnings from openrc
+	if [ ! -e "${PKG_ROOTDIR}/etc/fstab" ]; then
+		touch ${PKG_ROOTDIR}/etc/fstab
+	fi
+
 	# Update any missing dirs which need added now from mtree spec
         mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.root.dist \
             -p ${PKG_ROOTDIR}
