@@ -124,7 +124,7 @@ IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
 
-CLEANFILES=	packagesystem *.txz MANIFEST release ${IMAGES}
+CLEANFILES=	packagesystem system-update.img *.txz MANIFEST release ${IMAGES}
 CLEANFILES+=	trueos-mk-bulk-list
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
@@ -139,6 +139,7 @@ CLEANDIRS=	dist ftp disc1 bootonly dvd repo-config iso-overlay
 CLEANDIRS+=    reldoc rdoc
 .endif
 beforeclean:
+	umount -f ./disc1/install-pkg >/dev/null 2>/dev/null || true
 	chflags -R noschg .
 .include <bsd.obj.mk>
 clean: beforeclean

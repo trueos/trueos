@@ -658,6 +658,14 @@ install-repo: {
 EOF
 	mkdir -p ${OBJDIR}/disc1/install-pkg
 	mount_nullfs ${PKG_DIR} ${OBJDIR}/disc1/install-pkg
+	if [ $? -ne 0 ] ; then
+		exit_err "Failed mounting nullfs to disc1/install-pkg"
+	fi
+
+	# Prep the new ISO environment
+	chroot ${OBJDIR}/disc1 pwd_mkdb /etc/master.passwd
+	chroot ${OBJDIR}/disc1 cap_mkdb /etc/login.conf
+	touch ${OBJDIR}/disc1/etc/fstab
 
 	# Check for explict pkgs to install, minus development and debug
 	for e in $(get_explicit_pkg_deps "development debug")
