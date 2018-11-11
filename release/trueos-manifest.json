@@ -91,7 +91,15 @@
       ],
       "default": [
         "/usr/local/share/examples",
-        "/usr/local/include"
+        "/usr/local/include",
+        "/usr/bin/clang*",
+        "/usr/bin/cpp",
+        "/usr/bin/cpp",
+        "/usr/bin/c++",
+        "/usr/bin/lldb",
+        "/usr/bin/ld.lld",
+        "/usr/bin/llvm-objdump",
+        "/usr/bin/svn*"
       ]
     }
   },
