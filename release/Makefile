@@ -254,7 +254,7 @@ disc1:
 	cp ${.CURDIR}/rc ${.TARGET}/etc
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
-	rm ${.TARGET}/etc/runlevels/boot/*
+	mkdir -p ${.TARGET}/etc/runlevels/boot || true
 .for i in abi localmount
 	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/boot/${i}
 .endfor
@@ -288,7 +288,7 @@ bootonly: packagesystem
 	cp ${.CURDIR}/rc ${.TARGET}/etc
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
-	rm ${.TARGET}/etc/runlevels/boot/*
+	mkdir -p ${.TARGET}/etc/runlevels/boot || true
 .for i in abi localmount
 	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/boot/${i}
 .endfor
@@ -323,7 +323,7 @@ dvd: packagesystem
 	cp ${.CURDIR}/rc ${.TARGET}/etc
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
-	rm ${.TARGET}/etc/runlevels/boot/*
+	mkdir -p ${.TARGET}/etc/runlevels/boot || true
 .for i in abi localmount
 	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/boot/${i}
 .endfor
