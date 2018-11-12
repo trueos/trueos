@@ -188,25 +188,26 @@ ALLOW_MAKE_JOBS_PACKAGES="chomium* iridium* gcc* webkit* llvm* clang* firefox* r
 PRIORITY_BOOST="pypy* openoffice* iridium* chromium*"
 ```
 
-* poudriere-conf - JSON String Array, Additional configuration lines to be placed into the auto-generated poudriere.conf for the build.
-```
- "poudriere-conf" : [
-   "USE_TMPFS=all",
-   "NOLINUX=yes",
-   "PARALLEL_JOBS=30"
- ]
-```
+### pkg-repo
+As part of the build process, the packages can also be automatically assembled into a full package repository which may be used for providing access to the newly-build packages on other systems.
 
-* */etc/poudriere.conf.release* - If this file exists, it will be appended as a whole to the auto-generated config.
-
-
-Build Instructions:
---------------
-The following instructions may be used to generate TrueOS installation
-images:
+#### pkg-repo Options
+* "pkg-repo-name" (string) : Short-name for the package repository (default: "TrueOS")
+* "pkg-repo" (JSON Object) : Settings for the unified base+ports package repo
+   * "url" (string) : Public URL where the repository can be found. (Distro creators will need to setup access for this URL and copy the pkg repo files as needed to make them available at the given location).
+   * "pubKey" (JSON Array of strings) : SSL public key to use when verifying integrity of downloaded packages (one line of test per item in the array). This is basically just the plain-text of the SSL public key file converted into an array of strings. 
+      * **WARNING** Make sure that this public key is the complement to the private key that you are using to sign the packages!!
+   
+#### pkg-repo Example
 
 ```
-make buildworld buildkernel
-make packages
-cd release && make release
+"pkg-repo-name" : "TrueOS",
+"pkg-repo" : {
+  "url" : "http://pkg.trueos.org/pkg/release/${ABI}/latest",
+  "pubKey : [
+    "-----BEGIN PUBLIC KEY-----",
+    "sdigosbhdgiub+asdgilpubLIUYASVBfiGULiughlBHJljib"
+    "-----END PUBLIC KEY-----"
+  ]
+}
 ```
