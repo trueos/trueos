@@ -16,4 +16,8 @@ CFLAGS+=-DPF
 LIBADD=	jail util
 MAN=	ipfw.8
 
+CONFDIR=     /etc
+CONFS+=       rc.firewall
+CONFMODE=    644
+
 .include <bsd.prog.mk>

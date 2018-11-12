@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-FILES=	mech qop
+CONFS+=	mech qop
+CONFDIR=	/etc/gss
 NO_OBJ=
-FILESDIR= /etc/gss
 
 .include <bsd.prog.mk>

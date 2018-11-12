@@ -11,7 +11,7 @@ pipeline {
   environment {
     GH_ORG = 'trueos'
     GH_REPO = 'trueos'
-    SRCROOT = '/usr/trueos-src'
+    SRCROOT = '/usr/trueos-ci'
     TRUEOS_VERSION = 'JenkinsCI'
   }
 
@@ -99,6 +99,7 @@ pipeline {
         }
       }
       steps {
+        sh 'cd ${SRCROOT}/release && make clean || true'
         sh 'cd ${SRCROOT}/release && make iso >${WORKSPACE}/artifacts/release.log 2>&1'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.img ${WORKSPACE}/artifacts'

@@ -124,7 +124,7 @@ IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
 
-CLEANFILES=	packagesystem *.txz MANIFEST release ${IMAGES}
+CLEANFILES=	packagesystem system-update.img *.txz MANIFEST release ${IMAGES}
 CLEANFILES+=	trueos-mk-bulk-list
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
@@ -139,6 +139,7 @@ CLEANDIRS=	dist ftp disc1 bootonly dvd repo-config iso-overlay
 CLEANDIRS+=    reldoc rdoc
 .endif
 beforeclean:
+	umount -f ./disc1/install-pkg >/dev/null 2>/dev/null || true
 	chflags -R noschg .
 .include <bsd.obj.mk>
 clean: beforeclean
@@ -253,8 +254,8 @@ disc1:
 	cp ${.CURDIR}/rc ${.TARGET}/etc
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
-	rm ${.TARGET}/etc/runlevels/boot/*
-.for i in abi localmount
+	mkdir -p ${.TARGET}/etc/runlevels/boot || true
+.for i in abi localmount local
 	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/boot/${i}
 .endfor
 	touch ${.TARGET}
@@ -287,8 +288,8 @@ bootonly: packagesystem
 	cp ${.CURDIR}/rc ${.TARGET}/etc
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
-	rm ${.TARGET}/etc/runlevels/boot/*
-.for i in abi localmount
+	mkdir -p ${.TARGET}/etc/runlevels/boot || true
+.for i in abi localmount local
 	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/boot/${i}
 .endfor
 	touch ${.TARGET}
@@ -322,8 +323,8 @@ dvd: packagesystem
 	cp ${.CURDIR}/rc ${.TARGET}/etc
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
-	rm ${.TARGET}/etc/runlevels/boot/*
-.for i in abi localmount
+	mkdir -p ${.TARGET}/etc/runlevels/boot || true
+.for i in abi localmount local
 	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/boot/${i}
 .endfor
 	touch ${.TARGET}

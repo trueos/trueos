@@ -69,7 +69,7 @@ SENDMAIL_MC!=           hostname
 SENDMAIL_MC:=           ${SENDMAIL_MC}.mc
 
 ${SENDMAIL_MC}:
-	${CP} freebsd.mc ${SENDMAIL_MC}
+	${CP} ${SRCTOP}/usr.sbin/sendmail/sendmailetc/freebsd.mc ${SENDMAIL_MC}
 .endif
 
 .ifndef SENDMAIL_SUBMIT_MC
@@ -77,7 +77,7 @@ SENDMAIL_SUBMIT_MC!=	hostname
 SENDMAIL_SUBMIT_MC:=	${SENDMAIL_SUBMIT_MC}.submit.mc
 
 ${SENDMAIL_SUBMIT_MC}:
-	${CP} freebsd.submit.mc ${SENDMAIL_SUBMIT_MC}
+	${CP} ${SRCTOP}/usr.sbin/sendmail/sendmailetc/freebsd.submit.mc ${SENDMAIL_SUBMIT_MC}
 .endif
 
 INSTALL_CF=		${SENDMAIL_MC:R}.cf
@@ -186,6 +186,8 @@ all: cf maps aliases
 
 clean:
 
+cleandir:
+
 depend:
 
 cf: ${INSTALL_CF} ${INSTALL_SUBMIT_CF}
@@ -246,3 +248,4 @@ restart restart-mta restart-mspq:
 
 # For the definition of $SHAREMODE
 .include <bsd.own.mk>
+.include <bsd.prog.mk>
