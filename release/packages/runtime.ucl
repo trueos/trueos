@@ -18,18 +18,6 @@ desc = <<EOD
 EOD
 scripts: {
 	post-install = <<EOD
-
-	OPENRC_BOOT_LINK="abi adjkerntz bootmisc bridge cron devd dmesg dumpon fsck"
-	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} hostid hostname kldxref localmount"
-	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} modules motd network newsyslog root"
-	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} routing savecore staticroute swap"
-	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} syscons sysctl syslogd urandom zfs zvol"
-	OPENRC_DEFAULT_LINK="local netmount"
-	OPENRC_SHUTDOWN_LINK="savecache"
-	OPENRC_NONET_LINK="local"
-	INSTALL_SYMLINK="ln -fs"
-
-
 	if [ -z "${PKG_ROOTDIR}" ] ; then
 		PKG_ROOTDIR=/
 	fi
@@ -95,6 +83,17 @@ scripts: {
 		mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.lib32.dist \
 		     -p ${PKG_ROOTDIR}/usr
 	fi
+
+	# Setup our OpenRC runtime environment
+	OPENRC_BOOT_LINK="abi adjkerntz bootmisc bridge cron devd dmesg dumpon fsck"
+	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} hostid hostname kldxref localmount"
+	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} modules motd network newsyslog root"
+	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} routing savecore staticroute swap"
+	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} syscons sysctl syslogd urandom zfs zvol"
+	OPENRC_DEFAULT_LINK="local netmount"
+	OPENRC_SHUTDOWN_LINK="savecache"
+	OPENRC_NONET_LINK="local"
+	INSTALL_SYMLINK="ln -fs"
 
 	# Sanity check OpenRC
 	if [ ! -e ${PKG_ROOTDIR}/etc/init.d/functions.sh ]; then \
