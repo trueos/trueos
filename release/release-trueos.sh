@@ -495,7 +495,7 @@ check_essential_pkgs()
 			echo "Verified: ${pkgName}"
 		fi
    done
-   if [ $haveWarn ] ; then
+   if [ $haveWarn -eq 1 ] ; then
      echo "WARNING: Essential Packages Missing: ${_missingpkglist}"
    fi
    return $haveWarn
