@@ -34,25 +34,28 @@ scripts: {
 		PKG_ROOTDIR=/
 	fi
 	TM=${PKG_ROOTDIR}/var/db/trueos-manifest.json
-
+	REPONAME="TrueOS"
+	if [ "$(jq -r '."pkg-repo-name" | length' ${TM})" != "0" ]; then
+		REPONAME=`jq -r '."pkg-repo-name"' ${TM}`
+	fi
 	# Do the first-time setup of package repo
-	if [ ! -e "${PKG_ROOTDIR}/etc/pkg/TrueOS.conf" ] ; then
+	if [ ! -e "${PKG_ROOTDIR}/etc/pkg/${REPONAME}.conf" ] ; then
 
 		# Do Setup for ports repo
 		TM_PUBKEY="none"
 		if [ "$(jq -r '."pkg-repo"."pubKey" | length' ${TM})" != "0" ]; then
 			echo "Saving pkg ports repository public key"
 			jq -r '."pkg-repo"."pubKey" | join("\n")' ${TM} \
-			> ${PKG_ROOTDIR}/usr/share/keys/pkg/trueos.pub
-			TM_PUBKEY="/usr/share/keys/pkg/trueos.pub"
+			> ${PKG_ROOTDIR}/usr/share/keys/pkg/${REPONAME}.pub
+			TM_PUBKEY="/usr/share/keys/pkg/${REPONAME}.pub"
 		fi
 		if [ "$(jq -r '."pkg-repo"."url" | length' ${TM})" != "0" ]; then
 			TM_PKGURL="$(jq -r '."pkg-repo"."url"' ${TM})"
 			cat ${PKG_ROOTDIR}/etc/pkg/TrueOS.conf.pubkey.dist \
-			| sed "s|%%REPONAME%%|TrueOS-ports|g" \
+			| sed "s|%%REPONAME%%|${REPONAME}|g" \
 			| sed "s|%%PUBKEY%%|${TM_PUBKEY}|g" \
 			| sed "s|%%URL%%|${TM_PKGURL}|g" \
-			>${PKG_ROOTDIR}/etc/pkg/TrueOS.conf
+			>${PKG_ROOTDIR}/etc/pkg/${REPONAME}.conf
 		fi
 
 		# Do Setup for base repo
@@ -60,16 +63,16 @@ scripts: {
 		if [ "$(jq -r '."base-pkg-repo"."pubKey" | length' ${TM})" != "0" ]; then
 			echo "Saving pkg base repository public key"
 			jq -r '."base-pkg-repo"."pubKey" | join("\n")' ${TM} \
-			>${PKG_ROOTDIR}/usr/share/keys/pkg/trueos-base.pub
-			TM_PUBKEY="/usr/share/keys/pkg/trueos-base.pub"
+			>${PKG_ROOTDIR}/usr/share/keys/pkg/${REPONAME}-base.pub
+			TM_PUBKEY="/usr/share/keys/pkg/${REPONAME}-base.pub"
 		fi
 		if [ "$(jq -r '."base-pkg-repo"."url" | length' ${TM})" != "0" ]; then
 			TM_PKGURL="$(jq -r '."base-pkg-repo"."url"' ${TM})"
 			cat ${PKG_ROOTDIR}/etc/pkg/TrueOS.conf.pubkey.dist \
-			| sed "s|%%REPONAME%%|TrueOS-base|g" \
+			| sed "s|%%REPONAME%%|${REPONAME}-base|g" \
 			| sed "s|%%PUBKEY%%|${TM_PUBKEY}|g" \
 			| sed "s|%%URL%%|${TM_PKGURL}|g" \
-			>>${PKG_ROOTDIR}/etc/pkg/TrueOS.conf
+			>>${PKG_ROOTDIR}/etc/pkg/${REPONAME}.conf
 		fi
 	fi
 	cap_mkdb %CAP_MKDB_ENDIAN% ${PKG_ROOTDIR}/etc/login.conf
