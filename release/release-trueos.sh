@@ -590,7 +590,8 @@ cp_iso_pkgs()
 
 	# Check if we have dist-packages to include on the ISO
 	local _missingpkgs=""
-	for ptype in dist-packages auto-install-packages optional-dist-packages
+	# Note: Make sure that "prune-dist-packages" is always last in this list!!
+	for ptype in dist-packages auto-install-packages optional-dist-packages prune-dist-packages
 	do
 		for c in $(jq -r '."iso"."'${ptype}'" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 		do
@@ -598,10 +599,19 @@ cp_iso_pkgs()
 			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 			for i in $(jq -r '."iso"."'${ptype}'"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 			do
-				echo "Fetching image dist-files for: $i"
-				pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
-					-R ${OBJDIR}/repo-config \
-					fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} $i
+				if [ -n "${i}" ] ; then continue; fi
+				if [ "${ptype}" = "prune-dist-packages" ] ; then
+					for prune in `ls ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} | grep -i -e "${i}*.txz"`
+					do
+						echo "Pruning image dist-file: $prune"
+						rm "${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/${prune}"
+					done
+					
+				else
+					echo "Fetching image dist-files for: $i"
+					pkg-static -o ABI_FILE=${OBJDIR}/disc1/bin/sh \
+						-R ${OBJDIR}/repo-config \
+						fetch -y -d -o ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} $i
 					if [ $? -ne 0 ] ; then
 						if [ "${ptype}" = "optional-dist-packages" ] ; then
 							echo "WARNING: Optional dist package missing: $i"
@@ -610,6 +620,7 @@ cp_iso_pkgs()
 							exit_err "Failed copying dist-package $i to ISO..."
 						fi
 					fi
+				fi
 			done
 			if [ "$ptype" = "auto-install-packages" ] ; then
 				echo "Saving package list to auto-install from: $c"
@@ -664,8 +675,8 @@ EOF
 	chroot ${OBJDIR}/disc1 cap_mkdb /etc/login.conf
 	touch ${OBJDIR}/disc1/etc/fstab
 
-	# Check for explict pkgs to install, minus development and debug
-	for e in $(get_explicit_pkg_deps "development debug")
+	# Check for explict pkgs to install, minus development, debug, and profile
+	for e in $(get_explicit_pkg_deps "development debug profile")
 	do
 		pkg-static -o ABI_FILE=/bin/sh \
 			-R /etc/pkg \
