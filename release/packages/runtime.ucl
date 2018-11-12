@@ -19,41 +19,14 @@ EOD
 scripts: {
 	post-install = <<EOD
 
-	OPENRC_BOOT_LINK=	abi \
-			adjkerntz \
-			bootmisc \
-			bridge \
-			cron \
-			devd \
-			dmesg \
-			dumpon \
-			fsck \
-			hostid \
-			hostname \
-			kldxref \
-			localmount \
-			modules \
-			motd \
-			network \
-			newsyslog \
-			root \
-			routing \
-			savecore \
-			staticroute \
-			swap \
-			syscons \
-			sysctl \
-			syslogd \
-			urandom \
-			zfs \
-			zvol
-
-	OPENRC_DEFAULT_LINK=	local \
-			netmount
-
-	OPENRC_SHUTDOWN_LINK=	savecache
-
-	OPENRC_NONET_LINK=	local
+	OPENRC_BOOT_LINK="abi adjkerntz bootmisc bridge cron devd dmesg dumpon fsck"
+	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} hostid hostname kldxref localmount"
+	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} modules motd network newsyslog root"
+	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} routing savecore staticroute swap"
+	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} syscons sysctl syslogd urandom zfs zvol"
+	OPENRC_DEFAULT_LINK="local netmount"
+	OPENRC_SHUTDOWN_LINK="savecache"
+	OPENRC_NONET_LINK="local"
 	INSTALL_SYMLINK="ln -fs"
 
 
