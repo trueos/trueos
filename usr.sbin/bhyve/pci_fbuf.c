@@ -344,7 +344,6 @@ pci_fbuf_parse_opts(struct pci_fbuf_softc *sc, char *opts)
 	}
 
 done:
-	free(uopts);
 	return (ret);
 }
 
