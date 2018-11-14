@@ -51,11 +51,11 @@
     "post-install-commands": [
       {
         "chroot": true,
-        "command": "rc-update add dbus"
+        "command": "rc-update add dbus default"
       },
       {
         "chroot": true,
-        "command": "rc-update add sddm"
+        "command": "rc-update add sddm default"
       },
       {
         "chroot": false,
