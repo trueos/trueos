@@ -59,7 +59,7 @@
       },
       {
         "chroot": false,
-        "command": "/root/plasma-init.sh"
+        "command": "/root/desktop-init.sh"
       }
     ]
   },
