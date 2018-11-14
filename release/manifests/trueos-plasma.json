@@ -46,7 +46,7 @@
     "overlay": {
       "branch": "master",
       "type": "git",
-      "url": "https://github.com/trueos/trueos-plasma-overlay"
+      "url": "https://github.com/trueos/trueos-desktop-install-overlay"
     },
     "post-install-commands": [
       {
