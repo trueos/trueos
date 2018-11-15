@@ -604,7 +604,7 @@ cp_iso_pkgs()
 			do
 				if [ -z "${i}" ] ; then continue; fi
 				if [ "${ptype}" = "prune-dist-packages" ] ; then
-					for prune in `ls ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} | grep -i -e "${i}*.txz"`
+					for prune in `ls ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/All | grep -i -e "${i}*.txz"`
 					do
 						echo "Pruning image dist-file: $prune"
 						rm "${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/${prune}"
