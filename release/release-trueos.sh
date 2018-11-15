@@ -602,7 +602,7 @@ cp_iso_pkgs()
 			if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 			for i in $(jq -r '."iso"."'${ptype}'"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 			do
-				if [ -n "${i}" ] ; then continue; fi
+				if [ -z "${i}" ] ; then continue; fi
 				if [ "${ptype}" = "prune-dist-packages" ] ; then
 					for prune in `ls ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION} | grep -i -e "${i}*.txz"`
 					do
