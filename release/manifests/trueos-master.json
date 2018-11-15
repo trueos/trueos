@@ -71,7 +71,8 @@
         "sysutils/dmidecode",
         "sysutils/tmux",
         "x11/kde5",
-        "x11/sddm"
+        "x11/sddm",
+        "sysutils/pefs-kmod"
       ]
     },
     "build-all": true,
