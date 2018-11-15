@@ -7,20 +7,55 @@ set timeout 1800
 set PID [spawn vm console "$vm"]
 send_user "Spawned PID: $PID \n"
 
-# Install menu, options being:
-# 1) Install, 2) utility, 3) Reboot
-# Options: [O]K, [C]ancel
+
+# Please choose the appropriate terminal type for your system.
+# Common console types are:
+#    ansi     Standard ANSI terminal
+#    vt100    VT100 or compatible terminal
+#    xterm    xterm terminal emulator (or compatible)
+#    cons25w  cons25w terminal
+#
+# Console type [vt100]:
+
+# Press enter to use the default vt100
 expect {
-  "TrueOS Server Installation Menu" {
+  "Console type" {
     sleep .5
-    send "1"
     send "\r"
   }
 }
 
-# Selecte the disk.
-# Disk is already selected?
-# Options: [Y]es, [N]o
+
+# ┌────────────Welcome──────────────┐
+# │ Welcome to TrueOS! Would you    │
+# │ like to begin an installation   │
+# │ or use the live CD?             │
+# ├─────────────────────────────────┤
+# │ <Install> < Shell > <Live CD>   │
+# └─────────────────────────────────┘
+
+# Send I to use Install
+expect {
+  "Welcome to TrueOS!" {
+    sleep .5
+    send "I"
+  }
+}
+
+# ┌────────────TrueOS Install Dialog───────────────┐
+# │ Select target disk                             │
+# │ ┌────────────────────────────────────────────┐ │
+# │ │   (*) vtbd0   <Unknown Device> (20480MB)   │ │
+# │ │                                            │ │
+# │ │                                            │ │
+# │ │                                            │ │
+# │ │                                            │ │
+# │ └────────────────────────────────────────────┘ │
+# ├────────────────────────────────────────────────┤
+# │           <  OK  >      <Cancel>               │
+# └────────────────────────────────────────────────┘
+
+# Only press Enter to select vtbd0
 expect {
   "Select target disk" {
     sleep .5
@@ -28,9 +63,20 @@ expect {
   }
 }
 
+# ┌───────────────────────────TrueOS Install Dialog──────────────────────────────┐
+# │ Select target partition                                                      │
+# │ ┌──────────────────────────────────────────────────────────────────────────┐ │
+# │ │                     (*) ALL   Use entire disk                            │ │
+# │ │                     ( ) free  Install to free space                      │ │
+# │ │                                                                          │ │
+# │ │                                                                          │ │
+# │ │                                                                          │ │
+# │ └──────────────────────────────────────────────────────────────────────────┘ │
+# ├──────────────────────────────────────────────────────────────────────────────┤
+# │                       <  OK  >            <Cancel>                           │
+# └──────────────────────────────────────────────────────────────────────────────┘
 
-# Select to isntall ALL or on the freespace
-# Options: [O]K, [C]ancel
+# Use A to Use entire disk and press Enter
 expect {
   "Select target partition" {
     sleep .5
@@ -38,17 +84,38 @@ expect {
   }
 }
 
-# WARNING: This will erase ALL paritions and data, proceed?
-# Options: [Y]es, [N]o
+# ┌──────────TrueOS Install Dialog────────────┐
+# │ Select the disk format you would like to  │
+# │ use.                                      │
+# │ ┌───────────────────────────────────────┐ │
+# │ │                1.  GPT                │ │
+# │ │                2.  MBR                │ │
+# │ │                                       │ │
+# │ │                                       │ │
+# │ └───────────────────────────────────────┘ │
+# ├───────────────────────────────────────────┤
+# │         <  OK  >     <Cancel>             │
+# └───────────────────────────────────────────┘
+
+# Select 1 for GPT and press enter
 expect {
   "Select the disk" {
     sleep 1
+    send "1"
     send "\r"
   }
 }
 
-# Set the default root account password:
-# Options: [O]K, [C]ancel
+# ┌──TrueOS Install Dialog─────┐
+# │ Enter the root password    │
+# │ ┌────────────────────────┐ │
+# │ │                        │ │
+# │ └────────────────────────┘ │
+# ├────────────────────────────┤
+# │   <  OK  >  <Cancel>       │
+# └────────────────────────────┘
+
+# Input testing for root password and press Enter
 expect {
   "Enter the root password" {
     sleep .5
@@ -58,8 +125,16 @@ expect {
 }
 
 
-# Select Boot via UEFI
-# Options: [B]oot via UEFI, Boot via B[I]OS
+# ┌──TrueOS Install Dialog─────┐
+# │ Confirm root password      │
+# │ ┌────────────────────────┐ │
+# │ │                        │ │
+# │ └────────────────────────┘ │
+# ├────────────────────────────┤
+# │   <  OK  >  <Cancel>       │
+# └────────────────────────────┘
+
+# Input testing to confirm root password and press Enter
 expect {
   "Confirm root password" {
     sleep .5
@@ -68,6 +143,16 @@ expect {
   }
 }
 
+# ┌───────TrueOS Install Dialog──────────┐
+# │ Enter a username                     │
+# │ ┌──────────────────────────────────┐ │
+# │ │                                  │ │
+# │ └──────────────────────────────────┘ │
+# ├──────────────────────────────────────┤
+# │       <  OK  >    <Cancel>           │
+# └──────────────────────────────────────┘
+
+# Input user name and press Enter
 expect {
   "Enter a username" {
     sleep .5
@@ -76,22 +161,16 @@ expect {
   }
 }
 
-expect {
-  "Enter the password for testing" {
-    sleep .5
-    send "testing"
-    send "\r"
-  }
-}
+# ┌───────TrueOS Install Dialog──────────┐
+# │ Enter the real name for trueview     │
+# │ ┌──────────────────────────────────┐ │
+# │ │                                  │ │
+# │ └──────────────────────────────────┘ │
+# ├──────────────────────────────────────┤
+# │       <  OK  >    <Cancel>           │
+# └──────────────────────────────────────┘
 
-expect {
-  "Confirm password" {
-    sleep .5
-    send "testing"
-    send "\r"
-  }
-}
-
+# Input real name and press Enter
 expect {
   "Enter the real name for testing" {
     sleep .5
@@ -100,16 +179,74 @@ expect {
   }
 }
 
+# ┌───────TrueOS Install Dialog──────────┐
+# │ Enter the password for trueview      │
+# │ ┌──────────────────────────────────┐ │
+# │ │                                  │ │
+# │ └──────────────────────────────────┘ │
+# ├──────────────────────────────────────┤
+# │       <  OK  >    <Cancel>           │
+# └──────────────────────────────────────┘
+
+# Input testing for trueview user password and press Enter
 expect {
-  "Select the users shell" {
+  "Enter the password for testing" {
     sleep .5
-    #send \025
-    #send \025
-    #send \025
+    send "testing"
     send "\r"
   }
 }
 
+# ┌───────TrueOS Install Dialog──────────┐
+# │ Confirm password                     │
+# │ ┌──────────────────────────────────┐ │
+# │ │                                  │ │
+# │ └──────────────────────────────────┘ │
+# ├──────────────────────────────────────┤
+# │       <  OK  >    <Cancel>           │
+# └──────────────────────────────────────┘
+
+# Input testing for confirm trueview use password and press Enter
+expect {
+  "Confirm password" {
+    sleep .5
+    send "testing"
+    send "\r"
+  }
+}
+
+# ┌──────────TrueOS Install Dialog────────────┐
+# │ Select the users shell                    │
+# │ ┌───────────────────────────────────────┐ │
+# │ │            /bin/sh    SH              │ │
+# │ │            /bin/csh   CSH             │ │
+# │ │            /bin/tcsh  TCSH            │ │
+# │ │                                       │ │
+# │ │                                       │ │
+# │ └───────────────────────────────────────┘ │
+# ├───────────────────────────────────────────┤
+# │         <  OK  >     <Cancel>             │
+# └───────────────────────────────────────────┘
+
+# Press arrow down to select CSH and press Enter
+expect {
+  "Select the users shell" {
+    sleep .5
+    send /025
+    send "\r"
+  }
+}
+
+# ┌─────TrueOS Install Dialog───────┐
+# │ Enter a system Hostname         │
+# │ ┌─────────────────────────────┐ │
+# │ │                             │ │
+# │ └─────────────────────────────┘ │
+# ├─────────────────────────────────┤
+# │     <  OK  >   <Cancel>         │
+# └─────────────────────────────────┘
+
+# Input host name for trueview and press Enter
 expect {
   "Enter a system Hostname" {
     sleep .5
@@ -118,6 +255,14 @@ expect {
   }
 }
 
+# ┌──TrueOS Install Dialog─────┐
+# │ Enable networking?         │
+# │                            │
+# ├────────────────────────────┤
+# │     < Yes >   < No  >      │
+# └────────────────────────────┘
+
+# Input y for Yes
 expect {
   "Enable networking?" {
     sleep .5
@@ -125,7 +270,20 @@ expect {
   }
 }
 
+# ┌────────────TrueOS Install Dialog───────────────┐
+# │ Select network card to configure               │
+# │ ┌────────────────────────────────────────────┐ │
+# │ │   (*) auto    Automatic DHCP               │ │
+# │ │   ( ) vtnet0  VirtIO Networking Adapter    │ │
+# │ │                                            │ │
+# │ │                                            │ │
+# │ │                                            │ │
+# │ └────────────────────────────────────────────┘ │
+# ├────────────────────────────────────────────────┤
+# │           <  OK  >      <Cancel>               │
+# └────────────────────────────────────────────────┘
 
+# Press Enter for OK
 expect {
   "Select network card to configure" {
     sleep .5
@@ -133,7 +291,16 @@ expect {
   }
 }
 
+# ┌──TrueOS Install Dialog─────┐
+# │ Enable SSH?                │
+# │                            │
+# │                            │
+# │                            │
+# ├────────────────────────────┤
+# │     < Yes >   < No  >      │
+# └────────────────────────────┘
 
+# Input y for Yes
 expect {
   "Enable SSH?" {
     sleep .5
@@ -142,7 +309,26 @@ expect {
   }
 }
 
+# ┌────────TrueOS Text Install───────────┐
+# │ Please select from the following     │
+# │ options:                             │
+# │ ┌──────────────────────────────────┐ │
+# │ │ install   Start the installation │ │
+# │ │ wizard    Re-run install wizard  │ │
+# │ │ edit      Edit install options   │ │
+# │ │ hardware  check compatibility    │ │
+# │ │ quit      Quit install wizard    │ │
+# │ │                                  │ │
+# │ │                                  │ │
+# │ │                                  │ │
+# │ │                                  │ │
+# │ │                                  │ │
+# │ └──────────────────────────────────┘ │
+# ├──────────────────────────────────────┤
+# │       <  OK  >    <                  │
+# └──────────────────────────────────────┘
 
+# Press Enter to start the installation
 expect {
   "Please select from the" {
     sleep .5
@@ -151,7 +337,16 @@ expect {
   }
 }
 
+# ┌──TrueOS Install Dialog─────┐
+# │ This will begin the        │
+# │ installation, continue?    │
+# │                            │
+# │                            │
+# ├────────────────────────────┤
+# │     < Yes >   < No  >      │
+# └────────────────────────────┘
 
+# Input y for Yes
 expect {
   "This will begin the" {
     sleep .5
@@ -160,11 +355,19 @@ expect {
 }
 
 
-# Installation finished!
+# Press ENTER to continue
+
+# Installation finished or failed
 expect {
+  "EXITERROR: Failed installing:" {
+    send_user "Bhyve installation Failed."
+    sleep .5
+    exit 1
+  }
+
   "Installation finished!" {
     send_user "is installation finished."
     sleep .5
-    exit
+    exit 0
   }
 }
