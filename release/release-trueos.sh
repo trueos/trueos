@@ -489,7 +489,7 @@ check_essential_pkgs()
 		if [ ! -e "${POUDRIERE_PKGDIR}/All/${pkgName}.txz" ] ; then
 			echo "Checked: ${POUDRIERE_PKGDIR}/All/${pkgName}.txz"
 			echo "WARNING: Missing package ${pkgName} for port ${i}"
-			_missingpkglist="${_missingpkglist} ${pkgname}"
+			_missingpkglist="${_missingpkglist} ${pkgName}"
 			haveWarn=1
 		else
 			echo "Verified: ${pkgName}"
