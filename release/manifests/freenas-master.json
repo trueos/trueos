@@ -181,6 +181,7 @@
     "iso-packages": {
       "default": [ ]
     },
+    "offline-update":true,
     "overlay": {},
     "post-install-commands": [
       {
