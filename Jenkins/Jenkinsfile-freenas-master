@@ -16,7 +16,7 @@ pipeline {
     POUDRIERE_PORTS = 'fn-master-ports'
 
     // Set the MANIFEST we want to use for this build
-    TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/freenas-master.json'
+    //TRUEOS_MANIFEST='${SRCROOT}/release/manifests/freenas-master.json'
   }
 
   stages {
@@ -67,6 +67,7 @@ pipeline {
     stage('Base Packages') {
       post {
         always {
+          sh 'cp -r /usr/local/poudriere/data/logs/bulk/fn-master-base-fn-master-ports/latest/logs ${WORKSPACE}/artifacts/poudriere-logs'
           archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
         }
         failure {
@@ -79,7 +80,7 @@ pipeline {
       }
       steps {
         sh 'rm -rf /usr/obj${SRCROOT}/amd64.amd64/repo'
-        sh 'cd ${SRCROOT} && make -j 6 packages >${WORKSPACE}/artifacts/packages.log 2>&1'
+        sh 'cd ${SRCROOT} && make packages >${WORKSPACE}/artifacts/packages.log 2>&1'
       }
     }
     stage('Release') {
@@ -92,9 +93,7 @@ pipeline {
         }
       }
       steps {
-        sh 'rm -rf ${WORKSPACE}/artifacts'
         sh 'cd ${SRCROOT}/release && make iso >${WORKSPACE}/artifacts/release.log 2>&1'
-        sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
         sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
       }
     }
