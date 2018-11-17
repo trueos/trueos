@@ -65,7 +65,7 @@ LOCALBASE?=	/usr/local
 
 # Check if TRUEOS_MANIFEST is set, if not use the default
 .if !defined(TRUEOS_MANIFEST)
-TRUEOS_MANIFEST=	${SRCDIR}/release/trueos-manifest.json
+TRUEOS_MANIFEST=	${SRCDIR}/release/manifests/freenas-master.json
 .endif
 
 # Confirm the file TRUEOS_MANIFEST exists

@@ -44,7 +44,7 @@ WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
 PKG_CMD?=	pkg-static
-TRUEOS_MANIFEST?=	${WORLDDIR}/release/trueos-manifest.json
+TRUEOS_MANIFEST?=	${WORLDDIR}/release/manifests/freenas-master.json
 RELNOTES_LANG?= en_US.ISO8859-1
 
 .if !defined(TARGET) || empty(TARGET)

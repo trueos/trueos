@@ -51,7 +51,6 @@
         "ftp/curl",
         "ftp/proftpd",
         "ftp/wget",
-        "freenas/freenas-docs",
         "freenas/freenas-files",
         "freenas/freenas-migrate93",
         "freenas/freenas-pkgtools",
