@@ -596,7 +596,8 @@ TIMENOW=	%Y.%m.%d-%H.%M.%S
 EXTRA_REVISION=	.${TIMENOW:gmtime}
 .endif
 .if ${_BRANCH:M*-p*}
-EXTRA_REVISION=	_${_BRANCH:C/.*-p([0-9]+$)/\1/}
+TIMENOW=	%Y.%m.%d-%H.%M.%S
+EXTRA_REVISION=	.${TIMENOW:gmtime}
 .endif
 TIMENOW=	%Y.%m.%d-%H.%M.%S
 EXTRA_REVISION=	.${TIMENOW:gmtime}
