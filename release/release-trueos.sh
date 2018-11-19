@@ -675,10 +675,24 @@ EOF
 	chroot ${OBJDIR}/disc1 cap_mkdb /etc/login.conf
 	touch ${OBJDIR}/disc1/etc/fstab
 
+	# Assemble the list of base packages to ignore (as a Regex)
+	local _base_ignore=""
+	if [ "$(jq -r '."iso"."ignore-base-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
+		_base_ignore=`jq -r '."iso".""ignore-base-packages" | join("|")' ${TRUEOS_MANIFEST}`
+	fi
 	# Check for explict pkgs to install, minus development, debug, and profile
 	echo "Installing base packages into ISO:"
-	for e in $(get_explicit_pkg_deps )
+	for e in $(get_explicit_pkg_deps "development debug profile")
 	do
+		#Filter out any designated base packages
+		if [ -n "${_base_ignore}" ] ; then
+		  #have packages to ignore - see if this one matches
+		  echo "${e}" | grep -qiE "(${_base_ignore})"
+		  if [ $? -eq 0 ] ; then
+		    echo "Ignoring base package: ${e}"
+		    continue
+		  fi
+		fi
 		pkg-static -o ABI_FILE=/bin/sh \
 			-R /etc/pkg \
 			-c ${OBJDIR}/disc1 \
