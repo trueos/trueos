@@ -593,6 +593,8 @@ EXTRA_REVISION=	.${TIMENOW:gmtime}
 TIMENOW=	%Y.%m.%d-%H.%M.%S
 EXTRA_REVISION=	.${TIMENOW:gmtime}
 .endif
+TIMENOW=	%Y.%m.%d-%H.%M.%S
+EXTRA_REVISION=	.${TIMENOW:gmtime}
 PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
 .endif	# !defined(_MKSHOWCONFIG)
