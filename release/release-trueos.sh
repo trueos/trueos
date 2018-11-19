@@ -676,7 +676,8 @@ EOF
 	touch ${OBJDIR}/disc1/etc/fstab
 
 	# Check for explict pkgs to install, minus development, debug, and profile
-	for e in $(get_explicit_pkg_deps "development debug profile")
+	echo "Installing base packages into ISO:"
+	for e in $(get_explicit_pkg_deps )
 	do
 		pkg-static -o ABI_FILE=/bin/sh \
 			-R /etc/pkg \
