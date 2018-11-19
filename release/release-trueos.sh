@@ -732,6 +732,11 @@ EOF
 
 prune_iso()
 {
+	# Built-in pruning methods
+	rm ${OBJDIR}/disc1/*.csum #checksums for base packages (~50MB saved)
+	rm -rf ${OBJDIR}/disc1/usr/local_source #Copy of the ports tree (~336MB saved)
+	
+	# User-specified pruning
 	# Check if we have paths to prune from the ISO before build
 	for c in $(jq -r '."iso"."prune" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 	do
