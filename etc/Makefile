@@ -36,14 +36,6 @@ afterinstall:
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.k5login ${DESTDIR}/root/.k5login;
 .endif
-.if ${MK_BOOT} != "no"
-.if exists(${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints)
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints \
-	    ${DESTDIR}/boot/device.hints
-.endif
-.endif
-
 
 distribute:
 	# Avoid installing tests here; "make distribution" will do this and
