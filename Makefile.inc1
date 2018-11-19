@@ -598,6 +598,8 @@ EXTRA_REVISION=	.${TIMENOW:gmtime}
 .if ${_BRANCH:M*-p*}
 EXTRA_REVISION=	_${_BRANCH:C/.*-p([0-9]+$)/\1/}
 .endif
+TIMENOW=	%Y.%m.%d-%H.%M.%S
+EXTRA_REVISION=	.${TIMENOW:gmtime}
 PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
 .endif	# !defined(_MKSHOWCONFIG)
