@@ -89,6 +89,9 @@ The "iso" target within the manifest controls all the options specific to creati
 * "iso-packages" (JSON object) : Lists of packages (by port origin) to install into the ISO (when booting the ISO, these packages will be available to use)
    * "default" (JSON array of strings) : Default list (required)
    * "ENV_VARIABLE" (JSON array of strings) : Additional list to be added to the "default" list **if** an environment variable with the same name exists.
+* "ignore-base-packages" (JSON array of strings) : List of base packages to ignore when installing base packages into the ISO. 
+   * This is turned into a regex automatically, so "-clang-" will remove all forms of the clang package, but "-clang-development" will only ignore the development package for clang.
+   * **WARNING** Do *NOT* ignore the "runtime" package - this will typically break the ability of the ISO to start up.
 * "auto-install-packages" (JSON object) : Lists of packages (by port origin) to automatically install when using the default TrueOS installer.
    * **NOTE:** These packages will automatically get added to the "dist-packages" available on the ISO as well.
    * "default" (JSON array of strings) : Default list (required)
@@ -100,25 +103,76 @@ The "iso" target within the manifest controls all the options specific to creati
    
 #### ISO Example
 ```
-  "dist-packages":[
-    "devel/git"
-  ]
-```
-
-* auto-install-packages - JSON Object Array, List of packages you want auto-installed when using TrueOS's built-in text-installer.
-
-```
-  "auto-install-packages":[
-    "devel/git"
-  ]
-```
-* iso-overlay - JSON Array, Used to list locations overlay directory to install ISO
-
-```
-  "iso-overlay":{
-    "type":"git",
-    "url":"https://github.com/trueos/iso-overlay",
-    "branch":"https://github.com/trueos/iso-overlay"
+"iso" : {
+  "file-name": "TrueOS-x64-%%TRUEOS_VERSION%%-%%GITHASH%%-%%DATE%%",
+  "install-script" : "/usr/local/bin/my-installer",
+  "auto-install-script" : "",
+  "post-install-commands": [
+      {
+        "chroot": true,
+        "command": "touch /root/inside-chroot"
+      },
+      {
+        "chroot": false,
+        "command": "touch /root/outside-chroot"
+      },
+      {
+        "chroot": true,
+        "command": "rm /root/outside-chroot"
+      },
+      {
+        "chroot": false,
+        "command": "rm /root/inside-chroot"
+      }
+  ],
+  "prune": {
+    "ENV_VARIABLE": [
+      "/usr/share/examples",
+      "/usr/include"
+    ],
+    "default": [
+      "/usr/local/share/examples",
+      "/usr/local/include"
+    ]
+  },
+  "ignore-base-packages": [
+    "-clang-",
+    "-sendmail-"
+  ],
+  "iso-packages": {
+    "default": [
+      "sysutils/ipmitool",
+      "sysutils/dmidecode",
+      "sysutils/tmux"
+    ],
+    "ENV_VARIABLE": [
+      "archivers/cabextract"
+    ]
+  },
+  "dist-packages": {
+    "default": [
+      "sysutils/ipmitool",
+      "sysutils/dmidecode",
+      "sysutils/tmux"
+    ],
+    "ENV_VARIABLE": [
+      "archivers/cabextract"
+    ]
+  },
+  "auto-install-packages": {
+    "default": [
+      "sysutils/ipmitool",
+      "sysutils/dmidecode",
+      "sysutils/tmux"
+    ],
+    "ENV_VARIABLE": [
+      "archivers/cabextract"
+    ]
+  },
+  "overlay": {
+    "type": "git",
+    "branch": "master",
+    "url": "https://github.com/trueos/iso-overlay"
   }
 ```
 
