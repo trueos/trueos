@@ -29,12 +29,10 @@ SUBDIR+=	ssl
 SUBDIR+=	etc.init.d
 
 afterinstall:
-.if ${MK_BOOT} != "no"
 .if exists(${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints)
-        ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-            ${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints \
-            ${DESTDIR}/boot/device.hints
-.endif
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints \
+		${DESTDIR}/boot/device.hints
 .endif
 
 .include <bsd.prog.mk>
