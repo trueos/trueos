@@ -686,7 +686,7 @@ EOF
 	fi
 	# Check for explict pkgs to install, minus development, debug, and profile
 	echo "Installing base packages into ISO:"
-	for e in $(get_explicit_pkg_deps "development debug profile")
+	for e in $(get_explicit_pkg_deps )
 	do
 		#Filter out any designated base packages
 		if [ -n "${_base_ignore}" ] ; then
