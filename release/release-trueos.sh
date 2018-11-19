@@ -604,7 +604,8 @@ cp_iso_pkgs()
 			do
 				if [ -z "${i}" ] ; then continue; fi
 				if [ "${ptype}" = "prune-dist-packages" ] ; then
-					for prune in `ls ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/All | grep -i -e "${i}*.txz"`
+					echo "Scanning for packages to prune: ${i}*.txz , Dir: ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/All"
+					for prune in `ls ${OBJDIR}/disc1/${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/All | grep -i -e "${i}*.txz"`
 					do
 						echo "Pruning image dist-file: $prune"
 						rm "${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/${prune}"
@@ -678,9 +679,24 @@ EOF
 	chroot ${OBJDIR}/disc1 cap_mkdb /etc/login.conf
 	touch ${OBJDIR}/disc1/etc/fstab
 
+	# Assemble the list of base packages to ignore (as a Regex)
+	local _base_ignore=""
+	if [ "$(jq -r '."iso"."ignore-base-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
+		_base_ignore=`jq -r '."iso".""ignore-base-packages" | join("|")' ${TRUEOS_MANIFEST}`
+	fi
 	# Check for explict pkgs to install, minus development, debug, and profile
-	for e in $(get_explicit_pkg_deps "development debug profile")
+	echo "Installing base packages into ISO:"
+	for e in $(get_explicit_pkg_deps )
 	do
+		#Filter out any designated base packages
+		if [ -n "${_base_ignore}" ] ; then
+		  #have packages to ignore - see if this one matches
+		  echo "${e}" | grep -qiE "(${_base_ignore})"
+		  if [ $? -eq 0 ] ; then
+		    echo "Ignoring base package: ${e}"
+		    continue
+		  fi
+		fi
 		pkg-static -o ABI_FILE=/bin/sh \
 			-R /etc/pkg \
 			-c ${OBJDIR}/disc1 \
@@ -731,6 +747,11 @@ EOF
 
 prune_iso()
 {
+	# Built-in pruning methods
+	rm ${OBJDIR}/disc1/*.csum #checksums for base packages (~50MB saved)
+	rm -rf ${OBJDIR}/disc1/usr/local_source #Copy of the ports tree (~336MB saved)
+	
+	# User-specified pruning
 	# Check if we have paths to prune from the ISO before build
 	for c in $(jq -r '."iso"."prune" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 	do

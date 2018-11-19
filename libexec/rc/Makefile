@@ -2,11 +2,11 @@
 
 CONFGROUPS=	CONFETC CONFETCEXEC CONFETCDEFAULTS CONFPRIV
 CONFETCDIR=	/etc
-CONFETC+=	network.subr openrc openrc.shutdown rc rc.bsdextended rc.devd rc.dynamicdiskless
+CONFETC+=	network.subr openrc openrc.shutdown rc rc.bsdextended rc.dynamicdiskless
 CONFETC+=	rc.initdiskless rc.subr rc.shutdown
 CONFETC+=	group login.access termcap.small
 CONFETCMODE=	644
-CONFETCEXEC=	netstart pccard_ether rc.resume rc.suspend
+CONFETCEXEC=	netstart pccard_ether rc.devd rc.resume rc.suspend
 CONFETCEXECDIR=	/etc
 CONFETCEXECMODE=	755
 CONFETCDEFAULTSDIR=	/etc/defaults
