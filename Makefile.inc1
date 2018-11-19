@@ -1932,6 +1932,9 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
+	if [ ! -d "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION}" ] ; then \
+		mkdir -p ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION} || true ; \
+	fi \
 	sh ${SRCDIR}/release/packages/build-checksum.sh kernel.${INSTALLKERNEL}${flavor} \
 		${KSTAGEDIR}/${DISTDIR} \
 		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
@@ -1976,6 +1979,9 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
+	if [ ! -d "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION}" ] ; then \
+		mkdir -p ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION} || true ; \
+	fi \
 	sh ${SRCDIR}/release/packages/build-checksum.sh kernel.${_kernel}${flavor} \
 		${KSTAGEDIR}/${DISTDIR} \
 		${KSTAGEDIR}/${DISTDIR}/kernel.${_kernel}${flavor}.plist \
