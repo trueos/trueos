@@ -243,7 +243,7 @@
       "AxxsOeRYAlBFJ4oo2cFVyqkCAwEAAQ==",
       "-----END PUBLIC KEY-----"
     ],
-    "url": "https://pkg.trueos.org/pkg/freenas-master/${ABI}/latest"
+    "url": "https://pkg.trueos.org/pkg/freenas/13/unstable/${ABI}/latest"
   },
   "ports": {
     "branch": "freenas/12-stable",
