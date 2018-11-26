@@ -134,5 +134,7 @@
 		"AxxsOeRYAlBFJ4oo2cFVyqkCAwEAAQ==",
 		"-----END PUBLIC KEY-----"
 	  ]
-  }
+  },
+  "pkg-repo-name": "TrueOS",
+  "pkg-train-name": "gnome-unstable"
 }

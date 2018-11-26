@@ -1,3 +1,5 @@
+# TRAINNAME %%TRAINNAME%%
+
 %%REPONAME%%: {
   url: "%%URL%%",
   signature_type: "pubkey",

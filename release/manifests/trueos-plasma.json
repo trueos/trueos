@@ -82,6 +82,8 @@
     ],
     "url": "https://pkg.trueos.org/pkg/plasma-unstable/${ABI}/latest"
   },
+  "pkg-repo-name": "TrueOS",
+  "pkg-train-name": "plasma-unstable",
   "ports": {
     "branch": "trueos-master",
     "build": {
