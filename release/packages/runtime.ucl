@@ -232,11 +232,6 @@ deps: {
 	origin: "textproc/jq"
 	version: ">0"
     }
-    "sysup": {
-	origin: "sysutils/sysup"
-	version: ">0"
-    }
-
 }
 directories {
     /dev = "y";
