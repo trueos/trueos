@@ -122,6 +122,8 @@
     ],
     "url": "https://pkg.trueos.org/pkg/unstable/${ABI}/latest"
   },
+  "pkg-repo-name": "TrueOS",
+  "pkg-train-name": "snapshot",
   "ports": {
     "branch": "trueos-master",
     "build": {

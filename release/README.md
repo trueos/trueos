@@ -296,6 +296,7 @@ As part of the build process, the packages can also be automatically assembled i
 
 #### pkg-repo Options
 * "pkg-repo-name" (string) : Short-name for the package repository (default: "TrueOS")
+* "pkg-train-name" (string) : Name for the package repository train used by sysutils/sysup (default: "unstable")
 * "pkg-repo" (JSON Object) : Settings for the unified base+ports package repo
    * "url" (string) : Public URL where the repository can be found. (Distro creators will need to setup access for this URL and copy the pkg repo files as needed to make them available at the given location).
    * "pubKey" (JSON Array of strings) : SSL public key to use when verifying integrity of downloaded packages (one line of test per item in the array). This is basically just the plain-text of the SSL public key file converted into an array of strings. 
@@ -305,6 +306,7 @@ As part of the build process, the packages can also be automatically assembled i
 
 ```
 "pkg-repo-name" : "TrueOS",
+"pkg-train-name" : "snapshot",
 "pkg-repo" : {
   "url" : "http://pkg.trueos.org/pkg/release/${ABI}/latest",
   "pubKey : [
