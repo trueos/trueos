@@ -19,7 +19,6 @@ CONFPRIVMODE=	600
 SUBDIR+=	bin
 SUBDIR+=	gss
 SUBDIR+=	init.d
-SUBDIR+=	hints
 SUBDIR+=	pkg
 SUBDIR+=	rc.d
 SUBDIR+=	sbin
