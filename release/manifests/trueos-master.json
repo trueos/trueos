@@ -5,6 +5,10 @@
         "uclcmd": {
           "origin": "devel/uclcmd",
           "version": ">0"
+        },
+        "sysup": {
+          "origin": "sysutils/sysup",
+          "version": ">0"
         }
       },
       "runtime-development": {
@@ -61,6 +65,8 @@
     ],
     "url": "https://pkg.trueos.org/pkg/unstable/${ABI}/latest"
   },
+  "pkg-repo-name": "TrueOS",
+  "pkg-train-name": "unstable",
   "ports": {
     "branch": "trueos-master",
     "build": {

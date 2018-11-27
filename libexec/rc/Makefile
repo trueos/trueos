@@ -6,7 +6,7 @@ CONFETC+=	network.subr openrc openrc.shutdown rc rc.bsdextended rc.dynamicdiskle
 CONFETC+=	rc.initdiskless rc.subr rc.shutdown
 CONFETC+=	group login.access termcap.small
 CONFETCMODE=	644
-CONFETCEXEC=	netstart pccard_ether rc.devd rc.resume rc.suspend
+CONFETCEXEC=	netstart pccard_ether rc.devd rc.resume rc.suspend pkgbase.setup
 CONFETCEXECDIR=	/etc
 CONFETCEXECMODE=	755
 CONFETCDEFAULTSDIR=	/etc/defaults
@@ -27,12 +27,5 @@ SUBDIR+=	ssl
 
 # Needs to be added after sh
 SUBDIR+=	etc.init.d
-
-afterinstall:
-.if exists(${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints)
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints \
-		${DESTDIR}/boot/device.hints
-.endif
 
 .include <bsd.prog.mk>

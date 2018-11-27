@@ -50,6 +50,8 @@
     ],
     "url": "https://pkg.trueos.org/pkg/snapshot/${ABI}/latest"
   },
+  "pkg-repo-name": "TrueOS",
+  "pkg-train-name": "snapshot",
   "ports": {
     "branch": "trueos-master",
     "build": {
