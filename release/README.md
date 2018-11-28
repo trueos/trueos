@@ -32,6 +32,16 @@ This document corresponds to version "1.0", so any manifest using this specifica
 
 `"version" : "1.0"`
 
+### Distribution Branding
+There are a couple options which may be set in the manifest in order to "brand" the distribution of TrueOS.
+
+* "os_name" (string) : Branding name for the distribution.
+   * Default Value: "TrueOS"
+   * Will change the branding in pc-installdialog, and the distro branding in the bootloader as well.
+* "os_version" (string) : Custom version tag for the build. 
+   * At build time this will become the "TRUEOS_VERSION" environment variable which can be used in filename expansions and such later (if that environment variable is not already set).
+
+
 ### base-packages
 The "base-packages" target allows the configuration of the OS packages itself. This can involve the naming scheme, build flags, extra dependencies, and more.
 
