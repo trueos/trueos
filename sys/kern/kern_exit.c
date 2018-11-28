@@ -429,13 +429,11 @@ exit1(struct thread *td, int rval, int signo)
 
 	sx_xlock(&proctree_lock);
 	/*
-	 * Remove proc from allproc queue and pidhash chain.
-	 * Place onto zombproc.  Unlink from parent's child list.
+	 * Move proc from allproc queue to zombproc.
 	 */
 	sx_xlock(&allproc_lock);
 	LIST_REMOVE(p, p_list);
 	LIST_INSERT_HEAD(&zombproc, p, p_list);
-	LIST_REMOVE(p, p_hash);
 	sx_xunlock(&allproc_lock);
 
 	/*
@@ -876,6 +874,9 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	sx_xlock(&allproc_lock);
 	LIST_REMOVE(p, p_list);	/* off zombproc */
 	sx_xunlock(&allproc_lock);
+	sx_xlock(PIDHASHLOCK(p->p_pid));
+	LIST_REMOVE(p, p_hash);
+	sx_xunlock(PIDHASHLOCK(p->p_pid));
 	LIST_REMOVE(p, p_sibling);
 	reaper_abandon_children(p, true);
 	LIST_REMOVE(p, p_reapsibling);

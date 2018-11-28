@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "mcdi_mon.h"
 #endif
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 #if EFSYS_OPT_QSTATS
 #define	EFX_EV_QSTAT_INCR(_eep, _stat)					\
@@ -434,7 +434,12 @@ efx_mcdi_fini_evq(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+	/*
+	 * EALREADY is not an error, but indicates that the MC has rebooted and
+	 * that the EVQ has already been destroyed.
+	 */
+	if (rc != EALREADY)
+		EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -461,7 +466,7 @@ ef10_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		efsys_mem_t *esmp,
-	__in		size_t n,
+	__in		size_t ndescs,
 	__in		uint32_t id,
 	__in		uint32_t us,
 	__in		uint32_t flags,
@@ -475,7 +480,8 @@ ef10_ev_qcreate(
 	EFX_STATIC_ASSERT(ISP2(EFX_EVQ_MAXNEVS));
 	EFX_STATIC_ASSERT(ISP2(EFX_EVQ_MINNEVS));
 
-	if (!ISP2(n) || (n < EFX_EVQ_MINNEVS) || (n > EFX_EVQ_MAXNEVS)) {
+	if (!ISP2(ndescs) ||
+	    (ndescs < EFX_EVQ_MINNEVS) || (ndescs > EFX_EVQ_MAXNEVS)) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -524,7 +530,8 @@ ef10_ev_qcreate(
 		 * it will choose the best settings for low latency, otherwise
 		 * it will choose the best settings for throughput.
 		 */
-		rc = efx_mcdi_init_evq_v2(enp, index, esmp, n, irq, us, flags);
+		rc = efx_mcdi_init_evq_v2(enp, index, esmp, ndescs, irq, us,
+		    flags);
 		if (rc != 0)
 			goto fail4;
 	} else {
@@ -540,7 +547,7 @@ ef10_ev_qcreate(
 		 * to choose it.)
 		 */
 		boolean_t low_latency = encp->enc_datapath_cap_evb ? 0 : 1;
-		rc = efx_mcdi_init_evq(enp, index, esmp, n, irq, us, flags,
+		rc = efx_mcdi_init_evq(enp, index, esmp, ndescs, irq, us, flags,
 		    low_latency);
 		if (rc != 0)
 			goto fail5;
@@ -569,9 +576,10 @@ ef10_ev_qdestroy(
 	efx_nic_t *enp = eep->ee_enp;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
-	    enp->en_family == EFX_FAMILY_MEDFORD);
+	    enp->en_family == EFX_FAMILY_MEDFORD ||
+	    enp->en_family == EFX_FAMILY_MEDFORD2);
 
-	(void) efx_mcdi_fini_evq(eep->ee_enp, eep->ee_index);
+	(void) efx_mcdi_fini_evq(enp, eep->ee_index);
 }
 
 	__checkReturn	efx_rc_t
@@ -596,7 +604,7 @@ ef10_ev_qprime(
 		    EFE_DD_EVQ_IND_RPTR_FLAGS_HIGH,
 		    ERF_DD_EVQ_IND_RPTR,
 		    (rptr >> ERF_DD_EVQ_IND_RPTR_WIDTH));
-		EFX_BAR_TBL_WRITED(enp, ER_DD_EVQ_INDIRECT, eep->ee_index,
+		EFX_BAR_VI_WRITED(enp, ER_DD_EVQ_INDIRECT, eep->ee_index,
 		    &dword, B_FALSE);
 
 		EFX_POPULATE_DWORD_2(dword,
@@ -604,11 +612,11 @@ ef10_ev_qprime(
 		    EFE_DD_EVQ_IND_RPTR_FLAGS_LOW,
 		    ERF_DD_EVQ_IND_RPTR,
 		    rptr & ((1 << ERF_DD_EVQ_IND_RPTR_WIDTH) - 1));
-		EFX_BAR_TBL_WRITED(enp, ER_DD_EVQ_INDIRECT, eep->ee_index,
+		EFX_BAR_VI_WRITED(enp, ER_DD_EVQ_INDIRECT, eep->ee_index,
 		    &dword, B_FALSE);
 	} else {
 		EFX_POPULATE_DWORD_1(dword, ERF_DZ_EVQ_RPTR, rptr);
-		EFX_BAR_TBL_WRITED(enp, ER_DZ_EVQ_RPTR_REG, eep->ee_index,
+		EFX_BAR_VI_WRITED(enp, ER_DZ_EVQ_RPTR_REG, eep->ee_index,
 		    &dword, B_FALSE);
 	}
 
@@ -721,13 +729,13 @@ ef10_ev_qmoderate(
 			    EFE_DD_EVQ_IND_TIMER_FLAGS,
 			    ERF_DD_EVQ_IND_TIMER_MODE, mode,
 			    ERF_DD_EVQ_IND_TIMER_VAL, ticks);
-			EFX_BAR_TBL_WRITED(enp, ER_DD_EVQ_INDIRECT,
+			EFX_BAR_VI_WRITED(enp, ER_DD_EVQ_INDIRECT,
 			    eep->ee_index, &dword, 0);
 		} else {
 			EFX_POPULATE_DWORD_2(dword,
 			    ERF_DZ_TC_TIMER_MODE, mode,
 			    ERF_DZ_TC_TIMER_VAL, ticks);
-			EFX_BAR_TBL_WRITED(enp, ER_DZ_EVQ_TMR_REG,
+			EFX_BAR_VI_WRITED(enp, ER_DZ_EVQ_TMR_REG,
 			    eep->ee_index, &dword, 0);
 		}
 	}
@@ -762,6 +770,88 @@ ef10_ev_qstats_update(
 }
 #endif /* EFSYS_OPT_QSTATS */
 
+#if EFSYS_OPT_RX_PACKED_STREAM
+
+static	__checkReturn	boolean_t
+ef10_ev_rx_packed_stream(
+	__in		efx_evq_t *eep,
+	__in		efx_qword_t *eqp,
+	__in		const efx_ev_callbacks_t *eecp,
+	__in_opt	void *arg)
+{
+	uint32_t label;
+	uint32_t pkt_count_lbits;
+	uint16_t flags;
+	boolean_t should_abort;
+	efx_evq_rxq_state_t *eersp;
+	unsigned int pkt_count;
+	unsigned int current_id;
+	boolean_t new_buffer;
+
+	pkt_count_lbits = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_DSC_PTR_LBITS);
+	label = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_QLABEL);
+	new_buffer = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_EV_ROTATE);
+
+	flags = 0;
+
+	eersp = &eep->ee_rxq_state[label];
+
+	/*
+	 * RX_DSC_PTR_LBITS has least significant bits of the global
+	 * (not per-buffer) packet counter. It is guaranteed that
+	 * maximum number of completed packets fits in lbits-mask.
+	 * So, modulo lbits-mask arithmetic should be used to calculate
+	 * packet counter increment.
+	 */
+	pkt_count = (pkt_count_lbits - eersp->eers_rx_stream_npackets) &
+	    EFX_MASK32(ESF_DZ_RX_DSC_PTR_LBITS);
+	eersp->eers_rx_stream_npackets += pkt_count;
+
+	if (new_buffer) {
+		flags |= EFX_PKT_PACKED_STREAM_NEW_BUFFER;
+		eersp->eers_rx_packed_stream_credits++;
+		eersp->eers_rx_read_ptr++;
+	}
+	current_id = eersp->eers_rx_read_ptr & eersp->eers_rx_mask;
+
+	/* Check for errors that invalidate checksum and L3/L4 fields */
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECC_ERR) != 0) {
+		/* RX frame truncated (error flag is misnamed) */
+		EFX_EV_QSTAT_INCR(eep, EV_RX_FRM_TRUNC);
+		flags |= EFX_DISCARD;
+		goto deliver;
+	}
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECRC_ERR) != 0) {
+		/* Bad Ethernet frame CRC */
+		EFX_EV_QSTAT_INCR(eep, EV_RX_ETH_CRC_ERR);
+		flags |= EFX_DISCARD;
+		goto deliver;
+	}
+
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_PARSE_INCOMPLETE)) {
+		flags |= EFX_PKT_PACKED_STREAM_PARSE_INCOMPLETE;
+		goto deliver;
+	}
+
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_IPCKSUM_ERR))
+		EFX_EV_QSTAT_INCR(eep, EV_RX_IPV4_HDR_CHKSUM_ERR);
+
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_TCPUDP_CKSUM_ERR))
+		EFX_EV_QSTAT_INCR(eep, EV_RX_TCP_UDP_CHKSUM_ERR);
+
+deliver:
+	/* If we're not discarding the packet then it is ok */
+	if (~flags & EFX_DISCARD)
+		EFX_EV_QSTAT_INCR(eep, EV_RX_OK);
+
+	EFSYS_ASSERT(eecp->eec_rx_ps != NULL);
+	should_abort = eecp->eec_rx_ps(arg, label, current_id, pkt_count,
+	    flags);
+
+	return (should_abort);
+}
+
+#endif /* EFSYS_OPT_RX_PACKED_STREAM */
 
 static	__checkReturn	boolean_t
 ef10_ev_rx(
@@ -792,14 +882,36 @@ ef10_ev_rx(
 		return (B_FALSE);
 
 	/* Basic packet information */
-	size = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_BYTES);
-	next_read_lbits = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_DSC_PTR_LBITS);
 	label = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_QLABEL);
+	eersp = &eep->ee_rxq_state[label];
+
+#if EFSYS_OPT_RX_PACKED_STREAM
+	/*
+	 * Packed stream events are very different,
+	 * so handle them separately
+	 */
+	if (eersp->eers_rx_packed_stream)
+	    return (ef10_ev_rx_packed_stream(eep, eqp, eecp, arg));
+#endif
+
+	size = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_BYTES);
+	cont = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CONT);
+	next_read_lbits = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_DSC_PTR_LBITS);
 	eth_tag_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ETH_TAG_CLASS);
 	mac_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_MAC_CLASS);
 	l3_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_L3_CLASS);
-	l4_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_L4_CLASS);
-	cont = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CONT);
+
+	/*
+	 * RX_L4_CLASS is 3 bits wide on Huntington and Medford, but is only
+	 * 2 bits wide on Medford2. Check it is safe to use the Medford2 field
+	 * and values for all EF10 controllers.
+	 */
+	EFX_STATIC_ASSERT(ESF_FZ_RX_L4_CLASS_LBN == ESF_DE_RX_L4_CLASS_LBN);
+	EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_TCP == ESE_DE_L4_CLASS_TCP);
+	EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_UDP == ESE_DE_L4_CLASS_UDP);
+	EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_UNKNOWN == ESE_DE_L4_CLASS_UNKNOWN);
+
+	l4_class = EFX_QWORD_FIELD(*eqp, ESF_FZ_RX_L4_CLASS);
 
 	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_DROP_EVENT) != 0) {
 		/* Drop this event */
@@ -824,7 +936,6 @@ ef10_ev_rx(
 		flags |= EFX_PKT_UNICAST;
 
 	/* Increment the count of descriptors read */
-	eersp = &eep->ee_rxq_state[label];
 	desc_count = (next_read_lbits - eersp->eers_rx_read_ptr) &
 	    EFX_MASK32(ESF_DZ_RX_DSC_PTR_LBITS);
 	eersp->eers_rx_read_ptr += desc_count;
@@ -879,10 +990,22 @@ ef10_ev_rx(
 			flags |= EFX_CKSUM_IPV4;
 		}
 
-		if (l4_class == ESE_DZ_L4_CLASS_TCP) {
+		/*
+		 * RX_L4_CLASS is 3 bits wide on Huntington and Medford, but is
+		 * only 2 bits wide on Medford2. Check it is safe to use the
+		 * Medford2 field and values for all EF10 controllers.
+		 */
+		EFX_STATIC_ASSERT(ESF_FZ_RX_L4_CLASS_LBN ==
+		    ESF_DE_RX_L4_CLASS_LBN);
+		EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_TCP == ESE_DE_L4_CLASS_TCP);
+		EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_UDP == ESE_DE_L4_CLASS_UDP);
+		EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_UNKNOWN ==
+		    ESE_DE_L4_CLASS_UNKNOWN);
+
+		if (l4_class == ESE_FZ_L4_CLASS_TCP) {
 			EFX_EV_QSTAT_INCR(eep, EV_RX_TCP_IPV4);
 			flags |= EFX_PKT_TCP;
-		} else if (l4_class == ESE_DZ_L4_CLASS_UDP) {
+		} else if (l4_class == ESE_FZ_L4_CLASS_UDP) {
 			EFX_EV_QSTAT_INCR(eep, EV_RX_UDP_IPV4);
 			flags |= EFX_PKT_UDP;
 		} else {
@@ -894,10 +1017,22 @@ ef10_ev_rx(
 	case ESE_DZ_L3_CLASS_IP6_FRAG:
 		flags |= EFX_PKT_IPV6;
 
-		if (l4_class == ESE_DZ_L4_CLASS_TCP) {
+		/*
+		 * RX_L4_CLASS is 3 bits wide on Huntington and Medford, but is
+		 * only 2 bits wide on Medford2. Check it is safe to use the
+		 * Medford2 field and values for all EF10 controllers.
+		 */
+		EFX_STATIC_ASSERT(ESF_FZ_RX_L4_CLASS_LBN ==
+		    ESF_DE_RX_L4_CLASS_LBN);
+		EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_TCP == ESE_DE_L4_CLASS_TCP);
+		EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_UDP == ESE_DE_L4_CLASS_UDP);
+		EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_UNKNOWN ==
+		    ESE_DE_L4_CLASS_UNKNOWN);
+
+		if (l4_class == ESE_FZ_L4_CLASS_TCP) {
 			EFX_EV_QSTAT_INCR(eep, EV_RX_TCP_IPV6);
 			flags |= EFX_PKT_TCP;
-		} else if (l4_class == ESE_DZ_L4_CLASS_UDP) {
+		} else if (l4_class == ESE_FZ_L4_CLASS_UDP) {
 			EFX_EV_QSTAT_INCR(eep, EV_RX_UDP_IPV6);
 			flags |= EFX_PKT_UDP;
 		} else {
@@ -1246,17 +1381,53 @@ ef10_ev_mcdi(
 ef10_ev_rxlabel_init(
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp,
-	__in		unsigned int label)
+	__in		unsigned int label,
+	__in		efx_rxq_type_t type)
 {
 	efx_evq_rxq_state_t *eersp;
+#if EFSYS_OPT_RX_PACKED_STREAM
+	boolean_t packed_stream = (type == EFX_RXQ_TYPE_PACKED_STREAM);
+#endif
 
+	_NOTE(ARGUNUSED(type))
 	EFSYS_ASSERT3U(label, <, EFX_ARRAY_SIZE(eep->ee_rxq_state));
 	eersp = &eep->ee_rxq_state[label];
 
 	EFSYS_ASSERT3U(eersp->eers_rx_mask, ==, 0);
 
+#if EFSYS_OPT_RX_PACKED_STREAM
+	/*
+	 * For packed stream modes, the very first event will
+	 * have a new buffer flag set, so it will be incremented,
+	 * yielding the correct pointer. That results in a simpler
+	 * code than trying to detect start-of-the-world condition
+	 * in the event handler.
+	 */
+	eersp->eers_rx_read_ptr = packed_stream ? ~0 : 0;
+#else
 	eersp->eers_rx_read_ptr = 0;
+#endif
 	eersp->eers_rx_mask = erp->er_mask;
+#if EFSYS_OPT_RX_PACKED_STREAM
+	eersp->eers_rx_stream_npackets = 0;
+	eersp->eers_rx_packed_stream = packed_stream;
+	if (packed_stream) {
+		eersp->eers_rx_packed_stream_credits = (eep->ee_mask + 1) /
+		    EFX_DIV_ROUND_UP(EFX_RX_PACKED_STREAM_MEM_PER_CREDIT,
+		    EFX_RX_PACKED_STREAM_MIN_PACKET_SPACE);
+		EFSYS_ASSERT3U(eersp->eers_rx_packed_stream_credits, !=, 0);
+		/*
+		 * A single credit is allocated to the queue when it is started.
+		 * It is immediately spent by the first packet which has NEW
+		 * BUFFER flag set, though, but still we shall take into
+		 * account, as to not wrap around the maximum number of credits
+		 * accidentally
+		 */
+		eersp->eers_rx_packed_stream_credits--;
+		EFSYS_ASSERT3U(eersp->eers_rx_packed_stream_credits, <=,
+		    EFX_RX_PACKED_STREAM_MAX_CREDITS);
+	}
+#endif
 }
 
 		void
@@ -1273,6 +1444,11 @@ ef10_ev_rxlabel_fini(
 
 	eersp->eers_rx_read_ptr = 0;
 	eersp->eers_rx_mask = 0;
+#if EFSYS_OPT_RX_PACKED_STREAM
+	eersp->eers_rx_stream_npackets = 0;
+	eersp->eers_rx_packed_stream = B_FALSE;
+	eersp->eers_rx_packed_stream_credits = 0;
+#endif
 }
 
-#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */

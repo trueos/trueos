@@ -278,7 +278,9 @@ siena_phy_reconfigure(
 			    MAX(MC_CMD_SET_LINK_IN_LEN,
 				MC_CMD_SET_LINK_OUT_LEN))];
 	uint32_t cap_mask;
+#if EFSYS_OPT_PHY_LED_CONTROL
 	unsigned int led_mode;
+#endif
 	unsigned int speed;
 	efx_rc_t rc;
 
@@ -561,6 +563,11 @@ siena_phy_stats_update(
 			    MC_CMD_PHY_STATS_OUT_DMA_LEN)];
 	efx_rc_t rc;
 
+	if ((esmp == NULL) || (EFSYS_MEM_SIZE(esmp) < EFX_PHY_STATS_SIZE)) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_PHY_STATS;
 	req.emr_in_buf = payload;
@@ -577,7 +584,7 @@ siena_phy_stats_update(
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail1;
+		goto fail2;
 	}
 	EFSYS_ASSERT3U(req.emr_out_length, ==, MC_CMD_PHY_STATS_OUT_DMA_LEN);
 
@@ -586,6 +593,8 @@ siena_phy_stats_update(
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
