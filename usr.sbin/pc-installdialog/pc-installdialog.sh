@@ -5,8 +5,16 @@
 # This script is fairly linear, it will walk through a series of questions
 # and when finished, generate a pc-sysinstall script
 
+#See if this is a branded bootup and use that name
+BRAND="TrueOS"
+if [ -e "/var/db/trueos-manifest.json" ] ; then
+  _tmp=`jq -r '."os_name"' "/var/db/trueos-manifest.json"`
+  if [ -n "${_tmp}" ] ; then 
+    BRAND="${_tmp}"
+  fi
+fi
 # Dialog menu title
-TITLE="TrueOS Install Dialog"
+TITLE="${BRAND} Install Dialog"
 
 # pc-sysinstall config file to write out to
 CFGFILE="/tmp/sys-install.cfg"
@@ -992,7 +1000,7 @@ start_edit_menu_loop()
 
   while :
   do
-    dialog --title "TrueOS Text Install - Edit Menu" --menu "Please select from the following options:" 18 70 10 disk "Change disk ($SYSDISK)" pool "ZFS pool layout" datasets "ZFS datasets" zpoolcfg "ZFS Pool Config" network "Change networking" view "View install script" edit "Edit install script" back "Back to main menu" 2>/tmp/answer
+    dialog --title "${BRAND} Text Install - Edit Menu" --menu "Please select from the following options:" 18 70 10 disk "Change disk ($SYSDISK)" pool "ZFS pool layout" datasets "ZFS datasets" zpoolcfg "ZFS Pool Config" network "Change networking" view "View install script" edit "Edit install script" back "Back to main menu" 2>/tmp/answer
     if [ $? -ne 0 ] ; then break ; fi
 
     ANS="`cat /tmp/answer`"
@@ -1026,7 +1034,7 @@ start_menu_loop()
 
   while :
   do
-    dialog --title "TrueOS Text Install" --menu "Please select from the following options:" 18 40 10 install "Start the installation" wizard "Re-run install wizard" edit "Edit install options" hardware "check compatibility" quit "Quit install wizard" 2>/tmp/answer
+    dialog --title "${BRAND} Text Install" --menu "Please select from the following options:" 18 40 10 install "Start the installation" wizard "Re-run install wizard" edit "Edit install options" hardware "check compatibility" quit "Quit install wizard" 2>/tmp/answer
     if [ $? -ne 0 ] ; then break ; fi
 
     ANS="`cat /tmp/answer`"
