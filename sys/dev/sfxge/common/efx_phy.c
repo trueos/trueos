@@ -56,7 +56,7 @@ static const efx_phy_ops_t	__efx_phy_siena_ops = {
 };
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 static const efx_phy_ops_t	__efx_phy_ef10_ops = {
 	ef10_phy_power,			/* epo_power */
 	NULL,				/* epo_reset */
@@ -73,7 +73,7 @@ static const efx_phy_ops_t	__efx_phy_ef10_ops = {
 	ef10_bist_stop,			/* epo_bist_stop */
 #endif	/* EFSYS_OPT_BIST */
 };
-#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
 
 	__checkReturn	efx_rc_t
 efx_phy_probe(
@@ -96,16 +96,25 @@ efx_phy_probe(
 		epop = &__efx_phy_siena_ops;
 		break;
 #endif	/* EFSYS_OPT_SIENA */
+
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
 		epop = &__efx_phy_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_HUNTINGTON */
+
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
 		epop = &__efx_phy_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
+
+#if EFSYS_OPT_MEDFORD2
+	case EFX_FAMILY_MEDFORD2:
+		epop = &__efx_phy_ef10_ops;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD2 */
+
 	default:
 		rc = ENOTSUP;
 		goto fail1;
@@ -205,6 +214,7 @@ efx_phy_adv_cap_get(
 		break;
 	default:
 		EFSYS_ASSERT(B_FALSE);
+		*maskp = 0;
 		break;
 	}
 }
@@ -301,7 +311,7 @@ efx_phy_media_type_get(
 		*typep = epp->ep_fixed_port_type;
 }
 
-	__checkReturn	efx_rc_t
+	__checkReturn		efx_rc_t
 efx_phy_module_get_info(
 	__in			efx_nic_t *enp,
 	__in			uint8_t dev_addr,

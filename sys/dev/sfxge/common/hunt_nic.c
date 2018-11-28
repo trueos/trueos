@@ -119,6 +119,17 @@ hunt_board_cfg(
 	uint32_t bandwidth;
 	efx_rc_t rc;
 
+	/* Huntington has a fixed 8Kbyte VI window size */
+	EFX_STATIC_ASSERT(ER_DZ_EVQ_RPTR_REG_STEP	== 8192);
+	EFX_STATIC_ASSERT(ER_DZ_EVQ_TMR_REG_STEP	== 8192);
+	EFX_STATIC_ASSERT(ER_DZ_RX_DESC_UPD_REG_STEP	== 8192);
+	EFX_STATIC_ASSERT(ER_DZ_TX_DESC_UPD_REG_STEP	== 8192);
+	EFX_STATIC_ASSERT(ER_DZ_TX_PIOBUF_STEP		== 8192);
+
+	EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_8K	== 8192);
+	encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_8K;
+
+
 	if ((rc = efx_mcdi_get_port_assignment(enp, &port)) != 0)
 		goto fail1;
 
@@ -304,6 +315,13 @@ hunt_board_cfg(
 	/* Alignment for WPTR updates */
 	encp->enc_rx_push_align = EF10_RX_WPTR_ALIGN;
 
+	/*
+	 * Maximum number of exclusive RSS contexts which can be allocated. The
+	 * hardware supports 64, but 6 are reserved for shared contexts. They
+	 * are a global resource so not all may be available.
+	 */
+	encp->enc_rx_scale_max_exclusive_contexts = 58;
+
 	encp->enc_tx_dma_desc_size_max = EFX_MASK32(ESF_DZ_RX_KER_BYTE_CNT);
 	/* No boundary crossing limits */
 	encp->enc_tx_dma_desc_boundary = 0;
@@ -318,8 +336,15 @@ hunt_board_cfg(
 	encp->enc_rxq_limit = EFX_RXQ_LIMIT_TARGET;
 	encp->enc_txq_limit = EFX_TXQ_LIMIT_TARGET;
 
+	/*
+	 * The workaround for bug35388 uses the top bit of transmit queue
+	 * descriptor writes, preventing the use of 4096 descriptor TXQs.
+	 */
+	encp->enc_txq_max_ndescs = encp->enc_bug35388_workaround ? 2048 : 4096;
+
 	encp->enc_buftbl_limit = 0xFFFFFFFF;
 
+	EFX_STATIC_ASSERT(HUNT_PIOBUF_NBUFS <= EF10_MAX_PIOBUF_NBUFS);
 	encp->enc_piobuf_limit = HUNT_PIOBUF_NBUFS;
 	encp->enc_piobuf_size = HUNT_PIOBUF_SIZE;
 	encp->enc_piobuf_min_alloc_size = HUNT_MIN_PIO_ALLOC_SIZE;

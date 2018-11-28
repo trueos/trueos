@@ -241,6 +241,7 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_SIENA 1
 #define	EFSYS_OPT_HUNTINGTON 1
 #define	EFSYS_OPT_MEDFORD 1
+#define	EFSYS_OPT_MEDFORD2 0
 #ifdef DEBUG
 #define	EFSYS_OPT_CHECK_REG 1
 #else
@@ -280,6 +281,10 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_LICENSING 0
 
 #define	EFSYS_OPT_ALLOW_UNCONFIGURED_NIC 0
+
+#define	EFSYS_OPT_RX_PACKED_STREAM 0
+
+#define	EFSYS_OPT_TUNNEL 0
 
 /* ID */
 
@@ -387,7 +392,17 @@ typedef struct efsys_mem_s {
 	bus_dmamap_t		esm_map;
 	caddr_t			esm_base;
 	efsys_dma_addr_t	esm_addr;
+	size_t			esm_size;
 } efsys_mem_t;
+
+#define	EFSYS_MEM_SIZE(_esmp)						\
+	((_esmp)->esm_size)
+
+#define	EFSYS_MEM_ADDR(_esmp)						\
+	((_esmp)->esm_addr)
+
+#define	EFSYS_MEM_IS_NULL(_esmp)					\
+	((_esmp)->esm_base == NULL)
 
 
 #define	EFSYS_MEM_ZERO(_esmp, _size)					\
@@ -611,12 +626,6 @@ typedef struct efsys_mem_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 #endif
-
-#define	EFSYS_MEM_ADDR(_esmp)						\
-	((_esmp)->esm_addr)
-
-#define	EFSYS_MEM_IS_NULL(_esmp)					\
-	((_esmp)->esm_base == NULL)
 
 /* BAR */
 

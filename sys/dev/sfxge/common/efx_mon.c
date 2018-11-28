@@ -128,7 +128,7 @@ fail1:
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED MonitorStatNamesBlock 5daa2a5725ba734b */
+/* START MKCONFIG GENERATED MonitorStatNamesBlock a808884b01444549 */
 static const char * const __mon_stat_name[] = {
 	"value_2_5v",
 	"value_vccp1",
@@ -207,6 +207,10 @@ static const char * const __mon_stat_name[] = {
 	"controller_tdiode_temp",
 	"board_front_temp",
 	"board_back_temp",
+	"i1v8",
+	"i2v5",
+	"i3v3",
+	"i12v0",
 };
 
 /* END MKCONFIG GENERATED MonitorStatNamesBlock */

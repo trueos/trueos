@@ -38,64 +38,6 @@ __FBSDID("$FreeBSD$");
 #if EFSYS_OPT_MEDFORD
 
 static	__checkReturn	efx_rc_t
-efx_mcdi_get_rxdp_config(
-	__in		efx_nic_t *enp,
-	__out		uint32_t *end_paddingp)
-{
-	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_GET_RXDP_CONFIG_IN_LEN,
-			    MC_CMD_GET_RXDP_CONFIG_OUT_LEN)];
-	uint32_t end_padding;
-	efx_rc_t rc;
-
-	memset(payload, 0, sizeof (payload));
-	req.emr_cmd = MC_CMD_GET_RXDP_CONFIG;
-	req.emr_in_buf = payload;
-	req.emr_in_length = MC_CMD_GET_RXDP_CONFIG_IN_LEN;
-	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_GET_RXDP_CONFIG_OUT_LEN;
-
-	efx_mcdi_execute(enp, &req);
-	if (req.emr_rc != 0) {
-		rc = req.emr_rc;
-		goto fail1;
-	}
-
-	if (MCDI_OUT_DWORD_FIELD(req, GET_RXDP_CONFIG_OUT_DATA,
-				    GET_RXDP_CONFIG_OUT_PAD_HOST_DMA) == 0) {
-		/* RX DMA end padding is disabled */
-		end_padding = 0;
-	} else {
-		switch (MCDI_OUT_DWORD_FIELD(req, GET_RXDP_CONFIG_OUT_DATA,
-					    GET_RXDP_CONFIG_OUT_PAD_HOST_LEN)) {
-		case MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_64:
-			end_padding = 64;
-			break;
-		case MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_128:
-			end_padding = 128;
-			break;
-		case MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_256:
-			end_padding = 256;
-			break;
-		default:
-			rc = ENOTSUP;
-			goto fail2;
-		}
-	}
-
-	*end_paddingp = end_padding;
-
-	return (0);
-
-fail2:
-	EFSYS_PROBE(fail2);
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-
-static	__checkReturn	efx_rc_t
 medford_nic_get_required_pcie_bandwidth(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *bandwidth_mbpsp)
@@ -152,6 +94,17 @@ medford_board_cfg(
 	 * Parts of this should be shared with Huntington.
 	 */
 
+	/* Medford has a fixed 8Kbyte VI window size */
+	EFX_STATIC_ASSERT(ER_DZ_EVQ_RPTR_REG_STEP	== 8192);
+	EFX_STATIC_ASSERT(ER_DZ_EVQ_TMR_REG_STEP	== 8192);
+	EFX_STATIC_ASSERT(ER_DZ_RX_DESC_UPD_REG_STEP	== 8192);
+	EFX_STATIC_ASSERT(ER_DZ_TX_DESC_UPD_REG_STEP	== 8192);
+	EFX_STATIC_ASSERT(ER_DZ_TX_PIOBUF_STEP		== 8192);
+
+	EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_8K	== 8192);
+	encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_8K;
+
+
 	if ((rc = efx_mcdi_get_port_assignment(enp, &port)) != 0)
 		goto fail1;
 
@@ -181,7 +134,8 @@ medford_board_cfg(
 	if (EFX_PCI_FUNCTION_IS_PF(encp)) {
 		rc = efx_mcdi_get_mac_address_pf(enp, mac_addr);
 #if EFSYS_OPT_ALLOW_UNCONFIGURED_NIC
-		/* Disable static config checking for Medford NICs, ONLY
+		/*
+		 * Disable static config checking for Medford NICs, ONLY
 		 * for manufacturing test and setup at the factory, to
 		 * allow the static config to be installed.
 		 */
@@ -246,8 +200,8 @@ medford_board_cfg(
 
 	if (EFX_PCI_FUNCTION_IS_VF(encp)) {
 		/*
-		 * Interrupt testing does not work for VFs. See bug50084.
-		 * FIXME: Does this still  apply to Medford?
+		 * Interrupt testing does not work for VFs. See bug50084 and
+		 * bug71432 comment 21.
 		 */
 		encp->enc_bug41750_workaround = B_TRUE;
 	}
@@ -301,6 +255,13 @@ medford_board_cfg(
 	/* Alignment for WPTR updates */
 	encp->enc_rx_push_align = EF10_RX_WPTR_ALIGN;
 
+	/*
+	 * Maximum number of exclusive RSS contexts which can be allocated. The
+	 * hardware supports 64, but 6 are reserved for shared contexts. They
+	 * are a global resource so not all may be available.
+	 */
+	encp->enc_rx_scale_max_exclusive_contexts = 58;
+
 	encp->enc_tx_dma_desc_size_max = EFX_MASK32(ESF_DZ_RX_KER_BYTE_CNT);
 	/* No boundary crossing limits */
 	encp->enc_tx_dma_desc_boundary = 0;
@@ -315,8 +276,16 @@ medford_board_cfg(
 	encp->enc_rxq_limit = EFX_RXQ_LIMIT_TARGET;
 	encp->enc_txq_limit = EFX_TXQ_LIMIT_TARGET;
 
+	/*
+	 * The maximum supported transmit queue size is 2048. TXQs with 4096
+	 * descriptors are not supported as the top bit is used for vfifo
+	 * stuffing.
+	 */
+	encp->enc_txq_max_ndescs = 2048;
+
 	encp->enc_buftbl_limit = 0xFFFFFFFF;
 
+	EFX_STATIC_ASSERT(MEDFORD_PIOBUF_NBUFS <= EF10_MAX_PIOBUF_NBUFS);
 	encp->enc_piobuf_limit = MEDFORD_PIOBUF_NBUFS;
 	encp->enc_piobuf_size = MEDFORD_PIOBUF_SIZE;
 	encp->enc_piobuf_min_alloc_size = MEDFORD_MIN_PIO_ALLOC_SIZE;
