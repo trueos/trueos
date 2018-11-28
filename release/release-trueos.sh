@@ -63,6 +63,9 @@ env_check()
 	PORTS_URL=$(jq -r '."ports"."url"' $TRUEOS_MANIFEST)
 	PORTS_BRANCH=$(jq -r '."ports"."branch"' $TRUEOS_MANIFEST)
 
+	if [ -z "${TRUEOS_VERSION}" ] ; then
+		TRUEOS_VERSION=$(jq -r '."os_version"' $TRUEOS_MANIFEST)
+	fi
 	case $PORTS_TYPE in
 		git) if [ -z "$PORTS_BRANCH" ] ; then
 			exit_err "Empty ports.branch!"
