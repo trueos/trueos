@@ -149,6 +149,9 @@ if [ -d "${SRCDIR}/.git" ] ; then
   #Source tree is a git checkout: Get the git hash/tag
   GITHASH=$(git -C ${SRCDIR} log -1 --pretty=format:%h)
 fi
+if [ -z "${TRUEOS_VERSION}" ] ; then
+  TRUEOS_VERSION=$(jq -r '."os_version"' $TRUEOS_MANIFEST)
+fi
 FILE_RENAME="$(jq -r '."iso"."file-name"' $TRUEOS_MANIFEST)"
 if [ -n "$FILE_RENAME" -a "$FILE_RENAME" != "null" -a "$NAME" = "disc1.iso" ] ; then
   DATE="$(date +%Y%m%d)"
