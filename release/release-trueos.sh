@@ -685,7 +685,7 @@ EOF
 	# Assemble the list of base packages to ignore (as a Regex)
 	local _base_ignore=""
 	if [ "$(jq -r '."iso"."ignore-base-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
-		_base_ignore=`jq -r '."iso".""ignore-base-packages" | join("|")' ${TRUEOS_MANIFEST}`
+		_base_ignore=`jq -r '."iso"."ignore-base-packages" | join("|")' ${TRUEOS_MANIFEST}`
 	fi
 	# Check for explict pkgs to install, minus development, debug, and profile
 	echo "Installing base packages into ISO:"
