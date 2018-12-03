@@ -72,7 +72,13 @@
     "build-all": false,
     "make.conf": {
       "default": [
-        "MAKE_JOBS_NUMBER_LIMIT=3"
+        "MAKE_JOBS_NUMBER_LIMIT=3",
+        "MALLOC_PRODUCTION="YES"
+      ]
+    },
+    "src.conf": {
+      "default": [
+        "WITHOUT_ASSERT_DEBUG="ON"
       ]
     },
     "type": "git",
