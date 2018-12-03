@@ -20,9 +20,6 @@ scripts: {
         if [ -z "${PKG_ROOTDIR}" ] ; then
                 PKG_ROOTDIR=/
         fi
-
-	# Boot-strap clang sym-links
-	chroot ${PKG_ROOTDIR} compiler-bootstrap
 EOD
 }
 deps: {
