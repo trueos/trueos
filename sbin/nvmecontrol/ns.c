@@ -41,64 +41,34 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
+SET_DECLARE(ns, struct nvme_function);
+
+#define NS_USAGE							\
+	"ns (create|delete|attach|detach)\n"
+
 /* handles NVME_OPC_NAMESPACE_MANAGEMENT and ATTACHMENT admin cmds */
 
 #define NSCREATE_USAGE							\
-"       nvmecontrol ns create -s size [-c cap] [-f fmt] [-m mset] [-n nmic] [-p pi] [-l pil] nvmeN\n"
+	"ns create -s size [-c cap] [-f fmt] [-m mset] [-n nmic] [-p pi] [-l pil] nvmeN\n"
 
 #define NSDELETE_USAGE							\
-"       nvmecontrol ns delete -n nsid nvmeN\n"
+	"ns delete -n nsid nvmeN\n"
 
 #define NSATTACH_USAGE							\
-"       nvmecontrol ns attach -n nsid [-c ctrlrid] nvmeN \n"
+	"ns attach -n nsid [-c ctrlrid] nvmeN \n"
 
 #define NSDETACH_USAGE							\
-"       nvmecontrol ns detach -n nsid [-c ctrlrid] nvmeN\n"
+	"ns detach -n nsid [-c ctrlrid] nvmeN\n"
 
-void nscreate(int argc, char *argv[]);
-void nsdelete(int argc, char *argv[]);
-void nsattach(int argc, char *argv[]);
-void nsdetach(int argc, char *argv[]);
+void nscreate(struct nvme_function *nf, int argc, char *argv[]);
+void nsdelete(struct nvme_function *nf, int argc, char *argv[]);
+void nsattach(struct nvme_function *nf, int argc, char *argv[]);
+void nsdetach(struct nvme_function *nf, int argc, char *argv[]);
 
-static struct nvme_function ns_funcs[] = {
-	{"create",	nscreate, NSCREATE_USAGE},
-	{"delete",	nsdelete, NSDELETE_USAGE},
-	{"attach",	nsattach, NSATTACH_USAGE},
-	{"detach",	nsdetach, NSDETACH_USAGE},
-	{NULL,		NULL,		NULL},
-};
-
-static void
-nscreate_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, NSCREATE_USAGE);
-	exit(1);
-}
-
-static void
-nsdelete_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, NSDELETE_USAGE);
-	exit(1);
-}
-
-static void
-nsattach_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, NSATTACH_USAGE);
-	exit(1);
-}
-
-static void
-nsdetach_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, NSDETACH_USAGE);
-	exit(1);
-}
+NVME_COMMAND(ns, create, nscreate, NSCREATE_USAGE);
+NVME_COMMAND(ns, delete, nsdelete, NSDELETE_USAGE);
+NVME_COMMAND(ns, attach, nsattach, NSATTACH_USAGE);
+NVME_COMMAND(ns, detach, nsdetach, NSDETACH_USAGE);
 
 struct ns_result_str {
 	uint16_t res;
@@ -140,7 +110,7 @@ get_res_str(uint16_t res)
  * 0xb = Thin Provisioning Not supported
  */
 void
-nscreate(int argc, char *argv[])
+nscreate(struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_pt_command	pt;
 	struct nvme_controller_data cd;
@@ -149,7 +119,7 @@ nscreate(int argc, char *argv[])
 	int	ch, fd, result, lbaf = 0, mset = 0, nmic = -1, pi = 0, pil = 0;
 
 	if (optind >= argc)
-		nscreate_usage();
+		usage(nf);
 
 	while ((ch = getopt(argc, argv, "s:c:f:m:n:p:l:")) != -1) {
 		switch (ch) {
@@ -175,17 +145,17 @@ nscreate(int argc, char *argv[])
 			pil = strtol(optarg, NULL, 0);
 			break;
 		default:
-			nscreate_usage();
+			usage(nf);
 		}
 	}
 
 	if (optind >= argc)
-		nscreate_usage();
+		usage(nf);
 
 	if (cap == -1)
 		cap = nsze;
 	if (nsze == -1 || cap == -1)
-		nscreate_usage();
+		usage(nf);
 
 	open_dev(argv[optind], &fd, 1, 1);
 	read_controller_data(fd, &cd);
@@ -235,7 +205,7 @@ nscreate(int argc, char *argv[])
 }
 
 void
-nsdelete(int argc, char *argv[])
+nsdelete(struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_pt_command	pt;
 	struct nvme_controller_data cd;
@@ -243,7 +213,7 @@ nsdelete(int argc, char *argv[])
 	char buf[2];
 
 	if (optind >= argc)
-		nsdelete_usage();
+		usage(nf);
 
 	while ((ch = getopt(argc, argv, "n:")) != -1) {
 		switch ((char)ch) {
@@ -251,12 +221,12 @@ nsdelete(int argc, char *argv[])
 			nsid = strtol(optarg, (char **)NULL, 0);
 			break;
 		default:
-			nsdelete_usage();
+			usage(nf);
 		}
 	}
 
 	if (optind >= argc || nsid == -2)
-		nsdelete_usage();
+		usage(nf);
 
 	open_dev(argv[optind], &fd, 1, 1);
 	read_controller_data(fd, &cd);
@@ -302,7 +272,7 @@ nsdelete(int argc, char *argv[])
  * 0x2 Invalid Field can occur if ctrlrid d.n.e in system.
  */
 void
-nsattach(int argc, char *argv[])
+nsattach(struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_pt_command	pt;
 	struct nvme_controller_data cd;
@@ -311,7 +281,7 @@ nsattach(int argc, char *argv[])
 	uint16_t clist[2048];
 
 	if (optind >= argc)
-		nsattach_usage();
+		usage(nf);
 
 	while ((ch = getopt(argc, argv, "n:c:")) != -1) {
 		switch (ch) {
@@ -322,15 +292,15 @@ nsattach(int argc, char *argv[])
 			ctrlrid = strtol(optarg, (char **)NULL, 0);
 			break;
 		default:
-			nsattach_usage();
+			usage(nf);
 		}
 	}
 
 	if (optind >= argc)
-		nsattach_usage();
+		usage(nf);
 
 	if (nsid == -1 )
-		nsattach_usage();
+		usage(nf);
 
 	open_dev(argv[optind], &fd, 1, 1);
 	read_controller_data(fd, &cd);
@@ -381,7 +351,7 @@ nsattach(int argc, char *argv[])
 }
 
 void
-nsdetach(int argc, char *argv[])
+nsdetach(struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_pt_command	pt;
 	struct nvme_controller_data cd;
@@ -390,7 +360,7 @@ nsdetach(int argc, char *argv[])
 	uint16_t clist[2048];
 
 	if (optind >= argc)
-		nsdetach_usage();
+		usage(nf);
 
 	while ((ch = getopt(argc, argv, "n:c:")) != -1) {
 		switch (ch) {
@@ -401,15 +371,15 @@ nsdetach(int argc, char *argv[])
 			ctrlrid = strtol(optarg, (char **)NULL, 0);
 			break;
 		default:
-			nsdetach_usage();
+			usage(nf);
 		}
 	}
 
 	if (optind >= argc)
-		nsdetach_usage();
+		usage(nf);
 
 	if (nsid == -1)
-		nsdetach_usage();
+		usage(nf);
 
 	open_dev(argv[optind], &fd, 1, 1);
 	read_controller_data(fd, &cd);
@@ -466,9 +436,11 @@ nsdetach(int argc, char *argv[])
 	exit(0);
 }
 
-void
-ns(int argc, char *argv[])
+static void
+ns(struct nvme_function *nf __unused, int argc, char *argv[])
 {
 
-	dispatch(argc, argv, ns_funcs);
+	DISPATCH(argc, argv, ns);
 }
+
+NVME_COMMAND(top, ns, ns, NS_USAGE);

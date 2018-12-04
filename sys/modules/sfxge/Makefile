@@ -19,8 +19,10 @@ SRCS+=	efx_mcdi.c efx_mon.c efx_nic.c
 SRCS+=	efx_nvram.c efx_phy.c efx_port.c efx_rx.c efx_sram.c efx_tunnel.c
 SRCS+=	efx_tx.c efx_vpd.c efx_filter.c efx_hash.c
 SRCS+=	efsys.h
-SRCS+=	efx.h efx_check.h efx_impl.h efx_mcdi.h efx_regs.h efx_regs_ef10.h
-SRCS+=	efx_regs_mcdi.h efx_regs_mcdi_aoe.h efx_regs_pci.h efx_types.h
+SRCS+=	efx.h efx_annote.h efx_check.h efx_impl.h efx_mcdi.h
+SRCS+=	efx_regs.h efx_regs_ef10.h
+SRCS+=	efx_regs_mcdi.h efx_regs_mcdi_aoe.h efx_regs_mcdi_strs.h
+SRCS+=	efx_regs_pci.h efx_types.h
 SRCS+=	efx_phy_ids.h
 SRCS+=	ef10_tlv_layout.h
 
@@ -30,9 +32,9 @@ SRCS+=	siena_mac.c siena_mcdi.c siena_nic.c siena_nvram.c siena_phy.c
 SRCS+=	siena_sram.c siena_vpd.c
 SRCS+=	siena_flash.h siena_impl.h
 
-SRCS+=	ef10_ev.c ef10_filter.c ef10_intr.c ef10_mac.c ef10_mcdi.c ef10_nic.c
-SRCS+=	ef10_nvram.c ef10_phy.c ef10_rx.c ef10_tx.c ef10_vpd.c
-SRCS+=	ef10_impl.h
+SRCS+=	ef10_ev.c ef10_filter.c ef10_image.c ef10_intr.c ef10_mac.c ef10_mcdi.c
+SRCS+=	ef10_nic.c ef10_nvram.c ef10_phy.c ef10_rx.c ef10_tx.c ef10_vpd.c
+SRCS+=	ef10_impl.h ef10_signed_image_layout.h
 
 SRCS+=	hunt_nic.c
 SRCS+=	hunt_impl.h

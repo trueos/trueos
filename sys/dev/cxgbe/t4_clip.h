@@ -1,6 +1,9 @@
 /*-
- * Copyright (c) 2002 David Xu (davidxu@freebsd.org).
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2012 Chelsio Communications, Inc.
  * All rights reserved.
+ * Written by: Navdeep Parhar <np@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,34 +29,23 @@
  * $FreeBSD$
  */
 
-#ifndef _SIMPLELOCK_H
-#define _SIMPLELOCK_H
+#ifndef __T4_CLIP_H
+#define	__T4_CLIP_H
 
-#include <machine/asmacros.h>
-#include <machine/atomic.h>
-
-struct simplelock {
-	int s_lock;
+struct clip_entry {
+	TAILQ_ENTRY(clip_entry) link;
+	struct in6_addr lip;	/* local IPv6 address */
+	u_int refcount;
 };
 
-static inline void
-simplelock_init(struct simplelock *lock)
-{
-	lock->s_lock = 0;
-}
+void t4_clip_modload(void);
+void t4_clip_modunload(void);
+void t4_init_clip_table(struct adapter *);
+void t4_destroy_clip_table(struct adapter *);
+struct clip_entry *t4_hold_lip(struct adapter *, struct in6_addr *,
+    struct clip_entry *);
+void t4_release_lip(struct adapter *, struct clip_entry *);
 
-static inline void
-simplelock_lock(struct simplelock *lock)
-{
-	while (!atomic_cmpset_int(&lock->s_lock, 0, 1))
-		;
-}
+int sysctl_clip(SYSCTL_HANDLER_ARGS);
 
-static inline void
-simplelock_unlock(struct simplelock *lock)
-{
-	atomic_store_rel_int(&lock->s_lock, 0);
-}
-
-#endif
-
+#endif	/* __T4_CLIP_H */
