@@ -100,11 +100,10 @@ efx_mcdi_set_evq_tmr(
 	__in		uint32_t timer_ns)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_SET_EVQ_TMR_IN_LEN,
-			    MC_CMD_SET_EVQ_TMR_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_SET_EVQ_TMR_IN_LEN,
+		MC_CMD_SET_EVQ_TMR_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_EVQ_TMR;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_SET_EVQ_TMR_IN_LEN;
@@ -150,9 +149,9 @@ efx_mcdi_init_evq(
 	__in		boolean_t low_latency)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[
-	    MAX(MC_CMD_INIT_EVQ_IN_LEN(EFX_EVQ_NBUFS(EFX_EVQ_MAXNEVS)),
-		MC_CMD_INIT_EVQ_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload,
+		MC_CMD_INIT_EVQ_IN_LEN(EFX_EVQ_NBUFS(EFX_EVQ_MAXNEVS)),
+		MC_CMD_INIT_EVQ_OUT_LEN);
 	efx_qword_t *dma_addr;
 	uint64_t addr;
 	int npages;
@@ -167,7 +166,6 @@ efx_mcdi_init_evq(
 		goto fail1;
 	}
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_INIT_EVQ;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_INIT_EVQ_IN_LEN(npages);
@@ -287,9 +285,9 @@ efx_mcdi_init_evq_v2(
 	__in		uint32_t flags)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[
-		MAX(MC_CMD_INIT_EVQ_V2_IN_LEN(EFX_EVQ_NBUFS(EFX_EVQ_MAXNEVS)),
-		    MC_CMD_INIT_EVQ_V2_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload,
+		MC_CMD_INIT_EVQ_V2_IN_LEN(EFX_EVQ_NBUFS(EFX_EVQ_MAXNEVS)),
+		MC_CMD_INIT_EVQ_V2_OUT_LEN);
 	boolean_t interrupting;
 	unsigned int evq_type;
 	efx_qword_t *dma_addr;
@@ -304,7 +302,6 @@ efx_mcdi_init_evq_v2(
 		goto fail1;
 	}
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_INIT_EVQ;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_INIT_EVQ_V2_IN_LEN(npages);
@@ -411,11 +408,10 @@ efx_mcdi_fini_evq(
 	__in		uint32_t instance)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_FINI_EVQ_IN_LEN,
-			    MC_CMD_FINI_EVQ_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_FINI_EVQ_IN_LEN,
+		MC_CMD_FINI_EVQ_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FINI_EVQ;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_FINI_EVQ_IN_LEN;
@@ -630,8 +626,8 @@ efx_mcdi_driver_event(
 	__in		efx_qword_t data)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_DRIVER_EVENT_IN_LEN,
-			    MC_CMD_DRIVER_EVENT_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_DRIVER_EVENT_IN_LEN,
+		MC_CMD_DRIVER_EVENT_OUT_LEN);
 	efx_rc_t rc;
 
 	req.emr_cmd = MC_CMD_DRIVER_EVENT;
@@ -732,9 +728,15 @@ ef10_ev_qmoderate(
 			EFX_BAR_VI_WRITED(enp, ER_DD_EVQ_INDIRECT,
 			    eep->ee_index, &dword, 0);
 		} else {
-			EFX_POPULATE_DWORD_2(dword,
+			/*
+			 * NOTE: The TMR_REL field introduced in Medford2 is
+			 * ignored on earlier EF10 controllers. See bug66418
+			 * comment 9 for details.
+			 */
+			EFX_POPULATE_DWORD_3(dword,
 			    ERF_DZ_TC_TIMER_MODE, mode,
-			    ERF_DZ_TC_TIMER_VAL, ticks);
+			    ERF_DZ_TC_TIMER_VAL, ticks,
+			    ERF_FZ_TC_TMR_REL_VAL, ticks);
 			EFX_BAR_VI_WRITED(enp, ER_DZ_EVQ_TMR_REG,
 			    eep->ee_index, &dword, 0);
 		}
@@ -770,7 +772,7 @@ ef10_ev_qstats_update(
 }
 #endif /* EFSYS_OPT_QSTATS */
 
-#if EFSYS_OPT_RX_PACKED_STREAM
+#if EFSYS_OPT_RX_PACKED_STREAM || EFSYS_OPT_RX_ES_SUPER_BUFFER
 
 static	__checkReturn	boolean_t
 ef10_ev_rx_packed_stream(
@@ -809,14 +811,25 @@ ef10_ev_rx_packed_stream(
 
 	if (new_buffer) {
 		flags |= EFX_PKT_PACKED_STREAM_NEW_BUFFER;
+#if EFSYS_OPT_RX_PACKED_STREAM
+		/*
+		 * If both packed stream and equal stride super-buffer
+		 * modes are compiled in, in theory credits should be
+		 * be maintained for packed stream only, but right now
+		 * these modes are not distinguished in the event queue
+		 * Rx queue state and it is OK to increment the counter
+		 * regardless (it might be event cheaper than branching
+		 * since neighbour structure member are updated as well).
+		 */
 		eersp->eers_rx_packed_stream_credits++;
+#endif
 		eersp->eers_rx_read_ptr++;
 	}
 	current_id = eersp->eers_rx_read_ptr & eersp->eers_rx_mask;
 
 	/* Check for errors that invalidate checksum and L3/L4 fields */
-	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECC_ERR) != 0) {
-		/* RX frame truncated (error flag is misnamed) */
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_TRUNC_ERR) != 0) {
+		/* RX frame truncated */
 		EFX_EV_QSTAT_INCR(eep, EV_RX_FRM_TRUNC);
 		flags |= EFX_DISCARD;
 		goto deliver;
@@ -851,7 +864,7 @@ deliver:
 	return (should_abort);
 }
 
-#endif /* EFSYS_OPT_RX_PACKED_STREAM */
+#endif /* EFSYS_OPT_RX_PACKED_STREAM || EFSYS_OPT_RX_ES_SUPER_BUFFER */
 
 static	__checkReturn	boolean_t
 ef10_ev_rx(
@@ -877,15 +890,16 @@ ef10_ev_rx(
 
 	EFX_EV_QSTAT_INCR(eep, EV_RX);
 
-	/* Discard events after RXQ/TXQ errors */
-	if (enp->en_reset_flags & (EFX_RESET_RXQ_ERR | EFX_RESET_TXQ_ERR))
+	/* Discard events after RXQ/TXQ errors, or hardware not available */
+	if (enp->en_reset_flags &
+	    (EFX_RESET_RXQ_ERR | EFX_RESET_TXQ_ERR | EFX_RESET_HW_UNAVAIL))
 		return (B_FALSE);
 
 	/* Basic packet information */
 	label = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_QLABEL);
 	eersp = &eep->ee_rxq_state[label];
 
-#if EFSYS_OPT_RX_PACKED_STREAM
+#if EFSYS_OPT_RX_PACKED_STREAM || EFSYS_OPT_RX_ES_SUPER_BUFFER
 	/*
 	 * Packed stream events are very different,
 	 * so handle them separately
@@ -953,8 +967,8 @@ ef10_ev_rx(
 	last_used_id = (eersp->eers_rx_read_ptr - 1) & eersp->eers_rx_mask;
 
 	/* Check for errors that invalidate checksum and L3/L4 fields */
-	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ECC_ERR) != 0) {
-		/* RX frame truncated (error flag is misnamed) */
+	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_TRUNC_ERR) != 0) {
+		/* RX frame truncated */
 		EFX_EV_QSTAT_INCR(eep, EV_RX_FRM_TRUNC);
 		flags |= EFX_DISCARD;
 		goto deliver;
@@ -1078,8 +1092,9 @@ ef10_ev_tx(
 
 	EFX_EV_QSTAT_INCR(eep, EV_TX);
 
-	/* Discard events after RXQ/TXQ errors */
-	if (enp->en_reset_flags & (EFX_RESET_RXQ_ERR | EFX_RESET_TXQ_ERR))
+	/* Discard events after RXQ/TXQ errors, or hardware not available */
+	if (enp->en_reset_flags &
+	    (EFX_RESET_RXQ_ERR | EFX_RESET_TXQ_ERR | EFX_RESET_HW_UNAVAIL))
 		return (B_FALSE);
 
 	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_TX_DROP_EVENT) != 0) {
@@ -1385,8 +1400,9 @@ ef10_ev_rxlabel_init(
 	__in		efx_rxq_type_t type)
 {
 	efx_evq_rxq_state_t *eersp;
-#if EFSYS_OPT_RX_PACKED_STREAM
+#if EFSYS_OPT_RX_PACKED_STREAM || EFSYS_OPT_RX_ES_SUPER_BUFFER
 	boolean_t packed_stream = (type == EFX_RXQ_TYPE_PACKED_STREAM);
+	boolean_t es_super_buffer = (type == EFX_RXQ_TYPE_ES_SUPER_BUFFER);
 #endif
 
 	_NOTE(ARGUNUSED(type))
@@ -1408,9 +1424,11 @@ ef10_ev_rxlabel_init(
 	eersp->eers_rx_read_ptr = 0;
 #endif
 	eersp->eers_rx_mask = erp->er_mask;
-#if EFSYS_OPT_RX_PACKED_STREAM
+#if EFSYS_OPT_RX_PACKED_STREAM || EFSYS_OPT_RX_ES_SUPER_BUFFER
 	eersp->eers_rx_stream_npackets = 0;
-	eersp->eers_rx_packed_stream = packed_stream;
+	eersp->eers_rx_packed_stream = packed_stream || es_super_buffer;
+#endif
+#if EFSYS_OPT_RX_PACKED_STREAM
 	if (packed_stream) {
 		eersp->eers_rx_packed_stream_credits = (eep->ee_mask + 1) /
 		    EFX_DIV_ROUND_UP(EFX_RX_PACKED_STREAM_MEM_PER_CREDIT,
@@ -1444,9 +1462,11 @@ ef10_ev_rxlabel_fini(
 
 	eersp->eers_rx_read_ptr = 0;
 	eersp->eers_rx_mask = 0;
-#if EFSYS_OPT_RX_PACKED_STREAM
+#if EFSYS_OPT_RX_PACKED_STREAM || EFSYS_OPT_RX_ES_SUPER_BUFFER
 	eersp->eers_rx_stream_npackets = 0;
 	eersp->eers_rx_packed_stream = B_FALSE;
+#endif
+#if EFSYS_OPT_RX_PACKED_STREAM
 	eersp->eers_rx_packed_stream_credits = 0;
 #endif
 }

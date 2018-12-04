@@ -30,6 +30,14 @@
  * $FreeBSD$
  */
 
+/*
+ * This is NOT the original source file. Do NOT edit it.
+ * To update the tlv layout, please edit the copy in
+ * the sfregistry repo and then, in that repo,
+ * "make tlv_headers" or "make export" to
+ * regenerate and export all types of headers.
+ */
+
 /* These structures define the layouts for the TLV items stored in static and
  * dynamic configuration partitions in NVRAM for EF10 (Huntington etc.).
  *
@@ -58,6 +66,7 @@
  *        1: dynamic configuration
  *        2: firmware internal use
  *        3: license partition
+ *        4: tsa configuration
  *
  *   -  TTT is a type, which is just a unique value.  The same type value
  *      might appear in both locations, indicating a relationship between
@@ -433,6 +442,8 @@ struct tlv_firmware_options {
 #define TLV_FIRMWARE_VARIANT_PACKED_STREAM_HASH_MODE_1 \
                                              MC_CMD_FW_PACKED_STREAM_HASH_MODE_1
 #define TLV_FIRMWARE_VARIANT_RULES_ENGINE    MC_CMD_FW_RULES_ENGINE
+#define TLV_FIRMWARE_VARIANT_DPDK            MC_CMD_FW_DPDK
+#define TLV_FIRMWARE_VARIANT_L3XUDP          MC_CMD_FW_L3XUDP
 };
 
 /* Voltage settings
@@ -516,6 +527,17 @@ struct tlv_0v9_atb_target {
   uint16_t reserved;
 };
 
+/* Factory settings for amplitude calibration of the PCIE TX serdes */
+#define TLV_TAG_TX_PCIE_AMP_CONFIG  (0x00220000)
+struct tlv_pcie_tx_amp_config {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t quad_tx_imp2k[4];
+  uint8_t quad_tx_imp50[4];
+  uint8_t lane_amp[16];
+};
+
+
 /* Global PCIe configuration, second revision. This represents the visible PFs
  * by a bitmap rather than having the number of the highest visible one. As such
  * it can (for a 16-PF chip) represent a superset of what TLV_TAG_GLOBAL_PCIE_CONFIG
@@ -561,6 +583,17 @@ struct tlv_global_port_mode {
   uint32_t length;
   uint32_t port_mode;
 #define TLV_PORT_MODE_DEFAULT           (0xffffffff) /* Default for given platform */
+
+/* Huntington port modes */
+#define TLV_PORT_MODE_10G                        (0)
+#define TLV_PORT_MODE_40G                        (1)
+#define TLV_PORT_MODE_10G_10G                    (2)
+#define TLV_PORT_MODE_40G_40G                    (3)
+#define TLV_PORT_MODE_10G_10G_10G_10G            (4)
+#define TLV_PORT_MODE_40G_10G_10G                (6)
+#define TLV_PORT_MODE_10G_10G_40G                (7)
+
+/* Medford (and later) port modes */
 #define TLV_PORT_MODE_1x1_NA                     (0) /* Single 10G/25G on mdi0 */
 #define TLV_PORT_MODE_1x4_NA                     (1) /* Single 100G/40G on mdi0 */
 #define TLV_PORT_MODE_NA_1x4                     (22) /* Single 100G/40G on mdi1 */
@@ -568,8 +601,8 @@ struct tlv_global_port_mode {
 #define TLV_PORT_MODE_NA_1x2                     (11) /* Single 50G on mdi1 */
 #define TLV_PORT_MODE_1x1_1x1                    (2) /* Single 10G/25G on mdi0, single 10G/25G on mdi1 */
 #define TLV_PORT_MODE_1x4_1x4                    (3) /* Single 40G on mdi0, single 40G on mdi1 */
-#define TLV_PORT_MODE_2x1_2x1                    (4) /* Dual 10G/25G on mdi0, dual 10G/25G on mdi1 - WARNING: bug3720: On Newport only, this is actually Quad 10G on mdi0 */
-#define TLV_PORT_MODE_4x1_NA                     (5) /* Quad 10G/25G on mdi0 */
+#define TLV_PORT_MODE_2x1_2x1                    (5) /* Dual 10G/25G on mdi0, dual 10G/25G on mdi1 */
+#define TLV_PORT_MODE_4x1_NA                     (4) /* Quad 10G/25G on mdi0 */
 #define TLV_PORT_MODE_NA_4x1                     (8) /* Quad 10G/25G on mdi1 */
 #define TLV_PORT_MODE_1x4_2x1                    (6) /* Single 40G on mdi0, dual 10G/25G on mdi1 */
 #define TLV_PORT_MODE_2x1_1x4                    (7) /* Dual 10G/25G on mdi0, single 40G on mdi1 */
@@ -580,6 +613,13 @@ struct tlv_global_port_mode {
 #define TLV_PORT_MODE_1x2_1x4                    (16) /* Single 50G on mdi0, single 40G on mdi1 */
 #define TLV_PORT_MODE_1x2_2x1                    (17) /* Single 50G on mdi0, dual 10G/25G on mdi1 */
 #define TLV_PORT_MODE_2x1_1x2                    (18) /* Dual 10G/25G on mdi0, single 50G on mdi1 */
+
+/* Snapper-only Medford2 port modes.
+ * These modes are eftest only, to allow snapper explicit
+ * selection between multi-channel and LLPCS. In production,
+ * this selection is automatic and outside world should not
+ * care about LLPCS.
+ */
 #define TLV_PORT_MODE_2x1_2x1_LL                 (19) /* Dual 10G/25G on mdi0, dual 10G/25G on mdi1, low-latency PCS */
 #define TLV_PORT_MODE_4x1_NA_LL                  (20) /* Quad 10G/25G on mdi0, low-latency PCS */
 #define TLV_PORT_MODE_NA_4x1_LL                  (21) /* Quad 10G/25G on mdi1, low-latency PCS */
@@ -588,41 +628,13 @@ struct tlv_global_port_mode {
 #define TLV_PORT_MODE_BUG63720_DO_NOT_USE        (9) /* bug63720: Do not use */
 #define TLV_PORT_MODE_MAX TLV_PORT_MODE_1x1_1x1_LL
 
-/* Deprecated aliases */
-#define TLV_PORT_MODE_10G                        TLV_PORT_MODE_1x1_NA
-#define TLV_PORT_MODE_40G                        TLV_PORT_MODE_1x4_NA
-#define TLV_PORT_MODE_10G_10G                    TLV_PORT_MODE_1x1_1x1
-#define TLV_PORT_MODE_40G_40G                    TLV_PORT_MODE_1x4_1x4
-#define TLV_PORT_MODE_10G_10G_10G_10G            TLV_PORT_MODE_2x1_2x1
-#define TLV_PORT_MODE_10G_10G_10G_10G_Q1         TLV_PORT_MODE_2x1_2x1 /* bug63720: Do not use */
-#define TLV_PORT_MODE_10G_10G_10G_10G_Q          TLV_PORT_MODE_4x1_NA
-#define TLV_PORT_MODE_40G_10G_10G                TLV_PORT_MODE_1x4_2x1
-#define TLV_PORT_MODE_10G_10G_40G                TLV_PORT_MODE_2x1_1x4
-#define TLV_PORT_MODE_10G_10G_10G_10G_Q2         TLV_PORT_MODE_NA_4x1
-#define TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2      TLV_PORT_MODE_BUG63720_DO_NOT_USE /* bug63720: Do not use */
-#define TLV_PORT_MODE_25G                        TLV_PORT_MODE_1x1_NA     /* Single 25G on mdi0 */
-#define TLV_PORT_MODE_100G_Q1                    TLV_PORT_MODE_1x4_NA     /* Single 100G on mdi0 */
-#define TLV_PORT_MODE_100G_Q2                    TLV_PORT_MODE_NA_1x4     /* Single 100G on mdi1 */
-#define TLV_PORT_MODE_50G_Q1                     TLV_PORT_MODE_1x2_NA     /* Single 50G on mdi0 */
-#define TLV_PORT_MODE_50G_Q2                     TLV_PORT_MODE_NA_1x2     /* Single 50G on mdi1 */
-#define TLV_PORT_MODE_25G_25G                    TLV_PORT_MODE_1x1_1x1    /* Single 25G on mdi0, single 25G on mdi1 */
-#define TLV_PORT_MODE_25G_25G_25G_25G_Q1_Q2      TLV_PORT_MODE_2x1_2x1    /* Dual 25G on mdi0, dual 25G on mdi1 */
-#define TLV_PORT_MODE_25G_25G_25G_25G_Q1         TLV_PORT_MODE_4x1_NA     /* Quad 25G on mdi0 */
-#define TLV_PORT_MODE_25G_25G_25G_25G_Q2         TLV_PORT_MODE_NA_4x1     /* Quad 25G on mdi1 */
-#define TLV_PORT_MODE_40G_25G_25G                TLV_PORT_MODE_1x4_2x1    /* Single 40G on mdi0, dual 25G on mdi1 */
-#define TLV_PORT_MODE_25G_25G_40G                TLV_PORT_MODE_2x1_1x4    /* Dual 25G on mdi0, single 40G on mdi1 */
-#define TLV_PORT_MODE_50G_50G_Q1_Q2              TLV_PORT_MODE_1x2_1x2    /* Single 50G on mdi0, single 50G on mdi1 */
-#define TLV_PORT_MODE_50G_50G_Q1                 TLV_PORT_MODE_2x2_NA     /* Dual 50G on mdi0 */
-#define TLV_PORT_MODE_50G_50G_Q2                 TLV_PORT_MODE_NA_2x2     /* Dual 50G on mdi1 */
-#define TLV_PORT_MODE_40G_50G                    TLV_PORT_MODE_1x4_1x2    /* Single 40G on mdi0, single 50G on mdi1 */
-#define TLV_PORT_MODE_50G_40G                    TLV_PORT_MODE_1x2_1x4    /* Single 50G on mdi0, single 40G on mdi1 */
-#define TLV_PORT_MODE_50G_25G_25G                TLV_PORT_MODE_1x2_2x1    /* Single 50G on mdi0, dual 25G on mdi1 */
-#define TLV_PORT_MODE_25G_25G_50G                TLV_PORT_MODE_2x1_1x2    /* Dual 25G on mdi0, single 50G on mdi1 */
-#define TLV_PORT_MODE_25G_25G_25G_25G_Q1_Q2_LL   TLV_PORT_MODE_2x1_2x1_LL /* Dual 25G on mdi0, dual 25G on mdi1, low-latency PCS */
-#define TLV_PORT_MODE_25G_25G_25G_25G_Q1_LL      TLV_PORT_MODE_4x1_NA_LL  /* Quad 25G on mdi0, low-latency PCS */
-#define TLV_PORT_MODE_25G_25G_25G_25G_Q2_LL      TLV_PORT_MODE_NA_4x1_LL  /* Quad 25G on mdi1, low-latency PCS */
-#define TLV_PORT_MODE_25G_LL                     TLV_PORT_MODE_1x1_NA_LL  /* Single 10G/25G on mdi0, low-latency PCS */
-#define TLV_PORT_MODE_25G_25G_LL                 TLV_PORT_MODE_1x1_1x1_LL /* Single 10G/25G on mdi0, single 10G/25G on mdi1, low-latency PCS */
+/* Deprecated Medford aliases - DO NOT USE IN NEW CODE */
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q          (5)
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q1         (4)
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q2         (8)
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2      (9)
+
+#define TLV_PORT_MODE_MAX TLV_PORT_MODE_1x1_1x1_LL
 };
 
 /* Type of the v-switch created implicitly by the firmware */
@@ -859,20 +871,6 @@ struct tlv_tx_event_merging_config {
 #define TLV_TX_EVENT_MERGING_TIMEOUT_NS_DEFAULT (0xffffffff)
 #define TLV_TX_EVENT_MERGING_QEMPTY_TIMEOUT_NS_DEFAULT (0xffffffff)
 
-/* BIU mode
- *
- * Medford2 tag for selecting VI window decode (see values below)
- */
-#define TLV_TAG_BIU_VI_WINDOW_MODE       (0x10280000)
-struct tlv_biu_vi_window_mode {
-  uint32_t tag;
-  uint32_t length;
-  uint8_t  mode;
-#define TLV_BIU_VI_WINDOW_MODE_8K    0  /*  8k per VI, CTPIO not mapped, medford/hunt compatible */
-#define TLV_BIU_VI_WINDOW_MODE_16K   1  /* 16k per VI, CTPIO mapped */
-#define TLV_BIU_VI_WINDOW_MODE_64K   2  /* 64k per VI, CTPIO mapped, POWER-friendly */
-};
-
 #define TLV_TAG_LICENSE (0x30800000)
 
 typedef struct tlv_license {
@@ -881,7 +879,7 @@ typedef struct tlv_license {
   uint8_t   data[];
 } tlv_license_t;
 
-/* TSA NIC IP address configuration
+/* TSA NIC IP address configuration (DEPRECATED)
  *
  * Sets the TSA NIC IP address statically via configuration tool or dynamically
  * via DHCP via snooping based on the mode selection (0=Static, 1=DHCP, 2=Snoop)
@@ -891,7 +889,7 @@ typedef struct tlv_license {
  * released code yet.
  */
 
-#define TLV_TAG_TMP_TSAN_CONFIG         (0x10220000)
+#define TLV_TAG_TMP_TSAN_CONFIG         (0x10220000) /* DEPRECATED */
 
 #define TLV_TSAN_IP_MODE_STATIC         (0)
 #define TLV_TSAN_IP_MODE_DHCP           (1)
@@ -908,7 +906,7 @@ typedef struct tlv_tsan_config {
   uint32_t bind_bkout;  /* DEPRECATED */
 } tlv_tsan_config_t;
 
-/* TSA Controller IP address configuration
+/* TSA Controller IP address configuration (DEPRECATED)
  *
  * Sets the TSA Controller IP address statically via configuration tool
  *
@@ -917,7 +915,7 @@ typedef struct tlv_tsan_config {
  * released code yet.
  */
 
-#define TLV_TAG_TMP_TSAC_CONFIG         (0x10230000)
+#define TLV_TAG_TMP_TSAC_CONFIG         (0x10230000) /* DEPRECATED */
 
 #define TLV_MAX_TSACS (4)
 typedef struct tlv_tsac_config {
@@ -928,7 +926,7 @@ typedef struct tlv_tsac_config {
   uint32_t port[TLV_MAX_TSACS];
 } tlv_tsac_config_t;
 
-/* Binding ticket
+/* Binding ticket (DEPRECATED)
  *
  * Sets the TSA NIC binding ticket used for binding process between the TSA NIC
  * and the TSA Controller
@@ -938,7 +936,7 @@ typedef struct tlv_tsac_config {
  * released code yet.
  */
 
-#define TLV_TAG_TMP_BINDING_TICKET      (0x10240000)
+#define TLV_TAG_TMP_BINDING_TICKET      (0x10240000) /* DEPRECATED */
 
 typedef struct tlv_binding_ticket {
   uint32_t tag;
@@ -963,7 +961,7 @@ typedef struct tlv_pik_sf {
   uint8_t  bytes[];
 } tlv_pik_sf_t;
 
-/* CA root certificate
+/* CA root certificate (DEPRECATED)
  *
  * Sets the CA root certificate used for TSA Controller verfication during
  * TLS connection setup between the TSA NIC and the TSA Controller
@@ -973,7 +971,7 @@ typedef struct tlv_pik_sf {
  * released code yet.
  */
 
-#define TLV_TAG_TMP_CA_ROOT_CERT        (0x10260000)
+#define TLV_TAG_TMP_CA_ROOT_CERT        (0x10260000) /* DEPRECATED */
 
 typedef struct tlv_ca_root_cert {
   uint32_t tag;
@@ -993,6 +991,47 @@ struct tlv_tx_vfifo_ull_mode {
   uint32_t length;
   uint8_t  mode;
 #define TLV_TX_VFIFO_ULL_MODE_DEFAULT    0
+};
+
+/* BIU mode
+ *
+ * Medford2 tag for selecting VI window decode (see values below)
+ */
+#define TLV_TAG_BIU_VI_WINDOW_MODE       (0x10280000)
+struct tlv_biu_vi_window_mode {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t  mode;
+#define TLV_BIU_VI_WINDOW_MODE_8K    0  /*  8k per VI, CTPIO not mapped, medford/hunt compatible */
+#define TLV_BIU_VI_WINDOW_MODE_16K   1  /* 16k per VI, CTPIO mapped */
+#define TLV_BIU_VI_WINDOW_MODE_64K   2  /* 64k per VI, CTPIO mapped, POWER-friendly */
+};
+
+/* FastPD mode
+ *
+ * Medford2 tag for configuring the FastPD mode (see values below)
+ */
+#define TLV_TAG_FASTPD_MODE(port)       (0x10290000 + (port))
+struct tlv_fastpd_mode {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t  mode;
+#define TLV_FASTPD_MODE_SOFT_ALL       0  /* All packets to the SoftPD */
+#define TLV_FASTPD_MODE_FAST_ALL       1  /* All packets to the FastPD */
+#define TLV_FASTPD_MODE_FAST_SUPPORTED 2  /* Supported packet types to the FastPD; everything else to the SoftPD  */
+};
+
+/* L3xUDP datapath firmware UDP port configuration
+ *
+ * Sets the list of UDP ports on which the encapsulation will be handled.
+ * The number of ports in the list is implied by the length of the TLV item.
+ */
+#define TLV_TAG_L3XUDP_PORTS            (0x102a0000)
+struct tlv_l3xudp_ports {
+  uint32_t tag;
+  uint32_t length;
+  uint16_t ports[];
+#define TLV_TAG_L3XUDP_PORTS_MAX_NUM_PORTS 16
 };
 
 #endif /* CI_MGMT_TLV_LAYOUT_H */

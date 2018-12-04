@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs.h"
 #include "common/t4_regs_values.h"
 #include "cudbg/cudbg.h"
+#include "t4_clip.h"
 #include "t4_ioctl.h"
 #include "t4_l2t.h"
 #include "t4_mp_ring.h"
@@ -1221,6 +1222,9 @@ t4_attach(device_t dev)
 #ifdef RATELIMIT
 	t4_init_etid_table(sc);
 #endif
+#ifdef INET6
+	t4_init_clip_table(sc);
+#endif
 	if (sc->vres.key.size != 0)
 		sc->key_map = vmem_create("T4TLS key map", sc->vres.key.start,
 		    sc->vres.key.size, 32, 0, M_FIRSTFIT | M_WAITOK);
@@ -1511,6 +1515,9 @@ t4_detach_common(device_t dev)
 #endif
 	if (sc->key_map)
 		vmem_destroy(sc->key_map);
+#ifdef INET6
+	t4_destroy_clip_table(sc);
+#endif
 
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	free(sc->sge.ofld_txq, M_CXGBE);
@@ -1633,10 +1640,6 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 	if (vi->nofldrxq != 0)
 		ifp->if_capabilities |= IFCAP_TOE;
 #endif
-#ifdef DEV_NETMAP
-	if (vi->nnmrxq != 0)
-		ifp->if_capabilities |= IFCAP_NETMAP;
-#endif
 #ifdef RATELIMIT
 	if (is_ethoffload(vi->pi->adapter) && vi->nofldtxq != 0) {
 		ifp->if_capabilities |= IFCAP_TXRTLMT;
@@ -1656,7 +1659,7 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 
 	ether_ifattach(ifp, vi->hw_addr);
 #ifdef DEV_NETMAP
-	if (ifp->if_capabilities & IFCAP_NETMAP)
+	if (vi->nnmrxq != 0)
 		cxgbe_nm_attach(vi);
 #endif
 	sb = sbuf_new_auto();
@@ -5967,6 +5970,12 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "smt",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_smt, "A", "hardware source MAC table");
+
+#ifdef INET6
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "clip",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    sysctl_clip, "A", "active CLIP table entries");
+#endif
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "lb_stats",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
@@ -10524,6 +10533,9 @@ mod_event(module_t mod, int cmd, void *arg)
 			sx_init(&t4_uld_list_lock, "T4/T5 ULDs");
 			SLIST_INIT(&t4_uld_list);
 #endif
+#ifdef INET6
+			t4_clip_modload();
+#endif
 			t4_tracer_modload();
 			tweak_tunables();
 		}
@@ -10563,6 +10575,9 @@ mod_event(module_t mod, int cmd, void *arg)
 
 			if (t4_sge_extfree_refs() == 0) {
 				t4_tracer_modunload();
+#ifdef INET6
+				t4_clip_modunload();
+#endif
 #ifdef TCP_OFFLOAD
 				sx_destroy(&t4_uld_list_lock);
 #endif

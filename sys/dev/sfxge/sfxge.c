@@ -748,7 +748,7 @@ sfxge_create(struct sfxge_softc *sc)
 
 	/* Probe the NIC and build the configuration data area. */
 	DBGPRINT(sc->dev, "nic_probe...");
-	if ((error = efx_nic_probe(enp)) != 0)
+	if ((error = efx_nic_probe(enp, EFX_FW_VARIANT_DONT_CARE)) != 0)
 		goto fail5;
 
 	if (!ISP2(sfxge_rx_ring_entries) ||
@@ -1179,6 +1179,11 @@ sfxge_probe(device_t dev)
 
 	if (family == EFX_FAMILY_MEDFORD) {
 		device_set_desc(dev, "Solarflare SFC9200 family");
+		return (0);
+	}
+
+	if (family == EFX_FAMILY_MEDFORD2) {
+		device_set_desc(dev, "Solarflare SFC9250 family");
 		return (0);
 	}
 
