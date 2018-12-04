@@ -58,8 +58,8 @@ efx_mcdi_init_txq(
 	__in		efsys_mem_t *esmp)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_INIT_TXQ_IN_LEN(EFX_TXQ_MAX_BUFS),
-			    MC_CMD_INIT_TXQ_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_INIT_TXQ_IN_LEN(EFX_TXQ_MAX_BUFS),
+		MC_CMD_INIT_TXQ_OUT_LEN);
 	efx_qword_t *dma_addr;
 	uint64_t addr;
 	int npages;
@@ -80,7 +80,6 @@ efx_mcdi_init_txq(
 		goto fail2;
 	}
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_INIT_TXQ;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_INIT_TXQ_IN_LEN(npages);
@@ -147,11 +146,10 @@ efx_mcdi_fini_txq(
 	__in		uint32_t instance)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_FINI_TXQ_IN_LEN,
-			    MC_CMD_FINI_TXQ_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_FINI_TXQ_IN_LEN,
+		MC_CMD_FINI_TXQ_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FINI_TXQ;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_FINI_TXQ_IN_LEN;
@@ -305,7 +303,7 @@ ef10_tx_qpio_enable(
 
 fail3:
 	EFSYS_PROBE(fail3);
-	ef10_nic_pio_free(enp, etp->et_pio_bufnum, etp->et_pio_blknum);
+	(void) ef10_nic_pio_free(enp, etp->et_pio_bufnum, etp->et_pio_blknum);
 fail2:
 	EFSYS_PROBE(fail2);
 	etp->et_pio_size = 0;
@@ -323,10 +321,12 @@ ef10_tx_qpio_disable(
 
 	if (etp->et_pio_size != 0) {
 		/* Unlink the piobuf from this TXQ */
-		ef10_nic_pio_unlink(enp, etp->et_index);
+		if (ef10_nic_pio_unlink(enp, etp->et_index) != 0)
+			return;
 
 		/* Free the sub-allocated PIO block */
-		ef10_nic_pio_free(enp, etp->et_pio_bufnum, etp->et_pio_blknum);
+		(void) ef10_nic_pio_free(enp, etp->et_pio_bufnum,
+		    etp->et_pio_blknum);
 		etp->et_pio_size = 0;
 		etp->et_pio_write_offset = 0;
 	}
@@ -566,12 +566,9 @@ ef10_tx_qdesc_post(
 {
 	unsigned int added = *addedp;
 	unsigned int i;
-	efx_rc_t rc;
 
-	if (added - completed + ndescs > EFX_TXQ_LIMIT(etp->et_mask + 1)) {
-		rc = ENOSPC;
-		goto fail1;
-	}
+	if (added - completed + ndescs > EFX_TXQ_LIMIT(etp->et_mask + 1))
+		return (ENOSPC);
 
 	for (i = 0; i < ndescs; i++) {
 		efx_desc_t *edp = &ed[i];
@@ -591,11 +588,6 @@ ef10_tx_qdesc_post(
 
 	*addedp = added;
 	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
 }
 
 	void
@@ -650,6 +642,7 @@ ef10_tx_qdesc_tso_create(
 ef10_tx_qdesc_tso2_create(
 	__in			efx_txq_t *etp,
 	__in			uint16_t ipv4_id,
+	__in			uint16_t outer_ipv4_id,
 	__in			uint32_t tcp_seq,
 	__in			uint16_t tcp_mss,
 	__out_ecount(count)	efx_desc_t *edp,
@@ -671,13 +664,14 @@ ef10_tx_qdesc_tso2_create(
 			    ESE_DZ_TX_TSO_OPTION_DESC_FATSO2A,
 			    ESF_DZ_TX_TSO_IP_ID, ipv4_id,
 			    ESF_DZ_TX_TSO_TCP_SEQNO, tcp_seq);
-	EFX_POPULATE_QWORD_4(edp[1].ed_eq,
+	EFX_POPULATE_QWORD_5(edp[1].ed_eq,
 			    ESF_DZ_TX_DESC_IS_OPT, 1,
 			    ESF_DZ_TX_OPTION_TYPE,
 			    ESE_DZ_TX_OPTION_DESC_TSO,
 			    ESF_DZ_TX_TSO_OPTION_TYPE,
 			    ESE_DZ_TX_TSO_OPTION_DESC_FATSO2B,
-			    ESF_DZ_TX_TSO_TCP_MSS, tcp_mss);
+			    ESF_DZ_TX_TSO_TCP_MSS, tcp_mss,
+			    ESF_DZ_TX_TSO_OUTER_IPID, outer_ipv4_id);
 }
 
 	void

@@ -77,11 +77,6 @@ extern "C" {
 #define	memmove(d, s, l) bcopy(s, d, l)
 #endif
 
-/* FreeBSD equivalents of Solaris things */
-#ifndef _NOTE
-#define	_NOTE(s)
-#endif
-
 #ifndef B_FALSE
 #define	B_FALSE	FALSE
 #endif
@@ -199,40 +194,6 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #endif
 }
 
-/* Modifiers used for Windows builds */
-#define	__in
-#define	__in_opt
-#define	__in_ecount(_n)
-#define	__in_ecount_opt(_n)
-#define	__in_bcount(_n)
-#define	__in_bcount_opt(_n)
-
-#define	__out
-#define	__out_opt
-#define	__out_ecount(_n)
-#define	__out_ecount_opt(_n)
-#define	__out_bcount(_n)
-#define	__out_bcount_opt(_n)
-#define	__out_bcount_part(_n, _l)
-#define	__out_bcount_part_opt(_n, _l)
-
-#define	__deref_out
-
-#define	__inout
-#define	__inout_opt
-#define	__inout_ecount(_n)
-#define	__inout_ecount_opt(_n)
-#define	__inout_bcount(_n)
-#define	__inout_bcount_opt(_n)
-#define	__inout_bcount_full_opt(_n)
-
-#define	__deref_out_bcount_opt(n)
-
-#define	__checkReturn
-#define	__success(_x)
-
-#define	__drv_when(_p, _c)
-
 /* Code inclusion options */
 
 
@@ -241,7 +202,7 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_SIENA 1
 #define	EFSYS_OPT_HUNTINGTON 1
 #define	EFSYS_OPT_MEDFORD 1
-#define	EFSYS_OPT_MEDFORD2 0
+#define	EFSYS_OPT_MEDFORD2 1
 #ifdef DEBUG
 #define	EFSYS_OPT_CHECK_REG 1
 #else
@@ -267,6 +228,7 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_VPD 1
 #define	EFSYS_OPT_NVRAM 1
 #define	EFSYS_OPT_BOOTCFG 0
+#define	EFSYS_OPT_IMAGE_LAYOUT 0
 
 #define	EFSYS_OPT_DIAG 0
 #define	EFSYS_OPT_RX_SCALE 1
@@ -284,7 +246,11 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 
 #define	EFSYS_OPT_RX_PACKED_STREAM 0
 
+#define	EFSYS_OPT_RX_ES_SUPER_BUFFER 0
+
 #define	EFSYS_OPT_TUNNEL 0
+
+#define	EFSYS_OPT_FW_SUBVARIANT_AWARE 0
 
 /* ID */
 
