@@ -1,4 +1,4 @@
-[![Build Status](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20Snapshot%20-%20Master/job/trueos-master/badge/icon)](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20Snapshot%20-%20Master/job/trueos-master/)
+[![Build Status](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20Snapshot%20Build/badge/icon)](https://builds.ixsystems.com/jenkins/job/TrueOS%20-%20Snapshot%20Build/)
 
 TrueOS Source:
 --------------
