@@ -1484,13 +1484,13 @@ can_hardlink(struct vnode *vp, struct ucred *cred)
 		return (error);
 
 	if (hardlink_check_uid && cred->cr_uid != va.va_uid) {
-		error = priv_check_cred(cred, PRIV_VFS_LINK, 0);
+		error = priv_check_cred(cred, PRIV_VFS_LINK);
 		if (error != 0)
 			return (error);
 	}
 
 	if (hardlink_check_gid && !groupmember(va.va_gid, cred)) {
-		error = priv_check_cred(cred, PRIV_VFS_LINK, 0);
+		error = priv_check_cred(cred, PRIV_VFS_LINK);
 		if (error != 0)
 			return (error);
 	}
@@ -4196,8 +4196,8 @@ sys_getfhat(struct thread *td, struct getfhat_args *uap)
 
 	if ((uap->flags & ~(AT_SYMLINK_NOFOLLOW | AT_BENEATH)) != 0)
 	    return (EINVAL);
-	return (kern_getfhat(td, uap->flags, uap->fd, uap->path ? uap->path : ".",
-	    UIO_USERSPACE, uap->fhp));
+	return (kern_getfhat(td, uap->flags, uap->fd, uap->path, UIO_USERSPACE,
+	    uap->fhp));
 }
 
 static int

@@ -262,7 +262,7 @@ fdused(struct filedesc *fdp, int fd)
 	if (fd > fdp->fd_lastfile)
 		fdp->fd_lastfile = fd;
 	if (fd == fdp->fd_freefile)
-		fdp->fd_freefile = fd_first_free(fdp, fd, fdp->fd_nfiles);
+		fdp->fd_freefile++;
 }
 
 /*
@@ -348,8 +348,7 @@ sys_getdtablesize(struct thread *td, struct getdtablesize_args *uap)
 	uint64_t lim;
 #endif
 
-	td->td_retval[0] =
-	    min((int)lim_cur(td, RLIMIT_NOFILE), maxfilesperproc);
+	td->td_retval[0] = getmaxfd(td);
 #ifdef	RACCT
 	PROC_LOCK(td->td_proc);
 	lim = racct_get_limit(td->td_proc, RACCT_NOFILE);
@@ -1186,12 +1185,13 @@ closefp(struct filedesc *fdp, int fd, struct file *fp, struct thread *td,
 	 * knote_fdclose to prevent a race of the fd getting opened, a knote
 	 * added, and deleteing a knote for the new fd.
 	 */
-	knote_fdclose(td, fd);
+	if (__predict_false(!TAILQ_EMPTY(&fdp->fd_kqlist)))
+		knote_fdclose(td, fd);
 
 	/*
 	 * We need to notify mqueue if the object is of type mqueue.
 	 */
-	if (fp->f_type == DTYPE_MQUEUE)
+	if (__predict_false(fp->f_type == DTYPE_MQUEUE))
 		mq_fdclose(td, fd, fp);
 	FILEDESC_XUNLOCK(fdp);
 
