@@ -2517,17 +2517,19 @@ dev/nand/nandsim_swap.c		optional nandsim nand
 dev/nand/nfc_if.m		optional nand
 dev/netmap/if_ptnet.c		optional netmap inet
 dev/netmap/netmap.c		optional netmap
+dev/netmap/netmap_bdg.c		optional netmap
 dev/netmap/netmap_freebsd.c	optional netmap
 dev/netmap/netmap_generic.c	optional netmap
+dev/netmap/netmap_kloop.c	optional netmap
+dev/netmap/netmap_legacy.c	optional netmap
 dev/netmap/netmap_mbq.c		optional netmap
 dev/netmap/netmap_mem2.c	optional netmap
 dev/netmap/netmap_monitor.c	optional netmap
+dev/netmap/netmap_null.c	optional netmap
 dev/netmap/netmap_offloadings.c	optional netmap
 dev/netmap/netmap_pipe.c	optional netmap
 dev/netmap/netmap_pt.c		optional netmap
 dev/netmap/netmap_vale.c	optional netmap
-dev/netmap/netmap_legacy.c	optional netmap
-dev/netmap/netmap_bdg.c		optional netmap
 # compile-with "${NORMAL_C} -Wconversion -Wextra"
 dev/nfsmb/nfsmb.c		optional nfsmb pci
 dev/nge/if_nge.c		optional nge
@@ -4058,7 +4060,6 @@ libkern/timingsafe_bcmp.c	standard
 libkern/zlib.c			optional crypto | geom_uzip | ipsec | \
 	ipsec_support | mxge | netgraph_deflate | ddb_ctf | gzio
 net/altq/altq_cbq.c		optional altq
-net/altq/altq_cdnr.c		optional altq
 net/altq/altq_codel.c		optional altq
 net/altq/altq_hfsc.c		optional altq
 net/altq/altq_fairq.c		optional altq
@@ -4770,6 +4771,8 @@ dev/mlx5/mlx5_core/mlx5_vport.c			optional mlx5 pci	\
 dev/mlx5/mlx5_core/mlx5_vsc.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_wq.c			optional mlx5 pci	\
+	compile-with "${OFED_C}"
+dev/mlx5/mlx5_lib/mlx5_gid.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 
 dev/mlx5/mlx5_en/mlx5_en_ethtool.c		optional mlx5en pci inet inet6	\
