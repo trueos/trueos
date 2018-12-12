@@ -10,12 +10,12 @@ prepare() {
 	mount | grep -q "on $1 "
 	if [ $? -ne 0 ] ; then
 		# Create the dataset
-		zfs create -p -o mountpoint=$1 ${ZPOOL}/$1
+		zfs create -p -o mountpoint=$1 ${ZPOOL}$1
 		if [ $? -ne 0 ] ; then
 			exit 1
 		fi
 		# Create the initial snapshot
-		zfs snapshot ${ZPOOL}/${1}@clean
+		zfs snapshot ${ZPOOL}${1}@clean
 		if [ $? -ne 0 ] ; then
 			exit 1
 		fi
@@ -24,10 +24,10 @@ prepare() {
 
 snapshot() {
 	# Cleanup old snapshot (if it exists)
-	zfs destroy ${ZPOOL}/${1}@clean
+	zfs destroy ${ZPOOL}${1}@clean
 
 	# Create the snapshot
-	zfs snapshot ${ZPOOL}/${1}@clean
+	zfs snapshot ${ZPOOL}${1}@clean
 	if [ $? -ne 0 ] ; then
 		exit 1
 	fi
@@ -35,7 +35,7 @@ snapshot() {
 
 rollback() {
 	# Rollback to pristine state snapshot
-	zfs rollback ${ZPOOL}/${1}@clean
+	zfs rollback ${ZPOOL}${1}@clean
 	if [ $? -ne 0 ] ; then
 		exit 1
 	fi
@@ -45,8 +45,8 @@ rollback() {
 prepare
 
 case $1 in
-	snapshot) snapshot $2 ;;
-	rollback) rollback $2 ;;
+	snapshot) snapshot "$2" ;;
+	rollback) rollback "$2" ;;
 	*) echo "Invalid option specified: $1"
 		exit 1
 		;;
