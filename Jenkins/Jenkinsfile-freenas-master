@@ -28,11 +28,19 @@ pipeline {
 
     stage('Nullfs') {
       steps {
+	// Cleanup artifacts
         sh 'rm -rf ${WORKSPACE}/artifacts'
         sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
+
+	// Prep the fake SRCROOT
         sh 'mkdir -p ${SRCROOT} || true'
         sh 'umount -f ${SRCROOT} || true'
         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
+
+	// Roll back the ZFS dataset
+	sh '${WORKSPACE}/Jenkins/scripts/snapobj.sh rollback /usr/obj/${SRCROOT}'
+
+	// Cleanup any output dirs
         sh 'rm -rf /usr/obj/${SRCROOT}/amd64.amd64 || true'
         sh 'chflags -R noschg /usr/obj/${SRCROOT}/amd64.amd64 || true'
         sh 'rm -rf /usr/obj/${SRCROOT}/amd64.amd64 || true'
@@ -114,6 +122,8 @@ pipeline {
       script {
         cleanWs notFailBuild: true
       }
+      // Success! We had a good build, lets updated future PR builds with this snapshot
+      sh '${WORKSPACE}/Jenkins/scripts/snapobj.sh snapshot /usr/obj/${SRCROOT}'
     }
     always {
       archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
