@@ -38,7 +38,7 @@ pipeline {
         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
 
 	// Roll back the ZFS dataset
-	sh '${WORKSPACE}/Jenkins/scripts/snapobj.sh rollback /usr/obj/${SRCROOT}'
+	sh '${WORKSPACE}/Jenkins/scripts/snapobj.sh rollback /usr/obj${SRCROOT}'
 
 	// Cleanup any output dirs
         sh 'rm -rf /usr/obj/${SRCROOT}/amd64.amd64 || true'
@@ -123,7 +123,7 @@ pipeline {
         cleanWs notFailBuild: true
       }
       // Success! We had a good build, lets updated future PR builds with this snapshot
-      sh '${WORKSPACE}/Jenkins/scripts/snapobj.sh snapshot /usr/obj/${SRCROOT}'
+      sh '${WORKSPACE}/Jenkins/scripts/snapobj.sh snapshot /usr/obj${SRCROOT}'
     }
     always {
       archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
