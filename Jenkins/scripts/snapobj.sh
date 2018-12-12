@@ -42,7 +42,7 @@ rollback() {
 }
 
 # Make sure datasets are all in place
-prepare
+prepare "$2"
 
 case $1 in
 	snapshot) snapshot "$2" ;;
