@@ -170,6 +170,11 @@ cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with 
 cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
+aesni_ccm.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_ccm.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_ccm.o"
 aesni_ghash.o			optional aesni				\
 	dependency	"$S/crypto/aesni/aesni_ghash.c"			\
 	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \

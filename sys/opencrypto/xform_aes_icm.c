@@ -57,6 +57,7 @@ static	void aes_icm_crypt(caddr_t, u_int8_t *);
 static	void aes_icm_zerokey(u_int8_t **);
 static	void aes_icm_reinit(caddr_t, u_int8_t *);
 static	void aes_gcm_reinit(caddr_t, u_int8_t *);
+static	void aes_ccm_reinit(caddr_t, u_int8_t *);
 
 /* Encryption instances */
 struct enc_xform enc_xform_aes_icm = {
@@ -77,6 +78,16 @@ struct enc_xform enc_xform_aes_nist_gcm = {
 	aes_icm_setkey,
 	aes_icm_zerokey,
 	aes_gcm_reinit,
+};
+
+struct enc_xform enc_xform_ccm = {
+	CRYPTO_AES_CCM_16, "AES-CCM",
+	AES_ICM_BLOCK_LEN, AES_CCM_IV_LEN, AES_MIN_KEY, AES_MAX_KEY,
+	aes_icm_crypt,
+	aes_icm_crypt,
+	aes_icm_setkey,
+	aes_icm_zerokey,
+	aes_ccm_reinit,
 };
 
 /*
@@ -102,6 +113,20 @@ aes_gcm_reinit(caddr_t key, u_int8_t *iv)
 	/* GCM starts with 2 as counter 1 is used for final xor of tag. */
 	bzero(&ctx->ac_block[AESICM_BLOCKSIZE - 4], 4);
 	ctx->ac_block[AESICM_BLOCKSIZE - 1] = 2;
+}
+
+static void
+aes_ccm_reinit(caddr_t key, u_int8_t *iv)
+{
+	struct aes_icm_ctx *ctx;
+	ctx = (struct aes_icm_ctx*)key;
+
+	/* CCM has flags, then the IV, then the counter, which starts at 1 */
+	bzero(ctx->ac_block, sizeof(ctx->ac_block));
+	/* 3 bytes for length field; this gives a nonce of 12 bytes */
+	ctx->ac_block[0] = (15 - AES_CCM_IV_LEN) - 1;
+	bcopy(iv, ctx->ac_block+1, AES_GCM_IV_LEN);
+	ctx->ac_block[AESICM_BLOCKSIZE - 1] = 1;
 }
 
 static void
