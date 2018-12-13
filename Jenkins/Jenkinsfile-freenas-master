@@ -103,7 +103,6 @@ pipeline {
 	  // Success! We had a good build, lets updated future PR builds with this snapshot
 	  sh '${WORKSPACE}/Jenkins/scripts/snapobj.sh snapshot /usr/obj${SRCROOT}'
 	}
-    }
       }
       steps {
         sh 'cd ${SRCROOT}/release && make iso >${WORKSPACE}/artifacts/release.log 2>&1'
