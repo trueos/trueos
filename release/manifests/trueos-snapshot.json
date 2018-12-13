@@ -9,10 +9,19 @@
         "sysup": {
           "origin": "sysutils/sysup",
           "version": ">0"
-        }
+        },
+	"zol": {
+	  "origin": "sysutils/zol",
+	  "version": ">0"
+	}
       }
     },
-    "name-prefix": "TrueOS"
+    "name-prefix": "TrueOS",
+    "world-flags": {
+      "default": [
+        "WITHOUT_ZFS=YES"
+      ]
+    }
   },
   "iso": {
     "auto-install-packages": {
