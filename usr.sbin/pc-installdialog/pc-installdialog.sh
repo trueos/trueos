@@ -40,6 +40,8 @@ ASHIFTSIZE="12"
 # Set location of post-install json commands
 PIJSON="/root/post-install-commands.json"
 
+# Default swapsize in MB
+SWAPSIZE="2000"
 
 # Displays the exit message and return to start menu
 exit_to_menu()
@@ -584,7 +586,6 @@ get_root_pw()
 }
 
 get_user_pw()
-
 {
   while :
   do
@@ -637,6 +638,32 @@ get_user_name()
     break
   done
 
+}
+
+change_swap()
+{
+  while :
+  do
+    # Ask for new swap size
+    get_dlg_ans "--inputbox \"Enter the swap size in MB (current: $SWAPSIZE) \" 8 40"
+    if [ -z "$ANS" ] ; then
+       echo "Swap size cannot be blank"  >> /tmp/.vartemp.$$
+       dialog --tailbox /tmp/.vartemp.$$ 8 35
+       rm /tmp/.vartemp.$$
+       continue
+    fi
+    # check for invalid characters
+    expr 1 + $ANS >/dev/null 2>/dev/null
+    if [ $? -ne 0 ] ; then
+       echo "Swap size must be a number!" >> /tmp/.vartemp.$$
+       dialog --tailbox /tmp/.vartemp.$$ 8 35
+       rm /tmp/.vartemp.$$
+       continue
+    else
+       break
+    fi
+  done
+  SWAPSIZE="$ANS"
 }
 
 get_user_realname()
@@ -909,7 +936,7 @@ gen_pc-sysinstall_cfg()
      echo "encpass=$GELIPASS" >> ${CFGFILE}
    fi
 
-   echo "disk0-part=SWAP.eli 2000 none" >> ${CFGFILE}
+   echo "disk0-part=SWAP.eli ${SWAPSIZE} none" >> ${CFGFILE}
    echo "commitDiskLabel" >> ${CFGFILE}
    echo "" >> ${CFGFILE}
 
@@ -1000,7 +1027,7 @@ start_edit_menu_loop()
 
   while :
   do
-    dialog --title "${BRAND} Text Install - Edit Menu" --menu "Please select from the following options:" 18 70 10 disk "Change disk ($SYSDISK)" pool "ZFS pool layout" datasets "ZFS datasets" zpoolcfg "ZFS Pool Config" network "Change networking" view "View install script" edit "Edit install script" back "Back to main menu" 2>/tmp/answer
+    dialog --title "${BRAND} Text Install - Edit Menu" --menu "Please select from the following options:" 18 70 10 disk "Change disk ($SYSDISK)" pool "ZFS pool layout" datasets "ZFS datasets" zpoolcfg "ZFS Pool Config" network "Change networking" swap "Change swap size" view "View install script" edit "Edit install script" back "Back to main menu" 2>/tmp/answer
     if [ $? -ne 0 ] ; then break ; fi
 
     ANS="`cat /tmp/answer`"
@@ -1015,6 +1042,8 @@ start_edit_menu_loop()
    zpoolcfg) change_zpool_cfg
 	     ;;
     network) change_networking
+	     ;;
+       swap) change_swap
 	     ;;
        view) more ${CFGFILE}
              rtn
