@@ -126,6 +126,7 @@ pipeline {
       script {
         cleanWs notFailBuild: true
       }
+    }
     always {
       archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
       sh 'umount -f ${SRCROOT} || true'
