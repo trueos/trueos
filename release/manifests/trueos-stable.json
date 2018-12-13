@@ -32,6 +32,12 @@
         "sysutils/tmux"
       ]
     },
+    "prune-dist-packages" : {
+      "default" : [
+        "(TrueOS-).+(-profile-)",
+        "(TrueOS-).+(-debug-)"
+      ]
+    },
     "install-script": "",
     "iso-packages": {
       "default": [
@@ -40,6 +46,21 @@
         "sysutils/tmux"
       ]
     },
+    "ignore-base-packages": [
+      "-clang-",
+      "-gdb-",
+      "-lldb-",
+      "-ipf-",
+      "-pf-",
+      "-sendmail-",
+      "-ssh-",
+      "-svn-",
+      "-unbound-",
+      "-tests",
+      "-development",
+      "-profile",
+      "-debug"
+    ],
     "overlay": ""
   },
   "pkg-repo": {
