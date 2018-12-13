@@ -5,7 +5,11 @@
         "uclcmd": {
           "origin": "devel/uclcmd",
           "version": ">0"
-        }
+        },
+	"sysup": {
+	  "origin": "sysutils/sysup",
+	  "version": ">0"
+	}
       },
       "runtime-development": {
         "go": {
