@@ -175,6 +175,34 @@
     },
     "auto-install-script": "",
     "dist-packages": {},
+    "prune-dist-packages": {
+      "default" : [
+	  "(OS-svn-)",
+	  "(OS-ipf-)",
+	  "(OS-pf-)",
+	  "(OS-lldb-)",
+	  "(OS-tests-)",
+	  "(OS-).+(-profile-)",
+	  "(OS-).+(-development-)",
+	  "(OS-).+(-debug-)"
+        ]
+    },
+    "ignore-base-packages": [
+        "-clang-",
+        "-gdb-",
+        "-lldb-",
+        "-ipf-",
+        "-pf-",
+        "-sendmail-",
+        "-ssh-",
+        "-svn-",
+        "-unbound-",
+        "-tests",
+        "-rescue",
+        "-development",
+        "-profile",
+        "-debug"
+    ],
     "file-name": "FreeNAS-12-unstable-x64-%%GITHASH%%-%%DATE%%",
     "install-script": "",
     "iso-packages": {
