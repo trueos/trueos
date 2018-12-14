@@ -112,8 +112,8 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 options 	EARLY_AP_STARTUP
 
 # Enable /dev/input/eventX for input devices
-device		evdev
-options		EVDEV_SUPPORT
+#device		evdev
+#options		EVDEV_SUPPORT
 
 # CPU frequency control
 device		cpufreq
