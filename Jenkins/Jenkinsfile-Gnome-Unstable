@@ -1,0 +1,148 @@
+/*
+
+This is the Jenkins Pipeline file used to create our Gnome UNSTABLE
+images.
+
+*/
+
+pipeline {
+  agent { label 'Gnome3' }
+
+  triggers {
+    cron('01 17 * * 3')
+  }
+
+  environment {
+    GH_ORG = 'trueos'
+    GH_REPO = 'trueos'
+    SRCROOT = '/usr/gnome-src'
+    POUDRIERE_BASE = 'gnome-unstable-base'
+
+    // Set the MANIFEST we want to use for this build
+    TRUEOS_MANIFEST='${WORKSPACE}/release/manifests/trueos-gnome.json'
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Nullfs') {
+      steps {
+         sh 'rm -rf ${WORKSPACE}/artifacts'
+         sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
+         sh 'mkdir -p ${SRCROOT} || true'
+         sh 'umount -f ${SRCROOT} || true'
+         sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
+         sh 'rm -rf /usr/obj/${SRCROOT}/amd64.amd64 || true'
+         sh 'chflags -R noschg /usr/obj/${SRCROOT}/amd64.amd64 || true'
+         sh 'rm -rf /usr/obj/${SRCROOT}/amd64.amd64 || true'
+
+      }
+    }
+
+    stage('World') {
+      post {
+        always {
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+        }
+        failure {
+          sh 'tail -n 200 ${WORKSPACE}/artifacts/world.log'
+        }
+      }
+      steps {
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildworld >${WORKSPACE}/artifacts/world.log 2>&1'
+      }
+    }
+
+    stage('Kernel') {
+      post {
+        always {
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+        }
+        failure {
+          sh 'tail -n 200 ${WORKSPACE}/artifacts/kernel.log'
+        }
+      }
+      steps {
+        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildkernel >${WORKSPACE}/artifacts/kernel.log 2>&1'
+      }
+    }
+
+    stage('Base Packages') {
+      post {
+        always {
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+        }
+        failure {
+          sh 'tail -n 200 ${WORKSPACE}/artifacts/packages.log'
+        }
+      }
+      environment {
+	   // Get our credentials from Jenkins
+           PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
+      }
+      steps {
+        sh 'cd ${SRCROOT} && make -j 16 packages -DDB_FROM_SRC >${WORKSPACE}/artifacts/packages.log 2>&1'
+      }
+    }
+    stage('ISO') {
+      post {
+        always {
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+        }
+        failure {
+          sh 'tail -n 200 ${WORKSPACE}/artifacts/iso.log'
+        }
+      }
+      steps {
+        sh 'cd ${SRCROOT}/release && make iso >${WORKSPACE}/artifacts/iso.log 2>&1'
+        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
+      }
+    }
+    stage('Dist') {
+      post {
+        always {
+          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+        }
+        failure {
+          sh 'tail -n 200 ${WORKSPACE}/artifacts/dist.log'
+        }
+      }
+      steps {
+        sh 'cd ${SRCROOT}/release && make packagesystem >${WORKSPACE}/artifacts/dist.log 2>&1'
+        sh 'mkdir -p ${WORKSPACE}/artifacts/dist'
+        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.txz ${WORKSPACE}/artifacts/dist/'
+        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/MANIFEST ${WORKSPACE}/artifacts/dist/'
+      }
+    }
+    stage('Artifact') {
+      steps {
+        archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
+      }
+    }
+    stage('Publish') {
+      steps {
+        sshagent (credentials: ['syncbot-credentials']) {
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/pkg/gnome-unstable/FreeBSD:13:amd64/latest || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" /usr/obj${SRCROOT}/pkgset/ syncbot@pkg.trueos.org:/data/pkg/gnome-unstable/FreeBSD:13:amd64/latest'
+          sh 'ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null syncbot@pkg.trueos.org mkdir -p /data/iso/gnome-unstable/ || true'
+          sh 'rsync -av --delete-after --delay-updates -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ${WORKSPACE}/artifacts/ syncbot@pkg.trueos.org:/data/iso/gnome-unstable/'
+        }
+      }
+    }
+  }
+  post {
+    success {
+      script {
+        cleanWs notFailBuild: true
+      }
+    }
+    always {
+      sh 'umount -f ${SRCROOT} || true'
+    }
+  }
+}
