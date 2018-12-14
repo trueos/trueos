@@ -21,7 +21,6 @@ LDIRS=	BSD_daemon \
 	ipfw \
 	jails \
 	kld \
-	ldapd \
 	libvgl \
 	mdoc \
 	netgraph \
