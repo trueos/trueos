@@ -226,6 +226,8 @@
       }
     ]
   },
+  "os_name":"FreeNAS",
+  "os_version":"12-STABLE",
   "pkg-repo": {
     "pubKey": [
       "-----BEGIN PUBLIC KEY-----",
