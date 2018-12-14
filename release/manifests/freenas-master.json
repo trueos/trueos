@@ -105,7 +105,6 @@
         "security/easy-rsa",
         "security/gnupg",
         "security/openssh-portable",
-        "security/openssl",
         "security/openvpn",
         "security/pam_mkhomedir",
         "security/py-openssl",
