@@ -31,17 +31,11 @@
 	"build-all":true,
 	"build":{
 		  "default":[
-			"www/firefox",
-			"www/chromium",
-			"mail/thunderbird",
 			"sysutils/ipmitool",
 			"sysutils/dmidecode",
-			"sysutils/networkmgr",
 			"sysutils/tmux",
-			"x11/gnome3",
 			"graphics/drm-next-kmod",
-			"x11/nvidia-driver",
-			"x11/xorg"
+			"x11/nvidia-driver"
 		]
 	}
 
@@ -69,7 +63,27 @@
 			"www/chromium",
 			"sysutils/networkmgr",
 			"sysutils/tmux",
-			"x11/gnome3",
+			"x11/gnome3-lite",
+			"deskutils/gucharmap",
+			"deskutils/gnome-characters",
+			"deskutils/gnome-calendar",
+			"graphics/eog",
+			"graphics/eog-plugins",
+			"editors/gedit",
+			"editors/gedit-plugins",
+			"x11/gnome-terminal",
+			"sysutils/brasero",
+			"accessibility/accerciser",
+			"math/gnome-calculator",
+			"deskutils/gnome-utils",
+			"archivers/file-roller",
+			"graphics/evince",
+			"net/vino",
+			"multimedia/totem",
+			"sysutils/gconf-editor",
+			"x11/gdm",
+			"graphics/gnome-color-manager",
+			"multimedia/cheese",
 			"x11/xorg"
 		]
 	},
