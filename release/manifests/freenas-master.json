@@ -177,14 +177,14 @@
     "dist-packages": {},
     "prune-dist-packages": {
       "default" : [
-	  "(OS-svn-)",
-	  "(OS-ipf-)",
-	  "(OS-pf-)",
-	  "(OS-lldb-)",
-	  "(OS-tests-)",
-	  "(OS-).+(-profile-)",
-	  "(OS-).+(-development-)",
-	  "(OS-).+(-debug-)"
+	  "(FreeNAS-svn-)",
+	  "(FreeNAS-ipf-)",
+	  "(FreeNAS-pf-)",
+	  "(FreeNAS-lldb-)",
+	  "(FreeNAS-tests-)",
+	  "(FreeNAS-).+(-profile-)",
+	  "(FreeNAS-).+(-development-)",
+	  "(FreeNAS-).+(-debug-)"
         ]
     },
     "ignore-base-packages": [
