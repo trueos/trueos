@@ -63,6 +63,9 @@ env_check()
 	PORTS_URL=$(jq -r '."ports"."url"' $TRUEOS_MANIFEST)
 	PORTS_BRANCH=$(jq -r '."ports"."branch"' $TRUEOS_MANIFEST)
 
+	if [ -z "${TRUEOS_VERSION}" ] ; then
+		TRUEOS_VERSION=$(jq -r '."os_version"' $TRUEOS_MANIFEST)
+	fi
 	case $PORTS_TYPE in
 		git) if [ -z "$PORTS_BRANCH" ] ; then
 			exit_err "Empty ports.branch!"
@@ -222,6 +225,9 @@ setup_poudriere_jail()
 		if [ $? -ne 0 ] ; then
 			exit_err "Failed creating poudriere ports - NULLFS"
 		fi
+		# Also fix the internal variable pointing to the location of the ports tree on disk
+		# This is used for checking essential packages later
+		POUDRIERE_PORTDIR=${PORTS_URL}
 	fi
 
 	rm ${POUDRIERED_DIR}/${POUDRIERE_BASE}-make.conf
@@ -601,11 +607,11 @@ cp_iso_pkgs()
 			do
 				if [ -z "${i}" ] ; then continue; fi
 				if [ "${ptype}" = "prune-dist-packages" ] ; then
-					echo "Scanning for packages to prune: ${i}*.txz , Dir: ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/All"
-					for prune in `ls ${OBJDIR}/disc1/${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/All | grep -i -e "${i}*.txz"`
+					echo "Scanning for packages to prune: ${i}"
+					for prune in `ls ${OBJDIR}/${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/All | grep -E "${i}"`
 					do
 						echo "Pruning image dist-file: $prune"
-						rm "${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/${prune}"
+						rm "${OBJDIR}/${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/All/${prune}"
 					done
 					
 				else
@@ -679,11 +685,11 @@ EOF
 	# Assemble the list of base packages to ignore (as a Regex)
 	local _base_ignore=""
 	if [ "$(jq -r '."iso"."ignore-base-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
-		_base_ignore=`jq -r '."iso".""ignore-base-packages" | join("|")' ${TRUEOS_MANIFEST}`
+		_base_ignore=`jq -r '."iso"."ignore-base-packages" | join("|")' ${TRUEOS_MANIFEST}`
 	fi
 	# Check for explict pkgs to install, minus development, debug, and profile
 	echo "Installing base packages into ISO:"
-	for e in $(get_explicit_pkg_deps "development debug profile")
+	for e in $(get_explicit_pkg_deps )
 	do
 		#Filter out any designated base packages
 		if [ -n "${_base_ignore}" ] ; then
