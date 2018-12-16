@@ -44,7 +44,7 @@
 	  "NOHANG_TIME=14400"
   ],
   "iso":{
-	"file-name":"TrueOS-Gnome-Unstable-x64-%%GITHASH%%-%%DATE%%",
+	"file-name":"TrueOS-Gnome-Stable-x64-%%GITHASH%%-%%DATE%%",
 	"iso-packages":{
 		  "default":[
 			"sysutils/tmux"
@@ -131,7 +131,7 @@
           }
   },
   "pkg-repo": {
-	  "url":"https://pkg.trueos.org/pkg/gnome-unstable/${ABI}/latest",
+	  "url":"https://pkg.trueos.org/pkg/gnome-stable/${ABI}/latest",
 	  "pubKey": [
 		"-----BEGIN PUBLIC KEY-----",
 		"MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAx4YxSavJkE7HjopkMtgK",
@@ -150,5 +150,5 @@
 	  ]
   },
   "pkg-repo-name": "TrueOS",
-  "pkg-train-name": "gnome-unstable"
+  "pkg-train-name": "gnome-stable"
 }
