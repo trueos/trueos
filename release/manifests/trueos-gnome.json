@@ -1,5 +1,7 @@
 {
   "version":"1.0",
+  "os_name":"TrueOS Gnome",
+  "os_version":"18.12",
   "ports":{
         "type":"git",
         "url":"https://github.com/trueos/trueos-ports",
