@@ -107,10 +107,6 @@
 		{
 			"chroot":true,
 			"command":"rc-update add gdm default"
-		},
-		{
-			"chroot":false,
-			"command":"/root/desktop-init.sh"
 		}
 	]
   },
