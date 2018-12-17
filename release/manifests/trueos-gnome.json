@@ -63,7 +63,6 @@
 			"mail/thunderbird",
 			"www/firefox",
 			"www/chromium",
-			"net-mgmt/networkmgr",
 			"sysutils/tmux",
 			"x11/gnome3-lite",
 			"deskutils/gucharmap",
