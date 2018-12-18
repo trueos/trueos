@@ -175,6 +175,24 @@
     },
     "auto-install-script": "",
     "dist-packages": {},
+    "prune": {
+      "default": [
+        "/usr/local/share/examples",
+        "/usr/local/include",
+        "/usr/bin/clang*",
+        "/usr/bin/cpp",
+        "/usr/bin/cpp",
+        "/usr/bin/c++",
+        "/usr/bin/lldb",
+        "/usr/bin/ld.lld",
+        "/usr/bin/llvm-objdump",
+        "/usr/bin/svn*",
+	"/usr/lib/clang",
+	"/usr/share/man",
+	"/usr/include",
+	"/usr/lib32"
+      ]
+    },
     "prune-dist-packages": {
       "default" : [
 	  "(FreeNAS-svn-)",
