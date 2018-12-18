@@ -127,6 +127,7 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 		    *((struct ufs1_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
 		ip->i_mode = dip1->di_mode;
 		ip->i_nlink = dip1->di_nlink;
+		ip->i_effnlink = dip1->di_nlink;
 		ip->i_size = dip1->di_size;
 		ip->i_flags = dip1->di_flags;
 		ip->i_gen = dip1->di_gen;
@@ -134,18 +135,23 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 		ip->i_gid = dip1->di_gid;
 		return (0);
 	}
+	dip2 = ((struct ufs2_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
+	if ((error = ffs_verify_dinode_ckhash(fs, dip2)) != 0) {
+		printf("%s: inode %jd: check-hash failed\n", fs->fs_fsmnt,
+		    (intmax_t)ino);
+		return (error);
+	}
+	*ip->i_din2 = *dip2;
 	dip2 = ip->i_din2;
-	*dip2 = *((struct ufs2_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
 	ip->i_mode = dip2->di_mode;
 	ip->i_nlink = dip2->di_nlink;
+	ip->i_effnlink = dip2->di_nlink;
 	ip->i_size = dip2->di_size;
 	ip->i_flags = dip2->di_flags;
 	ip->i_gen = dip2->di_gen;
 	ip->i_uid = dip2->di_uid;
 	ip->i_gid = dip2->di_gid;
-	if ((error = ffs_verify_dinode_ckhash(fs, dip2)) != 0)
-		printf("Inode %jd: check-hash failed\n", (intmax_t)ino);
-	return (error);
+	return (0);
 }
 #endif /* _KERNEL */
 
@@ -155,7 +161,7 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 int
 ffs_verify_dinode_ckhash(struct fs *fs, struct ufs2_dinode *dip)
 {
-	uint32_t save_ckhash;
+	uint32_t ckhash, save_ckhash;
 
 	/*
 	 * Return success if unallocated or we are not doing inode check-hash.
@@ -168,10 +174,11 @@ ffs_verify_dinode_ckhash(struct fs *fs, struct ufs2_dinode *dip)
 	 */
 	save_ckhash = dip->di_ckhash;
 	dip->di_ckhash = 0;
-	if (save_ckhash != calculate_crc32c(~0L, (void *)dip, sizeof(*dip)))
-		return (EINVAL);
+	ckhash = calculate_crc32c(~0L, (void *)dip, sizeof(*dip));
 	dip->di_ckhash = save_ckhash;
-	return (0);
+	if (save_ckhash == ckhash)
+		return (0);
+	return (EINVAL);
 }
 
 /*
