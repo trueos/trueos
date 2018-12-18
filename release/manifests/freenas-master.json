@@ -284,7 +284,7 @@
     "make.conf": {
       "default": [
         "CRAZY=YES",
-        "DEFAULT_VERSIONS+=python=3.6",
+        "DEFAULT_VERSIONS+=python=3.7",
         "MAKE_JOBS_NUMBER_LIMIT=3",
         "NET_SNMP_WITHOUT_MIB_MODULE_LIST=sctp-mib",
 	"WANT_OPENLDAP_SASL=YES",
