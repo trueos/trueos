@@ -61,7 +61,7 @@
         "freenas/py-licenselib",
         "freenas/py-middlewared",
         "freenas/swagger-ui",
-        "graphics/drm-next-kmod",
+	"graphics/drm-devel-kmod",
         "graphics/cairo",
         "graphics/graphite2",
         "lang/python",
@@ -105,7 +105,6 @@
         "security/easy-rsa",
         "security/gnupg",
         "security/openssh-portable",
-        "security/openssl",
         "security/openvpn",
         "security/pam_mkhomedir",
         "security/py-openssl",
@@ -176,7 +175,35 @@
     },
     "auto-install-script": "",
     "dist-packages": {},
-    "file-name": "FreeNAS-12-unstable-x64-%%GITHASH%%-%%DATE%%",
+    "prune-dist-packages": {
+      "default" : [
+	  "(FreeNAS-svn-)",
+	  "(FreeNAS-ipf-)",
+	  "(FreeNAS-pf-)",
+	  "(FreeNAS-lldb-)",
+	  "(FreeNAS-tests-)",
+	  "(FreeNAS-).+(-profile-)",
+	  "(FreeNAS-).+(-development-)",
+	  "(FreeNAS-).+(-debug-)"
+        ]
+    },
+    "ignore-base-packages": [
+        "-clang-",
+        "-gdb-",
+        "-lldb-",
+        "-ipf-",
+        "-pf-",
+        "-sendmail-",
+        "-ssh-",
+        "-svn-",
+        "-unbound-",
+        "-tests",
+        "-rescue",
+        "-development",
+        "-profile",
+        "-debug"
+    ],
+    "file-name": "FreeNAS-13-unstable-x64-%%GITHASH%%-%%DATE%%",
     "install-script": "",
     "iso-packages": {
       "default": [ ]
@@ -226,6 +253,8 @@
       }
     ]
   },
+  "os_name":"FreeNAS",
+  "os_version":"13-STABLE",
   "pkg-repo": {
     "pubKey": [
       "-----BEGIN PUBLIC KEY-----",
@@ -255,7 +284,7 @@
     "make.conf": {
       "default": [
         "CRAZY=YES",
-        "DEFAULT_VERSIONS+=python=3.6",
+        "DEFAULT_VERSIONS+=python=3.7",
         "MAKE_JOBS_NUMBER_LIMIT=3",
         "NET_SNMP_WITHOUT_MIB_MODULE_LIST=sctp-mib",
 	"WANT_OPENLDAP_SASL=YES",
