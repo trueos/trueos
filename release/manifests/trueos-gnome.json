@@ -5,7 +5,7 @@
   "ports":{
         "type":"git",
         "url":"https://github.com/trueos/trueos-ports",
-        "branch":"trueos-master",
+        "branch":"trueos-stable-18.12",
         "make.conf":{
 		"default":[
 			"MAKE_JOBS_NUMBER_LIMIT=3",
@@ -63,7 +63,6 @@
 			"mail/thunderbird",
 			"www/firefox",
 			"www/chromium",
-			"net-mgmt/networkmgr",
 			"sysutils/tmux",
 			"x11/gnome3-lite",
 			"deskutils/gucharmap",
@@ -108,10 +107,6 @@
 		{
 			"chroot":true,
 			"command":"rc-update add gdm default"
-		},
-		{
-			"chroot":false,
-			"command":"/root/desktop-init.sh"
 		}
 	]
   },
