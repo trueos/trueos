@@ -71,6 +71,7 @@ main(int argc, char *argv[])
 	int action, ch;
 	cap_rights_t right_ioctl;
 	const unsigned long pwm_ioctls[] = {PWMGETSTATE, PWMSETSTATE, PWMMAXCHANNEL};
+	char *percent;
 
 	action = 0;
 	fd = -1;
@@ -104,7 +105,9 @@ main(int argc, char *argv[])
 			if (action & ~(PWM_PERIOD | PWM_DUTY))
 				usage();
 			action = PWM_DUTY;
-			duty = strtol(optarg, NULL, 10);
+			duty = strtol(optarg, &percent, 10);
+			if (*percent != '\0' && *percent != '%')
+				usage();
 			break;
 		case 'c':
 			if (channel != -1)
@@ -190,17 +193,21 @@ main(int argc, char *argv[])
 		}
 		break;
 	case PWM_SHOW_CONFIG:
-		printf("period: %ju\nduty: %ju\nenabled:%d\n",
-		    (uintmax_t) state.period,
-		    (uintmax_t) state.duty,
+		printf("period: %u\nduty: %u\nenabled:%d\n",
+		    state.period,
+		    state.duty,
 		    state.enable);
 		break;
 	case PWM_PERIOD:
 	case PWM_DUTY:
 		if (period != -1)
 			state.period = period;
-		if (duty != -1)
-			state.duty = duty;
+		if (duty != -1) {
+			if (*percent != '\0')
+				state.duty = state.period * duty / 100;
+			else
+				state.duty = duty;
+		}
 		if (ioctl(fd, PWMSETSTATE, &state) == -1) {
 			fprintf(stderr,
 			  "Cannot configure the pwm controller\n");
