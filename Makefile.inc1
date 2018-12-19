@@ -1793,12 +1793,12 @@ real-base-packages:	stage-packages unlink-packages create-packages link-packages
 stage-packages-world: .PHONY
 	@mkdir -p ${WSTAGEDIR}
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} DESTDIR=${WSTAGEDIR} -DNO_ROOT stageworld
+		${MAKE} ${WORLD_FLAGS} DESTDIR=${WSTAGEDIR} -DNO_ROOT stageworld
 
 stage-packages-kernel: .PHONY
 	@mkdir -p ${KSTAGEDIR}
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT stagekernel
+		${MAKE} ${KERNEL_FLAGS} DESTDIR=${KSTAGEDIR} -DNO_ROOT stagekernel
 
 stage-packages: .PHONY stage-packages-world stage-packages-kernel
 
