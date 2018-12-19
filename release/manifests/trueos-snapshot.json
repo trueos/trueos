@@ -23,6 +23,12 @@
         "MK_ZFS=no"
       ]
     }
+    "kernel-flags": {
+      "default": [
+        "WITHOUT_ZFS=YES",
+        "MK_ZFS=no"
+      ]
+    }
   },
   "iso": {
     "auto-install-packages": {
