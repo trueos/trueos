@@ -1724,6 +1724,7 @@ distributekernel distributekernel.debug: .PHONY
 	${_+_}cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
+	    ${KERNEL_FLAGS} \
 	    DESTDIR=${INSTALL_DDIR}/kernel \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
@@ -1741,6 +1742,7 @@ distributekernel distributekernel.debug: .PHONY
 	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} \
 	    KERNEL=${INSTKERNNAME}.${_kernel} \
 	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
+	    ${KERNEL_FLAGS} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
 	@sed -e "s|^./kernel.${_kernel}|.|" \
@@ -1871,12 +1873,14 @@ create-packages-world:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 \
 			DESTDIR=${WSTAGEDIR} \
+			${WORLD_FLAGS} \
 			PKG_VERSION=${PKG_VERSION} create-world-packages
 
 create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 \
 			DESTDIR=${KSTAGEDIR} \
+			${KERNEL_FLAGS} \
 			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
 			create-kernel-packages
 
