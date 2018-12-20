@@ -97,15 +97,15 @@
 	"post-install-commands": [
 		{
 			"chroot":true,
-			"command":"rc-update add dbus"
+			"command":"rc-update add dbus default"
 		},
 		{
 			"chroot":true,
-			"command":"rc-update add hald"
+			"command":"rc-update add hald default"
 		},
 		{
 			"chroot":true,
-			"command":"rc-update add gdm"
+			"command":"rc-update add gdm default"
 		},
 		{
 			"chroot":false,
