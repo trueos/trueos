@@ -812,7 +812,7 @@ __FBSDID("$FreeBSD$");
 
 
 // == GhostBSD Logo ==
-unsigned int vt_logo_width = 320;
+unsigned int vt_logo_width = 444;
 unsigned int vt_logo_height = 152;
 unsigned int vt_logo_depth = 1;
 
