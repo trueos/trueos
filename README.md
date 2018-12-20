@@ -35,7 +35,7 @@ as scriptability.
 
 * [JSON Build Manifest](https://github.com/trueos/trueos/tree/trueos-master/release/README.md) - TrueOS supports a customizable JSON manifest for building. This allows TrueOS to run poudriere and assemble installation images for a variety of use-cases.
 
-* Single repo - Base packages and ports now share a single repository which allows base packages to depend upon ports, such as  jq for -devel packages
+* Single repo - Base packages and ports now share a single repository which allows base packages to depend upon ports, such as jq for -devel packages
 
 * More as they come...
 
@@ -65,7 +65,7 @@ To change the default manifest from CI to something else, set the TRUEOS_MANIFES
 Using Poudriere:
 --------------
 
-Since TrueOS uses an external toolchain, an additional step is required before using stock Poudriere. This is to install the base pkg environment and boot-strap the external compiler. To create a Poudriere jail on TrueOS, run the following assuming you have poudriere-trueos installed:
+Since TrueOS uses an external toolchain, an additional step is required before using stock Poudriere. This is to install the base pkg environment and boot-strap the external compiler. To create a Poudriere jail on TrueOS, run the following command assuming you have poudriere-trueos installed:
 
 ```
 poudriere jail -c -j trueos -m trueos -v 13.0
