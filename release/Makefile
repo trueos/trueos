@@ -77,8 +77,8 @@ VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 .endif
 
 # Get world / kernel flags for staging
-WORLD_FLAGS!=	(env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh world_flags)
-KERNEL_FLAGS!=	(env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh kernel_flags)
+WORLD_FLAGS!=	(env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${WORLDDIR}/release/release-trueos.sh world_flags)
+KERNEL_FLAGS!=	(env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${WORLDDIR}/release/release-trueos.sh kernel_flags)
 
 .if !defined(VOLUME_LABEL) || empty(VOLUME_LABEL)
 VOLUME_LABEL=	TrueOS_Install
