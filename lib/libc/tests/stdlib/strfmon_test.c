@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Neelkanth Natu
+ * Copyright (C) 2018 Conrad Meyer <cem@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -22,30 +22,50 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include <machine/asm.h>
-#include <machine/cpuregs.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-.set	mips64
-.set	noat
-.set	noreorder
+#include <locale.h>
+#include <monetary.h>
+#include <stdio.h>
 
-#ifdef SMP
-/*
- * This function must be implemented in assembly because it is called early
- * in AP boot without a valid stack.
- *
- * This cpu number is available in bits 25 to 27 of the coprocessor 0 PRID
- * register. This is not documented in the BCM1250 user manual but can be
- * gleaned from the CFE source code - see sb1250_altcpu.S
- */
-LEAF(platform_processor_id)
-	mfc0	v0, MIPS_COP_0_PRID
-	srl	v0, v0, 25
-	jr	ra
-	and	v0, v0, 7
-END(platform_processor_id)
-#endif	/* SMP */
+#include <atf-c.h>
+
+ATF_TC_WITHOUT_HEAD(strfmon_locale_thousands);
+ATF_TC_BODY(strfmon_locale_thousands, tc)
+{
+	char actual[40], expected[40];
+	struct lconv *lc;
+	const char *ts;
+	double n;
+
+	setlocale(LC_MONETARY, "sv_SE.UTF-8");
+
+	lc = localeconv();
+
+	ts = lc->mon_thousands_sep;
+	if (strlen(ts) == 0)
+		ts = lc->thousands_sep;
+
+	if (strlen(ts) < 2)
+		atf_tc_skip("multi-byte thousands-separator not found");
+
+	n = 1234.56;
+	strfmon(actual, sizeof(actual), "%i", n);
+
+	strcpy(expected, "1");
+	strlcat(expected, ts, sizeof(expected));
+	strlcat(expected, "234", sizeof(expected));
+
+	/* We're just testing the thousands separator, not all of strmon. */
+	actual[strlen(expected)] = '\0';
+	ATF_CHECK_STREQ(expected, actual);
+}
+
+ATF_TP_ADD_TCS(tp)
+{
+	ATF_TP_ADD_TC(tp, strfmon_locale_thousands);
+	return (atf_no_error());
+}
