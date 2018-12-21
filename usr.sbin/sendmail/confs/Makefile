@@ -15,4 +15,6 @@ FILES+=	${SRCTOP}/usr.sbin/sendmail/mail/README
 FILESDIR=	/etc/mail
 FILESMODE=	644
 
+LINKS+=	/etc/aliases /etc/mail/aliases
+
 .include <bsd.prog.mk>
