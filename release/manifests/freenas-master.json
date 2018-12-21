@@ -268,6 +268,10 @@
       {
         "chroot":true,
         "command":"ln -s /usr/local/etc /etc/local"
+      },
+      {
+        "chroot":true,
+        "command":"ln -s /.rnd /var/tmp/.rnd"
       }
     ]
   },
