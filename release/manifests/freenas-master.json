@@ -119,7 +119,6 @@
         "shells/mksh",
         "shells/scponly",
         "shells/zsh",
-        "sysutils/arcconf",
         "sysutils/ataidle",
         "sysutils/beadm",
         "sysutils/cmdwatch",
