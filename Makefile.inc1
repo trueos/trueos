@@ -1973,7 +1973,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 	@cd ${KSTAGEDIR}/${DISTDIR} ; \
 	env -i LC_COLLATE=C sort ${KSTAGEDIR}/kernel.meta | \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
-		-v kernel=yes -v _kernconf=${INSTALLKERNEL} ; \
+		-v kernel=yes -v _kernconf=${INSTALLKERNEL}${flavor} ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
 		-e "s/%BASENAME%/${PKG_BASENAME}/" \
 		-e "s/%PKGNAME%/kernel-${INSTALLKERNEL:tl}${flavor}/" \
