@@ -272,7 +272,16 @@
       {
         "chroot":true,
         "command":"ln -s /.rnd /var/tmp/.rnd"
+      },
+      {
+        "chroot":true,
+        "command":"rm -rf /tmp"
+      },
+      {
+        "chroot":true,
+        "command":"ln -fs /tmp /var/tmp"
       }
+
     ]
   },
   "os_name":"FreeNAS",
