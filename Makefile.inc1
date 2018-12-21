@@ -1920,10 +1920,12 @@ create-world-package-${pkgname}: .PHONY
 		' ${WSTAGEDIR}/${pkgname}.ucl
 	@if [ "${pkgname}" = "runtime" ]; then \
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
-		echo "@config(root,wheel,0644,) /etc/mail/freebsd.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
-		echo "@config(root,wheel,0644,) /etc/mail/freebsd.submit.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
-		echo "@config(root,wheel,0644,) /etc/mail/sendmail.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
-		echo "@config(root,wheel,0644,) /etc/mail/submit.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
+		if [ -e "${WSTAGEDIR}/etc/mail/freebsd.cf" ] ; then \
+			echo "@config(root,wheel,0644,) /etc/mail/freebsd.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
+			echo "@config(root,wheel,0644,) /etc/mail/freebsd.submit.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
+			echo "@config(root,wheel,0644,) /etc/mail/sendmail.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
+			echo "@config(root,wheel,0644,) /etc/mail/submit.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
+		fi ; \
 	fi
 	@cat ${WSTAGEDIR}/${pkgname}.plist | uniq > ${WSTAGEDIR}/${pkgname}.plist.new; \
 		mv ${WSTAGEDIR}/${pkgname}.plist.new ${WSTAGEDIR}/${pkgname}.plist;
