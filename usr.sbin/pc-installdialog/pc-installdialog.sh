@@ -43,6 +43,12 @@ PIJSON="/root/post-install-commands.json"
 # Default swapsize in MB
 SWAPSIZE="2000"
 
+# Default boot pool name
+POOLNAME="tank"
+
+# Set location of default TrueOS Manifest
+TRUEOS_MANIFEST="/root/trueos-manifest.json"
+
 # Displays the exit message and return to start menu
 exit_to_menu()
 {
@@ -907,6 +913,9 @@ gen_pc-sysinstall_cfg()
    echo "# Set the ZFS blocksize (ashift)" >> ${CFGFILE}
    echo "ashift=${ASHIFTSIZE}"
 
+   # Set the default pool name
+   echo "zpoolName=${POOLNAME}"
+
    # Now do the disk block
    echo "" >> ${CFGFILE}
    echo "# Disk Setup for $SYSDISK" >> ${CFGFILE}
@@ -1092,6 +1101,20 @@ start_menu_loop()
   exit 0
 }
 
+# Load default settings from TrueOS Manifest
+load_manifest_defaults()
+{
+	# Check if default pool name is specified
+	newpool=$(jq -r '."iso"."pool"."name"' ${TRUEOS_MANIFEST})
+	if [ -n "$newpool" -a "$newpool" != "null" ] ; then
+		POOLNAME="$newpool"
+	fi
+
+}
+
+if [ -e "$TRUEOS_MANIFEST" ] ; then
+	load_manifest_defaults
+fi
 
 
 if [ -e "$CFGFILE" ] ; then

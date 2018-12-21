@@ -215,6 +215,7 @@ disc1:
 	rm ${.OBJDIR}/${.TARGET}/*.ucl
 	rm ${.OBJDIR}/${.TARGET}/*.plist
 	mkdir -p ${.OBJDIR}/${.TARGET}/usr/local/
+	cp ${TRUEOS_MANIFEST} ${.OBJDIR}/${.TARGET}/root/trueos-manifest.json
 
 # Need a kernel since worldstage doesn't include one
 	cd ${WORLDDIR} && ${IMAKE} installkernel \
