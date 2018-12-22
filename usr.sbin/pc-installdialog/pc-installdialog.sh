@@ -905,9 +905,6 @@ gen_pc-sysinstall_cfg()
       fi
    fi
 
-   # Make freenas-boot default pool name
-   echo "zpoolName=freenas-boot"
-
    # Set the ashift size
    echo "" >> ${CFGFILE}
    echo "# Set the ZFS blocksize (ashift)" >> ${CFGFILE}
