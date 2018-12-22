@@ -34,7 +34,7 @@
 			"sysutils/ipmitool",
 			"sysutils/dmidecode",
 			"sysutils/tmux",
-			"graphics/drm-next-kmod",
+			"graphics/drm-current-kmod",
 			"x11/nvidia-driver"
 		]
 	}
@@ -52,7 +52,7 @@
 	},
 	"dist-packages":{
 		  "default":[
-			"graphics/drm-next-kmod",
+			"graphics/drm-current-kmod",
 			"x11/nvidia-driver"
 		]
 	},
