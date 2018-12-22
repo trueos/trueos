@@ -480,15 +480,17 @@ check_essential_pkgs()
 	do
 
 		if [ ! -d "${POUDRIERE_PORTDIR}/${i}" ] ; then
-			echo "Invalid PORT: $i"
-			continue
+			echo "WARNING: Invalid PORT: $i"
+			_missingpkglist="${_missingpkglist} ${i}"
+			haveWarn=1
 		fi
 
 		# Get the pkgname
 		unset pkgName
 		pkgName=$(make -C ${POUDRIERE_PORTDIR}/${i} -V PKGNAME PORTSDIR=${POUDRIERE_PORTDIR} __MAKE_CONF=${OBJDIR}/poudriere.d/${POUDRIERE_BASE}-${POUDRIERE_PORTS}-make.conf)
 		if [ -z "${pkgName}" ] ; then
-			echo "Could not get PKGNAME for ${i}"
+			echo "WARNING: Could not get PKGNAME for ${i}"
+			_missingpkglist="${_missingpkglist} ${i}"
 			haveWarn=1
 		fi
 
