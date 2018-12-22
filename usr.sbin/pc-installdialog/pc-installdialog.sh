@@ -908,10 +908,11 @@ gen_pc-sysinstall_cfg()
    # Set the ashift size
    echo "" >> ${CFGFILE}
    echo "# Set the ZFS blocksize (ashift)" >> ${CFGFILE}
-   echo "ashift=${ASHIFTSIZE}"
+   echo "ashift=${ASHIFTSIZE}" >> ${CFGFILE}
 
    # Set the default pool name
-   echo "zpoolName=${POOLNAME}"
+   echo "# Set the ZFS pool name" >> ${CFGFILE}
+   echo "zpoolName=${POOLNAME}" >> ${CFGFILE}
 
    # Now do the disk block
    echo "" >> ${CFGFILE}
