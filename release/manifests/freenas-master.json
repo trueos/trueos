@@ -228,6 +228,9 @@
     },
     "offline-update":true,
     "overlay": {},
+        "pool": {
+            "name":"freenas-boot"
+    },
     "post-install-commands": [
       {
         "chroot":true,
@@ -271,7 +274,11 @@
       },
       {
         "chroot":true,
-        "command":"ln -s /.rnd /var/tmp/.rnd"
+        "command":"ln -fs /.rnd /var/tmp/.rnd"
+      },
+      {
+        "chroot":false,
+        "command":"zfs destroy freenas-boot/tmp"
       },
       {
         "chroot":true,
