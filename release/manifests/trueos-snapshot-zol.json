@@ -9,16 +9,24 @@
         "sysup": {
           "origin": "sysutils/sysup",
           "version": ">0"
-        }
+        },
+	"zol": {
+	  "origin": "sysutils/zol",
+	  "version": ">0"
+	}
       }
     },
     "name-prefix": "TrueOS",
     "world-flags": {
       "default": [
+        "WITHOUT_ZFS=YES",
+        "MK_ZFS=no"
       ]
     },
     "kernel-flags": {
       "default": [
+        "WITHOUT_ZFS=YES",
+        "MK_ZFS=no"
       ]
     }
   },
@@ -40,6 +48,7 @@
     "install-script": "",
     "iso-packages": {
       "default": [
+	      "sysutils/zol"
       ]
     },
     "overlay": ""
@@ -61,10 +70,10 @@
       "AxxsOeRYAlBFJ4oo2cFVyqkCAwEAAQ==",
       "-----END PUBLIC KEY-----"
     ],
-    "url": "https://pkg.trueos.org/pkg/snapshot/${ABI}/latest"
+    "url": "https://pkg.trueos.org/pkg/snapshot-zol/${ABI}/latest"
   },
   "pkg-repo-name": "TrueOS",
-  "pkg-train-name": "snapshot",
+  "pkg-train-name": "snapshot-zol",
   "ports": {
     "branch": "trueos-master",
     "build": {
