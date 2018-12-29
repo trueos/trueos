@@ -1,0 +1,169 @@
+{
+  "base-packages": {
+    "depends": {
+      "runtime": {
+        "uclcmd": {
+          "origin": "devel/uclcmd",
+          "version": ">0"
+        },
+        "sysup": {
+          "origin": "sysutils/sysup",
+          "version": ">0"
+        }
+      },
+      "runtime-development": {
+        "go": {
+          "origin": "lang/go",
+          "version": ">0"
+        }
+      }
+    },
+    "name-prefix": "GhostBSD"
+  },
+  "iso": {
+    "auto-install-packages": {
+      "default": [
+        "sysutils/ipmitool",
+        "sysutils/dmidecode",
+        "sysutils/tmux"
+      ]
+    },
+    "auto-install-script": "",
+    "dist-packages": {
+      "default": [
+        "sysutils/ipmitool",
+        "sysutils/dmidecode",
+        "sysutils/tmux"
+      ]
+    },
+    "install-script": "",
+    "iso-packages": {
+      "default": [
+        "sysutils/ipmitool",
+        "sysutils/dmidecode",
+        "sysutils/tmux"
+      ]
+    },
+    "overlay": ""
+  },
+  "pkg-repo": {
+    "pubKey": [
+      "-----BEGIN PUBLIC KEY-----",
+      "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAtW5pOKMhxRWb4QmbCnFn",
+      "3Vjt0YIQagcqRGIxnXfMJh8GXBlNas6AQifDH2LZzVIKBfutvIJh8IxMeK56UKT9",
+      "uT9DYW80zd2bz6trx0AmhgXXsxXQVcO+xFA87Y51Qp7GlE2py5z+CS0zhhCJyvQr",
+      "SoyPQWUx5Ydcv0wRk+ZeF0fW/pKd4SnAc5NOC4qBHtlQvOJur4uvBrmmuJ79Yypg",
+      "VYhZiujOjhOVy2XF0lpY3UNF7jC0oCN1tjS9ahJPqAnmVb000rFArpsUvhW+yUBB",
+      "/XwWIfy+LawCYX/crJCCUMjvtprWOTnP6YyKg6emj/nf/noegvKUkxQ5xDg5k4+q",
+      "C/K9Ktp3EfTkDJAZnNifZPwwUxWldysy2uBONHrDdq7IKq55KuIwA0JoFPEQlR5j",
+      "Lmg6B68kyp9+bq0mLk/5hgfhngAVBDhAWiagR5T6JSMZBI8XpBWEtOhdcrwNfZRm",
+      "jPJTnVbYcnLOmrFd5DxkrNQrdaHoKumfTHyzuNdprvrRipF/gLWdS6UVFd30vhTA",
+      "D89ArLTRAXACNtF1P/tiqq8hrjptteUELw5CdJKfNKa7P4OXcoDhCpRprK9w+JsO",
+      "Koa6WWQRaJWy8lldDgAFVT4AgLfshwYd+XEqGbpG2uxWm3v0qtWnqHrR5CU4ukGS",
+      "q+vn5UzJHUb7J1b3nfx0AssCAwEAAQ==",
+      "-----END PUBLIC KEY-----"
+    ],
+    "url": "http://pkg.ghostbsd.org/unstable/${ABI}/latest"
+  },
+  "pkg-repo-name": "GhostBSD",
+  "pkg-train-name": "unstable",
+  "ports": {
+    "branch": "trueos-master",
+    "build": {
+      "default": [
+        "xorg-minimal",
+        "xorg-fonts",
+        "ghostbsd-drivers",
+        "drm-next-kmod",
+        "nvidia-driver",
+        "nvidia-settings",
+        "nvidia-xconfig",
+        "virtualbox-ose-additions",
+        "xrandr",
+        "mesa-demos",
+        "ghostbsd-utils",
+        "cursor-dmz-theme",
+        "freedesktop-sound-theme",
+        "fusefs-ntfs",
+        "fusefs-ext4fuse",
+        "fusefs-simple-mtpfs",
+        "dpkg",
+        "gawk",
+        "git",
+        "nano",
+        "rsync",
+        "vim",
+        "wmctrl",
+        "ssft",
+        "inxi",
+        "transmission-gtk",
+        "zenity",
+        "cups",
+        "cups-smb-backend",
+        "cups-filters",
+        "gnome-cups-manager",
+        "foomatic-db",
+        "foomatic-db-engine",
+        "foomatic-db-hpijs",
+        "dhcpcd",
+        "firefox-i18n",
+        "thunderbird-i18n",
+        "ghostbsd-bug-report",
+        "ghostbsd-irc",
+        "faac",
+        "gstreamer-plugins-neon",
+        "gstreamer-plugins-soup",
+        "mpg321",
+        "pulseaudio",
+        "pavucontrol",
+        "libreoffice",
+        "dejavu",
+        "fonts-indic",
+        "droid-fonts-ttf",
+        "en-aspell",
+        "en-hunspell",
+        "ghostbsd-icons",
+        "ghostbsd-installed-common-settings",
+        "gksu",
+        "libgksu",
+        "shotwell",
+        "exaile",
+        "gnome-mplayer",
+        "xfburn",
+        "cheese",
+        "hexchat",
+        "pidgin",
+        "gtk-murrine-engine",
+        "gtk3-unico-engine",
+        "gdk-pixbuf2",
+        "ghostbsd-mate-themes",
+        "ghostbsd-wallpapers",
+        "cups-pk-helper",
+        "dconf-editor",
+        "gnome-keyring",
+        "mate",
+        "mate-screensaver",
+        "mate-installed-settings",
+        "mate-live-settings",
+        "station-tweak",
+        "plank",
+        "brisk-menu",
+        "slim",
+        "ghostbsd-slim-theme",
+        "gbi"
+      ]
+    },
+    "build-all": true,
+    "make.conf": {
+      "default": [
+        "MAKE_JOBS_NUMBER_LIMIT=3"
+      ]
+    },
+    "type": "git",
+    "url": "https://github.com/trueos/trueos-ports"
+  },
+  "poudriere-conf": [
+    "NOHANG_TIME=14400"
+  ],
+  "version": "1.0"
+}
