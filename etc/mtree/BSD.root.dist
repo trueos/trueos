@@ -30,6 +30,8 @@
     etc
         X11
         ..
+        authpf
+        ..
         autofs
         ..
         bluetooth
@@ -47,8 +49,6 @@
         gss
 	..
 	init.d
-        ..
-	ldap
         ..
 	local.d
 	..
@@ -73,10 +73,6 @@
             ..
         ..
         pkg
-        ..
-        poudriere.d
-            hooks
-            ..
         ..
         ppp
         ..
@@ -120,8 +116,6 @@
     libexec
 	dhcpcd-hooks
         ..
-        poudriere
-	..
         resolvconf
         ..
 	rc

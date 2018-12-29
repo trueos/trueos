@@ -817,7 +817,7 @@ ffs_mountfs(devvp, mp, td)
 	if ((error = ffs_sbget(devvp, &fs, loc, M_UFSMNT, ffs_use_bread)) != 0)
 		goto out;
 	/* none of these types of check-hashes are maintained by this kernel */
-	fs->fs_metackhash &= ~(CK_INODE | CK_INDIR | CK_DIR);
+	fs->fs_metackhash &= ~(CK_INDIR | CK_DIR);
 	/* no support for any undefined flags */
 	fs->fs_flags &= FS_SUPPORTED;
 	fs->fs_flags &= ~FS_UNCLEAN;
@@ -1692,6 +1692,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	ip->i_ea_refs = 0;
 	ip->i_nextclustercg = -1;
 	ip->i_flag = fs->fs_magic == FS_UFS1_MAGIC ? 0 : IN_UFS2;
+	ip->i_mode = 0; /* ensure error cases below throw away vnode */
 #ifdef QUOTA
 	{
 		int i;

@@ -76,6 +76,10 @@ VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 .endfor
 .endif
 
+# Get world / kernel flags for staging
+WORLD_FLAGS!=	(env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${WORLDDIR}/release/release-trueos.sh world_flags)
+KERNEL_FLAGS!=	(env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${WORLDDIR}/release/release-trueos.sh kernel_flags)
+
 .if !defined(VOLUME_LABEL) || empty(VOLUME_LABEL)
 VOLUME_LABEL=	TrueOS_Install
 .endif
@@ -212,14 +216,15 @@ disc1:
 	rm ${.OBJDIR}/${.TARGET}/*.ucl
 	rm ${.OBJDIR}/${.TARGET}/*.plist
 	mkdir -p ${.OBJDIR}/${.TARGET}/usr/local/
+	cp ${TRUEOS_MANIFEST} ${.OBJDIR}/${.TARGET}/root/trueos-manifest.json
 
 # Need a kernel since worldstage doesn't include one
 	cd ${WORLDDIR} && ${IMAKE} installkernel \
 	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AMD=no MK_AT=no \
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
-	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
+	    MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
-	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
+	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no ${KERNEL_FLAGS} \
 
 #	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 #	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AMD=no MK_AT=no \
@@ -271,10 +276,10 @@ bootonly: packagesystem
 	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AMD=no MK_AT=no \
 	    MK_GAMES=no \
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
-	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
+	    MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
-	    -DDB_FROM_SRC
+	    -DDB_FROM_SRC ${WORLD_FLAGS} ${KERNEL_FLAGS}
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	cp MANIFEST ${.TARGET}/usr/freebsd-dist
@@ -308,7 +313,7 @@ dvd: packagesystem
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
 		MK_TESTS=no MK_DEBUG_FILES=no \
-		-DDB_FROM_SRC
+		-DDB_FROM_SRC ${WORLD_FLAGS} ${KERNEL_FLAGS}
 # Copy base packages
 	mkdir -p ${.TARGET}/dist
 	cp -r $${OBJROOT}repo/* ${.TARGET}/dist

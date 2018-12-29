@@ -4416,9 +4416,7 @@ vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line)
 
 	mtx_assert_(vm_page_lockptr(m), a, file, line);
 }
-#endif
 
-#ifdef INVARIANTS
 void
 vm_page_object_lock_assert(vm_page_t m)
 {
