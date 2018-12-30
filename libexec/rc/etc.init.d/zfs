@@ -9,8 +9,11 @@ depend()
 	keyword -jail -prefix -stop
 }
 
-ZFS="/sbin/zfs"
-ZPOOL="/sbin/zpool"
+PATH="${PATH}:/usr/local/sbin:/usr/local/bin"
+export PATH
+
+ZFS="zfs"
+ZPOOL="zpool"
 ZPOOL_CACHE="/boot/zfs/zpool.cache"
 ZFS_MODULE=zfs
 
