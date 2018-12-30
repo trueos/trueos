@@ -1,23 +1,6 @@
 {
   "base-packages": {
-    "depends": {
-      "runtime": {
-        "uclcmd": {
-          "origin": "devel/uclcmd",
-          "version": ">0"
-        },
-        "sysup": {
-          "origin": "sysutils/sysup",
-          "version": ">0"
-        }
-      },
-      "runtime-development": {
-        "go": {
-          "origin": "lang/go",
-          "version": ">0"
-        }
-      }
-    },
+    "depends": {},
     "name-prefix": "GhostBSD"
   },
   "iso": {
