@@ -16,6 +16,10 @@ depend() {
 	keyword -jail -prefix
 }
 
+if [ -n "$dump_device" ] ; then
+	dumpdev="${dump_device}"
+fi
+
 start() {
 	# Setup any user requested dump device
 	if [ -n "$dumpdev" ]; then

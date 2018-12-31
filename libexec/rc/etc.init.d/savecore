@@ -18,6 +18,10 @@ depend()
 	keyword -jail -prefix
 }
 
+if [ -n "$dump_device" ] ; then
+	dumpdev="${dump_device}"
+fi
+
 start()
 {
 	: ${dump_dir:=/var/crash}
