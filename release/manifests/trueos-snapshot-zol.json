@@ -79,6 +79,7 @@
     "build": {
       "default": [
         "archivers/pigz",
+        "devel/gdb",
         "devel/git",
         "devel/jenkins",
         "dns/mDNSResponder_nss",
