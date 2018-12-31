@@ -274,7 +274,7 @@
       },
       {
         "chroot":true,
-        "command":"ln -fs /.rnd /var/tmp/.rnd"
+        "command":"ln -fs /var/tmp/.rnd /.rnd"
       },
       {
         "chroot":false,
@@ -286,7 +286,7 @@
       },
       {
         "chroot":true,
-        "command":"ln -fs /tmp /var/tmp"
+        "command":"ln -fs /var/tmp /tmp"
       }
 
     ]
