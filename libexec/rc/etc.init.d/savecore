@@ -27,16 +27,16 @@ start()
 	fi
 
 	if [ "$RC_UNAME" = FreeBSD ]; then
-		# Don't quote ${dump_device}, so that if it's unset,
+		# Don't quote ${dumpdev}, so that if it's unset,
 		# savecore will check on the partitions listed in fstab
 		# without errors in the output
-		savecore -C $dump_device >/dev/null
+		savecore -C $dumpdev >/dev/null
 	else
 		ls "$dump_dir"/bsd* > /dev/null 2>&1
 	fi
 	[ $? = 0 ] || return 0
 
-	local sopts="$dump_dir $dump_device"
+	local sopts="$dump_dir $dumpdev"
 	yesno $dump_compress && sopts="-z $sopts"
 	ebegin "Saving kernel core dump in $dump_dir"
 	savecore $sopts >/dev/null
