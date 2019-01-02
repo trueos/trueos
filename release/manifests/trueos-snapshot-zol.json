@@ -82,14 +82,16 @@
         "devel/gdb",
         "devel/git",
         "devel/jenkins",
+        "devel/py-buildbot",
         "dns/mDNSResponder_nss",
+        "editors/vim-console",
         "lang/python",
         "lang/python2",
         "lang/python3",
         "net/rsync",
         "ports-mgmt/poudriere-trueos",
         "ports-mgmt/poudriere-devel",
-        "editors/vim-console"
+	"shells/bash"
       ]
     },
     "build-all": false,
