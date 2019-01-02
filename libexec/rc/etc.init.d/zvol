@@ -9,7 +9,10 @@ depend()
 	keyword -jail -prefix
 }
 
-ZFS="/sbin/zfs"
+PATH="${PATH}:/usr/local/bin:/usr/local/sbin"
+export PATH
+
+ZFS="zfs"
 
 start() {
 	ebegin "Starting ZFS swap"

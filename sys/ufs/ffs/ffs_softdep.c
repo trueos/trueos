@@ -6702,6 +6702,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 		*((struct ufs1_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din1;
 	} else {
+		ffs_update_dinode_ckhash(fs, ip->i_din2);
 		*((struct ufs2_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din2;
 	}
@@ -6957,6 +6958,7 @@ softdep_setup_freeblocks(ip, length, flags)
 		dp2 = ((struct ufs2_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number));
 		ip->i_din2->di_freelink = dp2->di_freelink;
+		ffs_update_dinode_ckhash(fs, ip->i_din2);
 		*dp2 = *ip->i_din2;
 	}
 	/*
@@ -9752,6 +9754,7 @@ clear_unlinked_inodedep(inodedep)
 			dip = (struct ufs2_dinode *)bp->b_data +
 			    ino_to_fsbo(fs, pino);
 			dip->di_freelink = nino;
+			ffs_update_dinode_ckhash(fs, dip);
 		}
 		/*
 		 * If the bwrite fails we have no recourse to recover.  The
@@ -10392,6 +10395,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 
 		inon = TAILQ_NEXT(inodedep, id_unlinked);
 		dp->di_freelink = inon ? inon->id_ino : 0;
+		ffs_update_dinode_ckhash(fs, dp);
 	}
 	/*
 	 * If the bitmap is not yet written, then the allocated
@@ -10553,6 +10557,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 #endif /* INVARIANTS */
 			dp->di_ib[i] = 0;
 		}
+		ffs_update_dinode_ckhash(fs, dp);
 		return;
 	}
 	/*
@@ -10581,6 +10586,7 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 	 */
 	for (; adp; adp = TAILQ_NEXT(adp, ad_next))
 		dp->di_ib[adp->ad_offset - UFS_NDADDR] = 0;
+	ffs_update_dinode_ckhash(fs, dp);
 }
 
 /*
@@ -11619,8 +11625,11 @@ handle_written_inodeblock(inodedep, bp, flags)
 	 * marked dirty so that its will eventually get written back in
 	 * its correct form.
 	 */
-	if (hadchanges)
+	if (hadchanges) {
+		if (fstype == UFS2)
+			ffs_update_dinode_ckhash(inodedep->id_fs, dp2);
 		bdirty(bp);
+	}
 bufwait:
 	/*
 	 * If the write did not succeed, we have done all the roll-forward
@@ -13390,7 +13399,7 @@ softdep_request_cleanup(fs, vp, cred, resource)
 	} else if (resource == FLUSH_BLOCKS_WAIT) {
 		needed = (vp->v_mount->mnt_writeopcount + 2) *
 		    fs->fs_contigsumsize;
-		if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE, 0))
+		if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE))
 			needed += fragstoblks(fs,
 			    roundup((fs->fs_dsize * fs->fs_minfree / 100) -
 			    fs->fs_cstotal.cs_nffree, fs->fs_frag));

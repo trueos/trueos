@@ -48,12 +48,12 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
-SET_DECLARE(logpage, struct logpage_function);
-
 #define LOGPAGE_USAGE							       \
 	"logpage <-p page_id> [-b] [-v vendor] [-x] <controller id|namespace id>\n"  \
 
 #define MAX_FW_SLOTS	(7)
+
+SET_CONCAT_DEF(logpage, struct logpage_function);
 
 const char *
 kv_lookup(const struct kv_name *kv, size_t kv_count, uint32_t key)
@@ -326,13 +326,13 @@ NVME_LOGPAGE(fw,
 static void
 logpage_help(void)
 {
-	struct logpage_function		**f;
+	const struct logpage_function	* const *f;
 	const char 			*v;
 
 	fprintf(stderr, "\n");
 	fprintf(stderr, "%-8s %-10s %s\n", "Page", "Vendor","Page Name");
 	fprintf(stderr, "-------- ---------- ----------\n");
-	for (f = SET_BEGIN(logpage); f < SET_LIMIT(logpage); f++) {
+	for (f = logpage_begin(); f < logpage_limit(); f++) {
 		v = (*f)->vendor == NULL ? "-" : (*f)->vendor;
 		fprintf(stderr, "0x%02x     %-10s %s\n", (*f)->log_page, v, (*f)->name);
 	}
@@ -341,7 +341,7 @@ logpage_help(void)
 }
 
 static void
-logpage(struct nvme_function *nf, int argc, char *argv[])
+logpage(const struct nvme_function *nf, int argc, char *argv[])
 {
 	int				fd;
 	int				log_page = 0, pageflag = false;
@@ -352,7 +352,7 @@ logpage(struct nvme_function *nf, int argc, char *argv[])
 	uint32_t			nsid, size;
 	void				*buf;
 	const char			*vendor = NULL;
-	struct logpage_function		**f;
+	const struct logpage_function	* const *f;
 	struct nvme_controller_data	cdata;
 	print_fn_t			print_fn;
 	uint8_t				ns_smart;
@@ -438,7 +438,7 @@ logpage(struct nvme_function *nf, int argc, char *argv[])
 		 * the page is vendor specific, don't match the print function
 		 * unless the vendors match.
 		 */
-		for (f = SET_BEGIN(logpage); f < SET_LIMIT(logpage); f++) {
+		for (f = logpage_begin(); f < logpage_limit(); f++) {
 			if ((*f)->vendor != NULL && vendor != NULL &&
 			    strcmp((*f)->vendor, vendor) != 0)
 				continue;

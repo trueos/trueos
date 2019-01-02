@@ -46,8 +46,6 @@
         ..
         ipf             mode=0700
         ..
-        ldapd			mode=0700
-		..
 		ntp             uname=ntpd gname=ntpd
         ..
         pkg

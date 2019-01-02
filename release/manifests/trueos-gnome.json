@@ -31,17 +31,11 @@
 	"build-all":true,
 	"build":{
 		  "default":[
-			"www/firefox",
-			"www/chromium",
-			"mail/thunderbird",
 			"sysutils/ipmitool",
 			"sysutils/dmidecode",
-			"sysutils/networkmgr",
 			"sysutils/tmux",
-			"x11/gnome3",
-			"graphics/drm-next-kmod",
-			"x11/nvidia-driver",
-			"x11/xorg"
+			"graphics/drm-current-kmod",
+			"x11/nvidia-driver"
 		]
 	}
 
@@ -58,7 +52,7 @@
 	},
 	"dist-packages":{
 		  "default":[
-			"graphics/drm-next-kmod",
+			"graphics/drm-current-kmod",
 			"x11/nvidia-driver"
 		]
 	},
@@ -67,9 +61,29 @@
 			"mail/thunderbird",
 			"www/firefox",
 			"www/chromium",
-			"sysutils/networkmgr",
+			"net-mgmt/networkmgr",
 			"sysutils/tmux",
-			"x11/gnome3",
+			"x11/gnome3-lite",
+			"deskutils/gucharmap",
+			"deskutils/gnome-characters",
+			"deskutils/gnome-calendar",
+			"graphics/eog",
+			"graphics/eog-plugins",
+			"editors/gedit",
+			"editors/gedit-plugins",
+			"x11/gnome-terminal",
+			"sysutils/brasero",
+			"accessibility/accerciser",
+			"math/gnome-calculator",
+			"deskutils/gnome-utils",
+			"archivers/file-roller",
+			"graphics/evince",
+			"net/vino",
+			"multimedia/totem",
+			"sysutils/gconf-editor",
+			"x11/gdm",
+			"graphics/gnome-color-manager",
+			"multimedia/cheese",
 			"x11/xorg"
 		]
 	},
@@ -83,15 +97,15 @@
 	"post-install-commands": [
 		{
 			"chroot":true,
-			"command":"rc-update add dbus"
+			"command":"rc-update add dbus default"
 		},
 		{
 			"chroot":true,
-			"command":"rc-update add hald"
+			"command":"rc-update add hald default"
 		},
 		{
 			"chroot":true,
-			"command":"rc-update add gdm"
+			"command":"rc-update add gdm default"
 		},
 		{
 			"chroot":false,

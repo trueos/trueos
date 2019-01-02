@@ -16,11 +16,15 @@ depend() {
 	keyword -jail -prefix
 }
 
+if [ -n "$dump_device" ] ; then
+	dumpdev="${dump_device}"
+fi
+
 start() {
 	# Setup any user requested dump device
-	if [ -n "$dump_device" ]; then
-		ebegin "Activating kernel core dump device ($dump_device)"
-		dumpon ${dump_device}
+	if [ -n "$dumpdev" ]; then
+		ebegin "Activating kernel core dump device ($dumpdev)"
+		dumpon ${dumpdev}
 		eend $?
 	fi
 }

@@ -644,7 +644,7 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 		vm_page_xunbusy_hard(m);				\
 } while (0)
 
-#ifdef INVARIANTS
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 void vm_page_object_lock_assert(vm_page_t m);
 #define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	vm_page_object_lock_assert(m)
 void vm_page_assert_pga_writeable(vm_page_t m, uint8_t bits);

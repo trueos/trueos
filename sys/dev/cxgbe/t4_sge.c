@@ -701,8 +701,10 @@ t4_tweak_chip_settings(struct adapter *sc)
 
 	KASSERT(nitems(sge_flbuf_sizes) <= SGE_FLBUF_SIZES,
 	    ("%s: hw buffer size table too big", __func__));
+	t4_write_reg(sc, A_SGE_FL_BUFFER_SIZE0, 4096);
+	t4_write_reg(sc, A_SGE_FL_BUFFER_SIZE1, 65536);
 	for (i = 0; i < min(nitems(sge_flbuf_sizes), SGE_FLBUF_SIZES); i++) {
-		t4_write_reg(sc, A_SGE_FL_BUFFER_SIZE0 + (4 * i),
+		t4_write_reg(sc, A_SGE_FL_BUFFER_SIZE15 - (4 * i),
 		    sge_flbuf_sizes[i]);
 	}
 
@@ -3433,6 +3435,8 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
 	if (vi->ifp->if_capenable & IFCAP_LRO)
 		rxq->iq.flags |= IQ_LRO_ENABLED;
 #endif
+	if (vi->ifp->if_capenable & IFCAP_HWRXTSTMP)
+		rxq->iq.flags |= IQ_RX_TIMESTAMP;
 	rxq->ifp = vi->ifp;
 
 	children = SYSCTL_CHILDREN(oid);

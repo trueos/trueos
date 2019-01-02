@@ -26,7 +26,7 @@ SRCS=	autoload.c \
 	vers.c
 
 CFLAGS+=	-I${.CURDIR}/../loader
-.if ${MK_ZFS} != "no"
+.if ${MK_ZFSBOOT} != "no"
 CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=	-DEFI_ZFS_BOOT
 HAVE_ZFS=	yes

@@ -62,7 +62,7 @@
         "freenas/py-licenselib",
         "freenas/py-middlewared",
         "freenas/swagger-ui",
-        "graphics/drm-next-kmod",
+        "graphics/drm-current-kmod",
         "graphics/cairo",
         "graphics/graphite2",
         "lang/python",

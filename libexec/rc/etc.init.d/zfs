@@ -9,23 +9,28 @@ depend()
 	keyword -jail -prefix -stop
 }
 
-ZFS="/sbin/zfs"
-ZPOOL="/sbin/zpool"
+PATH="${PATH}:/usr/local/sbin:/usr/local/bin"
+export PATH
+
+ZFS="zfs"
+ZPOOL="zpool"
 ZPOOL_CACHE="/boot/zfs/zpool.cache"
 ZFS_MODULE=zfs
 
 checksystem() {
 	if [ ! -c /dev/zfs ]; then
-		if [ ! -x /boot/kernel/zfs.ko ]; then
+		if [ ! -x /boot/kernel/zfs.ko -a ! -x /boot/modules/zfs.ko ]; then
 			eerror "$ZFS_MODULE not found. Is the kernel built with ZFS support"
 			return 1
 		fi
 	fi
-		if [ ! -x $ZPOOL ]; then
+		which -s ${ZPOOL}
+		if [ $? -ne 0 ]; then
 			eerror "$ZPOOL binary not found."
 			return 1
 		fi
-		if [ ! -x $ZFS ]; then
+		which -s ${ZFS}
+		if [ $? -ne 0 ]; then
 			eerror "$ZFS binary not found."
 			return 1
 		fi

@@ -1762,6 +1762,7 @@ dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand | fdt mx25l | fdt n25q
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
 	dependency	"fdt_dtb_file"
 dev/fdt/simplebus.c		optional fdt
+dev/fdt/simple_mfd.c		optional fdt
 dev/fe/if_fe.c			optional fe
 dev/fe/if_fe_pccard.c		optional fe pccard
 dev/filemon/filemon.c		optional filemon
@@ -2517,17 +2518,19 @@ dev/nand/nandsim_swap.c		optional nandsim nand
 dev/nand/nfc_if.m		optional nand
 dev/netmap/if_ptnet.c		optional netmap inet
 dev/netmap/netmap.c		optional netmap
+dev/netmap/netmap_bdg.c		optional netmap
 dev/netmap/netmap_freebsd.c	optional netmap
 dev/netmap/netmap_generic.c	optional netmap
+dev/netmap/netmap_kloop.c	optional netmap
+dev/netmap/netmap_legacy.c	optional netmap
 dev/netmap/netmap_mbq.c		optional netmap
 dev/netmap/netmap_mem2.c	optional netmap
 dev/netmap/netmap_monitor.c	optional netmap
+dev/netmap/netmap_null.c	optional netmap
 dev/netmap/netmap_offloadings.c	optional netmap
 dev/netmap/netmap_pipe.c	optional netmap
 dev/netmap/netmap_pt.c		optional netmap
 dev/netmap/netmap_vale.c	optional netmap
-dev/netmap/netmap_legacy.c	optional netmap
-dev/netmap/netmap_bdg.c		optional netmap
 # compile-with "${NORMAL_C} -Wconversion -Wextra"
 dev/nfsmb/nfsmb.c		optional nfsmb pci
 dev/nge/if_nge.c		optional nge
@@ -2743,6 +2746,11 @@ dev/puc/puc.c			optional puc
 dev/puc/puc_cfg.c		optional puc
 dev/puc/puc_pccard.c		optional puc pccard
 dev/puc/puc_pci.c		optional puc pci
+dev/pwm/pwmc.c			optional pwm
+dev/pwm/pwmbus.c		optional pwm
+dev/pwm/pwm_if.m		optional pwm
+dev/pwm/pwmbus_if.m		optional pwm
+dev/pwm/ofw_pwm.c		optional pwm fdt
 dev/quicc/quicc_core.c		optional quicc
 dev/ral/rt2560.c		optional ral
 dev/ral/rt2661.c		optional ral
@@ -4058,7 +4066,6 @@ libkern/timingsafe_bcmp.c	standard
 libkern/zlib.c			optional crypto | geom_uzip | ipsec | \
 	ipsec_support | mxge | netgraph_deflate | ddb_ctf | gzio
 net/altq/altq_cbq.c		optional altq
-net/altq/altq_cdnr.c		optional altq
 net/altq/altq_codel.c		optional altq
 net/altq/altq_hfsc.c		optional altq
 net/altq/altq_fairq.c		optional altq
@@ -4210,6 +4217,7 @@ netgraph/ng_base.c		optional netgraph
 netgraph/ng_bpf.c		optional netgraph_bpf
 netgraph/ng_bridge.c		optional netgraph_bridge
 netgraph/ng_car.c		optional netgraph_car
+netgraph/ng_checksum.c		optional netgraph_checksum
 netgraph/ng_cisco.c		optional netgraph_cisco
 netgraph/ng_deflate.c		optional netgraph_deflate
 netgraph/ng_device.c		optional netgraph_device
@@ -4771,6 +4779,8 @@ dev/mlx5/mlx5_core/mlx5_vsc.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
 dev/mlx5/mlx5_core/mlx5_wq.c			optional mlx5 pci	\
 	compile-with "${OFED_C}"
+dev/mlx5/mlx5_lib/mlx5_gid.c			optional mlx5 pci	\
+	compile-with "${OFED_C}"
 
 dev/mlx5/mlx5_en/mlx5_en_ethtool.c		optional mlx5en pci inet inet6	\
 	compile-with "${OFED_C}"
@@ -4815,6 +4825,8 @@ crypto/libsodium/randombytes.c	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
 crypto/libsodium/utils.c	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
+opencrypto/ccm-cbc.c		optional crypto
+opencrypto/xform_cbc_mac.c	optional crypto
 rpc/auth_none.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/auth_unix.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfscl | nfsd

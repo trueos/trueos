@@ -93,8 +93,6 @@ DIRDEPS+= \
 	sbin/kldload \
 	sbin/kldstat \
 	sbin/kldunload \
-	sbin/ldapctl \
-	sbin/ldapd \
 	sbin/ldconfig \
 	sbin/md5 \
 	sbin/mdconfig \
