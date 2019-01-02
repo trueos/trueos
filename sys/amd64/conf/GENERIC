@@ -383,3 +383,6 @@ options ALTQ_RIO	# RED In/Out
 options ALTQ_HFSC	# Hierarchical Packet Scheduler (HFSC)
 options ALTQ_PRIQ	# Priority Queuing (PRIQ)
 options ALTQ_NOPCC	# Required for SMP build
+
+# Increase KSTACK_SIZE for our debug builds with ZoL
+options	KSTACK_PAGES=7
