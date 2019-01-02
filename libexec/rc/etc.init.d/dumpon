@@ -24,7 +24,7 @@ start() {
 	# Setup any user requested dump device
 	if [ -n "$dumpdev" ]; then
 		ebegin "Activating kernel core dump device ($dumpdev)"
-		dumpon ${dumpde}
+		dumpon ${dumpdev}
 		eend $?
 	fi
 }
