@@ -82,6 +82,7 @@
         "devel/gdb",
         "devel/git",
         "devel/jenkins",
+        "devel/py-pip",
         "devel/py-buildbot",
         "dns/mDNSResponder_nss",
         "editors/vim-console",
