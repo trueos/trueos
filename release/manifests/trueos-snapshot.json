@@ -37,12 +37,36 @@
     "dist-packages": {
       "default": []
     },
+    "file-name": "TrueOS-Snapshot-x64-%%GITHASH%%-%%DATE%%",
     "install-script": "",
     "iso-packages": {
       "default": [
       ]
     },
-    "overlay": ""
+    "overlay": "",
+    "prune": {
+      "default": [
+	"METALOG",
+	"/usr/local/share/examples",
+        "/usr/local/include",
+        "/usr/bin/cc*",
+        "/usr/bin/clang*",
+        "/usr/bin/cpp",
+        "/usr/bin/cpp",
+        "/usr/bin/c++",
+        "/usr/bin/lldb",
+        "/usr/bin/ld.lld",
+        "/usr/bin/llvm*",
+        "/usr/bin/objdump*",
+        "/usr/bin/svn*",
+	"/usr/lib/clang",
+	"/usr/share/man",
+	"/usr/share/i18n",
+	"/usr/share/openssl/man",
+	"/usr/include",
+	"/usr/lib32"
+      ]
+    }
   },
   "pkg-repo": {
     "pubKey": [
