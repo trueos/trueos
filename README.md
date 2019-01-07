@@ -70,6 +70,12 @@ Since TrueOS uses an external toolchain, an additional step is required before u
 ```
 poudriere jail -c -j trueos -m trueos -v 13.0
 ```
+Checkout the portstree with git.
+
+```
+poudriere ports -c -p default -m git -U https://github.com/trueos/trueos-ports -B trueos-master
+```
+
 and to update jail to the latest trueos snapshot you can use
 ```
 poudriere jail -u -j trueos
