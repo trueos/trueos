@@ -26,6 +26,7 @@
     "auto-install-packages": {
       "default": [
         "ports-mgmt/poudriere",
+	"security/sudo",
         "sysutils/ipmitool",
         "sysutils/dmidecode",
         "sysutils/tmux",
