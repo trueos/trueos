@@ -84,7 +84,7 @@
         "print/cups",
         "print/cups-smb-backend",
         "print/cups-filters",
-        "print/gnome-cups-manager",
+        "print/system-config-printer",
         "print/foomatic-db",
         "print/foomatic-db-engine",
         "print/foomatic-db-hpijs",
