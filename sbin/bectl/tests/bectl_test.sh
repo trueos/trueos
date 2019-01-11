@@ -42,6 +42,20 @@ bectl_create_setup()
 	atf_check zfs create -o mountpoint=/ -o canmount=noauto \
 	    ${zpool}/ROOT/default
 }
+bectl_create_deep_setup()
+{
+	zpool=$1
+	disk=$2
+	mnt=$3
+
+	bectl_create_setup ${zpool} ${disk} ${mnt}
+	atf_check mkdir -p ${root}
+	atf_check -o ignore bectl -r ${zpool}/ROOT mount default ${root}
+	atf_check mkdir -p ${root}/usr
+	atf_check zfs create -o mountpoint=/usr -o canmount=noauto \
+	    ${zpool}/ROOT/default/usr
+	atf_check -o ignore bectl -r ${zpool}/ROOT umount default
+}
 
 bectl_cleanup()
 {
@@ -183,7 +197,7 @@ bectl_mount_body()
 	mount=${cwd}/mnt
 	root=${mount}/root
 
-	bectl_create_setup ${zpool} ${disk} ${mount}
+	bectl_create_deep_setup ${zpool} ${disk} ${mount}
 	atf_check mkdir -p ${root}
 	# Test unmount first...
 	atf_check -o not-empty bectl -r ${zpool}/ROOT mount default ${root}
@@ -246,7 +260,7 @@ bectl_jail_body()
 	if [ ! -f /rescue/rescue ]; then
 		atf_skip "This test requires a rescue binary"
 	fi
-	bectl_create_setup ${zpool} ${disk} ${mount}
+	bectl_create_deep_setup ${zpool} ${disk} ${mount}
 	# Prepare our minimal BE... plop a rescue binary into it
 	atf_check mkdir -p ${root}
 	atf_check -o ignore bectl -r ${zpool}/ROOT mount default ${root}
@@ -254,10 +268,18 @@ bectl_jail_body()
 	atf_check cp /rescue/rescue ${root}/rescue/rescue
 	atf_check bectl -r ${zpool}/ROOT umount default
 
+	# Prepare a second boot environment
+	atf_check -o empty -s exit:0 bectl -r ${zpool}/ROOT create -e default target
+
+	# When a jail name is not explicit, it should match the jail id.
+	atf_check -o empty -s exit:0 bectl -r ${zpool}/ROOT jail -b -o jid=233637 default
+	atf_check -o inline:"233637\n" -s exit:0 -x "jls -j 233637 name"
+	atf_check -o empty -s exit:0 bectl -r ${zpool}/ROOT unjail default
+
 	# Basic command-mode tests, with and without jail cleanup
-	atf_check -o inline:"rescue\n" bectl -r ${zpool}/ROOT \
+	atf_check -o inline:"rescue\nusr\n" bectl -r ${zpool}/ROOT \
 	    jail default /rescue/rescue ls -1
-	atf_check -o inline:"rescue\n" bectl -r ${zpool}/ROOT \
+	atf_check -o inline:"rescue\nusr\n" bectl -r ${zpool}/ROOT \
 	    jail -Uo path=${root} default /rescue/rescue ls -1
 	atf_check [ -f ${root}/rescue/rescue ]
 	atf_check bectl -r ${zpool}/ROOT ujail default
@@ -271,6 +293,11 @@ bectl_jail_body()
 	atf_check bectl -r ${zpool}/ROOT jail -b default
 	atf_check bectl -r ${zpool}/ROOT unjail default
 	atf_check -s not-exit:0 -x "jls | grep -F \"${root}\""
+	# 'unjail' by BE name. Force bectl to lookup jail id by the BE name.
+	atf_check -o empty -s exit:0 bectl -r ${zpool}/ROOT jail -b default
+	atf_check -o empty -s exit:0 bectl -r ${zpool}/ROOT jail -b -o name=bectl_test target
+	atf_check -o empty -s exit:0 bectl -r ${zpool}/ROOT unjail target
+	atf_check -o empty -s exit:0 bectl -r ${zpool}/ROOT unjail default
 	# cannot unjail an unjailed BE (by either command name)
 	atf_check -e ignore -s not-exit:0 bectl -r ${zpool}/ROOT ujail default
 	atf_check -e ignore -s not-exit:0 bectl -r ${zpool}/ROOT unjail default
@@ -281,8 +308,24 @@ bectl_jail_body()
 	atf_check -s not-exit:0 -x "mount | grep -F '${root}'"
 	atf_check bectl -r ${zpool}/ROOT ujail default
 }
+
+# If a test has failed, it's possible that the boot environment hasn't
+# been 'unjail'ed. We want to remove the jail before 'bectl_cleanup'
+# attempts to destroy the zpool.
 bectl_jail_cleanup()
 {
+	for bootenv in "default" "target"; do
+		# mountpoint of the boot environment
+		mountpoint="$(bectl -r bectl_test/ROOT list -H | grep ${bootenv} | awk '{print $3}')"
+
+		# see if any jail paths match the boot environment mountpoint
+		jailid="$(jls | grep ${mountpoint} | awk '{print $1}')"
+
+		if [ -z "$jailid" ]; then
+		       continue;
+		fi
+		jail -r ${jailid}
+	done;
 
 	bectl_cleanup bectl_test
 }

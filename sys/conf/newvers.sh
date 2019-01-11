@@ -202,12 +202,6 @@ if [ -z "${svnversion}" ] && [ -x /usr/bin/svnliteversion ] ; then
 	fi
 fi
 
-for dir in /usr/bin /usr/local/bin; do
-	if [ -x "${dir}/p4" ] && [ -z ${p4_cmd} ] ; then
-		p4_cmd=${dir}/p4
-	fi
-done
-
 if findvcs .git; then
 	for dir in /usr/bin /usr/local/bin; do
 		if [ -x "${dir}/git" ] ; then
@@ -244,21 +238,25 @@ fi
 
 if [ -n "$git_cmd" ] ; then
 	git=`$git_cmd rev-parse --verify --short HEAD 2>/dev/null`
-	svn=`$git_cmd svn find-rev $git 2>/dev/null`
-	if [ -n "$svn" ] ; then
-		svn=" r${svn}"
+	gitsvn=`$git_cmd svn find-rev $git 2>/dev/null`
+	if [ -n "$gitsvn" ] ; then
+		svn=" r${gitsvn}"
 		git="=${git}"
 	else
-		svn=`$git_cmd log --grep '^git-svn-id:' | \
+#		Log searches are limited to 10k commits to speed up failures.
+#		We assume that if a tree is more than 10k commits out-of-sync
+#		with FreeBSD, it has forked the the OS and the SVN rev no
+#		longer matters.
+		gitsvn=`$git_cmd log -n 10000 |
 		    grep '^    git-svn-id:' | head -1 | \
 		    sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
-		if [ -z "$svn" ] ; then
-			svn=`$git_cmd log --format='format:%N' | \
+		if [ -z "$gitsvn" ] ; then
+			gitsvn=`$git_cmd log -n 10000 --format='format:%N' | \
 			     grep '^svn ' | head -1 | \
 			     sed -n 's/^.*revision=\([0-9][0-9]*\).*$/\1/p'`
 		fi
-		if [ -n "$svn" ] ; then
-			svn=" r${svn}"
+		if [ -n "$gitsvn" ] ; then
+			svn=" r${gitsvn}"
 			git="+${git}"
 		else
 			git=" ${git}"
@@ -274,31 +272,12 @@ if [ -n "$git_cmd" ] ; then
 	fi
 fi
 
-if [ -n "$p4_cmd" ] ; then
-	p4version=`cd ${SYSDIR} && $p4_cmd changes -m1 "./...#have" 2>&1 | \
-		awk '{ print $2 }'`
-	case "$p4version" in
-	[0-9]*)
-		p4version=" ${p4version}"
-		p4opened=`cd ${SYSDIR} && $p4_cmd opened ./... 2>&1`
-		case "$p4opened" in
-		File*) ;;
-		//*)
-			p4version="${p4version}+edit"
-			modified=true
-			;;
-		esac
-		;;
-	*)	unset p4version ;;
-	esac
-fi
-
 if [ -n "$hg_cmd" ] ; then
 	hg=`$hg_cmd id 2>/dev/null`
-	svn=`$hg_cmd svn info 2>/dev/null | \
+	hgsvn=`$hg_cmd svn info 2>/dev/null | \
 		awk -F': ' '/Revision/ { print $2 }'`
-	if [ -n "$svn" ] ; then
-		svn=" r${svn}"
+	if [ -n "$hgsvn" ] ; then
+		svn=" r${hgsvn}"
 	fi
 	if [ -n "$hg" ] ; then
 		hg=" ${hg}"
@@ -320,10 +299,10 @@ done
 shift $((OPTIND - 1))
 
 if [ -z "${include_metadata}" ]; then
-	VERINFO="${VERSION}${svn}${git}${hg}${p4version} ${i}"
+	VERINFO="${VERSION}${svn}${git}${hg} ${i}"
 	VERSTR="${VERINFO}\\n"
 else
-	VERINFO="${VERSION} #${v}${svn}${git}${hg}${p4version}: ${t}"
+	VERINFO="${VERSION} #${v}${svn}${git}${hg}: ${t}"
 	VERSTR="${VERINFO}\\n    ${u}@${h}:${d}\\n"
 fi
 
