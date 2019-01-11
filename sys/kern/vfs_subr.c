@@ -156,7 +156,7 @@ SYSCTL_ULONG(_vfs, OID_AUTO, mnt_free_list_batch, CTLFLAG_RW,
  */
 enum vtype iftovt_tab[16] = {
 	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
-	VREG, VNON, VLNK, VNON, VSOCK, VNON, VNON, VBAD,
+	VREG, VNON, VLNK, VNON, VSOCK, VNON, VNON, VNON
 };
 int vttoif_tab[10] = {
 	0, S_IFREG, S_IFDIR, S_IFBLK, S_IFCHR, S_IFLNK,
@@ -1858,7 +1858,7 @@ vtruncbuf(struct vnode *vp, struct ucred *cred, off_t length, int blksize)
 {
 	struct buf *bp, *nbp;
 	int anyfreed;
-	int trunclbn;
+	daddr_t trunclbn;
 	struct bufobj *bo;
 
 	CTR5(KTR_VFS, "%s: vp %p with cred %p and block %d:%ju", __func__,

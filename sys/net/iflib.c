@@ -1617,7 +1617,7 @@ iflib_txsd_alloc(iflib_txq_t txq)
 		    (uintmax_t)sctx->isc_tx_maxsize, nsegments, (uintmax_t)sctx->isc_tx_maxsegsize);
 		goto fail;
 	}
-	if ((if_getcapabilities(ctx->ifc_ifp) & IFCAP_TSO) &
+	if ((if_getcapabilities(ctx->ifc_ifp) & IFCAP_TSO) &&
 	    (err = bus_dma_tag_create(bus_get_dma_tag(dev),
 			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
@@ -4894,7 +4894,7 @@ iflib_device_resume(device_t dev)
 
 	CTX_LOCK(ctx);
 	IFDI_RESUME(ctx);
-	iflib_init_locked(ctx);
+	iflib_if_init_locked(ctx);
 	CTX_UNLOCK(ctx);
 	for (int i = 0; i < NTXQSETS(ctx); i++, txq++)
 		iflib_txq_check_drain(txq, IFLIB_RESTART_BUDGET);

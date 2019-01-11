@@ -2515,11 +2515,16 @@ ufs_vinit(mntp, fifoops, vpp)
 	struct vnode *vp;
 
 	vp = *vpp;
+	ASSERT_VOP_LOCKED(vp, "ufs_vinit");
 	ip = VTOI(vp);
 	vp->v_type = IFTOVT(ip->i_mode);
+	/*
+	 * Only unallocated inodes should be of type VNON.
+	 */
+	if (ip->i_mode != 0 && vp->v_type == VNON)
+		return (EINVAL);
 	if (vp->v_type == VFIFO)
 		vp->v_op = fifoops;
-	ASSERT_VOP_LOCKED(vp, "ufs_vinit");
 	if (ip->i_number == UFS_ROOTINO)
 		vp->v_vflag |= VV_ROOT;
 	*vpp = vp;

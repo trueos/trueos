@@ -20,6 +20,6 @@ SUBDIR.yes+=	pxeldr
 SUBDIR.yes+=	kgzldr
 .endif
 
-SUBDIR.${MK_ZFSBOOT}+=	zfsboot gptzfsboot
+SUBDIR.${MK_LOADER_ZFS}+=	zfsboot gptzfsboot
 
 .include <bsd.subdir.mk>
