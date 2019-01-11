@@ -1054,6 +1054,7 @@ start_edit_menu_loop()
     network) change_networking
 	     ;;
        swap) change_swap
+	     gen_pc-sysinstall_cfg
 	     ;;
        view) more ${CFGFILE}
              rtn
