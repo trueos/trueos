@@ -1262,7 +1262,6 @@ in6_joingroup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr,
 	char			 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
 
-#ifdef INVARIANTS
 	/*
 	 * Sanity: Check scope zone ID was set for ifp, if and
 	 * only if group is scoped to an interface.
@@ -1274,7 +1273,6 @@ in6_joingroup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr,
 		KASSERT(mcaddr->s6_addr16[1] != 0,
 		    ("%s: scope zone ID not set", __func__));
 	}
-#endif
 
 	IN6_MULTI_LOCK_ASSERT();
 	IN6_MULTI_LIST_UNLOCK_ASSERT();
@@ -1316,8 +1314,10 @@ in6_joingroup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr,
 
 out_in6m_release:
 	if (error) {
+		struct epoch_tracker et;
+
 		CTR2(KTR_MLD, "%s: dropping ref on %p", __func__, inm);
-		IF_ADDR_RLOCK(ifp);
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_protospec == inm) {
 				ifma->ifma_protospec = NULL;
@@ -1326,7 +1326,7 @@ out_in6m_release:
 		}
 		in6m_disconnect(inm);
 		in6m_release_deferred(inm);
-		IF_ADDR_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 	} else {
 		*pinm = inm;
 	}
@@ -2812,6 +2812,7 @@ sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 {
 	struct in6_addr			 mcaddr;
 	struct in6_addr			 src;
+	struct epoch_tracker		 et;
 	struct ifnet			*ifp;
 	struct ifmultiaddr		*ifma;
 	struct in6_multi		*inm;
@@ -2866,7 +2867,7 @@ sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 
 	IN6_MULTI_LOCK();
 	IN6_MULTI_LIST_LOCK();
-	IF_ADDR_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET6 ||
 		    ifma->ifma_protospec == NULL)
@@ -2895,7 +2896,7 @@ sysctl_ip6_mcast_filters(SYSCTL_HANDLER_ARGS)
 				break;
 		}
 	}
-	IF_ADDR_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 
 	IN6_MULTI_LIST_UNLOCK();
 	IN6_MULTI_UNLOCK();

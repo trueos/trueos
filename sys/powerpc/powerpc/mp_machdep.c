@@ -186,6 +186,10 @@ cpu_mp_start(void)
 next:
 		error = platform_smp_next_cpu(&cpu);
 	}
+
+#ifdef SMP
+	platform_smp_probe_threads();
+#endif
 }
 
 void
