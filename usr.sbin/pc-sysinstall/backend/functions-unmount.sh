@@ -332,7 +332,9 @@ setup_efi_boot()
     rc_halt "mount -t msdosfs ${EFIPART} ${FSMNT}/boot/efi"
 
     # Copy the .efi file
-    rc_nohalt "mkdir -p ${FSMNT}/boot/efi/efi/boot"
+    rc_nohalt "mkdir -p ${FSMNT}/boot/efi/EFI/BOOT"
+
+    rc_nohalt "kldload efirt"
 
     # Check if efiLoader is specified
     get_value_from_cfg efiLoader
@@ -341,14 +343,31 @@ setup_efi_boot()
 
     if [ -d '/root/refind' -a "$EFILOADER" = "refind" ] ; then
       # We have refind on the install media, lets use that for dual-boot purposes
-      rc_halt "cp /root/refind/refind_x64.efi ${FSMNT}/boot/efi/efi/boot/BOOTx64.efi"
-      rc_halt "cp /root/refind/refind.conf ${FSMNT}/boot/efi/efi/boot/refind.conf"
-      rc_halt "cp -r /root/refind/icons ${FSMNT}/boot/efi/efi/boot/icons"
-      rc_halt "cp ${FSMNT}/boot/boot1.efi ${FSMNT}/boot/efi/efi/boot/bootx64-trueos.efi"
+      rc_halt "cp /root/refind/refind_x64.efi ${FSMNT}/boot/efi/EFI/BOOT/BOOTX64-REFIND.EFI"
+      rc_halt "cp /root/refind/refind.conf ${FSMNT}/boot/efi/EFI/BOOT/REFIND.CONF"
+      rc_halt "cp -r /root/refind/icons ${FSMNT}/boot/efi/EFI/BOOT/ICONS"
+      rc_halt "cp ${FSMNT}/boot/loader.efi ${FSMNT}/boot/efi/EFI/BOOT/BOOTX64-TRUEOS.EFI"
+      EFIFILE="${FSMNT}/boot/efi/EFI/BOOT/BOOTX64-REFIND.EFI"
+      EFILABEL="TrueOS-rEFInd"
     else
       # BSD Loader only
-      rc_halt "cp ${FSMNT}/boot/boot1.efi ${FSMNT}/boot/efi/efi/boot/BOOTx64.efi"
+      rc_halt "cp ${FSMNT}/boot/loader.efi ${FSMNT}/boot/efi/EFI/BOOT/BOOTX64-TRUEOS.EFI"
+      EFIFILE="${FSMNT}/boot/efi/EFI/BOOT/BOOTX64-TRUEOS.EFI"
+      EFILABEL="TrueOS"
     fi
+
+    # Check if this label already exists and delete if so
+    EFINUM=$(efibootmgr | grep $EFILABEL | awk '{print $1}' | sed 's|+||g' | sed 's|*||g')
+    if [ -n "$EFINUM" ] ; then
+	rc_halt "efibootmgr -B -b $EFINUM"
+    fi
+
+    # Create the new EFI entry
+    rc_halt "efibootmgr -c -l $EFIFILE -L $EFILABEL"
+
+    # Setup the new EFI entry as the default
+    EFINUM=$(efibootmgr | grep $EFILABEL | awk '{print $1}' | sed 's|+||g' | sed 's|*||g')
+    rc_halt "efibootmgr -a -b $EFINUM"
 
     # Cleanup
     rc_halt "umount ${FSMNT}/boot/efi"
