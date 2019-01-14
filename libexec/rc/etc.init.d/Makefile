@@ -4,10 +4,10 @@ PACKAGE=runtime
 
 .include <src.opts.mk>
 
-CONFDIR=	/etc/init.d
-CONFGROUP=	CONFS
+FILEDIR=	/etc/init.d
+FILEGROUP=	FILES
 
-CONFS=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd automount \
+FILES=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd automount \
 		automountd autounmountd \
 		bgfsck blacklistd bluetooth bootmisc bootparams bridge bsnmpd bthidd \
 		ccd cfumass cleanvar cleartmp cron ctld \
@@ -26,11 +26,11 @@ CONFS=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd 
 		var watchdogd wpa_supplicant \
 		ypbind ypldap yppasswdd ypserv ypset ypupdated ypxfrd \
 		zfs zfsd zvol
-CONFSMODE=	755
+FILESMODE=	755
 
 LINKS=		/libexec/rc/sh/functions.sh /etc/init.d/functions.sh
 
-.for fg in ${CONFGROUPS}
+.for fg in ${FILEGROUPS}
 ${fg}MODE?=	${BINMODE}
 .endfor
 
