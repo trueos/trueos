@@ -105,7 +105,6 @@
 # completely subject to change without notice.
 #
 # For more information, see the build(7) manual page.
-#
 
 # This is included so CC is set to ccache for -V, and COMPILER_TYPE/VERSION
 # can be cached for sub-makes. We can't do this while still running on the

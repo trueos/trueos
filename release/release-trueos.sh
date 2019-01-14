@@ -58,7 +58,7 @@ env_check()
 	if [ -z "$TRUEOS_MANIFEST" ] ; then
 		exit_err "Unset TRUEOS_MANIFEST"
 	fi
-	echo "Using TRUEOS_MANIFEST: $TRUEOS_MANIFEST" >&2
+	#echo "Using TRUEOS_MANIFEST: $TRUEOS_MANIFEST" >&2
 	PORTS_TYPE=$(jq -r '."ports"."type"' $TRUEOS_MANIFEST)
 	PORTS_URL=$(jq -r '."ports"."url"' $TRUEOS_MANIFEST)
 	PORTS_BRANCH=$(jq -r '."ports"."branch"' $TRUEOS_MANIFEST)
@@ -819,6 +819,14 @@ check_build_environment()
 
 get_world_flags()
 {
+	if [ -z "$1" ] ; then
+		echo "Missing world flag include temp file location"
+		exit 1
+	fi
+
+	echo "" > $1
+	touch $1
+
 	# Check if we have any world-flags to pass back
 	for c in $(jq -r '."base-packages"."world-flags" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 	do
@@ -826,15 +834,21 @@ get_world_flags()
 		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 		for i in $(jq -r '."base-packages"."world-flags"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 		do
-			WF="$WF ${i}"
+			echo "$i" >> $1
 		done
 	done
-
-	echo "$WF"
 }
 
 get_kernel_flags()
 {
+	if [ -z "$1" ] ; then
+		echo "Missing kernel flag include temp file location"
+		exit 1
+	fi
+
+	echo "" > $1
+	touch $1
+
 	# Check if we have any kernel-flags to pass back
 	for c in $(jq -r '."base-packages"."kernel-flags" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 	do
@@ -842,11 +856,9 @@ get_kernel_flags()
 		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 		for i in $(jq -r '."base-packages"."kernel-flags"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 		do
-			WF="$WF ${i}"
+			echo "$i" >> $1
 		done
 	done
-
-	echo "$WF"
 }
 
 env_check
@@ -863,8 +875,8 @@ case $1 in
 	     ;;
 	check)  check_build_environment
 		check_version ;;
-	world_flags) get_world_flags ;;
-	kernel_flags) get_kernel_flags ;;
+	world_flags) get_world_flags "$2" ;;
+	kernel_flags) get_kernel_flags "$2" ;;
 	*) echo "Unknown option selected" ;;
 esac
 

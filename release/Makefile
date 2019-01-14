@@ -76,9 +76,21 @@ VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 .endfor
 .endif
 
-# Get world / kernel flags for staging
-WORLD_FLAGS!=	(env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${WORLDDIR}/release/release-trueos.sh world_flags)
-KERNEL_FLAGS!=	(env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${WORLDDIR}/release/release-trueos.sh kernel_flags)
+# Set any world/kernel flags from our manifest
+TO_WFLAGS!=		/usr/local/bin/jq -r '."base-packages"."world-flags"' \
+				${TRUEOS_MANIFEST}
+.if ${TO_WFLAGS} != "null"
+TO_WFLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${WORLDDIR}/release/release-trueos.sh world_flags /tmp/.wflags.${.MAKE.PID})
+.include "/tmp/.wflags.${.MAKE.PID}"
+TO_WFLAGS!=	(rm /tmp/.wflags.${.MAKE.PID})
+.endif
+TO_KFLAGS!=		/usr/local/bin/jq -r '."base-packages"."kernel-flags"' \
+				${TRUEOS_MANIFEST}
+.if ${TO_KFLAGS} != "null"
+TO_KFLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${WORLDDIR}/release/release-trueos.sh kernel_flags /tmp/.kflags.${.MAKE.PID})
+.include "/tmp/.kflags.${.MAKE.PID}"
+TO_KFLAGS!=	(rm /tmp/.kflags.${.MAKE.PID})
+.endif
 
 .if !defined(VOLUME_LABEL) || empty(VOLUME_LABEL)
 VOLUME_LABEL=	TrueOS_Install
