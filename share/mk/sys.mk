@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 # Check if TRUEOS_MANIFEST is set, if not use the default
+.if exists(${.CURDIR}/release/release-trueos.sh)
 .if !defined(TRUEOS_MANIFEST)
 TRUEOS_MANIFEST=	${.CURDIR}/release/trueos-manifest.json
 .endif
@@ -31,6 +32,7 @@ TO_KFLAGS!=		/usr/local/bin/jq -r '."base-packages"."kernel-flags"' \
 .if ${TO_KFLAGS} != "null"
 TO_KFLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${.CURDIR}/release/release-trueos.sh kernel_flags /tmp/.kflags.${.MAKE.PID})
 .include "/tmp/.kflags.${.MAKE.PID}"
+.endif
 .endif
 
 unix		?=	We run FreeBSD, not UNIX.
