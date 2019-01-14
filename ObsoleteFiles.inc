@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20181116: Rename test file.
+OLD_FILES+=usr/tests/sys/netinet/reuseport_lb
+# 20181030: malloc_domain(9) KPI change
+OLD_FILES+=usr/share/man/man9/malloc_domain.9.gz
 # 20181025: OpenSSL libraries version bump to avoid conflict with ports
 OLD_LIBS+=lib/libcrypto.so.9
 OLD_LIBS+=usr/lib/libssl.so.9
@@ -56,6 +60,8 @@ OLD_LIBS+=usr/lib32/libcap_pwd.so.0
 OLD_LIBS+=usr/lib32/libcap_random.so.0
 OLD_LIBS+=usr/lib32/libcap_dns.so.0
 OLD_LIBS+=usr/lib32/libcap_syslog.so.0
+# 20181012: rename of ixlv(4) to iavf(4)
+OLD_FILES+=usr/share/man/man4/ixlv.4.gz
 # 20181009: OpenSSL 1.1.1
 OLD_FILES+=usr/include/openssl/des_old.h
 OLD_FILES+=usr/include/openssl/dso.h

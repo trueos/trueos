@@ -1466,6 +1466,7 @@ static int da_retry_count = DA_DEFAULT_RETRY;
 static int da_default_timeout = DA_DEFAULT_TIMEOUT;
 static sbintime_t da_default_softtimeout = DA_DEFAULT_SOFTTIMEOUT;
 static int da_send_ordered = DA_DEFAULT_SEND_ORDERED;
+static int da_disable_wp_detection = 0;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, da, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
@@ -1477,6 +1478,9 @@ SYSCTL_INT(_kern_cam_da, OID_AUTO, default_timeout, CTLFLAG_RWTUN,
            &da_default_timeout, 0, "Normal I/O timeout (in seconds)");
 SYSCTL_INT(_kern_cam_da, OID_AUTO, send_ordered, CTLFLAG_RWTUN,
            &da_send_ordered, 0, "Send Ordered Tags");
+SYSCTL_INT(_kern_cam_da, OID_AUTO, disable_wp_detection, CTLFLAG_RWTUN,
+           &da_disable_wp_detection, 0,
+	   "Disable detection of write-protected disks");
 
 SYSCTL_PROC(_kern_cam_da, OID_AUTO, default_softtimeout,
     CTLTYPE_UINT | CTLFLAG_RW, NULL, 0, dasysctlsofttimeout, "I",
@@ -2002,7 +2006,7 @@ daasync(void *callback_arg, u_int32_t code,
 
 	periph = (struct cam_periph *)callback_arg;
 	switch (code) {
-	case AC_FOUND_DEVICE:
+	case AC_FOUND_DEVICE:	/* callback to create periph, no locking yet */
 	{
 		struct ccb_getdev *cgd;
 		cam_status status;
@@ -2038,7 +2042,7 @@ daasync(void *callback_arg, u_int32_t code,
 				"due to status 0x%x\n", status);
 		return;
 	}
-	case AC_ADVINFO_CHANGED:
+	case AC_ADVINFO_CHANGED:	/* Doesn't touch periph */
 	{
 		uintptr_t buftype;
 
@@ -2061,8 +2065,10 @@ daasync(void *callback_arg, u_int32_t code,
 		ccb = (union ccb *)arg;
 
 		/*
-		 * Handle all UNIT ATTENTIONs except our own,
-		 * as they will be handled by daerror().
+		 * Handle all UNIT ATTENTIONs except our own, as they will be
+		 * handled by daerror(). Since this comes from a different periph,
+		 * that periph's lock is held, not ours, so we have to take it ours
+		 * out to touch softc flags.
 		 */
 		if (xpt_path_periph(ccb->ccb_h.path) != periph &&
 		    scsi_extract_sense_ccb(ccb,
@@ -2090,9 +2096,13 @@ daasync(void *callback_arg, u_int32_t code,
 		}
 		break;
 	}
-	case AC_SCSI_AEN:
+	case AC_SCSI_AEN:		/* Called for this path: periph locked */
+		/*
+		 * Appears to be currently unused for SCSI devices, only ata SIMs
+		 * generate this.
+		 */
+		cam_periph_assert(periph, MA_OWNED);
 		softc = (struct da_softc *)periph->softc;
-		cam_periph_lock(periph);
 		if (!cam_iosched_has_work_flags(softc->cam_iosched, DA_WORK_TUR) &&
 		    (softc->flags & DA_FLAG_TUR_PENDING) == 0) {
 			if (da_periph_acquire(periph, DA_REF_TUR) == 0) {
@@ -2100,31 +2110,28 @@ daasync(void *callback_arg, u_int32_t code,
 				daschedule(periph);
 			}
 		}
-		cam_periph_unlock(periph);
 		/* FALLTHROUGH */
-	case AC_SENT_BDR:
-	case AC_BUS_RESET:
+	case AC_SENT_BDR:		/* Called for this path: periph locked */
+	case AC_BUS_RESET:		/* Called for this path: periph locked */
 	{
 		struct ccb_hdr *ccbh;
 
+		cam_periph_assert(periph, MA_OWNED);
 		softc = (struct da_softc *)periph->softc;
 		/*
 		 * Don't fail on the expected unit attention
 		 * that will occur.
 		 */
-		cam_periph_lock(periph);
 		softc->flags |= DA_FLAG_RETRY_UA;
 		LIST_FOREACH(ccbh, &softc->pending_ccbs, periph_links.le)
 			ccbh->ccb_state |= DA_CCB_RETRY_UA;
-		cam_periph_unlock(periph);
 		break;
 	}
-	case AC_INQ_CHANGED:
-		cam_periph_lock(periph);
+	case AC_INQ_CHANGED:		/* Called for this path: periph locked */
+		cam_periph_assert(periph, MA_OWNED);
 		softc = (struct da_softc *)periph->softc;
 		softc->flags &= ~DA_FLAG_PROBED;
 		dareprobe(periph);
-		cam_periph_unlock(periph);
 		break;
 	default:
 		break;
@@ -2453,6 +2460,11 @@ daprobedone(struct cam_periph *periph, union ccb *ccb)
 		strlcat(buf, ">", sizeof(buf));
 		printf("%s%d: %s\n", periph->periph_name,
 		    periph->unit_number, buf);
+	}
+	if ((softc->disk->d_flags & DISKFLAG_WRITE_PROTECT) != 0 &&
+	    (softc->flags & DA_FLAG_ANNOUNCED) == 0) {
+		printf("%s%d: Write Protected\n", periph->periph_name,
+		    periph->unit_number);
 	}
 
 	/*
@@ -3312,12 +3324,22 @@ out:
 		void  *mode_buf;
 		int    mode_buf_len;
 
+		if (da_disable_wp_detection) {
+			if ((softc->flags & DA_FLAG_CAN_RC16) != 0)
+				softc->state = DA_STATE_PROBE_RC16;
+			else
+				softc->state = DA_STATE_PROBE_RC;
+			goto skipstate;
+		}
 		mode_buf_len = 192;
 		mode_buf = malloc(mode_buf_len, M_SCSIDA, M_NOWAIT);
 		if (mode_buf == NULL) {
 			xpt_print(periph->path, "Unable to send mode sense - "
 			    "malloc failure\n");
-			softc->state = DA_STATE_PROBE_RC;
+			if ((softc->flags & DA_FLAG_CAN_RC16) != 0)
+				softc->state = DA_STATE_PROBE_RC16;
+			else
+				softc->state = DA_STATE_PROBE_RC;
 			goto skipstate;
 		}
 		scsi_mode_sense_len(&start_ccb->csio,

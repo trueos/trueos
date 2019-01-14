@@ -94,7 +94,7 @@ r92cu_postattach(struct rtwn_softc *sc)
 }
 
 static void
-r92cu_set_name(struct rtwn_softc *sc)
+r92cu_set_name(struct rtwn_softc *sc, uint8_t *buf)
 {
 	struct r92c_softc *rs = sc->sc_priv;
 
@@ -124,7 +124,7 @@ r92cu_attach_private(struct rtwn_softc *sc)
 	rs->rs_tx_enable_ampdu		= r92c_tx_enable_ampdu;
 	rs->rs_tx_setup_hwseq		= r92c_tx_setup_hwseq;
 	rs->rs_tx_setup_macid		= r92c_tx_setup_macid;
-	rs->rs_set_name			= r92cu_set_name;
+	rs->rs_set_rom_opts		= r92cu_set_name;
 
 #ifndef RTWN_WITHOUT_UCODE
 	rs->rs_c2h_timeout		= hz;
@@ -168,7 +168,7 @@ r92cu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_get_rx_stats		= r92c_get_rx_stats;
 	sc->sc_get_rssi_cck		= r92c_get_rssi_cck;
 	sc->sc_get_rssi_ofdm		= r92c_get_rssi_ofdm;
-	sc->sc_classify_intr		= r92cu_classify_intr;
+	sc->sc_classify_intr		= r92c_classify_intr;
 	sc->sc_handle_tx_report		= rtwn_nop_softc_uint8_int;
 	sc->sc_handle_c2h_report	= rtwn_nop_softc_uint8_int;
 	sc->sc_check_frame		= rtwn_nop_int_softc_mbuf;

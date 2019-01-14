@@ -31,6 +31,7 @@
  */
 
 #include <sys/_bitset.h>
+#include <sys/_domainset.h>
 #include <sys/_task.h>
 
 /* 
@@ -226,7 +227,7 @@ struct uma_keg {
 	struct uma_hash	uk_hash;
 	LIST_HEAD(,uma_zone)	uk_zones;	/* Keg's zones */
 
-	uint32_t	uk_cursor;	/* Domain alloc cursor. */
+	struct domainset_ref uk_dr;	/* Domain selection policy. */
 	uint32_t	uk_align;	/* Alignment mask */
 	uint32_t	uk_pages;	/* Total page count */
 	uint32_t	uk_free;	/* Count of items free in slabs */
@@ -303,6 +304,10 @@ typedef struct uma_klink *uma_klink_t;
 
 struct uma_zone_domain {
 	LIST_HEAD(,uma_bucket)	uzd_buckets;	/* full buckets */
+	long		uzd_nitems;	/* total item count */
+	long		uzd_imax;	/* maximum item count this period */
+	long		uzd_imin;	/* minimum item count this period */
+	long		uzd_wss;	/* working set size estimate */
 };
 
 typedef struct uma_zone_domain * uma_zone_domain_t;
@@ -422,11 +427,12 @@ void uma_large_free(uma_slab_t slab);
 			mtx_init(&(z)->uz_lock, (z)->uz_name,	\
 			    "UMA zone", MTX_DEF | MTX_DUPOK);	\
 	} while (0)
-	    
+
 #define	ZONE_LOCK(z)	mtx_lock((z)->uz_lockptr)
 #define	ZONE_TRYLOCK(z)	mtx_trylock((z)->uz_lockptr)
 #define	ZONE_UNLOCK(z)	mtx_unlock((z)->uz_lockptr)
 #define	ZONE_LOCK_FINI(z)	mtx_destroy(&(z)->uz_lock)
+#define	ZONE_LOCK_ASSERT(z)	mtx_assert((z)->uz_lockptr, MA_OWNED)
 
 /*
  * Find a slab within a hash table.  This is used for OFFPAGE zones to lookup

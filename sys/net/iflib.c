@@ -175,8 +175,6 @@ struct iflib_ctx {
 	struct sx ifc_ctx_sx;
 	struct mtx ifc_state_mtx;
 
-	uint16_t ifc_nhwtxqs;
-
 	iflib_txq_t ifc_txqs;
 	iflib_rxq_t ifc_rxqs;
 	uint32_t ifc_if_flags;
@@ -1642,7 +1640,7 @@ iflib_txsd_alloc(iflib_txq_t txq)
 		    (uintmax_t)sctx->isc_tx_maxsize, nsegments, (uintmax_t)sctx->isc_tx_maxsegsize);
 		goto fail;
 	}
-	if ((if_getcapabilities(ctx->ifc_ifp) & IFCAP_TSO) &
+	if ((if_getcapabilities(ctx->ifc_ifp) & IFCAP_TSO) &&
 	    (err = bus_dma_tag_create(bus_get_dma_tag(dev),
 			       1, 0,			/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
@@ -1771,6 +1769,7 @@ iflib_txq_setup(iflib_txq_t txq)
 {
 	if_ctx_t ctx = txq->ift_ctx;
 	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
+	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	iflib_dma_info_t di;
 	int i;
 
@@ -1784,11 +1783,11 @@ iflib_txq_setup(iflib_txq_t txq)
 	txq->ift_pidx = txq->ift_cidx = txq->ift_npending = 0;
 	txq->ift_size = scctx->isc_ntxd[txq->ift_br_offset];
 
-	for (i = 0, di = txq->ift_ifdi; i < ctx->ifc_nhwtxqs; i++, di++)
+	for (i = 0, di = txq->ift_ifdi; i < sctx->isc_ntxqs; i++, di++)
 		bzero((void *)di->idi_vaddr, di->idi_size);
 
 	IFDI_TXQ_SETUP(ctx, txq->ift_id);
-	for (i = 0, di = txq->ift_ifdi; i < ctx->ifc_nhwtxqs; i++, di++)
+	for (i = 0, di = txq->ift_ifdi; i < sctx->isc_ntxqs; i++, di++)
 		bus_dmamap_sync(di->idi_tag, di->idi_map,
 						BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	return (0);
@@ -2375,6 +2374,7 @@ iflib_stop(if_ctx_t ctx)
 	iflib_txq_t txq = ctx->ifc_txqs;
 	iflib_rxq_t rxq = ctx->ifc_rxqs;
 	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
+	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	iflib_dma_info_t di;
 	iflib_fl_t fl;
 	int i, j;
@@ -2408,13 +2408,14 @@ iflib_stop(if_ctx_t ctx)
 		txq->ift_no_tx_dma_setup = txq->ift_txd_encap_efbig = txq->ift_map_failed = 0;
 		txq->ift_pullups = 0;
 		ifmp_ring_reset_stats(txq->ift_br);
-		for (j = 0, di = txq->ift_ifdi; j < ctx->ifc_nhwtxqs; j++, di++)
+		for (j = 0, di = txq->ift_ifdi; j < sctx->isc_ntxqs; j++, di++)
 			bzero((void *)di->idi_vaddr, di->idi_size);
 	}
 	for (i = 0; i < scctx->isc_nrxqsets; i++, rxq++) {
 		/* make sure all transmitters have completed before proceeding XXX */
 
-		for (j = 0, di = rxq->ifr_ifdi; j < rxq->ifr_nfl; j++, di++)
+		rxq->ifr_cq_gen = rxq->ifr_cq_cidx = rxq->ifr_cq_pidx = 0;
+		for (j = 0, di = rxq->ifr_ifdi; j < sctx->isc_nrxqs; j++, di++)
 			bzero((void *)di->idi_vaddr, di->idi_size);
 		/* also resets the free lists pidx/cidx */
 		for (j = 0, fl = rxq->ifr_fl; j < rxq->ifr_nfl; j++, fl++)
@@ -2973,9 +2974,6 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		pi->ipi_ipproto = ip->ip_p;
 		pi->ipi_flags |= IPI_TX_IPV4;
 
-		if ((sctx->isc_flags & IFLIB_NEED_ZERO_CSUM) && (pi->ipi_csum_flags & CSUM_IP))
-                       ip->ip_sum = 0;
-
 		/* TCP checksum offload may require TCP header length */
 		if (IS_TX_OFFLOAD4(pi)) {
 			if (__predict_true(pi->ipi_ipproto == IPPROTO_TCP)) {
@@ -2992,6 +2990,10 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 			if (IS_TSO4(pi)) {
 				if (__predict_false(ip->ip_p != IPPROTO_TCP))
 					return (ENXIO);
+				/*
+				 * TSO always requires hardware checksum offload.
+				 */
+				pi->ipi_csum_flags |= (CSUM_IP_TCP | CSUM_IP);
 				th->th_sum = in_pseudo(ip->ip_src.s_addr,
 						       ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 				pi->ipi_tso_segsz = m->m_pkthdr.tso_segsz;
@@ -3001,6 +3003,9 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 				}
 			}
 		}
+		if ((sctx->isc_flags & IFLIB_NEED_ZERO_CSUM) && (pi->ipi_csum_flags & CSUM_IP))
+                       ip->ip_sum = 0;
+
 		break;
 	}
 #endif
@@ -3038,9 +3043,7 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 				if (__predict_false(ip6->ip6_nxt != IPPROTO_TCP))
 					return (ENXIO);
 				/*
-				 * The corresponding flag is set by the stack in the IPv4
-				 * TSO case, but not in IPv6 (at least in FreeBSD 10.2).
-				 * So, set it here because the rest of the flow requires it.
+				 * TSO always requires hardware checksum offload.
 				 */
 				pi->ipi_csum_flags |= CSUM_IP6_TCP;
 				th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
@@ -3795,7 +3798,6 @@ _task_fn_tx(void *context)
 	 */
 	if (abdicate)
 		ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
-	ifmp_ring_check_drainage(txq->ift_br, TX_BATCH_SIZE);
 	if (ctx->ifc_flags & IFC_LEGACY)
 		IFDI_INTR_ENABLE(ctx);
 	else {
@@ -4256,18 +4258,13 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		setmask |= (mask & IFCAP_WOL);
 
 		/*
-		 * If we're disabling any RX csum, disable all the ones
-		 * the driver supports.  This assumes all supported are
-		 * enabled.
-		 * 
-		 * Otherwise, if they've changed, enable all of them.
+		 * If any RX csum has changed, change all the ones that
+		 * are supported by the driver.
 		 */
-		if ((setmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) <
-		    (oldmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)))
-			setmask &= ~(IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
-		else if ((setmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) !=
-		    (oldmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)))
-			setmask |= (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6));
+		if (setmask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
+			setmask |= ctx->ifc_softc_ctx.isc_capabilities &
+			    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+		}
 
 		/*
 		 * want to ensure that traffic has stopped before we change any of the flags
@@ -5121,7 +5118,7 @@ iflib_device_resume(device_t dev)
 
 	CTX_LOCK(ctx);
 	IFDI_RESUME(ctx);
-	iflib_init_locked(ctx);
+	iflib_if_init_locked(ctx);
 	CTX_UNLOCK(ctx);
 	for (int i = 0; i < NTXQSETS(ctx); i++, txq++)
 		iflib_txq_check_drain(txq, IFLIB_RESTART_BUDGET);
@@ -5521,11 +5518,12 @@ static void
 iflib_tx_structures_free(if_ctx_t ctx)
 {
 	iflib_txq_t txq = ctx->ifc_txqs;
+	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	int i, j;
 
 	for (i = 0; i < NTXQSETS(ctx); i++, txq++) {
 		iflib_txq_destroy(txq);
-		for (j = 0; j < ctx->ifc_nhwtxqs; j++)
+		for (j = 0; j < sctx->isc_ntxqs; j++)
 			iflib_dma_free(&txq->ift_ifdi[j]);
 	}
 	free(ctx->ifc_txqs, M_IFLIB);

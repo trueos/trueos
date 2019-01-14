@@ -5,13 +5,17 @@ PACKAGE=	tests
 TESTSDIR=       ${TESTSBASE}/sys/netpfil/pf
 TESTS_SUBDIRS+=	ioctl
 
-ATF_TESTS_SH+=	pass_block \
+ATF_TESTS_SH+=	anchor \
+		pass_block \
 		forward \
 		fragmentation \
+		nat \
 		set_tos \
+		rdr \
 		route_to \
 		synproxy \
-		set_skip
+		set_skip \
+		pfsync
 
 ${PACKAGE}FILES+=	utils.subr \
 			echo_inetd.conf \
