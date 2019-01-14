@@ -4,10 +4,12 @@ PACKAGE=runtime
 
 .include <src.opts.mk>
 
-FILEDIR=	/etc/init.d
-FILEGROUP=	FILES
+NO_OBJ=
 
-FILES=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd automount \
+FILESDIR=	/etc/init.d
+FILESMODE=	755
+
+FILES+=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd automount \
 		automountd autounmountd \
 		bgfsck blacklistd bluetooth bootmisc bootparams bridge bsnmpd bthidd \
 		ccd cfumass cleanvar cleartmp cron ctld \
@@ -26,12 +28,7 @@ FILES=          abi accounting adjkerntz amd apm apmd archdep auditd auditdistd 
 		var watchdogd wpa_supplicant \
 		ypbind ypldap yppasswdd ypserv ypset ypupdated ypxfrd \
 		zfs zfsd zvol
-FILESMODE=	755
 
 LINKS=		/libexec/rc/sh/functions.sh /etc/init.d/functions.sh
-
-.for fg in ${FILEGROUPS}
-${fg}MODE?=	${BINMODE}
-.endfor
 
 .include <bsd.prog.mk>
