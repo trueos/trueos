@@ -113,18 +113,14 @@
         "security/sssd",
         "security/sudo",
         "security/stunnel",
-        "security/vault",
         "shells/bash",
         "shells/ksh93",
         "shells/mksh",
         "shells/scponly",
         "shells/zsh",
-        "sysutils/arcconf",
         "sysutils/ataidle",
         "sysutils/beadm",
         "sysutils/cmdwatch",
-        "sysutils/consul",
-        "sysutils/consul-alerts",
         "sysutils/devcpu-data",
         "sysutils/dmidecode",
         "sysutils/e2fsprogs",
@@ -146,7 +142,6 @@
         "sysutils/nut",
         "sysutils/pciutils",
         "sysutils/pv",
-        "sysutils/py-consul",
         "sysutils/screen",
         "sysutils/sedutil",
         "sysutils/sg3_utils",
@@ -175,6 +170,29 @@
     },
     "auto-install-script": "",
     "dist-packages": {},
+    "prune": {
+      "default": [
+	"METALOG",
+	"/usr/local/share/examples",
+        "/usr/local/include",
+        "/usr/bin/cc*",
+        "/usr/bin/clang*",
+        "/usr/bin/cpp",
+        "/usr/bin/cpp",
+        "/usr/bin/c++",
+        "/usr/bin/lldb",
+        "/usr/bin/ld.lld",
+        "/usr/bin/llvm*",
+        "/usr/bin/objdump*",
+        "/usr/bin/svn*",
+	"/usr/lib/clang",
+	"/usr/share/man",
+	"/usr/share/i18n",
+	"/usr/share/openssl/man",
+	"/usr/include",
+	"/usr/lib32"
+      ]
+    },
     "prune-dist-packages": {
       "default" : [
 	  "(FreeNAS-svn-)",
@@ -210,6 +228,9 @@
     },
     "offline-update":true,
     "overlay": {},
+        "pool": {
+            "name":"freenas-boot"
+    },
     "post-install-commands": [
       {
         "chroot":true,
@@ -250,7 +271,24 @@
       {
         "chroot":true,
         "command":"ln -s /usr/local/etc /etc/local"
+      },
+      {
+        "chroot":true,
+        "command":"ln -fs /var/tmp/.rnd /.rnd"
+      },
+      {
+        "chroot":false,
+        "command":"zfs destroy freenas-boot/tmp"
+      },
+      {
+        "chroot":true,
+        "command":"rm -rf /tmp"
+      },
+      {
+        "chroot":true,
+        "command":"ln -fs /var/tmp /tmp"
       }
+
     ]
   },
   "os_name":"FreeNAS",
@@ -272,7 +310,7 @@
       "AxxsOeRYAlBFJ4oo2cFVyqkCAwEAAQ==",
       "-----END PUBLIC KEY-----"
     ],
-    "url": "https://pkg.trueos.org/pkg/freenas/13/unstable/${ABI}/latest"
+    "url": "https://pkg.trueos.org/pkg/freenas/13/unstable"
   },
   "ports": {
     "branch": "freenas/12-stable",
