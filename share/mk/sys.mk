@@ -1,6 +1,38 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
 # $FreeBSD$
 
+# Check if TRUEOS_MANIFEST is set, if not use the default
+.if !defined(TRUEOS_MANIFEST)
+TRUEOS_MANIFEST=	${.CURDIR}/release/trueos-manifest.json
+.endif
+
+# Confirm the file TRUEOS_MANIFEST exists
+.if !exists(${TRUEOS_MANIFEST})
+.error "Missing file TRUEOS_MANIFEST: ${TRUEOS_MANIFEST}"
+.endif
+
+# Validate the version of this manifest and sanity check environment
+.if make(buildworld) || make(buildkernel) || make(packages)
+TM_VERCHECK!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${.CURDIR}/release/release-trueos.sh check >&2 ; echo $$?)
+.if ${TM_VERCHECK} != "0"
+.error Failed environment sanity check!
+.endif
+.endif
+
+# Set any world/kernel flags from our manifest
+TO_WFLAGS!=		/usr/local/bin/jq -r '."base-packages"."world-flags"' \
+				${TRUEOS_MANIFEST}
+.if ${TO_WFLAGS} != "null"
+TO_WFLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${.CURDIR}/release/release-trueos.sh world_flags /tmp/.wflags.${.MAKE.PID})
+.include "/tmp/.wflags.${.MAKE.PID}"
+.endif
+TO_KFLAGS!=		/usr/local/bin/jq -r '."base-packages"."kernel-flags"' \
+				${TRUEOS_MANIFEST}
+.if ${TO_KFLAGS} != "null"
+TO_KFLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${.CURDIR}/release/release-trueos.sh kernel_flags /tmp/.kflags.${.MAKE.PID})
+.include "/tmp/.kflags.${.MAKE.PID}"
+.endif
+
 unix		?=	We run FreeBSD, not UNIX.
 .FreeBSD	?=	true
 
