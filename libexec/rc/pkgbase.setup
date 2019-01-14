@@ -17,7 +17,7 @@ if [ "$(jq -r '."pkg-train-name" | length' ${TM})" != "0" ]; then
 	TRAINNAME=`jq -r '."pkg-train-name"' ${TM}`
 fi
 # Do the first-time setup of package repo
-if [ ! -e "${PKG_ROOTDIR}/etc/pkg/${REPONAME}.conf" ] ; then
+if [ ! -e "${PKG_ROOTDIR}/etc/pkg/Train.conf" ] ; then
 
 	# Do Setup for pkg repo
 	TM_PUBKEY="none"
