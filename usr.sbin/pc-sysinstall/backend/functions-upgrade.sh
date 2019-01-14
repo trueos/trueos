@@ -56,6 +56,24 @@ mount_zpool_upgrade()
 
   rc_halt "mount -t zfs ${BEDATASET} ${FSMNT}"
 
+  # Check the boot mode we are using {pc|efi}
+  if [ "$BOOTMODE" = "UEFI" ]; then
+    # Build list of disks to update EFI on later
+    for part in $(zpool status ${ZPOOLCUSTOMNAME} | grep ONLINE | awk '{print $1}')
+    do
+	    disk=$(echo $part | cut -d 'p' -f 1)
+	    gpart show ${disk} >/dev/null 2>/dev/null
+	    if [ $? -eq 0 ] ; then
+
+		if [ -z "${EFI_POST_SETUP}" ] ; then
+			EFI_POST_SETUP="${disk}"
+		else
+			EFI_POST_SETUP="${EFI_POST_SETUP} ${disk}"
+		fi
+	    fi
+    done
+  fi
+
 };
 
 # Function which unmounts all the mounted file-systems

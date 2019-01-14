@@ -403,6 +403,9 @@ extern struct	acpi_parse_resource_set acpi_res_parse_set;
 
 int		acpi_identify(void);
 void		acpi_config_intr(device_t dev, ACPI_RESOURCE *res);
+#ifdef INTRNG
+int		acpi_map_intr(device_t dev, u_int irq, ACPI_HANDLE handle);
+#endif
 ACPI_STATUS	acpi_lookup_irq_resource(device_t dev, int rid,
 		    struct resource *res, ACPI_RESOURCE *acpi_res);
 ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
@@ -521,6 +524,15 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 #define	KTR_ACPI		KTR_DEV
 
 SYSCTL_DECL(_debug_acpi);
+
+/*
+ * Parse and use proximity information in SRAT and SLIT.
+ */
+int		acpi_pxm_init(int ncpus, vm_paddr_t maxphys);
+void		acpi_pxm_parse_tables(void);
+void		acpi_pxm_set_mem_locality(void);
+void		acpi_pxm_set_cpu_locality(void);
+void		acpi_pxm_free(void);
 
 /*
  * Map a PXM to a VM domain.

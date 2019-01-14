@@ -75,6 +75,7 @@ _LIBRARIES=	\
 		cam \
 		casper \
 		cap_dns \
+		cap_fileargs \
 		cap_grp \
 		cap_pwd \
 		cap_random \
@@ -146,7 +147,6 @@ _LIBRARIES=	\
 		pcap \
 		pcsclite \
 		pjdlog \
-		pkg \
 		pmc \
 		proc \
 		procstat \
@@ -244,6 +244,7 @@ _DP_cam=	sbuf
 _DP_kvm=	elf
 _DP_casper=	nv
 _DP_cap_dns=	nv
+_DP_cap_fileargs=	nv
 _DP_cap_grp=	nv
 _DP_cap_pwd=	nv
 _DP_cap_random=	nv
@@ -335,8 +336,6 @@ _DP_stdthreads=	pthread
 _DP_tacplus=	md
 _DP_panel=	ncurses
 _DP_panelw=	ncursesw
-_DP_pkg=	sbuf crypto ssl util elf archive jail z bz2 lzma bsdxml \
-		fetch ucl
 _DP_rpcsec_gss=	gssapi
 _DP_smb=	kiconv
 _DP_ulog=	md

@@ -32,7 +32,7 @@
     "auto-install-script": "",
     "dist-packages": {
       "default": [
-        "graphics/drm-next-kmod",
+        "graphics/drm-current-kmod",
         "x11/nvidia-driver"
       ]
     },
@@ -82,6 +82,8 @@
     ],
     "url": "https://pkg.trueos.org/pkg/plasma-unstable/${ABI}/latest"
   },
+  "pkg-repo-name": "TrueOS",
+  "pkg-train-name": "plasma-unstable",
   "ports": {
     "branch": "trueos-master",
     "build": {
@@ -94,7 +96,7 @@
         "sysutils/pc-networkmanager",
         "sysutils/tmux",
         "x11/kde5",
-        "graphics/drm-next-kmod",
+        "graphics/drm-current-kmod",
         "x11/nvidia-driver",
         "x11/sddm",
         "x11/xorg"

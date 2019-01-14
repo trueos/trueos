@@ -29,6 +29,13 @@ S.${MK_LOADER_UBOOT}+=	uboot
 S.yes+=         ${MACHINE}
 .endif
 
+.if exists(${.CURDIR}/${MACHINE}/conf/GENERIC.hints)
+LINKS=	boot/GENERIC.hints boot/device.hints
+FILES+= ${SRCTOP}/sys/${MACHINE}/conf/GENERIC.hints
+FILESDIR=	/boot
+FILESMODE=	444
+.endif
+
 # Build the actual subdir list from S.yes, adding in the 32-bit
 # variant if necessary.
 .for _x in ${S.yes}
@@ -37,5 +44,7 @@ SUBDIR+=${_x}
 SUBDIR+=${_x}32
 .endif
 .endfor
+
+SUBDIR+=	hints
 
 .include <bsd.subdir.mk>

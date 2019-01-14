@@ -58,11 +58,14 @@ env_check()
 	if [ -z "$TRUEOS_MANIFEST" ] ; then
 		exit_err "Unset TRUEOS_MANIFEST"
 	fi
-	echo "Using TRUEOS_MANIFEST: $TRUEOS_MANIFEST" >&2
+	#echo "Using TRUEOS_MANIFEST: $TRUEOS_MANIFEST" >&2
 	PORTS_TYPE=$(jq -r '."ports"."type"' $TRUEOS_MANIFEST)
 	PORTS_URL=$(jq -r '."ports"."url"' $TRUEOS_MANIFEST)
 	PORTS_BRANCH=$(jq -r '."ports"."branch"' $TRUEOS_MANIFEST)
 
+	if [ -z "${TRUEOS_VERSION}" ] ; then
+		TRUEOS_VERSION=$(jq -r '."os_version"' $TRUEOS_MANIFEST)
+	fi
 	case $PORTS_TYPE in
 		git) if [ -z "$PORTS_BRANCH" ] ; then
 			exit_err "Empty ports.branch!"
@@ -477,15 +480,17 @@ check_essential_pkgs()
 	do
 
 		if [ ! -d "${POUDRIERE_PORTDIR}/${i}" ] ; then
-			echo "Invalid PORT: $i"
-			continue
+			echo "WARNING: Invalid PORT: $i"
+			_missingpkglist="${_missingpkglist} ${i}"
+			haveWarn=1
 		fi
 
 		# Get the pkgname
 		unset pkgName
 		pkgName=$(make -C ${POUDRIERE_PORTDIR}/${i} -V PKGNAME PORTSDIR=${POUDRIERE_PORTDIR} __MAKE_CONF=${OBJDIR}/poudriere.d/${POUDRIERE_BASE}-${POUDRIERE_PORTS}-make.conf)
 		if [ -z "${pkgName}" ] ; then
-			echo "Could not get PKGNAME for ${i}"
+			echo "WARNING: Could not get PKGNAME for ${i}"
+			_missingpkglist="${_missingpkglist} ${i}"
 			haveWarn=1
 		fi
 
@@ -604,11 +609,11 @@ cp_iso_pkgs()
 			do
 				if [ -z "${i}" ] ; then continue; fi
 				if [ "${ptype}" = "prune-dist-packages" ] ; then
-					echo "Scanning for packages to prune: ${i}*.txz , Dir: ${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/All"
-					for prune in `ls ${OBJDIR}/disc1/${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/All | grep -i -e "${i}*.txz"`
+					echo "Scanning for packages to prune: ${i}"
+					for prune in `ls ${OBJDIR}/${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/All | grep -E "${i}"`
 					do
 						echo "Pruning image dist-file: $prune"
-						rm "${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/${prune}"
+						rm "${OBJDIR}/${TARGET_DIR}/${ABI_DIR}/${PKG_VERSION}/All/${prune}"
 					done
 					
 				else
@@ -682,7 +687,7 @@ EOF
 	# Assemble the list of base packages to ignore (as a Regex)
 	local _base_ignore=""
 	if [ "$(jq -r '."iso"."ignore-base-packages" | length' ${TRUEOS_MANIFEST})" != "0" ] ; then
-		_base_ignore=`jq -r '."iso".""ignore-base-packages" | join("|")' ${TRUEOS_MANIFEST}`
+		_base_ignore=`jq -r '."iso"."ignore-base-packages" | join("|")' ${TRUEOS_MANIFEST}`
 	fi
 	# Check for explict pkgs to install, minus development, debug, and profile
 	echo "Installing base packages into ISO:"
@@ -814,6 +819,14 @@ check_build_environment()
 
 get_world_flags()
 {
+	if [ -z "$1" ] ; then
+		echo "Missing world flag include temp file location"
+		exit 1
+	fi
+
+	echo "" > $1
+	touch $1
+
 	# Check if we have any world-flags to pass back
 	for c in $(jq -r '."base-packages"."world-flags" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 	do
@@ -821,15 +834,21 @@ get_world_flags()
 		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 		for i in $(jq -r '."base-packages"."world-flags"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 		do
-			WF="$WF ${i}"
+			echo "$i" >> $1
 		done
 	done
-
-	echo "$WF"
 }
 
 get_kernel_flags()
 {
+	if [ -z "$1" ] ; then
+		echo "Missing kernel flag include temp file location"
+		exit 1
+	fi
+
+	echo "" > $1
+	touch $1
+
 	# Check if we have any kernel-flags to pass back
 	for c in $(jq -r '."base-packages"."kernel-flags" | keys[]' ${TRUEOS_MANIFEST} 2>/dev/null | tr -s '\n' ' ')
 	do
@@ -837,11 +856,9 @@ get_kernel_flags()
 		if [ -z "$CHECK" -a "$c" != "default" ] ; then continue; fi
 		for i in $(jq -r '."base-packages"."kernel-flags"."'$c'" | join(" ")' ${TRUEOS_MANIFEST})
 		do
-			WF="$WF ${i}"
+			echo "$i" >> $1
 		done
 	done
-
-	echo "$WF"
 }
 
 env_check
@@ -858,8 +875,8 @@ case $1 in
 	     ;;
 	check)  check_build_environment
 		check_version ;;
-	world_flags) get_world_flags ;;
-	kernel_flags) get_kernel_flags ;;
+	world_flags) get_world_flags "$2" ;;
+	kernel_flags) get_kernel_flags "$2" ;;
 	*) echo "Unknown option selected" ;;
 esac
 

@@ -498,8 +498,6 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	struct nvme_completion_poll_status	status;
 	int                                     res;
 	int					unit;
-	uint16_t				oncs;
-	uint8_t					dsm;
 	uint8_t					flbas_fmt;
 	uint8_t					vwc_present;
 
@@ -516,6 +514,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	case 0x09538086:		/* Intel DC PC3500 */
 	case 0x0a538086:		/* Intel DC PC3520 */
 	case 0x0a548086:		/* Intel DC PC4500 */
+	case 0x0a558086:		/* Dell Intel P4600 */
 		if (ctrlr->cdata.vs[3] != 0)
 			ns->stripesize =
 			    (1 << ctrlr->cdata.vs[3]) * ctrlr->min_page_size;
@@ -535,11 +534,11 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	if (!mtx_initialized(&ns->lock))
 		mtx_init(&ns->lock, "nvme ns lock", NULL, MTX_DEF);
 
-	status.done = FALSE;
+	status.done = 0;
 	nvme_ctrlr_cmd_identify_namespace(ctrlr, id, &ns->data,
 	    nvme_completion_poll_cb, &status);
-	while (status.done == FALSE)
-		DELAY(5);
+	while (!atomic_load_acq_int(&status.done))
+		pause("nvme", 1);
 	if (nvme_completion_is_error(&status.cpl)) {
 		nvme_printf(ctrlr, "nvme_identify_namespace failed\n");
 		return (ENXIO);
@@ -569,9 +568,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 		return (ENXIO);
 	}
 
-	oncs = ctrlr->cdata.oncs;
-	dsm = (oncs >> NVME_CTRLR_DATA_ONCS_DSM_SHIFT) & NVME_CTRLR_DATA_ONCS_DSM_MASK;
-	if (dsm)
+	if (nvme_ctrlr_has_dataset_mgmt(&ctrlr->cdata))
 		ns->flags |= NVME_NS_DEALLOCATE_SUPPORTED;
 
 	vwc_present = (ctrlr->cdata.vwc >> NVME_CTRLR_DATA_VWC_PRESENT_SHIFT) &

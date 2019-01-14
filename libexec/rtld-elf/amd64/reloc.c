@@ -138,6 +138,9 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	int r;
 
 	r = -1;
+	symval = 0;
+	def = NULL;
+
 	/*
 	 * The dynamic loader may be called from a thread, we have
 	 * limited amounts of stack available so we cannot use alloca().
@@ -320,7 +323,7 @@ done:
 
 /* Process the PLT relocations. */
 int
-reloc_plt(Obj_Entry *obj)
+reloc_plt(Obj_Entry *obj, int flags __unused, RtldLockState *lockstate __unused)
 {
     const Elf_Rela *relalim;
     const Elf_Rela *rela;

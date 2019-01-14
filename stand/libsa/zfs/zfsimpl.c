@@ -45,6 +45,15 @@ struct zfsmount {
 };
 static struct zfsmount zfsmount __unused;
 
+#define ALLOC_HISTORY_COUNT 16
+#define ALLOC_MASK (ALLOC_HISTORY_COUNT-1)
+static struct alloc_entry {
+	uint32_t ae_size;
+	void * ae_ptr;
+} alloc_history[ALLOC_HISTORY_COUNT];
+static int alloc_index;
+static int alloc_count;
+
 /*
  * List of all vdevs, chained through v_alllink.
  */
@@ -105,13 +114,16 @@ zfs_alloc(size_t size)
 {
 	char *ptr;
 
-	if (zfs_temp_ptr + size > zfs_temp_end) {
+	if (__predict_false(zfs_temp_ptr + size > zfs_temp_end)) {
 		printf("ZFS: out of temporary buffer space\n");
 		for (;;) ;
 	}
 	ptr = zfs_temp_ptr;
 	zfs_temp_ptr += size;
 
+	alloc_history[alloc_index].ae_size = size;
+	alloc_history[alloc_index].ae_ptr = ptr;
+	alloc_index = (alloc_index+1) & ALLOC_MASK;
 	return (ptr);
 }
 
@@ -120,8 +132,16 @@ zfs_free(void *ptr, size_t size)
 {
 
 	zfs_temp_ptr -= size;
-	if (zfs_temp_ptr != ptr) {
+	if (__predict_false(zfs_temp_ptr != ptr)) {
+		struct alloc_entry *ae;
+		int count = MIN(alloc_count, ALLOC_HISTORY_COUNT);
+
 		printf("ZFS: zfs_alloc()/zfs_free() mismatch\n");
+		printf("addr:size\n");
+		for (int i = 0; i < count; i++) {
+			ae = &alloc_history[(alloc_index + i) & ALLOC_MASK];
+			printf("%p:%u\n", ae->ae_ptr, ae->ae_size);
+		}
 		for (;;) ;
 	}
 }

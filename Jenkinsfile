@@ -47,6 +47,7 @@ pipeline {
         sh 'rm -rf /usr/obj${SRCROOT} || true'
       }
     }
+	  
     stage('World') {
       post {
         always {
@@ -60,6 +61,7 @@ pipeline {
         sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildworld >${WORKSPACE}/artifacts/world.log 2>&1'
       }
     }
+	  
     stage('Kernel') {
       post {
         always {
@@ -73,6 +75,7 @@ pipeline {
         sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildkernel >${WORKSPACE}/artifacts/kernel.log 2>&1'
       }
     }
+	  
     stage('Base Packages') {
       post {
         always {
@@ -89,6 +92,7 @@ pipeline {
         sh 'cd ${SRCROOT} && make packages -j 16 -DDB_FROM_SRC >${WORKSPACE}/artifacts/packages.log 2>&1'
       }
     }
+	  
     stage('Release') {
       post {
         always {
@@ -98,6 +102,7 @@ pipeline {
 	  sh 'tail -n 200 ${WORKSPACE}/artifacts/release.log'
         }
       }
+	    
       steps {
         sh 'cd ${SRCROOT}/release && make clean || true'
         sh 'cd ${SRCROOT}/release && make iso >${WORKSPACE}/artifacts/release.log 2>&1'
@@ -107,6 +112,7 @@ pipeline {
       }
     }
   }
+	
   post {
     always {
       archiveArtifacts artifacts: 'artifacts/**', fingerprint: true

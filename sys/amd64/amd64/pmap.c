@@ -5453,8 +5453,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot, vm_page_t mpte, struct rwlock **lockp)
 {
 	struct spglist free;
-	pt_entry_t *pte, PG_V;
-	vm_paddr_t pa;
+	pt_entry_t newpte, *pte, PG_V;
 
 	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
 	    (m->oflags & VPO_UNMANAGED) != 0,
@@ -5544,17 +5543,15 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	pmap_resident_count_inc(pmap, 1);
 
-	pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(pmap, m->md.pat_mode, 0);
+	newpte = VM_PAGE_TO_PHYS(m) | PG_V |
+	    pmap_cache_bits(pmap, m->md.pat_mode, 0);
+	if ((m->oflags & VPO_UNMANAGED) == 0)
+		newpte |= PG_MANAGED;
 	if ((prot & VM_PROT_EXECUTE) == 0)
-		pa |= pg_nx;
-
-	/*
-	 * Now validate mapping with RO protection
-	 */
-	if ((m->oflags & VPO_UNMANAGED) != 0)
-		pte_store(pte, pa | PG_V | PG_U);
-	else
-		pte_store(pte, pa | PG_V | PG_U | PG_MANAGED);
+		newpte |= pg_nx;
+	if (va < VM_MAXUSER_ADDRESS)
+		newpte |= PG_U;
+	pte_store(pte, newpte);
 	return (mpte);
 }
 
@@ -8441,9 +8438,10 @@ pmap_large_unmap(void *svaa, vm_size_t len)
 			KASSERT((va & PDPMASK) == 0,
 			    ("PDPMASK bit set, va %#lx pdpe %#lx pdp %#lx", va,
 			    (u_long)pdpe, pdp));
-			KASSERT(len <= NBPDP,
-			    ("len < NBPDP, sva %#lx va %#lx pdpe %#lx pdp %#lx "
-			    "len %#lx", sva, va, (u_long)pdpe, pdp, len));
+			KASSERT(va + NBPDP <= sva + len,
+			    ("unmap covers partial 1GB page, sva %#lx va %#lx "
+			    "pdpe %#lx pdp %#lx len %#lx", sva, va,
+			    (u_long)pdpe, pdp, len));
 			*pdpe = 0;
 			inc = NBPDP;
 			continue;
@@ -8457,9 +8455,10 @@ pmap_large_unmap(void *svaa, vm_size_t len)
 			KASSERT((va & PDRMASK) == 0,
 			    ("PDRMASK bit set, va %#lx pde %#lx pd %#lx", va,
 			    (u_long)pde, pd));
-			KASSERT(len <= NBPDR,
-			    ("len < NBPDR, sva %#lx va %#lx pde %#lx pd %#lx "
-			    "len %#lx", sva, va, (u_long)pde, pd, len));
+			KASSERT(va + NBPDR <= sva + len,
+			    ("unmap covers partial 2MB page, sva %#lx va %#lx "
+			    "pde %#lx pd %#lx len %#lx", sva, va, (u_long)pde,
+			    pd, len));
 			pde_store(pde, 0);
 			inc = NBPDR;
 			m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pde));

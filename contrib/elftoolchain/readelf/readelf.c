@@ -47,7 +47,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: readelf.c 3580 2017-09-15 23:29:59Z emaste $");
+ELFTC_VCSID("$Id: readelf.c 3649 2018-11-24 03:26:23Z emaste $");
 
 /* Backwards compatability for older FreeBSD releases. */
 #ifndef	STB_GNU_UNIQUE
@@ -4720,7 +4720,7 @@ dump_dwarf_line_decoded(struct readelf *re)
 		    DW_DLV_OK)
 			dir = NULL;
 		printf("CU: ");
-		if (dir && file)
+		if (dir && file && file[0] != '/')
 			printf("%s/", dir);
 		if (file)
 			printf("%s", file);

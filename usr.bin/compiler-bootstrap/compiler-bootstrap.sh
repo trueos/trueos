@@ -29,7 +29,7 @@
 #  SUCH DAMAGE.
 
 # Script to go through and create sym-links to ports version of LLVM
-DEFAULT_LLVM=llvm60
+DEFAULT_LLVM=llvm70
 
 if [ -z "${TRUEOS_MANIFEST}" ] ; then
 	BASEDIR="/usr/local"

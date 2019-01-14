@@ -607,6 +607,7 @@ assign_cpu_ids(void)
 {
 	struct topo_node *node;
 	u_int smt_mask;
+	int nhyper;
 
 	smt_mask = (1u << core_id_shift) - 1;
 
@@ -615,6 +616,7 @@ assign_cpu_ids(void)
 	 * beyond MAXCPU.  CPU 0 is always assigned to the BSP.
 	 */
 	mp_ncpus = 0;
+	nhyper = 0;
 	TOPO_FOREACH(node, &topo_root) {
 		if (node->type != TOPO_TYPE_PU)
 			continue;
@@ -642,6 +644,9 @@ assign_cpu_ids(void)
 			continue;
 		}
 
+		if (cpu_info[node->hwid].cpu_hyperthread)
+			nhyper++;
+
 		cpu_apic_ids[mp_ncpus] = node->hwid;
 		apic_cpuids[node->hwid] = mp_ncpus;
 		topo_set_pu_id(node, mp_ncpus);
@@ -651,6 +656,9 @@ assign_cpu_ids(void)
 	KASSERT(mp_maxid >= mp_ncpus - 1,
 	    ("%s: counters out of sync: max %d, count %d", __func__, mp_maxid,
 	    mp_ncpus));
+
+	mp_ncores = mp_ncpus - nhyper;
+	smp_threads_per_core = mp_ncpus / mp_ncores;
 }
 
 /*
@@ -1071,9 +1079,23 @@ init_secondary_tail(void)
 	/* NOTREACHED */
 }
 
-/*******************************************************************
- * local functions and data
- */
+static void
+smp_after_idle_runnable(void *arg __unused)
+{
+	struct thread *idle_td;
+	int cpu;
+
+	for (cpu = 1; cpu < mp_ncpus; cpu++) {
+		idle_td = pcpu_find(cpu)->pc_idlethread;
+		while (idle_td->td_lastcpu == NOCPU &&
+		    idle_td->td_oncpu == NOCPU)
+			cpu_spinwait();
+		kmem_free((vm_offset_t)bootstacks[cpu], kstack_pages *
+		    PAGE_SIZE);
+	}
+}
+SYSINIT(smp_after_idle_runnable, SI_SUB_SMP, SI_ORDER_ANY,
+    smp_after_idle_runnable, NULL);
 
 /*
  * We tell the I/O APIC code about all the CPUs we want to receive

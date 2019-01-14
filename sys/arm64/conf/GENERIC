@@ -52,7 +52,7 @@ options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	GEOM_RAID		# Soft RAID functionality.
 options 	GEOM_LABEL		# Provides labelization
-options 	COMPAT_FREEBSD32	# Incomplete, but used by cloudabi32.ko.
+options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/arm
 options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
@@ -94,6 +94,7 @@ options 	USB_DEBUG		# enable debug msgs
 options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
 # Warning: KUBSAN can result in a kernel too large for loader to load
 #options 	KUBSAN			# Kernel Undefined Behavior Sanitizer
+#options 	KCOV			# Kernel Coverage Sanitizer
 
 # Kernel dump features.
 options 	EKCD			# Support for encrypted kernel dumps
@@ -107,7 +108,9 @@ options 	SOC_ALLWINNER_H5
 options 	SOC_CAVM_THUNDERX
 options 	SOC_HISI_HI6220
 options 	SOC_BRCM_BCM2837
+options 	SOC_MARVELL_8K
 options 	SOC_ROCKCHIP_RK3328
+options 	SOC_ROCKCHIP_RK3399
 options 	SOC_XILINX_ZYNQ
 
 # Timer drivers
@@ -197,11 +200,13 @@ device		muge
 device		smcphy
 device		smsc
 
-# GPIO
+# GPIO / PINCTRL
 device		aw_gpio		# Allwinner GPIO controller
 device		gpio
 device		gpioled
 device		fdt_pinctrl
+device		mv_gpio		# Marvell GPIO controller
+device		mvebu_pinctrl	# Marvell Pinmux Controller
 
 # I2C
 device		aw_rsb		# Allwinner Reduced Serial Bus
@@ -209,12 +214,16 @@ device		bcm2835_bsc	# Broadcom BCM283x I2C bus
 device		iicbus
 device		iic
 device		twsi		# Allwinner I2C controller
+device		rk_i2c		# RockChip I2C controller
+device		syr827		# Silergy SYR827 PMIC
 
 # Clock and reset controllers
 device		aw_ccu		# Allwinner clock controller
 
 # Interrupt controllers
 device		aw_nmi		# Allwinner NMI support
+device		mv_cp110_icu	# Marvell CP110 ICU
+device		mv_ap806_gicp	# Marvell AP806 GICP
 
 # Real-time clock support
 device		aw_rtc		# Allwinner Real-time Clock
@@ -225,22 +234,33 @@ device		aw_wdog		# Allwinner Watchdog
 
 # Power management controllers
 device		axp81x		# X-Powers AXP81x PMIC
+device		rk805		# RockChip RK805 PMIC
 
 # EFUSE
 device		aw_sid		# Allwinner Secure ID EFUSE
 
 # Thermal sensors
 device		aw_thermal	# Allwinner Thermal Sensor Controller
+device		mv_thermal	# Marvell Thermal Sensor Controller
 
 # SPI
 device		spibus
 device		bcm2835_spi	# Broadcom BCM283x SPI bus
+
+# PWM
+device		pwm
+device		aw_pwm
 
 # Console
 device		vt
 device		kbdmux
 
 device		vt_efifb
+
+# EVDEV support
+device		evdev			# input event device support
+options		EVDEV_SUPPORT		# evdev support in legacy drivers
+device		uinput			# install /dev/uinput cdev
 
 # Pseudo devices.
 device		crypto		# core crypto support
@@ -276,4 +296,4 @@ options 	FDT
 device		acpi
 
 # DTBs
-makeoptions	MODULES_EXTRA="dtb/allwinner"
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/rockchip"

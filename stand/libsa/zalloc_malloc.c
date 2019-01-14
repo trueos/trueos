@@ -56,6 +56,8 @@ Malloc(size_t bytes, const char *file, int line)
     Guard *res;
 
 #ifdef USEENDGUARD
+       if (bytes < (1 << 20))
+               bytes *= 2;
     bytes += MALLOCALIGN + 1;
 #else
     bytes += MALLOCALIGN;
@@ -109,8 +111,10 @@ Free(void *ptr, const char *file, int line)
 	    printf("free: duplicate2 free @ %p from %s:%d\n", ptr, file, line);
 	    return;
 	}
-	if (*((signed char *)res + res->ga_Bytes - 1) != -2)
+	if (*((signed char *)res + res->ga_Bytes - 1) != -2) {
+	    printf("got %d - expected -2\n", *((signed char *)res + res->ga_Bytes - 1) != -2);
 	    panic("free: guard2 fail @ %p + %zu from %s:%d", ptr, res->ga_Bytes - MALLOCALIGN, file, line);
+	}
 	*((signed char *)res + res->ga_Bytes - 1) = -1;
 #endif
 

@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec.h>
 #endif /*IPSEC*/
 
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -258,7 +259,6 @@ main(int argc, char *const *argv)
 	policy_in = policy_out = NULL;
 #endif
 	cap_rights_t rights;
-	bool cansandbox;
 
 	/*
 	 * Do the stuff that we need root priv's for *first*, and
@@ -313,7 +313,7 @@ main(int argc, char *const *argv)
 			break;
 		case 'c':
 			ltmp = strtol(optarg, &ep, 0);
-			if (*ep || ep == optarg || ltmp > LONG_MAX || ltmp <=0)
+			if (*ep || ep == optarg || ltmp <= 0)
 				errx(EX_USAGE,
 				    "invalid count of packets to transmit: `%s'",
 				    optarg);
@@ -612,7 +612,7 @@ main(int argc, char *const *argv)
 	if (capdns != NULL) {
 		const char *types[1];
 
-		types[0] = "ADDR";
+		types[0] = "ADDR2NAME";
 		if (cap_dns_type_limit(capdns, types, 1) < 0)
 			err(1, "unable to limit access to system.dns service");
 	}
@@ -702,27 +702,20 @@ main(int argc, char *const *argv)
 		ip->ip_dst = to->sin_addr;
         }
 
-	if (options & F_NUMERIC)
-		cansandbox = true;
-	else if (capdns != NULL)
-		cansandbox = CASPER_SUPPORT;
-	else
-		cansandbox = false;
-
 	/*
 	 * Here we enter capability mode. Further down access to global
 	 * namespaces (e.g filesystem) is restricted (see capsicum(4)).
 	 * We must connect(2) our socket before this point.
 	 */
-	if (cansandbox && cap_enter() < 0 && errno != ENOSYS)
+	caph_cache_catpages();
+	if (caph_enter_casper() < 0)
 		err(1, "cap_enter");
 
 	cap_rights_init(&rights, CAP_RECV, CAP_EVENT, CAP_SETSOCKOPT);
-	if (cap_rights_limit(srecv, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(srecv, &rights) < 0)
 		err(1, "cap_rights_limit srecv");
-
 	cap_rights_init(&rights, CAP_SEND, CAP_SETSOCKOPT);
-	if (cap_rights_limit(ssend, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(ssend, &rights) < 0)
 		err(1, "cap_rights_limit ssend");
 
 	/* record route option */
@@ -807,14 +800,14 @@ main(int argc, char *const *argv)
 	    sizeof(hold));
 	/* CAP_SETSOCKOPT removed */
 	cap_rights_init(&rights, CAP_RECV, CAP_EVENT);
-	if (cap_rights_limit(srecv, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(srecv, &rights) < 0)
 		err(1, "cap_rights_limit srecv setsockopt");
 	if (uid == 0)
 		(void)setsockopt(ssend, SOL_SOCKET, SO_SNDBUF, (char *)&hold,
 		    sizeof(hold));
 	/* CAP_SETSOCKOPT removed */
 	cap_rights_init(&rights, CAP_SEND);
-	if (cap_rights_limit(ssend, &rights) < 0 && errno != ENOSYS)
+	if (caph_rights_limit(ssend, &rights) < 0)
 		err(1, "cap_rights_limit ssend setsockopt");
 
 	if (to->sin_family == AF_INET) {
@@ -1781,8 +1774,8 @@ capdns_setup(void)
 	cap_close(capcas);
 	if (capdnsloc == NULL)
 		err(1, "unable to open system.dns service");
-	types[0] = "NAME";
-	types[1] = "ADDR";
+	types[0] = "NAME2ADDR";
+	types[1] = "ADDR2NAME";
 	if (cap_dns_type_limit(capdnsloc, types, 2) < 0)
 		err(1, "unable to limit access to system.dns service");
 	families[0] = AF_INET;

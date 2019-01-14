@@ -32,6 +32,16 @@ This document corresponds to version "1.0", so any manifest using this specifica
 
 `"version" : "1.0"`
 
+### Distribution Branding
+There are a couple options which may be set in the manifest in order to "brand" the distribution of TrueOS.
+
+* "os_name" (string) : Branding name for the distribution.
+   * Default Value: "TrueOS"
+   * Will change the branding in pc-installdialog, and the distro branding in the bootloader as well.
+* "os_version" (string) : Custom version tag for the build. 
+   * At build time this will become the "TRUEOS_VERSION" environment variable which can be used in filename expansions and such later (if that environment variable is not already set).
+
+
 ### base-packages
 The "base-packages" target allows the configuration of the OS packages itself. This can involve the naming scheme, build flags, extra dependencies, and more.
 
@@ -104,6 +114,12 @@ The "iso" target within the manifest controls all the options specific to creati
    * "ENV_VARIABLE" (JSON array of strings) : Additional list to be added to the "default" list **if** an environment variable with the same name exists.
 * "offline-update" (boolian) : If set to true will generate a system-update.img file containing ISOs dist files
 * "optional-dist-packages" (JSON object) : Lists of packages (by port origin) to have available in .txz form on the ISO. These ones are considered "optional" and may or may not be included depending on whether the package built successfully.
+   * "default" (JSON array of strings) : Default list (required)
+   * "ENV_VARIABLE" (JSON array of strings) : Additional list to be added to the "default" list **if** an environment variable with the same name exists.
+* "pool" (JSON object) : Settings for boot pool
+ * "name" (string) : Default name of ZFS boot pool
+* "prune-dist-packages" (JSON object) : Lists of *regular expressions* to use to find and remove dist packages. This is useful for forcibly removing particular types of base packages.
+   * Note: The regular expression support is shell based (grep -E "expression"). Lookahead and look
    * "default" (JSON array of strings) : Default list (required)
    * "ENV_VARIABLE" (JSON array of strings) : Additional list to be added to the "default" list **if** an environment variable with the same name exists.
 * "iso-packages" (JSON object) : Lists of packages (by port origin) to install into the ISO (when booting the ISO, these packages will be available to use)
@@ -296,6 +312,7 @@ As part of the build process, the packages can also be automatically assembled i
 
 #### pkg-repo Options
 * "pkg-repo-name" (string) : Short-name for the package repository (default: "TrueOS")
+* "pkg-train-name" (string) : Name for the package repository train used by sysutils/sysup (default: "TrueOS")
 * "pkg-repo" (JSON Object) : Settings for the unified base+ports package repo
    * "url" (string) : Public URL where the repository can be found. (Distro creators will need to setup access for this URL and copy the pkg repo files as needed to make them available at the given location).
    * "pubKey" (JSON Array of strings) : SSL public key to use when verifying integrity of downloaded packages (one line of test per item in the array). This is basically just the plain-text of the SSL public key file converted into an array of strings. 
@@ -305,6 +322,7 @@ As part of the build process, the packages can also be automatically assembled i
 
 ```
 "pkg-repo-name" : "TrueOS",
+"pkg-train-name" : "snapshot",
 "pkg-repo" : {
   "url" : "http://pkg.trueos.org/pkg/release/${ABI}/latest",
   "pubKey : [

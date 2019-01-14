@@ -92,7 +92,6 @@ SUBDIR=	\
 	${_cloudabi32} \
 	${_cloudabi64} \
 	${_cmx} \
-	${_coff} \
 	${_coretemp} \
 	${_cp} \
 	${_cpsw} \
@@ -153,7 +152,6 @@ SUBDIR=	\
 	i2c \
 	${_iavf} \
         ${_ibcore} \
-	${_ibcs2} \
 	${_ichwd} \
 	${_ida} \
 	if_bridge \
@@ -250,8 +248,8 @@ SUBDIR=	\
 	${_mly} \
 	mmc \
 	mmcsd \
-	mpr \
-	mps \
+	${_mpr} \
+	${_mps} \
 	mpt \
 	mqueue \
 	mrsas \
@@ -523,6 +521,13 @@ _rtwnfw=	rtwnfw
 _cxgbe=		cxgbe
 .endif
 
+# These rely on 64bit atomics
+.if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "powerpcspe" && \
+	${MACHINE_CPUARCH} != "mips"
+_mps=		mps
+_mpr=		mpr
+.endif
+
 .if ${MK_TESTS} != "no" || defined(ALL_MODULES)
 SUBDIR+=	tests
 .endif
@@ -744,13 +749,11 @@ _apm=		apm
 .if ${MK_SOURCELESS_UCODE} != "no"
 _ce=		ce
 .endif
-_coff=		coff
 .if ${MK_SOURCELESS_UCODE} != "no"
 _cp=		cp
 .endif
 _glxiic=	glxiic
 _glxsb=		glxsb
-#_ibcs2=		ibcs2
 _pcfclock=	pcfclock
 _pst=		pst
 _sbni=		sbni

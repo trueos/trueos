@@ -15,8 +15,6 @@ CONFS=	DAEMON \
 	addswap \
 	adjkerntz \
 	archdep \
-	auditd \
-	auditdistd \
 	bgfsck \
 	${_blacklistd} \
 	${_bluetooth} \
@@ -164,6 +162,12 @@ APM+=		apmd
 APMPACKAGE=	apm
 .endif
 
+.if ${MK_AUDIT} != "no"
+CONFGROUPS+=	AUDIT
+AUDIT+=		auditd
+AUDIT+=		auditdistd
+.endif
+
 .if ${MK_AUTOFS} != "no"
 CONFS+=		automount
 CONFS+=		automountd
@@ -289,10 +293,6 @@ CONFS+=		routed
 CONFGROUPS+=	SMRCD
 SMRCD=		sendmail
 SMRCDPACKAGE=	sendmail
-.endif
-
-.if ${MK_TIMED} != "no"
-CONFS+=		timed
 .endif
 
 .if ${MK_UNBOUND} != "no"

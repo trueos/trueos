@@ -41,6 +41,7 @@
 #include <sys/malloc.h>
 #include <sys/rwlock.h>
 #include <sys/sx.h>
+#include <sys/vmem.h>
 #include <vm/uma.h>
 
 #include <dev/pci/pcivar.h>
@@ -80,6 +81,8 @@ prefetch(void *x)
 #define sysctl_handle_64 sysctl_handle_quad
 #define CTLTYPE_U64 CTLTYPE_QUAD
 #endif
+
+SYSCTL_DECL(_hw_cxgbe);
 
 struct adapter;
 typedef struct adapter adapter_t;
@@ -171,6 +174,7 @@ enum {
 	DF_DUMP_MBOX		= (1 << 0),	/* Log all mbox cmd/rpl. */
 	DF_LOAD_FW_ANYTIME	= (1 << 1),	/* Allow LOAD_FW after init */
 	DF_DISABLE_TCB_CACHE	= (1 << 2),	/* Disable TCB cache (T6+) */
+	DF_DISABLE_CFG_RETRY	= (1 << 3),	/* Disable fallback config */
 };
 
 #define IS_DOOMED(vi)	((vi)->flags & DOOMED)
@@ -768,6 +772,8 @@ struct devnames {
 	const char *vf_ifnet_name;
 };
 
+struct clip_entry;
+
 struct adapter {
 	SLIST_ENTRY(adapter) link;
 	device_t dev;
@@ -814,6 +820,10 @@ struct adapter {
 	struct port_info *port[MAX_NPORTS];
 	uint8_t chan_map[MAX_NCHAN];		/* channel -> port */
 
+	struct mtx clip_table_lock;
+	TAILQ_HEAD(, clip_entry) clip_table;
+	int clip_gen;
+
 	void *tom_softc;	/* (struct tom_data *) */
 	struct tom_tunables tt;
 	struct t4_offload_policy *policy;
@@ -826,6 +836,7 @@ struct adapter {
 	struct l2t_data *l2t;	/* L2 table */
 	struct smt_data *smt;	/* Source MAC Table */
 	struct tid_info tids;
+	vmem_t *key_map;
 
 	uint8_t doorbells;
 	int offload_map;	/* ports with IFCAP_TOE enabled */

@@ -97,6 +97,9 @@ __FBSDID("$FreeBSD$");
 int old_mlock = 0;
 SYSCTL_INT(_vm, OID_AUTO, old_mlock, CTLFLAG_RWTUN, &old_mlock, 0,
     "Do not apply RLIMIT_MEMLOCK on mlockall");
+static int mincore_mapped = 1;
+SYSCTL_INT(_vm, OID_AUTO, mincore_mapped, CTLFLAG_RWTUN, &mincore_mapped, 0,
+    "mincore reports mappings, not residency");
 
 #ifdef MAP_32BIT
 #define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
@@ -129,14 +132,8 @@ sys_sstk(struct thread *td, struct sstk_args *uap)
 }
 
 #if defined(COMPAT_43)
-#ifndef _SYS_SYSPROTO_H_
-struct getpagesize_args {
-	int dummy;
-};
-#endif
-
 int
-ogetpagesize(struct thread *td, struct getpagesize_args *uap)
+ogetpagesize(struct thread *td, struct ogetpagesize_args *uap)
 {
 
 	td->td_retval[0] = PAGE_SIZE;
@@ -814,7 +811,16 @@ RestartScan:
 		retry:
 			m = NULL;
 			mincoreinfo = pmap_mincore(pmap, addr, &locked_pa);
-			if (locked_pa != 0) {
+			if (mincore_mapped) {
+				/*
+				 * We only care about this pmap's
+				 * mapping of the page, if any.
+				 */
+				if (locked_pa != 0) {
+					vm_page_unlock(PHYS_TO_VM_PAGE(
+					    locked_pa));
+				}
+			} else if (locked_pa != 0) {
 				/*
 				 * The page is mapped by this process but not
 				 * both accessed and modified.  It is also
@@ -985,7 +991,7 @@ kern_mlock(struct proc *proc, struct ucred *cred, uintptr_t addr0, size_t len)
 	unsigned long nsize;
 	int error;
 
-	error = priv_check_cred(cred, PRIV_VM_MLOCK, 0);
+	error = priv_check_cred(cred, PRIV_VM_MLOCK);
 	if (error)
 		return (error);
 	addr = addr0;

@@ -359,9 +359,10 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 		 * The caller did not supply a source address, try to find
 		 * a compatible one among those assigned to this interface.
 		 */
+		struct epoch_tracker et;
 		struct ifaddr *ifa;
 
-		IF_ADDR_RLOCK(ifp);
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
@@ -379,7 +380,7 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 			    IA_MASKSIN(ifa)->sin_addr.s_addr))
 				break;  /* found it. */
 		}
-		IF_ADDR_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 		if (sip == NULL) {
 			printf("%s: cannot find matching address\n", __func__);
 			return;
@@ -433,10 +434,10 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 /*
  * Resolve an IP address into an ethernet address - heavy version.
  * Used internally by arpresolve().
- * We have already checked than  we can't use existing lle without
- * modification so we have to acquire LLE_EXCLUSIVE lle lock.
+ * We have already checked that we can't use an existing lle without
+ * modification so we have to acquire an LLE_EXCLUSIVE lle lock.
  *
- * On success, desten and flags are filled in and the function returns 0;
+ * On success, desten and pflags are filled in and the function returns 0;
  * If the packet must be held pending resolution, we return EWOULDBLOCK
  * On other errors, we return the corresponding error code.
  * Note that m_freem() handles NULL.
@@ -459,9 +460,11 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 		*plle = NULL;
 
 	if ((flags & LLE_CREATE) == 0) {
-		IF_AFDATA_RLOCK(ifp);
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
 		la = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
-		IF_AFDATA_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 	}
 	if (la == NULL && (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		la = lltable_alloc_entry(LLTABLE(ifp), 0, dst);
@@ -573,21 +576,6 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 }
 
 /*
- * Resolve an IP address into an ethernet address.
- */
-int
-arpresolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
-    char *desten, uint32_t *pflags, struct llentry **plle)
-{
-	int error;
-
-	flags |= LLE_ADDRONLY;
-	error = arpresolve_full(ifp, 0, flags, NULL, dst, desten, pflags, plle);
-	return (error);
-}
-
-
-/*
  * Lookups link header based on an IP address.
  * On input:
  *    ifp is the interface we use
@@ -608,6 +596,7 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	const struct sockaddr *dst, u_char *desten, uint32_t *pflags,
 	struct llentry **plle)
 {
+	struct epoch_tracker et;
 	struct llentry *la = NULL;
 
 	if (pflags != NULL)
@@ -629,7 +618,7 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 		}
 	}
 
-	IF_AFDATA_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	la = lla_lookup(LLTABLE(ifp), plle ? LLE_EXCLUSIVE : LLE_UNLOCKED, dst);
 	if (la != NULL && (la->r_flags & RLLE_VALID) != 0) {
 		/* Entry found, let's copy lle info */
@@ -643,12 +632,12 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 			*plle = la;
 			LLE_WUNLOCK(la);
 		}
-		IF_AFDATA_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 		return (0);
 	}
 	if (plle && la)
 		LLE_WUNLOCK(la);
-	IF_AFDATA_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 
 	return (arpresolve_full(ifp, is_gw, la == NULL ? LLE_CREATE : 0, m, dst,
 	    desten, pflags, plle));
@@ -793,6 +782,7 @@ in_arpinput(struct mbuf *m)
 	int lladdr_off;
 	int error;
 	char addrbuf[INET_ADDRSTRLEN];
+	struct epoch_tracker et;
 
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
@@ -885,17 +875,17 @@ in_arpinput(struct mbuf *m)
 	 * No match, use the first inet address on the receive interface
 	 * as a dummy address for the rest of the function.
 	 */
-	IF_ADDR_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
 		    (ifa->ifa_carp == NULL ||
 		    (*carp_iamatch_p)(ifa, &enaddr))) {
 			ia = ifatoia(ifa);
 			ifa_ref(ifa);
-			IF_ADDR_RUNLOCK(ifp);
+			NET_EPOCH_EXIT(et);
 			goto match;
 		}
-	IF_ADDR_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 
 	/*
 	 * If bridging, fall back to using any inet address.
@@ -952,9 +942,9 @@ match:
 	sin.sin_family = AF_INET;
 	sin.sin_addr = isaddr;
 	dst = (struct sockaddr *)&sin;
-	IF_AFDATA_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	la = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
-	IF_AFDATA_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 	if (la != NULL)
 		arp_check_update_lle(ah, isaddr, ifp, bridged, la);
 	else if (itaddr.s_addr == myaddr.s_addr) {
@@ -1032,9 +1022,9 @@ reply:
 		struct llentry *lle = NULL;
 
 		sin.sin_addr = itaddr;
-		IF_AFDATA_RLOCK(ifp);
+		NET_EPOCH_ENTER(et);
 		lle = lla_lookup(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
-		IF_AFDATA_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 
 		if ((lle != NULL) && (lle->la_flags & LLE_PUB)) {
 			(void)memcpy(ar_tha(ah), ar_sha(ah), ah->ar_hln);

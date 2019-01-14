@@ -5,15 +5,28 @@
         "uclcmd": {
           "origin": "devel/uclcmd",
           "version": ">0"
+        },
+        "sysup": {
+          "origin": "sysutils/sysup",
+          "version": ">0"
         }
       }
     },
-    "name-prefix": "TrueOS"
+    "name-prefix": "TrueOS",
+    "world-flags": {
+      "default": [
+      ]
+    },
+    "kernel-flags": {
+      "default": [
+      ]
+    }
   },
   "iso": {
     "auto-install-packages": {
       "default": [
         "ports-mgmt/poudriere",
+	"security/sudo",
         "sysutils/ipmitool",
         "sysutils/dmidecode",
         "sysutils/tmux",
@@ -25,11 +38,36 @@
     "dist-packages": {
       "default": []
     },
+    "file-name": "TrueOS-Snapshot-x64-%%GITHASH%%-%%DATE%%",
     "install-script": "",
     "iso-packages": {
-      "default": []
+      "default": [
+      ]
     },
-    "overlay": ""
+    "overlay": "",
+    "prune": {
+      "default": [
+	"METALOG",
+	"/usr/local/share/examples",
+        "/usr/local/include",
+        "/usr/bin/cc*",
+        "/usr/bin/clang*",
+        "/usr/bin/cpp",
+        "/usr/bin/cpp",
+        "/usr/bin/c++",
+        "/usr/bin/lldb",
+        "/usr/bin/ld.lld",
+        "/usr/bin/llvm*",
+        "/usr/bin/objdump*",
+        "/usr/bin/svn*",
+	"/usr/lib/clang",
+	"/usr/share/man",
+	"/usr/share/i18n",
+	"/usr/share/openssl/man",
+	"/usr/include",
+	"/usr/lib32"
+      ]
+    }
   },
   "pkg-repo": {
     "pubKey": [
@@ -50,11 +88,14 @@
     ],
     "url": "https://pkg.trueos.org/pkg/snapshot/${ABI}/latest"
   },
+  "pkg-repo-name": "TrueOS",
+  "pkg-train-name": "snapshot",
   "ports": {
     "branch": "trueos-master",
     "build": {
       "default": [
         "archivers/pigz",
+        "devel/gdb",
         "devel/git",
         "devel/jenkins",
         "dns/mDNSResponder_nss",
@@ -70,7 +111,13 @@
     "build-all": false,
     "make.conf": {
       "default": [
-        "MAKE_JOBS_NUMBER_LIMIT=3"
+        "MAKE_JOBS_NUMBER_LIMIT=3",
+        "MALLOC_PRODUCTION=YES"
+      ]
+    },
+    "src.conf": {
+      "default": [
+        "WITHOUT_ASSERT_DEBUG=ON"
       ]
     },
     "type": "git",

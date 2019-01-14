@@ -47,7 +47,6 @@ COLLATIONS_SPECIAL_ENV+=	${area}.${enc}
 PASSON+=	COLLATIONS_SPECIAL="${COLLATIONS_SPECIAL_ENV}"
 
 all:
-	cp ${ETCDIR}/common.UTF-8.src ${UNIDIR}/posix/xx_Comm_C.UTF-8.src
 .for t in ${TYPES}
 .  if ${KNOWN:M${t}}
 	test -d ${t} || mkdir ${t}
@@ -88,7 +87,7 @@ build-${t}: gen-${t}
 	env ${PASSON} tools/finalize ${t}
 .endfor
 
-gen-ctypedef:	transfer-rollup
+gen-ctypedef:	ctype-rollup
 static-colldef: gen-colldef
 build-colldef:	static-colldef
 
@@ -98,13 +97,8 @@ static-colldef:
 	    colldef.draft/${area}.${enc}.src
 .endfor
 
-transfer-rollup:
-	cp ${ETCDIR}/common.UTF-8.src ${UNIDIR}/posix/xx_Comm_C.UTF-8.src
-
-rollup:
-	perl -I tools tools/utf8-rollup.pl \
-		--unidir=$$(realpath ${UNIDIR}) \
-		--etc=$$(realpath ${ETCDIR})
+ctype-rollup:
+	perl -I tools tools/utf8-rollup.pl --unidir=$$(realpath ${UNIDIR})
 
 clean:
 .for t in ${TYPES}
@@ -117,7 +111,7 @@ BASE_LOCALES_OF_INTEREST?= \
 	cs_CZ da_DK de_AT de_CH de_DE el_GR en_AU en_CA \
 	en_GB en_HK en_IE en_NZ en_PH en_SG en_US en_ZA \
 	es_AR es_CR es_ES es_MX et_EE eu_ES fi_FI fr_BE \
-	fr_CA fr_CH fr_FR he_IL hi_IN hr_HR hu_HU hy_AM \
+	fr_CA fr_CH fr_FR ga_IE he_IL hi_IN hr_HR hu_HU hy_AM \
 	is_IS it_CH it_IT ja_JP ko_KR lt_LT lv_LV \
 	nb_NO nl_BE nl_NL nn_NO pl_PL pt_BR pt_PT ro_RO \
 	ru_RU se_FI se_NO sk_SK sl_SI sv_FI sv_SE tr_TR \

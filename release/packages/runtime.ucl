@@ -21,122 +21,13 @@ scripts: {
 	if [ -z "${PKG_ROOTDIR}" ] ; then
 		PKG_ROOTDIR=/
 	fi
-	TM=${PKG_ROOTDIR}/var/db/trueos-manifest.json
-	REPONAME="TrueOS"
-	if [ "$(jq -r '."pkg-repo-name" | length' ${TM})" != "0" ]; then
-		REPONAME=`jq -r '."pkg-repo-name"' ${TM}`
-	fi
-	# Do the first-time setup of package repo
-	if [ ! -e "${PKG_ROOTDIR}/etc/pkg/${REPONAME}.conf" ] ; then
 
-		# Do Setup for ports repo
-		TM_PUBKEY="none"
-		if [ "$(jq -r '."pkg-repo"."pubKey" | length' ${TM})" != "0" ]; then
-			echo "Saving pkg ports repository public key"
-			jq -r '."pkg-repo"."pubKey" | join("\n")' ${TM} \
-			> ${PKG_ROOTDIR}/usr/share/keys/pkg/${REPONAME}.pub
-			TM_PUBKEY="/usr/share/keys/pkg/${REPONAME}.pub"
-		fi
-		if [ "$(jq -r '."pkg-repo"."url" | length' ${TM})" != "0" ]; then
-			TM_PKGURL="$(jq -r '."pkg-repo"."url"' ${TM})"
-			cat ${PKG_ROOTDIR}/etc/pkg/TrueOS.conf.pubkey.dist \
-			| sed "s|%%REPONAME%%|${REPONAME}|g" \
-			| sed "s|%%PUBKEY%%|${TM_PUBKEY}|g" \
-			| sed "s|%%URL%%|${TM_PKGURL}|g" \
-			>${PKG_ROOTDIR}/etc/pkg/${REPONAME}.conf
-		fi
-
-		# Do Setup for base repo
-		TM_PUBKEY="none"
-		if [ "$(jq -r '."base-pkg-repo"."pubKey" | length' ${TM})" != "0" ]; then
-			echo "Saving pkg base repository public key"
-			jq -r '."base-pkg-repo"."pubKey" | join("\n")' ${TM} \
-			>${PKG_ROOTDIR}/usr/share/keys/pkg/${REPONAME}-base.pub
-			TM_PUBKEY="/usr/share/keys/pkg/${REPONAME}-base.pub"
-		fi
-		if [ "$(jq -r '."base-pkg-repo"."url" | length' ${TM})" != "0" ]; then
-			TM_PKGURL="$(jq -r '."base-pkg-repo"."url"' ${TM})"
-			cat ${PKG_ROOTDIR}/etc/pkg/TrueOS.conf.pubkey.dist \
-			| sed "s|%%REPONAME%%|${REPONAME}-base|g" \
-			| sed "s|%%PUBKEY%%|${TM_PUBKEY}|g" \
-			| sed "s|%%URL%%|${TM_PKGURL}|g" \
-			>>${PKG_ROOTDIR}/etc/pkg/${REPONAME}.conf
-		fi
-	fi
 	cap_mkdb %CAP_MKDB_ENDIAN% ${PKG_ROOTDIR}/etc/login.conf
 	pwd_mkdb -i -p -d  ${PKG_ROOTDIR}/etc ${PKG_ROOTDIR}/etc/master.passwd
 	services_mkdb %CAP_MKDB_ENDIAN% -q -o ${PKG_ROOTDIR}/var/db/services.db ${PKG_ROOTDIR}/etc/services
 	chmod 1777 ${PKG_ROOTDIR}/tmp
 
-	# Make sure /etc/fstab exists to silence warnings from openrc
-	if [ ! -e "${PKG_ROOTDIR}/etc/fstab" ]; then
-		touch ${PKG_ROOTDIR}/etc/fstab
-	fi
-
-	# Update any missing dirs which need added now from mtree spec
-        mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.root.dist \
-            -p ${PKG_ROOTDIR}
-        mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.usr.dist \
-            -p ${PKG_ROOTDIR}/usr
-        mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.var.dist \
-            -p ${PKG_ROOTDIR}/var
-        mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.include.dist \
-            -p ${PKG_ROOTDIR}/usr/include
-        if [ -e ${PKG_ROOTDIR}/etc/mtree/BSD.lib32.dist ] ; then
-		mtree -deU -f ${PKG_ROOTDIR}/etc/mtree/BSD.lib32.dist \
-		     -p ${PKG_ROOTDIR}/usr
-	fi
-
-	# Setup our OpenRC runtime environment
-	OPENRC_BOOT_LINK="abi adjkerntz bootmisc bridge cron devd dmesg dumpon fsck"
-	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} hostid hostname kldxref localmount"
-	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} modules motd network newsyslog root"
-	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} routing savecore staticroute swap"
-	OPENRC_BOOT_LINK="${OPENRC_BOOT_LINK} syscons sysctl syslogd urandom zfs zvol"
-	OPENRC_DEFAULT_LINK="local netmount"
-	OPENRC_SHUTDOWN_LINK="savecache"
-	OPENRC_NONET_LINK="local"
-	INSTALL_SYMLINK="ln -fs"
-
-	# Sanity check OpenRC
-	if [ ! -e ${PKG_ROOTDIR}/etc/init.d/functions.sh ]; then \
-		${INSTALL_SYMLINK} /libexec/rc/sh/functions.sh ${PKG_ROOTDIR}/etc/init.d/functions.sh; \
-	fi
-	if [ ! -d ${PKG_ROOTDIR}/etc/runlevels/boot ]; then \
-		mkdir -p ${PKG_ROOTDIR}/etc/runlevels/boot; \
-	fi
-	if [ ! -d ${PKG_ROOTDIR}/etc/runlevels/default ]; then \
-		mkdir ${PKG_ROOTDIR}/etc/runlevels/default; \
-	fi
-	if [ ! -d ${PKG_ROOTDIR}/etc/runlevels/nonetwork ]; then \
-		mkdir ${PKG_ROOTDIR}/etc/runlevels/nonetwork; \
-	fi
-	if [ ! -d ${PKG_ROOTDIR}/etc/runlevels/shutdown ]; then \
-		mkdir ${PKG_ROOTDIR}/etc/runlevels/shutdown; \
-	fi
-	if [ ! -d ${PKG_ROOTDIR}/etc/runlevels/sysinit ]; then \
-		mkdir ${PKG_ROOTDIR}/etc/runlevels/sysinit; \
-	fi
-	if [ ! -e "${PKG_ROOTDIR}/etc/runlevels/boot/zfs" ] ; then
-		# Do first-time setup of OpenRC
-		for rlink in ${OPENRC_BOOT_LINK}; do \
-			${INSTALL_SYMLINK} /etc/init.d/${rlink} \
-			    ${PKG_ROOTDIR}/etc/runlevels/boot/${rlink}; \
-		done
-		for rlink in ${OPENRC_DEFAULT_LINK}; do \
-			${INSTALL_SYMLINK} /etc/init.d/${rlink} \
-			    ${PKG_ROOTDIR}/etc/runlevels/default/${rlink}; \
-		done
-		for rlink in ${OPENRC_NONET_LINK}; do \
-			${INSTALL_SYMLINK} /etc/init.d/${rlink} \
-			    ${PKG_ROOTDIR}/etc/runlevels/nonetwork/${rlink}; \
-		done
-		for rlink in ${OPENRC_SHUTDOWN_LINK}; do \
-			${INSTALL_SYMLINK} /etc/init.d/${rlink} \
-			    ${PKG_ROOTDIR}/etc/runlevels/shutdown/${rlink}; \
-		done
-	fi
-
+	sh ${PKG_ROOTDIR}/etc/pkgbase.setup $PKG_ROOTDIR
 EOD
 }
 deps: {

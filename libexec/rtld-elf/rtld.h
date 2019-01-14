@@ -235,6 +235,7 @@ typedef struct Struct_Obj_Entry {
     int fini_array_num; 	/* Number of entries in fini_array */
 
     int32_t osrel;		/* OSREL note value */
+    uint32_t fctl0;		/* FEATURE_CONTROL note desc[0] value */
 
     bool mainprog : 1;		/* True if this is the main program */
     bool rtld : 1;		/* True if this is the dynamic linker */
@@ -263,6 +264,7 @@ typedef struct Struct_Obj_Entry {
     bool irelative : 1;		/* Object has R_MACHDEP_IRELATIVE relocs */
     bool gnu_ifunc : 1;		/* Object has references to STT_GNU_IFUNC */
     bool non_plt_gnu_ifunc : 1;	/* Object has non-plt IFUNC references */
+    bool ifuncs_resolved : 1;	/* Object ifuncs were already resolved */
     bool crt_no_init : 1;	/* Object' crt does not call _init/_fini */
     bool valid_hash_sysv : 1;	/* A valid System V hash hash tag is available */
     bool valid_hash_gnu : 1;	/* A valid GNU hash tag is available */
@@ -398,7 +400,7 @@ int convert_prot(int elfflags);
 int do_copy_relocations(Obj_Entry *);
 int reloc_non_plt(Obj_Entry *, Obj_Entry *, int flags,
     struct Struct_RtldLockState *);
-int reloc_plt(Obj_Entry *);
+int reloc_plt(Obj_Entry *, int flags, struct Struct_RtldLockState *);
 int reloc_jmpslots(Obj_Entry *, int flags, struct Struct_RtldLockState *);
 int reloc_iresolve(Obj_Entry *, struct Struct_RtldLockState *);
 int reloc_gnu_ifunc(Obj_Entry *, int flags, struct Struct_RtldLockState *);

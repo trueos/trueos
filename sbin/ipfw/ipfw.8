@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2018
+.Dd December 4, 2018
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -105,16 +105,6 @@ in-kernel NAT.
 .Ar number
 .Cm config
 .Ar config-options
-.Pp
-.Nm
-.Op Fl cfnNqS
-.Oo
-.Fl p Ar preproc
-.Oo
-.Ar preproc-flags
-.Oc
-.Oc
-.Ar pathname
 .Ss STATEFUL IPv6/IPv4 NETWORK ADDRESS AND PROTOCOL TRANSLATION
 .Nm
 .Oo Cm set Ar N Oc Cm nat64lsn Ar name Cm create Ar create-options
@@ -166,6 +156,16 @@ in-kernel NAT.
 .Cm internal talist
 .Nm
 .Cm internal vlist
+.Ss LIST OF RULES AND PREPROCESSING
+.Nm
+.Op Fl cfnNqS
+.Oo
+.Fl p Ar preproc
+.Oo
+.Ar preproc-flags
+.Oc
+.Oc
+.Ar pathname
 .Sh DESCRIPTION
 The
 .Nm
@@ -310,10 +310,9 @@ i.e., omitting the "ip from any to any" string
 when this does not carry any additional information.
 .It Fl d
 When listing, show dynamic rules in addition to static ones.
-.It Fl e
-When listing and
-.Fl d
-is specified, also show expired dynamic rules.
+.It Fl D
+When listing, show only dynamic states.
+When deleting, delete only dynamic states.
 .It Fl f
 Run without prompting for confirmation for commands that can cause problems if misused,
 i.e.,
@@ -1159,11 +1158,11 @@ Supported values are:
 .Pq Dv 101110 ,
 .Cm be
 .Pq Dv 000000 .
-Additionally, DSCP value can be specified by number (0..64).
+Additionally, DSCP value can be specified by number (0..63).
 It is also possible to use the
 .Cm tablearg
 keyword with setdscp.
-If the tablearg value is not within the 0..64 range, lower 6 bits of supplied
+If the tablearg value is not within the 0..63 range, lower 6 bits of supplied
 value are used.
 .It Cm tcp-setmss Ar mss
 Set the Maximum Segment Size (MSS) in the TCP segment to value
@@ -3495,6 +3494,15 @@ NPTv6 module translates source address when it matches this prefix.
 .It Cm ext_prefix Ar ipv6_prefix
 IPv6 prefix used in external network.
 NPTv6 module translates destination address when it matches this prefix.
+.It Cm ext_if Ar nic
+The NPTv6 module will use first global IPv6 address from interface
+.Ar nic
+as external prefix.
+It can be useful when IPv6 prefix of external network is dynamically obtained.
+.Cm ext_prefix
+and
+.Cm ext_if
+options are mutually exclusive.
 .It Cm prefixlen Ar length
 The length of specified IPv6 prefixes. It must be in range from 8 to 64.
 .El
@@ -4077,6 +4085,55 @@ option could be used to (re)mark user traffic,
 by adding the following to the appropriate place in ruleset:
 .Pp
 .Dl "ipfw add setdscp be ip from any to any dscp af11,af21"
+.Ss SELECTIVE MIRRORING
+If your network has network traffic analyzer
+connected to your host directly via dedicated interface
+or remotely via RSPAN vlan, you can selectively mirror
+some ethernet layer2 frames to the analyzer.
+.Pp
+First, make sure your firewall is already configured and runs.
+Then, enable layer2 processing if not already enabled:
+.Pp
+.Dl "sysctl net.link.ether.ipfw=1"
+.Pp
+Next, load needed additional kernel modules:
+.Pp
+.Dl "kldload ng_ether ng_ipfw"
+.Pp
+Optionally, make system load these modules automatically
+at startup:
+.Pp
+.Dl sysrc kld_list+="ng_ether ng_ipfw"
+.Pp
+Next, configure
+.Xr ng_ipfw 4
+kernel module to transmit mirrored copies of layer2 frames
+out via vlan900 interface:
+.Pp
+.Dl "ngctl connect ipfw: vlan900: 1 lower"
+.Pp
+Think of "1" here as of "mirroring instance index" and vlan900 is its
+destination.
+You can have arbitrary number of instances.
+Refer to
+.Xr ng_ipfw 4
+for details.
+.Pp
+At last, actually start mirroring of selected frames using "instance 1".
+For frames incoming from em0 interface:
+.Pp
+.Dl "ipfw add ngtee 1 ip from any to 192.168.0.1 layer2 in recv em0"
+.Pp
+For frames outgoing to em0 interface:
+.Pp
+.Dl "ipfw add ngtee 1 ip from any to 192.168.0.1 layer2 out xmit em0"
+.Pp
+For both incoming and outgoing frames while flowing through em0:
+.Pp
+.Dl "ipfw add ngtee 1 ip from any to 192.168.0.1 layer2 via em0"
+.Pp
+Make sure you do not perform mirroring for already duplicated frames
+or kernel may hang as there is no safety net.
 .Ss DYNAMIC RULES
 In order to protect a site from flood attacks involving fake
 TCP packets, it is safer to use dynamic rules:
@@ -4515,6 +4572,7 @@ can be changed in a similar way as for
 .Xr if_bridge 4 ,
 .Xr ip 4 ,
 .Xr ipfirewall 4 ,
+.Xr ng_ether 4 ,
 .Xr ng_ipfw 4 ,
 .Xr protocols 5 ,
 .Xr services 5 ,
@@ -4522,6 +4580,7 @@ can be changed in a similar way as for
 .Xr kldload 8 ,
 .Xr reboot 8 ,
 .Xr sysctl 8 ,
+.Xr sysrc 8 ,
 .Xr syslogd 8
 .Sh HISTORY
 The
@@ -4558,7 +4617,7 @@ The ipfw core (ipfw2) has been completely redesigned and
 reimplemented by Luigi Rizzo in summer 2002.
 Further
 actions and
-options have been added by various developer over the years.
+options have been added by various developers over the years.
 .Pp
 .An -nosplit
 In-kernel NAT support written by

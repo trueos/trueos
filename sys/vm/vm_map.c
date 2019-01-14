@@ -283,12 +283,7 @@ vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 	struct vmspace *vm;
 
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
-
 	KASSERT(vm->vm_map.pmap == NULL, ("vm_map.pmap must be NULL"));
-
-	if (pinit == NULL)
-		pinit = &pmap_pinit;
-
 	if (!pinit(vmspace_pmap(vm))) {
 		uma_zfree(vmspace_zone, vm);
 		return (NULL);
@@ -396,8 +391,8 @@ vmspace_exit(struct thread *td)
 	p = td->td_proc;
 	vm = p->p_vmspace;
 	atomic_add_int(&vmspace0.vm_refcnt, 1);
+	refcnt = vm->vm_refcnt;
 	do {
-		refcnt = vm->vm_refcnt;
 		if (refcnt > 1 && p->p_vmspace != &vmspace0) {
 			/* Switch now since other proc might free vmspace */
 			PROC_VMSPACE_LOCK(p);
@@ -405,7 +400,7 @@ vmspace_exit(struct thread *td)
 			PROC_VMSPACE_UNLOCK(p);
 			pmap_activate(td);
 		}
-	} while (!atomic_cmpset_int(&vm->vm_refcnt, refcnt, refcnt - 1));
+	} while (!atomic_fcmpset_int(&vm->vm_refcnt, &refcnt, refcnt - 1));
 	if (refcnt == 1) {
 		if (p->p_vmspace != vm) {
 			/* vmspace not yet freed, switch back */
@@ -442,13 +437,13 @@ vmspace_acquire_ref(struct proc *p)
 		PROC_VMSPACE_UNLOCK(p);
 		return (NULL);
 	}
+	refcnt = vm->vm_refcnt;
 	do {
-		refcnt = vm->vm_refcnt;
 		if (refcnt <= 0) { 	/* Avoid 0->1 transition */
 			PROC_VMSPACE_UNLOCK(p);
 			return (NULL);
 		}
-	} while (!atomic_cmpset_int(&vm->vm_refcnt, refcnt, refcnt + 1));
+	} while (!atomic_fcmpset_int(&vm->vm_refcnt, &refcnt, refcnt + 1));
 	if (vm != p->p_vmspace) {
 		PROC_VMSPACE_UNLOCK(p);
 		vmspace_free(vm);
@@ -1644,16 +1639,25 @@ vm_map_find_min(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	}
 }
 
+/*
+ * A map entry with any of the following flags set must not be merged with
+ * another entry.
+ */
+#define	MAP_ENTRY_NOMERGE_MASK	(MAP_ENTRY_GROWS_DOWN | MAP_ENTRY_GROWS_UP | \
+	    MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_IS_SUB_MAP)
+
 static bool
 vm_map_mergeable_neighbors(vm_map_entry_t prev, vm_map_entry_t entry)
 {
-	vm_size_t prevsize;
 
-	prevsize = prev->end - prev->start;
+	KASSERT((prev->eflags & MAP_ENTRY_NOMERGE_MASK) == 0 ||
+	    (entry->eflags & MAP_ENTRY_NOMERGE_MASK) == 0,
+	    ("vm_map_mergeable_neighbors: neither %p nor %p are mergeable",
+	    prev, entry));
 	return (prev->end == entry->start &&
 	    prev->object.vm_object == entry->object.vm_object &&
 	    (prev->object.vm_object == NULL ||
-	    prev->offset + prevsize == entry->offset) &&
+	    prev->offset + (prev->end - prev->start) == entry->offset) &&
 	    prev->eflags == entry->eflags &&
 	    prev->protection == entry->protection &&
 	    prev->max_protection == entry->max_protection &&
@@ -1667,18 +1671,14 @@ vm_map_merged_neighbor_dispose(vm_map_t map, vm_map_entry_t entry)
 {
 
 	/*
-	 * If the backing object is a vnode object,
-	 * vm_object_deallocate() calls vrele().
-	 * However, vrele() does not lock the vnode
-	 * because the vnode has additional
-	 * references.  Thus, the map lock can be kept
-	 * without causing a lock-order reversal with
-	 * the vnode lock.
+	 * If the backing object is a vnode object, vm_object_deallocate()
+	 * calls vrele().  However, vrele() does not lock the vnode because
+	 * the vnode has additional references.  Thus, the map lock can be
+	 * kept without causing a lock-order reversal with the vnode lock.
 	 *
-	 * Since we count the number of virtual page
-	 * mappings in object->un_pager.vnp.writemappings,
-	 * the writemappings value should not be adjusted
-	 * when the entry is disposed of.
+	 * Since we count the number of virtual page mappings in
+	 * object->un_pager.vnp.writemappings, the writemappings value
+	 * should not be adjusted when the entry is disposed of.
 	 */
 	if (entry->object.vm_object != NULL)
 		vm_object_deallocate(entry->object.vm_object);
@@ -1704,10 +1704,8 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 {
 	vm_map_entry_t next, prev;
 
-	if ((entry->eflags & (MAP_ENTRY_GROWS_DOWN | MAP_ENTRY_GROWS_UP |
-	    MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_IS_SUB_MAP)) != 0)
+	if ((entry->eflags & MAP_ENTRY_NOMERGE_MASK) != 0)
 		return;
-
 	prev = entry->prev;
 	if (vm_map_mergeable_neighbors(prev, entry)) {
 		vm_map_entry_unlink(map, prev);
@@ -1717,7 +1715,6 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 			vm_map_entry_resize_free(map, entry->prev);
 		vm_map_merged_neighbor_dispose(map, prev);
 	}
-
 	next = entry->next;
 	if (vm_map_mergeable_neighbors(entry, next)) {
 		vm_map_entry_unlink(map, next);
@@ -1726,6 +1723,7 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 		vm_map_merged_neighbor_dispose(map, next);
 	}
 }
+
 /*
  *	vm_map_clip_start:	[ internal use only ]
  *
@@ -3421,7 +3419,8 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 
 	old_map = &vm1->vm_map;
 	/* Copy immutable fields of vm1 to vm2. */
-	vm2 = vmspace_alloc(vm_map_min(old_map), vm_map_max(old_map), NULL);
+	vm2 = vmspace_alloc(vm_map_min(old_map), vm_map_max(old_map),
+	    pmap_pinit);
 	if (vm2 == NULL)
 		return (NULL);
 	vm2->vm_taddr = vm1->vm_taddr;
@@ -3972,7 +3971,7 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 
 	KASSERT((curthread->td_pflags & TDP_EXECVMSPC) == 0,
 	    ("vmspace_exec recursed"));
-	newvmspace = vmspace_alloc(minuser, maxuser, NULL);
+	newvmspace = vmspace_alloc(minuser, maxuser, pmap_pinit);
 	if (newvmspace == NULL)
 		return (ENOMEM);
 	newvmspace->vm_swrss = oldvmspace->vm_swrss;
@@ -4214,7 +4213,7 @@ RetryLookupLocked:
 	 * Return the object/offset from this entry.  If the entry was
 	 * copy-on-write or empty, it has been fixed up.
 	 */
-	*pindex = UOFF_TO_IDX((vaddr - entry->start) + entry->offset);
+	*pindex = OFF_TO_IDX((vaddr - entry->start) + entry->offset);
 	*object = entry->object.vm_object;
 
 	*out_prot = prot;
@@ -4295,7 +4294,7 @@ vm_map_lookup_locked(vm_map_t *var_map,		/* IN/OUT */
 	 * Return the object/offset from this entry.  If the entry was
 	 * copy-on-write or empty, it has been fixed up.
 	 */
-	*pindex = UOFF_TO_IDX((vaddr - entry->start) + entry->offset);
+	*pindex = OFF_TO_IDX((vaddr - entry->start) + entry->offset);
 	*object = entry->object.vm_object;
 
 	*out_prot = prot;

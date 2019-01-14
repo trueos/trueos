@@ -202,8 +202,10 @@ nameicap_cleanup(struct nameidata *ndp, bool clean_latch)
 		vdrop(nt->dp);
 		uma_zfree(nt_zone, nt);
 	}
-	if (clean_latch && (ndp->ni_lcf & NI_LCF_LATCH) != 0)
+	if (clean_latch && (ndp->ni_lcf & NI_LCF_LATCH) != 0) {
+		ndp->ni_lcf &= ~NI_LCF_LATCH;
 		vrele(ndp->ni_beneath_latch);
+	}
 }
 
 /*
@@ -446,7 +448,7 @@ namei(struct nameidata *ndp)
 		if (error == 0 && dp->v_type != VDIR)
 			error = ENOTDIR;
 	}
-	if (error == 0 && (ndp->ni_lcf & NI_LCF_BENEATH_ABS) != 0) {
+	if (error == 0 && (cnp->cn_flags & BENEATH) != 0) {
 		if (ndp->ni_dirfd == AT_FDCWD) {
 			ndp->ni_beneath_latch = fdp->fd_cdir;
 			vrefact(ndp->ni_beneath_latch);
@@ -471,6 +473,8 @@ namei(struct nameidata *ndp)
 			vrele(dp);
 		goto out;
 	}
+	MPASS((ndp->ni_lcf & (NI_LCF_BENEATH_ABS | NI_LCF_LATCH)) !=
+	    NI_LCF_BENEATH_ABS);
 	if (((ndp->ni_lcf & NI_LCF_STRICTRELATIVE) != 0 &&
 	    lookup_cap_dotdot != 0) ||
 	    ((ndp->ni_lcf & NI_LCF_STRICTRELATIVE) == 0 &&
@@ -1298,12 +1302,12 @@ NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
 	ndp->ni_dirp = namep;
 	ndp->ni_dirfd = dirfd;
 	ndp->ni_startdir = startdir;
+	filecaps_init(&ndp->ni_filecaps);
+	ndp->ni_cnd.cn_thread = td;
 	if (rightsp != NULL)
 		ndp->ni_rightsneeded = *rightsp;
 	else
 		cap_rights_init(&ndp->ni_rightsneeded);
-	filecaps_init(&ndp->ni_filecaps);
-	ndp->ni_cnd.cn_thread = td;
 }
 
 /*

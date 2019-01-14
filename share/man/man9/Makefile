@@ -90,6 +90,7 @@ MAN=	accept_filter.9 \
 	device_add_child.9 \
 	DEVICE_ATTACH.9 \
 	device_delete_child.9 \
+	device_delete_children.9 \
 	DEVICE_DETACH.9 \
 	device_enable.9 \
 	device_find_child.9 \
@@ -269,6 +270,8 @@ MAN=	accept_filter.9 \
 	proc_rwmem.9 \
 	pseudofs.9 \
 	psignal.9 \
+	pwm.9 \
+	pwmbus.9 \
 	random.9 \
 	random_harvest.9 \
 	ratecheck.9 \
@@ -2056,6 +2059,7 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 TASKQUEUE_FAST_DEFINE_THREAD.9 \
 	taskqueue.9 taskqueue_free.9 \
 	taskqueue.9 taskqueue_member.9 \
+	taskqueue.9 taskqueue_quiesce.9 \
 	taskqueue.9 taskqueue_run.9 \
 	taskqueue.9 taskqueue_set_callback.9 \
 	taskqueue.9 taskqueue_start_threads.9 \

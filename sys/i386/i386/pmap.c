@@ -569,9 +569,9 @@ pmap_cold(void)
 /*
  *	Bootstrap the system enough to run with virtual memory.
  *
- *	On the i386 this is called after mapping has already been enabled
- *	in locore.s with the page table created in pmap_cold(),
- *	and just syncs the pmap module with what has already been done.
+ *	On the i386 this is called after pmap_cold() created initial
+ *	kernel page table and enabled paging, and just syncs the pmap
+ *	module with what has already been done.
  */
 void
 pmap_bootstrap(vm_paddr_t firstaddr)
@@ -594,11 +594,12 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	vm_phys_add_seg(KPTphys, KPTphys + ptoa(nkpt));
 
 	/*
-	 * Initialize the first available kernel virtual address.  However,
-	 * using "firstaddr" may waste a few pages of the kernel virtual
-	 * address space, because locore may not have mapped every physical
-	 * page that it allocated.  Preferably, locore would provide a first
-	 * unused virtual address in addition to "firstaddr".
+	 * Initialize the first available kernel virtual address.
+	 * However, using "firstaddr" may waste a few pages of the
+	 * kernel virtual address space, because pmap_cold() may not
+	 * have mapped every physical page that it allocated.
+	 * Preferably, pmap_cold() would provide a first unused
+	 * virtual address in addition to "firstaddr".
 	 */
 	virtual_avail = (vm_offset_t)firstaddr;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
@@ -665,7 +666,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	/*
 	 * KPTmap is used by pmap_kextract().
 	 *
-	 * KPTmap is first initialized by locore.  However, that initial
+	 * KPTmap is first initialized by pmap_cold().  However, that initial
 	 * KPTmap can only support NKPT page table pages.  Here, a larger
 	 * KPTmap is created that can support KVA_PAGES page table pages.
 	 */
@@ -735,7 +736,7 @@ pmap_init_reserved_pages(void)
 		pc->pc_cmap_pte2 = vtopte(pages + PAGE_SIZE);
 		pc->pc_cmap_addr1 = (caddr_t)pages;
 		pc->pc_cmap_addr2 = (caddr_t)(pages + PAGE_SIZE);
-		pc->pc_qmap_addr = pages + atop(2);
+		pc->pc_qmap_addr = pages + ptoa(2);
 	}
 }
  
@@ -2568,7 +2569,7 @@ get_pv_entry(pmap_t pmap, boolean_t try)
 		if (ratecheck(&lastprint, &printinterval))
 			printf("Approaching the limit on PV entries, consider "
 			    "increasing either the vm.pmap.shpgperproc or the "
-			    "vm.pmap.pv_entry_max tunable.\n");
+			    "vm.pmap.pv_entries tunable.\n");
 retry:
 	pc = TAILQ_FIRST(&pmap->pm_pvchunk);
 	if (pc != NULL) {
@@ -4094,8 +4095,7 @@ static vm_page_t
 pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot, vm_page_t mpte)
 {
-	pt_entry_t *pte;
-	vm_paddr_t pa;
+	pt_entry_t newpte, *pte;
 	struct spglist free;
 
 	KASSERT(pmap != kernel_pmap || va < kmi.clean_sva ||
@@ -4178,19 +4178,17 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	pmap->pm_stats.resident_count++;
 
-	pa = VM_PAGE_TO_PHYS(m) | pmap_cache_bits(pmap, m->md.pat_mode, 0);
+	newpte = VM_PAGE_TO_PHYS(m) | PG_V |
+	    pmap_cache_bits(pmap, m->md.pat_mode, 0);
+	if ((m->oflags & VPO_UNMANAGED) == 0)
+		newpte |= PG_MANAGED;
 #if defined(PAE) || defined(PAE_TABLES)
 	if ((prot & VM_PROT_EXECUTE) == 0)
-		pa |= pg_nx;
+		newpte |= pg_nx;
 #endif
-
-	/*
-	 * Now validate mapping with RO protection
-	 */
-	if ((m->oflags & VPO_UNMANAGED) != 0)
-		pte_store(pte, pa | PG_V | PG_U);
-	else
-		pte_store(pte, pa | PG_V | PG_U | PG_MANAGED);
+	if (pmap != kernel_pmap)
+		newpte |= PG_U;
+	pte_store(pte, newpte);
 	sched_unpin();
 	return (mpte);
 }

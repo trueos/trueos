@@ -264,6 +264,7 @@ MAN=	aac.4 \
 	mac_lomac.4 \
 	mac_mls.4 \
 	mac_none.4 \
+	mac_ntpd.4 \
 	mac_partition.4 \
 	mac_portacl.4 \
 	mac_seeotheruids.4 \
@@ -322,6 +323,7 @@ MAN=	aac.4 \
 	ng_btsocket.4 \
 	ng_car.4 \
 	ng_ccatm.4 \
+	ng_checksum.4 \
 	ng_cisco.4 \
 	ng_deflate.4 \
 	ng_device.4 \
