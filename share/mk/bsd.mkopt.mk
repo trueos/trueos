@@ -27,6 +27,8 @@
 # user's desires or default behavior.
 #
 
+.include <src.trueos.mk>
+
 #
 # MK_* options which default to "yes".
 #
