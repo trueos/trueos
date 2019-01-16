@@ -881,9 +881,15 @@ get_kernel_flags()
 }
 
 case $1 in
-	clean) clean_jails ; exit 0 ;;
-	poudriere) run_poudriere ;;
-	iso) cp_iso_pkgs
+	clean) env_check
+	       clean_jails
+	       exit 0
+	       ;;
+	poudriere) env_check
+		   run_poudriere
+		   ;;
+	iso) env_check
+             cp_iso_pkgs
 	     if [ "$(jq -r '."iso"."offline-update"' ${TRUEOS_MANIFEST})" = "true" ] ; then
 		     create_offline_update
 	     fi
