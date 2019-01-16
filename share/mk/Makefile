@@ -56,6 +56,7 @@ FILES=	\
 	bsd.symver.mk \
 	bsd.sys.mk \
 	bsd.test.mk \
+	bsd.trueos.mk \
 	dirdeps.mk \
 	dirdeps-options.mk \
 	gendirdeps.mk \
