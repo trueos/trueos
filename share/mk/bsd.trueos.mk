@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .if !defined(TRUEOS_MK_OPTS)
+.if make(buildworld) || make(buildkernel) || make(packages) || make(iso)
 
 # Check if TRUEOS_MANIFEST is set, if not use the default
 .if exists(${.CURDIR}/release/release-trueos.sh)
@@ -46,4 +47,5 @@ TO_KFLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${TRUEOS_RELDIR}/release-tr
 
 TRUEOS_MK_OPTS=	YES
 
+.endif
 .endif
