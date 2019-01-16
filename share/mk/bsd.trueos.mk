@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .if !defined(TRUEOS_MK_OPTS)
-.if ${.CURDIR} != "/" && ${SRCTOP} != "/"
+.if exists(${.CURDIR}/release/release-trueos.sh) || exists(${SRCTOP}/release/release-trueos.sh)
 
 # Check if TRUEOS_MANIFEST is set, if not use the default
 .if exists(${.CURDIR}/release/release-trueos.sh)
