@@ -9,5 +9,6 @@ SRCS=	ixnvdimm.c ixnvdimm_copy.S
 SRCS+=	opt_acpi.h acpi_if.h device_if.h bus_if.h ntb_if.h opt_ddb.h
 
 SRCS+=	acpi_if.h bus_if.h device_if.h
+DPSRCS+=	assym.inc
 
 .include <bsd.kmod.mk>
