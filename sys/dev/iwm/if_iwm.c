@@ -626,7 +626,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			goto parse_out;
 		}
 		len -= roundup2(tlv_len, 4);
-		data += sizeof(tlv) + roundup2(tlv_len, 4);
+		data += sizeof(*tlv) + roundup2(tlv_len, 4);
 
 		switch ((int)tlv_type) {
 		case IWM_UCODE_TLV_PROBE_MAX_LEN:
@@ -1033,7 +1033,8 @@ iwm_reset_rx_ring(struct iwm_softc *sc, struct iwm_rx_ring *ring)
 	 * The hw rx ring index in shared memory must also be cleared,
 	 * otherwise the discrepancy can cause reprocessing chaos.
 	 */
-	memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
+	if (sc->rxq.stat)
+		memset(sc->rxq.stat, 0, sizeof(*sc->rxq.stat));
 }
 
 static void
