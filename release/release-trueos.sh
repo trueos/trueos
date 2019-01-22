@@ -176,7 +176,14 @@ setup_poudriere_jail()
 	# Create a tarball and feed this into poudriere
 	# We used nullfs for a while, but it does consume much more memory
 	echo "Creating poudriere tarball..."
-	tar cvf ${JDIR}/../pjail.tar -C ${JDIR} . >/dev/null 2>/dev/null
+	sync
+	tar cvf ${JDIR}/../pjail.tar -C ${JDIR} . 2>&1 >/tmp/.pjail.$$
+	if [ $? -ne 0 ]; then
+		cat /tmp/.pjail.$$
+		rm /tmp/.pjail.$$
+		exit_err "Failed creating pjail.tar file for poudriere"
+	fi
+	rm /tmp/.pjail.$$
 
 
 	# Create new jail
