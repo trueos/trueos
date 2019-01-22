@@ -1,7 +1,12 @@
 {
   "base-packages": {
     "depends": { },
-    "name-prefix": "FreeNAS"
+    "name-prefix": "FreeNAS",
+    "kernel-flags": {
+      "default": [
+        "KERNCONF=IXNAS"
+      ]
+    }
   },
   "iso": {
     "auto-install-packages": {
