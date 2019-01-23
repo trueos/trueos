@@ -225,7 +225,7 @@ config_KeepModifiedMetadata () {
 config_Components () {
 	for C in $@; do
 		if [ "$C" = "src" ]; then
-			if [ -e /usr/src/COPYRIGHT ]; then
+			if [ -e "${BASEDIR}/usr/src/COPYRIGHT" ]; then
 				COMPONENTS="${COMPONENTS} ${C}"
 			else
 				echo "src component not installed, skipped"
@@ -305,6 +305,14 @@ config_TargetRelease () {
 	fi
 	if echo ${TARGETRELEASE} | grep -qE '^[0-9.]+$'; then
 		TARGETRELEASE="${TARGETRELEASE}-RELEASE"
+	fi
+}
+
+# Pretend current release is FreeBSD $1
+config_SourceRelease () {
+	UNAME_r=$1
+	if echo ${UNAME_r} | grep -qE '^[0-9.]+$'; then
+		UNAME_r="${UNAME_r}-RELEASE"
 	fi
 }
 
@@ -446,7 +454,8 @@ parse_cmdline () {
 			NOTTYOK=1
 			;;
 		--currently-running)
-			shift; export UNAME_r="$1"
+			shift
+			config_SourceRelease $1 || usage
 			;;
 
 		# Configuration file equivalents
@@ -665,6 +674,18 @@ fetchupgrade_check_params () {
 	ARCH=`uname -m`
 	FETCHDIR=${RELNUM}/${ARCH}
 	PATCHDIR=${RELNUM}/${ARCH}/bp
+
+	# Disallow upgrade from a version that is not `-RELEASE`
+	if ! echo "${RELNUM}" | grep -qE -- "-RELEASE$"; then
+		echo -n "`basename $0`: "
+		cat  <<- EOF
+			Cannot upgrade from a version that is not a '-RELEASE' using `basename $0`. 
+			Instead, FreeBSD can be directly upgraded by source or upgraded to a 
+			RELEASE/RELENG version prior to running `basename $0`.
+		EOF
+		echo "System version: ${RELNUM}"
+		exit 1
+	fi
 
 	# Figure out what directory contains the running kernel
 	BOOTFILE=`sysctl -n kern.bootfile`
