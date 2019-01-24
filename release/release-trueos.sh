@@ -859,8 +859,6 @@ get_kernel_flags()
 	done
 }
 
-env_check
-
 case $1 in
 	clean) env_check
 	       clean_jails
@@ -877,7 +875,8 @@ case $1 in
 	     setup_iso_post
 	     apply_iso_config
 	     ;;
-	check)  check_build_environment
+	check)  env_check
+		check_build_environment
 		check_version ;;
 	world_flags) get_world_flags "$2" ;;
 	kernel_flags) get_kernel_flags "$2" ;;
