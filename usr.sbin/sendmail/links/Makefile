@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SYMLINKS+=	/etc/aliases /etc/mail/aliases
+SYMLINKS+=	/etc/mail/aliases /etc/aliases
 
 .include <bsd.prog.mk>
