@@ -757,6 +757,10 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 		}
 		break;
 	}
+	if (id == HDA_CODEC_ALC256) {
+		val = hdaa_read_coef(dev, 0x20, 0x46);
+		hdaa_write_coef(dev, 0x20, 0x46, val|0x3000);
+	}
 	if (subid == APPLE_INTEL_MAC)
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0x7e7, 0));
