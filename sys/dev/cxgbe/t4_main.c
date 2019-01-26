@@ -480,9 +480,10 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, autoneg, CTLFLAG_RDTUN, &t4_autoneg, 0,
 
 /*
  * Firmware auto-install by driver during attach (0, 1, 2 = prohibited, allowed,
- * encouraged respectively).
+ * encouraged respectively).  '-n' is the same as 'n' except the firmware
+ * version used in the checks is read from the firmware bundled with the driver.
  */
-static unsigned int t4_fw_install = 1;
+static int t4_fw_install = 1;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, fw_install, CTLFLAG_RDTUN, &t4_fw_install, 0,
     "Firmware auto-install (0 = prohibited, 1 = allowed, 2 = encouraged)");
 
@@ -3491,9 +3492,14 @@ install_kld_firmware(struct adapter *sc, struct fw_h *card_fw,
 {
 	const struct firmware *cfg, *fw;
 	const uint32_t c = be32toh(card_fw->fw_ver);
-	const uint32_t d = be32toh(drv_fw->fw_ver);
-	uint32_t k;
-	int rc;
+	uint32_t d, k;
+	int rc, fw_install;
+	struct fw_h bundled_fw;
+	bool load_attempted;
+
+	cfg = fw = NULL;
+	load_attempted = false;
+	fw_install = t4_fw_install < 0 ? -t4_fw_install : t4_fw_install;
 
 	if (reason != NULL)
 		goto install;
@@ -3508,7 +3514,23 @@ install_kld_firmware(struct adapter *sc, struct fw_h *card_fw,
 		return (0);
 	}
 
-	if (!fw_compatible(card_fw, drv_fw)) {
+	memcpy(&bundled_fw, drv_fw, sizeof(bundled_fw));
+	if (t4_fw_install < 0) {
+		rc = load_fw_module(sc, &cfg, &fw);
+		if (rc != 0 || fw == NULL) {
+			device_printf(sc->dev,
+			    "failed to load firmware module: %d. cfg %p, fw %p;"
+			    " will use compiled-in firmware version for"
+			    "hw.cxgbe.fw_install checks.\n",
+			    rc, cfg, fw);
+		} else {
+			memcpy(&bundled_fw, fw->data, sizeof(bundled_fw));
+		}
+		load_attempted = true;
+	}
+	d = be32toh(bundled_fw.fw_ver);
+
+	if (!fw_compatible(card_fw, &bundled_fw)) {
 		reason = "incompatible or unusable";
 		goto install;
 	}
@@ -3518,25 +3540,64 @@ install_kld_firmware(struct adapter *sc, struct fw_h *card_fw,
 		goto install;
 	}
 
-	if (t4_fw_install == 2 && d != c) {
+	if (fw_install == 2 && d != c) {
 		reason = "different than the version bundled with this driver";
 		goto install;
 	}
 
-	return (0);
+	/* No reason to do anything to the firmware already on the card. */
+	rc = 0;
+	goto done;
 
 install:
+	rc = 0;
 	if ((*already)++)
-		return (0);
+		goto done;
 
-	if (t4_fw_install == 0) {
+	if (fw_install == 0) {
 		device_printf(sc->dev, "firmware on card (%u.%u.%u.%u) is %s, "
 		    "but the driver is prohibited from installing a firmware "
 		    "on the card.\n",
 		    G_FW_HDR_FW_VER_MAJOR(c), G_FW_HDR_FW_VER_MINOR(c),
 		    G_FW_HDR_FW_VER_MICRO(c), G_FW_HDR_FW_VER_BUILD(c), reason);
 
-		return (0);
+		goto done;
+	}
+
+	/*
+	 * We'll attempt to install a firmware.  Load the module first (if it
+	 * hasn't been loaded already).
+	 */
+	if (!load_attempted) {
+		rc = load_fw_module(sc, &cfg, &fw);
+		if (rc != 0 || fw == NULL) {
+			device_printf(sc->dev,
+			    "failed to load firmware module: %d. cfg %p, fw %p\n",
+			    rc, cfg, fw);
+			/* carry on */
+		}
+	}
+	if (fw == NULL) {
+		device_printf(sc->dev, "firmware on card (%u.%u.%u.%u) is %s, "
+		    "but the driver cannot take corrective action because it "
+		    "is unable to load the firmware module.\n",
+		    G_FW_HDR_FW_VER_MAJOR(c), G_FW_HDR_FW_VER_MINOR(c),
+		    G_FW_HDR_FW_VER_MICRO(c), G_FW_HDR_FW_VER_BUILD(c), reason);
+		rc = sc->flags & FW_OK ? 0 : ENOENT;
+		goto done;
+	}
+	k = be32toh(((const struct fw_hdr *)fw->data)->fw_ver);
+	if (k != d) {
+		MPASS(t4_fw_install > 0);
+		device_printf(sc->dev,
+		    "firmware in KLD (%u.%u.%u.%u) is not what the driver was "
+		    "expecting (%u.%u.%u.%u) and will not be used.\n",
+		    G_FW_HDR_FW_VER_MAJOR(k), G_FW_HDR_FW_VER_MINOR(k),
+		    G_FW_HDR_FW_VER_MICRO(k), G_FW_HDR_FW_VER_BUILD(k),
+		    G_FW_HDR_FW_VER_MAJOR(d), G_FW_HDR_FW_VER_MINOR(d),
+		    G_FW_HDR_FW_VER_MICRO(d), G_FW_HDR_FW_VER_BUILD(d));
+		rc = sc->flags & FW_OK ? 0 : EINVAL;
+		goto done;
 	}
 
 	device_printf(sc->dev, "firmware on card (%u.%u.%u.%u) is %s, "
@@ -3545,25 +3606,6 @@ install:
 	    G_FW_HDR_FW_VER_MICRO(c), G_FW_HDR_FW_VER_BUILD(c), reason,
 	    G_FW_HDR_FW_VER_MAJOR(d), G_FW_HDR_FW_VER_MINOR(d),
 	    G_FW_HDR_FW_VER_MICRO(d), G_FW_HDR_FW_VER_BUILD(d));
-
-	rc = load_fw_module(sc, &cfg, &fw);
-	if (rc != 0 || fw == NULL) {
-		device_printf(sc->dev,
-		    "failed to load firmware module: %d. cfg %p, fw %p\n", rc,
-		    cfg, fw);
-		rc = sc->flags & FW_OK ? 0 : ENOENT;
-		goto done;
-	}
-	k = be32toh(((const struct fw_hdr *)fw->data)->fw_ver);
-	if (k != d) {
-		device_printf(sc->dev,
-		    "firmware in KLD (%u.%u.%u.%u) is not what the driver was "
-		    "compiled with and will not be used.\n",
-		    G_FW_HDR_FW_VER_MAJOR(k), G_FW_HDR_FW_VER_MINOR(k),
-		    G_FW_HDR_FW_VER_MICRO(k), G_FW_HDR_FW_VER_BUILD(k));
-		rc = sc->flags & FW_OK ? 0 : EINVAL;
-		goto done;
-	}
 
 	rc = -t4_fw_upgrade(sc, sc->mbox, fw->data, fw->datasize, 0);
 	if (rc != 0) {
@@ -5482,6 +5524,8 @@ vi_full_uninit(struct vi_info *vi)
 	struct sge_txq *txq;
 #ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
+#endif
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	struct sge_wrq *ofld_txq;
 #endif
 
@@ -5497,7 +5541,7 @@ vi_full_uninit(struct vi_info *vi)
 			quiesce_txq(sc, txq);
 		}
 
-#ifdef TCP_OFFLOAD
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 		for_each_ofld_txq(vi, i, ofld_txq) {
 			quiesce_wrq(sc, ofld_txq);
 		}
@@ -6285,15 +6329,9 @@ vi_sysctls(struct vi_info *vi)
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nofldrxq", CTLFLAG_RD,
 		    &vi->nofldrxq, 0,
 		    "# of rx queues for offloaded TCP connections");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nofldtxq", CTLFLAG_RD,
-		    &vi->nofldtxq, 0,
-		    "# of tx queues for offloaded TCP connections");
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "first_ofld_rxq",
 		    CTLFLAG_RD, &vi->first_ofld_rxq, 0,
 		    "index of first TOE rx queue");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "first_ofld_txq",
-		    CTLFLAG_RD, &vi->first_ofld_txq, 0,
-		    "index of first TOE tx queue");
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_tmr_idx_ofld",
 		    CTLTYPE_INT | CTLFLAG_RW, vi, 0,
 		    sysctl_holdoff_tmr_idx_ofld, "I",
@@ -6302,6 +6340,16 @@ vi_sysctls(struct vi_info *vi)
 		    CTLTYPE_INT | CTLFLAG_RW, vi, 0,
 		    sysctl_holdoff_pktc_idx_ofld, "I",
 		    "holdoff packet counter index for TOE queues");
+	}
+#endif
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
+	if (vi->nofldtxq != 0) {
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nofldtxq", CTLFLAG_RD,
+		    &vi->nofldtxq, 0,
+		    "# of tx queues for TOE/ETHOFLD");
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "first_ofld_txq",
+		    CTLFLAG_RD, &vi->first_ofld_txq, 0,
+		    "index of first TOE/ETHOFLD tx queue");
 	}
 #endif
 #ifdef DEV_NETMAP
@@ -9969,7 +10017,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 					mp_ring_reset_stats(txq->r);
 				}
 
-#ifdef TCP_OFFLOAD
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 				/* nothing to clear for each ofld_rxq */
 
 				for_each_ofld_txq(vi, i, wrq) {
