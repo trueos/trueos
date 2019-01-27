@@ -86,20 +86,23 @@ options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	RCTL			# Resource limits
 
 # Debugging support.  Always need this:
-options 	KDB			# Enable kernel debugger support.
-options 	KDB_TRACE		# Print a stack trace for a panic.
-#options 	DDB			# Support DDB.
-#options 	FULL_BUF_TRACKING	# Track more buffer history
-#options 	GDB			# Support remote GDB.
-#options 	DEADLKRES		# Enable the deadlock resolver
-#options 	INVARIANTS		# Enable calls of extra sanity checking
-#options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			# Enable checks to detect deadlocks and cycles
-#options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
-#options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
-#options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
+options     KDB         # Enable kernel debugger support.
+options     KDB_TRACE       # Print a stack trace for a panic.
+# For full debugger support use (turn off in stable branch):
+options     BUF_TRACKING        # Track buffer history
+options     DDB         # Support DDB.
+options     FULL_BUF_TRACKING   # Track more buffer history
+options     GDB         # Support remote GDB.
+options     DEADLKRES       # Enable the deadlock resolver
+options     INVARIANTS      # Enable calls of extra sanity checking
+options     INVARIANT_SUPPORT   # Extra sanity checks of internal structures, required by INVARIANTS
+options     WITNESS         # Enable checks to detect deadlocks and cycles
+options     WITNESS_SKIPSPIN    # Don't run witness on spinlocks for speed
+options     MALLOC_DEBUG_MAXZONES=8 # Separate malloc(9) zones
+options     VERBOSE_SYSINIT=0   # Support debug.verbose_sysinit, off by default
 # Warning: KUBSAN can result in a kernel too large for loader to load
-#options 	KUBSAN			# Kernel Undefined Behavior Sanitizer
+#options    KUBSAN          # Kernel Undefined Behavior Sanitizer
+#options KCOV # Kernel Coverage Sanitizer
 
 # Kernel dump features.
 options 	EKCD			# Support for encrypted kernel dumps
@@ -247,40 +250,40 @@ device		vx			# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
-device		miibus			# MII bus support
-device		ae			# Attansic/Atheros L2 FastEthernet
-device		age			# Attansic/Atheros L1 Gigabit Ethernet
-device		alc			# Atheros AR8131/AR8132 Ethernet
-device		ale			# Atheros AR8121/AR8113/AR8114 Ethernet
-device		bce			# Broadcom BCM5706/BCM5708 Gigabit Ethernet
-device		bfe			# Broadcom BCM440x 10/100 Ethernet
-device		bge			# Broadcom BCM570xx Gigabit Ethernet
-device		cas			# Sun Cassini/Cassini+ and NS DP83065 Saturn
-device		dc			# DEC/Intel 21143 and various workalikes
-device		et			# Agere ET1310 10/100/Gigabit Ethernet
-device		fxp			# Intel EtherExpress PRO/100B (82557, 82558)
-device		gem			# Sun GEM/Sun ERI/Apple GMAC
-device		hme			# Sun HME (Happy Meal Ethernet)
-device		jme			# JMicron JMC250 Gigabit/JMC260 Fast Ethernet
-device		lge			# Level 1 LXT1001 gigabit Ethernet
-device		msk			# Marvell/SysKonnect Yukon II Gigabit Ethernet
-device		nfe			# nVidia nForce MCP on-board Ethernet
-device		nge			# NatSemi DP83820 gigabit Ethernet
-device		pcn			# AMD Am79C97x PCI 10/100 (precedence over 'le')
-device		re			# RealTek 8139C+/8169/8169S/8110S
-device		rl			# RealTek 8129/8139
-device		sf			# Adaptec AIC-6915 (``Starfire'')
-device		sge			# Silicon Integrated Systems SiS190/191
-device		sis			# Silicon Integrated Systems SiS 900/SiS 7016
-device		sk			# SysKonnect SK-984x & SK-982x gigabit Ethernet
-device		ste			# Sundance ST201 (D-Link DFE-550TX)
-device		stge			# Sundance/Tamarack TC9021 gigabit Ethernet
-device		tl			# Texas Instruments ThunderLAN
-device		tx			# SMC EtherPower II (83c170 ``EPIC'')
-device		vge			# VIA VT612x gigabit Ethernet
-device		vr			# VIA Rhine, Rhine II
-device		wb			# Winbond W89C840F
-device		xl			# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+device      miibus          # MII bus support
+device      ae          # Attansic/Atheros L2 FastEthernet
+device      age         # Attansic/Atheros L1 Gigabit Ethernet
+device      alc         # Atheros AR8131/AR8132 Ethernet
+device      ale         # Atheros AR8121/AR8113/AR8114 Ethernet
+device      bce         # Broadcom BCM5706/BCM5708 Gigabit Ethernet
+device      bfe         # Broadcom BCM440x 10/100 Ethernet
+device      bge         # Broadcom BCM570xx Gigabit Ethernet
+device      cas         # Sun Cassini/Cassini+ and NS DP83065 Saturn
+device      dc          # DEC/Intel 21143 and various workalikes
+device      et          # Agere ET1310 10/100/Gigabit Ethernet
+device      fxp         # Intel EtherExpress PRO/100B (82557, 82558)
+device      gem         # Sun GEM/Sun ERI/Apple GMAC
+device      hme         # Sun HME (Happy Meal Ethernet)
+device      jme         # JMicron JMC250 Gigabit/JMC260 Fast Ethernet
+device      lge         # Level 1 LXT1001 gigabit Ethernet
+device      msk         # Marvell/SysKonnect Yukon II Gigabit Ethernet
+device      nfe         # nVidia nForce MCP on-board Ethernet
+device      nge         # NatSemi DP83820 gigabit Ethernet
+device      pcn         # AMD Am79C97x PCI 10/100 (precedence over 'le')
+device      re          # RealTek 8139C+/8169/8169S/8110S
+device      rl          # RealTek 8129/8139
+device      sf          # Adaptec AIC-6915 (``Starfire'')
+device      sge         # Silicon Integrated Systems SiS190/191
+device      sis         # Silicon Integrated Systems SiS 900/SiS 7016
+device      sk          # SysKonnect SK-984x & SK-982x gigabit Ethernet
+device      ste         # Sundance ST201 (D-Link DFE-550TX)
+device      stge            # Sundance/Tamarack TC9021 gigabit Ethernet
+device      tl          # Texas Instruments ThunderLAN
+device      tx          # SMC EtherPower II (83c170 ``EPIC'')
+device      vge         # VIA VT612x gigabit Ethernet
+device      vr          # VIA Rhine, Rhine II
+device      wb          # Winbond W89C840F
+device      xl          # 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # Wireless NIC cards
 device		wlan			# 802.11 support
@@ -299,8 +302,8 @@ options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 options 	AH_AR5416_INTERRUPT_MITIGATION # AR5416 interrupt mitigation
 options 	ATH_ENABLE_11N		# Enable 802.11n support for AR5416 and later
 device		ath_rate_sample		# SampleRate tx rate control for ath
-#device		bwi			# Broadcom BCM430x/BCM431x wireless NICs.
-#device		bwn			# Broadcom BCM43xx wireless NICs.
+device		bwi			# Broadcom BCM430x/BCM431x wireless NICs.
+device		bwn			# Broadcom BCM43xx wireless NICs.
 device		ipw			# Intel 2100 wireless NICs.
 device		iwi			# Intel 2200BG/2225BG/2915ABG wireless NICs.
 device		iwn			# Intel 4965/1000/5000/6000 wireless NICs.
@@ -362,7 +365,7 @@ device		virtio_scsi		# VirtIO SCSI device
 device		virtio_balloon		# VirtIO Memory Balloon device
 
 # HyperV drivers and enhancement support
-device		hyperv			# HyperV drivers 
+device		hyperv			# HyperV drivers
 
 # Xen HVM Guest Optimizations
 # NOTE: XENHVM depends on xenpci.  They must be added or removed together.
