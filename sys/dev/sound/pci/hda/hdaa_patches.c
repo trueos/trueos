@@ -419,7 +419,16 @@ hdac_pin_patch(struct hdaa_widget *w)
 			config  = 0x01a1913d;
 			break;
 		}
-	}
+	} else if (id == HDA_CODEC_ALC256 && subid == DELL_I7577_SUBVENDOR ) {
+        switch (nid) {
+        case 20:
+            patch = "as=1 seq=0";
+            break;
+        case 33:
+            patch = "as=1 seq=15";
+            break;
+        }
+    }
 
 	if (patch != NULL)
 		config = hdaa_widget_pin_patch(config, patch);
