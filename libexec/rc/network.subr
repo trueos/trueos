@@ -285,8 +285,6 @@ ifconfig_down()
 		else
 			/etc/rc.d/dhclient stop $1
 		fi
-	elif dhcpif $1; then
-		/etc/rc.d/dhclient stop $1
 		_cfg=0
 	fi
 
