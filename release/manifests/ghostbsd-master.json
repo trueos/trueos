@@ -1,7 +1,7 @@
 {
   "base-packages": {
     "depends": {},
-    "name-prefix": "GhostBSD"
+    "name-prefix": "FreeBSD"
   },
   "iso": {
     "auto-install-packages": {
