@@ -1404,12 +1404,14 @@ ipfw_chk(struct ip_fw_args *args)
 	int is_ipv4 = 0;
 
 	int done = 0;		/* flag to exit the outer loop */
+	IPFW_RLOCK_TRACKER;
 
 	if (m->m_flags & M_SKIP_FIREWALL || (! V_ipfw_vnet_ready))
 		return (IP_FW_PASS);	/* accept */
 
 	dst_ip.s_addr = 0;		/* make sure it is initialized */
 	src_ip.s_addr = 0;		/* make sure it is initialized */
+	src_port = dst_port = 0;
 	pktlen = m->m_pkthdr.len;
 
 	DYN_INFO_INIT(&dyn_info);
@@ -1688,7 +1690,6 @@ do {								\
 		args->f_id.dst_ip = ntohl(dst_ip.s_addr);
 	} else {
 		proto = 0;
-		src_port = dst_port = 0;
 		dst_ip.s_addr = src_ip.s_addr = 0;
 
 		args->f_id.addr_type = 1; /* XXX */

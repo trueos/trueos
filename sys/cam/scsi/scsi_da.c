@@ -130,7 +130,8 @@ typedef enum {
 	DA_Q_NO_UNMAP		= 0x20,
 	DA_Q_RETRY_BUSY		= 0x40,
 	DA_Q_SMR_DM		= 0x80,
-	DA_Q_STRICT_UNMAP	= 0x100
+	DA_Q_STRICT_UNMAP	= 0x100,
+	DA_Q_128KB		= 0x200
 } da_quirks;
 
 #define DA_Q_BIT_STRING		\
@@ -143,7 +144,8 @@ typedef enum {
 	"\006NO_UNMAP"		\
 	"\007RETRY_BUSY"	\
 	"\010SMR_DM"		\
-	"\011STRICT_UNMAP"
+	"\011STRICT_UNMAP"	\
+	"\012128KB"
 
 typedef enum {
 	DA_CCB_PROBE_RC		= 0x01,
@@ -871,6 +873,11 @@ static struct da_quirk_entry da_quirk_table[] =
        },
 	/* ATA/SATA devices over SAS/USB/... */
 	{
+		/* Sandisk X400 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SanDisk SD8SB8U1*", "*" },
+		/*quirks*/DA_Q_128KB
+	},
+	{
 		/* Hitachi Advanced Format (4k) drives */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "Hitachi", "H??????????E3*", "*" },
 		/*quirks*/DA_Q_4K
@@ -1089,6 +1096,30 @@ static struct da_quirk_entry da_quirk_table[] =
 		/* WDC Scorpio Blue Advanced Format (4k) drives */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "???PVT*", "*" },
 		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
+		 * Olympus digital cameras (C-3040ZOOM, C-2040ZOOM, C-1)
+		 * PR: usb/97472
+		 */
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "C*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE | DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Olympus digital cameras (D-370)
+		 * PR: usb/97472
+		 */
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "D*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * Olympus digital cameras (E-100RS, E-10).
+		 * PR: usb/97472
+		 */
+		{ T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "E*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE | DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -2801,6 +2832,8 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->maxio = MAXPHYS;		/* for safety */
 	else
 		softc->maxio = cpi.maxio;
+	if (softc->quirks & DA_Q_128KB)
+		softc->maxio = min(softc->maxio, 128 * 1024);
 	softc->disk->d_maxsize = softc->maxio;
 	softc->disk->d_unit = periph->unit_number;
 	softc->disk->d_flags = DISKFLAG_DIRECT_COMPLETION | DISKFLAG_CANZONE;
@@ -3290,14 +3323,12 @@ more:
 			/*
 			 * BIO_FLUSH doesn't currently communicate
 			 * range data, so we synchronize the cache
-			 * over the whole disk.  We also force
-			 * ordered tag semantics the flush applies
-			 * to all previously queued I/O.
+			 * over the whole disk.
 			 */
 			scsi_synchronize_cache(&start_ccb->csio,
 					       /*retries*/1,
 					       /*cbfcnp*/dadone,
-					       MSG_ORDERED_Q_TAG,
+					       /*tag_action*/tag_code,
 					       /*begin_lba*/0,
 					       /*lb_count*/0,
 					       SSD_FULL_SIZE,

@@ -3808,7 +3808,7 @@ kern/kern_idle.c		standard
 kern/kern_intr.c		standard
 kern/kern_jail.c		standard
 kern/kern_kcov.c		optional kcov			\
-	compile-with		"${NORMAL_C} -fno-sanitize-coverage=trace-pc,trace-cmp"
+	compile-with		"${NORMAL_C} -fno-sanitize=all"
 kern/kern_khelp.c		standard
 kern/kern_kthread.c		standard
 kern/kern_ktr.c			optional ktr
@@ -3883,6 +3883,8 @@ kern/subr_capability.c		standard
 kern/subr_clock.c		standard
 kern/subr_compressor.c		standard \
 	compile-with "${NORMAL_C} -I$S/contrib/zstd/lib/freebsd"
+kern/subr_coverage.c		optional coverage \
+	compile-with		"${NORMAL_C} -fno-sanitize=all"
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
@@ -4130,10 +4132,10 @@ net/if_tun.c			optional tun
 net/if_tap.c			optional tap
 net/if_vlan.c			optional vlan
 net/if_vxlan.c			optional vxlan inet | vxlan inet6
-net/ifdi_if.m			optional ether pci
-net/iflib.c			optional ether pci
-net/iflib_clone.c		optional ether pci
-net/mp_ring.c			optional ether
+net/ifdi_if.m			optional ether pci iflib
+net/iflib.c			optional ether pci iflib
+net/iflib_clone.c		optional ether pci iflib
+net/mp_ring.c			optional ether iflib
 net/mppcc.c			optional netgraph_mppc_compression
 net/mppcd.c			optional netgraph_mppc_compression
 net/netisr.c			standard
