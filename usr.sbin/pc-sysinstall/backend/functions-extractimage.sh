@@ -48,7 +48,7 @@ start_extract_pkg()
 
   # Are we using legacy pkg-base system or new?
   pkg rquery '%v' os/userland >/dev/null 2>/dev/null
-  if [ -n "$NEWBASE" ] ; then
+  if [ $? -eq 0 ] ; then
 	  install_ports_base
   else
 	  install_legacy_base
@@ -62,7 +62,7 @@ start_extract_pkg()
 install_ports_base()
 {
   # Install the default os/userland and os/kernel
-  for inspkg in os/userland os/kernel
+  for inspkg in os/userland os/kernel ports-mgmt/pkg
   do
     # Skip any {debug|development} packages
     echo_log "pkg -r ${FSMNT} install -yf $inspkg"
