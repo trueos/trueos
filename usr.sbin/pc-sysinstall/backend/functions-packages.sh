@@ -36,9 +36,9 @@
 bootstrap_pkgng()
 {
   # Check if we need to boot-strap pkgng
-  if run_chroot_cmd "which pkg-static" >/dev/null 2>/dev/null
-  then
-     return
+  sync
+  if [ -e "${FSMNT}/usr/local/sbin/pkg-static" ] ; then
+	  return 0
   fi
   local PKGPTH
 
@@ -48,7 +48,7 @@ bootstrap_pkgng()
   # Figure out real location of "pkg" package
   PKGFLAG="add"
   case "${INSTALLMEDIUM}" in
-    usb|dvd|local) rc_halt "cd ${LOCALPATH}/packages"
+    usb|dvd|local) rc_halt "cd ${LOCALPATH}"
 		   PKGPTH="/mnt/`ls pkg-[0-9]*.txz`"
 		   ;;
               ftp) if [ ! -e "${FSMNT}/usr/local/etc/pkg" ] ; then
