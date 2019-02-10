@@ -130,7 +130,10 @@ struct uhub_softc {
 	int sc_disable_port_power;
 #endif
 	uint8_t sc_usb_port_errors;	/* error counter */
+	uint8_t sc_usb_port_reset_errors;	/* error counter to throttle "device vanished" log messages */
 #define	UHUB_USB_PORT_ERRORS_MAX 4
+#define	UHUB_USB_PORT_RESET_ERRORS_MAX 1 /* "device vanished" message is logged repeatedly on timeout (1 second) */
+                                         /* so this max of 1 makes it 1 message per second if error occurs */
 	uint8_t	sc_flags;
 #define	UHUB_FLAG_DID_EXPLORE 0x01
 };
@@ -750,8 +753,12 @@ repeat:
 		if ((sc->sc_st.port_change & UPS_C_CONNECT_STATUS) ||
 		    (!(sc->sc_st.port_status & UPS_CURRENT_CONNECT_STATUS))) {
 			if (timeout) {
-				DPRINTFN(0, "giving up port reset "
-				    "- device vanished\n");
+                                if(sc->sc_usb_port_reset_errors < UHUB_USB_PORT_RESET_ERRORS_MAX)
+                                {   
+				     DPRINTFN(0, "giving up port reset "
+				                 "- device vanished\n");
+                                }
+                                ++sc->sc_usb_port_reset_errors;
 				goto error;
 			}
 			timeout = 1;
