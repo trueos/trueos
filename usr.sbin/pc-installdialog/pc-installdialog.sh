@@ -44,7 +44,7 @@ PIJSON="/root/post-install-commands.json"
 SWAPSIZE="2000"
 
 # Default boot pool name
-POOLNAME="tank"
+POOLNAME="zroot"
 
 # Set location of default TrueOS Manifest
 TRUEOS_MANIFEST="/root/trueos-manifest.json"
