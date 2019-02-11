@@ -9,15 +9,9 @@
 : ${DIALOG_ESC=255}
 
 MACHINE=`uname -m`
-BRAND="TrueOS"
-if [ -e "/var/db/trueos-manifest.json" ] ; then
-  _tmp=`jq -r '."os_name"' "/var/db/trueos-manifest.json"`
-  if [ -n "${_tmp}" -a "${_tmp}" != "null" ] ; then
-    BRAND="${_tmp}"
-  fi
-fi
+
 # resolv.conf from DHCP ends up in here, so make sure the directory exists
-mkdir /tmp/install_etc
+mkdir /tmp/bsdinstall_etc
 
 kbdcontrol -d >/dev/null 2>&1
 if [ $? -eq 0 ]; then
@@ -31,15 +25,15 @@ if [ $? -eq 0 ]; then
 	if [ -z "$EXTERNAL_VTY_STARTED" ]; then
 		# Init will clean these processes up if/when the system
 		# goes multiuser
-		touch /tmp/pc-sysinstall.log
-		tail -f /tmp/pc-sysinstall.log > /dev/ttyv2 &
+		touch /tmp/bsdinstall_log
+		tail -f /tmp/bsdinstall_log > /dev/ttyv2 &
 		/usr/libexec/getty autologin ttyv3 &
 		EXTERNAL_VTY_STARTED=1
 	fi
 else
 	# Serial or other console
 	echo
-	echo "Welcome to ${BRAND}!"
+	echo "Welcome to FreeBSD!"
 	echo
 	echo "Please choose the appropriate terminal type for your system."
 	echo "Common console types are:"
@@ -54,43 +48,17 @@ else
 fi
 export TERM
 
-# The random init messages are cluttering up the screen
-# Lets get some random number and then sleep a moment
-dd if=/dev/random of=/dev/null bs=1k count=1 >/dev/null 2>/dev/null
-sleep 1
-clear
-
-if [ -f /etc/trueos-custom-install ]; then
-	# A custom install script exists, lets run that instead of the default
-	$(cat /etc/trueos-custom-install)
-	exit $?
-fi
-
-if glabel status | grep -q "msdosfs/TRUEOSCONF"; then
-	mkdir /tmp/TRUEOSCONF
-        mount_msdosfs /dev/msdosfs/TRUEOSCONF /tmp/TRUEOSCONF
-	# Check if we have an auto-install directive
-	if pc-sysinstall start-autoinstall /tmp/TRUEOSCONF/installerconfig; then
-		dialog --backtitle "${BRAND} Installer" --title "Complete" --no-cancel --ok-label "Reboot" --pause "Installation of ${BRAND} complete! Rebooting in 10 seconds" 10 30 10
-		reboot
-	else
-		dialog --backtitle "${BRAND} Installer" --title "Error" --textbox /tmp/pc-sysinstall.log
-	fi
-fi
-        	
-
 if [ -f /etc/installerconfig ]; then
-	# Check if we have an auto-install directive
-	if pc-sysinstall start-autoinstall /etc/installerconfig; then
-		dialog --backtitle "${BRAND} Installer" --title "Complete" --no-cancel --ok-label "Reboot" --pause "Installation of ${BRAND} complete! Rebooting in 10 seconds" 10 30 10
+	if bsdinstall script /etc/installerconfig; then
+		dialog --backtitle "FreeBSD Installer" --title "Complete" --no-cancel --ok-label "Reboot" --pause "Installation of FreeBSD complete! Rebooting in 10 seconds" 10 30 10
 		reboot
 	else
-		dialog --backtitle "${BRAND} Installer" --title "Error" --textbox /tmp/pc-sysinstall.log
+		dialog --backtitle "FreeBSD Installer" --title "Error" --textbox /tmp/bsdinstall_log 0 0
 	fi
-	exit
+	exit 
 fi
 
-dialog --backtitle "${BRAND} Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live CD" --yesno "Welcome to ${BRAND}! Would you like to begin an installation or use the live CD?" 0 0
+dialog --backtitle "FreeBSD Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live CD" --yesno "Welcome to FreeBSD! Would you like to begin an installation or use the live CD?" 0 0
 
 case $? in
 $DIALOG_OK)	# Install
@@ -101,9 +69,9 @@ $DIALOG_OK)	# Install
 	fi
 
 	trap true SIGINT	# Ignore cntrl-C here
-	pc-installdialog
+	bsdinstall
 	if [ $? -eq 0 ]; then
-		dialog --backtitle "${BRAND} Installer" --title "Complete" --yes-label "Reboot" --no-label "Live CD" --yesno "Installation of ${BRAND} complete! Would you like to reboot into the installed system now?" 0 0 && reboot
+		dialog --backtitle "FreeBSD Installer" --title "Complete" --yes-label "Reboot" --no-label "Live CD" --yesno "Installation of FreeBSD complete! Would you like to reboot into the installed system now?" 0 0 && reboot
 	else
 		. /etc/rc.local
 	fi
@@ -118,3 +86,4 @@ $DIALOG_EXTRA)	# Shell
 	. /etc/rc.local
 	;;
 esac
+

@@ -105,6 +105,7 @@
 # completely subject to change without notice.
 #
 # For more information, see the build(7) manual page.
+#
 
 # This is included so CC is set to ccache for -V, and COMPILER_TYPE/VERSION
 # can be cached for sub-makes. We can't do this while still running on the
@@ -144,9 +145,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	xdev-links native-xtools native-xtools-install stageworld stagekernel \
 	stage-packages \
 	create-packages-world create-packages-kernel create-packages \
-	base-packages real-base-packages unlink-packages \
 	packages installconfig real-packages sign-packages package-pkg \
-	link-packages ports run-ports \
 	print-dir test-system-compiler test-system-linker
 
 # These targets require a TARGET and TARGET_ARCH be defined.
