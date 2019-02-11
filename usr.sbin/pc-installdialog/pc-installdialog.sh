@@ -41,7 +41,7 @@ ASHIFTSIZE="12"
 PIJSON="/root/post-install-commands.json"
 
 # Default swapsize in MB
-SWAPSIZE="2000"
+SWAPSIZE="4000"
 
 # Default boot pool name
 POOLNAME="tank"
