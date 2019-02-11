@@ -31,20 +31,12 @@ pipeline {
       }
     }
 
-    stage('Nullfs') {
-      steps {
-        sh 'mkdir -p ${SRCROOT} || true'
-        sh 'mount_nullfs ${WORKSPACE} ${SRCROOT}'
-      }
-    }
-
     stage('Pre-Clean') {
       steps {
         sh 'rm -rf ${WORKSPACE}/artifacts'
-        sh 'mkdir -p ${WORKSPACE}/artifacts/repo'
-        sh 'rm -rf /usr/obj${SRCROOT} || true'
-        sh 'chflags -R noschg /usr/obj${SRCROOT} || true'
-        sh 'rm -rf /usr/obj${SRCROOT} || true'
+        sh 'mkdir ${WORKSPACE}/artifacts'
+        sh 'rm -rf ${WORKSPACE}/destdir'
+        sh 'mkdir ${WORKSPACE}/destdir'
       }
     }
 	  
@@ -54,11 +46,12 @@ pipeline {
           archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
         }
         failure {
-	  sh 'tail -n 200 ${WORKSPACE}/artifacts/world.log'
+	  sh 'tail -n 500 ${WORKSPACE}/artifacts/world.log'
         }
       }
       steps {
-        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildworld >${WORKSPACE}/artifacts/world.log 2>&1'
+        sh 'make -j $(sysctl -n hw.ncpu) buildworld DESTDIR=${WORKSPACE}/destdir >${WORKSPACE}/artifacts/world.log 2>&1'
+        sh 'make -j $(sysctl -n hw.ncpu) installworld DESTDIR=${WORKSPACE}/destdir >>${WORKSPACE}/artifacts/world.log 2>&1'
       }
     }
 	  
@@ -68,62 +61,23 @@ pipeline {
           archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
         }
         failure {
-	  sh 'tail -n 200 ${WORKSPACE}/artifacts/kernel.log'
+	  sh 'tail -n 500 ${WORKSPACE}/artifacts/kernel.log'
         }
       }
       steps {
-        sh 'cd ${SRCROOT} && make -j $(sysctl -n hw.ncpu) buildkernel >${WORKSPACE}/artifacts/kernel.log 2>&1'
+        sh 'make -j $(sysctl -n hw.ncpu) buildkernel DESTDIR=${WORKSPACE}/destdir >${WORKSPACE}/artifacts/kernel.log 2>&1'
+        sh 'make -j $(sysctl -n hw.ncpu) installkernel DESTDIR=${WORKSPACE}/destdir >>${WORKSPACE}/artifacts/kernel.log 2>&1'
       }
     }
 	  
-    stage('Base Packages') {
-      post {
-        always {
-          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
-        }
-        failure {
-	  sh 'tail -n 200 ${WORKSPACE}/artifacts/packages.log'
-        }
-      }
-      environment {
-           PKGSIGNKEY = credentials('a50f9ddd-1460-4951-a304-ddbf6f2f7990')
-      }
-      steps {
-        sh 'cd ${SRCROOT} && make packages -j 16 -DDB_FROM_SRC >${WORKSPACE}/artifacts/packages.log 2>&1'
-      }
-    }
-	  
-    stage('Release') {
-      post {
-        always {
-          archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
-        }
-        failure {
-	  sh 'tail -n 200 ${WORKSPACE}/artifacts/release.log'
-        }
-      }
-	    
-      steps {
-        sh 'cd ${SRCROOT}/release && make clean || true'
-        sh 'cd ${SRCROOT}/release && make iso >${WORKSPACE}/artifacts/release.log 2>&1'
-        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.iso ${WORKSPACE}/artifacts'
-        sh 'cp /usr/obj${SRCROOT}/amd64.amd64/release/*.img ${WORKSPACE}/artifacts'
-        sh 'cp -r /usr/obj${SRCROOT}/repo/* ${WORKSPACE}/artifacts/repo/'
-      }
-    }
-  }
-	
   post {
     always {
-      archiveArtifacts artifacts: 'artifacts/**', fingerprint: true
-      echo "*** Cleaning up ***"
-      sh 'rm -rf /usr/obj${SRCROOT} || true'
-      sh 'chflags -R noschg /usr/obj${SRCROOT} || true'
-      sh 'rm -rf /usr/obj${SRCROOT} || true'
-      sh 'umount -f ${SRCROOT} || true'
       script {
         cleanWs notFailBuild: true
       }
+      sh 'rm -rf DESTDIR=${WORKSPACE}/destdir || true'
+      sh 'chflags -R noschg DESTDIR=${WORKSPACE}/destdir || true'
+      sh 'rm -rf DESTDIR=${WORKSPACE}/destdir'
     }
   }
 }
