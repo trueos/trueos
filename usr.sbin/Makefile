@@ -95,7 +95,6 @@ SUBDIR=	adduser \
 	traceroute \
 	trim \
 	trpt \
-	trueos-update \
 	tzsetup \
 	ugidfw \
 	vigr \
