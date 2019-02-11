@@ -1059,7 +1059,7 @@ start_edit_menu_loop()
        view) more ${CFGFILE}
              rtn
              ;;
-       edit) ee ${CFGFILE}
+       edit) vi ${CFGFILE}
              rtn
              ;;
        back) break ;;
