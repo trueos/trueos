@@ -46,11 +46,6 @@
 # /usr/share/mk.  These include:
 #		obj depend all install clean cleandepend cleanobj
 
-#MK_CLANG_BOOTSTRAP=	no
-#MK_GCC_BOOTSTRAP=	no
-#MK_CLANG=		no
-#MK_LLD_BOOTSTRAP=	no
-
 .if !defined(TARGET) || !defined(TARGET_ARCH)
 .error "Both TARGET and TARGET_ARCH must be defined."
 .endif
@@ -61,28 +56,6 @@ _MKSHOWCONFIG=	t
 
 SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
-
-
-# Check if TRUEOS_MANIFEST is set, if not use the default
-.if !defined(TRUEOS_MANIFEST)
-TRUEOS_MANIFEST=	${SRCDIR}/release/manifests/freenas-master.json
-.endif
-
-# Confirm the file TRUEOS_MANIFEST exists
-.if !exists(${TRUEOS_MANIFEST})
-.error "Missing file TRUEOS_MANIFEST: ${TRUEOS_MANIFEST}"
-.endif
-
-# Get the base package name
-.if make(create-world-packages-jobs) || make(create-kernel-packages)
-.if exists(/usr/local/bin/jq)
-PKG_BASENAME!=		/usr/local/bin/jq -r '."base-packages"."name-prefix"' \
-				${TRUEOS_MANIFEST}
-.else
-PKG_BASENAME!=		/usr/bin/jq -r '."base-packages"."name-prefix"' \
-				${TRUEOS_MANIFEST}
-.endif
-.endif
 
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
@@ -400,6 +373,7 @@ toolchain-metadata.mk: .PHONY .META
 	@echo ".export ${_TOOLCHAIN_METADATA_VARS}" >> ${.TARGET}
 	@echo ".export ${_TOOLCHAIN_METADATA_VARS:C,^,X_,}" >> ${.TARGET}
 
+
 # We must do lib/ and libexec/ before bin/ in case of a mid-install error to
 # keep the users system reasonably usable.  For static->dynamic root upgrades,
 # we don't want to install a dynamic binary without rtld and the needed
@@ -573,14 +547,13 @@ VERSION=	FreeBSD ${_REVISION}-${_BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDA
 .endif
 
 .if !defined(PKG_VERSION)
-TIMENOW=	%Y%m%d%H%M%S
 .if ${_BRANCH:MSTABLE*} || ${_BRANCH:MCURRENT*} || ${_BRANCH:MALPHA*}
-EXTRA_REVISION=	.${TIMENOW:gmtime}
+TIMENOW=	%Y%m%d%H%M%S
+EXTRA_REVISION=	.s${TIMENOW:gmtime}
 .endif
 .if ${_BRANCH:M*-p*}
-EXTRA_REVISION=	.${TIMENOW:gmtime}
+EXTRA_REVISION=	_${_BRANCH:C/.*-p([0-9]+$)/\1/}
 .endif
-EXTRA_REVISION=	.${TIMENOW:gmtime}
 PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
 .endif	# !defined(_MKSHOWCONFIG)
@@ -865,8 +838,8 @@ DB_FROM_SRC=	yes
 .endif
 
 .if defined(DB_FROM_SRC)
-INSTALLFLAGS+=	-N ${.CURDIR}/libexec/rc
-MTREEFLAGS+=	-N ${.CURDIR}/libexec/rc
+INSTALLFLAGS+=	-N ${.CURDIR}/etc
+MTREEFLAGS+=	-N ${.CURDIR}/etc
 .endif
 _INSTALL_DDIR=	${DESTDIR}/${DISTDIR}
 INSTALL_DDIR=	${_INSTALL_DDIR:S://:/:g:C:/$::}
@@ -1442,6 +1415,18 @@ packageworld: .PHONY
 . endif
 .endfor
 
+_sysent_dirs=	sys/kern
+_sysent_dirs+=	sys/compat/freebsd32
+_sysent_dirs+=	sys/i386/ibcs2
+_sysent_dirs+=	sys/amd64/linux		\
+		sys/amd64/linux32	\
+		sys/arm64/linux		\
+		sys/i386/linux
+sysent: .PHONY
+.for _dir in ${_sysent_dirs}
+	${_+_}${MAKE} -C ${.CURDIR}/${_dir} sysent
+.endfor
+
 #
 # reinstall
 #
@@ -1478,10 +1463,10 @@ redistribute: .MAKE .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute ${WORLD_FLAGS}
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
 .if defined(LIBCOMPAT)
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute${libcompat} \
-	    DISTRIBUTION=lib${libcompat} ${WORLD_FLAGS}
+	    DISTRIBUTION=lib${libcompat}
 .endif
 
 distrib-dirs distribution: .MAKE .PHONY
@@ -1489,7 +1474,7 @@ distrib-dirs distribution: .MAKE .PHONY
 	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
 .if make(distribution)
 	${_+_}cd ${.CURDIR}; ${CROSSENV} PATH=${TMPPATH} \
-		${MAKE} -f Makefile.inc1 ${IMAKE_INSTALL} ${WORLD_FLAGS} \
+		${MAKE} -f Makefile.inc1 ${IMAKE_INSTALL} \
 		METALOG=${METALOG} MK_TESTS=no installconfig
 .endif
 
@@ -1666,7 +1651,6 @@ distributekernel distributekernel.debug: .PHONY
 	${_+_}cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
-	    ${KERNEL_FLAGS} \
 	    DESTDIR=${INSTALL_DDIR}/kernel \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
@@ -1684,7 +1668,6 @@ distributekernel distributekernel.debug: .PHONY
 	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} \
 	    KERNEL=${INSTKERNNAME}.${_kernel} \
 	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
-	    ${KERNEL_FLAGS} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
 	@sed -e "s|^./kernel.${_kernel}|.|" \
@@ -1756,22 +1739,15 @@ KSTAGEDIR?=	${OBJTOP}/kernelstage
 REPODIR?=	${OBJROOT}repo
 PKGSIGNKEY?=	# empty
 
-.ORDER:		stage-packages unlink-packages create-packages
+.ORDER:		stage-packages create-packages
 .ORDER:		create-packages create-world-packages
 .ORDER:		create-packages create-kernel-packages
-.ORDER:		create-packages link-packages run-ports sign-packages
+.ORDER:		create-packages sign-packages
 
 _pkgbootstrap: .PHONY
 .if make(*package*) && !exists(${LOCALBASE}/sbin/pkg)
 	@env ASSUME_ALWAYS_YES=YES pkg bootstrap
 .endif
-
-ports: .PHONY
-	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} run-ports
-	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} sign-packages
-
-base-packages: .PHONY
-	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} real-base-packages
 
 packages: .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} real-packages
@@ -1783,30 +1759,19 @@ package-pkg: .PHONY
 		WSTAGEDIR=${WSTAGEDIR} \
 		sh ${.CURDIR}/release/scripts/make-pkg-package.sh
 
-real-packages:	stage-packages unlink-packages create-packages link-packages run-ports sign-packages .PHONY
-
-real-base-packages:	stage-packages unlink-packages create-packages link-packages .PHONY
+real-packages:	stage-packages create-packages sign-packages .PHONY
 
 stage-packages-world: .PHONY
 	@mkdir -p ${WSTAGEDIR}
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} ${WORLD_FLAGS} DESTDIR=${WSTAGEDIR} -DNO_ROOT stageworld
+		${MAKE} DESTDIR=${WSTAGEDIR} -DNO_ROOT stageworld
 
 stage-packages-kernel: .PHONY
 	@mkdir -p ${KSTAGEDIR}
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} ${KERNEL_FLAGS} DESTDIR=${KSTAGEDIR} -DNO_ROOT stagekernel
+		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT stagekernel
 
 stage-packages: .PHONY stage-packages-world stage-packages-kernel
-
-unlink-packages: _pkgbootstrap .PHONY
-	@if [ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/previous" ] ; then \
-		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/previous ; \
-	fi
-	@if [ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest" ] ; then \
-		mv ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest \
-			${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/previous ; \
-	fi
 
 _repodir: .PHONY
 	@mkdir -p ${REPODIR}
@@ -1815,14 +1780,12 @@ create-packages-world:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 \
 			DESTDIR=${WSTAGEDIR} \
-			${WORLD_FLAGS} \
 			PKG_VERSION=${PKG_VERSION} create-world-packages
 
 create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 \
 			DESTDIR=${KSTAGEDIR} \
-			${KERNEL_FLAGS} \
 			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
 			create-kernel-packages
 
@@ -1838,11 +1801,6 @@ create-world-packages:	_pkgbootstrap .PHONY
 	  pkgname=$${plist%.plist} ; \
 	  echo "_PKGS+= $${pkgname}" ; \
 	done > ${WSTAGEDIR}/packages.mk
-	(mkdir -p ${WSTAGEDIR}/var/db || true) ; \
-	echo "@dir(root,wheel,0755,) /var/db" >> ${WSTAGEDIR}/runtime.plist ; \
-	echo "Saving TrueOS Manifest" ; \
-	cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
-	echo "@(root,wheel,0444,) /var/db/trueos-manifest.json" >> ${WSTAGEDIR}/runtime.plist
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 create-world-packages-jobs \
 		.MAKE.JOB.PREFIX=
@@ -1856,56 +1814,19 @@ create-world-packages-jobs: .PHONY
 create-world-packages-jobs: create-world-package-${pkgname}
 create-world-package-${pkgname}: .PHONY
 	@sh ${SRCDIR}/release/packages/generate-ucl.sh -o ${pkgname} \
-		-s ${SRCDIR} -u ${WSTAGEDIR}/${pkgname}.ucl -b ${PKG_BASENAME}
+		-s ${SRCDIR} -u ${WSTAGEDIR}/${pkgname}.ucl
 	@awk -F\" ' \
 		/^name/ { printf("===> Creating %s-", $$2); next } \
 		/^version/ { print $$2; next } \
 		' ${WSTAGEDIR}/${pkgname}.ucl
-	@if [ "${pkgname}" = "runtime" ]; then \
+	@if [ "${pkgname}" == "runtime" ]; then \
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
-		if [ -e "${WSTAGEDIR}/etc/mail/freebsd.cf" ] ; then \
-			echo "@config(root,wheel,0644,) /etc/mail/freebsd.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
-			echo "@config(root,wheel,0644,) /etc/mail/freebsd.submit.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
-			echo "@config(root,wheel,0644,) /etc/mail/sendmail.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
-			echo "@config(root,wheel,0644,) /etc/mail/submit.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
-		fi ; \
-		echo "${PKG_BASENAME}-${PKG_VERSION}" > ${WSTAGEDIR}/etc/version ; \
-		echo "@(root,wheel,0644,) /etc/version" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 	fi
-	@cat ${WSTAGEDIR}/${pkgname}.plist | uniq > ${WSTAGEDIR}/${pkgname}.plist.new; \
-		mv ${WSTAGEDIR}/${pkgname}.plist.new ${WSTAGEDIR}/${pkgname}.plist;
-	@sh ${SRCDIR}/release/packages/build-checksum.sh ${pkgname} \
-		${WSTAGEDIR} \
-		${WSTAGEDIR}/${pkgname}.plist \
-		${WSTAGEDIR}/${pkgname}.ucl
-	@sh ${SRCDIR}/release/packages/transform-ucl.sh ${pkgname} \
-		${SRCDIR} \
-		${WSTAGEDIR}/${pkgname}.ucl \
-		${TRUEOS_MANIFEST}
-	@if [ ! -d "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION}" ] ; then \
-		mkdir -p ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION} || true ; \
-	fi
-# Check if the previous package exists, and if its checksum identical to the new plist about
-# to be used. If so, we'll forego the new package and use the existing one.
-#
-# XXX REMOVE ME LATER
-# This "truss" may not be necessary at a later point. Right now we're dealing with some
-# very odd race conditions with pkg-static that causes segfaults at random.
-# Try to capture the error if we can with truss (which also oddly fixes the issue 99% of the time)
-	@export PPKG=$$(ls ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/previous/${PKG_BASENAME}-${pkgname}-[0-9]* 2>/dev/null || true) ; \
-	echo "Checking previous package $${PPKG}" ; \
-	if [ -n "$${PPKG}" -a "$$(${PKG_CMD} info -R --raw-format json -F $${PPKG} 2>/dev/null | /usr/local/bin/jq -r '."annotations"."psum"')" = "$$(cat ${WSTAGEDIR}/${pkgname}.plist.csum)" ] ; then \
-		echo "=====> Using previous package for ${pkgname}" ; \
-		cp $${PPKG} ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION}/ ; \
-	else \
-		echo "=====> Building fresh package for ${pkgname}" ; \
-		env -i ${PKG_CMD} -d -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
 		create -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
 		-r ${WSTAGEDIR} \
-		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} 2>/dev/null ; \
-	fi
-
+		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
 .endfor
 
 _default_flavor=	-default
@@ -1922,7 +1843,6 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${INSTALLKERNEL} ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%BASENAME%/${PKG_BASENAME}/" \
 		-e "s/%PKGNAME%/kernel-${INSTALLKERNEL:tl}${flavor}/" \
 		-e "s/%KERNELDIR%/kernel/" \
 		-e "s/%COMMENT%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
@@ -1934,25 +1854,11 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
-	if [ ! -d "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION}" ] ; then \
-		mkdir -p ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION} || true ; \
-	fi ; \
-	sh ${SRCDIR}/release/packages/build-checksum.sh kernel.${INSTALLKERNEL}${flavor} \
-		${KSTAGEDIR}/${DISTDIR} \
-		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
-		${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
-	export PPKG=$$(ls ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/previous/${PKG_BASENAME}-kernel-${INSTALLKERNEL:tl}${flavor}-[0-9]* 2>/dev/null || true) ; \
-	if [ -n "$${PPKG}" -a "$$(${PKG_CMD} info -R --raw-format json -F $${PPKG} 2>/dev/null | /usr/local/bin/jq -r '."annotations"."psum"')" = "$$(cat ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist.csum)" ] ; then \
-		echo "=====> Using previous package for kernel-${INSTALLKERNEL:tl}${flavor}" ; \
-		cp $${PPKG} ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION}/ ; \
-	else \
-		echo "=====> Building fresh package for kernel-${INSTALLKERNEL:tl}${flavor}" ; \
-		${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
-			create -M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
-			-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
-			-r ${KSTAGEDIR}/${DISTDIR} \
-			-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
-	fi
+	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+		create -M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
+		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
+		-r ${KSTAGEDIR}/${DISTDIR} \
+		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
 . endfor
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
@@ -1969,7 +1875,6 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
 		-v kernel=yes -v _kernconf=${_kernel} ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
-		-e "s/%BASENAME%/${PKG_BASENAME}/" \
 		-e "s/%PKGNAME%/kernel-${_kernel:tl}${flavor}/" \
 		-e "s/%KERNELDIR%/kernel.${_kernel}/" \
 		-e "s/%COMMENT%/FreeBSD ${_kernel} kernel ${flavor}/" \
@@ -1981,46 +1886,25 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		/name/ { printf("===> Creating %s-", $$2); next } \
 		/version/ {print $$2; next } ' \
 		${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
-	if [ ! -d "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION}" ] ; then \
-		mkdir -p ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION} || true ; \
-	fi ;\
-	sh ${SRCDIR}/release/packages/build-checksum.sh kernel.${_kernel}${flavor} \
-		${KSTAGEDIR}/${DISTDIR} \
-		${KSTAGEDIR}/${DISTDIR}/kernel.${_kernel}${flavor}.plist \
-		${KSTAGEDIR}/${DISTDIR}/kernel.${_kernel}${flavor}.ucl ; \
-	export PPKG=$$(ls ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/previous/${PKG_BASENAME}-kernel-${_kernel:tl}${flavor}-[0-9]* 2>/dev/null || true) ; \
-	if [ -n "$${PPKG}" -a "$$(${PKG_CMD} info -R --raw-format json -F $${PPKG} 2>/dev/null | /usr/local/bin/jq -r '."annotations"."psum"')" = "$$(cat ${KSTAGEDIR}/${DISTDIR}/kernel.${_kernel}${flavor}.plist.csum)" ] ; then \
-		echo "=====> Using previous package for kernel-${_kernel:tl}${flavor}" ; \
-		cp $${PPKG} ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION}/ ; \
-	else \
-		echo "=====> Building fresh package for kernel-${_kernel:tl}${flavor}" ; \
-		${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
-			create -M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
-			-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
-			-r ${KSTAGEDIR}/kernel.${_kernel} \
-			-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} ; \
-	fi
+	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh -o ALLOW_BASE_SHLIBS=yes \
+		create -M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
+		-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
+		-r ${KSTAGEDIR}/kernel.${_kernel} \
+		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION}
 .   endfor
 .  endif
 . endfor
 .endif
 
-link-packages: _pkgbootstrap .PHONY
-	@cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI); \
-	ln -s ${PKG_VERSION} latest
-
-run-ports: _pkgbootstrap .PHONY
-	@env -i POUDRIERE_PORTS=${POUDRIERE_PORTS} \
-		POUDRIERE_BASE=${POUDRIERE_BASE} \
-		TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
-		TRUEOS_VERSION=${TRUEOS_VERSION} \
-		make -C ${SRCDIR}/release poudriere
-
 sign-packages:	_pkgbootstrap .PHONY
-	@${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
-		-o ${OBJROOT}pkgset \
-		${OBJROOT}pkgset \
-		${PKGSIGNKEY} ;
+	@[ -L "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest" ] && \
+		unlink ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/latest ; \
+	${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh repo \
+		-o ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
+		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI)/${PKG_VERSION} \
+		${PKGSIGNKEY} ; \
+	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI); \
+	ln -s ${PKG_VERSION} latest
 
 #
 #

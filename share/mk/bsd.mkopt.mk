@@ -27,8 +27,6 @@
 # user's desires or default behavior.
 #
 
-.include <bsd.trueos.mk>
-
 #
 # MK_* options which default to "yes".
 #

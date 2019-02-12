@@ -8,7 +8,6 @@
 #  memstick: Builds memory stick image (memstick.img)
 #  mini-memstick: Builds minimal memory stick image (mini-memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
-#  poudriere: Runs poudriere build based upon TRUEOS_MANIFEST critera
 #  release: Invokes real-release, vm-release, and cloudware-release targets
 #  real-release: Build all media and FTP distribution area
 #  vm-release: Build all virtual machine image targets
@@ -35,16 +34,11 @@
 #  		with xz(1) (extremely time consuming)
 #  WITH_CLOUDWARE: if set, build cloud hosting disk images with the release
 #  TARGET/TARGET_ARCH: architecture of built release
-#  TRUEOS_MANIFEST: if set, will run poudriere and assemble ISO according
-#  		supplied JSON manifest provided, or the trueos-manifest.json
-#		included in release/ directory by default
 #
 
 WORLDDIR?=	${.CURDIR}/..
 PORTSDIR?=	/usr/ports
 DOCDIR?=	/usr/doc
-PKG_CMD?=	pkg-static
-TRUEOS_MANIFEST?=	${WORLDDIR}/release/manifests/freenas-master.json
 RELNOTES_LANG?= en_US.ISO8859-1
 
 .if !defined(TARGET) || empty(TARGET)
@@ -76,24 +70,8 @@ VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 .endfor
 .endif
 
-# Set any world/kernel flags from our manifest
-TO_WFLAGS!=		/usr/local/bin/jq -r '."base-packages"."world-flags"' \
-				${TRUEOS_MANIFEST}
-.if ${TO_WFLAGS} != "null"
-TO_WFLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${WORLDDIR}/release/release-trueos.sh world_flags /tmp/.wflags.${.MAKE.PID})
-.include "/tmp/.wflags.${.MAKE.PID}"
-TO_WFLAGS!=	(rm /tmp/.wflags.${.MAKE.PID})
-.endif
-TO_KFLAGS!=		/usr/local/bin/jq -r '."base-packages"."kernel-flags"' \
-				${TRUEOS_MANIFEST}
-.if ${TO_KFLAGS} != "null"
-TO_KFLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${WORLDDIR}/release/release-trueos.sh kernel_flags /tmp/.kflags.${.MAKE.PID})
-.include "/tmp/.kflags.${.MAKE.PID}"
-TO_KFLAGS!=	(rm /tmp/.kflags.${.MAKE.PID})
-.endif
-
 .if !defined(VOLUME_LABEL) || empty(VOLUME_LABEL)
-VOLUME_LABEL=	TrueOS_Install
+VOLUME_LABEL=	FreeBSD_Install
 .endif
 
 .if !exists(${DOCDIR})
@@ -127,21 +105,20 @@ RELEASE_TARGETS= ftp
 IMAGES=
 .if exists(${.CURDIR}/${TARGET}/mkisoimages.sh)
 RELEASE_TARGETS+= cdrom
-IMAGES+=	disc1.iso
+IMAGES+=	disc1.iso bootonly.iso
 . if defined(WITH_DVD) && !empty(WITH_DVD)
 RELEASE_TARGETS+= dvdrom
 IMAGES+=	dvd1.iso
 . endif
 .endif
-. if defined(WITH_USB) && !empty(WITH_USB)
+.if exists(${.CURDIR}/${TARGET}/make-memstick.sh)
 RELEASE_TARGETS+= memstick.img
 RELEASE_TARGETS+= mini-memstick.img
 IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
 
-CLEANFILES=	packagesystem system-update.img *.txz MANIFEST release ${IMAGES}
-CLEANFILES+=	trueos-mk-bulk-list
+CLEANFILES=	packagesystem *.txz MANIFEST release ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
 CLEANFILES+=	${I}.xz
@@ -150,12 +127,11 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-CLEANDIRS=	dist ftp disc1 bootonly dvd repo-config iso-overlay
+CLEANDIRS=	dist ftp disc1 bootonly dvd
 .if !defined(NODOC)
 CLEANDIRS+=    reldoc rdoc
 .endif
 beforeclean:
-	umount -f ./disc1/install-pkg >/dev/null 2>/dev/null || true
 	chflags -R noschg .
 .include <bsd.obj.mk>
 clean: beforeclean
@@ -182,7 +158,7 @@ src.txz:
 	mkdir -p ${DISTDIR}/usr
 	ln -fs ${WORLDDIR} ${DISTDIR}/usr/src
 	cd ${DISTDIR} && tar cLvf - --exclude .svn --exclude .zfs \
-	    --exclude .git --exclude @ --exclude usr/src/artifacts --exclude usr/src/release/dist usr/src | \
+	    --exclude .git --exclude @ --exclude usr/src/release/dist usr/src | \
 	    ${XZ_CMD} > ${.OBJDIR}/src.txz
 
 ports.txz:
@@ -191,7 +167,6 @@ ports.txz:
 	cd ${DISTDIR} && tar cLvf - \
 	    --exclude .git --exclude .svn \
 	    --exclude usr/ports/distfiles --exclude usr/ports/packages \
-	    --exclude usr/ports/artifacts \
 	    --exclude 'usr/ports/INDEX*' --exclude work usr/ports | \
 	    ${XZ_CMD} > ${.OBJDIR}/ports.txz
 
@@ -213,71 +188,32 @@ reldoc:
 	cp ${.OBJDIR}/rdoc/docbook.css \
 		reldoc/
 
-iso: disc1 disc1.iso
-
-disc1:
+disc1: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
-# Copy the existing WORLDSTAGE
-	rm -rf ${.OBJDIR}/../worldstage/usr/local
-	rm -rf ${.OBJDIR}/../worldstage/usr/src
-	cp -a ${.OBJDIR}/../worldstage/ ${.OBJDIR}/${.TARGET}/
-	rm -f ${.OBJDIR}/${.TARGET}/rescue/*
-	rm -rf ${.OBJDIR}/${.TARGET}/usr/lib/debug
-	rm -rf ${.OBJDIR}/${.TARGET}/usr/tests
-	rm ${.OBJDIR}/${.TARGET}/*.ucl
-	rm ${.OBJDIR}/${.TARGET}/*.plist
-	mkdir -p ${.OBJDIR}/${.TARGET}/usr/local/
-	cp ${TRUEOS_MANIFEST} ${.OBJDIR}/${.TARGET}/root/trueos-manifest.json
-
-# Need a kernel since worldstage doesn't include one
-	cd ${WORLDDIR} && ${IMAKE} installkernel \
+	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AMD=no MK_AT=no \
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
-	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no ${KERNEL_FLAGS} \
-
-#	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
-#	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AMD=no MK_AT=no \
-#	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
-#	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
-#	    MK_RESCUE=no MK_DICT=no \
-#	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
-#	    -DDB_FROM_SRC
-# Copy base packages
-	mkdir -p ${.TARGET}/dist/$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI)
-	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
-		OBJDIR=${.OBJDIR} PKG_DIR=${.OBJDIR}/../../pkgset \
-		TARGET_DIR=${.TARGET}/dist \
-		ABI_DIR=$$(${PKG_CMD} -o ABI_FILE=${.TARGET}/bin/sh config ABI) \
-		sh ${WORLDDIR}/release/release-trueos.sh iso
+	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
+	    -DDB_FROM_SRC
 # Copy distfiles
-#	mkdir -p ${.TARGET}/usr/freebsd-dist
-#	for dist in MANIFEST $$(ls *.txz | grep -vE -- '(base|lib32)-dbg'); \
-#	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
-#	done
+	mkdir -p ${.TARGET}/usr/freebsd-dist
+	for dist in MANIFEST $$(ls *.txz | grep -vE -- '(base|lib32)-dbg'); \
+	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
+	done
 # Copy documentation, if generated
 .if !defined(NODOC)
 	cp reldoc/* ${.TARGET}
 .endif
 # Set up installation environment
-	ln -fs /tmp/install_etc/resolv.conf ${.TARGET}/etc/resolv.conf
+	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
-	echo rc_logger=\"NO\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
-	cp ${.CURDIR}/rc ${.TARGET}/etc
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
-	mkdir -p ${.TARGET}/etc/runlevels/boot || true
-	mkdir -p ${.TARGET}/etc/runlevels/default || true
-.for i in abi localmount
-	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/boot/${i}
-.endfor
-.for i in local
-	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/default/${i}
-.endfor
 	touch ${.TARGET}
 
 bootonly: packagesystem
@@ -290,7 +226,7 @@ bootonly: packagesystem
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no \
-	    -DDB_FROM_SRC ${WORLD_FLAGS} ${KERNEL_FLAGS}
+	    -DDB_FROM_SRC
 # Copy manifest only (no distfiles) to get checksums
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	cp MANIFEST ${.TARGET}/usr/freebsd-dist
@@ -299,23 +235,12 @@ bootonly: packagesystem
 	cp reldoc/* ${.TARGET}
 .endif
 # Set up installation environment
-	ln -fs /tmp/install_etc/resolv.conf ${.TARGET}/etc/resolv.conf
+	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
-	echo rc_logger=\"NO\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
-	cp ${.CURDIR}/rc ${.TARGET}/etc
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
-	mkdir -p ${.TARGET}/etc/runlevels/boot || true
-	mkdir -p ${.TARGET}/etc/runlevels/default || true
-.for i in abi localmount
-	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/boot/${i}
-.endfor
-.for i in local
-	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/default/${i}
-.endfor
-	touch ${.TARGET}
 
 dvd: packagesystem
 # Install system
@@ -323,10 +248,7 @@ dvd: packagesystem
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
 		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
 		MK_TESTS=no MK_DEBUG_FILES=no \
-		-DDB_FROM_SRC ${WORLD_FLAGS} ${KERNEL_FLAGS}
-# Copy base packages
-	mkdir -p ${.TARGET}/dist
-	cp -r $${OBJROOT}repo/* ${.TARGET}/dist
+		-DDB_FROM_SRC
 # Copy distfiles
 	mkdir -p ${.TARGET}/usr/freebsd-dist
 	for dist in MANIFEST $$(ls *.txz | grep -v -- '(base|lib32)-dbg'); \
@@ -337,44 +259,22 @@ dvd: packagesystem
 	cp reldoc/* ${.TARGET}
 .endif
 # Set up installation environment
-	ln -fs /tmp/install_etc/resolv.conf ${.TARGET}/etc/resolv.conf
+	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
-	echo rc_logger=\"NO\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
-	cp ${.CURDIR}/rc ${.TARGET}/etc
 	echo kernels_autodetect=\"NO\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
-	mkdir -p ${.TARGET}/etc/runlevels/boot || true
-	mkdir -p ${.TARGET}/etc/runlevels/default || true
-.for i in abi localmount
-	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/boot/${i}
-.endfor
-.for i in local
-	ln -fs /etc/init.d/${i} ${.TARGET}/etc/runlevels/default/${i}
-.endfor
 	touch ${.TARGET}
 
 release.iso: disc1.iso
 disc1.iso: disc1
-	env SRCDIR=${.CURDIR}/.. \
-	OBJDIR=${.OBJDIR} \
-	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
-	TRUEOS_VERSION=${TRUEOS_VERSION} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1 ${XTRADIR}
 
 dvd1.iso: dvd pkg-stage
-	env SRCDIR=${.CURDIR}/.. \
-	OBJDIR=${.OBJDIR} \
-	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
-	TRUEOS_VERSION=${TRUEOS_VERSION} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ${.TARGET} dvd ${XTRADIR}
 
 bootonly.iso: bootonly
-	env SRCDIR=${.CURDIR}/.. \
-	OBJDIR=${.OBJDIR} \
-	TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
-	TRUEOS_VERSION=${TRUEOS_VERSION} \
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ${.TARGET} bootonly ${XTRADIR}
 
 memstick: memstick.img
@@ -399,7 +299,7 @@ pkg-stage:
 .endif
 	touch ${.TARGET}
 
-cdrom: disc1.iso
+cdrom: disc1.iso bootonly.iso
 dvdrom: dvd1.iso
 ftp: packagesystem
 	rm -rf ftp
@@ -412,15 +312,6 @@ release:	real-release vm-release cloudware-release
 
 release-done:
 	touch release
-
-poudriere:
-.if defined(TRUEOS_MANIFEST) && !empty(TRUEOS_MANIFEST)
-	env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} \
-		DIST_DIR=${.OBJDIR} PKG_DIR=$${OBJROOT}repo/ \
-		OBJDIR=${.OBJDIR} OSRELEASE=${OSRELEASE} \
-		SRCDIR=${.CURDIR}/.. \
-		sh ${.CURDIR}/release-trueos.sh poudriere
-.endif
 
 real-release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
