@@ -12,6 +12,8 @@
 command=/sbin/dhcpcd
 command_args="-q"
 
+. /etc/network.subr
+
 dhcpcd=${RC_SVCNAME##*.}
 if [ -n "$dhcpcd" -a "$dhcpcd" != "dhcpcd" ]; then
         dhcpcd_device="$dhcpcd"
@@ -96,6 +98,9 @@ check_dhcpcd()
 		fi
 	done
 
+	echo $cmd | grep -q "IPV4"
+	if [ $? -eq 0 ] ; then have_ipv4="true"; fi
+
 	echo $cmd | grep -q "DHCP"
 	if [ $? -eq 0 ] ; then have_ipv4="true"; fi
 
@@ -105,18 +110,23 @@ check_dhcpcd()
 	echo $cmd | grep -q "ALL"
 	if [ $? -eq 0 ] ; then have_ipv4="true"; have_ipv6="true"; fi
 
-
 	# This is a v4 only request?
 	if [ "$have_ipv6" = "false" ] ; then
 		command_args="${command_args} -4"
+		command_args="${command_args} --waitip=4"
 	fi
 
 	# This is a v6 only request?
 	if [ "$have_ipv4" = "false" ] ; then
 		command_args="${command_args} -6"
+		command_args="${command_args} --waitip=6"
 	fi
 
-	# Is this device eben enabled for DHCP?
+	if [ "$have_ipv4" = "true" -a "$have_ipv6" = "true" ] ; then
+		command_args="${command_args} --waitip=46"
+	fi
+
+	# Is this device been enabled for DHCP?
 	if [ "$have_ipv4" != "true" -a "$have_ipv6" != "true" ] ; then
 		mark_service_inactive
 		return 1
@@ -145,7 +155,7 @@ start()
 		# Sleep a moment before starting dhcpcd - It tends to crash if the device
 		# has just come up right before starting
 		sleep 1.5
-		start-stop-daemon --start --exec $command -m -b -p $pidfile -- $command_args
+		start-stop-daemon --start --exec $command -p $pidfile -- $command_args
 		stat=$?
 		if [ -z "$OPENRC_SILENT" ] ; then
 			eend $stat
