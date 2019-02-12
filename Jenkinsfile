@@ -69,7 +69,7 @@ pipeline {
         sh 'make -j $(sysctl -n hw.ncpu) installkernel DESTDIR=${WORKSPACE}/destdir >>${WORKSPACE}/artifacts/kernel.log 2>&1'
       }
     }
-	  
+  }
   post {
     always {
       script {
