@@ -359,15 +359,11 @@ setup_efi_boot()
     # Check if this label already exists and delete if so
     EFINUM=$(efibootmgr | grep $EFILABEL | awk '{print $1}' | sed 's|+||g' | sed 's|*||g')
     if [ -n "$EFINUM" ] ; then
-	rc_halt "efibootmgr -B -b $EFINUM"
+	rc_nohalt "efibootmgr -B -b $EFINUM"
     fi
 
     # Create the new EFI entry
-    rc_halt "efibootmgr -c -l $EFIFILE -L $EFILABEL"
-
-    # Setup the new EFI entry as the default
-    EFINUM=$(efibootmgr | grep $EFILABEL | awk '{print $1}' | sed 's|+||g' | sed 's|*||g')
-    rc_halt "efibootmgr -a -b $EFINUM"
+    rc_halt "efibootmgr -a -c -l $EFIFILE -L $EFILABEL"
 
     # Cleanup
     rc_halt "umount ${FSMNT}/boot/efi"
