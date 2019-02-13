@@ -123,7 +123,8 @@ check_dhcpcd()
 	fi
 
 	if [ "$have_ipv4" = "true" -a "$have_ipv6" = "true" ] ; then
-		command_args="${command_args} --waitip=46"
+		# If both are enabled, lets wait for v4 only
+		command_args="${command_args} --waitip=4"
 	fi
 
 	# Is this device been enabled for DHCP?
