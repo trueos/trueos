@@ -907,7 +907,7 @@ gcov_enable_events(void)
 
 /* Update list and generate events when modules are unloaded. */
 static void
-gcov_module_unload(module_t mod)
+gcov_module_unload(void *arg __unused, module_t mod)
 {
 	struct gcov_info *info = NULL;
 	struct gcov_info *prev = NULL;
