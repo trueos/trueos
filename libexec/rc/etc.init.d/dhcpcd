@@ -96,6 +96,11 @@ check_dhcpcd()
 			cf=/etc/"$func.$int"
 			break
 		fi
+		eval cmd=\$${func}_DEFAULT
+		if [ -n "$cmd" -o -f /etc/"${func}.DEFAULT" ]; then
+			cf=/etc/"${func}.DEFAULT"
+			break
+		fi
 	done
 
 	echo $cmd | grep -q "IPV4"
