@@ -271,7 +271,7 @@ gcov_info_dup(struct gcov_info *info)
 	dup->filename = NULL;
 	dup->functions = NULL;
 
-	dup->filename = strdup(info->filename, M_GCOV);
+	dup->filename = strdup_flags(info->filename, M_GCOV, M_NOWAIT);
 	if (dup->filename == NULL)
 		goto err_free;
 
