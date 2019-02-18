@@ -19,9 +19,10 @@
 #include <sys/gcov.h>
 #include <sys/queue.h>
 
-
+#include "linker_if.h"
 static int gcov_events_enabled;
 static int gcov_persist;
+static int gcov_ctors_done;
 static struct mtx gcov_mtx;
 MTX_SYSINIT(gcov_init, &gcov_mtx, "gcov_mtx", MTX_DEF);
 MALLOC_DEFINE(M_GCOV, "gcov", "gcov");
@@ -37,6 +38,9 @@ void __gcov_merge_icall_topn(gcov_type *counters, unsigned int n_counters);
 void __gcov_exit(void);
 
 static void gcov_event(enum gcov_action action, struct gcov_info *info);
+static void gcov_enable_events(void);
+static void gcov_invoke_ctors(void);
+
 
 static int
 within_module(vm_offset_t addr, module_t mod)
@@ -440,7 +444,7 @@ link_target(const char *dir, const char *path, const char *ext)
 	char *old_ext;
 	char *copy;
 
-	copy = strdup(path, M_GCOV);
+	copy = strdup_flags(path, M_GCOV, M_NOWAIT);
 	if (!copy)
 		return (NULL);
 	old_ext = strrchr(copy, '.');
@@ -681,6 +685,30 @@ reset_gcov_stats(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static int
+enable_gcov_stats(SYSCTL_HANDLER_ARGS)
+{
+	int error, v;
+
+	v = gcov_events_enabled;
+	error = sysctl_handle_int(oidp, &v, v, req);
+	if (error)
+		return (error);
+	if (req->newptr == NULL)
+		return (error);
+	if (v == gcov_events_enabled)
+		return (0);
+	//gcov_events_reset();
+	gcov_events_enabled = !!v;
+	if (!gcov_ctors_done)
+		gcov_invoke_ctors();
+	if (gcov_events_enabled)
+		gcov_enable_events();
+
+	return (0);
+}
+
+
 /*
  * Create a node for a given profiling data set and add it to all lists and
  * debugfs. Needs to be called with node_lock held.
@@ -694,8 +722,8 @@ add_node(struct gcov_info *info)
 	struct gcov_node *parent;
 	struct gcov_node *node;
 
-	filename = strdup(gcov_info_filename(info), M_GCOV);
-	if (!filename)
+	filename = strdup_flags(gcov_info_filename(info), M_GCOV, M_NOWAIT);
+	if (filename == NULL)
 		return;
 	parent = &root_node;
 	/* Create directory nodes along the path. */
@@ -888,21 +916,24 @@ gcov_event(enum gcov_action action, struct gcov_info *info)
  * is needed because some events are potentially generated too early for the
  * callback implementation to handle them initially.
  */
-void
+static void
 gcov_enable_events(void)
 {
 	struct gcov_info *info = NULL;
+	int count;
 
 	mtx_lock(&gcov_mtx);
-	gcov_events_enabled = 1;
+	count = 0;
 
 	/* Perform event callback for previously registered entries. */
 	while ((info = gcov_info_next(info))) {
 		gcov_event(GCOV_ADD, info);
 		sched_relinquish(curthread);
+		count++;
 	}
 
 	mtx_unlock(&gcov_mtx);
+	printf("%s found %d events\n", __func__, count);
 }
 
 /* Update list and generate events when modules are unloaded. */
@@ -927,6 +958,32 @@ gcov_module_unload(void *arg __unused, module_t mod)
 	mtx_unlock(&gcov_mtx);
 }
 
+
+#define GCOV_PREFIX "_GLOBAL__sub_I_65535_0_"
+
+static int
+gcov_invoke_ctor(const char *name, void *arg __unused)
+{
+	void (*ctor)(void);
+	c_linker_sym_t sym;
+	linker_symval_t symval;
+
+	if (strstr(name, GCOV_PREFIX) == NULL)
+		return (0);
+	LINKER_LOOKUP_SYMBOL(linker_kernel_file, name, &sym);
+	LINKER_SYMBOL_VALUES(linker_kernel_file, sym, &symval);
+	ctor = (void *)symval.value;
+	ctor();
+	return (0);
+}
+
+static void
+gcov_invoke_ctors(void)
+{
+	LINKER_EACH_FUNCTION_NAME(linker_kernel_file, gcov_invoke_ctor, NULL);
+	gcov_ctors_done = 1;
+}
+
 static int
 gcov_init(void *arg __unused)
 {
@@ -941,3 +998,5 @@ static SYSCTL_NODE(_debug, OID_AUTO, gcov, CTLFLAG_RD, NULL,
     "gcov code coverage");
 SYSCTL_PROC(_debug_gcov, OID_AUTO, reset, CTLTYPE_INT | CTLFLAG_RW,
     NULL, 0, reset_gcov_stats, "I", "Reset all profiling counts");
+SYSCTL_PROC(_debug_gcov, OID_AUTO, enable, CTLTYPE_INT | CTLFLAG_RW,
+    NULL, 0, enable_gcov_stats, "I", "Enable code coverage");
