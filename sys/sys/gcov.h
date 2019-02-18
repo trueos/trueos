@@ -39,8 +39,6 @@ enum gcov_action {
 	GCOV_REMOVE,
 };
 
-void gcov_enable_events(void);
-
 /* Iterator control. */
 struct gcov_iterator;
 
