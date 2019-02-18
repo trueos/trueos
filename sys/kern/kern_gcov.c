@@ -962,25 +962,37 @@ gcov_module_unload(void *arg __unused, module_t mod)
 #define GCOV_PREFIX "_GLOBAL__sub_I_65535_0_"
 
 static int
-gcov_invoke_ctor(const char *name, void *arg __unused)
+gcov_invoke_ctor(const char *name, void *arg)
 {
 	void (*ctor)(void);
 	c_linker_sym_t sym;
 	linker_symval_t symval;
+	linker_file_t lf;
 
 	if (strstr(name, GCOV_PREFIX) == NULL)
 		return (0);
-	LINKER_LOOKUP_SYMBOL(linker_kernel_file, name, &sym);
-	LINKER_SYMBOL_VALUES(linker_kernel_file, sym, &symval);
+	lf = arg;
+	LINKER_LOOKUP_SYMBOL(lf, name, &sym);
+	LINKER_SYMBOL_VALUES(lf, sym, &symval);
 	ctor = (void *)symval.value;
 	ctor();
+	return (0);
+}
+
+static int
+gcov_invoke_lf_ctors(linker_file_t lf, void *arg __unused)
+{
+
+	printf("%s processing file: %s\n", __func__, lf->filename);
+	LINKER_EACH_FUNCTION_NAME(lf, gcov_invoke_ctor, lf);
 	return (0);
 }
 
 static void
 gcov_invoke_ctors(void)
 {
-	LINKER_EACH_FUNCTION_NAME(linker_kernel_file, gcov_invoke_ctor, NULL);
+
+	linker_file_foreach(gcov_invoke_lf_ctors, NULL);
 	gcov_ctors_done = 1;
 }
 
