@@ -274,6 +274,8 @@ debugfs_create_symlink(const char *name, struct dentry *parent,
 void
 debugfs_remove(struct dentry *dnode)
 {
+	if (dnode == NULL)
+		return;
 
 	pfs_destroy(dnode->d_pfs_node);
 }
@@ -281,6 +283,9 @@ debugfs_remove(struct dentry *dnode)
 void
 debugfs_remove_recursive(struct dentry *dnode)
 {
+	if (dnode == NULL)
+		return;
+
 	pfs_destroy(dnode->d_pfs_node);
 }
 
