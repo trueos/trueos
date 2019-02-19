@@ -5,7 +5,7 @@
 #include <sys/systm.h>
 #include <sys/sbuf.h>
 #include <sys/malloc.h>
-#include <sys/gcov.h>
+#include <gnu/gcov/gcov.h>
 
 
 #if (__GNUC__ >= 7)

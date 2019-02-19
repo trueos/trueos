@@ -16,7 +16,7 @@
 #include <sys/sysctl.h>
 #include <linux/debugfs.h>
 
-#include <sys/gcov.h>
+#include <gnu/gcov/gcov.h>
 #include <sys/queue.h>
 
 #include "linker_if.h"
