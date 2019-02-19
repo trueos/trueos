@@ -667,8 +667,27 @@ get_child_by_name(struct gcov_node *parent, const char *name)
 	return (NULL);
 }
 
+static void
+gcov_stats_reset(void)
+{
+	struct gcov_node *node;
+
+	mtx_lock(&node_lock);
+ restart:
+	LIST_FOREACH(node, &all_head, all_entry) {
+		if (node->num_loaded > 0)
+			reset_node(node);
+		else if (LIST_EMPTY(&node->children)) {
+			remove_node(node);
+			goto restart;
+		}
+	}
+	mtx_unlock(&node_lock);
+}
+
+
 static int
-reset_gcov_stats(SYSCTL_HANDLER_ARGS)
+gcov_stats_reset_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	int error, v;
 
@@ -680,13 +699,13 @@ reset_gcov_stats(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (v == 0)
 		return (0);
-	//lock_prof_reset();
+	gcov_stats_reset();
 
 	return (0);
 }
 
 static int
-enable_gcov_stats(SYSCTL_HANDLER_ARGS)
+gcov_stats_enable_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	int error, v;
 
@@ -992,6 +1011,9 @@ static void
 gcov_invoke_ctors(void)
 {
 
+	init_node(&root_node, NULL, NULL, NULL);
+	root_node.dentry = debugfs_create_dir("gcov", NULL);
+
 	linker_file_foreach(gcov_invoke_lf_ctors, NULL);
 	gcov_ctors_done = 1;
 }
@@ -1009,6 +1031,6 @@ SYSINIT(gcov_init, SI_SUB_EVENTHANDLER, SI_ORDER_ANY, gcov_init, NULL);
 static SYSCTL_NODE(_debug, OID_AUTO, gcov, CTLFLAG_RD, NULL,
     "gcov code coverage");
 SYSCTL_PROC(_debug_gcov, OID_AUTO, reset, CTLTYPE_INT | CTLFLAG_RW,
-    NULL, 0, reset_gcov_stats, "I", "Reset all profiling counts");
+    NULL, 0, gcov_stats_reset_sysctl, "I", "Reset all profiling counts");
 SYSCTL_PROC(_debug_gcov, OID_AUTO, enable, CTLTYPE_INT | CTLFLAG_RW,
-    NULL, 0, enable_gcov_stats, "I", "Enable code coverage");
+    NULL, 0, gcov_stats_enable_sysctl, "I", "Enable code coverage");
