@@ -263,7 +263,7 @@ gcov_info_dup(struct gcov_info *info)
 	size_t fi_size; /* function info size */
 	size_t cv_size; /* counter values size */
 
-	if ((dup = malloc(sizeof(*dup), M_GCOV, M_NOWAIT)) == NULL)
+	if ((dup = malloc(sizeof(*dup), M_GCOV, M_NOWAIT|M_ZERO)) == NULL)
 		return (NULL);
 	memcpy(dup, info, sizeof(*dup));
 
@@ -275,10 +275,9 @@ gcov_info_dup(struct gcov_info *info)
 	if (dup->filename == NULL)
 		goto err_free;
 
-	dup->functions = malloc(sizeof(struct gcov_fn_info *), M_GCOV, M_NOWAIT|M_ZERO);
+	dup->functions = malloc(info->n_functions * sizeof(struct gcov_fn_info *), M_GCOV, M_NOWAIT|M_ZERO);
 	if (dup->functions == NULL)
 		goto err_free;
-
 	active = num_counter_active(info);
 	fi_size = sizeof(struct gcov_fn_info);
 	fi_size += sizeof(struct gcov_ctr_info) * active;
