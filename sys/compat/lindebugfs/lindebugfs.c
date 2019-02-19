@@ -127,10 +127,8 @@ debugfs_fill(PFS_FILL_ARGS)
 
 	d = pn->pn_data;
 
-#ifdef HAVE_LKPI_GPLV2
 	if ((rc = linux_set_current_flags(curthread, M_NOWAIT)))
 		return (rc);
-#endif
 	vn.v_data = d->dm_data;
 	buf = uio->uio_iov[0].iov_base;
 	len = min(uio->uio_iov[0].iov_len, uio->uio_resid);
@@ -308,8 +306,4 @@ debugfs_uninit(PFS_INIT_ARGS)
 PSEUDOFS(debugfs, 1, PR_ALLOW_MOUNT_LINSYSFS);
 #else
 PSEUDOFS(debugfs, 1, VFCF_JAIL);
-#endif
-#ifdef HAVE_LKPI_GPLV2
-MODULE_DEPEND(debugfs, linuxkpi, 1, 1, 1);
-MODULE_DEPEND(debugfs, linuxkpi_gplv2, 1, 1, 1);
 #endif
