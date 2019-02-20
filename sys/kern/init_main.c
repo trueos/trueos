@@ -106,6 +106,7 @@ struct	proc proc0;
 struct thread0_storage thread0_st __aligned(32);
 struct	vmspace vmspace0;
 struct	proc *initproc;
+int (*lkpi_alloc_current)(struct thread *, int);
 
 #ifndef BOOTHOWTO
 #define	BOOTHOWTO	0
