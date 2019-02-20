@@ -179,8 +179,8 @@ SLIST_HEAD(slabhead, uma_slab);
 
 struct uma_hash {
 	struct slabhead	*uh_slab_hash;	/* Hash table for slabs */
-	int		uh_hashsize;	/* Current size of the hash table */
-	int		uh_hashmask;	/* Mask used during hashing */
+	u_int		uh_hashsize;	/* Current size of the hash table */
+	u_int		uh_hashmask;	/* Mask used during hashing */
 };
 
 /*
@@ -304,7 +304,6 @@ struct uma_slab {
 #endif
 
 typedef struct uma_slab * uma_slab_t;
-typedef uma_slab_t (*uma_slaballoc)(uma_zone_t, uma_keg_t, int, int);
 
 struct uma_zone_domain {
 	LIST_HEAD(,uma_bucket)	uzd_buckets;	/* full buckets */
@@ -345,7 +344,7 @@ struct uma_zone {
 	void		*uz_arg;	/* Import/release argument. */
 	uma_init	uz_init;	/* Initializer for each item */
 	uma_fini	uz_fini;	/* Finalizer for each item. */
-	uma_slaballoc	uz_slab;	/* Allocate a slab from the backend. */
+	void		*uz_spare;
 	uint64_t	uz_bkt_count;    /* Items in bucket cache */
 	uint64_t	uz_bkt_max;	/* Maximum bucket cache size */
 
@@ -454,7 +453,7 @@ static __inline uma_slab_t
 hash_sfind(struct uma_hash *hash, uint8_t *data)
 {
         uma_slab_t slab;
-        int hval;
+        u_int hval;
 
         hval = UMA_HASH(hash, data);
 

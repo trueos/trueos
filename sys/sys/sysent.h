@@ -144,6 +144,7 @@ struct sysentvec {
 #define	SV_SHP		0x010000	/* Shared page. */
 #define	SV_CAPSICUM	0x020000	/* Force cap_enter() on startup. */
 #define	SV_TIMEKEEP	0x040000	/* Shared page timehands. */
+#define	SV_ASLR		0x080000	/* ASLR allowed. */
 
 #define	SV_ABI_MASK	0xff
 #define	SV_ABI_ERRNO(p, e)	((p)->p_sysent->sv_errsize <= 0 ? e :	\
@@ -162,10 +163,6 @@ struct sysentvec {
 extern struct sysentvec aout_sysvec;
 extern struct sysent sysent[];
 extern const char *syscallnames[];
-
-#if defined(__amd64__)
-extern int i386_read_exec;
-#endif
 
 #define	NO_SYSCALL (-1)
 
