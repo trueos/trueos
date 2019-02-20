@@ -42,7 +42,7 @@
 #include <crypto/sha2/sha512.h>
 #include <opencrypto/rmd160.h>
 #include <opencrypto/gmac.h>
-#include <opencrypto/ccm-cbc.h>
+#include <opencrypto/cbc_mac.h>
 
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform_userland.h>

@@ -491,14 +491,24 @@ cryptof_ioctl(
 			thash = &auth_hash_nist_gmac_aes_256;
 			break;
 
-		case CRYPTO_AES_128_CCM_CBC_MAC:
-			thash = &auth_hash_ccm_cbc_mac_128;
-			break;
-		case CRYPTO_AES_192_CCM_CBC_MAC:
-			thash = &auth_hash_ccm_cbc_mac_192;
-			break;
-		case CRYPTO_AES_256_CCM_CBC_MAC:
-			thash = &auth_hash_ccm_cbc_mac_256;
+		case CRYPTO_AES_CCM_CBC_MAC:
+			switch (sop->keylen) {
+			case 16:
+				thash = &auth_hash_ccm_cbc_mac_128;
+				break;
+			case 24:
+				thash = &auth_hash_ccm_cbc_mac_192;
+				break;
+			case 32:
+				thash = &auth_hash_ccm_cbc_mac_256;
+				break;
+			default:
+				CRYPTDEB("Invalid CBC MAC key size %d",
+				    sop->keylen);
+				SDT_PROBE1(opencrypto, dev, ioctl,
+				    error, __LINE__);
+				return (EINVAL);
+			}
 			break;
 #ifdef notdef
 		case CRYPTO_MD5:
@@ -1015,7 +1025,7 @@ cryptodev_aead(
 	}
 
 	/*
-	 * For GCM, crd_len covers only the AAD.  For other ciphers
+	 * For GCM/CCM, crd_len covers only the AAD.  For other ciphers
 	 * chained with an HMAC, crd_len covers both the AAD and the
 	 * cipher text.
 	 */

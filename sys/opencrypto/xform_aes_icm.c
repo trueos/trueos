@@ -81,13 +81,15 @@ struct enc_xform enc_xform_aes_nist_gcm = {
 };
 
 struct enc_xform enc_xform_ccm = {
-	CRYPTO_AES_CCM_16, "AES-CCM",
-	AES_ICM_BLOCK_LEN, AES_CCM_IV_LEN, AES_MIN_KEY, AES_MAX_KEY,
-	aes_icm_crypt,
-	aes_icm_crypt,
-	aes_icm_setkey,
-	aes_icm_zerokey,
-	aes_ccm_reinit,
+	.type = CRYPTO_AES_CCM_16,
+	.name = "AES-CCM",
+	.blocksize = AES_ICM_BLOCK_LEN, .ivsize = AES_CCM_IV_LEN,
+	.minkey = AES_MIN_KEY, .maxkey = AES_MAX_KEY,
+	.encrypt = aes_icm_crypt,
+	.decrypt = aes_icm_crypt,
+	.setkey = aes_icm_setkey,
+	.zerokey = aes_icm_zerokey,
+	.reinit = aes_ccm_reinit,
 };
 
 /*
@@ -119,13 +121,14 @@ static void
 aes_ccm_reinit(caddr_t key, u_int8_t *iv)
 {
 	struct aes_icm_ctx *ctx;
+
 	ctx = (struct aes_icm_ctx*)key;
 
 	/* CCM has flags, then the IV, then the counter, which starts at 1 */
 	bzero(ctx->ac_block, sizeof(ctx->ac_block));
 	/* 3 bytes for length field; this gives a nonce of 12 bytes */
 	ctx->ac_block[0] = (15 - AES_CCM_IV_LEN) - 1;
-	bcopy(iv, ctx->ac_block+1, AES_GCM_IV_LEN);
+	bcopy(iv, ctx->ac_block+1, AES_CCM_IV_LEN);
 	ctx->ac_block[AESICM_BLOCKSIZE - 1] = 1;
 }
 

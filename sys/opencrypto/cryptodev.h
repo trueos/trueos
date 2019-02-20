@@ -63,10 +63,10 @@
 #define _CRYPTO_CRYPTO_H_
 
 #include <sys/ioccom.h>
-#include <sys/_task.h>
 
 #ifdef _KERNEL
 #include <opencrypto/_cryptodev.h>
+#include <sys/_task.h>
 #endif
 
 /* Some initial values */
@@ -204,11 +204,9 @@
 #define	CRYPTO_SHA2_384		36
 #define	CRYPTO_SHA2_512		37
 #define	CRYPTO_POLY1305		38
-#define	CRYPTO_AES_CCM_16	39	/* cipher side */
-#define	CRYPTO_AES_128_CCM_CBC_MAC	41	/* auth side */
-#define	CRYPTO_AES_192_CCM_CBC_MAC	42	/* auth side */
-#define	CRYPTO_AES_256_CCM_CBC_MAC	43	/* auth side */
-#define	CRYPTO_ALGORITHM_MAX	43 /* Keep updated - see below */
+#define	CRYPTO_AES_CCM_CBC_MAC	39	/* auth side */
+#define	CRYPTO_AES_CCM_16	40	/* cipher side */
+#define	CRYPTO_ALGORITHM_MAX	40	/* Keep updated - see below */
 
 #define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
 				 (x) <= CRYPTO_ALGORITHM_MAX)
@@ -380,7 +378,7 @@ struct cryptostats {
 
 #ifdef _KERNEL
 
-#ifdef CRYPTO_DEBUG
+#if 0
 #define CRYPTDEB(s, ...) do {						\
 	printf("%s:%d: " s "\n", __FILE__, __LINE__, ## __VA_ARGS__);	\
 } while (0)

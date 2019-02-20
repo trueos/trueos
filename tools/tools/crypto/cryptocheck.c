@@ -55,7 +55,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD: head/tools/tools/crypto/cryptocheck.c 331726 2018-03-29 04:14:37Z cem $
+ * $FreeBSD$
  */
 
 /*
@@ -105,6 +105,9 @@
  *	aes-gcm		128-bit aes gcm
  *	aes-gcm192	192-bit aes gcm
  *	aes-gcm256	256-bit aes gcm
+ *	aes-ccm		128-bit aes ccm
+ *	aes-ccm192	192-bit aes ccm
+ *	aes-ccm256	256-bit aes ccm
  */
 
 #include <sys/param.h>
@@ -187,13 +190,13 @@ struct alg {
 	  .mac = CRYPTO_AES_256_NIST_GMAC, .type = T_GCM,
 	  .evp_cipher = EVP_aes_256_gcm },
 	{ .name = "aes-ccm", .cipher = CRYPTO_AES_CCM_16,
-	  .mac = CRYPTO_AES_128_CCM_CBC_MAC, .type = T_CCM,
+	  .mac = CRYPTO_AES_CCM_CBC_MAC, .type = T_CCM,
 	  .evp_cipher = EVP_aes_128_ccm },
 	{ .name = "aes-ccm192", .cipher = CRYPTO_AES_CCM_16,
-	  .mac = CRYPTO_AES_192_CCM_CBC_MAC, .type = T_CCM,
+	  .mac = CRYPTO_AES_CCM_CBC_MAC, .type = T_CCM,
 	  .evp_cipher = EVP_aes_192_ccm },
 	{ .name = "aes-ccm256", .cipher = CRYPTO_AES_CCM_16,
-	  .mac = CRYPTO_AES_256_CCM_CBC_MAC, .type = T_CCM,
+	  .mac = CRYPTO_AES_CCM_CBC_MAC, .type = T_CCM,
 	  .evp_cipher = EVP_aes_256_ccm },
 };
 
@@ -1182,9 +1185,6 @@ openssl_ccm_encrypt(struct alg *alg, const EVP_CIPHER *cipher, const char *key,
 	if (EVP_EncryptInit_ex(ctx, cipher, NULL, NULL, NULL) != 1)
 		errx(1, "OpenSSL %s (%zu) ctx init failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_IVLEN, iv_len, NULL) != 1)
-		errx(1, "OpenSSL %s (%zu) setting iv length failed: %s", alg->name,
-		     size, ERR_error_string(ERR_get_error(), NULL));
 	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_SET_TAG, AES_CBC_MAC_HASH_LEN, NULL) != 1)
 		errx(1, "OpenSSL %s (%zu) setting tag length failed: %s", alg->name,
 		     size, ERR_error_string(ERR_get_error(), NULL));
@@ -1215,7 +1215,7 @@ openssl_ccm_encrypt(struct alg *alg, const EVP_CIPHER *cipher, const char *key,
 	if (total != size)
 		errx(1, "OpenSSL %s (%zu) encrypt size mismatch: %d", alg->name,
 		    size, total);
-	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, AES_CBC_MAC_HASH_LEN,
+	if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_CCM_GET_TAG, AES_CBC_MAC_HASH_LEN,
 	    tag) != 1)
 		errx(1, "OpenSSL %s (%zu) get tag failed: %s", alg->name,
 		    size, ERR_error_string(ERR_get_error(), NULL));
@@ -1230,6 +1230,7 @@ ocf_ccm(struct alg *alg, const char *key, size_t key_len, const char *iv,
 	struct session2_op sop;
 	struct crypt_aead caead;
 	int fd;
+	bool rv;
 
 	memset(&sop, 0, sizeof(sop));
 	memset(&caead, 0, sizeof(caead));
@@ -1262,16 +1263,16 @@ ocf_ccm(struct alg *alg, const char *key, size_t key_len, const char *iv,
 	if (ioctl(fd, CIOCCRYPTAEAD, &caead) < 0) {
 		warn("cryptodev %s (%zu) failed for device %s",
 		    alg->name, size, crfind(crid));
-		close(fd);
-		return (false);
-	}
+		rv = false;
+	} else
+		rv = true;
 
 	if (ioctl(fd, CIOCFSESSION, &sop.ses) < 0)
 		warn("ioctl(CIOCFSESSION)");
 
 	close(fd);
 	*cridp = sop.crid;
-	return (true);
+	return (rv);
 }
 
 static void
@@ -1296,8 +1297,25 @@ run_ccm_test(struct alg *alg, size_t size)
 	memset(control_tag, 0x3c, sizeof(control_tag));
 	memset(test_tag, 0x3c, sizeof(test_tag));
 
+	/*
+	 * We only have one algorithm constant for CBC-MAC; however, the
+	 * alg structure uses the different openssl types, which gives us
+	 * the key length.  We need that for the OCF code.
+	 */
 	key_len = EVP_CIPHER_key_length(cipher);
+
+	/*
+	 * AES-CCM can have varying IV lengths; however, for the moment
+	 * we only support AES_CCM_IV_LEN (12).  So if the sizes are
+	 * different, we'll fail.
+	 */
 	iv_len = EVP_CIPHER_iv_length(cipher);
+	if (iv_len != AES_CCM_IV_LEN) {
+		if (verbose)
+			printf("OpenSSL CCM IV length (%d) != AES_CCM_IV_LEN",
+			    iv_len);
+		return;
+	} 
 
 	key = alloc_buffer(key_len);
 	iv = generate_iv(iv_len, alg);
