@@ -126,7 +126,7 @@
         "security/gnome-keyring",
         "x11/mate",
         "x11/mate-screensaver",
-        "x11/mate-installed-settings",
+        "x11/ghostbsd-mate-settings",
         "x11/mate-live-settings",
         "x11/station-tweak",
         "x11-wm/plank",
