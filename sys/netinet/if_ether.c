@@ -161,8 +161,15 @@ SYSCTL_PROC(_net_link_ether_inet, OID_AUTO, garp_rexmit_count,
     "Number of times to retransmit GARP packets;"
     " 0 to disable, maximum of 16");
 
+VNET_DEFINE_STATIC(int, arp_log_level) = LOG_INFO;	/* Min. log(9) level. */
+#define	V_arp_log_level		VNET(arp_log_level)
+SYSCTL_INT(_net_link_ether_arp, OID_AUTO, log_level, CTLFLAG_VNET | CTLFLAG_RW,
+	&VNET_NAME(arp_log_level), 0,
+	"Minimum log(9) level for recording rate limited arp log messages. "
+	"The higher will be log more (emerg=0, info=6 (default), debug=7).");
 #define	ARP_LOG(pri, ...)	do {					\
-	if (ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
+	if ((pri) <= V_arp_log_level &&					\
+	    ppsratecheck(&arp_lastlog, &arp_curpps, arp_maxpps))	\
 		log((pri), "arp: " __VA_ARGS__);			\
 } while (0)
 
@@ -341,8 +348,8 @@ arp_fillheader(struct ifnet *ifp, struct arphdr *ah, int bcast, u_char *buf,
  *	- arp header target ip address
  *	- arp header source ethernet address
  */
-void
-arprequest(struct ifnet *ifp, const struct in_addr *sip,
+static int
+arprequest_internal(struct ifnet *ifp, const struct in_addr *sip,
     const struct in_addr *tip, u_char *enaddr)
 {
 	struct mbuf *m;
@@ -383,14 +390,14 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 		NET_EPOCH_EXIT(et);
 		if (sip == NULL) {
 			printf("%s: cannot find matching address\n", __func__);
-			return;
+			return (EADDRNOTAVAIL);
 		}
 	}
 	if (enaddr == NULL)
 		enaddr = carpaddr ? carpaddr : (u_char *)IF_LLADDR(ifp);
 
 	if ((m = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
-		return;
+		return (ENOMEM);
 	m->m_len = sizeof(*ah) + 2 * sizeof(struct in_addr) +
 		2 * ifp->if_addrlen;
 	m->m_pkthdr.len = m->m_len;
@@ -417,7 +424,7 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 	if (error != 0 && error != EAFNOSUPPORT) {
 		ARP_LOG(LOG_ERR, "Failed to calculate ARP header on %s: %d\n",
 		    if_name(ifp), error);
-		return;
+		return (error);
 	}
 
 	ro.ro_prepend = linkhdr;
@@ -426,10 +433,23 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 
 	m->m_flags |= M_BCAST;
 	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
-	(*ifp->if_output)(ifp, m, &sa, &ro);
+	error = (*ifp->if_output)(ifp, m, &sa, &ro);
 	ARPSTAT_INC(txrequests);
+	if (error) {
+		ARPSTAT_INC(txerrors);
+		ARP_LOG(LOG_DEBUG, "Failed to send ARP packet on %s: %d\n",
+		    if_name(ifp), error);
+	}
+	return (error);
 }
 
+void
+arprequest(struct ifnet *ifp, const struct in_addr *sip,
+    const struct in_addr *tip, u_char *enaddr)
+{
+
+	(void) arprequest_internal(ifp, sip, tip, enaddr);
+}
 
 /*
  * Resolve an IP address into an ethernet address - heavy version.
@@ -557,7 +577,7 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 		error = is_gw != 0 ? EHOSTUNREACH : EHOSTDOWN;
 
 	if (renew) {
-		int canceled;
+		int canceled, e;
 
 		LLE_ADDREF(la);
 		la->la_expire = time_uptime;
@@ -567,7 +587,13 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 			LLE_REMREF(la);
 		la->la_asked++;
 		LLE_WUNLOCK(la);
-		arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
+		e = arprequest_internal(ifp, NULL, &SIN(dst)->sin_addr, NULL);
+		/*
+		 * Only overwrite 'error' in case of error; in case of success
+		 * the proper return value was already set above.
+		 */
+		if (e != 0)
+			return (e);
 		return (error);
 	}
 
