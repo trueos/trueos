@@ -228,6 +228,7 @@ device		uart			# Generic UART driver
 #device		puc			# Multi I/O cards and multi-channel UARTs
 
 # PCI Ethernet NICs.
+device		iflib
 device		bxe			# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		cxgb			# Chelsio T3 10 Gigabit Ethernet adapter driver
 device		cxgbe			# Chelsio T4 and T5 based 1GbE/10GbE/40GbE PCIe Ethernet adapters.
