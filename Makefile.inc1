@@ -62,39 +62,7 @@ _MKSHOWCONFIG=	t
 SRCDIR?=	${.CURDIR}
 LOCALBASE?=	/usr/local
 
-
-# Check if TRUEOS_MANIFEST is set, if not use the default
-.if !defined(TRUEOS_MANIFEST)
-TRUEOS_MANIFEST=	${SRCDIR}/release/trueos-manifest.json
-.endif
-
-# Confirm the file TRUEOS_MANIFEST exists
-.if !exists(${TRUEOS_MANIFEST})
-.error "Missing file TRUEOS_MANIFEST: ${TRUEOS_MANIFEST}"
-.endif
-
-# Get the base package name
-.if make(create-world-packages-jobs) || make(create-kernel-packages)
-.if exists(/usr/local/bin/jq)
-PKG_BASENAME!=		/usr/local/bin/jq -r '."base-packages"."name-prefix"' \
-				${TRUEOS_MANIFEST}
-.else
-PKG_BASENAME!=		/usr/bin/jq -r '."base-packages"."name-prefix"' \
-				${TRUEOS_MANIFEST}
-.endif
-.endif
-
-# Validate the version of this manifest and sanity check environment
-.if make(buildworld) || make(buildkernel) || make(packages)
-TM_VERCHECK!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh check >&2 ; echo $$?)
-.if ${TM_VERCHECK} != "0"
-.error Failed environment sanity check!
-.endif
-.endif
-
-# Set any world/kernel flags from our manifest
-WORLD_FLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh world_flags)
-KERNEL_FLAGS!=	 (env TRUEOS_MANIFEST=${TRUEOS_MANIFEST} ${SRCDIR}/release/release-trueos.sh kernel_flags)
+PKG_BASENAME?=		FreeBSD
 
 # Cross toolchain changes must be in effect before bsd.compiler.mk
 # so that gets the right CC, and pass CROSS_TOOLCHAIN to submakes.
@@ -1894,8 +1862,6 @@ create-world-packages:	_pkgbootstrap .PHONY
 	done > ${WSTAGEDIR}/packages.mk
 	(mkdir -p ${WSTAGEDIR}/var/db || true) ; \
 	echo "@dir(root,wheel,0755,) /var/db" >> ${WSTAGEDIR}/runtime.plist ; \
-	echo "Saving TrueOS Manifest" ; \
-	cp ${TRUEOS_MANIFEST} ${WSTAGEDIR}/var/db/trueos-manifest.json ; \
 	echo "@(root,wheel,0444,) /var/db/trueos-manifest.json" >> ${WSTAGEDIR}/runtime.plist
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 create-world-packages-jobs \
@@ -1924,10 +1890,6 @@ create-world-package-${pkgname}: .PHONY
 		${WSTAGEDIR} \
 		${WSTAGEDIR}/${pkgname}.plist \
 		${WSTAGEDIR}/${pkgname}.ucl
-	@sh ${SRCDIR}/release/packages/transform-ucl.sh ${pkgname} \
-		${SRCDIR} \
-		${WSTAGEDIR}/${pkgname}.ucl \
-		${TRUEOS_MANIFEST}
 	@if [ ! -d "${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION}" ] ; then \
 		mkdir -p ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/bin/sh config ABI 2>/dev/null)/${PKG_VERSION} || true ; \
 	fi
