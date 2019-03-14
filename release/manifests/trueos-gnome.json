@@ -20,6 +20,7 @@
 			"mail_thunderbird_UNSET=JACK",
 			"multimedia_qmmp-qt5_UNSET=OSS4 JACK",
 			"multimedia_qt5-multimedia_UNSET=ALSA",
+			"net_vinagre_UNSET=SPICE",
 			"print_cups-base_SET=XPDF",
 			"print_cups-base_UNSET=GHOSTSCRIPT",
 			"www_chromium_UNSET=ALSA",
