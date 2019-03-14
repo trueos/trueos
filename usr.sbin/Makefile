@@ -92,6 +92,7 @@ SUBDIR=	adduser \
 	tcpdrop \
 	tcpdump \
 	traceroute \
+	trim \
 	trpt \
 	trueos-update \
 	tzsetup \

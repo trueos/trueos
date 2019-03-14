@@ -16,6 +16,24 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190307:
+	The RETPOLINE option produces non-functional ifunc-using binaries
+	with Clang 7.0.1, and has been forced off (via BROKEN_OPTIONS).
+	Once Clang 8 is merged it may be enabled again.
+
+20190216:
+	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
+	7.0.1.  Please see the 20141231 entry below for information about
+	prerequisites and upgrading, if you are not already using clang 3.5.0
+	or higher.
+
+20190214:
+	Iflib is no longer unconditionally compiled into the kernel.  Drivers
+	using iflib and statically compiled into the kernel, now require
+	the 'device iflib' config option.  For the same drivers loaded as
+	modules on kernels not having 'device iflib', the iflib.ko module
+	is loaded automatically.
+
 20181228:
 	r342561 modifies the NFSv4 server so that it obeys vfs.nfsd.nfs_privport
 	in the same as it is applied to NFSv2 and 3.  This implies that NFSv4
@@ -1849,12 +1867,13 @@ COMMON ITEMS:
 	can be deleted by "make delete-old-libs", but you have to make
 	sure that no program is using those libraries anymore.
 
-	[8] In order to have a kernel that can run the 4.x binaries needed to
-	do an installworld, you must include the COMPAT_FREEBSD4 option in
-	your kernel.  Failure to do so may leave you with a system that is
-	hard to boot to recover. A similar kernel option COMPAT_FREEBSD5 is
-	required to run the 5.x binaries on more recent kernels.  And so on
-	for COMPAT_FREEBSD6 and COMPAT_FREEBSD7.
+	[8] The new kernel must be able to run existing binaries used by
+	an installworld.  When upgrading across major versions, the new
+	kernel's configuration must include the correct COMPAT_FREEBSD<n>
+	option for existing binaries (e.g. COMPAT_FREEBSD11 to run 11.x
+	binaries).  Failure to do so may leave you with a system that is
+	hard to boot to recover.  A GENERIC kernel will include suitable
+	compatibility options to run binaries from older branches.
 
 	Make sure that you merge any new devices from GENERIC since the
 	last time you updated your kernel config file.
