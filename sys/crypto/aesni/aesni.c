@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/gmac.h>
-#include <opencrypto/ccm-cbc.h>
 #include <cryptodev_if.h>
 
 #include <machine/md_var.h>
