@@ -46,6 +46,40 @@ start_extract_pkg()
   # Update the local pkg DB
   rc_nohalt "pkg update"
 
+  # Are we using legacy pkg-base system or new?
+  pkg rquery '%v' os/userland >/dev/null 2>/dev/null
+  if [ $? -eq 0 ] ; then
+	  install_ports_base
+  else
+	  install_legacy_base
+  fi
+
+  # Workaround to issue in FreeBSD pkg base
+  rc_nohalt "chroot ${FSMNT} chown root:operator /sbin/shutdown"
+  rc_nohalt "chroot ${FSMNT} chmod 4554 /sbin/shutdown"
+}
+
+install_ports_base()
+{
+  # Install the default os/userland and os/kernel
+  for inspkg in os/userland os/kernel ports-mgmt/pkg
+  do
+    # Skip any {debug|development} packages
+    echo_log "pkg -r ${FSMNT} install -yf $inspkg"
+    env ASSUME_ALWAYS_YES=YES pkg -r ${FSMNT} install -yf $inspkg
+    if [ $? -ne 0 ] ; then
+      exit_err "Failed installing $inspkg!"
+    fi
+  done
+
+  unset PKG_DBDIR
+  echo_log "chroot ${FSMNT} pkg set -y -A 00 os/userland"
+  chroot ${FSMNT} pkg set -y -A 00 os/userland
+  chroot ${FSMNT} pkg set -y -A 00 os/kernel
+}
+
+install_legacy_base()
+{
   # Figure out the base package name, if its FreeBSD or $OTHER
   BASENAME=$(pkg rquery '%o %n-%v' | grep ^base | grep -e '-runtime-' | head -n 1 | awk '{print $2}' | cut -d '-' -f 1)
 
@@ -66,11 +100,6 @@ start_extract_pkg()
   unset PKG_DBDIR
   echo_log "chroot ${FSMNT} pkg set -y -A 00 -g $BASENAME-*"
   chroot ${FSMNT} pkg set -y -A 00 -g $BASENAME-\*
-
-  # Workaround to issue in FreeBSD pkg base
-  rc_nohalt "chroot ${FSMNT} chown root:operator /sbin/shutdown"
-  rc_nohalt "chroot ${FSMNT} chmod 4554 /sbin/shutdown"
-
 }
 
 # Performs the extraction of data to disk from FreeBSD dist files

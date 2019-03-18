@@ -54,7 +54,7 @@ install_packages()
   export PACKAGE_BUILDING
 
   # Install PKGNG into the chroot
-  bootstrap_pkgng
+  #bootstrap_pkgng
 
   # Lets start by cleaning up the string and getting it ready to parse
   get_value_from_cfg_with_spaces installPackages

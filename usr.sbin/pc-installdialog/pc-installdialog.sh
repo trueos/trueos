@@ -9,7 +9,7 @@
 BRAND="TrueOS"
 if [ -e "/var/db/trueos-manifest.json" ] ; then
   _tmp=`jq -r '."os_name"' "/var/db/trueos-manifest.json"`
-  if [ -n "${_tmp}" ] ; then 
+  if [ -n "${_tmp}" -a "${_tmp}" != "null" ] ; then
     BRAND="${_tmp}"
   fi
 fi
@@ -41,7 +41,13 @@ ASHIFTSIZE="12"
 PIJSON="/root/post-install-commands.json"
 
 # Default swapsize in MB
-SWAPSIZE="2000"
+SWAPSIZE="4000"
+
+# Default boot pool name
+POOLNAME="zroot"
+
+# Set location of default TrueOS Manifest
+TRUEOS_MANIFEST="/root/trueos-manifest.json"
 
 # Displays the exit message and return to start menu
 exit_to_menu()
@@ -83,7 +89,7 @@ get_zpool_menu()
 
     get_dlg_ans "--menu \"Current storage pool: $ZPOOL_TYPE - $SYSDISK $ZPOOL_DISKS\" 20 50 10 ${dOpts}"
     if [ -z "$ANS" ] ; then
-       exit_to_menu "Invalid option selected!"
+       exit_to_menu "Invalid option selected."
     fi
     case $ANS in
        done) break ;;
@@ -113,9 +119,9 @@ get_zpool_cfg_menu()
     dOpts="done \"Exit pool config menu\" 9 \"512b Blocks\""
     dOpts="$dOpts 12 \"4K Blocks\" 13 \"8K Blocks\" 14 \"16K Blocks\""
 
-    get_dlg_ans "--menu \"Select the zpool blocksize (Current: $ASHIFTSIZE)\" 20 50 10 ${dOpts}"
+    get_dlg_ans "--menu \"Select the pool blocksize (current: $ASHIFTSIZE)\" 20 50 10 ${dOpts}"
     if [ -z "$ANS" ] ; then
-       exit_to_menu "Invalid option selected!"
+       exit_to_menu "Invalid option selected."
     fi
     case $ANS in
        done) break ;;
@@ -149,14 +155,14 @@ get_zpool_disks() {
     rm /tmp/.dList.$$
 
 
-    get_dlg_ans_no_exit "--single-quoted --checklist \"Select at least $min additional disk(s) for $type\" 22 45 15 ${dOpts}"
+    get_dlg_ans_no_exit "--single-quoted --checklist \"Select at least $min additional disks for $type\" 22 45 15 ${dOpts}"
     if [ $? -ne 0 ] ; then break; fi
 
      ANS=`echo $ANS | sed "s|'||g"`
 
      count=`echo $ANS | wc -w | awk '{print $1}'`
      if [ $count -lt $min ] ; then
-        echo "Please select at least $min additional disks!"
+        echo "Please select at least $min additional disks."
 	rtn
         continue
      fi
@@ -191,7 +197,7 @@ get_zfs_layout()
     done
     get_dlg_ans "--menu \"Select dataset to edit\" 22 78 15 ${dOpts}"
     if [ -z "$ANS" ] ; then
-       exit_to_menu "Invalid dataset selected!"
+       exit_to_menu "Invalid dataset selected."
     fi
     case $ANS in
        done) break ;;
@@ -225,7 +231,7 @@ get_zfs_dset_opt()
   # Ask what to do on this dataset
   get_dlg_ans "--menu \"Set option for $changeOpt on $2\" 22 50 15 unset 'Unset this option' cancel 'Cancel' ${dOpts}"
   if [ -z "$ANS" ] ; then
-     exit_to_menu "Invalid option selected!"
+     exit_to_menu "Invalid option selected."
   fi
 
   if [ "$ANS" = "unset" ] ; then ANS="" ; fi
@@ -263,7 +269,7 @@ edit_dataset()
   # Ask what to do on this dataset
   get_dlg_ans "--menu \"Editing dataset: ${1}\" 22 50 15 delete 'Remove the dataset' cancel 'Cancel' ${dOpts}"
   if [ -z "$ANS" ] ; then
-     exit_to_menu "Invalid dataset selected!"
+     exit_to_menu "Invalid dataset selected."
   fi
   case $ANS in
     cancel) return ;;
@@ -350,7 +356,7 @@ add_dataset()
 {
     get_dlg_ans "--inputbox 'Enter dataset mountpoint' 8 40"
     if [ -z "$ANS" ] ; then
-       exit_to_menu "Invalid dataset entered!"
+       exit_to_menu "Invalid dataset mountpoint entered."
     fi
 
     # Make sure it starts with a /
@@ -364,7 +370,7 @@ add_dataset()
     do
        d=`echo $z | cut -d '(' -f 1`
        if [ "$d" = "$ANS" ] ; then
-          echo "Error, this dataset already exists!"
+          echo "Error, this dataset already exists."
           rtn
 	  return
        fi
@@ -443,7 +449,7 @@ get_target_disk()
   rm /tmp/.dList.$$
   get_dlg_ans "--radiolist \"Select target disk\" 12 50 5 ${dOpts}"
   if [ -z "$ANS" ] ; then
-     exit_to_menu "Invalid disk selected!"
+     exit_to_menu "Invalid disk selected."
   fi
   SYSDISK="$ANS"
 }
@@ -488,11 +494,11 @@ get_hardware_info()
  #check active sound devices
    cat /dev/sndstat | grep 'pcm0:'
       if [ $? -eq 0 ] ; then
-	echo "Compatible Sound Device(s) Detected:" >> /tmp/.hardwareinfo.$$
+	echo "Compatible sound devices detected:" >> /tmp/.hardwareinfo.$$
 	cat /dev/sndstat >> /tmp/.hardwareinfo.$$
 	echo " " >> /tmp/.hardwareinfo.$$
       else
-	echo "No compatible Sound Device(s) Detected."  >> /tmp/.hardwareinfo.$$
+	echo "No compatible sound devices detected."  >> /tmp/.hardwareinfo.$$
 	echo " " >> /tmp/.hardwareinfo.$$
       fi
    sed -i '' '/Installed devices:/d' /tmp/.hardwareinfo.$$
@@ -531,7 +537,7 @@ get_target_part()
   rm /tmp/.dList.$$
   get_dlg_ans "--radiolist \"Select target partition\" 12 80 5 ${dOpts}"
   if [ -z "$ANS" ] ; then
-     exit_to_menu "Invalid disk selected!"
+     exit_to_menu "Invalid disk selected."
   fi
   DISKPART="$ANS"
 
@@ -539,9 +545,9 @@ get_target_part()
   if [ "$DISKPART" = "ALL" ] ; then
      while :
      do
-	get_dlg_ans "--menu \"Select the disk format you would like to use.\" 12 45 10 1. GPT 2. MBR"
+	get_dlg_ans "--menu \"Select the disk format to use.\" 12 45 10 1. GPT 2. MBR"
 	if [ -z "$ANS" ] ; then
-	  echo "Invalid disk format entered!"
+	  echo "Invalid disk format entered."
 	  continue
 	else
 	  break
@@ -563,7 +569,7 @@ get_root_pw()
   do
     get_dlg_ans "--passwordbox 'Enter the root password' 8 30"
     if [ -z "$ANS" ] ; then
-       echo "Invalid password entered!  Please Enter a valid Password!" >> /tmp/.vartemp.$$
+       echo "Invalid password entered.  Please enter a valid password." >> /tmp/.vartemp.$$
        dialog --tailbox /tmp/.vartemp.$$ 8 67
        rm /tmp/.vartemp.$$
        continue
@@ -572,16 +578,16 @@ get_root_pw()
     ROOTPW="$ANS"
     get_dlg_ans "--passwordbox 'Confirm root password' 8 30"
     if [ -z "$ANS" ] ; then
-       echo "Invalid password entered!  Please Enter a Password!" >> /tmp/.vartemp.$$
+       echo "Invalid password entered.  Please enter a password." >> /tmp/.vartemp.$$
        dialog --tailbox /tmp/.vartemp.$$ 8 67
        rm /tmp/.vartemp.$$
        continue
     fi
     ROOTPWCONFIRM="$ANS"
     if [ "$ROOTPWCONFIRM" = "$ROOTPW" ] ; then break; fi
-    dialog --title "$TITLE" --yesno 'Password Mismatch, try again?' 8 40
+    dialog --title "$TITLE" --yesno 'Password mismatch, try again?' 8 40
     if [ $? -eq 0 ] ; then continue ; fi
-    exit_to_menu "Failed setting root password!"
+    exit_to_menu "Failed setting root password."
   done
 }
 
@@ -591,7 +597,7 @@ get_user_pw()
   do
     get_dlg_ans "--passwordbox \"Enter the password for $USERNAME\" 8 40"
     if [ -z "$ANS" ] ; then
-       echo "Invalid password entered!  Please Enter a Password!" >> /tmp/.vartemp.$$
+       echo "Invalid password entered.  Please enter a password." >> /tmp/.vartemp.$$
        dialog --tailbox /tmp/.vartemp.$$ 8 35
        rm /tmp/.vartemp.$$
        continue
@@ -600,16 +606,16 @@ get_user_pw()
     USERPW="$ANS"
     get_dlg_ans "--passwordbox 'Confirm password' 8 40"
     if [ -z "$ANS" ] ; then
-       echo "Invalid password entered!  Please Enter a Password!" >> /tmp/.vartemp.$$
+       echo "Invalid password entered.  Please enter a password." >> /tmp/.vartemp.$$
        dialog --tailbox /tmp/.vartemp.$$ 8 35
        rm /tmp/.vartemp.$$
        continue
     fi
     USERPWCONFIRM="$ANS"
     if [ "$USERPWCONFIRM" = "$USERPW" ] ; then break; fi
-    dialog --title "$TITLE" --yesno 'Password Mismatch, try again?' 8 30
+    dialog --title "$TITLE" --yesno 'Password mismatch, try again?' 8 30
     if [ $? -eq 0 ] ; then continue ; fi
-    exit_to_menu "Failed setting password!"
+    exit_to_menu "Failed setting password."
   done
 
 }
@@ -621,7 +627,7 @@ get_user_name()
     #Ask for user name and make sure it is not empty
     get_dlg_ans "--inputbox 'Enter a username' 8 40"
     if [ -z "$ANS" ] ; then
-       echo "Invalid username entered!" >> /tmp/.vartemp.$$
+       echo "Invalid username entered." >> /tmp/.vartemp.$$
        dialog --tailbox /tmp/.vartemp.$$ 8 35
        rm /tmp/.vartemp.$$
        continue
@@ -629,7 +635,7 @@ get_user_name()
     #check for invalid characters
     echo "$ANS" | grep -q '^[a-zA-Z0-9]*$'
     if [ $? -eq 1 ] ; then
-       echo "Name contains invalid characters!" >> /tmp/.vartemp.$$
+       echo "Name contains invalid characters." >> /tmp/.vartemp.$$
        dialog --tailbox /tmp/.vartemp.$$ 8 35
        rm /tmp/.vartemp.$$
        continue
@@ -673,7 +679,7 @@ get_user_realname()
     #ask for user's real name
     get_dlg_ans "--inputbox \"Enter the real name for $USERNAME\" 8 40"
     if [ -z "$ANS" ] ; then
-       echo "Real name can not be blank"  >> /tmp/.vartemp.$$
+       echo "Real name cannot be blank."  >> /tmp/.vartemp.$$
        dialog --tailbox /tmp/.vartemp.$$ 8 35
        rm /tmp/.vartemp.$$
        continue
@@ -681,7 +687,7 @@ get_user_realname()
     #check for invalid characters
     echo "$ANS" | grep -q '^[a-zA-Z ]*$'
     if [ $? -eq 1 ] ; then
-       echo "Name contains invalid characters!" >> /tmp/.vartemp.$$
+       echo "Name contains invalid characters." >> /tmp/.vartemp.$$
        dialog --tailbox /tmp/.vartemp.$$ 8 35
        rm /tmp/.vartemp.$$
        continue
@@ -696,9 +702,9 @@ get_user_shell()
 {
   while :
   do
-    get_dlg_ans "--menu \"Select the users shell\" 12 45 10 /bin/sh SH /bin/csh CSH /bin/tcsh TCSH"
+    get_dlg_ans "--menu \"Select the user shell\" 12 45 10 /bin/sh SH /bin/csh CSH /bin/tcsh TCSH"
     if [ -z "$ANS" ] ; then
-      echo "Invalid SHELL entered!"
+      echo "Invalid shell entered."
       continue
     else
       break
@@ -711,16 +717,16 @@ get_hostname()
 {
   while :
   do
-    get_dlg_ans "--inputbox \"Enter a system Hostname\" 8 35"
+    get_dlg_ans "--inputbox \"Enter a system hostname\" 8 35"
       if [ -z "$ANS" ] ; then
-      echo "Hostname can not be blank"  >> /tmp/.vartemp.$$
+      echo "Hostname cannot be blank."  >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 30
       rm /tmp/.vartemp.$$
       continue
       fi
     echo "$ANS" | grep -q '^[a-zA-Z0-9.-]*$'
     if [ $? -eq 1 ] ; then
-      echo "Hostname contains invalid characters!" >> /tmp/.vartemp.$$
+      echo "Hostname contains invalid characters." >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 48
       rm /tmp/.vartemp.$$
       continue
@@ -761,7 +767,7 @@ get_netconfig()
   rm /tmp/.dList.$$
   get_dlg_ans "--radiolist \"Select network card to configure\" 12 50 5 ${dOpts}"
   if [ -z "$ANS" ] ; then
-     exit_to_menu "Invalid NIC selected!"
+     exit_to_menu "Invalid NIC selected."
   fi
   SYSNIC="$ANS"
   if [ "$SYSNIC" = "auto" ] ; then
@@ -774,14 +780,14 @@ get_netconfig()
   do
     get_dlg_ans "--inputbox \"Enter the IP address for $SYSNIC\" 8 40"
       if [ -z "$ANS" ] ; then
-      echo "IP can not be blank"  >> /tmp/.vartemp.$$
+      echo "IP address cannot be blank."  >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 30
       rm /tmp/.vartemp.$$
       continue
       fi
     echo "$ANS" | grep -q '^[0-9.]*$'
     if [ $? -eq 1 ] ; then
-      echo "IP contains invalid characters!" >> /tmp/.vartemp.$$
+      echo "IP address contains invalid characters." >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 38
       rm /tmp/.vartemp.$$
       continue
@@ -796,14 +802,14 @@ get_netconfig()
   do
     get_dlg_ans "--inputbox \"Enter the netmask for $SYSNIC\" 8 40"
       if [ -z "$ANS" ] ; then
-      echo "Netmask can not be blank"  >> /tmp/.vartemp.$$
+      echo "Netmask cannot be blank."  >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 35
       rm /tmp/.vartemp.$$
       continue
     fi
     echo "$ANS" | grep -q '^[0-9.]*$'
     if [ $? -eq 1 ] ; then
-      echo "Netmask contains invalid characters!" >> /tmp/.vartemp.$$
+      echo "Netmask contains invalid characters." >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 45
       rm /tmp/.vartemp.$$
       continue
@@ -816,16 +822,16 @@ get_netconfig()
   #Set DNS and check for invalid characters
   while :
   do
-    get_dlg_ans "--inputbox \"Enter the DNS address for $SYSNIC\" 8 40"
+    get_dlg_ans "--inputbox \"Enter the DNS nameserver IP address for $SYSNIC\" 8 40"
       if [ -z "$ANS" ] ; then
-      echo "DNS can not be blank!"  >> /tmp/.vartemp.$$
+      echo "DNS cannot be blank."  >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 35
       rm /tmp/.vartemp.$$
       continue
       fi
     echo "$ANS" | grep -q '^[0-9.]*$'
     if [ $? -eq 1 ] ; then
-      echo "DNS contains invalid characters!" >> /tmp/.vartemp.$$
+      echo "DNS nameserver IP address contains invalid characters." >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 45
       rm /tmp/.vartemp.$$
       continue
@@ -838,16 +844,16 @@ get_netconfig()
   #Set Gateway and check for invalid characters
   while :
   do
-    get_dlg_ans "--inputbox \"Enter the Gateway address for $SYSNIC\" 8 40"
+    get_dlg_ans "--inputbox \"Enter the gateway IP address for $SYSNIC\" 8 40"
       if [ -z "$ANS" ] ; then
-      echo "Gateway can not be blank!"  >> /tmp/.vartemp.$$
+      echo "Gateway IP address cannot be blank."  >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 35
       rm /tmp/.vartemp.$$
       continue
       fi
     echo "$ANS" | grep -q '^[0-9.]*$'
     if [ $? -eq 1 ] ; then
-      echo "Gateway contains invalid characters!" >> /tmp/.vartemp.$$
+      echo "Gateway IP address contains invalid characters." >> /tmp/.vartemp.$$
       dialog --tailbox /tmp/.vartemp.$$ 8 45
       rm /tmp/.vartemp.$$
       continue
@@ -902,7 +908,11 @@ gen_pc-sysinstall_cfg()
    # Set the ashift size
    echo "" >> ${CFGFILE}
    echo "# Set the ZFS blocksize (ashift)" >> ${CFGFILE}
-   echo "ashift=${ASHIFTSIZE}"
+   echo "ashift=${ASHIFTSIZE}" >> ${CFGFILE}
+
+   # Set the default pool name
+   echo "# Set the ZFS pool name" >> ${CFGFILE}
+   echo "zpoolName=${POOLNAME}" >> ${CFGFILE}
 
    # Now do the disk block
    echo "" >> ${CFGFILE}
@@ -955,7 +965,7 @@ gen_pc-sysinstall_cfg()
    echo "userPass=${USERPW}" >> ${CFGFILE}
    echo "userShell=${USERSHELL}" >> ${CFGFILE}
    echo "userHome=/home/${USERNAME}" >> ${CFGFILE}
-   echo "userGroups=wheel,operator" >> ${CFGFILE}
+   echo "userGroups=wheel,operator,video" >> ${CFGFILE}
    echo "commitUser" >> ${CFGFILE}
 
    # Last cleanup stuff
@@ -1027,7 +1037,7 @@ start_edit_menu_loop()
 
   while :
   do
-    dialog --title "${BRAND} Text Install - Edit Menu" --menu "Please select from the following options:" 18 70 10 disk "Change disk ($SYSDISK)" pool "ZFS pool layout" datasets "ZFS datasets" zpoolcfg "ZFS Pool Config" network "Change networking" swap "Change swap size" view "View install script" edit "Edit install script" back "Back to main menu" 2>/tmp/answer
+    dialog --title "${BRAND} Text Install - Edit Menu" --menu "Select:" 18 70 10 disk "Change disk ($SYSDISK)" pool "ZFS pool layout" datasets "ZFS datasets" zpoolcfg "ZFS Pool Config" network "Change networking" swap "Change swap size" view "View install script" edit "Edit install script" back "Back to main menu" 2>/tmp/answer
     if [ $? -ne 0 ] ; then break ; fi
 
     ANS="`cat /tmp/answer`"
@@ -1044,11 +1054,12 @@ start_edit_menu_loop()
     network) change_networking
 	     ;;
        swap) change_swap
+	     gen_pc-sysinstall_cfg
 	     ;;
        view) more ${CFGFILE}
              rtn
              ;;
-       edit) ee ${CFGFILE}
+       edit) vi ${CFGFILE}
              rtn
              ;;
        back) break ;;
@@ -1063,7 +1074,7 @@ start_menu_loop()
 
   while :
   do
-    dialog --title "${BRAND} Text Install" --menu "Please select from the following options:" 18 40 10 install "Start the installation" wizard "Re-run install wizard" edit "Edit install options" hardware "check compatibility" quit "Quit install wizard" 2>/tmp/answer
+    dialog --title "${BRAND} Text Install" --menu "Select:" 18 40 10 install "Start the installation" wizard "Re-run install wizard" edit "Edit install settings" hardware "check compatibility" quit "Quit install wizard" 2>/tmp/answer
     if [ $? -ne 0 ] ; then break ; fi
 
     ANS="`cat /tmp/answer`"
@@ -1073,7 +1084,7 @@ start_menu_loop()
              ;;
        edit) start_edit_menu_loop
              ;;
-    install) dialog --title "$TITLE" --yesno 'This will begin the installation, continue?' 8 30
+    install) dialog --title "$TITLE" --yesno 'Begin the installation?' 8 30
              if [ $? -eq 0 ] ; then
                 ${PCSYS} -c ${CFGFILE}
                 rtn
@@ -1089,6 +1100,20 @@ start_menu_loop()
   exit 0
 }
 
+# Load default settings from TrueOS Manifest
+load_manifest_defaults()
+{
+	# Check if default pool name is specified
+	newpool=$(jq -r '."iso"."pool"."name"' ${TRUEOS_MANIFEST})
+	if [ -n "$newpool" -a "$newpool" != "null" ] ; then
+		POOLNAME="$newpool"
+	fi
+
+}
+
+if [ -e "$TRUEOS_MANIFEST" ] ; then
+	load_manifest_defaults
+fi
 
 
 if [ -e "$CFGFILE" ] ; then
