@@ -401,7 +401,6 @@ options		UNIONFS			# Union filesystem
 options		TMPFS			# Efficient memory filesystem
 options		ISP_TARGET_MODE		# Qlogic FC target mode
 options		COMPAT_LINUXKPI
-device		zfs
 device		coretemp
 device		cpuctl
 device		cryptodev		# /dev/crypto for access to h/w
