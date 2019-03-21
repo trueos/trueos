@@ -280,6 +280,7 @@ device      ste         # Sundance ST201 (D-Link DFE-550TX)
 device      stge            # Sundance/Tamarack TC9021 gigabit Ethernet
 device      tl          # Texas Instruments ThunderLAN
 device      tx          # SMC EtherPower II (83c170 ``EPIC'')
+device      ure
 device      vge         # VIA VT612x gigabit Ethernet
 device      vr          # VIA Rhine, Rhine II
 device      wb          # Winbond W89C840F
@@ -310,6 +311,12 @@ device		iwn			# Intel 4965/1000/5000/6000 wireless NICs.
 device		malo			# Marvell Libertas wireless NICs.
 device		mwl			# Marvell 88W8363 802.11n wireless NICs.
 device		ral			# Ralink Technology RT2500 wireless NICs.
+device		rtwn
+device		rtwnfw
+device		rtwn_usb
+device		rtwn_pci
+device		urtwn
+device		urtwnfw
 device		wi			# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 device		wpi			# Intel 3945ABG wireless NICs.
 
