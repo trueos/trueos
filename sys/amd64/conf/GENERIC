@@ -312,6 +312,7 @@ device		iwn			# Intel 4965/1000/5000/6000 wireless NICs.
 device		malo			# Marvell Libertas wireless NICs.
 device		mwl			# Marvell 88W8363 802.11n wireless NICs.
 device		ral			# Ralink Technology RT2500 wireless NICs.
+device    rsu     #ealtek RTL8188SU/RTL8192SU	USB IEEE 802.11b/g/n wireless NICs.
 device		rtwn
 device		rtwnfw
 device		rtwn_usb
