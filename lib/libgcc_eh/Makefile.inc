@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 COMPILERRTDIR=	${SRCTOP}/contrib/compiler-rt
-UNWINDINCDIR=	${SRCTOP}/contrib/llvm/projects/libunwind/include
-UNWINDSRCDIR=	${SRCTOP}/contrib/llvm/projects/libunwind/src
+UNWINDINCDIR=	${SRCTOP}/contrib/libunwind/include
+UNWINDSRCDIR=	${SRCTOP}/contrib/libunwind/src
 
 STATIC_CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
 
@@ -27,10 +27,8 @@ CXXFLAGS.${file}+=	-fno-exceptions -funwind-tables
 .endfor
 
 CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR} -D_LIBUNWIND_IS_NATIVE_ONLY
-.if empty(CXXFLAGS:M-std=*)
-CXXFLAGS+=	-std=c++11
-.endif
 CXXFLAGS+=	-fno-rtti
+CXXSTD=		c++11
 STATIC_CXXFLAGS+= -fvisibility=hidden -fPIC
 # Probably need to just move this earlier or use CXXFLAGS
 .if ${MK_DIRDEPS_BUILD} == "yes"

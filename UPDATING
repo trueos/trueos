@@ -31,11 +31,22 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190320:
+	The fuse(4) module has been renamed to fusefs(4) for consistency with
+	other filesystems.  You should update any kld_load="fuse" entries in
+	/etc/rc.conf, fuse_load="YES" entries in /boot/loader.conf, and
+	"options FUSE" enties in kernel config files.
+
 20190304:
 	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
 	8.0.0.  Please see the 20141231 entry below for information about
 	prerequisites and upgrading, if you are not already using clang 3.5.0
 	or higher.
+
+20190226:
+	geom_uzip(4) depends on the new module xz.  If geom_uzip is statically
+	compiled into your custom kernel, add 'device xz' statement to the
+	kernel config.
 
 20190219:
 	drm and drm2 have been removed from the tree. Please see
@@ -1931,13 +1942,14 @@ COMMON ITEMS:
 	can be deleted by "make delete-old-libs", but you have to make
 	sure that no program is using those libraries anymore.
 
-	[8] The new kernel must be able to run existing binaries used by
-	an installworld.  When upgrading across major versions, the new
-	kernel's configuration must include the correct COMPAT_FREEBSD<n>
-	option for existing binaries (e.g. COMPAT_FREEBSD11 to run 11.x
-	binaries).  Failure to do so may leave you with a system that is
-	hard to boot to recover.  A GENERIC kernel will include suitable
-	compatibility options to run binaries from supported older branches.
+	[8] The new kernel must be able to run existing binaries used by an
+	installworld.  When upgrading across major versions, the new kernel's
+	configuration must include the correct COMPAT_FREEBSD<n> option for
+	existing binaries (e.g. COMPAT_FREEBSD11 to run 11.x binaries).  Failure
+	to do so may leave you with a system that is hard to boot to recover. A
+	GENERIC kernel will include suitable compatibility options to run
+	binaries from older branches.  Note that the ability to run binaries
+	from unsupported branches is not guaranteed.
 
 	Make sure that you merge any new devices from GENERIC since the
 	last time you updated your kernel config file. Options also

@@ -225,12 +225,14 @@ OLD_DIRS+=usr/share/examples/bhyve
 .endif
 
 .if ${MK_BINUTILS} == no
+.if !defined(WITH_PORT_BASE_BINUTILS)
 OLD_FILES+=usr/bin/as
 .if ${MK_LLD_IS_LD} == no
 OLD_FILES+=usr/bin/ld
 OLD_FILES+=usr/share/man/man1/ld.1.gz
 .endif
 OLD_FILES+=usr/bin/objdump
+.endif
 OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.x
 OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xbn
 OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xc
@@ -426,6 +428,7 @@ OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsc
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsw
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xu
 OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xw
+.if !defined(WITH_PORT_BASE_BINUTILS)
 OLD_FILES+=usr/share/man/man1/as.1.gz
 OLD_FILES+=usr/share/man/man1/objdump.1.gz
 OLD_FILES+=usr/share/man/man7/as.7.gz
@@ -433,8 +436,11 @@ OLD_FILES+=usr/share/man/man7/ld.7.gz
 OLD_FILES+=usr/share/man/man7/ldint.7.gz
 OLD_FILES+=usr/share/man/man7/binutils.7.gz
 .endif
+.endif
+.if !defined(WITH_PORT_BASE_BINUTILS)
 .if ${MK_BINUTILS} == no || ${MK_LLD_IS_LD} == yes
 OLD_FILES+=usr/bin/ld.bfd
+.endif
 .endif
 
 .if ${MK_BLACKLIST} == no
@@ -1700,7 +1706,9 @@ OLD_FILES+=usr/share/man/man8/ftpd.8.gz
 .endif
 
 .if ${MK_GNUCXX} == no
+.if !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/bin/g++
+.endif
 OLD_FILES+=usr/include/c++/4.2/algorithm
 OLD_FILES+=usr/include/c++/4.2/backward/algo.h
 OLD_FILES+=usr/include/c++/4.2/backward/algobase.h
@@ -2708,8 +2716,10 @@ OLD_FILES+=usr/share/man/man8/unstr.8.gz
 .endif
 
 .if ${MK_GCC} == no
+.if !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/bin/gcc
+.endif
 OLD_FILES+=usr/bin/gcpp
 OLD_FILES+=usr/bin/gperf
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
@@ -2731,7 +2741,9 @@ OLD_FILES+=usr/include/gcc/4.2/altivec.h
 OLD_FILES+=usr/include/gcc/4.2/ppc-asm.h
 OLD_FILES+=usr/include/gcc/4.2/spe.h
 .endif
+.if ${MK_OPENMP} == no
 OLD_FILES+=usr/include/omp.h
+.endif
 OLD_FILES+=usr/lib/libgcov.a
 OLD_FILES+=usr/lib/libgomp.a
 OLD_FILES+=usr/lib/libgomp.so
@@ -2744,14 +2756,17 @@ OLD_LIBS+=usr/lib32/libgomp.so.1
 OLD_FILES+=usr/lib32/libgomp_p.a
 OLD_FILES+=usr/libexec/cc1
 OLD_FILES+=usr/libexec/cc1plus
+.if !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/share/man/man1/g++.1.gz
 OLD_FILES+=usr/share/man/man1/gcc.1.gz
+.endif
 OLD_FILES+=usr/share/man/man1/gcpp.1.gz
 OLD_FILES+=usr/share/man/man1/gperf.1.gz
 OLD_FILES+=usr/share/man/man1/gperf.7.gz
 .endif
 
-.if (${MK_GCOV} == no || ${MK_GCC} == no) && ${MK_LLVM_COV} == no
+.if (${MK_GCOV} == no || ${MK_GCC} == no) && ${MK_LLVM_COV} == no && \
+    !defined(WITH_PORT_BASE_GCC)
 OLD_FILES+=usr/bin/gcov
 OLD_FILES+=usr/share/man/man1/gcov.1.gz
 .endif
@@ -2774,6 +2789,135 @@ OLD_FILES+=usr/share/man/man1/kgdb.1.gz
 .if ${MK_GDB} == no || ${MK_GDB_LIBEXEC} == no
 OLD_FILES+=usr/libexec/gdb
 OLD_FILES+=usr/libexec/kgdb
+.endif
+
+.if ${MK_GOOGLETEST} == no
+OLD_FILES+=usr/include/gmock/gmock-actions.h
+OLD_FILES+=usr/include/gmock/gmock-cardinalities.h
+OLD_FILES+=usr/include/gmock/gmock-generated-actions.h
+OLD_FILES+=usr/include/gmock/gmock-generated-function-mockers.h
+OLD_FILES+=usr/include/gmock/gmock-generated-matchers.h
+OLD_FILES+=usr/include/gmock/gmock-generated-nice-strict.h
+OLD_FILES+=usr/include/gmock/gmock-matchers.h
+OLD_FILES+=usr/include/gmock/gmock-more-actions.h
+OLD_FILES+=usr/include/gmock/gmock-more-matchers.h
+OLD_FILES+=usr/include/gmock/gmock-spec-builders.h
+OLD_FILES+=usr/include/gmock/gmock.h
+OLD_FILES+=usr/include/gmock/internal/custom/gmock-generated-actions.h
+OLD_FILES+=usr/include/gmock/internal/custom/gmock-matchers.h
+OLD_FILES+=usr/include/gmock/internal/custom/gmock-port.h
+OLD_FILES+=usr/include/gmock/internal/gmock-generated-internal-utils.h
+OLD_FILES+=usr/include/gmock/internal/gmock-internal-utils.h
+OLD_FILES+=usr/include/gmock/internal/gmock-port.h
+OLD_DIRS+=usr/include/gmock
+OLD_FILES+=usr/include/gtest/gtest_pred_impl.h
+OLD_FILES+=usr/include/gtest/gtest_prod.h
+OLD_FILES+=usr/include/gtest/gtest-death-test.h
+OLD_FILES+=usr/include/gtest/gtest-message.h
+OLD_FILES+=usr/include/gtest/gtest-param-test.h
+OLD_FILES+=usr/include/gtest/gtest-printers.h
+OLD_FILES+=usr/include/gtest/gtest-spi.h
+OLD_FILES+=usr/include/gtest/gtest-test-part.h
+OLD_FILES+=usr/include/gtest/gtest-typed-test.h
+OLD_FILES+=usr/include/gtest/gtest.h
+OLD_FILES+=usr/include/gtest/internal/custom/gtest-port.h
+OLD_FILES+=usr/include/gtest/internal/custom/gtest-printers.h
+OLD_FILES+=usr/include/gtest/internal/custom/gtest.h
+OLD_FILES+=usr/include/gtest/internal/gtest-death-test-internal.h
+OLD_FILES+=usr/include/gtest/internal/gtest-filepath.h
+OLD_FILES+=usr/include/gtest/internal/gtest-internal.h
+OLD_FILES+=usr/include/gtest/internal/gtest-linked_ptr.h
+OLD_FILES+=usr/include/gtest/internal/gtest-param-util-generated.h
+OLD_FILES+=usr/include/gtest/internal/gtest-param-util.h
+OLD_FILES+=usr/include/gtest/internal/gtest-port-arch.h
+OLD_FILES+=usr/include/gtest/internal/gtest-port.h
+OLD_FILES+=usr/include/gtest/internal/gtest-string.h
+OLD_FILES+=usr/include/gtest/internal/gtest-tuple.h
+OLD_FILES+=usr/include/gtest/internal/gtest-type-util.h
+OLD_DIRS+=usr/include/gtest
+OLD_FILES+=usr/lib/libprivategmock_main.a
+OLD_FILES+=usr/lib/libprivategmock_main.so
+OLD_LIBS+=usr/lib/libprivategmock_main.so.0
+OLD_FILES+=usr/lib/libprivategmock_main_p.a
+OLD_FILES+=usr/lib/libprivategmock.a
+OLD_FILES+=usr/lib/libprivategmock.so
+OLD_LIBS+=usr/lib/libprivategmock.so.0
+OLD_FILES+=usr/lib/libprivategmock_p.a
+OLD_FILES+=usr/lib/libprivategtest_main.a
+OLD_FILES+=usr/lib/libprivategtest_main.so
+OLD_LIBS+=usr/lib/libprivategtest_main.so.0
+OLD_FILES+=usr/lib/libprivategtest_main_p.a
+OLD_FILES+=usr/lib/libprivategtest.a
+OLD_FILES+=usr/lib/libprivategtest.so
+OLD_LIBS+=usr/lib/libprivategtest.so.0
+OLD_FILES+=usr/lib/libprivategtest_p.a
+OLD_FILES+=usr/tests/lib/googletest/gmock/gmock_stress_test
+OLD_FILES+=usr/tests/lib/googletest/gmock/Kyuafile
+OLD_DIRS+=usr/tests/lib/googletest/gmock
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock_ex_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock_link_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-actions_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-cardinalities_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-ex_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-generated-actions_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-generated-function-mockers_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-generated-internal-utils_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-generated-matchers_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-internal-utils_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-matchers_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-more-actions_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-nice-strict_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-port_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/gmock-spec-builders_test
+OLD_FILES+=usr/tests/lib/googletest/gmock_main/Kyuafile
+OLD_DIRS+=usr/tests/lib/googletest/gmock_main
+OLD_FILES+=usr/tests/lib/googletest/gtest/googletest-param-test-test
+OLD_FILES+=usr/tests/lib/googletest/gtest/gtest_all_test
+OLD_FILES+=usr/tests/lib/googletest/gtest/gtest_environment_test
+OLD_FILES+=usr/tests/lib/googletest/gtest/gtest_no_test_unittest
+OLD_FILES+=usr/tests/lib/googletest/gtest/gtest_premature_exit_test
+OLD_FILES+=usr/tests/lib/googletest/gtest/gtest_repeat_test
+OLD_FILES+=usr/tests/lib/googletest/gtest/gtest_stress_test
+OLD_FILES+=usr/tests/lib/googletest/gtest/gtest_throw_on_failure_ex_test
+OLD_FILES+=usr/tests/lib/googletest/gtest/gtest-death-test_ex_catch_test
+OLD_FILES+=usr/tests/lib/googletest/gtest/gtest-death-test_ex_nocatch_test
+OLD_FILES+=usr/tests/lib/googletest/gtest/gtest-unittest-api_test
+OLD_FILES+=usr/tests/lib/googletest/gtest/Kyuafile
+OLD_DIRS+=usr/tests/lib/googletest/gtest
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-death-test-test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-filepath-test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-linked-ptr-test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-listener-test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-message-test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-options-test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-port-test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-printers-test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/googletest-test-part-test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_help_test_
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_main_unittest
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_pred_impl_unittest
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_prod_test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_sole_header_test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_unittest
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_xml_outfile1_test_
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest_xml_outfile2_test_
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/gtest-typed-test_test
+OLD_FILES+=usr/tests/lib/googletest/gtest_main/Kyuafile
+OLD_DIRS+=usr/tests/lib/googletest/gtest_main
+OLD_FILES+=usr/tests/lib/googletest/Kyuafile
+OLD_DIRS+=usr/tests/lib/googletest/
+OLD_FILES+=usr/tests/share/examples/tests/googletest/Kyuafile
+OLD_FILES+=usr/tests/share/examples/tests/googletest/sample1_unittest
+OLD_FILES+=usr/tests/share/examples/tests/googletest/sample10_unittest
+OLD_FILES+=usr/tests/share/examples/tests/googletest/sample2_unittest
+OLD_FILES+=usr/tests/share/examples/tests/googletest/sample3_unittest
+OLD_FILES+=usr/tests/share/examples/tests/googletest/sample4_unittest
+OLD_FILES+=usr/tests/share/examples/tests/googletest/sample5_unittest
+OLD_FILES+=usr/tests/share/examples/tests/googletest/sample6_unittest
+OLD_FILES+=usr/tests/share/examples/tests/googletest/sample7_unittest
+OLD_FILES+=usr/tests/share/examples/tests/googletest/sample8_unittest
+OLD_DIRS+=usr/tests/share/examples/tests/googletest
 .endif
 
 .if ${MK_GPIO} == no
@@ -3127,6 +3271,11 @@ OLD_FILES+=usr/share/man/man8/inetd.8.gz
 .if ${MK_IPFILTER} == no
 OLD_FILES+=etc/periodic/security/510.ipfdenied
 OLD_FILES+=etc/periodic/security/610.ipf6denied
+OLD_FILES+=etc/rc.d/ipfilter
+OLD_FILES+=etc/rc.d/ipfs
+OLD_FILES+=etc/rc.d/ipmon
+OLD_FILES+=etc/rc.d/ipnat
+OLD_FILES+=etc/rc.d/ippool
 OLD_FILES+=rescue/ipf
 OLD_FILES+=sbin/ipf
 OLD_FILES+=sbin/ipfs
@@ -3196,6 +3345,7 @@ OLD_FILES+=usr/share/man/man4/ipnat.4.gz
 OLD_FILES+=usr/share/man/man5/ipf.5.gz
 OLD_FILES+=usr/share/man/man5/ipf.conf.5.gz
 OLD_FILES+=usr/share/man/man5/ipf6.conf.5.gz
+OLD_FILES+=usr/share/man/man5/ipfilter.5.gz
 OLD_FILES+=usr/share/man/man5/ipnat.5.gz
 OLD_FILES+=usr/share/man/man5/ipnat.conf.5.gz
 OLD_FILES+=usr/share/man/man5/ippool.5.gz
@@ -8605,6 +8755,13 @@ OLD_FILES+=usr/share/man/man8/sminfo.8.gz
 OLD_FILES+=usr/share/man/man8/smpdump.8.gz
 OLD_FILES+=usr/share/man/man8/smpquery.8.gz
 OLD_FILES+=usr/share/man/man8/vendstat.8.gz
+.endif
+
+.if ${MK_OPENSSH} == no
+.if ${MK_GCC} == no
+OLD_FILES+=usr/include/omp.h
+.endif
+OLD_LIBS+=usr/lib/libomp.so
 .endif
 
 .if ${MK_OPENSSH} == no
