@@ -46,10 +46,10 @@
       "E8oknQzZlc/9VsYu2I+55UECAwEAAQ==",
       "-----END PUBLIC KEY-----"
     ],
-    "url": "http://pkg.ghostbsd.org/unstable/${ABI}/latest"
+    "url": "http://pkg.ghostbsd.org/stable/${ABI}/latest"
   },
   "pkg-repo-name": "GhostBSD",
-  "pkg-train-name": "unstable",
+  "pkg-train-name": "stable",
   "ports": {
     "branch": "trueos-master",
     "build": {
@@ -143,7 +143,7 @@
       ]
     },
     "type": "git",
-    "url": "https://github.com/trueos/trueos-ports"
+    "url": "https://github.com/ghostbsd/trueos-ports"
   },
   "poudriere-conf": [
     "NOHANG_TIME=14400"
