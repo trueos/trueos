@@ -23,6 +23,7 @@ ident		IXNAS64
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
+options		KSTACK_PAGES=8		# Increase size because of ZFS with debug
 
 options 	INVARIANT_SUPPORT
 options 	INVARIANTS
