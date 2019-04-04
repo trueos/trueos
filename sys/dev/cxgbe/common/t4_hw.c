@@ -211,9 +211,11 @@ static void t4_report_fw_error(struct adapter *adap)
 	u32 pcie_fw;
 
 	pcie_fw = t4_read_reg(adap, A_PCIE_FW);
-	if (pcie_fw & F_PCIE_FW_ERR)
+	if (pcie_fw & F_PCIE_FW_ERR) {
 		CH_ERR(adap, "Firmware reports adapter error: %s\n",
 			reason[G_PCIE_FW_EVAL(pcie_fw)]);
+		adap->flags &= ~FW_OK;
+	}
 }
 
 /*
@@ -3321,6 +3323,19 @@ int t4_get_fw_version(struct adapter *adapter, u32 *vers)
 }
 
 /**
+ *	t4_get_fw_hdr - read the firmware header
+ *	@adapter: the adapter
+ *	@hdr: where to place the version
+ *
+ *	Reads the FW header from flash into caller provided buffer.
+ */
+int t4_get_fw_hdr(struct adapter *adapter, struct fw_hdr *hdr)
+{
+	return t4_read_flash(adapter, FLASH_FW_START,
+	    sizeof (*hdr) / sizeof (uint32_t), (uint32_t *)hdr, 1);
+}
+
+/**
  *	t4_get_bs_version - read the firmware bootstrap version
  *	@adapter: the adapter
  *	@vers: where to place the version
@@ -3895,7 +3910,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		speed = fwcap_top_speed(lc->supported);
 
 	/* Force AN on for BT cards. */
-	if (is_bt(adap->port[port]))
+	if (is_bt(adap->port[adap->chan_map[port]]))
 		aneg = lc->supported & FW_PORT_CAP32_ANEG;
 
 	rcap = aneg | speed | fc | fec;
@@ -6900,7 +6915,7 @@ int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
 	 * If a legitimate mailbox is provided, issue a RESET command
 	 * with a HALT indication.
 	 */
-	if (mbox <= M_PCIE_FW_MASTER) {
+	if (adap->flags & FW_OK && mbox <= M_PCIE_FW_MASTER) {
 		struct fw_reset_cmd c;
 
 		memset(&c, 0, sizeof(c));
@@ -6939,64 +6954,24 @@ int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
 /**
  *	t4_fw_restart - restart the firmware by taking the uP out of RESET
  *	@adap: the adapter
- *	@reset: if we want to do a RESET to restart things
  *
  *	Restart firmware previously halted by t4_fw_halt().  On successful
  *	return the previous PF Master remains as the new PF Master and there
  *	is no need to issue a new HELLO command, etc.
- *
- *	We do this in two ways:
- *
- *	 1. If we're dealing with newer firmware we'll simply want to take
- *	    the chip's microprocessor out of RESET.  This will cause the
- *	    firmware to start up from its start vector.  And then we'll loop
- *	    until the firmware indicates it's started again (PCIE_FW.HALT
- *	    reset to 0) or we timeout.
- *
- *	 2. If we're dealing with older firmware then we'll need to RESET
- *	    the chip since older firmware won't recognize the PCIE_FW.HALT
- *	    flag and automatically RESET itself on startup.
  */
-int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
+int t4_fw_restart(struct adapter *adap, unsigned int mbox)
 {
-	if (reset) {
-		/*
-		 * Since we're directing the RESET instead of the firmware
-		 * doing it automatically, we need to clear the PCIE_FW.HALT
-		 * bit.
-		 */
-		t4_set_reg_field(adap, A_PCIE_FW, F_PCIE_FW_HALT, 0);
+	int ms;
 
-		/*
-		 * If we've been given a valid mailbox, first try to get the
-		 * firmware to do the RESET.  If that works, great and we can
-		 * return success.  Otherwise, if we haven't been given a
-		 * valid mailbox or the RESET command failed, fall back to
-		 * hitting the chip with a hammer.
-		 */
-		if (mbox <= M_PCIE_FW_MASTER) {
-			t4_set_reg_field(adap, A_CIM_BOOT_CFG, F_UPCRST, 0);
-			msleep(100);
-			if (t4_fw_reset(adap, mbox,
-					F_PIORST | F_PIORSTMODE) == 0)
-				return 0;
-		}
-
-		t4_write_reg(adap, A_PL_RST, F_PIORST | F_PIORSTMODE);
-		msleep(2000);
-	} else {
-		int ms;
-
-		t4_set_reg_field(adap, A_CIM_BOOT_CFG, F_UPCRST, 0);
-		for (ms = 0; ms < FW_CMD_MAX_TIMEOUT; ) {
-			if (!(t4_read_reg(adap, A_PCIE_FW) & F_PCIE_FW_HALT))
-				return FW_SUCCESS;
-			msleep(100);
-			ms += 100;
-		}
-		return -ETIMEDOUT;
+	t4_set_reg_field(adap, A_CIM_BOOT_CFG, F_UPCRST, 0);
+	for (ms = 0; ms < FW_CMD_MAX_TIMEOUT; ) {
+		if (!(t4_read_reg(adap, A_PCIE_FW) & F_PCIE_FW_HALT))
+			return FW_SUCCESS;
+		msleep(100);
+		ms += 100;
 	}
-	return 0;
+
+	return -ETIMEDOUT;
 }
 
 /**
@@ -7026,7 +7001,7 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
 	unsigned int bootstrap =
 	    be32_to_cpu(fw_hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP;
-	int reset, ret;
+	int ret;
 
 	if (!t4_fw_matches_chip(adap, fw_hdr))
 		return -EINVAL;
@@ -7041,41 +7016,7 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	if (ret < 0 || bootstrap)
 		return ret;
 
-	/*
-	 * Older versions of the firmware don't understand the new
-	 * PCIE_FW.HALT flag and so won't know to perform a RESET when they
-	 * restart.  So for newly loaded older firmware we'll have to do the
-	 * RESET for it so it starts up on a clean slate.  We can tell if
-	 * the newly loaded firmware will handle this right by checking
-	 * its header flags to see if it advertises the capability.
-	 */
-	reset = ((be32_to_cpu(fw_hdr->flags) & FW_HDR_FLAGS_RESET_HALT) == 0);
-	return t4_fw_restart(adap, mbox, reset);
-}
-
-/*
- * Card doesn't have a firmware, install one.
- */
-int t4_fw_forceinstall(struct adapter *adap, const u8 *fw_data,
-    unsigned int size)
-{
-	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
-	unsigned int bootstrap =
-	    be32_to_cpu(fw_hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP;
-	int ret;
-
-	if (!t4_fw_matches_chip(adap, fw_hdr) || bootstrap)
-		return -EINVAL;
-
-	t4_set_reg_field(adap, A_CIM_BOOT_CFG, F_UPCRST, F_UPCRST);
-	t4_write_reg(adap, A_PCIE_FW, 0);	/* Clobber internal state */
-	ret = t4_load_fw(adap, fw_data, size);
-	if (ret < 0)
-		return ret;
-	t4_write_reg(adap, A_PL_RST, F_PIORST | F_PIORSTMODE);
-	msleep(1000);
-
-	return (0);
+	return t4_fw_restart(adap, mbox);
 }
 
 /**
@@ -7280,6 +7221,7 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 		     unsigned int port, unsigned int pf, unsigned int vf,
 		     unsigned int nmac, u8 *mac, u16 *rss_size,
+		     uint8_t *vfvld, uint16_t *vin,
 		     unsigned int portfunc, unsigned int idstype)
 {
 	int ret;
@@ -7300,6 +7242,7 @@ int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret)
 		return ret;
+	ret = G_FW_VI_CMD_VIID(be16_to_cpu(c.type_to_viid));
 
 	if (mac) {
 		memcpy(mac, c.mac, sizeof(c.mac));
@@ -7316,7 +7259,18 @@ int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
 	}
 	if (rss_size)
 		*rss_size = G_FW_VI_CMD_RSSSIZE(be16_to_cpu(c.norss_rsssize));
-	return G_FW_VI_CMD_VIID(be16_to_cpu(c.type_to_viid));
+	if (vfvld) {
+		*vfvld = adap->params.viid_smt_extn_support ?
+		    G_FW_VI_CMD_VFVLD(be32_to_cpu(c.alloc_to_len16)) :
+		    G_FW_VIID_VIVLD(ret);
+	}
+	if (vin) {
+		*vin = adap->params.viid_smt_extn_support ?
+		    G_FW_VI_CMD_VIN(be32_to_cpu(c.alloc_to_len16)) :
+		    G_FW_VIID_VIN(ret);
+	}
+
+	return ret;
 }
 
 /**
@@ -7336,10 +7290,10 @@ int t4_alloc_vi_func(struct adapter *adap, unsigned int mbox,
  */
 int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		unsigned int pf, unsigned int vf, unsigned int nmac, u8 *mac,
-		u16 *rss_size)
+		u16 *rss_size, uint8_t *vfvld, uint16_t *vin)
 {
 	return t4_alloc_vi_func(adap, mbox, port, pf, vf, nmac, mac, rss_size,
-				FW_VI_FUNC_ETH, 0);
+				vfvld, vin, FW_VI_FUNC_ETH, 0);
 }
 
 /**
@@ -7516,7 +7470,7 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
  *	@idx: index of existing filter for old value of MAC address, or -1
  *	@addr: the new MAC address value
  *	@persist: whether a new MAC allocation should be persistent
- *	@add_smt: if true also add the address to the HW SMT
+ *	@smt_idx: add MAC to SMT and return its index, or NULL
  *
  *	Modifies an exact-match filter and sets it to the new MAC address if
  *	@idx >= 0, or adds the MAC address to a new filter if @idx < 0.  In the
@@ -7531,7 +7485,7 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
  *	MAC value.  Note that this index may differ from @idx.
  */
 int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		  int idx, const u8 *addr, bool persist, bool add_smt)
+		  int idx, const u8 *addr, bool persist, uint16_t *smt_idx)
 {
 	int ret, mode;
 	struct fw_vi_mac_cmd c;
@@ -7540,7 +7494,7 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 
 	if (idx < 0)		/* new allocation */
 		idx = persist ? FW_VI_MAC_ADD_PERSIST_MAC : FW_VI_MAC_ADD_MAC;
-	mode = add_smt ? FW_VI_MAC_SMT_AND_MPSTCAM : FW_VI_MAC_MPS_TCAM_ENTRY;
+	mode = smt_idx ? FW_VI_MAC_SMT_AND_MPSTCAM : FW_VI_MAC_MPS_TCAM_ENTRY;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_MAC_CMD) |
@@ -7557,6 +7511,16 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		ret = G_FW_VI_MAC_CMD_IDX(be16_to_cpu(p->valid_to_idx));
 		if (ret >= max_mac_addr)
 			ret = -ENOMEM;
+		if (smt_idx) {
+			if (adap->params.viid_smt_extn_support)
+				*smt_idx = G_FW_VI_MAC_CMD_SMTID(be32_to_cpu(c.op_to_viid));
+			else {
+				if (chip_id(adap) <= CHELSIO_T5)
+					*smt_idx = (viid & M_FW_VIID_VIN) << 1;
+				else
+					*smt_idx = viid & M_FW_VIID_VIN;
+			}
+		}
 	}
 	return ret;
 }
@@ -8817,9 +8781,9 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
 {
 	u8 addr[6];
 	int ret, i, j;
-	u16 rss_size;
 	struct port_info *p = adap2pinfo(adap, port_id);
 	u32 param, val;
+	struct vi_info *vi = &p->vi[0];
 
 	for (i = 0, j = -1; i <= p->port_id; i++) {
 		do {
@@ -8837,27 +8801,23 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id)
  		t4_update_port_info(p);
 	}
 
-	ret = t4_alloc_vi(adap, mbox, j, pf, vf, 1, addr, &rss_size);
+	ret = t4_alloc_vi(adap, mbox, j, pf, vf, 1, addr, &vi->rss_size,
+	    &vi->vfvld, &vi->vin);
 	if (ret < 0)
 		return ret;
 
-	p->vi[0].viid = ret;
-	if (chip_id(adap) <= CHELSIO_T5)
-		p->vi[0].smt_idx = (ret & 0x7f) << 1;
-	else
-		p->vi[0].smt_idx = (ret & 0x7f);
-	p->vi[0].rss_size = rss_size;
+	vi->viid = ret;
 	t4_os_set_hw_addr(p, addr);
 
 	param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
 	    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_RSSINFO) |
-	    V_FW_PARAMS_PARAM_YZ(p->vi[0].viid);
+	    V_FW_PARAMS_PARAM_YZ(vi->viid);
 	ret = t4_query_params(adap, mbox, pf, vf, 1, &param, &val);
 	if (ret)
-		p->vi[0].rss_base = 0xffff;
+		vi->rss_base = 0xffff;
 	else {
 		/* MPASS((val >> 16) == rss_size); */
-		p->vi[0].rss_base = val & 0xffff;
+		vi->rss_base = val & 0xffff;
 	}
 
 	return 0;
