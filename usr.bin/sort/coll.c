@@ -990,7 +990,7 @@ randomcoll(struct key_value *kv1, struct key_value *kv2,
 {
 	struct bwstring *s1, *s2;
 	MD5_CTX ctx1, ctx2;
-	char *b1, *b2;
+	unsigned char hash1[MD5_DIGEST_LENGTH], hash2[MD5_DIGEST_LENGTH];
 
 	s1 = kv1->k;
 	s2 = kv2->k;
@@ -1003,35 +1003,16 @@ randomcoll(struct key_value *kv1, struct key_value *kv2,
 	if (s1 == s2)
 		return (0);
 
-	memcpy(&ctx1,&md5_ctx,sizeof(MD5_CTX));
-	memcpy(&ctx2,&md5_ctx,sizeof(MD5_CTX));
+	memcpy(&ctx1, &md5_ctx, sizeof(MD5_CTX));
+	memcpy(&ctx2, &md5_ctx, sizeof(MD5_CTX));
 
 	MD5Update(&ctx1, bwsrawdata(s1), bwsrawlen(s1));
 	MD5Update(&ctx2, bwsrawdata(s2), bwsrawlen(s2));
-	b1 = MD5End(&ctx1, NULL);
-	b2 = MD5End(&ctx2, NULL);
-	if (b1 == NULL) {
-		if (b2 == NULL)
-			return (0);
-		else {
-			sort_free(b2);
-			return (-1);
-		}
-	} else if (b2 == NULL) {
-		sort_free(b1);
-		return (+1);
-	} else {
-		int cmp_res;
 
-		cmp_res = strcmp(b1,b2);
-		sort_free(b1);
-		sort_free(b2);
+	MD5Final(hash1, &ctx1);
+	MD5Final(hash2, &ctx2);
 
-		if (!cmp_res)
-			cmp_res = bwscoll(s1, s2, 0);
-
-		return (cmp_res);
-	}
+	return (memcmp(hash1, hash2, sizeof(hash1)));
 }
 
 /*
