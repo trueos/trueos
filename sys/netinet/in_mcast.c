@@ -2276,6 +2276,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
                         IN_MULTI_LIST_UNLOCK();
 			goto out_imo_free;
 		}
+		/* joingroup returns with a reference held */
 		imo->imo_membership[idx] = inm;
 	} else {
 		CTR1(KTR_IGMPV3, "%s: merge inm state", __func__);

@@ -431,7 +431,7 @@ in6_getmulti(struct ifnet *ifp, const struct in6_addr *group,
 		 */
 		KASSERT(inm->in6m_refcount >= 1,
 		    ("%s: bad refcount %d", __func__, inm->in6m_refcount));
-		in6m_acquire_locked(inm);
+		/* reference acquired by lookup */
 		*pinm = inm;
 		goto out_locked;
 	}
@@ -499,7 +499,8 @@ in6_getmulti(struct ifnet *ifp, const struct in6_addr *group,
 	inm->in6m_ifp = ifp;
 	inm->in6m_mli = MLD_IFINFO(ifp);
 	inm->in6m_ifma = ifma;
-	inm->in6m_refcount = 1;
+	/* one reference for the ifma and one for the caller */
+	inm->in6m_refcount = 2;
 	inm->in6m_state = MLD_NOT_MEMBER;
 	mbufq_init(&inm->in6m_scq, MLD_MAX_STATE_CHANGES);
 
@@ -585,6 +586,18 @@ in6m_release_list_deferred(struct in6_multi_head *inmh)
 	SLIST_CONCAT(&in6m_free_list, inmh, in6_multi, in6m_nrele);
 	mtx_unlock(&in6_multi_free_mtx);
 	GROUPTASK_ENQUEUE(&free_gtask);
+}
+
+void
+in6m_release_deferred(struct in6_multi *inm)
+{
+	IN6_MULTI_LIST_LOCK_ASSERT();
+	if (--inm->in6m_refcount == 0) {
+		mtx_lock(&in6_multi_free_mtx);
+		SLIST_INSERT_HEAD(&in6m_free_list, inm, in6m_nrele);
+		mtx_unlock(&in6_multi_free_mtx);
+		GROUPTASK_ENQUEUE(&free_gtask);
+	}
 }
 
 void

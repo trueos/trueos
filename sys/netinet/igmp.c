@@ -931,7 +931,7 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
     /*const*/ struct igmpv3 *igmpv3)
 {
 	struct igmp_ifsoftc	*igi;
-	struct in_multi		*inm;
+	struct in_multi		*inm = NULL;
 	int			 is_general_query;
 	uint32_t		 maxresp, nsrc, qqi;
 	uint16_t		 timer;
@@ -1076,11 +1076,12 @@ igmp_input_v3_query(struct ifnet *ifp, const struct ip *ip,
 		 */
 		if (igi->igi_v3_timer == 0 || igi->igi_v3_timer >= timer)
 			igmp_input_v3_group_query(inm, igi, timer, igmpv3);
-		inm_release_deferred(inm);
 	}
 
 out_locked:
 	IGMP_UNLOCK();
+	if (inm)
+		inm_release_deferred(inm);
 	IN_MULTI_LIST_UNLOCK();
 
 	return (0);

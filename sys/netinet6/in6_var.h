@@ -727,46 +727,6 @@ in6m_ifmultiaddr_get_inm(struct ifmultiaddr *ifma)
 	    ifma->ifma_protospec);
 }
 
-/*
- * Look up an in6_multi record for an IPv6 multicast address
- * on the interface ifp.
- * If no record found, return NULL.
- */
-static __inline struct in6_multi *
-in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
-{
-	struct ifmultiaddr *ifma;
-	struct in6_multi *inm;
-
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		inm = in6m_ifmultiaddr_get_inm(ifma);
-		if (inm == NULL)
-			continue;
-		if (IN6_ARE_ADDR_EQUAL(&inm->in6m_addr, mcaddr))
-			return (inm);
-	}
-	return (NULL);
-}
-
-/*
- * Wrapper for in6m_lookup_locked().
- *
- * SMPng: Assumes that neithr the IN6_MULTI_LOCK() or IF_ADDR_LOCK() are held.
- */
-static __inline struct in6_multi *
-in6m_lookup(struct ifnet *ifp, const struct in6_addr *mcaddr)
-{
-	struct in6_multi *inm;
-
-	IN6_MULTI_LIST_LOCK();
-	IF_ADDR_RLOCK(ifp);
-	inm = in6m_lookup_locked(ifp, mcaddr);
-	IF_ADDR_RUNLOCK(ifp);
-	IN6_MULTI_LIST_UNLOCK();
-
-	return (inm);
-}
-
 /* Acquire an in6_multi record. */
 static __inline void
 in6m_acquire_locked(struct in6_multi *inm)
@@ -798,6 +758,48 @@ in6m_rele_locked(struct in6_multi_head *inmh, struct in6_multi *inm)
 	}
 }
 
+/*
+ * Look up an in6_multi record for an IPv6 multicast address
+ * on the interface ifp.
+ * If no record found, return NULL.
+ */
+static __inline struct in6_multi *
+in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
+{
+	struct ifmultiaddr *ifma;
+	struct in6_multi *inm;
+
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		inm = in6m_ifmultiaddr_get_inm(ifma);
+		if (inm == NULL)
+			continue;
+		if (IN6_ARE_ADDR_EQUAL(&inm->in6m_addr, mcaddr)) {
+			in6m_acquire_locked(inm);
+			return (inm);
+		}
+	}
+	return (NULL);
+}
+
+/*
+ * Wrapper for in6m_lookup_locked().
+ *
+ * SMPng: Assumes that neithr the IN6_MULTI_LOCK() or IF_ADDR_LOCK() are held.
+ */
+static __inline struct in6_multi *
+in6m_lookup(struct ifnet *ifp, const struct in6_addr *mcaddr)
+{
+	struct in6_multi *inm;
+
+	IN6_MULTI_LIST_LOCK();
+	IF_ADDR_RLOCK(ifp);
+	inm = in6m_lookup_locked(ifp, mcaddr);
+	IF_ADDR_RUNLOCK(ifp);
+	IN6_MULTI_LIST_UNLOCK();
+
+	return (inm);
+}
+
 struct ip6_moptions;
 struct sockopt;
 struct inpcbinfo;
@@ -816,6 +818,7 @@ void	in6m_commit(struct in6_multi *);
 void	in6m_print(const struct in6_multi *);
 int	in6m_record_source(struct in6_multi *, const struct in6_addr *);
 void	in6m_release_list_deferred(struct in6_multi_head *);
+void	in6m_release_deferred(struct in6_multi *);
 void	in6m_release_wait(void);
 void	ip6_freemoptions(struct ip6_moptions *);
 int	ip6_getmoptions(struct inpcb *, struct sockopt *);
