@@ -537,9 +537,9 @@ _mpr=		mpr
 SUBDIR+=	tests
 .endif
 
-.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
-SUBDIR+=	zfs
-.endif
+#.if ${MK_ZFS} != "no" || defined(ALL_MODULES)
+#SUBDIR+=	zfs
+#.endif
 
 .if (${MACHINE_CPUARCH} == "mips" && ${MACHINE_ARCH:Mmips64} == "")
 _hwpmc_mips24k=	hwpmc_mips24k
