@@ -1159,8 +1159,6 @@ zfs_create_boot()
 	# Force 4K sectors using vfs.zfs.min_auto_ashift=12
 	if [ "$ZFSBOOT_FORCE_4K_SECTORS" ]; then
 		f_dprintf "$funcname: With 4K sectors..."
-		f_eval_catch $funcname sysctl "$SYSCTL_ZFS_MIN_ASHIFT_12" \
-		    || return $FAILURE
 		sysctl kern.geom.part.mbr.enforce_chs=0
 	fi
 	local n=0
@@ -1205,6 +1203,9 @@ zfs_create_boot()
 
 		create_options="$ZFSBOOT_BOOT_POOL_CREATE_OPTIONS"
 		bootpool_options="-o altroot=$BSDINSTALL_CHROOT"
+		if [ "$ZFSBOOT_FORCE_4K_SECTORS" ]; then
+			bootpool_options="$bootpool_options -o ashift=12"
+		fi
 		bootpool_options="$bootpool_options $create_options"
 		bootpool_options="$bootpool_options -m \"/$bootpool_name\" -f"
 		f_eval_catch $funcname zpool "$ZPOOL_CREATE_WITH_OPTIONS" \
@@ -1461,12 +1462,6 @@ zfs_create_boot()
 	f_eval_catch $funcname echo "$ECHO_APPEND" \
 	             'kern.geom.label.gptid.enable=\"0\"' \
 	             $BSDINSTALL_TMPBOOT/loader.conf.zfs || return $FAILURE
-
-	if [ "$ZFSBOOT_FORCE_4K_SECTORS" ]; then
-		f_eval_catch $funcname echo "$ECHO_APPEND" \
-	             'vfs.zfs.min_auto_ashift=12' \
-	             $BSDINSTALL_TMPETC/sysctl.conf.zfs || return $FAILURE
-	fi
 
 	if [ "$ZFSBOOT_SWAP_MIRROR" ]; then
 		f_eval_catch $funcname echo "$ECHO_APPEND" \
