@@ -333,6 +333,9 @@ esac
 # Install base packages
 pkg -r $BSDINSTALL_CHROOT install userland kernel || error "Failed package base installation!"
 
+# Pkg install zol
+pkg -r $BSDINSTALL_CHROOT pkg add /pkg-dist/zol-kmod-*.txz
+
 # Set up boot loader
 bsdinstall bootconfig || error "Failed to configure bootloader"
 
