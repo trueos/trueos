@@ -292,9 +292,10 @@ inm_release_deferred(struct in_multi *inm)
 
 	IN_MULTI_LIST_LOCK_ASSERT();
 	MPASS(inm->inm_refcount > 0);
+	printf("inm: %p refcount: %d\n", inm, inm->inm_refcount);
+	kdb_backtrace();
 	if (--inm->inm_refcount == 0) {
-		printf("releasing inm: %p\n", inm);
-		kdb_backtrace();
+		printf("freeing %p \n", inm);
 		SLIST_INIT(&tmp);
 		inm_disconnect(inm);
 		inm->inm_ifma->ifma_protospec = NULL;
@@ -563,10 +564,6 @@ in_getmulti(struct ifnet *ifp, const struct in_addr *group,
 	IN_MULTI_LIST_LOCK();
 	inm = inm_lookup(ifp, *group);
 	if (inm != NULL) {
-		/*
-		 * If we already joined this group, just bump the
-		 * refcount and return it.
-		 */
 		KASSERT(inm->inm_refcount > 1,
 		    ("%s: bad refcount %d", __func__, inm->inm_refcount));
 		*pinm = inm;

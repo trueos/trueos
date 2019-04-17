@@ -473,6 +473,7 @@ in6_getmulti(struct ifnet *ifp, const struct in6_addr *group,
 			panic("%s: ifma %p is inconsistent with %p (%p)",
 			    __func__, ifma, inm, group);
 #endif
+		/* add caller reference */
 		in6m_acquire_locked(inm);
 		*pinm = inm;
 		goto out_locked;
