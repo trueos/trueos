@@ -293,6 +293,8 @@ inm_release_deferred(struct in_multi *inm)
 	IN_MULTI_LIST_LOCK_ASSERT();
 	MPASS(inm->inm_refcount > 0);
 	if (--inm->inm_refcount == 0) {
+		printf("releasing inm: %p\n", inm);
+		kdb_backtrace();
 		SLIST_INIT(&tmp);
 		inm_disconnect(inm);
 		inm->inm_ifma->ifma_protospec = NULL;

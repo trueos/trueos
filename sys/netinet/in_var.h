@@ -361,6 +361,7 @@ inm_acquire(struct in_multi *inm)
 	IN_MULTI_LIST_UNLOCK();
 }
 
+extern void kdb_backtrace(void);
 static __inline void
 inm_rele_locked(struct in_multi_head *inmh, struct in_multi *inm)
 {
@@ -368,6 +369,8 @@ inm_rele_locked(struct in_multi_head *inmh, struct in_multi *inm)
 	IN_MULTI_LIST_LOCK_ASSERT();
 
 	if (--inm->inm_refcount == 0) {
+		printf("freeing inm: %p\n", inm);
+		kdb_backtrace();
 		MPASS(inmh != NULL);
 		inm_disconnect(inm);
 		inm->inm_ifma->ifma_protospec = NULL;
