@@ -57,12 +57,26 @@ struct random_algorithm *p_random_alg_context = &random_alg_context;
 
 #if defined(RANDOM_LOADABLE)
 
+static void
+null_read_random(void *dummy __unused, u_int dummy2 __unused)
+{
+	panic("%s: no random module is loaded", __func__);
+}
+
+static bool
+null_is_random_seeded(void)
+{
+	return (false);
+}
+
 struct random_readers {
 	int	(*read_random_uio)(struct uio *, bool);
-	u_int	(*read_random)(void *, u_int);
+	void	(*read_random)(void *, u_int);
+	bool	(*is_random_seeded)(void);
 } random_reader_context = {
 	(int (*)(struct uio *, bool))nullop,
-	(u_int (*)(void *, u_int))nullop,
+	null_read_random,
+	null_is_random_seeded,
 };
 
 struct sx randomdev_config_lock;
@@ -76,12 +90,15 @@ random_infra_sysinit(void *dummy __unused)
 SYSINIT(random_device_h_init, SI_SUB_RANDOM, SI_ORDER_FIRST, random_infra_sysinit, NULL);
 
 void
-random_infra_init(int (*p_random_read_uio)(struct uio *, bool), u_int (*p_random_read)(void *, u_int))
+random_infra_init(int (*p_random_read_uio)(struct uio *, bool),
+    void (*p_random_read)(void *, u_int),
+    bool (*p_is_random_seeded)(void))
 {
 
 	RANDOM_CONFIG_X_LOCK();
 	random_reader_context.read_random_uio = p_random_read_uio;
 	random_reader_context.read_random = p_random_read;
+	random_reader_context.is_random_seeded = p_is_random_seeded;
 	RANDOM_CONFIG_X_UNLOCK();
 }
 
@@ -91,7 +108,8 @@ random_infra_uninit(void)
 
 	RANDOM_CONFIG_X_LOCK();
 	random_reader_context.read_random_uio = (int (*)(struct uio *, bool))nullop;
-	random_reader_context.read_random = (u_int (*)(void *, u_int))nullop;
+	random_reader_context.read_random = null_read_random;
+	random_reader_context.is_random_seeded = null_is_random_seeded;
 	RANDOM_CONFIG_X_UNLOCK();
 }
 
@@ -114,15 +132,22 @@ read_random_uio(struct uio *uio, bool nonblock)
 	return (retval);
 }
 
-u_int
+void
 read_random(void *buf, u_int len)
 {
-	u_int retval;
 
 	RANDOM_CONFIG_S_LOCK();
-	retval = random_reader_context.read_random(buf, len);
+	random_reader_context.read_random(buf, len);
 	RANDOM_CONFIG_S_UNLOCK();
-	return (retval);
 }
+
+bool
+is_random_seeded(void)
+{
+	RANDOM_CONFIG_S_LOCK();
+	random_reader_context.is_random_seeded();
+	RANDOM_CONFIG_S_UNLOCK();
+}
+
 
 #endif /* defined(RANDOM_LOADABLE) */
