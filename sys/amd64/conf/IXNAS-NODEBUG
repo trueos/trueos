@@ -1,0 +1,18 @@
+#
+# IXNAS-NODEBUG -- WITNESS and INVARIANTS free kernel configuration file 
+#		     for FreeNAS/amd64
+#
+
+include IXNAS
+
+ident   IXNAS-NODEBUG
+
+nooptions       INVARIANTS
+nooptions       INVARIANT_SUPPORT
+nooptions       WITNESS
+nooptions       WITNESS_SKIPSPIN
+nooptions       BUF_TRACKING
+nooptions       DEADLKRES
+nooptions       FULL_BUF_TRACKING
+nooptions	COVERAGE
+nooptions	KCOV
