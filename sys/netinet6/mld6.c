@@ -541,7 +541,7 @@ mld_ifdetach(struct ifnet *ifp, struct in6_multi_head *inmh)
 {
 	struct epoch_tracker     et;
 	struct mld_ifsoftc	*mli;
-	struct ifmultiaddr	*ifma;
+	struct ifmultiaddr	*ifma, *tifma;
 	struct in6_multi	*inm;
 
 	CTR3(KTR_MLD, "%s: called for ifp %p(%s)", __func__, ifp,
@@ -557,12 +557,12 @@ mld_ifdetach(struct ifnet *ifp, struct in6_multi_head *inmh)
 	 * which the PF_INET6 layer is about to release.
 	 */
 	NET_EPOCH_ENTER_ET(et);
-	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	CK_STAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, tifma) {
+		int released;
 		inm = in6m_ifmultiaddr_get_inm(ifma);
 		if (inm == NULL)
 			continue;
-		in6m_disconnect_locked(inmh, inm);
-
+		released = in6m_remove_members(inmh, inm);
 		if (mli->mli_version == MLD_VERSION_2) {
 			in6m_clear_recorded(inm);
 
@@ -572,7 +572,8 @@ mld_ifdetach(struct ifnet *ifp, struct in6_multi_head *inmh)
 			 */
 			if (inm->in6m_state == MLD_LEAVING_MEMBER) {
 				inm->in6m_state = MLD_NOT_MEMBER;
-				in6m_rele_locked(inmh, inm);
+				if (!released)
+					in6m_rele_locked(inmh, inm);
 			}
 		}
 	}
@@ -1618,8 +1619,8 @@ mld_v2_process_group_timers(struct in6_multi_head *inmh,
 			if (inm->in6m_state == MLD_LEAVING_MEMBER &&
 			    inm->in6m_scrv == 0) {
 				inm->in6m_state = MLD_NOT_MEMBER;
-				in6m_disconnect_locked(inmh, inm);
-				in6m_rele_locked(inmh, inm);
+				if (in6m_remove_members(inmh, inm) == 0)
+					in6m_rele_locked(inmh, inm);
 			}
 		}
 		break;

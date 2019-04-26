@@ -751,6 +751,7 @@ in6m_rele_locked(struct in6_multi_head *inmh, struct in6_multi *inm)
 	IN6_MULTI_LIST_LOCK_ASSERT();
 
 	if (--inm->in6m_refcount == 0) {
+		in6m_disconnect_locked(inmh, inm);
 		MPASS(inm->in6m_ifp == NULL);
 		inm->in6m_ifma->ifma_protospec = NULL;
 		MPASS(inm->in6m_ifma->ifma_llifma == NULL);
@@ -781,6 +782,7 @@ in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
 	return (NULL);
 }
 
+int in6m_remove_members(struct in6_multi_head *inmh, struct in6_multi *inm);
 /*
  * Wrapper for in6m_lookup_locked().
  *

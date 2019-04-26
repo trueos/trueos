@@ -628,8 +628,10 @@ igmp_ifdetach(struct ifnet *ifp)
 			    ifma->ifma_protospec == NULL)
 				continue;
 			inm = (struct in_multi *)ifma->ifma_protospec;
-			if (inm->inm_state == IGMP_LEAVING_MEMBER)
+			if (inm->inm_state == IGMP_LEAVING_MEMBER) {
 				inm_rele_locked(&inm_free_tmp, inm);
+				ifma->ifma_protospec = NULL;
+			}
 			inm_clear_recorded(inm);
 			if (__predict_false(ifma_restart)) {
 				ifma_restart = false;
@@ -2044,6 +2046,7 @@ igmp_v3_cancel_link_timers(struct igmp_ifsoftc *igi)
 			 * transition to NOT would lose the leave and race.
 			 */
 			inm_rele_locked(&inm_free_tmp, inm);
+			ifma->ifma_protospec = NULL;
 			/* FALLTHROUGH */
 		case IGMP_G_QUERY_PENDING_MEMBER:
 		case IGMP_SG_QUERY_PENDING_MEMBER:
@@ -2275,6 +2278,9 @@ igmp_change_state(struct in_multi *inm)
 	 */
 	KASSERT(inm->inm_ifma != NULL, ("%s: no ifma", __func__));
 	ifp = inm->inm_ifma->ifma_ifp;
+	/* The interface address has gone away */
+	if (ifp == NULL)
+		return (0);
 	/*
 	 * Sanity check that netinet's notion of ifp is the
 	 * same as net's.

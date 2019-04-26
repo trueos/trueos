@@ -367,13 +367,12 @@ inm_rele_locked(struct in_multi_head *inmh, struct in_multi *inm)
 {
 	MPASS(inm->inm_refcount > 0);
 	IN_MULTI_LIST_LOCK_ASSERT();
-	printf("inm: %p refcount: %d\n", inm, inm->inm_refcount);
-	kdb_backtrace();
+	MCDPRINTF("inm: %p refcount: %d\n", inm, inm->inm_refcount);
 	if (--inm->inm_refcount == 0) {
-		printf("freeing %p \n", inm);
+		MCDPRINTF("freeing %p \n", inm);
 		MPASS(inmh != NULL);
 		inm_disconnect(inm);
-		inm->inm_ifma->ifma_protospec = NULL;
+		MPASS(inm->inm_ifma->ifma_protospec == NULL);
 		SLIST_INSERT_HEAD(inmh, inm, inm_nrele);
 	}
 }
