@@ -376,6 +376,9 @@ options 	COMPAT_FREEBSD10
 # Enable FreeBSD11 compatibility syscalls
 options 	COMPAT_FREEBSD11
 
+# Enable FreeBSD12 compatibility syscalls
+options 	COMPAT_FREEBSD12
+
 # Enable Linux Kernel Programming Interface
 options 	COMPAT_LINUXKPI
 
@@ -563,8 +566,10 @@ options 	KASSERT_PANIC_OPTIONAL
 
 #
 # The DIAGNOSTIC option is used to enable extra debugging information
-# from some parts of the kernel.  As this makes everything more noisy,
-# it is disabled by default.
+# and invariants checking.  The added checks are too expensive or noisy
+# for an INVARIANTS kernel and thus are disabled by default.  It is
+# expected that a kernel configured with DIAGNOSTIC will also have the
+# INVARIANTS option enabled.
 #
 options 	DIAGNOSTIC
 
