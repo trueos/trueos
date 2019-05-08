@@ -1,7 +1,10 @@
+/* $FreeBSD$ */
+
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (C) 1999-2000 by Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ * Copyright (c) 2015 Semihalf.
+ * Copyright (c) 2015 Stormshield.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,47 +28,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * BASED ON:
- * -------------------------------------------------------------------------
- *
- * Copyright (c) 1998 Brian Somers <brian@Awfulhak.org>
- * All rights reserved.
- *
- * Copyright (c) 1988, Julian Onions <jpo@cs.nott.ac.uk>
- * Nottingham University 1987.
  */
 
-/*
- * $FreeBSD$
- * $Id: if_tapvar.h,v 0.6 2000/07/11 02:16:08 max Exp $
- */
+#ifndef _GENERIC_XHCI_H_
+#define _GENERIC_XHCI_H_
 
-#ifndef _NET_IF_TAPVAR_H_
-#define _NET_IF_TAPVAR_H_
+#define	XHCI_HC_DEVSTR	"Generic USB 3.0 controller"
+#define	XHCI_HC_VENDOR	"Generic"
 
-/*
- * tap_mtx locks tap_flags, tap_pid.  tap_next locked with global tapmtx.
- * Other fields locked by owning subsystems.
- */
-struct tap_softc {
-	struct ifnet	*tap_ifp;
-	u_short		tap_flags;		/* misc flags                */
-#define	TAP_OPEN	(1 << 0)
-#define	TAP_INITED	(1 << 1)
-#define	TAP_RWAIT	(1 << 2)
-#define	TAP_ASYNC	(1 << 3)
-#define TAP_READY       (TAP_OPEN|TAP_INITED)
-#define	TAP_VMNET	(1 << 4)
+extern driver_t generic_xhci_driver;
 
-	u_int8_t 	ether_addr[ETHER_ADDR_LEN]; /* ether addr of the remote side */
+device_attach_t generic_xhci_attach;
+device_detach_t generic_xhci_detach;
 
-	pid_t		 tap_pid;		/* PID of process to open    */
-	struct sigio	*tap_sigio;		/* information for async I/O */
-	struct selinfo	 tap_rsel;		/* read select               */
-
-	SLIST_ENTRY(tap_softc)	tap_next;	/* next device in chain      */
-	struct cdev *tap_dev;
-	struct mtx	 tap_mtx;		/* per-softc mutex */
-};
-
-#endif /* !_NET_IF_TAPVAR_H_ */
+#endif /* !_GENERIC_XHCI_H_ */
