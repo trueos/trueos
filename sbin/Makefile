@@ -4,7 +4,6 @@
 .include <src.opts.mk>
 
 SUBDIR=adjkerntz \
-	beadm \
 	camcontrol \
 	clri \
 	comcontrol \
