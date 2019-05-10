@@ -89,6 +89,7 @@ static int
 linux_pdev_dma_init(struct pci_dev *pdev)
 {
 	struct linux_dma_priv *priv;
+	int error;
 
 	priv = malloc(sizeof(*priv), M_DEVBUF, M_WAITOK | M_ZERO);
 	pdev->dev.dma_priv = priv;
@@ -97,7 +98,14 @@ linux_pdev_dma_init(struct pci_dev *pdev)
 
 	pctrie_init(&priv->ptree);
 
-	return (0);
+	/* create a default DMA tag */
+	error = linux_dma_tag_init(&pdev->dev, DMA_BIT_MASK(64));
+	if (error) {
+		mtx_destroy(&priv->lock);
+		free(priv, M_DEVBUF);
+		pdev->dev.dma_priv = NULL;
+	}
+	return (error);
 }
 
 static int
@@ -241,29 +249,31 @@ linux_pci_attach(device_t dev)
 	pdev->irq = pdev->dev.irq;
 	error = linux_pdev_dma_init(pdev);
 	if (error)
-		goto out;
+		goto out_dma_init;
 
-	if (pdev->bus == NULL) {
-		pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK | M_ZERO);
-		pbus->self = pdev;
-		pbus->number = pci_get_bus(dev);
-		pdev->bus = pbus;
-	}
+	pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK | M_ZERO);
+	pbus->self = pdev;
+	pbus->number = pci_get_bus(dev);
+	pdev->bus = pbus;
 
 	spin_lock(&pci_lock);
 	list_add(&pdev->links, &pci_devices);
 	spin_unlock(&pci_lock);
 
 	error = pdrv->probe(pdev, id);
-out:
-	if (error) {
-		spin_lock(&pci_lock);
-		list_del(&pdev->links);
-		spin_unlock(&pci_lock);
-		put_device(&pdev->dev);
-		error = -error;
-	}
-	return (error);
+	if (error)
+		goto out_probe;
+	return (0);
+
+out_probe:
+	free(pdev->bus, M_DEVBUF);
+	linux_pdev_dma_uninit(pdev);
+out_dma_init:
+	spin_lock(&pci_lock);
+	list_del(&pdev->links);
+	spin_unlock(&pci_lock);
+	put_device(&pdev->dev);
+	return (-error);
 }
 
 static int
@@ -275,6 +285,8 @@ linux_pci_detach(device_t dev)
 	pdev = device_get_softc(dev);
 
 	pdev->pdrv->remove(pdev);
+
+	free(pdev->bus, M_DEVBUF);
 	linux_pdev_dma_uninit(pdev);
 
 	spin_lock(&pci_lock);
