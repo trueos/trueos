@@ -226,7 +226,7 @@ hack.pico: Makefile
 	${CC} ${HACK_EXTRA_FLAGS} -nostdlib hack.c -o hack.pico
 	rm -f hack.c
 
-offset.inc: ${_ILINKS} $S/kern/genoffset.sh genoffset.o
+offset.inc: $S/kern/genoffset.sh genoffset.o
 	NM='${NM}' NMFLAGS='${NMFLAGS}' sh $S/kern/genoffset.sh genoffset.o > ${.TARGET}
 
 genoffset.o: $S/kern/genoffset.c
