@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190513:
+	User-wired pages now have their own counter,
+	vm.stats.vm.v_user_wire_count.  The vm.max_wired sysctl was renamed
+	to vm.max_user_wired and changed from an unsigned int to an unsigned
+	long.  bhyve VMs wired with the -S are now subject to the user
+	wiring limit; the vm.max_user_wired sysctl may need to be tuned to
+	avoid running into the limit.
+
 20190507:
 	The IPSEC option has been removed from GENERIC.  Users requiring
 	ipsec(4) must now load the ipsec(4) kernel module.
@@ -66,13 +74,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	non-zero to disable warnings in dmesg when the same conditions are
 	met as for the diagnostic sysctls above.  Defaults to zero, i.e.,
 	produce warnings in dmesg when the conditions are met.
-
-20190416:
-	The tunable "security.stack_protect.permit_nonrandom_cookies" may be
-	set to a non-zero value to boot systems that do not provide early
-	entropy.  Otherwise, such systems may see the panic message:
-	"cannot initialize stack cookies because random device is not yet
-	seeded."
 
 20190416:
 	The loadable random module KPI has changed; the random_infra_init()
