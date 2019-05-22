@@ -29,7 +29,7 @@ getmedia() {
 # Try and create an init script for network interfaces
 base=${1%%.*}
 if [ "${base}" = "network" ]; then
-	# We only create links for pyhsical interfaces
+	# We only create links for physical interfaces
 	[ -n "$(getmedia ${1#*.})" ] || exit 1
 	base="network.lo0"
 fi
