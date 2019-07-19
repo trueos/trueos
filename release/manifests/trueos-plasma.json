@@ -32,7 +32,7 @@
     "auto-install-script": "",
     "dist-packages": {
       "default": [
-        "graphics/drm-next-kmod",
+        "graphics/drm-current-kmod",
         "x11/nvidia-driver"
       ]
     },
@@ -96,7 +96,7 @@
         "sysutils/pc-networkmanager",
         "sysutils/tmux",
         "x11/kde5",
-        "graphics/drm-next-kmod",
+        "graphics/drm-current-kmod",
         "x11/nvidia-driver",
         "x11/sddm",
         "x11/xorg"

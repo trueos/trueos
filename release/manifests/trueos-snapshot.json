@@ -12,7 +12,15 @@
         }
       }
     },
-    "name-prefix": "TrueOS"
+    "name-prefix": "TrueOS",
+    "world-flags": {
+      "default": [
+      ]
+    },
+    "kernel-flags": {
+      "default": [
+      ]
+    }
   },
   "iso": {
     "auto-install-packages": {
@@ -31,7 +39,8 @@
     },
     "install-script": "",
     "iso-packages": {
-      "default": []
+      "default": [
+      ]
     },
     "overlay": ""
   },

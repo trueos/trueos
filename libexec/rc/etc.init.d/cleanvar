@@ -54,13 +54,13 @@ start_pre()
 
 start()
 {
-        if [ -d /var/run -a ! -f /var/run/clean_var ]; then
-                purgedir /var/run
-                >/var/run/clean_var
-        fi
-        if [ -d /var/spool/lock -a ! -f /var/spool/lock/clean_var ]; then
-                purgedir /var/spool/lock
-                >/var/spool/lock/clean_var
-        fi
+	local dirlist="/var/run /var/spool/lock /var/tmp"
+	for _dir in ${dirlist}
+	do
+        	if [ -d ${_dir} -a ! -f ${_dir}/clean_var ]; then
+                	purgedir ${_dir}
+                	>${_dir}/clean_var
+        	fi	
+	done
         rm -rf /var/spool/uucp/.Temp/*
 }

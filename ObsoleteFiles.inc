@@ -38,7 +38,27 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20181218: new clang import which bumps version from 6.0.1 to 7.0.1.
+# 20181219: ibcs removal
+OLD_FILES+=usr/share/examples/ibcs2/hello.uu
+OLD_FILES+=usr/share/examples/ibcs2/README
+OLD_DIRS+=usr/share/examples/ibcs2
+# 20181215: Migration of CTM to ports
+OLD_FILES+=usr/sbin/ctm
+OLD_FILES+=usr/sbin/ctm_dequeue
+OLD_FILES+=usr/sbin/ctm_rmail
+OLD_FILES+=usr/sbin/ctm_smail
+OLD_FILES+=usr/share/man/man1/ctm.1.gz
+OLD_FILES+=usr/share/man/man1/ctm_dequeue.1.gz
+OLD_FILES+=usr/share/man/man1/ctm_rmail.1.gz
+OLD_FILES+=usr/share/man/man1/ctm_smail.1.gz
+OLD_FILES+=usr/share/man/man5/ctm.5.gz
+# 20181214: Remove timed files
+OLD_FILES+=etc/rc.d/timed
+OLD_FILES+=usr/sbin/timed
+OLD_FILES+=usr/sbin/timedc
+OLD_FILES+=usr/share/man/man8/timed.8.gz
+OLD_FILES+=usr/share/man/man8/timedc.8.gz
+# 20181211: new clang import which bumps version from 6.0.1 to 7.0.1.
 OLD_FILES+=usr/lib/clang/6.0.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/6.0.1/include/sanitizer/asan_interface.h
 OLD_FILES+=usr/lib/clang/6.0.1/include/sanitizer/common_interface_defs.h

@@ -45,7 +45,7 @@ VERSION_FILE=	${.CURDIR}/../userboot/version
 LINKS+=		${BINDIR}/${SHLIB_NAME} ${BINDIR}/userboot.so
 .endif
 
-.if ${MK_ZFS} != "no"
+.if ${MK_ZFSBOOT} != "no"
 CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
 HAVE_ZFS=yes
 .endif

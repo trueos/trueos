@@ -444,6 +444,9 @@ cryptof_ioctl(
 		case CRYPTO_CHACHA20:
 			txform = &enc_xform_chacha20;
 			break;
+		case CRYPTO_AES_CCM_16:
+			txform = &enc_xform_ccm;
+			break;
 
 		default:
 			CRYPTDEB("invalid cipher");
@@ -488,6 +491,15 @@ cryptof_ioctl(
 			thash = &auth_hash_nist_gmac_aes_256;
 			break;
 
+		case CRYPTO_AES_128_CCM_CBC_MAC:
+			thash = &auth_hash_ccm_cbc_mac_128;
+			break;
+		case CRYPTO_AES_192_CCM_CBC_MAC:
+			thash = &auth_hash_ccm_cbc_mac_192;
+			break;
+		case CRYPTO_AES_256_CCM_CBC_MAC:
+			thash = &auth_hash_ccm_cbc_mac_256;
+			break;
 #ifdef notdef
 		case CRYPTO_MD5:
 			thash = &auth_hash_md5;
@@ -1008,7 +1020,8 @@ cryptodev_aead(
 	 * cipher text.
 	 */
 	crda->crd_skip = 0;
-	if (cse->cipher == CRYPTO_AES_NIST_GCM_16)
+	if (cse->cipher == CRYPTO_AES_NIST_GCM_16 ||
+	    cse->cipher == CRYPTO_AES_CCM_16)
 		crda->crd_len = caead->aadlen;
 	else
 		crda->crd_len = caead->aadlen + caead->len;

@@ -38,7 +38,7 @@ OLD_FILES+=usr/tests/usr.sbin/sa/v2-i386-usr.in
 OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-sav.in
 OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-u.out
 OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-usr.in
-OLD_FILES+=usr/tests/usr.sbin/sa
+OLD_DIRS+=usr/tests/usr.sbin/sa
 .endif
 
 .if ${MK_ACPI} == no
@@ -147,6 +147,8 @@ OLD_FILES+=usr/share/man/man3/unistruct.3.gz
 .endif
 
 .if ${MK_AUDIT} == no
+OLD_FILES+=etc/rc.d/auditd
+OLD_FILES+=etc/rc.d/auditdistd
 OLD_FILES+=usr/sbin/audit
 OLD_FILES+=usr/sbin/auditd
 OLD_FILES+=usr/sbin/auditdistd
@@ -158,6 +160,22 @@ OLD_FILES+=usr/share/man/man5/auditdistd.conf.5.gz
 OLD_FILES+=usr/share/man/man8/audit.8.gz
 OLD_FILES+=usr/share/man/man8/auditd.8.gz
 OLD_FILES+=usr/share/man/man8/auditdistd.8.gz
+OLD_FILES+=usr/tests/sys/audit/process-control
+OLD_FILES+=usr/tests/sys/audit/open
+OLD_FILES+=usr/tests/sys/audit/network
+OLD_FILES+=usr/tests/sys/audit/miscellaneous
+OLD_FILES+=usr/tests/sys/audit/Kyuafile
+OLD_FILES+=usr/tests/sys/audit/ioctl
+OLD_FILES+=usr/tests/sys/audit/inter-process
+OLD_FILES+=usr/tests/sys/audit/file-write
+OLD_FILES+=usr/tests/sys/audit/file-read
+OLD_FILES+=usr/tests/sys/audit/file-delete
+OLD_FILES+=usr/tests/sys/audit/file-create
+OLD_FILES+=usr/tests/sys/audit/file-close
+OLD_FILES+=usr/tests/sys/audit/file-attribute-modify
+OLD_FILES+=usr/tests/sys/audit/file-attribute-access
+OLD_FILES+=usr/tests/sys/audit/administrative
+OLD_DIRS+=usr/tests/sys/audit
 .endif
 
 .if ${MK_AUTHPF} == no
@@ -1549,18 +1567,6 @@ OLD_FILES+=usr/share/man/man1/opt.1.gz
 .if ${MK_CPP} == no
 OLD_FILES+=usr/bin/cpp
 OLD_FILES+=usr/share/man/man1/cpp.1.gz
-.endif
-
-.if ${MK_CTM} == no
-OLD_FILES+=usr/sbin/ctm
-OLD_FILES+=usr/sbin/ctm_dequeue
-OLD_FILES+=usr/sbin/ctm_rmail
-OLD_FILES+=usr/sbin/ctm_smail
-OLD_FILES+=usr/share/man/man1/ctm.1.gz
-OLD_FILES+=usr/share/man/man1/ctm_dequeue.1.gz
-OLD_FILES+=usr/share/man/man1/ctm_rmail.1.gz
-OLD_FILES+=usr/share/man/man1/ctm_smail.1.gz
-OLD_FILES+=usr/share/man/man5/ctm.5.gz
 .endif
 
 .if ${MK_CUSE} == no
@@ -9531,13 +9537,6 @@ OLD_FILES+=usr/bin/tftp
 OLD_FILES+=usr/libexec/tftpd
 OLD_FILES+=usr/share/man/man1/tftp.1.gz
 OLD_FILES+=usr/share/man/man8/tftpd.8.gz
-.endif
-
-.if ${MK_TIMED} == no
-OLD_FILES+=usr/sbin/timed
-OLD_FILES+=usr/sbin/timedc
-OLD_FILES+=usr/share/man/man8/timed.8.gz
-OLD_FILES+=usr/share/man/man8/timedc.8.gz
 .endif
 
 .if ${MK_TOOLCHAIN} == no

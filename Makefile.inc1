@@ -591,15 +591,13 @@ VERSION=	FreeBSD ${_REVISION}-${_BRANCH:C/-p[0-9]+$//} ${TARGET_ARCH} ${SRCRELDA
 .endif
 
 .if !defined(PKG_VERSION)
+TIMENOW=	%Y%m%d%H%M%S
 .if ${_BRANCH:MSTABLE*} || ${_BRANCH:MCURRENT*} || ${_BRANCH:MALPHA*}
-TIMENOW=	%Y.%m.%d.%H.%M.%S
 EXTRA_REVISION=	.${TIMENOW:gmtime}
 .endif
 .if ${_BRANCH:M*-p*}
-TIMENOW=	%Y.%m.%d.%H.%M.%S
 EXTRA_REVISION=	.${TIMENOW:gmtime}
 .endif
-TIMENOW=	%Y.%m.%d.%H.%M.%S
 EXTRA_REVISION=	.${TIMENOW:gmtime}
 PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
@@ -1022,7 +1020,7 @@ _cleanobj_fast_depend_hack: .PHONY
 	@if [ -e "${OBJTOP}/usr.sbin/wpa/wpa_supplicant/.depend.rrm.o" ] && \
 	    egrep -q 'src/ap/rrm.c' \
 	    ${OBJTOP}/usr.sbin/wpa/wpa_supplicant/.depend.rrm.o; then \
-		echo "Removing stale wpa dependencies and objects"; \
+		echo "Removing stale wpa dependencies"; \
 		rm -f ${OBJTOP}/usr.sbin/wpa/*/.depend*; \
 	fi
 
@@ -1492,7 +1490,6 @@ packageworld: .PHONY
 
 _sysent_dirs=	sys/kern
 _sysent_dirs+=	sys/compat/freebsd32
-_sysent_dirs+=	sys/i386/ibcs2
 _sysent_dirs+=	sys/amd64/linux		\
 		sys/amd64/linux32	\
 		sys/arm64/linux		\
@@ -1538,10 +1535,10 @@ redistribute: .MAKE .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute ${WORLD_FLAGS}
 .if defined(LIBCOMPAT)
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute${libcompat} \
-	    DISTRIBUTION=lib${libcompat}
+	    DISTRIBUTION=lib${libcompat} ${WORLD_FLAGS}
 .endif
 
 distrib-dirs distribution: .MAKE .PHONY
@@ -1549,7 +1546,7 @@ distrib-dirs distribution: .MAKE .PHONY
 	    ${IMAKE_INSTALL} ${IMAKE_MTREE} METALOG=${METALOG} ${.TARGET}
 .if make(distribution)
 	${_+_}cd ${.CURDIR}; ${CROSSENV} PATH=${TMPPATH} \
-		${MAKE} -f Makefile.inc1 ${IMAKE_INSTALL} \
+		${MAKE} -f Makefile.inc1 ${IMAKE_INSTALL} ${WORLD_FLAGS} \
 		METALOG=${METALOG} MK_TESTS=no installconfig
 .endif
 
@@ -1726,6 +1723,7 @@ distributekernel distributekernel.debug: .PHONY
 	${_+_}cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${IMAKEENV} ${IMAKE_INSTALL:S/METALOG/kernel.premeta/} \
 	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
+	    ${KERNEL_FLAGS} \
 	    DESTDIR=${INSTALL_DDIR}/kernel \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
@@ -1743,6 +1741,7 @@ distributekernel distributekernel.debug: .PHONY
 	    ${IMAKE_MTREE} PATH=${TMPPATH} ${MAKE} \
 	    KERNEL=${INSTKERNNAME}.${_kernel} \
 	    DESTDIR=${INSTALL_DDIR}/kernel.${_kernel} \
+	    ${KERNEL_FLAGS} \
 	    ${.TARGET:S/distributekernel/install/}
 .if defined(NO_ROOT)
 	@sed -e "s|^./kernel.${_kernel}|.|" \
@@ -1848,12 +1847,12 @@ real-base-packages:	stage-packages unlink-packages create-packages link-packages
 stage-packages-world: .PHONY
 	@mkdir -p ${WSTAGEDIR}
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} DESTDIR=${WSTAGEDIR} -DNO_ROOT stageworld
+		${MAKE} ${WORLD_FLAGS} DESTDIR=${WSTAGEDIR} -DNO_ROOT stageworld
 
 stage-packages-kernel: .PHONY
 	@mkdir -p ${KSTAGEDIR}
 	${_+_}@cd ${.CURDIR}; \
-		${MAKE} DESTDIR=${KSTAGEDIR} -DNO_ROOT stagekernel
+		${MAKE} ${KERNEL_FLAGS} DESTDIR=${KSTAGEDIR} -DNO_ROOT stagekernel
 
 stage-packages: .PHONY stage-packages-world stage-packages-kernel
 
@@ -1873,12 +1872,14 @@ create-packages-world:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 \
 			DESTDIR=${WSTAGEDIR} \
+			${WORLD_FLAGS} \
 			PKG_VERSION=${PKG_VERSION} create-world-packages
 
 create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 \
 			DESTDIR=${KSTAGEDIR} \
+			${KERNEL_FLAGS} \
 			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
 			create-kernel-packages
 
@@ -1919,6 +1920,14 @@ create-world-package-${pkgname}: .PHONY
 		' ${WSTAGEDIR}/${pkgname}.ucl
 	@if [ "${pkgname}" = "runtime" ]; then \
 		sed -i '' -e "s/%VCS_REVISION%/${VCS_REVISION}/" ${WSTAGEDIR}/${pkgname}.ucl ; \
+		if [ -e "${WSTAGEDIR}/etc/mail/freebsd.cf" ] ; then \
+			echo "@config(root,wheel,0644,) /etc/mail/freebsd.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
+			echo "@config(root,wheel,0644,) /etc/mail/freebsd.submit.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
+			echo "@config(root,wheel,0644,) /etc/mail/sendmail.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
+			echo "@config(root,wheel,0644,) /etc/mail/submit.cf" >> ${WSTAGEDIR}/${pkgname}.plist ; \
+		fi ; \
+		echo "${PKG_BASENAME}-${PKG_VERSION}" > ${WSTAGEDIR}/etc/version ; \
+		echo "@(root,wheel,0644,) /etc/version" >> ${WSTAGEDIR}/${pkgname}.plist ; \
 	fi
 	@cat ${WSTAGEDIR}/${pkgname}.plist | uniq > ${WSTAGEDIR}/${pkgname}.plist.new; \
 		mv ${WSTAGEDIR}/${pkgname}.plist.new ${WSTAGEDIR}/${pkgname}.plist;
@@ -1968,7 +1977,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 	@cd ${KSTAGEDIR}/${DISTDIR} ; \
 	env -i LC_COLLATE=C sort ${KSTAGEDIR}/kernel.meta | \
 	awk -f ${SRCDIR}/release/scripts/mtree-to-plist.awk \
-		-v kernel=yes -v _kernconf=${INSTALLKERNEL} ; \
+		-v kernel=yes -v _kernconf=${INSTALLKERNEL}${flavor} ; \
 	sed -e "s/%VERSION%/${PKG_VERSION}/" \
 		-e "s/%BASENAME%/${PKG_BASENAME}/" \
 		-e "s/%PKGNAME%/kernel-${INSTALLKERNEL:tl}${flavor}/" \

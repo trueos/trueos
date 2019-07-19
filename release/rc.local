@@ -12,7 +12,7 @@ MACHINE=`uname -m`
 BRAND="TrueOS"
 if [ -e "/var/db/trueos-manifest.json" ] ; then
   _tmp=`jq -r '."os_name"' "/var/db/trueos-manifest.json"`
-  if [ -n "${_tmp}" ] ; then 
+  if [ -n "${_tmp}" -a "${_tmp}" != "null" ] ; then
     BRAND="${_tmp}"
   fi
 fi

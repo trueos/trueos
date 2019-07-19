@@ -1567,9 +1567,11 @@ pf_state_expires(const struct pf_state *state)
 		states = V_pf_status.states;
 	}
 	if (end && states > start && start < end) {
-		if (states < end)
-			return (state->expire + timeout * (end - states) /
-			    (end - start));
+		if (states < end) {
+			timeout = (u_int64_t)timeout * (end - states) /
+			    (end - start);
+			return (state->expire + timeout);
+		}
 		else
 			return (time_uptime);
 	}
@@ -5511,6 +5513,8 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	dst.sin_len = sizeof(dst);
 	dst.sin_addr = ip->ip_dst;
 
+	bzero(&naddr, sizeof(naddr));
+
 	if (TAILQ_EMPTY(&r->rpool.list)) {
 		DPFPRINTF(PF_DEBUG_URGENT,
 		    ("%s: TAILQ_EMPTY(&r->rpool.list)\n", __func__));
@@ -5669,6 +5673,8 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	dst.sin6_family = AF_INET6;
 	dst.sin6_len = sizeof(dst);
 	dst.sin6_addr = ip6->ip6_dst;
+
+	bzero(&naddr, sizeof(naddr));
 
 	if (TAILQ_EMPTY(&r->rpool.list)) {
 		DPFPRINTF(PF_DEBUG_URGENT,

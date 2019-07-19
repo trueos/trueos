@@ -115,8 +115,8 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 options 	EARLY_AP_STARTUP
 
 # Enable /dev/input/eventX for input devices
-device		evdev
-options		EVDEV_SUPPORT
+#device		evdev
+#options		EVDEV_SUPPORT
 
 # CPU frequency control
 device		cpufreq
@@ -394,8 +394,3 @@ options ALTQ_RIO	# RED In/Out
 options ALTQ_HFSC	# Hierarchical Packet Scheduler (HFSC)
 options ALTQ_PRIQ	# Priority Queuing (PRIQ)
 options ALTQ_NOPCC	# Required for SMP build
-
-# evdev interface
-options 	EVDEV_SUPPORT		# evdev support in legacy drivers
-device		evdev			# input event device support
-device		uinput			# install /dev/uinput cdev

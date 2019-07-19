@@ -253,8 +253,6 @@
             ..
             hostapd
             ..
-            ibcs2
-            ..
             indent
             ..
             ipfilter
@@ -287,8 +285,6 @@
                     ..
                 ..
             ..
-            ldapd
-            ..
             libusb20
             ..
             libvgl
@@ -304,8 +300,6 @@
             perfmon
             ..
             pf
-            ..
-            poudriere
             ..
             ppi
             ..
@@ -1182,32 +1176,6 @@
                 ..
             ..
             doc
-            ..
-        ..
-        poudriere
-            awk
-            ..
-            html
-                assets
-                    DataTables-1.10.0
-                        css
-                        ..
-                        images
-                        ..
-                        js
-                        ..
-                    ..
-                    bootstrap-3.1.1
-                        css
-                        ..
-                        fonts
-                        ..
-                        js
-                        ..
-                    ..
-                ..
-            ..
-            include
             ..
         ..
         security

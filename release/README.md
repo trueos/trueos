@@ -116,6 +116,8 @@ The "iso" target within the manifest controls all the options specific to creati
 * "optional-dist-packages" (JSON object) : Lists of packages (by port origin) to have available in .txz form on the ISO. These ones are considered "optional" and may or may not be included depending on whether the package built successfully.
    * "default" (JSON array of strings) : Default list (required)
    * "ENV_VARIABLE" (JSON array of strings) : Additional list to be added to the "default" list **if** an environment variable with the same name exists.
+* "pool" (JSON object) : Settings for boot pool
+ * "name" (string) : Default name of ZFS boot pool
 * "prune-dist-packages" (JSON object) : Lists of *regular expressions* to use to find and remove dist packages. This is useful for forcibly removing particular types of base packages.
    * Note: The regular expression support is shell based (grep -E "expression"). Lookahead and look
    * "default" (JSON array of strings) : Default list (required)

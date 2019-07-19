@@ -238,19 +238,18 @@ extern bitstr_t proc_id_grpidmap;
 extern bitstr_t proc_id_sessidmap;
 extern bitstr_t proc_id_reapmap;
 
+/*
+ * Find an unused process ID
+ *
+ * If RFHIGHPID is set (used during system boot), do not allocate
+ * low-numbered pids.
+ */
 static int
 fork_findpid(int flags)
 {
 	pid_t result;
 	int trypid;
 
-	/*
-	 * Find an unused process ID.  We remember a range of unused IDs
-	 * ready to use (from lastpid+1 through pidchecked-1).
-	 *
-	 * If RFHIGHPID is set (used during system boot), do not allocate
-	 * low-numbered pids.
-	 */
 	trypid = lastpid + 1;
 	if (flags & RFHIGHPID) {
 		if (trypid < 10)
@@ -280,7 +279,7 @@ retry:
 	if (bit_test(&proc_id_grpidmap, result) ||
 	    bit_test(&proc_id_sessidmap, result) ||
 	    bit_test(&proc_id_reapmap, result)) {
-		trypid++;
+		trypid = result + 1;
 		goto retry;
 	}
 
@@ -754,6 +753,51 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		thread_unlock(td2);
 	} else {
 		*fr->fr_procp = p2;
+	}
+}
+
+void
+fork_rfppwait(struct thread *td)
+{
+	struct proc *p, *p2;
+
+	MPASS(td->td_pflags & TDP_RFPPWAIT);
+
+	p = td->td_proc;
+	/*
+	 * Preserve synchronization semantics of vfork.  If
+	 * waiting for child to exec or exit, fork set
+	 * P_PPWAIT on child, and there we sleep on our proc
+	 * (in case of exit).
+	 *
+	 * Do it after the ptracestop() above is finished, to
+	 * not block our debugger until child execs or exits
+	 * to finish vfork wait.
+	 */
+	td->td_pflags &= ~TDP_RFPPWAIT;
+	p2 = td->td_rfppwait_p;
+again:
+	PROC_LOCK(p2);
+	while (p2->p_flag & P_PPWAIT) {
+		PROC_LOCK(p);
+		if (thread_suspend_check_needed()) {
+			PROC_UNLOCK(p2);
+			thread_suspend_check(0);
+			PROC_UNLOCK(p);
+			goto again;
+		} else {
+			PROC_UNLOCK(p);
+		}
+		cv_timedwait(&p2->p_pwait, &p2->p_mtx, hz);
+	}
+	PROC_UNLOCK(p2);
+
+	if (td->td_dbgflags & TDB_VFORK) {
+		PROC_LOCK(p);
+		if (p->p_ptevents & PTRACE_VFORK)
+			ptracestop(td, SIGTRAP, NULL);
+		td->td_dbgflags &= ~TDB_VFORK;
+		PROC_UNLOCK(p);
 	}
 }
 

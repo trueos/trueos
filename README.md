@@ -6,8 +6,6 @@ TrueOS Source:
 This is the top level TrueOS source directory. It is more or less a fork
 of [FreeBSD](https://github.com/freebsd/freebsd).
 
-The last sync with FreeBSD was on Oct 26th 2018, with the commit [d119e0c8d0fa3f99c61875e4d38f94f2ed75d5c2](https://github.com/freebsd/freebsd/commit/d119e0c8d0fa3f99c61875e4d38f94f2ed75d5c2).
-
 TrueOS Differences:
 --------------
 
@@ -29,9 +27,6 @@ OpenRC's init.d subsystem, allowing faster boots, as well as a host of other ser
 
 * Package Base - TrueOS is installed and based on using Packages for the Base OS.
 
-* [pkg in base](https://github.com/freebsd/pkg) - To go along with using base system packages,
-TrueOS has also integrated PKG directly in the base system.
-
 * Root NSS Certs - Since it really is a bummer to not be able to use HTTPS out of box...
 
 * Custom Installer - TrueOS includes its own [pc-sysinstall](https://github.com/trueos/trueos/tree/trueos-master/usr.sbin/pc-sysinstall) installation system, along with
@@ -40,9 +35,7 @@ as scriptability.
 
 * [JSON Build Manifest](https://github.com/trueos/trueos/tree/trueos-master/release/README.md) - TrueOS supports a customizable JSON manifest for building. This allows TrueOS to run poudriere and assemble installation images for a variety of use-cases.
 
-* Single repo - Base packages and ports now share a single repository which allows base packages to depend upon ports, such as llvm60 or jq for -devel packages
-
-* Clang disabled from base - This allows us to buildworld in a fraction of the time, while using a more up to date version of clang/llvm from ports
+* Single repo - Base packages and ports now share a single repository which allows base packages to depend upon ports, such as jq for -devel packages
 
 * More as they come...
 
@@ -69,34 +62,15 @@ To change the default manifest from CI to something else, set the TRUEOS_MANIFES
  ...
 ```
 
-Compiler Instructions:
---------------
-
-By default TrueOS now uses the external llvm compiler from ports. This will be included with "TrueNAS-runtime-development" when installed.
-
-To change from the default (current llvm60) you can run:
-
-```
-# compiler-bootstrap llvm70
-```
-
-Currently only llvm60 and llvm70 are supported. If you have both installed you can toggle between them by re-running the
-"compiler-bootstrap" command as necessary.
-
 Using Poudriere:
 --------------
 
-Since TrueOS uses an external toolchain, an additional step is required before using stock Poudriere. This is to install the base
-pkg environment and boot-strap the external compiler. To create a Poudriere jail on TrueOS, run the following:
+Since TrueOS uses an external toolchain, an additional step is required before using stock Poudriere. This is to install the base pkg environment and boot-strap the external compiler. To create a Poudriere jail on TrueOS, run the following command assuming you have poudriere-trueos installed:
 
 ```
-# mk-base-jail -t poudriere -c llvm60 <directory>
+poudriere jail -c -j trueos -m trueos -v 13.0
 ```
-
-You can then import this prepared jail into poudriere using the following command:
-
+and to update jail to the latest trueos snapshot you can use
 ```
-# poudriere jail -c -j myjailname -m null -M <directory> -v 12.0-RELEASE
+poudriere jail -u -j trueos
 ```
-
-Replace "myjailname" and 12.0-RELEASE" as necessary.
