@@ -295,7 +295,6 @@ static void	pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
 
-static int pmap_change_attr(vm_offset_t va, vm_size_t size, int mode);
 static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode);
 static pt_entry_t *pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va);
 static pt_entry_t *pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2,
@@ -1080,14 +1079,11 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	pt_entry_t *pte, tpte;
 	vm_offset_t off;
-	vm_paddr_t pa;
 	vm_page_t m;
 	int lvl;
 
-	pa = 0;
 	m = NULL;
 	PMAP_LOCK(pmap);
-retry:
 	pte = pmap_pte(pmap, va, &lvl);
 	if (pte != NULL) {
 		tpte = pmap_load(pte);
@@ -1112,14 +1108,11 @@ retry:
 			default:
 				off = 0;
 			}
-			if (vm_page_pa_tryrelock(pmap,
-			    (tpte & ~ATTR_MASK) | off, &pa))
-				goto retry;
 			m = PHYS_TO_VM_PAGE((tpte & ~ATTR_MASK) | off);
-			vm_page_wire(m);
+			if (!vm_page_wire_mapped(m))
+				m = NULL;
 		}
 	}
-	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pmap);
 	return (m);
 }
@@ -5263,7 +5256,7 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
  * latter case, the memory type may have been changed on some part of the
  * virtual address range or the direct map.
  */
-static int
+int
 pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 {
 	int error;

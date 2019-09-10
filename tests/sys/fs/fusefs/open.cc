@@ -26,6 +26,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 extern "C" {
@@ -112,7 +114,7 @@ TEST_F(Open, enoent)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(ENOENT)));
-	EXPECT_NE(0, open(FULLPATH, O_RDONLY));
+	ASSERT_EQ(-1, open(FULLPATH, O_RDONLY));
 	EXPECT_EQ(ENOENT, errno);
 }
 
@@ -134,7 +136,7 @@ TEST_F(Open, eperm)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(EPERM)));
-	EXPECT_NE(0, open(FULLPATH, O_RDONLY));
+	ASSERT_EQ(-1, open(FULLPATH, O_RDONLY));
 	EXPECT_EQ(EPERM, errno);
 }
 

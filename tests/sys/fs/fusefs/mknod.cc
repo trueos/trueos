@@ -26,6 +26,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 extern "C" {
@@ -212,8 +214,11 @@ TEST_F(Mknod, socket)
 	ASSERT_LE(0, fd) << strerror(errno);
 	sa.sun_family = AF_UNIX;
 	strlcpy(sa.sun_path, FULLPATH, sizeof(sa.sun_path));
+	sa.sun_len = sizeof(FULLPATH);
 	ASSERT_EQ(0, bind(fd, (struct sockaddr*)&sa, sizeof(sa)))
 		<< strerror(errno);
+
+	leak(fd);
 }
 
 /* 

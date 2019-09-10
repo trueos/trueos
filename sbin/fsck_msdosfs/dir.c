@@ -169,20 +169,24 @@ fullpath(struct dosDirEntry *dir)
 	char *cp, *np;
 	int nl;
 
-	cp = namebuf + sizeof namebuf - 1;
-	*cp = '\0';
-	do {
+	cp = namebuf + sizeof namebuf;
+	*--cp = '\0';
+
+	for(;;) {
 		np = dir->lname[0] ? dir->lname : dir->name;
 		nl = strlen(np);
-		if ((cp -= nl) <= namebuf + 1)
+		if (cp <= namebuf + 1 + nl) {
+			*--cp = '?';
 			break;
+		}
+		cp -= nl;
 		memcpy(cp, np, nl);
+		dir = dir->parent;
+		if (!dir)
+			break;
 		*--cp = '/';
-	} while ((dir = dir->parent) != NULL);
-	if (dir)
-		*--cp = '?';
-	else
-		cp++;
+	}
+
 	return cp;
 }
 
@@ -220,7 +224,6 @@ int
 resetDosDirSection(struct bootblock *boot, struct fatEntry *fat)
 {
 	int b1, b2;
-	cl_t cl;
 	int ret = FSOK;
 	size_t len;
 
@@ -253,24 +256,9 @@ resetDosDirSection(struct bootblock *boot, struct fatEntry *fat)
 			       boot->bpbRootClust);
 			return FSFATAL;
 		}
-		cl = fat[boot->bpbRootClust].next;
-		if (cl < CLUST_FIRST
-		    || (cl >= CLUST_RSRVD && cl< CLUST_EOFS)
-		    || fat[boot->bpbRootClust].head != boot->bpbRootClust) {
-			if (cl == CLUST_FREE)
-				pwarn("Root directory starts with free cluster\n");
-			else if (cl >= CLUST_RSRVD)
-				pwarn("Root directory starts with cluster marked %s\n",
-				      rsrvdcltype(cl));
-			else {
-				pfatal("Root directory doesn't start a cluster chain");
-				return FSFATAL;
-			}
-			if (ask(1, "Fix")) {
-				fat[boot->bpbRootClust].next = CLUST_FREE;
-				ret = FSFATMOD;
-			} else
-				ret = FSFATAL;
+		if (fat[boot->bpbRootClust].head != boot->bpbRootClust) {
+			pfatal("Root directory doesn't start a cluster chain");
+			return FSFATAL;
 		}
 
 		fat[boot->bpbRootClust].flags |= FAT_USED;

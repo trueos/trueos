@@ -451,7 +451,7 @@ page_unbusy(vm_page_t pp)
 {
 
 	vm_page_sunbusy(pp);
-	vm_object_pip_subtract(pp->object, 1);
+	vm_object_pip_wakeup(pp->object);
 }
 
 static vm_page_t
@@ -481,9 +481,7 @@ page_wire(vnode_t *vp, int64_t start)
 			}
 
 			ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
-			vm_page_lock(pp);
 			vm_page_wire(pp);
-			vm_page_unlock(pp);
 		} else
 			pp = NULL;
 		break;
@@ -495,9 +493,7 @@ static void
 page_unwire(vm_page_t pp)
 {
 
-	vm_page_lock(pp);
 	vm_page_unwire(pp, PQ_ACTIVE);
-	vm_page_unlock(pp);
 }
 
 /*
@@ -523,6 +519,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 
 	off = start & PAGEOFFSET;
 	zfs_vmobject_wlock(obj);
+	vm_object_pip_add(obj, 1);
 	for (start &= PAGEMASK; len > 0; start += PAGESIZE) {
 		vm_page_t pp;
 		int nbytes = imin(PAGESIZE - off, len);
@@ -541,7 +538,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 		len -= nbytes;
 		off = 0;
 	}
-	vm_object_pip_wakeupn(obj, 0);
+	vm_object_pip_wakeup(obj);
 	zfs_vmobject_wunlock(obj);
 }
 
@@ -590,16 +587,16 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 			zfs_unmap_page(sf);
 			zfs_vmobject_wlock(obj);
 			vm_page_sunbusy(pp);
-			vm_page_lock(pp);
 			if (error) {
-				if (pp->wire_count == 0 && pp->valid == 0 &&
-				    !vm_page_busied(pp))
+				if (!vm_page_busied(pp) && !vm_page_wired(pp) &&
+				    pp->valid == 0)
 					vm_page_free(pp);
 			} else {
 				pp->valid = VM_PAGE_BITS_ALL;
+				vm_page_lock(pp);
 				vm_page_activate(pp);
+				vm_page_unlock(pp);
 			}
-			vm_page_unlock(pp);
 		} else {
 			ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
 			vm_page_sunbusy(pp);
@@ -5374,9 +5371,6 @@ zfs_freebsd_reclaim(ap)
 
 	ASSERT(zp != NULL);
 
-	/* Destroy the vm object and flush associated pages. */
-	vnode_destroy_vobject(vp);
-
 	/*
 	 * z_teardown_inactive_lock protects from a race with
 	 * zfs_znode_dmu_fini in zfsvfs_teardown during
@@ -5918,6 +5912,7 @@ zfs_vptocnp(struct vop_vptocnp_args *ap)
 	vnode_t *vp = ap->a_vp;;
 	zfsvfs_t *zfsvfs = vp->v_vfsp->vfs_data;
 	znode_t *zp = VTOZ(vp);
+	enum vgetstate vs;
 	int ltype;
 	int error;
 
@@ -5950,10 +5945,10 @@ zfs_vptocnp(struct vop_vptocnp_args *ap)
 	ZFS_EXIT(zfsvfs);
 
 	covered_vp = vp->v_mount->mnt_vnodecovered;
-	vhold(covered_vp);
+	vs = vget_prep(covered_vp);
 	ltype = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp, 0);
-	error = vget(covered_vp, LK_SHARED | LK_VNHELD, curthread);
+	error = vget_finish(covered_vp, LK_SHARED, vs);
 	if (error == 0) {
 		error = VOP_VPTOCNP(covered_vp, ap->a_vpp, ap->a_cred,
 		    ap->a_buf, ap->a_buflen);

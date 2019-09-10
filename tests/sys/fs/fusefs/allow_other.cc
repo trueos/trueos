@@ -26,6 +26,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -253,6 +255,8 @@ TEST_F(NoAllowOther, disallowed_beneath_root)
 		}
 	);
 	ASSERT_EQ(0, WEXITSTATUS(status));
+
+	leak(dfd);
 }
 
 /* 

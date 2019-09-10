@@ -102,11 +102,10 @@ __FBSDID("$FreeBSD$");
 /*
  * Map of physical memory reagions
  */
-vm_paddr_t phys_avail[128];
-static struct ofw_mem_region mra[128];
-struct ofw_mem_region sparc64_memreg[128];
+static struct ofw_mem_region mra[VM_PHYSSEG_MAX];
+struct ofw_mem_region sparc64_memreg[VM_PHYSSEG_MAX];
 int sparc64_nmemreg;
-static struct ofw_map translations[128];
+static struct ofw_map translations[VM_PHYSSEG_MAX];
 static int translations_size;
 
 static vm_offset_t pmap_idle_map;
@@ -331,7 +330,7 @@ pmap_bootstrap(u_int cpu_impl)
 		OF_panic("%s: finddevice /memory", __func__);
 	if ((sz = OF_getproplen(pmem, "available")) == -1)
 		OF_panic("%s: getproplen /memory/available", __func__);
-	if (sizeof(phys_avail) < sz)
+	if (PHYS_AVAIL_ENTRIES < sz)
 		OF_panic("%s: phys_avail too small", __func__);
 	if (sizeof(mra) < sz)
 		OF_panic("%s: mra too small", __func__);
@@ -847,19 +846,15 @@ pmap_extract_and_hold(pmap_t pm, vm_offset_t va, vm_prot_t prot)
 {
 	struct tte *tp;
 	vm_page_t m;
-	vm_paddr_t pa;
 
 	m = NULL;
-	pa = 0;
 	PMAP_LOCK(pm);
-retry:
 	if (pm == kernel_pmap) {
 		if (va >= VM_MIN_DIRECT_ADDRESS) {
 			tp = NULL;
 			m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS(va));
-			(void)vm_page_pa_tryrelock(pm, TLB_DIRECT_TO_PHYS(va),
-			    &pa);
-			vm_page_wire(m);
+			if (!vm_page_wire_mapped(m))
+				m = NULL;
 		} else {
 			tp = tsb_kvtotte(va);
 			if ((tp->tte_data & TD_V) == 0)
@@ -869,12 +864,10 @@ retry:
 		tp = tsb_tte_lookup(pm, va);
 	if (tp != NULL && ((tp->tte_data & TD_SW) ||
 	    (prot & VM_PROT_WRITE) == 0)) {
-		if (vm_page_pa_tryrelock(pm, TTE_GET_PA(tp), &pa))
-			goto retry;
 		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
-		vm_page_wire(m);
+		if (!vm_page_wire_mapped(m))
+			m = NULL;
 	}
-	PA_UNLOCK_COND(pa);
 	PMAP_UNLOCK(pm);
 	return (m);
 }

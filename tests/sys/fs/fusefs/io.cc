@@ -26,6 +26,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 extern "C" {
@@ -106,7 +108,7 @@ int m_backing_fd, m_control_fd, m_test_fd;
 off_t m_filesize;
 bool m_direct_io;
 
-Io(): m_backing_fd(-1), m_control_fd(-1), m_direct_io(false) {};
+Io(): m_backing_fd(-1), m_control_fd(-1), m_test_fd(-1), m_direct_io(false) {};
 
 void SetUp()
 {

@@ -26,6 +26,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 extern "C" {
@@ -464,6 +466,8 @@ TEST_F(Intr, in_kernel_restartable)
 	EXPECT_EQ(0, (intptr_t)thr0_value);
 	sem_destroy(&sem1);
 	sem_destroy(&sem0);
+
+	leak(fd1);
 }
 
 /*
@@ -534,6 +538,8 @@ TEST_F(Intr, in_kernel_nonrestartable)
 	EXPECT_EQ(0, (intptr_t)thr0_value);
 	sem_destroy(&sem1);
 	sem_destroy(&sem0);
+
+	leak(fd1);
 }
 
 /* 
@@ -609,6 +615,8 @@ TEST_F(Intr, in_progress_read)
 	setup_interruptor(self);
 	ASSERT_EQ(-1, read(fd, buf, bufsize));
 	EXPECT_EQ(EINTR, errno);
+
+	leak(fd);
 }
 
 /*
