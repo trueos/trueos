@@ -26,6 +26,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 extern "C" {
@@ -71,17 +73,10 @@ void expect_lookup(const char *relpath, uint64_t ino, uint64_t size)
 class AioRead: public Read {
 public:
 virtual void SetUp() {
-	const char *node = "vfs.aio.enable_unsafe";
-	int val = 0;
-	size_t size = sizeof(val);
-
-	FuseTest::SetUp();
-
-	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
-		<< strerror(errno);
-	if (!val)
+	if (!is_unsafe_aio_enabled())
 		GTEST_SKIP() <<
 			"vfs.aio.enable_unsafe must be set for this test";
+	FuseTest::SetUp();
 }
 };
 
@@ -118,7 +113,7 @@ TEST_F(AioRead, aio_read)
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 	struct aiocb iocb, *piocb;
 
 	expect_lookup(RELPATH, ino, bufsize);
@@ -332,7 +327,7 @@ TEST_F(Read, direct_io_pread)
 	int fd;
 	uint64_t offset = 100;
 	ssize_t bufsize = strlen(CONTENTS);
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 
 	expect_lookup(RELPATH, ino, offset + bufsize);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
@@ -366,7 +361,7 @@ TEST_F(Read, direct_io_short_read)
 	uint64_t offset = 100;
 	ssize_t bufsize = strlen(CONTENTS);
 	ssize_t halfbufsize = bufsize / 2;
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 
 	expect_lookup(RELPATH, ino, offset + bufsize);
 	expect_open(ino, FOPEN_DIRECT_IO, 1);
@@ -389,7 +384,7 @@ TEST_F(Read, eio)
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
@@ -424,7 +419,7 @@ TEST_F(Read, eof)
 	ssize_t bufsize = strlen(CONTENTS);
 	ssize_t partbufsize = 3 * bufsize / 4;
 	ssize_t r;
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 	struct stat sb;
 
 	expect_lookup(RELPATH, ino, offset + bufsize);
@@ -453,7 +448,7 @@ TEST_F(Read, eof_of_whole_buffer)
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
 	off_t old_filesize = m_maxbcachebuf * 2 + bufsize;
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 	struct stat sb;
 
 	expect_lookup(RELPATH, ino, old_filesize);
@@ -488,7 +483,7 @@ TEST_F(Read, keep_cache)
 	uint64_t ino = 42;
 	int fd0, fd1;
 	ssize_t bufsize = strlen(CONTENTS);
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, bufsize, 2);
 	expect_open(ino, FOPEN_KEEP_CACHE, 2);
@@ -523,7 +518,7 @@ TEST_F(Read, keep_cache_disabled)
 	uint64_t ino = 42;
 	int fd0, fd1;
 	ssize_t bufsize = strlen(CONTENTS);
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, bufsize, 2);
 	expect_open(ino, 0, 2);
@@ -651,7 +646,7 @@ TEST_F(Read, o_direct)
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
@@ -687,7 +682,7 @@ TEST_F(Read, pread)
 	 */
 	uint64_t offset = m_maxbcachebuf;
 	ssize_t bufsize = strlen(CONTENTS);
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 
 	expect_lookup(RELPATH, ino, offset + bufsize);
 	expect_open(ino, 0, 1);
@@ -709,7 +704,7 @@ TEST_F(Read, read)
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
@@ -732,7 +727,7 @@ TEST_F(Read_7_8, read)
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 
 	expect_lookup(RELPATH, ino, bufsize);
 	expect_open(ino, 0, 1);
@@ -794,7 +789,7 @@ TEST_F(Read, sendfile)
 	uint64_t ino = 42;
 	int fd;
 	size_t bufsize = strlen(CONTENTS);
-	char buf[bufsize];
+	uint8_t buf[bufsize];
 	int sp[2];
 	off_t sbytes;
 

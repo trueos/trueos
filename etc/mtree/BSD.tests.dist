@@ -440,6 +440,10 @@
             files
             ..
         ..
+        ping
+        ..
+        ping6
+        ..
     ..
     secure
         lib
@@ -1014,6 +1018,8 @@
         ..
         opensm
         ..
+        patch
+        ..
         pr
         ..
         printf
@@ -1075,6 +1081,8 @@
         fstyp
         ..
         makefs
+        ..
+        mixer
         ..
         newsyslog
         ..

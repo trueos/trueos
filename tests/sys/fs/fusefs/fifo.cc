@@ -26,6 +26,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 extern "C" {
@@ -122,6 +124,7 @@ static void* socket_writer(void* arg __unused) {
 	}
 	sa.sun_family = AF_UNIX;
 	strlcpy(sa.sun_path, FULLPATH, sizeof(sa.sun_path));
+	sa.sun_len = sizeof(FULLPATH);
 	err = connect(fd, (struct sockaddr*)&sa, sizeof(sa));
 	if (err < 0) {
 		perror("connect");
@@ -138,6 +141,8 @@ static void* socket_writer(void* arg __unused) {
 			sent += r;
 		
 	}
+
+	FuseTest::leak(fd);
 	return 0;
 }
 
@@ -187,6 +192,7 @@ TEST_F(Socket, read_write)
 	ASSERT_LE(0, fd) << strerror(errno);
 	sa.sun_family = AF_UNIX;
 	strlcpy(sa.sun_path, FULLPATH, sizeof(sa.sun_path));
+	sa.sun_len = sizeof(FULLPATH);
 	ASSERT_EQ(0, bind(fd, (struct sockaddr*)&sa, sizeof(sa)))
 		<< strerror(errno);
 	listen(fd, 5);

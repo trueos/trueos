@@ -26,6 +26,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 struct _sem;
@@ -41,6 +43,8 @@ inline void nap()
 {
 	usleep(NAP_NS / 1000);
 }
+
+bool is_unsafe_aio_enabled(void);
 
 extern const uint32_t libfuse_max_write;
 extern const uint32_t default_max_write;
@@ -79,7 +83,9 @@ class FuseTest : public ::testing::Test {
 		m_async(false),
 		m_noclusterr(false),
 		m_nointr(false),
-		m_time_gran(1)
+		m_time_gran(1),
+		m_maxbcachebuf(0),
+		m_maxphys(0)
 	{}
 
 	virtual void SetUp();
@@ -225,6 +231,7 @@ class FuseTest : public ::testing::Test {
 	 * to document the leakage, and provide a single point of suppression
 	 * for static analyzers.
 	 */
+	/* coverity[+close: arg-0] */
 	static void leak(int fd __unused) {}
 
 	/*

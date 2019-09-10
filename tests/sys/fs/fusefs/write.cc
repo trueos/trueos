@@ -26,6 +26,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 extern "C" {
@@ -33,7 +35,6 @@ extern "C" {
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
-#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 
@@ -136,17 +137,10 @@ void expect_lookup(const char *relpath, uint64_t ino, uint64_t size)
 
 class AioWrite: public Write {
 virtual void SetUp() {
-	const char *node = "vfs.aio.enable_unsafe";
-	int val = 0;
-	size_t size = sizeof(val);
-
-	FuseTest::SetUp();
-
-	ASSERT_EQ(0, sysctlbyname(node, &val, &size, NULL, 0))
-		<< strerror(errno);
-	if (!val)
+	if (!is_unsafe_aio_enabled())
 		GTEST_SKIP() <<
 			"vfs.aio.enable_unsafe must be set for this test";
+	FuseTest::SetUp();
 }
 };
 
@@ -189,7 +183,7 @@ class WriteCluster: public WriteBack {
 public:
 virtual void SetUp() {
 	m_async = true;
-	m_maxwrite = m_maxphys;
+	m_maxwrite = 1 << 25;	// Anything larger than MAXPHYS will suffice
 	WriteBack::SetUp();
 	if (m_maxphys < 2 * DFLTPHYS)
 		GTEST_SKIP() << "MAXPHYS must be at least twice DFLTPHYS"
@@ -569,6 +563,8 @@ TEST_F(Write, mmap)
 
 	free(expected);
 	free(zeros);
+
+	leak(fd);
 }
 
 TEST_F(Write, pwrite)
@@ -620,6 +616,8 @@ TEST_F(Write, timestamps)
 	EXPECT_EQ(sb0.st_atime, sb1.st_atime);
 	EXPECT_NE(sb0.st_mtime, sb1.st_mtime);
 	EXPECT_NE(sb0.st_ctime, sb1.st_ctime);
+
+	leak(fd);
 }
 
 TEST_F(Write, write)
@@ -869,7 +867,7 @@ TEST_F(WriteBack, cache)
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
-	char readbuf[bufsize];
+	uint8_t readbuf[bufsize];
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
@@ -901,7 +899,7 @@ TEST_F(WriteBack, o_direct)
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
-	char readbuf[bufsize];
+	uint8_t readbuf[bufsize];
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
@@ -948,6 +946,7 @@ TEST_F(WriteBackAsync, delay)
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 
 	/* Don't close the file because that would flush the cache */
+	leak(fd);
 }
 
 /*
@@ -1181,6 +1180,8 @@ TEST_F(WriteBackAsync, timestamps)
 	EXPECT_EQ((time_t)server_time, sb.st_atime);
 	EXPECT_NE((time_t)server_time, sb.st_mtime);
 	EXPECT_NE((time_t)server_time, sb.st_ctime);
+
+	leak(fd);
 }
 
 /* Any dirty timestamp fields should be flushed during a SETATTR */
@@ -1214,6 +1215,8 @@ TEST_F(WriteBackAsync, timestamps_during_setattr)
 	EXPECT_LE(0, fd) << strerror(errno);
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, fchmod(fd, newmode)) << strerror(errno);
+
+	leak(fd);
 }
 
 /* fuse_init_out.time_gran controls the granularity of timestamps */
@@ -1249,6 +1252,8 @@ TEST_P(TimeGran, timestamps_during_setattr)
 	EXPECT_LE(0, fd) << strerror(errno);
 	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
 	ASSERT_EQ(0, fchmod(fd, newmode)) << strerror(errno);
+
+	leak(fd);
 }
 
 INSTANTIATE_TEST_CASE_P(RA, TimeGran, Range(0u, 10u));
@@ -1264,7 +1269,7 @@ TEST_F(Write, writethrough)
 	uint64_t ino = 42;
 	int fd;
 	ssize_t bufsize = strlen(CONTENTS);
-	char readbuf[bufsize];
+	uint8_t readbuf[bufsize];
 
 	expect_lookup(RELPATH, ino, 0);
 	expect_open(ino, 0, 1);
