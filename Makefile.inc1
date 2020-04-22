@@ -2226,7 +2226,7 @@ _basic_bootstrap_tools=usr.bin/awk usr.bin/cut bin/expr usr.bin/gencat \
     usr.bin/join usr.bin/mktemp bin/rmdir usr.bin/sed usr.bin/sort \
     usr.bin/truncate usr.bin/tsort
 # elf2aout is required for sparc64 build
-_basic_bootstrap_tools+=usr.bin/elf2aout
+#_basic_bootstrap_tools+=usr.bin/elf2aout
 # file2c is required for building usr.sbin/config:
 _basic_bootstrap_tools+=usr.bin/file2c
 # uuencode/uudecode required for share/tabset
